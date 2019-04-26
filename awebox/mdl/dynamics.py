@@ -51,7 +51,6 @@ import awebox.mdl.aero.tether_dir.tether_drag_coefficients as tether_drag_coeff
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
-import pdb
 
 
 def make_dynamics(options,atmos,wind,parameters,architecture):
@@ -216,8 +215,6 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
 
         dynamics_list += [induction_constraint]
 
-    # pdb.set_trace()
-
     # system dynamics function (implicit form)
 
     # order of V is: q, dq, omega, R, delta, lt, dlt, e
@@ -307,8 +304,6 @@ def make_output_constraint_structure(options, outputs, system_variables, paramet
     constraint_struct = cas.struct_symMX(full_list)
     constraints = constraint_struct(constraint_vec)
     constraint_fun = cas.Function('constraint_out_fun',  [system_variables['scaled'], parameters], [constraints])
-
-    # pdb.set_trace()
 
     return [constraint_struct, constraint_fun]
 
