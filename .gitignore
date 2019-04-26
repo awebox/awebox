@@ -1,0 +1,33 @@
+
+# Python
+*.pyc
+.pytest_cache/
+
+# Figures
+figures/
+*.jpg
+*.eps
+
+# Savefiles
+*.csv
+*.xml
+*.log
+*.awes
+*.p
+*.awe
+*.dict
+
+# Code-generated files
+*.c
+
+# Documentation
+docs/build/
+docs/source/AWEbox.*
+docs/source/modules.rst
+
+# Experimental folder for private use
+experimental/
+
+# Miscellaneous
+.idea/
+.history/
