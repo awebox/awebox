@@ -29,8 +29,6 @@
 
 import numpy as np
 import logging
-import awebox.tools.struct_operations as struct_op
-import pdb
 
 def test_numerics(trial, test_param_dict, results):
     """

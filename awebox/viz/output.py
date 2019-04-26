@@ -28,8 +28,6 @@ import matplotlib.ticker as mtick
 import matplotlib.pyplot as plt
 import awebox.viz.tools as tools
 
-import awebox.tools.struct_operations as struct_op
-
 import casadi.tools as cas
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
@@ -412,7 +410,6 @@ def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 #     outputs = solution_dict['outputs']
 #
 #     fig = plt.figure(fig_num)
-#     pdb.set_trace()
 #     selected_outputs = [('aerodynamics','alpha_deg'), ('aerodynamics','beta_deg'), ('aerodynamics','CA'), ('aerodynamics','CY'), ('aerodynamics','CN'), ('aerodynamics','CD'), ('aerodynamics','CS'), ('aerodynamics','CL'), ('aerodynamics','reynolds'), ('aerodynamics','mach'), ('aerodynamics','speed')]
 #
 #     plot_table_r = 4

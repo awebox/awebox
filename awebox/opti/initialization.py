@@ -38,10 +38,6 @@ import awebox.tools.vector_operations as vect_op
 import logging
 
 import awebox.tools.struct_operations as struct_op
-import awebox.mdl.aero.actuator_disk_dir.geom as act_disk_geom
-import awebox.mdl.aero.actuator_disk_dir.flow as act_disk_flow
-
-import pdb
 
 def get_initial_guess(nlp, model, formulation, options):
     V_init_si = build_si_initial_guess(nlp, model, formulation, options)

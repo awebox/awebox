@@ -35,7 +35,6 @@ import awebox.tools.debug_operations as debug_op
 import numpy as np
 
 import logging
-import pdb
 import casadi as cas
 
 def print_homotopy_values(nlp, solution, p_fix_num):

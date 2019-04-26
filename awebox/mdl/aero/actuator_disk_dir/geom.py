@@ -33,7 +33,6 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import pdb
 
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.actuator_disk_dir.geometry_dir.path_geom as path_based

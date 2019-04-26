@@ -32,7 +32,6 @@ python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import pdb
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 

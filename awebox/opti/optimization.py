@@ -47,9 +47,6 @@ import logging
 import time
 
 import pickle
-import pdb
-import pdb
-import numpy as np
 
 class Optimization(object):
     def __init__(self):
@@ -179,8 +176,6 @@ class Optimization(object):
         self.__V_init = nlp.V(self.__arg['x0'])
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
-
-        # pdb.set_trace()
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')

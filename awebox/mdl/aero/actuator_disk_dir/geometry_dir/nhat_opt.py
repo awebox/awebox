@@ -35,8 +35,6 @@ import numpy as np
 import casadi as cas
 import logging
 
-import pdb
-
 import awebox.tools.vector_operations as vect_op
 
 

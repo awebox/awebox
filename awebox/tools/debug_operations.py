@@ -29,7 +29,6 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import pdb
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
@@ -78,7 +77,6 @@ def sosc_check(health_solver_options, nlp, solution, arg):
 
     logging.debug('find the null space...')
 
-    pdb.set_trace()
 
     null = vect_op.null(linearization_eval, health_solver_options['sosc']['reduced_hessian_null_tol'])
 
@@ -140,8 +138,6 @@ def licq_check_on_equality_constraints(health_solver_options, nlp, solution, p_f
     print(poss_trouble_var)
     print((nlp.V.getCanonicalIndex(poss_trouble_var)))
     print((np.max(cstr_block_eval[:, poss_trouble_var])))
-
-    pdb.set_trace()
 
     full_rank_check(health_solver_options, cstr_block_eval, 'equality constraint block', 'LICQ')
 
@@ -602,7 +598,6 @@ def interpret_kkt_index(health_solver_options, idx, nlp, solution, arg):
             addon_disply('index ' + str(idx), stacked_labels[idx_remainder])
 
         else:
-            'index error in interpretation'
-            pdb.set_trace()
+            logging.error('index error in interpretation')
 
     return None
