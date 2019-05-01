@@ -698,6 +698,9 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['discretization'] = nlp.discretization
     if nlp.discretization == 'direct_collocation':
         plot_dict['d'] = nlp.d
+        plot_dict['u_param'] = options['nlp']['collocation']['u_param']
+    else:
+        plot_dict['u_param'] = 'zoh'
     plot_dict['Collocation'] = nlp.Collocation
 
     # model information
@@ -848,7 +851,12 @@ def interpolate_data(plot_dict, cosmetics):
     nlp_options = plot_dict['options']['nlp']
     V_plot = plot_dict['V_plot']
     if plot_dict['Collocation'] is not None:
-        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
+        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot,'xd')
+        u_param = plot_dict['u_param']
+        if u_param == 'poly':
+            u_interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot,'u')
+    else:
+        u_param = 'zoh'
 
     # add states and outputs to plotting dict
     plot_dict['xd'] = {}
@@ -890,9 +898,13 @@ def interpolate_data(plot_dict, cosmetics):
     for name in list(struct_op.subkeys(variables_dict,'u')):
         plot_dict['u'][name] = []
         for j in range(variables_dict['u',name].shape[0]):
-            control = plot_dict['V_plot']['u',:,name,j]
-            time_grids = plot_dict['time_grids']
-            values_ip = sample_and_hold_controls(time_grids, control)
+
+            if u_param == 'zoh':
+                control = plot_dict['V_plot']['u',:,name,j]
+                time_grids = plot_dict['time_grids']
+                values_ip = sample_and_hold_controls(time_grids, control)
+            elif u_param == 'poly':
+                values_ip = u_interpolator(plot_dict['time_grids']['ip'], name, j)
             plot_dict['u'][name] += [values_ip]
 
     # output values
