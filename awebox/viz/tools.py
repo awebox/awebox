@@ -621,7 +621,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
         if plot_dict['u_param'] == 'poly':
             plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
         else:
-            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]))
+            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
     plt.grid(True)
     plt.title(name)
 
