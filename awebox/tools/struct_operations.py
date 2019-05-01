@@ -114,6 +114,8 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
                         var_list.append(V['coll_var', kdx, 0, var_type])
                     else:
                         var_list.append(V['coll_var', kdx, ddx, var_type])
+                else:
+                    var_list.append(V[var_type, kdx])
             else:
                 var_list.append(V[var_type, kdx])
 
@@ -239,6 +241,10 @@ def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
                         var_list.append(np.zeros(variables[var_type].shape))
                     else:
                         var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
+                else:
+                    var_list.append(P['p', 'ref',var_type, kdx])
+            else:
+                var_list.append(P['p', 'ref',var_type, kdx])
 
         # parameters
         elif var_type == 'theta':
