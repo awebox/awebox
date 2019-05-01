@@ -60,6 +60,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         scheme = nlp_options['collocation']['scheme']
+        u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
 
@@ -106,7 +107,15 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
 
         # controls
         elif var_type == 'u':
-            var_list.append(V[var_type, kdx])
+
+            if direct_collocation:
+                if (u_param == 'poly'):
+                    if ddx == None:
+                        var_list.append(V['coll_var', kdx, 0, var_type])
+                    else:
+                        var_list.append(V['coll_var', kdx, ddx, var_type])
+            else:
+                var_list.append(V[var_type, kdx])
 
         # parameters
         elif var_type == 'theta':
@@ -182,6 +191,7 @@ def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         scheme = nlp_options['collocation']['scheme']
+        u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
 
@@ -222,7 +232,13 @@ def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
 
         # controls
         elif var_type == 'u':
-            var_list.append(P['p', 'ref', var_type, kdx])
+
+            if direct_collocation:
+                if (u_param == 'poly'):
+                    if ddx == None:
+                        var_list.append(np.zeros(variables[var_type].shape))
+                    else:
+                        var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
 
         # parameters
         elif var_type == 'theta':
