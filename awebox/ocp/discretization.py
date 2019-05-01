@@ -59,11 +59,15 @@ def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
     # define interval struct entries for controls and states
     entry_tuple = (
         cas.entry('xd', repeat = [nk+1], struct = variables_dict['xd']),
-        cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
         )
 
     # add additional variables according to provided options
     if nlp_numerics_options['discretization'] == 'direct_collocation':
+
+        if nlp_numerics_options['collocation']['u_param'] == 'zoh':
+            entry_tuple += (
+                cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
+            )
 
         # add algebraic variables at interval except for radau case
         if nlp_numerics_options['collocation']['scheme'] != 'radau':
@@ -82,6 +86,10 @@ def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
         entry_tuple += (cas.entry('coll_var', struct = coll_var, repeat= [nk,d]),)
 
     elif nlp_numerics_options['discretization'] == 'multiple_shooting':
+
+        entry_tuple += (
+            cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
+        )
 
         # add slack variables for inequalities
         if nlp_numerics_options['slack_constraints'] == True and model.constraints_dict['inequality']:
