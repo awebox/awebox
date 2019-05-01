@@ -82,7 +82,7 @@ def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
 
         # add collocation node variables
         d = nlp_numerics_options['collocation']['d'] # interpolating polynomial order
-        coll_var = Collocation.get_collocation_variables_struct(variables_dict)
+        coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_numerics_options['collocation']['u_param'])
         entry_tuple += (cas.entry('coll_var', struct = coll_var, repeat= [nk,d]),)
 
     elif nlp_numerics_options['discretization'] == 'multiple_shooting':

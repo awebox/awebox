@@ -205,21 +205,20 @@ class Collocation(object):
 
         return xp_jk
 
-    def get_collocation_variables_struct(self, variables_dict):
+    def get_collocation_variables_struct(self, variables_dict, u_param):
+
+        entry_list = [
+            cas.entry('xd', struct = variables_dict['xd']),
+            cas.entry('xa', struct = variables_dict['xa'])
+        ]
 
         if 'xl' in list(variables_dict.keys()):
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-                cas.entry('xl', struct = variables_dict['xl'])
-            ])
-        else:
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-            ])
+            entry_list += [cas.entry('xl', struct = variables_dict['xl'])]
 
-        return coll_var
+        if u_param == 'poly':
+            entry_list += [cas.entry('u', struct = variables_dict['u'])]
+
+        return cas.struct_symMX(entry_list)
 
     def __integrate_integral_outputs(self, Integral_outputs_list, integral_outputs_deriv, model, tf):
 
