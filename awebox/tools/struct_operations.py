@@ -400,7 +400,11 @@ def si_to_scaled(model, V_ori):
 
             elif variable_type == 'u':
                 for kdx in range(n_k):
-                    V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
+                    if variable_type in list(V.keys()):
+                        V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
+                    else:
+                        for ddx in range(d):
+                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] / model.scaling[variable_type][name]
 
             elif variable_type in set(['xa', 'xl','xd','xddot']):
                 if variable_type in list(V.keys()):
@@ -436,7 +440,11 @@ def scaled_to_si(variables, scaling, n_k, d, V_ori):
 
             elif variable_type == 'u':
                 for kdx in range(n_k):
-                    V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
+                    if variable_type in list(V.keys()):
+                        V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
+                    else:
+                        for ddx in range(d):
+                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] *scaling[variable_type][name]
 
             elif variable_type in set(['xa', 'xl','xd','xddot']):
                 if variable_type in list(V.keys()):
