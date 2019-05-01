@@ -852,10 +852,8 @@ def interpolate_data(plot_dict, cosmetics):
     nlp_options = plot_dict['options']['nlp']
     V_plot = plot_dict['V_plot']
     if plot_dict['Collocation'] is not None:
-        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot,'xd')
+        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
         u_param = plot_dict['u_param']
-        if u_param == 'poly':
-            u_interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot,'u')
     else:
         u_param = 'zoh'
 
@@ -881,7 +879,7 @@ def interpolate_data(plot_dict, cosmetics):
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j)
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'xd')
             plot_dict['xd'][name] += [values_ip]
 
     # xa-values
@@ -889,10 +887,7 @@ def interpolate_data(plot_dict, cosmetics):
         for name in list(struct_op.subkeys(variables_dict,var_type)):
             plot_dict[var_type][name] = []
             for j in range(variables_dict[var_type,name].shape[0]):
-                # merge values
-                values, time_grid = merge_xa_values(V_plot, var_type, name, j, plot_dict, cosmetics)
-                # interpolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
                 plot_dict[var_type][name] += [values_ip]
 
     # u-values
@@ -905,7 +900,7 @@ def interpolate_data(plot_dict, cosmetics):
                 time_grids = plot_dict['time_grids']
                 values_ip = sample_and_hold_controls(time_grids, control)
             elif u_param == 'poly':
-                values_ip = u_interpolator(plot_dict['time_grids']['ip'], name, j)
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'u')
             plot_dict['u'][name] += [values_ip]
 
     # output values

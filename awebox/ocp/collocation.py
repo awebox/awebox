@@ -129,7 +129,7 @@ class Collocation(object):
 
         return None
 
-    def build_interpolator(self, nlp_params, V, var_type):
+    def build_interpolator(self, nlp_params, V):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -138,7 +138,7 @@ class Collocation(object):
         @return interpolation function
         """
 
-        def coll_interpolator(time_grid, name, dim):
+        def coll_interpolator(time_grid, name, dim, var_type):
             """Interpolating function
 
             @param time_grid list with time points
