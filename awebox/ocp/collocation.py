@@ -88,6 +88,7 @@ class Collocation(object):
 
         # for all collocation points
         ls = []
+        ls_u = []
         for j in range(d + 1):
             # construct lagrange polynomials to get the polynomial basis at the
             # collocation point
@@ -108,16 +109,27 @@ class Collocation(object):
             for r in range(d + 1):
                 coeff_collocation[j][r] = tfcn(tau_root[r])
 
+            # construct lagrange polynomials to get the polynomial basis
+            # for the controls and algebraic variables
+            if j > 0:
+                l = 1
+                for r in range(1,d+1):
+                    if r != j:
+                        l *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                ls_u = cas.vertcat(ls_u, l)
+
         # interpolating function for all polynomials
         lfcns = cas.Function('lfcns',[tau],[ls])
+        lfcns_u = cas.Function('lfcns_u',[tau],[ls_u])
 
         self.__coeff_continuity = coeff_continuity
         self.__coeff_collocation = coeff_collocation
         self.__coeff_fun = lfcns
+        self.__coeff_fun_u = lfcns_u
 
         return None
 
-    def build_interpolator(self, nlp_params, V):
+    def build_interpolator(self, nlp_params, V, var_type):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -137,8 +149,12 @@ class Collocation(object):
             vals = []
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
-                poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
-                vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                if var_type == 'xd':
+                    poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                elif var_type in ['u', 'xa', 'xl']:
+                    poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
 
             return vals
 
