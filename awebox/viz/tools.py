@@ -614,15 +614,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
 
     # read in inputs
     tgrid_u = plot_dict['time_grids']['u']
+    tgrid_ip = plot_dict['time_grids']['ip']
 
-    try:
-        plt.subplot(plot_table_r, plot_table_c, idx)
-        for jdx in range(number_dim):
+    plt.subplot(plot_table_r, plot_table_c, idx)
+    for jdx in range(number_dim):
+        if plot_dict['u_param'] == 'poly':
+            plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+        else:
             plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]))
-        plt.grid(True)
-        plt.title(name)
-    except BaseException:
-        32.0
+    plt.grid(True)
+    plt.title(name)
 
 # def get_velocity(zz,params,wind):
 
