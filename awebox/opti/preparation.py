@@ -160,17 +160,29 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
         if 'fict' in name:
-            V_bounds['lb']['u', :, name] = -cas.inf
-            V_bounds['ub']['u', :, name] = cas.inf
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, name] = -cas.inf
+                V_bounds['ub']['u', :, name] = cas.inf
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
+                V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
     # set state bounds
     if (options['initialization']['type'] == 'lift_mode') or (options['initialization']['type'] == 'tracking'):
         if 'ddl_t' in list(model.variables_dict['u'].keys()):
-            V_bounds['lb']['u', :, 'ddl_t'] = 0.
-            V_bounds['ub']['u', :, 'ddl_t'] = 0.
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, 'ddl_t'] = 0.
+                V_bounds['ub']['u', :, 'ddl_t'] = 0.
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', 'ddl_t'] = 0.
+                V_bounds['ub']['coll_var', :, :, 'u', 'ddl_t'] = 0.
         elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-            V_bounds['lb']['u', :, 'dddl_t'] = 0.
-            V_bounds['ub']['u', :, 'dddl_t'] = 0.
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, 'dddl_t'] = 0.
+                V_bounds['ub']['u', :, 'dddl_t'] = 0.
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', 'dddl_t'] = 0.
+                V_bounds['ub']['coll_var', :, :, 'u', 'dddl_t'] = 0.
 
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta','t_f'].shape[0] > 1:
