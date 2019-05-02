@@ -887,7 +887,12 @@ def interpolate_data(plot_dict, cosmetics):
         for name in list(struct_op.subkeys(variables_dict,var_type)):
             plot_dict[var_type][name] = []
             for j in range(variables_dict[var_type,name].shape[0]):
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
+                if plot_dict['discretization'] == 'direct_collocation':
+                    values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
+                else:
+                    values, time_grid = merge_xa_values(V_plot, var_type, name, j, plot_dict, cosmetics)
+                    # interpolate
+                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
                 plot_dict[var_type][name] += [values_ip]
 
     # u-values
