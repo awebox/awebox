@@ -717,9 +717,18 @@ def setup_warmstart_data(nlp, warmstart_trial):
             g_coll = warmstart_trial['g_opt']
 
             # initialize regular variables
-            for var_type in set(['xd','u','theta','phi','xi']):
+            for var_type in set(['xd','theta','phi','xi']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
+
+            if 'u' in list(V_coll.keys()):
+                V_init_proposed['u'] = V_coll['u']
+                lam_x_proposed['u']  = lam_x_coll['u']
+            else:
+                for i in range(n_k):
+                    # note: this does not give the actual mean, implement with quadrature weights instead
+                    V_init_proposed['u',i] = np.mean(cas.horzcat(*V_coll['coll_var',i,:,'u']))
+                    lam_x_proposed['u',i]  = np.mean(cas.horzcat(*lam_x_coll['coll_var',i,:,'u']))
 
             if 'xddot' in list(V_init_proposed.keys()):
                 V_init_proposed['xddot'] = Xdot_coll['xd']
