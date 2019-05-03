@@ -614,15 +614,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
 
     # read in inputs
     tgrid_u = plot_dict['time_grids']['u']
+    tgrid_ip = plot_dict['time_grids']['ip']
 
-    try:
-        plt.subplot(plot_table_r, plot_table_c, idx)
-        for jdx in range(number_dim):
-            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]))
-        plt.grid(True)
-        plt.title(name)
-    except BaseException:
-        32.0
+    plt.subplot(plot_table_r, plot_table_c, idx)
+    for jdx in range(number_dim):
+        if plot_dict['u_param'] == 'poly':
+            plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+        else:
+            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+    plt.grid(True)
+    plt.title(name)
 
 # def get_velocity(zz,params,wind):
 
@@ -698,6 +699,9 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['discretization'] = nlp.discretization
     if nlp.discretization == 'direct_collocation':
         plot_dict['d'] = nlp.d
+        plot_dict['u_param'] = options['nlp']['collocation']['u_param']
+    else:
+        plot_dict['u_param'] = 'zoh'
     plot_dict['Collocation'] = nlp.Collocation
 
     # model information
@@ -849,6 +853,9 @@ def interpolate_data(plot_dict, cosmetics):
     V_plot = plot_dict['V_plot']
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
+        u_param = plot_dict['u_param']
+    else:
+        u_param = 'zoh'
 
     # add states and outputs to plotting dict
     plot_dict['xd'] = {}
@@ -872,7 +879,7 @@ def interpolate_data(plot_dict, cosmetics):
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j)
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'xd')
             plot_dict['xd'][name] += [values_ip]
 
     # xa-values
@@ -880,19 +887,25 @@ def interpolate_data(plot_dict, cosmetics):
         for name in list(struct_op.subkeys(variables_dict,var_type)):
             plot_dict[var_type][name] = []
             for j in range(variables_dict[var_type,name].shape[0]):
-                # merge values
-                values, time_grid = merge_xa_values(V_plot, var_type, name, j, plot_dict, cosmetics)
-                # interpolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+                if plot_dict['discretization'] == 'direct_collocation':
+                    values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
+                else:
+                    values, time_grid = merge_xa_values(V_plot, var_type, name, j, plot_dict, cosmetics)
+                    # interpolate
+                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
                 plot_dict[var_type][name] += [values_ip]
 
     # u-values
     for name in list(struct_op.subkeys(variables_dict,'u')):
         plot_dict['u'][name] = []
         for j in range(variables_dict['u',name].shape[0]):
-            control = plot_dict['V_plot']['u',:,name,j]
-            time_grids = plot_dict['time_grids']
-            values_ip = sample_and_hold_controls(time_grids, control)
+
+            if u_param == 'zoh':
+                control = plot_dict['V_plot']['u',:,name,j]
+                time_grids = plot_dict['time_grids']
+                values_ip = sample_and_hold_controls(time_grids, control)
+            elif u_param == 'poly':
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'u')
             plot_dict['u'][name] += [values_ip]
 
     # output values

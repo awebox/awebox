@@ -27,6 +27,7 @@ update model that generates the
 cost update and bounds update to be used in the homotopy process
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, alu-fr 2018
+- edited: jochem de schutter, alu-fr 2018-2019
 '''
 
 import awebox.tools.struct_operations as struct_op
@@ -335,7 +336,10 @@ def update_final_bounds(bound_name, V_bounds, nlp, update):
         V_bounds[bound_type][var_type, bound_name] = nlp.V_bounds[bound_type][var_type, bound_name]
 
     if var_type == 'u':
-        V_bounds[bound_type][var_type, :, bound_name] = nlp.V_bounds[bound_type][var_type, :, bound_name]
+        if 'u' in list(V_bounds[bound_type].keys()):
+            V_bounds[bound_type][var_type, :, bound_name] = nlp.V_bounds[bound_type][var_type, :, bound_name]
+        else:
+            V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = nlp.V_bounds[bound_type]['coll_var', :, :, var_type, bound_name]
 
     if var_type in {'xl', 'xa', 'xd'}:
 
@@ -362,7 +366,10 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
             V_bounds[bound_type][var_type, bound_name] = scaled_value
 
         if var_type == 'u':
-            V_bounds[bound_type][var_type, :, bound_name] = scaled_value
+            if 'u' in list(V_bounds[bound_type].keys()):
+                V_bounds[bound_type][var_type, :, bound_name] = scaled_value
+            else:
+                V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
 
         if var_type in {'xl', 'xa', 'xd'}:
             if var_type in list(nlp.V.keys()): # not the case for xa and xl in radau collocation
