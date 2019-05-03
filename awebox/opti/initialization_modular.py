@@ -1073,7 +1073,8 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
             V_init['xd', k, name] = continuous_guess[name]
         if k < (n_max):
             if model.options['tether']['control_var'] == 'ddl_t':
-                V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
+                if 'u' in V_init.keys():
+                    V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
         if nlp.discretization == 'direct_collocation':
             if k == n_max:
                 d_vals = d_max
@@ -1084,7 +1085,9 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                 continuous_guess, interpolation_variables = __get_continuous_guess(t_coll, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
                 for name in struct_op.subkeys(model.variables, 'xd'):
                     V_init['coll_var', k, j, 'xd', name] = continuous_guess[name]
-
+                if model.options['tether']['control_var'] == 'ddl_t':
+                    if 'u' in V_init.keys():
+                        V_init['coll_var', k, j, 'u', 'ddl_t'] = continuous_guess['ddl_t']
     return V_init
 
 def __get_continuous_guess(t_cont, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme):

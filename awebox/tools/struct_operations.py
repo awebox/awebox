@@ -60,6 +60,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         scheme = nlp_options['collocation']['scheme']
+        u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
 
@@ -106,7 +107,17 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
 
         # controls
         elif var_type == 'u':
-            var_list.append(V[var_type, kdx])
+
+            if direct_collocation:
+                if (u_param == 'poly'):
+                    if ddx == None:
+                        var_list.append(V['coll_var', kdx, 0, var_type])
+                    else:
+                        var_list.append(V['coll_var', kdx, ddx, var_type])
+                else:
+                    var_list.append(V[var_type, kdx])
+            else:
+                var_list.append(V[var_type, kdx])
 
         # parameters
         elif var_type == 'theta':
@@ -182,6 +193,7 @@ def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         scheme = nlp_options['collocation']['scheme']
+        u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
 
@@ -222,7 +234,17 @@ def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
 
         # controls
         elif var_type == 'u':
-            var_list.append(P['p', 'ref', var_type, kdx])
+
+            if direct_collocation:
+                if (u_param == 'poly'):
+                    if ddx == None:
+                        var_list.append(np.zeros(variables[var_type].shape))
+                    else:
+                        var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
+                else:
+                    var_list.append(P['p', 'ref',var_type, kdx])
+            else:
+                var_list.append(P['p', 'ref',var_type, kdx])
 
         # parameters
         elif var_type == 'theta':
@@ -378,7 +400,11 @@ def si_to_scaled(model, V_ori):
 
             elif variable_type == 'u':
                 for kdx in range(n_k):
-                    V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
+                    if variable_type in list(V.keys()):
+                        V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
+                    else:
+                        for ddx in range(d):
+                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] / model.scaling[variable_type][name]
 
             elif variable_type in set(['xa', 'xl','xd','xddot']):
                 if variable_type in list(V.keys()):
@@ -414,7 +440,11 @@ def scaled_to_si(variables, scaling, n_k, d, V_ori):
 
             elif variable_type == 'u':
                 for kdx in range(n_k):
-                    V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
+                    if variable_type in list(V.keys()):
+                        V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
+                    else:
+                        for ddx in range(d):
+                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] *scaling[variable_type][name]
 
             elif variable_type in set(['xa', 'xl','xd','xddot']):
                 if variable_type in list(V.keys()):
@@ -687,9 +717,18 @@ def setup_warmstart_data(nlp, warmstart_trial):
             g_coll = warmstart_trial['g_opt']
 
             # initialize regular variables
-            for var_type in set(['xd','u','theta','phi','xi']):
+            for var_type in set(['xd','theta','phi','xi']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
+
+            if 'u' in list(V_coll.keys()):
+                V_init_proposed['u'] = V_coll['u']
+                lam_x_proposed['u']  = lam_x_coll['u']
+            else:
+                for i in range(n_k):
+                    # note: this does not give the actual mean, implement with quadrature weights instead
+                    V_init_proposed['u',i] = np.mean(cas.horzcat(*V_coll['coll_var',i,:,'u']))
+                    lam_x_proposed['u',i]  = np.mean(cas.horzcat(*lam_x_coll['coll_var',i,:,'u']))
 
             if 'xddot' in list(V_init_proposed.keys()):
                 V_init_proposed['xddot'] = Xdot_coll['xd']

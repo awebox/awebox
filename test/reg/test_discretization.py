@@ -32,6 +32,7 @@ def test_integrators():
     # specify direct collocation options
     base_options['nlp']['n_k'] = 40
     base_options['nlp']['discretization'] = 'direct_collocation'
+    base_options['nlp']['collocation']['u_param'] = 'zoh'
     base_options['nlp']['collocation']['scheme'] = 'radau'
     base_options['nlp']['collocation']['d'] = 4
 
