@@ -92,7 +92,7 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append((dict_type, 'geometry', None, name,geometry[name], ('???', None),'x'))
 
     ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
         phase_fix = False
     else:
         phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
