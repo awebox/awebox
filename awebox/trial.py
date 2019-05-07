@@ -92,6 +92,9 @@ class Trial(object):
         if is_standalone_trial:
             print_op.log_license_info()
 
+        if self.__options['user_options']['trajectory']['type'] == 'mpc':
+            raise ValueError('Build method not supported for MPC trials. Use PMPC wrapper instead.')
+
         logging.info('')
 
         logging.info('Building trial (%s) ...', self.__name)
@@ -119,6 +122,9 @@ class Trial(object):
 
         # get save_flag
         self.__save_flag = save_flag
+
+        if self.__options['user_options']['trajectory']['type'] == 'mpc':
+            raise ValueError('Optimize method not supported for MPC trials. Use PMPC wrapper instead.')
 
         logging.info('Optimizing trial (%s) ...', self.__name)
         logging.info('')
