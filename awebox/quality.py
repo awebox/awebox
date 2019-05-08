@@ -29,9 +29,6 @@
 #####################################################
 
 import logging
-import numpy as np
-import copy
-import awebox.tools.struct_operations as struct_op
 import awebox.quality_funcs as quality_funcs
 
 class Quality(object):
@@ -61,6 +58,7 @@ class Quality(object):
         results = quality_funcs.test_variables(trial, test_param_dict, results)
         results = quality_funcs.test_numerics(trial, test_param_dict, results)
         results = quality_funcs.test_power_balance(trial, test_param_dict, results)
+        results = quality_funcs.test_opti_success(trial, test_param_dict, results)
 
         # save test results
         self.__results = results

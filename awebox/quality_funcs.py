@@ -30,10 +30,20 @@
 import numpy as np
 import logging
 
+def test_opti_success(trial, test_param_dict, results):
+    """
+    Test whether optimization was successful
+    :return: results
+    """
+
+    results['solve_succeeded'] = trial.optimization.solve_succeeded
+
+    return results
+
 def test_numerics(trial, test_param_dict, results):
     """
     Test whether optimal parameters are chosen in a reasonable way
-    :return: None
+    :return: results
     """
 
     # test if t_f makes sense
