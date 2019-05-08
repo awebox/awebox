@@ -311,7 +311,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'x'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
-        ('nlp',  'collocation',      None, 'u_param',              'poly',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'u_param',              'zoh',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
         ('nlp',  None,               None, 'lift_xddot',           True,                   ('lift xddot values on interval nodes', [True, False]),'x'),
         ('nlp',  None,               None, 'lift_xa',              True,                   ('lift xa values on interval nodes', [True, False]),'x'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
