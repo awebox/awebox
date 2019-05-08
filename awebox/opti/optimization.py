@@ -132,7 +132,7 @@ class Optimization(object):
                     self.solve_from_warmstart(nlp, model, options, warmstart_file, final_homotopy_step, visualization)
             else:
                 self.__generate_outputs_from_V(nlp, self.__V_init)
-                self.__solve_succeeded = 'True'
+                self.__solve_succeeded = True
                 self.__stats = None
 
             # process the solution
