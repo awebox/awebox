@@ -87,14 +87,14 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1):
+def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-'):
     vsa = np.array(vertically_stacked_array)
 
     if vsa.shape[0] == 3 and vsa.shape[1] > 3:
         vsa = vsa.T
 
     if side == 'isometric':
-        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha)
+        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
     else:
         if side == 'xy':
             idx = 0
@@ -108,7 +108,7 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
             idx = 0
             jdx = 2
 
-        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha)
+        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
 
     return None
 
@@ -465,6 +465,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
     # get kite locations
     kite_locations = []
+    kite_ref_locations = []
     kite_rotations = []
     skipping_kite_locations = []
     skipping_kite_rotations = []
@@ -472,6 +473,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
     for n in kite_nodes:
 
         traj = []
+        traj_ref = []
         rot = []
 
         parent = parent_map[n]
@@ -481,6 +483,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                 cas.vertcat(plot_dict['xd']['q' + str(n) + str(parent)][j])#,
                 # plot_dict['xd']['q' + str(n) + str(parent)][j][0])
             )
+            traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(n) + str(parent)][j]))
             # traj.append(merge_xd_values(V_plot,'q' + str(n) + str(parent),j, plot_dict, cosmetics)[0])
 
         if int(kite_dof) == 6:
@@ -493,6 +496,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                 # rot.append(merge_output_values(outputs,'aerodynamics', 'r'+ str(n),j, plot_dict, cosmetics)[0])
 
         kite_locations.append(traj)
+        kite_ref_locations.append(traj_ref)
         kite_rotations.append(rot)
 
     skip_value = nlp_options['collocation']['d'] + 1
@@ -520,9 +524,15 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         vertically_stacked_kite_locations = cas.horzcat(kite_locations[i][0],
                                                     kite_locations[i][1],
                                                     kite_locations[i][2])
+
+        vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[i][0],
+                                                    kite_ref_locations[i][1],
+                                                    kite_ref_locations[i][2])
         if old_label == label:
             label = None
         make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
+        make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
+
         old_label = label
 
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
