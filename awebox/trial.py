@@ -264,7 +264,8 @@ class Trial(object):
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = [
             copy.deepcopy(self.__optimization.output_vals[0]),
-            copy.deepcopy(self.__optimization.output_vals[1])
+            copy.deepcopy(self.__optimization.output_vals[1]),
+            copy.deepcopy(self.__optimization.output_vals[2])
         ]
         solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
         solution_dict['stats'] = self.__optimization.stats
