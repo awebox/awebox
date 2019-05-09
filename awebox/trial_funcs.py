@@ -119,7 +119,8 @@ def interpolate_data(trial, freq):
     cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
     name = trial.name
     parametric_options = trial.options
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, N=N)
+    V_ref = trial.optimization.V_ref
+    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, N=N)
 
     return plot_dict
 
