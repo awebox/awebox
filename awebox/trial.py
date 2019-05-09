@@ -150,7 +150,9 @@ class Trial(object):
 
         cost_fun = self.nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
-        self.visualization.recalibrate(self.optimization.V_opt, self.visualization.plot_dict, self.optimization.output_vals, self.optimization.integral_outputs_final, self.options, self.optimization.time_grids, cost, self.name)
+        self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
+                                        self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
+                                        cost, self.name, self.__optimization.V_ref)
 
         # perform quality check
         self.__quality.check_quality(self)
@@ -173,9 +175,10 @@ class Trial(object):
             cost = self.__solution_dict['cost']
         time_grids = self.__solution_dict['time_grids']
         integral_outputs_final = self.__solution_dict['integral_outputs_final']
+        V_ref = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle,'plot',fig_num)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, 'plot',fig_num)
 
         return None
 
