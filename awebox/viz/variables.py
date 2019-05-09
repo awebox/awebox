@@ -252,8 +252,8 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
         tgrid_ip = plot_dict['time_grids']['ip']
         p = plt.plot(tgrid_ip, lambdavec[0])
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa'][name][jdx],
-                linestyle= '--', color = p[-1].get_color() )
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa']['lambda' + str(n) + str(parent)][0],
+                linestyle= '--', color = p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
     plt.legend(legend_names)
     plt.suptitle(fig_name)

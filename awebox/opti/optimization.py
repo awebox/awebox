@@ -159,7 +159,7 @@ class Optimization(object):
         sweep_toggle = False
         cost_fun = nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
-        V_ref = nlp.V(self.__p_fix_num['p','ref'])
+        V_ref = self.__V_ref
         visualization.plot(V_plot, visualization.options, [self.__outputs_init,
                                                            self.__outputs_opt],
                            self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
