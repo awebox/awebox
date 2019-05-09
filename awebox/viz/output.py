@@ -698,7 +698,12 @@ def plot_constraints(plot_dict, cosmetics, fig_num, constr_type):
                     label = name+'_'+str(idx)
 
                 # plot data with label
-                axes[counter].plot(tgrid, output_vals, label = label)
+                p = axes[counter].plot(tgrid, output_vals, label = label)
+
+                if cosmetics['plot_ref']:
+                    ref_output_vals = plot_dict['ref']['outputs'][constr_name][name][idx]
+                    ref_tgrid = plot_dict['time_grids']['ref']['ip']
+                    axes[counter].plot(ref_tgrid, ref_output_vals, linestyle = '--',color = p[-1].get_color())
 
         axes[counter].plot(tgrid, np.zeros(tgrid.shape),'k--')
         axes[counter].set_ylabel(constr_name)
