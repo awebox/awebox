@@ -159,9 +159,10 @@ class Optimization(object):
         sweep_toggle = False
         cost_fun = nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
+        V_ref = nlp.V(self.__p_fix_num['p','ref'])
         visualization.plot(V_plot, visualization.options, [self.__outputs_init,
                                                            self.__outputs_opt],
-                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, fig_name=fig_name)
+                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
 
         return None
 
@@ -176,6 +177,8 @@ class Optimization(object):
         self.__V_init = nlp.V(self.__arg['x0'])
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
+
+        self.__V_ref = nlp.V(self.__p_fix_num['p','ref'])
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')
@@ -482,9 +485,10 @@ class Optimization(object):
         integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_final, self.__p_fix_num))
 
         # time grids
-        time_grids = {}
+        time_grids = {'ref':{}}
         for grid in nlp.time_grids:
             time_grids[grid] = nlp.time_grids[grid](V_final['theta','t_f'])
+            time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta','t_f'])
 
         # set properties
         self.__outputs_opt = outputs_opt
@@ -555,6 +559,14 @@ class Optimization(object):
     @V_opt.setter
     def V_opt(self, value):
         logging.warning('Cannot set V_opt object.')
+
+    @property
+    def V_ref(self):
+        return self.__V_ref
+
+    @V_ref.setter
+    def V_ref(self, value):
+        logging.warning('Cannot set V_ref object.')
 
     @property
     def V_final(self):
