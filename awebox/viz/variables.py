@@ -81,7 +81,11 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xd'][name].shape[0]):
-                plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                p = plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xd'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
+
                 plt.title(name)
 
     for name in integral_variables_to_plot:
@@ -156,7 +160,10 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xl'][name].shape[0]):
-                plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                p = plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xl'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
                 plt.title(name)
 
     for name in integral_variables_to_plot:
@@ -243,7 +250,10 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
         parent = parent_map[n]
         lambdavec = plot_dict['xa']['lambda' + str(n) + str(parent)]
         tgrid_ip = plot_dict['time_grids']['ip']
-        plt.plot(tgrid_ip, lambdavec[0])
+        p = plt.plot(tgrid_ip, lambdavec[0])
+        if cosmetics['plot_ref']:
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa'][name][jdx],
+                linestyle= '--', color = p[-1].get_color() )
         legend_names.append('lambda' + str(n) + str(parent))
     plt.legend(legend_names)
     plt.suptitle(fig_name)

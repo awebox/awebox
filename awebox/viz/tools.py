@@ -619,9 +619,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
-            plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
+                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
+                    linestyle= '--', color = p[-1].get_color() )
+
         else:
-            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+            p = plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
+                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
+                    linestyle =  '--', color = p[-1].get_color())
     plt.grid(True)
     plt.title(name)
 
