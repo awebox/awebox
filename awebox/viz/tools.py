@@ -762,6 +762,8 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
 
     # interpolate data
     plot_dict = interpolate_data(plot_dict, cosmetics)
+    if cosmetics['plot_ref']:
+        plot_dict = interpolate_ref_data(plot_dict, cosmetics)
 
     # interations
     if iterations is not None:
@@ -921,6 +923,75 @@ def interpolate_data(plot_dict, cosmetics):
                 plot_dict['outputs'][output_type][name] += [values_ip]
 
     return plot_dict
+
+def interpolate_ref_data(plot_dict, cosmetics):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param plot_dict: dictionary of all relevant plot information
+    :param cosmetics: dictionary of cosmetic plot choices
+    :return: plot dictionary with added entries corresponding to interpolation
+    '''
+
+    # extract information
+    variables_dict = plot_dict['variables']
+    nlp_options = plot_dict['options']['nlp']
+    V_ref = plot_dict['V_ref']
+    if plot_dict['Collocation'] is not None:
+        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
+        u_param = plot_dict['u_param']
+    else:
+        u_param = 'zoh'
+
+    # add states and outputs to plotting dict
+    plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{}}
+
+    # interpolating time grid
+    n_points = cosmetics['interpolation']['N']
+
+    # xd-values
+    for name in list(struct_op.subkeys(variables_dict, 'xd')):
+        plot_dict['ref']['xd'][name] = []
+        for j in range(variables_dict['xd',name].shape[0]):
+            # merge values
+            values, time_grid = merge_xd_values(V_ref, name, j, plot_dict, cosmetics)
+            plot_dict['time_grids']['ref']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
+
+            # interpolate
+            if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
+                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+            elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
+                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'xd')
+            plot_dict['ref']['xd'][name] += [values_ip]
+
+    # xa-values
+    for var_type in set(variables_dict.keys()) - set(['xd', 'u', 'xddot', 'theta']):
+        for name in list(struct_op.subkeys(variables_dict,var_type)):
+            plot_dict['ref'][var_type][name] = []
+            for j in range(variables_dict[var_type,name].shape[0]):
+                if plot_dict['discretization'] == 'direct_collocation':
+                    values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, var_type)
+                else:
+                    values, time_grid = merge_xa_values(V_ref, var_type, name, j, plot_dict, cosmetics)
+                    # interpolate
+                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+                plot_dict['ref'][var_type][name] += [values_ip]
+
+    # u-values
+    for name in list(struct_op.subkeys(variables_dict,'u')):
+        plot_dict['ref']['u'][name] = []
+        for j in range(variables_dict['u',name].shape[0]):
+
+            if u_param == 'zoh':
+                control = plot_dict['V_ref']['u',:,name,j]
+                time_grids = plot_dict['time_grids']['ref']
+                values_ip = sample_and_hold_controls(time_grids, control)
+            elif u_param == 'poly':
+                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'u')
+            plot_dict['ref']['u'][name] += [values_ip]
+
+    return plot_dict
+
 
 def sample_and_hold_controls(time_grids, control):
 
