@@ -442,6 +442,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'margin',      0.05,           ('trajectory figure margins', None), 'x'),
         ('visualization', 'cosmetics', None,         'save_figs',   False,          ('save the figures', [True, False]), 'x'),
         ('visualization', 'cosmetics', None,         'plot_coll',   True,           ('plot the collocation variables', [True, False]), 'x'),
+        ('visualization', 'cosmetics', None,         'plot_ref',    False,          ('plot the tracking reference trajectory', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'include',  True,           ('???', None), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'type',     'poly',         ('???', None), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'N',        100,            ('???', None), 'x'),
