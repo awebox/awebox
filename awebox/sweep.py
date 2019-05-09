@@ -137,7 +137,8 @@ class Sweep:
                 timings = single_trial.optimization.timings
                 cost_fun = single_trial.nlp.cost_components[0]
                 cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
-                recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+                V_ref = single_trial.optimization.V_ref
+                recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
                 self.__plot_dict[trial_to_run][param] = copy.deepcopy(recalibrated_plot_dict)
 
                 # overwrite outputs to work around pickle bug
