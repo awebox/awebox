@@ -228,10 +228,17 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
         parent = parent_map[n]
         invariants = plot_dict['outputs']['tether_length']
         tgrid_ip = plot_dict['time_grids']['ip']
+
+        if cosmetics['plot_ref']:
+            ref_invariants = plot_dict['ref']['outputs']['tether_length']
+            ref_tgrid_ip = plot_dict['time_grids']['ref']['ip']
+
         for prefix in ['','d', 'dd']:
-            plt.semilogy(tgrid_ip, abs(invariants[prefix + 'c' + str(n) + str(parent)][0]))
-            legend_names.append(prefix + 'c' + str(n) + str(parent))
-    plt.legend(legend_names)
+            p = plt.semilogy(tgrid_ip, abs(invariants[prefix + 'c' + str(n) + str(parent)][0]), label = prefix + 'c' + str(n) + str(parent))
+            if cosmetics['plot_ref']:
+                plt.semilogy(ref_tgrid_ip, abs(ref_invariants[prefix + 'c' + str(n) + str(parent)][0]), linestyle = '--', color = p[-1].get_color())
+
+    plt.legend()
     plt.suptitle(fig_name)
 
     return None
