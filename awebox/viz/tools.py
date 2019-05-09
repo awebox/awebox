@@ -953,6 +953,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
     # extract information
     variables_dict = plot_dict['variables']
     nlp_options = plot_dict['options']['nlp']
+    outputs_dict = plot_dict['outputs_dict']
+    output_vals = plot_dict['output_vals'][2]
     V_ref = plot_dict['V_ref']
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
@@ -961,7 +963,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
         u_param = 'zoh'
 
     # add states and outputs to plotting dict
-    plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{}}
+    plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
     n_points = cosmetics['interpolation']['N']
@@ -1006,6 +1008,18 @@ def interpolate_ref_data(plot_dict, cosmetics):
             elif u_param == 'poly':
                 values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'u')
             plot_dict['ref']['u'][name] += [values_ip]
+
+    # output values
+    for output_type in list(outputs_dict.keys()):
+        plot_dict['ref']['outputs'][output_type] = {}
+        for name in list(outputs_dict[output_type].keys()):
+            plot_dict['ref']['outputs'][output_type][name] = []
+            for j in range(outputs_dict[output_type][name].shape[0]):
+                # merge values
+                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
+                # inteprolate
+                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+                plot_dict['ref']['outputs'][output_type][name] += [values_ip]
 
     return plot_dict
 
