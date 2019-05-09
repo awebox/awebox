@@ -26,6 +26,7 @@ def test_visualization():
     options['user_options']['tether_drag_model'] = 'trivial'
     options['nlp']['n_k'] = 2
     options['solver']['max_iter'] = 0
+    options['visualization']['cosmetics']['plot_ref'] = True
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')

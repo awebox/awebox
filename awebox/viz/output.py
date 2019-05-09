@@ -33,25 +33,32 @@ import casadi.tools as cas
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
 
     time_grid_ip = plot_dict['time_grids']['ip']
+    ref_time_grid_ip = plot_dict['time_grids']['ref']['ip']
+
     outputs = plot_dict['outputs']
+    ref_outputs = plot_dict['ref']['outputs']
     output_key_list = output_path.split(':')
     if len(output_key_list) == 1:
         output = outputs[output_key_list[0]]
+        ref_output = ref_outputs[output_key_list[0]]
     elif len(output_key_list) == 2:
         output = outputs[output_key_list[0]][output_key_list[1]]
+        ref_output = ref_outputs[output_key_list[0]][output_key_list[1]]
     elif len(output_key_list) == 3:
         output = outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
+        ref_output = ref_outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
     else:
         raise ValueError('Error: Wrong recursion depth (' + str(len(output_key_list)) + ') for output plots!' + str(output_key_list))
     recursive_output_plot(output, fig_name, time_grid_ip, fig_num)
+    recursive_output_plot(ref_output, fig_name, ref_time_grid_ip,  plt.gcf().number , linestyle = '--')
 
     return None
 
-def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None):
+def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None, linestyle = '-'):
 
     try:
         for key in list(outputs.keys()):
-            recursive_output_plot(outputs[key], key, time_grid_ip, fig_num)
+            recursive_output_plot(outputs[key], key, time_grid_ip, fig_num, linestyle = linestyle)
     except:
         if fig_num is None:
             fig = plt.figure()
@@ -59,7 +66,7 @@ def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None):
         else:
             fig = plt.figure(fig_num)
 
-        plt.plot(time_grid_ip, outputs[0])
+        plt.plot(time_grid_ip, outputs[0], linestyle = linestyle)
         plt.title(fig_name)
 
 def plot_induction_factor_vs_tether_reel(solution_dict, cosmetics, reload_dict, fig_num):
@@ -698,7 +705,12 @@ def plot_constraints(plot_dict, cosmetics, fig_num, constr_type):
                     label = name+'_'+str(idx)
 
                 # plot data with label
-                axes[counter].plot(tgrid, output_vals, label = label)
+                p = axes[counter].plot(tgrid, output_vals, label = label)
+
+                if cosmetics['plot_ref']:
+                    ref_output_vals = plot_dict['ref']['outputs'][constr_name][name][idx]
+                    ref_tgrid = plot_dict['time_grids']['ref']['ip']
+                    axes[counter].plot(ref_tgrid, ref_output_vals, linestyle = '--',color = p[-1].get_color())
 
         axes[counter].plot(tgrid, np.zeros(tgrid.shape),'k--')
         axes[counter].set_ylabel(constr_name)

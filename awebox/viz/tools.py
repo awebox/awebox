@@ -87,14 +87,14 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1):
+def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-'):
     vsa = np.array(vertically_stacked_array)
 
     if vsa.shape[0] == 3 and vsa.shape[1] > 3:
         vsa = vsa.T
 
     if side == 'isometric':
-        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha)
+        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
     else:
         if side == 'xy':
             idx = 0
@@ -108,7 +108,7 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
             idx = 0
             jdx = 2
 
-        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha)
+        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
 
     return None
 
@@ -465,6 +465,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
     # get kite locations
     kite_locations = []
+    kite_ref_locations = []
     kite_rotations = []
     skipping_kite_locations = []
     skipping_kite_rotations = []
@@ -472,6 +473,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
     for n in kite_nodes:
 
         traj = []
+        traj_ref = []
         rot = []
 
         parent = parent_map[n]
@@ -481,6 +483,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                 cas.vertcat(plot_dict['xd']['q' + str(n) + str(parent)][j])#,
                 # plot_dict['xd']['q' + str(n) + str(parent)][j][0])
             )
+            traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(n) + str(parent)][j]))
             # traj.append(merge_xd_values(V_plot,'q' + str(n) + str(parent),j, plot_dict, cosmetics)[0])
 
         if int(kite_dof) == 6:
@@ -493,6 +496,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                 # rot.append(merge_output_values(outputs,'aerodynamics', 'r'+ str(n),j, plot_dict, cosmetics)[0])
 
         kite_locations.append(traj)
+        kite_ref_locations.append(traj_ref)
         kite_rotations.append(rot)
 
     skip_value = nlp_options['collocation']['d'] + 1
@@ -520,9 +524,15 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         vertically_stacked_kite_locations = cas.horzcat(kite_locations[i][0],
                                                     kite_locations[i][1],
                                                     kite_locations[i][2])
+
+        vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[i][0],
+                                                    kite_ref_locations[i][1],
+                                                    kite_ref_locations[i][2])
         if old_label == label:
             label = None
         make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
+        make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
+
         old_label = label
 
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
@@ -619,9 +629,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
-            plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
+                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
+                    linestyle= '--', color = p[-1].get_color() )
+
         else:
-            plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+            p = plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
+                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
+                    linestyle =  '--', color = p[-1].get_color())
     plt.grid(True)
     plt.title(name)
 
@@ -719,7 +736,7 @@ def calibrate_visualization(model, nlp, name, options):
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, iterations=None, return_status_numeric=None, timings=None, N=None):
+def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, iterations=None, return_status_numeric=None, timings=None, N=None, ):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -744,7 +761,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
 
     # add V_plot to dict
     plot_dict['V_plot'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_plot)
-
+    plot_dict['V_ref'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_ref)
     # get new name
     plot_dict['name'] = name
 
@@ -762,6 +779,8 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
 
     # interpolate data
     plot_dict = interpolate_data(plot_dict, cosmetics)
+    if cosmetics['plot_ref']:
+        plot_dict = interpolate_ref_data(plot_dict, cosmetics)
 
     # interations
     if iterations is not None:
@@ -921,6 +940,89 @@ def interpolate_data(plot_dict, cosmetics):
                 plot_dict['outputs'][output_type][name] += [values_ip]
 
     return plot_dict
+
+def interpolate_ref_data(plot_dict, cosmetics):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param plot_dict: dictionary of all relevant plot information
+    :param cosmetics: dictionary of cosmetic plot choices
+    :return: plot dictionary with added entries corresponding to interpolation
+    '''
+
+    # extract information
+    variables_dict = plot_dict['variables']
+    nlp_options = plot_dict['options']['nlp']
+    outputs_dict = plot_dict['outputs_dict']
+    output_vals = plot_dict['output_vals'][2]
+    V_ref = plot_dict['V_ref']
+    if plot_dict['Collocation'] is not None:
+        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
+        u_param = plot_dict['u_param']
+    else:
+        u_param = 'zoh'
+
+    # add states and outputs to plotting dict
+    plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{},'outputs':{}}
+
+    # interpolating time grid
+    n_points = cosmetics['interpolation']['N']
+
+    # xd-values
+    for name in list(struct_op.subkeys(variables_dict, 'xd')):
+        plot_dict['ref']['xd'][name] = []
+        for j in range(variables_dict['xd',name].shape[0]):
+            # merge values
+            values, time_grid = merge_xd_values(V_ref, name, j, plot_dict, cosmetics)
+            plot_dict['time_grids']['ref']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
+
+            # interpolate
+            if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
+                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+            elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
+                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'xd')
+            plot_dict['ref']['xd'][name] += [values_ip]
+
+    # xa-values
+    for var_type in set(variables_dict.keys()) - set(['xd', 'u', 'xddot', 'theta']):
+        for name in list(struct_op.subkeys(variables_dict,var_type)):
+            plot_dict['ref'][var_type][name] = []
+            for j in range(variables_dict[var_type,name].shape[0]):
+                if plot_dict['discretization'] == 'direct_collocation':
+                    values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, var_type)
+                else:
+                    values, time_grid = merge_xa_values(V_ref, var_type, name, j, plot_dict, cosmetics)
+                    # interpolate
+                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+                plot_dict['ref'][var_type][name] += [values_ip]
+
+    # u-values
+    for name in list(struct_op.subkeys(variables_dict,'u')):
+        plot_dict['ref']['u'][name] = []
+        for j in range(variables_dict['u',name].shape[0]):
+
+            if u_param == 'zoh':
+                control = plot_dict['V_ref']['u',:,name,j]
+                time_grids = plot_dict['time_grids']['ref']
+                values_ip = sample_and_hold_controls(time_grids, control)
+            elif u_param == 'poly':
+                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'u')
+            plot_dict['ref']['u'][name] += [values_ip]
+
+    # output values
+    for output_type in list(outputs_dict.keys()):
+        plot_dict['ref']['outputs'][output_type] = {}
+        for name in list(outputs_dict[output_type].keys()):
+            plot_dict['ref']['outputs'][output_type][name] = []
+            for j in range(outputs_dict[output_type][name].shape[0]):
+                # merge values
+                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
+                # inteprolate
+                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
+                plot_dict['ref']['outputs'][output_type][name] += [values_ip]
+
+    return plot_dict
+
 
 def sample_and_hold_controls(time_grids, control):
 
