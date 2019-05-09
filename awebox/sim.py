@@ -52,7 +52,7 @@ class Simulation:
 
         return None
 
-    def __build():
+    def __build(self):
         """ Build simulation
         """
 
@@ -66,9 +66,9 @@ class Simulation:
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
 
-        if sim_type == 'closed_loop':
+        if self.__sim_type == 'closed_loop':
 
-            self.__mpc = pmpc.Pmpc(mpc_options, self.__ts, self.__trial)
+            self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
 
         return None
 
@@ -83,10 +83,10 @@ class Simulation:
         for i in range(n_sim):
 
             # get (open/closed-loop) controls
-            if sim_type == 'closed_loop':
+            if self.__sim_type == 'closed_loop':
                 u0 = mpc.step(x0)
 
-            elif sim_type == 'open_loop':
+            elif self.__sim_type == 'open_loop':
                 u0 = self.__u_sim[:,i]
 
             # simulate
@@ -103,7 +103,7 @@ class Simulation:
             x0 = self.__trial.optimization.V_opt['xd',0]
 
         # set-up open loop controls
-        if sim_type == 'open_loop':
+        if self.__sim_type == 'open_loop':
             values_ip_u = []
             interpolator = self.__trial.nlp.Collocastion.build_interpolator(
                 self.__trial.options['nlp'],
