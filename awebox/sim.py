@@ -22,230 +22,109 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-###################################
-# Class Simulation runs a forward in time simulation of the multi-kite system from an initial position
-###################################
+"""
+Simulation class for open-loop and closed-loop simulations based on awebox reference trajectories
+and related models.
 
-import awebox.tools.struct_operations as struct_op
-import casadi.tools as cas
+:author: Jochem De Schutter - ALU Freiburg 2019
+"""
+
+
+import casadi.tools as ct
+import awebox.pmpc as pmpc
+import awebox.tools.integrator_routines as awe_integrators
+import numpy as np
 
 class Simulation:
-    def __init__(self, options):
-        self.__status = 'Simulation not yet solved.'
-        self.__N_sim = options['Nsim']
-        self.__integrator_type = options['integrator']['type']
+    def __init__(self, trial, sim_type, ts, options):
+        """ Constructor.
+        """
 
-        self.__outputs = None
+        if sim_type not in ['closed_loop', 'open_loop']:
+            raise ValueError('Chosen simulation type not valid: {}'.format(sim_type))
 
-    def build_integrator(self, options, model):
-        print('Building integrator...')
+        self.__sim_type = sim_type
+        self.__trial = trial
+        self.__ts = ts
+        self.__sim_options = options['sim']
+        self.__mpc_options = options['mpc']
+        self.__build()
 
-        # get model variables
-        variables = model.variables
-        # construct the DAE variables
-        x = cas.struct_SX([cas.entry('xd', expr = variables['xd'])]) # differential states
-        z = cas.struct_SX([cas.entry('xddot', expr = variables['xddot']), # state derivatives
-                       cas.entry('xa', expr = variables['xa']), # algebraic variables
-                       cas.entry('xl', expr = variables['xl']), # lifted variables
-                      ])
-        p = cas.struct_SX([cas.entry('u', expr = variables['u']), # dae parameters
-                       cas.entry('theta', expr = variables['theta']),
-                       cas.entry('phi', expr = model.parameters)])
+        return None
 
-        # scale xddot with t_f
-        time_scaled_variables = scale_xddot(variables)
+    def __build():
+        """ Build simulation
+        """
 
-        # model equations
-        alg = model.dynamics(time_scaled_variables, model.parameters)
-        ode = variables['xddot']
+        # generate plant model
+        model = self.__trial.generate_optimal_model()
+        self.__F = awe_integrators.rk4root(
+            'F',
+            model['dae'],
+            model['rootfinder'],
+            {'tf': self.__ts/model['t_f'],
+            'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
+            )
 
-        # create dae
-        dae = {'x': x.cat, 'z': z.cat, 'p': p.cat, 'alg': alg,'ode': ode}
-        # system dynamics
-        f = cas.Function('f', [x, z, p], [ode, alg], ['x', 'z', 'p'], ['ode', 'alg'])
+        if sim_type == 'closed_loop':
 
-        # create integrator and rootfinder
-        if cas.sprank(cas.jacobian(alg,z)) < z.cat.size()[0]:  # check dae index
-            raise ValueError('jacobian of dynamics is structurally rank-deficient: DAE is not of index 1!')
-        else:
-            # create integrator
-            I = cas.integrator('I', options['integrator']['type'], dae, {'tf': 1.0 / self.__N_sim})
-            # create rootfinder
-            g = cas.Function('g',[z.cat,x.cat,p.cat],[alg])
-            G = cas.rootfinder('G', 'newton', g, {'linear_solver': 'csparse'})
-            self.__integrator = I
-            self.__rootfinder = G
-            self.__variables_dict = model.variables_dict
-            self.__phi = model.parameters
-            self.__dae = dae
-            self.__f = f
-            self.__x = x
-            self.__z = z
-            self.__p = p
+            self.__mpc = pmpc.Pmpc(mpc_options, self.__ts, self.__trial)
 
-    def run(self, x0, u_sim, theta_sim, phi_sim):
-        # check consistency of initial conditions:
-        # to do: check values of g, gdot...
-        consistency = True
-        if consistency == False:
-            raise ValueError('provided initial conditions are not consistent!')
-        else:
-            # horizon length
-            N = len(u_sim)
+        return None
 
-            # V_sim / simulation output structure
-            V_sim = cas.struct_symMX([
-            (
-                cas.entry('xd', repeat=[N, self.__N_sim],   struct=self.__variables_dict['xd']),
-                cas.entry('xa', repeat=[N, self.__N_sim-1], struct=self.__variables_dict['xa']),
-                cas.entry('xl', repeat=[N, self.__N_sim-1], struct=self.__variables_dict['xl']),
-                cas.entry('u', repeat=[N], struct=self.__variables_dict['u']),
-            ),
-            cas.entry('theta', struct=self.__variables_dict['theta']),
-            cas.entry('phi', struct=self.__phi)
-            ])
+    def run(self, n_sim, x0 = None, u_sim = None):
+        """ Run simulation
+        """
 
-            # initialize solution vector
-            V0 = V_sim(0.)
+        # TODO: check consistency of initial conditions and give warning
 
-            # fill in controls and parameters
-            for i in range(N):
-                for name in list(self.__variables_dict['u'].keys()):
-                    V0['u',i,name] = self.__variables_dict['u'](u_sim[i])[name]
-            V0['theta'] = theta_sim
-            # adjust time-scaling factor for integrator step size
-            V0['theta','t_f'] = V0['theta','t_f'] / N
-            V0['phi'] = phi_sim
+        x0 = self.__initialize_sim(n_sim, x0, u_sim)
 
-            # integrate / fill in states and alg vars
+        for i in range(n_sim):
 
-            # initial state
-            x_sim = self.__x(x0)['xd']
-            z_sim = self.__z(0.0)
-            for i in range(N):
+            # get (open/closed-loop) controls
+            if sim_type == 'closed_loop':
+                u0 = mpc.step(x0)
 
-                # dae parameters for this time step
-                p_sim = self.__p(0.)
-                p_sim['u'] = u_sim[i]
-                p_sim['theta'] = V0['theta']
-                p_sim['phi'] = V0['phi']
+            elif sim_type == 'open_loop':
+                u0 = self.__u_sim[:,i]
 
-                # state on initial time of shooting node
-                for name in list(self.__variables_dict['xd'].keys()):
-                    V0['xd',i,0,name] = self.__variables_dict['xd'](x_sim)[name]
-
-                # integrate up to (including) the final time of the shooting node
-                for j in range(self.__N_sim-1):
-                    print(j)
-                    ### TESTING
-                    # [ode_test, alg_test] = self.__f(x_sim,0.,p_sim.cat)
-                    # z_test = self.__rootfinder(0.,x_sim,p_sim.cat)
-                    # xddot_test = self.__variables_dict['xddot'](self.__z(z_test)['xddot'])
-
-                    # perform integration
-                    res = self.__integrator(x0= x_sim, p = p_sim.cat, z0 = z_sim.cat)
-
-                    # set new initial guess for algebraic variable
-                    z_sim = self.__z(res['zf'])
-
-                    # set algebraic variables
-                    for name in list(self.__variables_dict['xa'].keys()):
-                        V0['xa',i,j,name] = self.__variables_dict['xa'](z_sim['xa'])[name]
-                    # set lifted variables
-                    for name in list(self.__variables_dict['xl'].keys()):
-                        V0['xl',i,j,name] = self.__variables_dict['xl'](z_sim['xl'])[name]
-
-                    # set-up next state
-                    x_sim = self.__x(res['xf'])['xd']
-
-                    # set differential states
-                    for name in list(self.__variables_dict['xd'].keys()):
-                        V0['xd',i,j+1,name] = self.__variables_dict['xd'](x_sim)[name]
-
-
-            self.__status = 'I am a simulation.'
-            self.__V0 = V0
-            print('Simulation solved.')
+            # simulate
+            x0 = F(x0 = x0, p = u0, z0 = self.__z0)
 
             return None
 
+    def __initialize_sim(self, n_sim, x0, u_sim):
+        """ Initialize simulation.
+        """
 
-    @property
-    def status(self):
-        return self.__status
+        # take first state of optimization trial
+        if x0 is None:
+            x0 = self.__trial.optimization.V_opt['xd',0]
 
-    @status.setter
-    def status(self, value):
-        print('Cannot set status object.')
+        # set-up open loop controls
+        if sim_type == 'open_loop':
+            values_ip_u = []
+            interpolator = self.__trial.nlp.Collocastion.build_interpolator(
+                self.__trial.options['nlp'],
+                self.__trial.optimization.V_opt)
+            T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+            t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
+            self.__t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+            for name in list(self.__trial.model.variables_dict['u'].keys()):
+                for j in range(self.__trial.variables_dict['u'][name].shape[0]):
+                    values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
 
-    @property
-    def V0(self):
-        return self.__V0
+            self.__u_sim = ct.horzcat(*values_ip_u)
 
-    @V0.setter
-    def V0(self, value):
-        print('Cannot set V0 object')
+        # initialize algebraic variables for integrator
+        self.__z0 = 0.1
 
-    @property
-    def f(self):
-        return self.__f
+        # initialize plot_dict
+        self.__plot_dict = {
+            'variables_dict': self.__trial.model.variables_dict,
+            'integral_variables': self.__trial.model.integral_variables
+        }
 
-    @f.setter
-    def f(self, value):
-        print('Cannot set f object')
+        return x0
 
-    @property
-    def x(self):
-        return self.__x
-
-    @x.setter
-    def x(self, value):
-        print('Cannot set x object')
-
-    @property
-    def p(self):
-        return self.__p
-
-    @p.setter
-    def p(self, value):
-        print('Cannot set p object')
-
-    @property
-    def z(self):
-        return self.__z
-
-    @z.setter
-    def z(self, value):
-        print('Cannot set z object')
-
-    @property
-    def dae(self):
-        return self.__dae
-
-    @dae.setter
-    def dae(self, value):
-        print('Cannot set dae object')
-
-    @property
-    def rootfinder(self):
-        return self.__rootfinder
-
-    @rootfinder.setter
-    def rootfinder(self, value):
-        print('Cannot set rootfinder object')
-
-    @property
-    def outputs(self):
-        return self.__outputs
-
-    @outputs.setter
-    def outputs(self, value):
-        print('Cannot set outputs object.')
-
-def scale_xddot(variables):
-
-    time_scaled_variables = variables(variables.cat)
-    for name in struct_op.subkeys(variables, 'xddot'):
-        time_scaled_variables['xddot',name] = variables['xddot',name]/variables['theta','t_f']
-
-    return time_scaled_variables
