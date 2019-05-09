@@ -57,6 +57,7 @@ class Optimization(object):
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
+        self.__outputs_ref = None
         self.__time_grids = None
         self.__debug_fig_num = 1000
 
@@ -161,7 +162,7 @@ class Optimization(object):
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
         V_ref = self.__V_ref
         visualization.plot(V_plot, visualization.options, [self.__outputs_init,
-                                                           self.__outputs_opt],
+                                                           self.__outputs_opt, self.__outputs_ref],
                            self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
 
         return None
@@ -478,6 +479,7 @@ class Optimization(object):
         [nlp_outputs, nlp_output_fun] = nlp.output_components
         outputs_init = nlp_outputs(nlp_output_fun(V_initial, self.__p_fix_num))
         outputs_opt = nlp_outputs(nlp_output_fun(V_final, self.__p_fix_num))
+        outputs_ref = nlp_outputs(nlp_output_fun(self.__V_ref, self.__p_fix_num))
 
         # integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = nlp.integral_output_components
@@ -493,6 +495,7 @@ class Optimization(object):
         # set properties
         self.__outputs_opt = outputs_opt
         self.__outputs_init = outputs_init
+        self.__outputs_ref = outputs_ref
         self.__integral_outputs_init = integral_outputs_init
         self.__integral_outputs_opt = integral_outputs_opt
         self.__integral_outputs_fun = nlp_integral_outputs_fun
@@ -626,7 +629,7 @@ class Optimization(object):
 
     @property
     def output_vals(self):
-        return [self.__outputs_init, self.__outputs_opt]
+        return [self.__outputs_init, self.__outputs_opt, self.__outputs_ref]
 
     @property
     def integral_output_vals(self):
