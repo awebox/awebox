@@ -257,6 +257,7 @@ class Trial(object):
         # parametric sweep data
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final'] = self.__optimization.V_final
+        solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = [
             copy.deepcopy(self.__optimization.output_vals[0]),
