@@ -302,7 +302,7 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        initial_conditions_eq_list += [initial_states['xd', variable] - ref_variables['xd',variable] / model.scaling['xd'][variable]]
+        initial_conditions_eq_list += [initial_states['xd', variable] - ref_variables['xd',variable]]
     initial_conditions_eq = cas.vertcat(*initial_conditions_eq_list)
 
     return initial_conditions_eq
