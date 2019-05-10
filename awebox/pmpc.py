@@ -138,7 +138,7 @@ class Pmpc(object):
         logging_level = logging.getLogger().getEffectiveLevel()
         opts = {}
         opts['expand'] = self.__mpc_options['expand']
-        opts['ipopt.linear_solver'] = self.__mpc_options['linear_solver'] = 'ma57'
+        opts['ipopt.linear_solver'] = self.__mpc_options['linear_solver']
         opts['ipopt.max_iter'] = self.__mpc_options['max_iter']
         opts['ipopt.max_cpu_time'] = self.__mpc_options['max_cpu_time']
         opts['jit'] = self.__mpc_options['jit']
