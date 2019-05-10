@@ -128,3 +128,12 @@ class Simulation:
 
         return x0
 
+    @property
+    def trial(self):
+        """ awebox.Trial attribute containing model and OCP info.
+        """
+        return self.__trial
+
+    @trial.setter
+    def trial(self, value):
+        print('Cannot set trial object.')
