@@ -84,15 +84,15 @@ class Simulation:
 
             # get (open/closed-loop) controls
             if self.__sim_type == 'closed_loop':
-                u0 = mpc.step(x0)
+                u0 = self.__mpc.step(x0)
 
             elif self.__sim_type == 'open_loop':
                 u0 = self.__u_sim[:,i]
 
             # simulate
-            x0 = F(x0 = x0, p = u0, z0 = self.__z0)
+            x0 = self.__F(x0 = x0, p = u0, z0 = self.__z0)
 
-            return None
+        return None
 
     def __initialize_sim(self, n_sim, x0, u_sim):
         """ Initialize simulation.
@@ -123,7 +123,7 @@ class Simulation:
         # initialize plot_dict
         self.__plot_dict = {
             'variables_dict': self.__trial.model.variables_dict,
-            'integral_variables': self.__trial.model.integral_variables
+            'integral_variables': self.__trial.model.integral_outputs
         }
 
         return x0
