@@ -483,7 +483,8 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                 cas.vertcat(plot_dict['xd']['q' + str(n) + str(parent)][j])#,
                 # plot_dict['xd']['q' + str(n) + str(parent)][j][0])
             )
-            traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(n) + str(parent)][j]))
+            if cosmetics['plot_ref']:
+                traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(n) + str(parent)][j]))
             # traj.append(merge_xd_values(V_plot,'q' + str(n) + str(parent),j, plot_dict, cosmetics)[0])
 
         if int(kite_dof) == 6:
@@ -525,13 +526,15 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                                                     kite_locations[i][1],
                                                     kite_locations[i][2])
 
-        vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[i][0],
-                                                    kite_ref_locations[i][1],
-                                                    kite_ref_locations[i][2])
         if old_label == label:
             label = None
         make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
-        make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
+
+        if cosmetics['plot_ref']:
+            vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[i][0],
+                                                        kite_ref_locations[i][1],
+                                                        kite_ref_locations[i][2])
+            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
 
         old_label = label
 
