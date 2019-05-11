@@ -33,6 +33,8 @@ and related models.
 import casadi.tools as ct
 import awebox.pmpc as pmpc
 import awebox.tools.integrator_routines as awe_integrators
+import awebox.tools.struct_operations as struct_op
+import awebox.viz.visualization as visualization
 import numpy as np
 
 class Simulation:
@@ -65,10 +67,32 @@ class Simulation:
             {'tf': self.__ts/model['t_f'],
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
+        self.__dae = self.__trial.model.get_dae()
+        self.__dae.build_rootfinder()
 
+        # generate mpc controller
         if self.__sim_type == 'closed_loop':
 
             self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
+
+
+        #  initialize and build visualization
+        self.__visualization = visualization.Visualization()
+        self.__visualization.build(self.__trial.model, self.__trial.nlp, 'simulation', self.__trial.options)
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
+            self.__visualization.plot_dict[var_type] = {}
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                self.__visualization.plot_dict[var_type][name] = []
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    self.__visualization.plot_dict[var_type][name].append([])
+
+        self.__visualization.plot_dict['outputs'] = {}
+        for output_type in list(self.__trial.model.outputs.keys()):
+            self.__visualization.plot_dict['outputs'][output_type] = {}
+            for name in list(self.__trial.model.outputs_dict[output_type].keys()):
+                self.__visualization.plot_dict['outputs'][output_type][name] = []
+                for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
+                    self.__visualization.plot_dict['outputs'][output_type][name].append([])
 
         return None
 
@@ -90,7 +114,11 @@ class Simulation:
                 u0 = self.__u_sim[:,i]
 
             # simulate
-            x0 = self.__F(x0 = x0, p = u0, z0 = self.__z0)['xf']
+            var_next = self.__F(x0 = x0, p = u0, z0 = self.__z0)
+            self.__store_results(x0, u0, var_next['qf'])
+
+            # shift initial state
+            x0 = var_next['xf']
 
         return None
 
@@ -120,13 +148,60 @@ class Simulation:
         # initialize algebraic variables for integrator
         self.__z0 = 0.1
 
-        # initialize plot_dict
-        self.__plot_dict = {
-            'variables_dict': self.__trial.model.variables_dict,
-            'integral_variables': self.__trial.model.integral_outputs
-        }
+        # initialize numerical parameters
+        self.__theta = self.__trial.model.variables_dict['theta'](0.0)
+        for name in self.__trial.model.variables_dict['theta'].keys():
+            if name != 't_f':
+                self.__theta[name] = self.__trial.optimization.V_opt['theta',name]
+        self.__theta['t_f'] = self.__ts
+        self.__parameters_num = self.__trial.model.parameters(0.0)
+        self.__parameters_num['theta0'] = self.__trial.optimization.p_fix_num['theta0']
+
+        # time grids
+        self.__visualization.plot_dict['time_grids'] = {}
+        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(0,n_sim*self.__ts, n_sim)
 
         return x0
+
+    def __store_results(self, x0, u0, qf):
+
+        x = self.__trial.model.variables_dict['xd'](x0)
+        variables = self.__trial.model.variables(0.1)
+        variables['xd'] = x0
+        variables['u']  = u0
+        variables['theta'] = self.__theta
+        x, z, p = self.__dae.fill_in_dae_variables(variables, self.__parameters_num)
+        z0 = self.__dae.dae['z'](self.__dae.rootfinder(z, x, p))
+
+        variables['xa'] = self.__trial.model.variables_dict['xa'](z0['xa'])
+        if 'xl' in list(variables.keys()):
+            variables['xl'] = self.__trial.model.variables_dict['xl'](z0['xl'])
+        variables['xddot'] = self.__trial.model.variables_dict['xddot'](z0['xddot'])
+
+        # evaluate system outputs
+        outputs = self.__trial.model.outputs(self.__trial.model.outputs_fun(variables, self.__parameters_num))
+        qf = self.__trial.model.integral_outputs(qf)
+
+        # store results
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim])
+
+        for output_type in list(self.__trial.model.outputs.keys()):
+            for name in list(self.__trial.model.outputs_dict[output_type].keys()):
+                for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
+                    self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim])
+
+        return None
+
+    def plot(self, flags):
+        """ plot visualization
+        """
+
+        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, recalibrate = False)
+
+        return None
 
     @property
     def trial(self):
