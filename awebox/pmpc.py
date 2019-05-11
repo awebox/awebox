@@ -151,7 +151,7 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0):
+    def step(self, x0, plot_flag = False):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
@@ -183,8 +183,7 @@ class Pmpc(object):
 
         self.__index += 1
 
-        PLOT = True
-        if PLOT == True:
+        if plot_flag == True:
             flags = ['states','controls','constraints']
             self.__plot(flags,self.__trial.nlp.V(sol['x']))
 

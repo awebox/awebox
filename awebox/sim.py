@@ -84,13 +84,13 @@ class Simulation:
 
             # get (open/closed-loop) controls
             if self.__sim_type == 'closed_loop':
-                u0 = self.__mpc.step(x0)
+                u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
 
             elif self.__sim_type == 'open_loop':
                 u0 = self.__u_sim[:,i]
 
             # simulate
-            x0 = self.__F(x0 = x0, p = u0, z0 = self.__z0)
+            x0 = self.__F(x0 = x0, p = u0, z0 = self.__z0)['xf']
 
         return None
 
