@@ -947,7 +947,7 @@ def interpolate_data(plot_dict, cosmetics):
 
     # integral outptus
     for name in plot_dict['integral_variables']:
-        values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, j, 'int_out')
+        values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
         plot_dict['integral_outputs'][name] = [values_ip]
 
     return plot_dict
