@@ -94,6 +94,10 @@ class Simulation:
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name].append([])
 
+        self.__visualization.plot_dict['integral_outputs'] = {}
+        for name in self.__visualization.plot_dict['integral_variables']:
+            self.__visualization.plot_dict['integral_outputs'][name] = [[]]
+
         return None
 
     def run(self, n_sim, x0 = None, u_sim = None):
@@ -192,6 +196,9 @@ class Simulation:
             for name in list(self.__trial.model.outputs_dict[output_type].keys()):
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim])
+
+        for name in self.__visualization.plot_dict['integral_variables']:
+            self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name])
 
         return None
 
