@@ -871,10 +871,12 @@ def interpolate_data(plot_dict, cosmetics):
     variables_dict = plot_dict['variables']
     outputs_dict = plot_dict['outputs_dict']
     output_vals = plot_dict['output_vals'][1]
+    integral_outputs = plot_dict['integral_outputs_final']
     nlp_options = plot_dict['options']['nlp']
     V_plot = plot_dict['V_plot']
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
+        int_interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot, integral_outputs)
         u_param = plot_dict['u_param']
     else:
         u_param = 'zoh'
@@ -885,6 +887,7 @@ def interpolate_data(plot_dict, cosmetics):
     plot_dict['xl'] = {}
     plot_dict['u'] = {}
     plot_dict['outputs'] = {}
+    plot_dict['integral_outputs'] = {}
 
     # interpolating time grid
     n_points = cosmetics['interpolation']['N']
@@ -941,6 +944,11 @@ def interpolate_data(plot_dict, cosmetics):
                 # inteprolate
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
                 plot_dict['outputs'][output_type][name] += [values_ip]
+
+    # integral outptus
+    for name in plot_dict['integral_variables']:
+        values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, j, 'int_out')
+        plot_dict['integral_outputs'][name] = [values_ip]
 
     return plot_dict
 

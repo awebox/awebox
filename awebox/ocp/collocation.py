@@ -129,7 +129,7 @@ class Collocation(object):
 
         return None
 
-    def build_interpolator(self, nlp_params, V):
+    def build_interpolator(self, nlp_params, V, integral_outputs = None):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -155,6 +155,9 @@ class Collocation(object):
                 elif var_type in ['u', 'xa', 'xl']:
                     poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
+                elif var_type in ['int_out']:
+                    poly_vars = cas.vertcat(integral_outputs['int_out',kdx, name, dim], *integral_outputs['coll_int_out',kdx, :, name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
 
             return vals
 

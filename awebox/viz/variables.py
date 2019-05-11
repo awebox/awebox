@@ -30,7 +30,6 @@ import logging
 def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
     # read in inputs
-    integral_outputs = plot_dict['integral_outputs_final']
     variables_dict = plot_dict['variables_dict']
     integral_variables = plot_dict['integral_variables']
     tgrid_ip = plot_dict['time_grids']['ip']
@@ -50,7 +49,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     for name in variables_to_plot:
         if not name[0] == 'w':
             counter += 1
-    counter += len(list(integral_outputs.keys()))
+    counter += len(integral_variables)
 
     if individual_state == None:
         plot_table_r = 4
@@ -91,8 +90,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     for name in integral_variables_to_plot:
         counter += 1
         ax = plt.axes(axes[counter-1])
-        out_values, tgrid_out = tools.merge_integral_output_values(integral_outputs,name, plot_dict, cosmetics)
-        plt.plot(tgrid_out, out_values)
+        p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][name][0])
         plt.title(name)
 
     ax.tick_params(axis='both', which='major')
