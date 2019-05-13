@@ -977,7 +977,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
     plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
-    n_points = cosmetics['interpolation']['N']
+    plot_dict['time_grids']['ref']['ip'] =  plot_dict['time_grids']['ip']
+    n_points = plot_dict['time_grids']['ip'].shape[0]
 
     # xd-values
     for name in list(struct_op.subkeys(variables_dict, 'xd')):
@@ -985,7 +986,6 @@ def interpolate_ref_data(plot_dict, cosmetics):
         for j in range(variables_dict['xd',name].shape[0]):
             # merge values
             values, time_grid = merge_xd_values(V_ref, name, j, plot_dict, cosmetics)
-            plot_dict['time_grids']['ref']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
 
             # interpolate
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
