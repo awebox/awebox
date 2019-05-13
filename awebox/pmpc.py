@@ -33,6 +33,7 @@ import casadi.tools as ct
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import copy
 
 class Pmpc(object):
 
@@ -60,7 +61,6 @@ class Pmpc(object):
         self.__nz = trial.model.variables['xa'].shape[0]
 
         # create mpc trial
-        import copy
         options = copy.deepcopy(trial.options)
         options['user_options']['trajectory']['type'] = 'mpc'
         options['nlp']['discretization'] = 'direct_collocation'
@@ -249,7 +249,7 @@ class Pmpc(object):
         quad_weights = list(self.__trial.nlp.Collocation.quad_weights)*self.__N
 
         # integrate tracking cost function
-        f = ct.mtimes(ct.vertcat(*quad_weights).T, cost_map(*cost_args).T)
+        f = ct.mtimes(ct.vertcat(*quad_weights).T, cost_map(*cost_args).T)/self.__N
 
         return f
 
