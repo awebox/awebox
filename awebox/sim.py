@@ -257,3 +257,13 @@ class Simulation:
     @trial.setter
     def trial(self, value):
         print('Cannot set trial object.')
+
+    @property
+    def mpc(self):
+        """ awebox.pmpc.Pmpc attribute containing MPC info.
+        """
+        return self.__mpc
+
+    @mpc.setter
+    def mpc(self, value):
+        print('Cannot set mpc object.')

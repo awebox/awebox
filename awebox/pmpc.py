@@ -490,3 +490,13 @@ class Pmpc(object):
     @log.setter
     def log(self, value):
         print('Cannot set log object.')
+
+    @property
+    def solver(self):
+        """ casadi.nlpsol attribute containing nonlinear optimization solver.
+        """
+        return self.__solver
+
+    @solver.setter
+    def solver(self, value):
+        print('Cannot set solver object.')
