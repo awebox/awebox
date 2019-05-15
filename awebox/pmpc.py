@@ -29,6 +29,7 @@ Periodic MPC routines for awebox models
 """
 
 import awebox as awe
+import awebox.viz.tools as viz_tools
 import casadi.tools as ct
 import logging
 import matplotlib.pyplot as plt
@@ -305,9 +306,47 @@ class Pmpc(object):
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
         V_opt = self.__pocp_trial.optimization.V_opt
-        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
+        if self.__mpc_options['ref_interpolator'] == 'poly':
+            self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
+        elif self.__mpc_options['ref_interpolator'] == 'spline':
+            self.__interpolator = self.__build_spline_interpolator(nlp_options, V_opt)
 
         return None
+
+    def __build_spline_interpolator(self, nlp_options, V_opt):
+
+        variables_dict = self.__pocp_trial.model.variables_dict
+        plot_dict = self.__pocp_trial.visualization.plot_dict
+        cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
+        n_points = self.__t_grid_coll.numel()
+        n_points_x = self.__t_grid_x_coll.numel()
+        self.__spline_dict = {}
+
+        for var_type in ['xd','u','xa']:
+            self.__spline_dict[var_type] = {}
+            for name in list(variables_dict[var_type].keys()):
+                self.__spline_dict[var_type][name] = {}
+                for j in range(variables_dict[var_type][name].shape[0]):
+                    if var_type == 'xd':
+                        values, time_grid = viz_tools.merge_xd_values(V_opt, name, j, plot_dict, cosmetics)
+                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
+                    elif var_type == 'u':
+                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        if all(v == 0 for v in values):
+                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((n_points,1))])
+                        else:
+                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
+                    elif var_type == 'xa':
+                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
+
+        def spline_interpolator(t_grid, name, j, var_type):
+
+            values_ip = self.__spline_dict[var_type][name][j](t_grid)
+
+            return values_ip
+
+        return spline_interpolator
 
     def __get_reference(self, index):
         """ xxx
@@ -329,11 +368,11 @@ class Pmpc(object):
             for name in list(variables_dict[var_type].keys()):
                 for j in range(variables_dict[var_type][name].shape[0]):
                     if var_type == 'xd':
-                        values_ip_x.append(list(self.__interpolator(t_grid_x, name, j,var_type).full()))
+                        values_ip_x.append(list(self.__interpolator(t_grid_x, name, j,var_type).full().squeeze()))
                     elif var_type == 'u':
-                        values_ip_u.append(list(self.__interpolator(t_grid, name, j,var_type).full()))
+                        values_ip_u.append(list(self.__interpolator(t_grid, name, j,var_type).full().squeeze()))
                     elif var_type == 'xa':
-                        values_ip_z.append(list(self.__interpolator(t_grid, name, j,var_type).full()))
+                        values_ip_z.append(list(self.__interpolator(t_grid, name, j,var_type).full().squeeze()))
 
         V_ref = self.__trial.nlp.V(0.0)
         for k in range(self.__N):
