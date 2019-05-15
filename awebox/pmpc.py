@@ -184,12 +184,8 @@ class Pmpc(object):
         logging.info("Compute MPC feedback...")
 
         # update nlp parameters
-        self.__p0 = self.__p(0.0)
-        self.__p0['x0'] = x0
-
-        if self.__cost_type == 'tracking':
-            ref = self.__get_reference(self.__index)
-            self.__p0['ref'] = ref
+        ref = self.get_reference(*self.__compute_time_grids(self.__index))
+        self.__p0 = self.__p(ct.vertcat(x0,ref.cat))
 
         self.__p_fix_num = self.__P_fun(self.__p0)
 
@@ -333,7 +329,7 @@ class Pmpc(object):
                     elif var_type == 'u':
                         values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values):
-                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((n_points,1))])
+                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
                     elif var_type == 'xa':
@@ -348,11 +344,8 @@ class Pmpc(object):
 
         return spline_interpolator
 
-    def __get_reference(self, index):
-        """ xxx
-        """
+    def __compute_time_grids(self, index):
 
-        # current time grid
         Tref = self.__ref_dict['time_grids']['ip'][-1]
         t_grid = ct.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full() + index*self.__ts
         t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
@@ -360,33 +353,52 @@ class Pmpc(object):
         t_grid_x = ct.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full() + index*self.__ts
         t_grid_x = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
 
-        # interpolate data
-        variables_dict = self.__pocp_trial.model.variables_dict
-        options = self.__pocp_trial.options
-        values_ip_x, values_ip_u, values_ip_z = [], [], []
-        for var_type in ['xd','u','xa']:
-            for name in list(variables_dict[var_type].keys()):
-                for j in range(variables_dict[var_type][name].shape[0]):
-                    if var_type == 'xd':
-                        values_ip_x.append(list(self.__interpolator(t_grid_x, name, j,var_type).full().squeeze()))
-                    elif var_type == 'u':
-                        values_ip_u.append(list(self.__interpolator(t_grid, name, j,var_type).full().squeeze()))
-                    elif var_type == 'xa':
-                        values_ip_z.append(list(self.__interpolator(t_grid, name, j,var_type).full().squeeze()))
+        return t_grid, t_grid_x
 
+    def get_reference(self, t_grid, t_grid_x):
+        """ xxx
+        """
+
+        ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
-        for k in range(self.__N):
-            V_ref['xd',k] = ct.vertcat(*[values_ip_x[i].pop(0) for i in range(self.__nx)])
-            for j in range(self.__d):
-                V_ref['coll_var',k,j,'xd'] = ct.vertcat(*[values_ip_x[i].pop(0) for i in range(self.__nx)])
-                V_ref['coll_var',k,j,'u']  = ct.vertcat(*[values_ip_u[i].pop(0) for i in range(self.__nu)])
-                V_ref['coll_var',k,j,'xa'] = ct.vertcat(*[values_ip_z[i].pop(0) for i in range(self.__nz)])
-        V_ref['xd',-1] = ct.vertcat(*[values_ip_x[i].pop(0) for i in range(self.__nx)])
+        for var_type in ['xd','u','xa']:
+            ip_dict[var_type] = []
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    if var_type == 'xd':
+                        ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
+                    else:
+                        ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
+            if self.__mpc_options['ref_interpolator'] == 'poly':
+                ip_dict[var_type] = ct.horzcat(*ip_dict[var_type]).T
+            elif self.__mpc_options['ref_interpolator'] == 'spline':
+                ip_dict[var_type] = ct.vertcat(*ip_dict[var_type])
 
-        for name in self.__trial.model.variables_dict['theta'].keys():
-            if name != 't_f':
-                V_ref['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
-        V_ref['theta','t_f'] = self.__N*self.__ts
+        counter = 0
+        counter_x = 0
+        V_list = []
+        for k in range(self.__N):
+            for j in range(self.__trial.nlp.d+1):
+                if j == 0:
+                    V_list.append(ip_dict['xd'][:,counter_x])
+                    counter_x += 1
+                else:
+                    for var_type in ['xd','xa','u']:
+                        if var_type == 'xd':
+                            V_list.append(ip_dict[var_type][:,counter_x])
+                            counter_x += 1
+                        else:
+                            V_list.append(ip_dict[var_type][:,counter])
+                    counter += 1
+
+        V_list.append(ip_dict['xd'][:,counter_x])
+        for var_type in ['theta', 'phi', 'xi']:
+            V_list.append(np.zeros(self.__trial.nlp.V[var_type].shape))
+        V_ref = self.__trial.nlp.V(ct.vertcat(*V_list))
+        # for name in self.__trial.model.variables_dict['theta'].keys():
+        #     if name != 't_f':
+        #         V_ref['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
+        # V_ref['theta','t_f'] = self.__N*self.__ts
 
         return V_ref
 
@@ -395,19 +407,12 @@ class Pmpc(object):
         """
 
         # initial guess
-        self.__w0 = self.__trial.nlp.V(0.0)
+        self.__w0 = self.get_reference(*self.__compute_time_grids(0.0))
+
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 self.__w0['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
         self.__w0['theta','t_f'] = self.__N*self.__ts
-
-        ref = self.__get_reference(0)
-        self.__w0['coll_var',:,:,'xd'] = ref['coll_var',:,:,'xd']
-        self.__w0['coll_var',:,:,'u']  = ref['coll_var',:,:,'u']
-        self.__w0['coll_var',:,:,'xa'] = ref['coll_var',:,:,'xa']
-        for k in range(self.__N):
-            self.__w0['xd',k+1] = ref['coll_var',k,-1,'xd']
-        self.__w0['xd',0] = ref['coll_var',0,0,'xd']
 
         # intialize log
         self.__log = {
@@ -559,3 +564,33 @@ class Pmpc(object):
     @w0.setter
     def w0(self, value):
         logging.info('Cannot set w0 object.')
+
+    @property
+    def t_grid_coll(self):
+        """ Collocation grid time vector
+        """
+        return self.__t_grid_coll
+
+    @t_grid_coll.setter
+    def t_grid_coll(self, value):
+        logging.info('Cannot set t_grid_coll object.')
+
+    @property
+    def t_grid_x_coll(self):
+        """ Collocation grid time vector
+        """
+        return self.__t_grid_x_coll
+
+    @t_grid_x_coll.setter
+    def t_grid_x_coll(self, value):
+        logging.info('Cannot set t_grid_x_coll object.')
+
+    @property
+    def interpolator(self):
+        """ interpolator
+        """
+        return self.__interpolator
+
+    @interpolator.setter
+    def interpolator(self, value):
+        logging.info('Cannot set interpolator object.')
