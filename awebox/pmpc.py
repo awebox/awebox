@@ -295,8 +295,10 @@ class Pmpc(object):
         """
 
         # MPC time grid
-        self.__t_grid_coll   = self.__trial.nlp.time_grids['coll'](self.__N*self.__ts)
+        self.__t_grid_coll = self.__trial.nlp.time_grids['coll'](self.__N*self.__ts)
+        self.__t_grid_coll = ct.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full()
         self.__t_grid_x_coll = self.__trial.nlp.time_grids['x_coll'](self.__N*self.__ts)
+        self.__t_grid_x_coll = ct.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full()
 
         # interpolate steady state solution
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
@@ -314,8 +316,8 @@ class Pmpc(object):
         variables_dict = self.__pocp_trial.model.variables_dict
         plot_dict = self.__pocp_trial.visualization.plot_dict
         cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
-        n_points = self.__t_grid_coll.numel()
-        n_points_x = self.__t_grid_x_coll.numel()
+        n_points = self.__t_grid_coll.shape[0]
+        n_points_x = self.__t_grid_x_coll.shape[0]
         self.__spline_dict = {}
 
         for var_type in ['xd','u','xa']:
@@ -347,10 +349,10 @@ class Pmpc(object):
     def __compute_time_grids(self, index):
 
         Tref = self.__ref_dict['time_grids']['ip'][-1]
-        t_grid = ct.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full() + index*self.__ts
+        t_grid = self.__t_grid_coll + index*self.__ts
         t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
 
-        t_grid_x = ct.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full() + index*self.__ts
+        t_grid_x = self.__t_grid_x_coll + index*self.__ts
         t_grid_x = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
 
         return t_grid, t_grid_x
