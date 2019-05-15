@@ -518,7 +518,7 @@ class Pmpc(object):
 
     @trial.setter
     def trial(self, value):
-        print('Cannot set trial object.')
+        logging.info('Cannot set trial object.')
 
     @property
     def log(self):
@@ -528,7 +528,7 @@ class Pmpc(object):
 
     @log.setter
     def log(self, value):
-        print('Cannot set log object.')
+        logging.info('Cannot set log object.')
 
     @property
     def solver(self):
@@ -538,4 +538,24 @@ class Pmpc(object):
 
     @solver.setter
     def solver(self, value):
-        print('Cannot set solver object.')
+        logging.info('Cannot set solver object.')
+
+    @property
+    def solver_bounds(self):
+        """ Solver variable and constraints bounds vectors
+        """
+        return {'lbw': self.__lbw, 'ubw': self.__ubw, 'lbg': self.__lbg, 'ubg': self.__ubg}
+
+    @solver_bounds.setter
+    def solver_bounds(self, value):
+        logging.info('Cannot set solver_bounds object.')
+
+    @property
+    def w0(self):
+        """ Solver initial guess vector
+        """
+        return self.__w0
+
+    @w0.setter
+    def w0(self, value):
+        logging.info('Cannot set w0 object.')
