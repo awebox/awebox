@@ -184,8 +184,12 @@ class Pmpc(object):
         logging.info("Compute MPC feedback...")
 
         # update nlp parameters
-        ref = self.get_reference(*self.__compute_time_grids(self.__index))
-        self.__p0 = self.__p(ct.vertcat(x0,ref.cat))
+        self.__p0 = self.__p(0.0)
+        self.__p0['x0'] = x0
+
+        if self.__cost_type == 'tracking':
+            ref = self.get_reference(*self.__compute_time_grids(self.__index))
+            self.__p0['ref'] = ref
 
         self.__p_fix_num = self.__P_fun(self.__p0)
 
