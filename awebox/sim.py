@@ -267,3 +267,13 @@ class Simulation:
     @mpc.setter
     def mpc(self, value):
         print('Cannot set mpc object.')
+
+    @property
+    def F(self):
+        """ integrator attribute containing simulation info.
+        """
+        return self.__F
+
+    @F.setter
+    def F(self, value):
+        print('Cannot set F object.')
