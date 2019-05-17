@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+""" 
+MPC-based closed loop simulation example for a single 3DOF kite system.
+"""
 
 # imports
 import awebox as awe
