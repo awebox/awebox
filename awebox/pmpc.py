@@ -149,11 +149,13 @@ class Pmpc(object):
 
         # store nlp bounds
         self.__trial.nlp.V_bounds['ub']['phi'] = 0.0
+        self.__trial.nlp.V_bounds['lb']['xi'] = 0.0
+        self.__trial.nlp.V_bounds['ub']['xi'] = 0.0
+
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
                 self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
                 self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
-
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']
@@ -404,7 +406,14 @@ class Pmpc(object):
                     counter += 1
 
         V_list.append(ip_dict['xd'][:,counter_x])
-        for var_type in ['theta', 'phi', 'xi']:
+        
+        for name in self.__trial.model.variables_dict['theta'].keys():
+            if name != 't_f':
+                V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
+            else:
+                V_list.append(self.__N*self.__ts)
+
+        for var_type in ['phi', 'xi']:
             V_list.append(np.zeros(self.__trial.nlp.V[var_type].shape))
         V_ref = self.__trial.nlp.V(ct.vertcat(*V_list))
 
