@@ -946,9 +946,10 @@ def interpolate_data(plot_dict, cosmetics):
                 plot_dict['outputs'][output_type][name] += [values_ip]
 
     # integral outptus
-    for name in plot_dict['integral_variables']:
-        values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
-        plot_dict['integral_outputs'][name] = [values_ip]
+    if plot_dict['discretization'] == 'direct_collocation':
+        for name in plot_dict['integral_variables']:
+            values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
+            plot_dict['integral_outputs'][name] = [values_ip]
 
     return plot_dict
 

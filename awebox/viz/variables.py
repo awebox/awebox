@@ -87,10 +87,15 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
                 plt.title(name)
 
+    integral_outputs = plot_dict['integral_outputs_final']
     for name in integral_variables_to_plot:
         counter += 1
         ax = plt.axes(axes[counter-1])
-        p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][name][0])
+        if plot_dict['discretization'] == 'multiple_shooting':
+            out_values, tgrid_out = tools.merge_integral_output_values(integral_outputs,name, plot_dict, cosmetics)
+            p = plt.plot(tgrid_out, out_values)
+        else:
+            p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][name][0])
         plt.title(name)
 
     ax.tick_params(axis='both', which='major')
