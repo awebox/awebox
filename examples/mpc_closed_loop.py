@@ -23,13 +23,13 @@ options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 
 # trajectory should be a single pumping cycle with initial number of five windings
 options['user_options']['trajectory']['type'] = 'lift_mode'
-options['user_options']['trajectory']['lift_mode']['windings'] = 1
+options['user_options']['trajectory']['lift_mode']['windings'] = 6
 
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'trivial'
 
-options['nlp']['n_k'] = 40
+options['nlp']['n_k'] = 80
 options['nlp']['collocation']['u_param'] = 'poly'
 
 # initialize and optimize trial
@@ -39,13 +39,13 @@ trial.optimize()
 
 # set-up closed-loop simulation
 N_mpc = 10 # MPC horizon
-N_sim = 200  # closed-loop simulation steps
+N_sim = 2000  # closed-loop simulation steps
 ts = 0.1 # sampling time
 
 # MPC options
 options['mpc']['scheme'] = 'radau'
 options['mpc']['d'] = 4
-options['mpc']['jit'] = False
+options['mpc']['jit'] = True
 options['mpc']['cost_type'] = 'tracking'
 options['mpc']['expand'] = True
 options['mpc']['linear_solver'] = 'ma57'
