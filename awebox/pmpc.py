@@ -404,7 +404,15 @@ class Pmpc(object):
                     counter += 1
 
         V_list.append(ip_dict['xd'][:,counter_x])
-        for var_type in ['theta', 'phi', 'xi']:
+        
+        for name in self.__trial.model.variables_dict['theta'].keys():
+            if name != 't_f':
+                V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
+            else:
+                # V_list.append(self.__pocp_trial.visualization.plot_dict['time_grids']['ip'][-1])
+                V_list.append(self.__N*self.__ts)
+
+        for var_type in ['phi', 'xi']:
             V_list.append(np.zeros(self.__trial.nlp.V[var_type].shape))
         V_ref = self.__trial.nlp.V(ct.vertcat(*V_list))
 
