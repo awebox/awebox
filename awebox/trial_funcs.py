@@ -172,7 +172,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
 
     return None
 
-def generate_optimal_model(trial):
+def generate_optimal_model(trial, param_options = None):
 
     """
     Generate optimal model dict based on both optimized parameter values
@@ -201,7 +201,8 @@ def generate_optimal_model(trial):
 
     # fill in parameters structure
     parameters = trial.model.parameters(0.0)
-    param_options = trial.options['solver']['initialization']['sys_params_num']
+    if param_options is None:
+        param_options = trial.options['solver']['initialization']['sys_params_num']
     for param_type in list(param_options.keys()):
         if isinstance(param_options[param_type],dict):
             for param in list(param_options[param_type].keys()):

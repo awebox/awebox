@@ -278,8 +278,8 @@ class Trial(object):
 
         return None
 
-    def generate_optimal_model(self):
-        return trial_funcs.generate_optimal_model(self)
+    def generate_optimal_model(self, param_options = None):
+        return trial_funcs.generate_optimal_model(self, param_options= param_options)
 
     @property
     def options(self):
