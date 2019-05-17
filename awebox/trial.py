@@ -72,7 +72,6 @@ class Trial(object):
             self.__model          = model.Model()
             self.__formulation    = formulation.Formulation()
             self.__nlp            = nlp.NLP()
-            self.__simulation     = sim.Simulation(self.__options['simulation'])
             self.__optimization   = optimization.Optimization()
             self.__visualization  = visualization.Visualization()
             self.__quality        = quality.Quality()
@@ -182,18 +181,6 @@ class Trial(object):
 
         return None
 
-    def simulate(self):
-
-        logging.info('Simulating trial (%s) ...', self.__name)
-        logging.info('')
-
-        self.__simulation.build_integrator(self.__options['simulation'], self.__model)
-
-        x0 = generate_initial_state(self.__model, self.__optimization.V_init)
-        self.__simulation.run(x0, self.__optimization.V_init['u'], self.__optimization.V_init['theta'], self.__optimization.V_init['phi'])
-        logging.info('Trial (%s) simulated.', self.__name)
-        logging.info('')
-
     def set_timings(self, timing):
         if timing == 'construction':
             self.__timings['construction'] = self.model.timings['overall'] + self.formulation.timings['overall'] \
@@ -291,8 +278,8 @@ class Trial(object):
 
         return None
 
-    def generate_optimal_model(self):
-        return trial_funcs.generate_optimal_model(self)
+    def generate_optimal_model(self, param_options = None):
+        return trial_funcs.generate_optimal_model(self, param_options= param_options)
 
     @property
     def options(self):
@@ -308,7 +295,6 @@ class Trial(object):
         status_dict['model'] = self.__model.status
         status_dict['nlp'] = self.__nlp.status
         status_dict['optimization'] = self.__optimization.status
-        status_dict['simulation'] = self.__simulation.status
         return status_dict
 
     @status.setter
@@ -370,14 +356,6 @@ class Trial(object):
     @timings.setter
     def timings(self, value):
         print('Cannot set timings object.')
-
-    @property
-    def simulation(self):
-        return self.__simulation
-
-    @simulation.setter
-    def simulation(self, value):
-        print('Cannot set simulation object.')
 
     @property
     def visualization(self):

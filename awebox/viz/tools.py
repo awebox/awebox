@@ -638,7 +638,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
                     linestyle= '--', color = p[-1].get_color() )
 
         else:
-            p = plt.step(tgrid_u, np.array(V_opt[location, :, name, jdx]),where='post')
+            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
                     linestyle =  '--', color = p[-1].get_color())
@@ -871,10 +871,12 @@ def interpolate_data(plot_dict, cosmetics):
     variables_dict = plot_dict['variables']
     outputs_dict = plot_dict['outputs_dict']
     output_vals = plot_dict['output_vals'][1]
+    integral_outputs = plot_dict['integral_outputs_final']
     nlp_options = plot_dict['options']['nlp']
     V_plot = plot_dict['V_plot']
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
+        int_interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot, integral_outputs)
         u_param = plot_dict['u_param']
     else:
         u_param = 'zoh'
@@ -885,6 +887,7 @@ def interpolate_data(plot_dict, cosmetics):
     plot_dict['xl'] = {}
     plot_dict['u'] = {}
     plot_dict['outputs'] = {}
+    plot_dict['integral_outputs'] = {}
 
     # interpolating time grid
     n_points = cosmetics['interpolation']['N']
@@ -942,6 +945,12 @@ def interpolate_data(plot_dict, cosmetics):
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
                 plot_dict['outputs'][output_type][name] += [values_ip]
 
+    # integral outptus
+    if plot_dict['discretization'] == 'direct_collocation':
+        for name in plot_dict['integral_variables']:
+            values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
+            plot_dict['integral_outputs'][name] = [values_ip]
+
     return plot_dict
 
 def interpolate_ref_data(plot_dict, cosmetics):
@@ -969,7 +978,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
     plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
-    n_points = cosmetics['interpolation']['N']
+    plot_dict['time_grids']['ref']['ip'] =  plot_dict['time_grids']['ip']
+    n_points = plot_dict['time_grids']['ip'].shape[0]
 
     # xd-values
     for name in list(struct_op.subkeys(variables_dict, 'xd')):
@@ -977,7 +987,6 @@ def interpolate_ref_data(plot_dict, cosmetics):
         for j in range(variables_dict['xd',name].shape[0]):
             # merge values
             values, time_grid = merge_xd_values(V_ref, name, j, plot_dict, cosmetics)
-            plot_dict['time_grids']['ref']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
 
             # interpolate
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':

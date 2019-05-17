@@ -428,8 +428,21 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health',   None,                   'matrix_entry_zero_tol',        1e-6,   ('tolerance for a matrix entry to be considered zero', None),'x'),
 
         ### simulation options
-        ('simulation',  None,         None,     'Nsim',     500,            ('simulation steps per control interval[int]', None),'x'),
-        ('simulation', 'integrator',  None,    'type',   'idas',            ('integrator type', ['collocation','idas']), 'x'),
+        ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),
+        ('sim', None,  None,    'sys_params',                 None,               ('system parameters dict', None), 'x'),
+
+        ### mpc options
+        ('mpc', None,  None,    'N',            10,                 ('MPC horizon', None), 'x'),
+        ('mpc', None,  None,    'scheme',      'radau',             ('NLP collocation scheme', ['legendre','radau']), 'x'),
+        ('mpc', None,  None,    'd',            4,                  ('NLP collocation polynomial order', None), 'x'),
+        ('mpc', None,  None,    'jit',          False,              ('MPC solver jitting', None), 'x'),
+        ('mpc', None,  None,    'expand',       True,               ('expand NLP expressions', None), 'x'),
+        ('mpc', None,  None,    'cost_type',    'tracking',         ('MPC cost function type', ['tracking','economic']), 'x'),
+        ('mpc', None,  None,    'linear_solver','ma57',             ('MPC cost function type', None), 'x'),
+        ('mpc', None,  None,    'max_iter',     1000,               ('MPC solver max iterations', None), 'x'),
+        ('mpc', None,  None,    'max_cpu_time', 2000,               ('MPC solver max cpu time', None), 'x'),
+        ('mpc', None,  None,    'plot_flag',    False,              ('MPC plot solution for each step', None), 'x'),
+        ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
