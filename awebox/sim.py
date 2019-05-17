@@ -61,7 +61,7 @@ class Simulation:
         """
 
         # generate plant model
-        sys_params = self.__sim_options['sim']['sys_params']
+        sys_params = self.__sim_options['sys_params']
         if sys_params is None:
             sys_params = self.__trial.options['solver']['initialization']['sys_params_num']
         model = self.__trial.generate_optimal_model(sys_params)
