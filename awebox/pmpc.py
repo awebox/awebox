@@ -193,9 +193,6 @@ class Pmpc(object):
 
         self.__p_fix_num = self.__P_fun(self.__p0)
 
-        # DEBUGGING
-        w0 = self.__w0
-
         # MPC problem
         sol = self.__solver(
             x0  = self.__w0,
@@ -216,7 +213,10 @@ class Pmpc(object):
         self.__shift_solution()
 
         # return zoh control
-        u0 = ct.mtimes(self.__trial.nlp.Collocation.quad_weights[np.newaxis,:], ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T)
+        u0 = ct.mtimes(
+                self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
+                ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T
+                )
 
         return u0
 
@@ -316,6 +316,8 @@ class Pmpc(object):
         return None
 
     def __build_spline_interpolator(self, nlp_options, V_opt):
+        """ Build spline-based reference interpolating method.
+        """
 
         variables_dict = self.__pocp_trial.model.variables_dict
         plot_dict = self.__pocp_trial.visualization.plot_dict
@@ -343,6 +345,8 @@ class Pmpc(object):
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
 
         def spline_interpolator(t_grid, name, j, var_type):
+            """ Interpolate reference on specific time grid for specific variable.
+            """
 
             values_ip = self.__spline_dict[var_type][name][j](t_grid)
 
@@ -351,6 +355,8 @@ class Pmpc(object):
         return spline_interpolator
 
     def __compute_time_grids(self, index):
+        """ Compute NLP time grids based in periodic index
+        """
 
         Tref = self.__ref_dict['time_grids']['ip'][-1]
         t_grid = self.__t_grid_coll + index*self.__ts
@@ -362,7 +368,7 @@ class Pmpc(object):
         return t_grid, t_grid_x
 
     def get_reference(self, t_grid, t_grid_x):
-        """ xxx
+        """ Interpolate reference on NLP time grids.
         """
 
         ip_dict = {}
@@ -401,15 +407,11 @@ class Pmpc(object):
         for var_type in ['theta', 'phi', 'xi']:
             V_list.append(np.zeros(self.__trial.nlp.V[var_type].shape))
         V_ref = self.__trial.nlp.V(ct.vertcat(*V_list))
-        # for name in self.__trial.model.variables_dict['theta'].keys():
-        #     if name != 't_f':
-        #         V_ref['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
-        # V_ref['theta','t_f'] = self.__N*self.__ts
 
         return V_ref
 
     def __initialize_solver(self):
-        """ xxx
+        """ Initialize solver with reference solution.
         """
 
         # initial guess
@@ -435,6 +437,8 @@ class Pmpc(object):
         return None
 
     def __shift_solution(self):
+        """ Shift NLP solution one stage to the left.
+        """
 
         for k in range(self.__N-1):
             self.__w0['coll_var',k,:,'xd'] = self.__w0['coll_var',k+1,:,'xd']
@@ -491,6 +495,8 @@ class Pmpc(object):
         return None
 
     def __create_P_fun(self):
+        """ Create function that maps MPC parameters to periodic OCP parameters.
+        """
 
         # initialize
         pp = self.__trial.nlp.P(0.0)
