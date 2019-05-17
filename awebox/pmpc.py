@@ -149,11 +149,13 @@ class Pmpc(object):
 
         # store nlp bounds
         self.__trial.nlp.V_bounds['ub']['phi'] = 0.0
+        self.__trial.nlp.V_bounds['lb']['xi'] = 0.0
+        self.__trial.nlp.V_bounds['ub']['xi'] = 0.0
+
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
                 self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
                 self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
-
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']
