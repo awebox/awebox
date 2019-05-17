@@ -411,7 +411,6 @@ class Pmpc(object):
             if name != 't_f':
                 V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
             else:
-                # V_list.append(self.__pocp_trial.visualization.plot_dict['time_grids']['ip'][-1])
                 V_list.append(self.__N*self.__ts)
 
         for var_type in ['phi', 'xi']:
