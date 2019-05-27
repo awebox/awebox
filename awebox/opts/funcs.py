@@ -374,10 +374,11 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
-    battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
-    for name in list(battery_model_parameters.keys()):
-        if options['formulation']['compromised_landing']['battery'][name] is None:
-            options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
+    if int(user_options['system_model']['kite_dof']) == 3:
+        battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
+        for name in list(battery_model_parameters.keys()):
+            if options['formulation']['compromised_landing']['battery'][name] is None:
+                options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
     # BUILD OPTIONS
     options, help_options = build_options_tree(options_tree, options, help_options)
