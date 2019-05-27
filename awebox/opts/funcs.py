@@ -66,19 +66,7 @@ def build_options_tree(options_tree, options, help_options):
 
     return options, help_options
 
-def build_options_dict(options, help_options, architecture):
-
-    # single out user options
-    user_options = options['user_options']
-
-    # check for unsupported settings
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
-
-    # initialize additional options tree
-    options_tree = []
-
-    options_tree = share_trajectory_type(options, options_tree)
+def build_model_options(options, help_options, user_options, options_tree, architecture):
 
     # MODEL
     ### geometry
@@ -255,6 +243,10 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('model', 'scaling', 'xd', 'e', energy_scaling, ('scaling of the energy', None),'x'))
 
+    return options_tree, fixed_params
+
+def build_nlp_options(options, help_options, user_options, options_tree, architecture):
+
     # NLP
 
     ### switch off phase fixing for landing/transition trajectories
@@ -302,6 +294,11 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('nlp', 'parallelization', None, 'include', parallelize,  ('parallelize functions in nlp', (True, False)),'x'))
 
+
+    return options_tree, phase_fix
+
+def build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix):
+
     # SOLVER
     if user_options['trajectory']['type'] in ['nominal_landing','compromised_landing']:
         options_tree.append(('solver', 'cost', 'ddq_regularisation', 0,       1e-1,        ('starting cost for ddq_regularisation', None),'x'))
@@ -345,7 +342,7 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * gravity
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
     options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
@@ -369,16 +366,44 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
+
+    return options_tree
+
+def build_formulation_options(options, help_options, user_options, options_tree, architecture):
+
     # FORMULATION
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
+        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
+        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
         battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
         for name in list(battery_model_parameters.keys()):
             if options['formulation']['compromised_landing']['battery'][name] is None:
                 options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
+
+    return options_tree
+
+def build_options_dict(options, help_options, architecture):
+
+    # single out user options
+    user_options = options['user_options']
+
+    # check for unsupported settings
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
+        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+
+    # initialize additional options tree
+    options_tree = []
+
+    options_tree = share_trajectory_type(options, options_tree)
+
+    options_tree, fixed_params = build_model_options(options, help_options, user_options, options_tree, architecture)
+    options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
+    options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
 
     # BUILD OPTIONS
     options, help_options = build_options_tree(options_tree, options, help_options)
