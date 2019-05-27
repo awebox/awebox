@@ -44,13 +44,13 @@ class Options:
         if key in self.__options_dict.keys():
             self.__options_dict[key] = value
         else:
-            raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
+            raise KeyError('1 The key ' + key + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
 
     def __getitem__(self, item):
         if item in self.__options_dict.keys():
             return self.__options_dict[item]
         else:
-            raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
+            raise KeyError('2 The key ' + item + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
 
     def keys(self):
         return self.__keys_list

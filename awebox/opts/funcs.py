@@ -44,7 +44,7 @@ class safe_dict:
             if key in self.__dict.keys():
                 self.__dict[key] = value
             else:
-                raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
+                raise KeyError('3 The key ' + key + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
         else:
             self.__dict[key] = value
 
@@ -54,13 +54,17 @@ class safe_dict:
             if key in self.__dict.keys():
                 return self.__dict[key]
             else:
-                raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
+                raise KeyError('4 The key ' + key + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
         else:
             return self.__dict[key]
 
     def keys(self):
 
         return self.__dict.keys()
+
+    def items(self):
+
+        return self.__dict.items()
 
     def safety_on(self):
 
@@ -99,7 +103,11 @@ def build_options_tree(options_tree, options, help_options):
             options[branch[0]][branch[1]][branch[2]][branch[3]] = branch[4]
             help_options[branch[0]][branch[1]][branch[2]][branch[3]] = [branch[5], branch[6]]
 
-    for branch in options_tree: #build tree
+    return options, help_options
+
+def lock_tree(options_tree, options, help_options):
+
+    for branch in options_tree:
 
         if branch[1] is None:
             options[branch[0]].safety_on()
@@ -441,6 +449,7 @@ def build_options_dict(options, help_options, architecture):
 
     options, help_options = build_options_tree(options_tree, options, help_options)
     options, help_options = build_system_parameter_dict(options, help_options)
+    options, help_options = lock_tree(options_tree, options, help_options)
 
     return options, help_options
 

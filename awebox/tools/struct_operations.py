@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
+import awebox
 
 import operator
 
@@ -643,7 +644,7 @@ def generate_nested_dict_struct(v):
     # iterate over all dict values
     for k1, v1 in v.items():
 
-        if isinstance(v1, dict):
+        if isinstance(v1, dict) or isinstance(v1, awebox.opts.funcs.safe_dict):
 
             # if value is a dict, recursively generate subdict struct
             substruct = generate_nested_dict_struct(v1)
