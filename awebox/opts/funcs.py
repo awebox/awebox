@@ -270,9 +270,6 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
 
-    # options_tree.append(('nlp', 'cost', 'normalization', 'power',                1.,                    ('power cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 't_f',                  1.,                    ('t_f cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 'theta',                1.,                    ('theta cost normalization', None),'x'))
     options_tree.append(('nlp', 'landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
@@ -327,7 +324,6 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', 'initialization', 'xd', 'l_t', 500.0, ('secondary tether natural length [m]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
-
 
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
