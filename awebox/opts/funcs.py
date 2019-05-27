@@ -80,7 +80,7 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree = share_trajectory_type(options, options_tree)
 
-    ## kite model
+    # MODEL
     ### geometry
     geometry = load_kite_geometry(options['user_options']['kite_standard'])
     geometry = build_geometry(options['model']['geometry']['overwrite'], geometry)
@@ -91,22 +91,17 @@ def build_options_dict(options, help_options, architecture):
             dict_type = 'model'
         options_tree.append((dict_type, 'geometry', None, name,geometry[name], ('???', None),'x'))
 
-    ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
-        phase_fix = False
-    else:
-        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
-
-    ### control surfaces
-    coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-    coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+    ### system bounds
     if int(user_options['system_model']['kite_dof']) == 3:
+        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
+        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
+    elif int(user_options['systems_model']['kite_dof']) == 6:
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
+    else:
+        raise ValueError('Invalid kite DOF chosen.')
 
         options_tree.append(('model', 'system_bounds', 'xd', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
@@ -207,15 +202,6 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('model', 'model_bounds', 'airspeed_max', 'include', True,   ('include max airspeed constraint', None),'x'))
         options_tree.append(('model', 'model_bounds', 'airspeed_min', 'include', True,   ('include min airspeed constraint', None),'x'))
 
-    ### system bounds
-    if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
-        delta_max = geometry['delta_max']
-        ddelta_max = geometry['ddelta_max']
-
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
     if options['model']['tether']['control_var'] == 'ddl_t':
@@ -282,8 +268,15 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
 
+    # NLP
     ## numerics
     ### nlp
+
+    ### switch off phase fixing for landing/transition trajectories
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
+        phase_fix = False
+    else:
+        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
     n_k = options['nlp']['n_k']
