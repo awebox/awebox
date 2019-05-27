@@ -68,7 +68,6 @@ def build_options_tree(options_tree, options, help_options):
 
 def build_model_options(options, help_options, user_options, options_tree, architecture):
 
-    # MODEL
     ### geometry
     geometry = load_kite_geometry(options['user_options']['kite_standard'])
     geometry = build_geometry(options['model']['geometry']['overwrite'], geometry)
@@ -81,8 +80,6 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
     ### system bounds
     if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
     elif int(user_options['system_model']['kite_dof']) == 6:
@@ -247,8 +244,6 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
 def build_nlp_options(options, help_options, user_options, options_tree, architecture):
 
-    # NLP
-
     ### switch off phase fixing for landing/transition trajectories
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
         phase_fix = False
@@ -299,7 +294,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
 def build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix):
 
-    # SOLVER
     if user_options['trajectory']['type'] in ['nominal_landing','compromised_landing']:
         options_tree.append(('solver', 'cost', 'ddq_regularisation', 0,       1e-1,        ('starting cost for ddq_regularisation', None),'x'))
         options_tree.append(('solver', None, None, 'mu_hippo',       1e-5,        ('target for interior point homotop parameter for hippo strategy [float]', None),'x'))
@@ -371,7 +365,6 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
-    # FORMULATION
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
