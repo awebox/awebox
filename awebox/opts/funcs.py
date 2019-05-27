@@ -97,7 +97,7 @@ def build_options_dict(options, help_options, architecture):
         coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
-    elif int(user_options['systems_model']['kite_dof']) == 6:
+    elif int(user_options['system_model']['kite_dof']) == 6:
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
     else:
