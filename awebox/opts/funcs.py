@@ -296,7 +296,6 @@ def build_options_dict(options, help_options, architecture):
     elif options['nlp']['integrator']['type'] in ['idas', 'rk4root']:
         options_tree.append(('nlp', 'integrator', None, 'jit', options['nlp']['integrator']['jit_idas'],  ('jit integrator', (True, False)),'x'))
 
-
     if options['nlp']['integrator']['num_steps_overwrite'] is not None:
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_overwrite'],  ('number of internal integrator steps', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'collocation':
@@ -306,7 +305,7 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('nlp', 'parallelization', None, 'include', parallelize,  ('parallelize functions in nlp', (True, False)),'x'))
 
-    ### solver
+    # SOLVER
     if user_options['trajectory']['type'] in ['nominal_landing','compromised_landing']:
         options_tree.append(('solver', 'cost', 'ddq_regularisation', 0,       1e-1,        ('starting cost for ddq_regularisation', None),'x'))
         options_tree.append(('solver', None, None, 'mu_hippo',       1e-5,        ('target for interior point homotop parameter for hippo strategy [float]', None),'x'))
@@ -374,7 +373,6 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
-
     # FORMULATION
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
@@ -385,7 +383,7 @@ def build_options_dict(options, help_options, architecture):
         if options['formulation']['compromised_landing']['battery'][name] is None:
             options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
-
+    # BUILD OPTIONS
     options, help_options = build_options_tree(options_tree, options, help_options)
     options, help_options = build_system_parameter_dict(options, help_options)
 
