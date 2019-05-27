@@ -108,10 +108,6 @@ def build_options_dict(options, help_options, architecture):
                              ('control surface deflection rate bounds', None),'x'))
 
     options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
-    battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
-    for name in list(battery_model_parameters.keys()):
-        if options['formulation']['compromised_landing']['battery'][name] is None:
-            options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
     ## orientation
     options_tree.append(('model', None, None, 'kite_dof', user_options['system_model']['kite_dof'],('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
@@ -145,9 +141,6 @@ def build_options_dict(options, help_options, architecture):
     ua_ref = options['solver']['initialization']['ua_norm']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
-
-    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
-        options['solver']['initialization']['fix_tether_length'] = True
 
     if architecture.number_of_kites == 1:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
@@ -246,7 +239,6 @@ def build_options_dict(options, help_options, architecture):
 
     lambda_scaling_overwrite = options['model']['scaling_overwrite']['xa']['lambda']
     e_scaling_overwrite = options['model']['scaling_overwrite']['xd']['e']
-    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
 
     [lambda_scaling, energy_scaling, power_cost] = get_suggested_lambda_energy_power_scaling(options, architecture)
 
@@ -256,21 +248,14 @@ def build_options_dict(options, help_options, architecture):
     if not e_scaling_overwrite == None:
         energy_scaling = e_scaling_overwrite
 
-    if not power_cost_overwrite == None:
-        power_cost = power_cost_overwrite
-
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
     else:
         options_tree.append(('model', 'scaling', 'xa', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'xd', 'e', energy_scaling, ('scaling of the energy', None),'x'))
-    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
-
 
     # NLP
-    ## numerics
-    ### nlp
 
     ### switch off phase fixing for landing/transition trajectories
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
@@ -280,7 +265,6 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
     n_k = options['nlp']['n_k']
-    d = options['nlp']['collocation']['d']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'regularisation',       n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
@@ -380,11 +364,27 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('solver', None, None, 'fixed_q_r_values', False,
                              ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
 
-    # formulation
+    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
+        options['solver']['initialization']['fix_tether_length'] = True
+
+    [lambda_scaling, energy_scaling, power_cost] = get_suggested_lambda_energy_power_scaling(options, architecture)
+    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+    if not power_cost_overwrite == None:
+        power_cost = power_cost_overwrite
+
+    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+
+    # FORMULATION
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
+    battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
+    for name in list(battery_model_parameters.keys()):
+        if options['formulation']['compromised_landing']['battery'][name] is None:
+            options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
+
 
     options, help_options = build_options_tree(options_tree, options, help_options)
     options, help_options = build_system_parameter_dict(options, help_options)
