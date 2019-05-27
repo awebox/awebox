@@ -100,12 +100,12 @@ def build_options_dict(options, help_options, architecture):
     elif int(user_options['system_model']['kite_dof']) == 6:
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
-    else:
-        raise ValueError('Invalid kite DOF chosen.')
-
         options_tree.append(('model', 'system_bounds', 'xd', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
+    else:
+        raise ValueError('Invalid kite DOF chosen.')
+
 
     options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
 
