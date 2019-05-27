@@ -41,30 +41,16 @@ class Options:
         self.__internal_access = internal_access
 
     def __setitem__(self, key, value):
-        category_key, sub_category_key, sub_sub_category_key, option_key, help_flag = get_keys(key)
-        if category_key is None:
-            if type(self.__options_dict[option_key]) is type(value):
-                self.__options_dict[option_key] = value
-            else:
-                raise TypeError('Wrong type to set option' + str(option_key) + '.')
-        elif sub_category_key is None:
-            if type(self.__options_dict[category_key][option_key]) is type(value):
-                self.__options_dict[category_key][option_key] = value
-            else:
-                raise TypeError('Wrong type to set option' + str(option_key) + '.')
-        elif sub_sub_category_key is None:
-            if type(self.__options_dict[category_key][sub_category_key][option_key]) is type(value):
-                self.__options_dict[category_key][sub_category_key][option_key] = value
-            else:
-                raise TypeError('Wrong type to set option' + str(option_key) + '.')
+        if key in self.__options_dict.keys():
+            self.__options_dict[key] = value
         else:
-            if type(self.__options_dict[category_key][sub_category_key][sub_sub_category_key][option_key]) is type(value):
-                self.__options_dict[category_key][sub_category_key][sub_sub_category_key][option_key] = value
-            else:
-                raise TypeError('Wrong type to set option' + str(option_key) + '.')
+            raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
 
     def __getitem__(self, item):
-        return self.__options_dict[item]
+        if item in self.__options_dict.keys():
+            return self.__options_dict[item]
+        else:
+            raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__options_dict.keys()) + '.')
 
     def keys(self):
         return self.__keys_list
@@ -80,27 +66,3 @@ class Options:
     @help_dict.setter
     def help_dict(self, value):
         print('Cannot set help_dict object.')
-
-def get_keys(item):
-    category_key = None
-    sub_category_key = None
-    sub_sub_category_key = None
-    option_key = None
-    help_flag = False
-    item = [item]
-    try:
-        [category_key, sub_category_key, sub_sub_category_key, option_key] = item
-    except(ValueError):
-        try:
-            [category_key, sub_category_key, option_key] = item
-        except(ValueError):
-            try:
-                [category_key, option_key] = item
-            except(ValueError):
-                [option_key] = item
-    if str(option_key[-3:]) == ' -h':
-        help_flag = True
-
-    return category_key, sub_category_key, sub_sub_category_key, option_key, help_flag
-
-

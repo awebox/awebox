@@ -31,12 +31,47 @@ import pickle
 
 import awebox.tools.struct_operations as struct_op
 
+class safe_dict:
+
+    def __init__(self):
+
+        self.__dict = {}
+        self.__safety = False
+
+    def __setitem__(self, key, value):
+
+        if self.__safety:
+            if key in self.__dict.keys():
+                self.__dict[key] = value
+            else:
+                raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
+        else:
+            self.__dict[key] = value
+
+    def __getitem__(self, key):
+
+        if self.__safety:
+            if key in self.__dict.keys():
+                return self.__dict[key]
+            else:
+                raise KeyError('The key ' + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
+        else:
+            return self.__dict[key]
+
+    def keys(self):
+
+        return self.__dict.keys()
+
+    def safety_on(self):
+
+        self.__safety = True
+
 def build_options_tree(options_tree, options, help_options):
 
     for branch in options_tree: #build tree
         # initialize category field if necessary
         if branch[0] not in list(options.keys()):
-            options[branch[0]] = {}
+            options[branch[0]] = safe_dict()
             help_options[branch[0]] = {}
 
         if branch[1] is None:
@@ -46,7 +81,7 @@ def build_options_tree(options_tree, options, help_options):
         elif branch[2] is None:
             # initialize sub-category field if necessary
             if branch[1] not in list(options[branch[0]].keys()):
-                options[branch[0]][branch[1]] = {}
+                options[branch[0]][branch[1]] = safe_dict()
                 help_options[branch[0]][branch[1]] = {}
 
             options[branch[0]][branch[1]][branch[3]] = branch[4]
@@ -54,15 +89,26 @@ def build_options_tree(options_tree, options, help_options):
         else:
             # initialize sub-category field if necessary
             if branch[1] not in list(options[branch[0]].keys()):
-                options[branch[0]][branch[1]] = {}
+                options[branch[0]][branch[1]] = safe_dict()
                 help_options[branch[0]][branch[1]] = {}
             # initialize sub-sub-category field if necessary
             if branch[2] not in list(options[branch[0]][branch[1]].keys()):
-                options[branch[0]][branch[1]][branch[2]] = {}
+                options[branch[0]][branch[1]][branch[2]] = safe_dict()
                 help_options[branch[0]][branch[1]][branch[2]] = {}
 
             options[branch[0]][branch[1]][branch[2]][branch[3]] = branch[4]
             help_options[branch[0]][branch[1]][branch[2]][branch[3]] = [branch[5], branch[6]]
+
+    for branch in options_tree: #build tree
+
+        if branch[1] is None:
+            options[branch[0]].safety_on()
+
+        elif branch[2] is None:
+            options[branch[0]][branch[1]].safety_on()
+            
+        else:
+            options[branch[0]][branch[1]][branch[2]].safety_on()
 
     return options, help_options
 
