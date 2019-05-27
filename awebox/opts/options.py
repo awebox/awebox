@@ -64,20 +64,7 @@ class Options:
                 raise TypeError('Wrong type to set option' + str(option_key) + '.')
 
     def __getitem__(self, item):
-        category_key, sub_category_key, sub_sub_category_key, option_key, help_flag = get_keys(item)
-        if help_flag is True:
-            dict = self.__help_dict
-            option_key = option_key[:-3]
-        else:
-            dict = self.__options_dict
-        if category_key is None:
-            return dict[option_key]
-        elif sub_category_key is None:
-            return dict[category_key][option_key]
-        elif sub_sub_category_key is None:
-            return dict[category_key][sub_category_key][option_key]
-        else:
-            return dict[category_key][sub_category_key][sub_sub_category_key][option_key]
+        return self.__options_dict[item]
 
     def keys(self):
         return self.__keys_list
