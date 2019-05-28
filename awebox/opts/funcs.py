@@ -66,21 +66,8 @@ def build_options_tree(options_tree, options, help_options):
 
     return options, help_options
 
-def build_options_dict(options, help_options, architecture):
+def build_model_options(options, help_options, user_options, options_tree, architecture):
 
-    # single out user options
-    user_options = options['user_options']
-
-    # check for unsupported settings
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
-
-    # initialize additional options tree
-    options_tree = []
-
-    options_tree = share_trajectory_type(options, options_tree)
-
-    ## kite model
     ### geometry
     geometry = load_kite_geometry(options['user_options']['kite_standard'])
     geometry = build_geometry(options['model']['geometry']['overwrite'], geometry)
@@ -91,32 +78,21 @@ def build_options_dict(options, help_options, architecture):
             dict_type = 'model'
         options_tree.append((dict_type, 'geometry', None, name,geometry[name], ('???', None),'x'))
 
-    ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
-        phase_fix = False
-    else:
-        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
-
-    ### control surfaces
-    coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-    coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+    ### system bounds
     if int(user_options['system_model']['kite_dof']) == 3:
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
+    elif int(user_options['system_model']['kite_dof']) == 6:
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
-
         options_tree.append(('model', 'system_bounds', 'xd', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
+    else:
+        raise ValueError('Invalid kite DOF chosen.')
+
 
     options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
-    battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
-    for name in list(battery_model_parameters.keys()):
-        if options['formulation']['compromised_landing']['battery'][name] is None:
-            options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
     ## orientation
     options_tree.append(('model', None, None, 'kite_dof', user_options['system_model']['kite_dof'],('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
@@ -150,9 +126,6 @@ def build_options_dict(options, help_options, architecture):
     ua_ref = options['solver']['initialization']['ua_norm']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
-
-    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
-        options['solver']['initialization']['fix_tether_length'] = True
 
     if architecture.number_of_kites == 1:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
@@ -207,15 +180,6 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('model', 'model_bounds', 'airspeed_max', 'include', True,   ('include max airspeed constraint', None),'x'))
         options_tree.append(('model', 'model_bounds', 'airspeed_min', 'include', True,   ('include min airspeed constraint', None),'x'))
 
-    ### system bounds
-    if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
-        delta_max = geometry['delta_max']
-        ddelta_max = geometry['ddelta_max']
-
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
     if options['model']['tether']['control_var'] == 'ddl_t':
@@ -260,7 +224,6 @@ def build_options_dict(options, help_options, architecture):
 
     lambda_scaling_overwrite = options['model']['scaling_overwrite']['xa']['lambda']
     e_scaling_overwrite = options['model']['scaling_overwrite']['xd']['e']
-    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
 
     [lambda_scaling, energy_scaling, power_cost] = get_suggested_lambda_energy_power_scaling(options, architecture)
 
@@ -270,32 +233,30 @@ def build_options_dict(options, help_options, architecture):
     if not e_scaling_overwrite == None:
         energy_scaling = e_scaling_overwrite
 
-    if not power_cost_overwrite == None:
-        power_cost = power_cost_overwrite
-
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
     else:
         options_tree.append(('model', 'scaling', 'xa', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'xd', 'e', energy_scaling, ('scaling of the energy', None),'x'))
-    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
+    return options_tree, fixed_params
 
-    ## numerics
-    ### nlp
+def build_nlp_options(options, help_options, user_options, options_tree, architecture):
+
+    ### switch off phase fixing for landing/transition trajectories
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
+        phase_fix = False
+    else:
+        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
     n_k = options['nlp']['n_k']
-    d = options['nlp']['collocation']['d']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'regularisation',       n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
 
-    # options_tree.append(('nlp', 'cost', 'normalization', 'power',                1.,                    ('power cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 't_f',                  1.,                    ('t_f cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 'theta',                1.,                    ('theta cost normalization', None),'x'))
     options_tree.append(('nlp', 'landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
@@ -319,7 +280,6 @@ def build_options_dict(options, help_options, architecture):
     elif options['nlp']['integrator']['type'] in ['idas', 'rk4root']:
         options_tree.append(('nlp', 'integrator', None, 'jit', options['nlp']['integrator']['jit_idas'],  ('jit integrator', (True, False)),'x'))
 
-
     if options['nlp']['integrator']['num_steps_overwrite'] is not None:
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_overwrite'],  ('number of internal integrator steps', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'collocation':
@@ -329,7 +289,11 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('nlp', 'parallelization', None, 'include', parallelize,  ('parallelize functions in nlp', (True, False)),'x'))
 
-    ### solver
+
+    return options_tree, phase_fix
+
+def build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix):
+
     if user_options['trajectory']['type'] in ['nominal_landing','compromised_landing']:
         options_tree.append(('solver', 'cost', 'ddq_regularisation', 0,       1e-1,        ('starting cost for ddq_regularisation', None),'x'))
         options_tree.append(('solver', None, None, 'mu_hippo',       1e-5,        ('target for interior point homotop parameter for hippo strategy [float]', None),'x'))
@@ -352,7 +316,6 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('solver', 'initialization', 'xd', 'l_t', 500.0, ('secondary tether natural length [m]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
 
-
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
         jerk_weight = 1e1*options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
@@ -373,7 +336,7 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * gravity
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
     options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
@@ -387,12 +350,55 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('solver', None, None, 'fixed_q_r_values', False,
                              ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
 
-    # formulation
+    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
+        options['solver']['initialization']['fix_tether_length'] = True
+
+    [lambda_scaling, energy_scaling, power_cost] = get_suggested_lambda_energy_power_scaling(options, architecture)
+    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+    if not power_cost_overwrite == None:
+        power_cost = power_cost_overwrite
+
+    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+
+    return options_tree
+
+def build_formulation_options(options, help_options, user_options, options_tree, architecture):
+
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
+    if int(user_options['system_model']['kite_dof']) == 3:
+        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
+        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+        battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
+        for name in list(battery_model_parameters.keys()):
+            if options['formulation']['compromised_landing']['battery'][name] is None:
+                options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
+    return options_tree
+
+def build_options_dict(options, help_options, architecture):
+
+    # single out user options
+    user_options = options['user_options']
+
+    # check for unsupported settings
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
+        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+
+    # initialize additional options tree
+    options_tree = []
+
+    options_tree = share_trajectory_type(options, options_tree)
+
+    options_tree, fixed_params = build_model_options(options, help_options, user_options, options_tree, architecture)
+    options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
+    options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
+
+    # BUILD OPTIONS
     options, help_options = build_options_tree(options_tree, options, help_options)
     options, help_options = build_system_parameter_dict(options, help_options)
 
