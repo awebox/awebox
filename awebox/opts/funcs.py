@@ -28,43 +28,30 @@ import casadi as cas
 import copy
 import logging
 import pickle
+import collections
 
 import awebox.tools.struct_operations as struct_op
 
-class safe_dict:
+class safe_dict(collections.UserDict):
 
     def __init__(self):
 
-        self.__dict = {}
         self.__safety = False
+        self.data = {}
 
-    def __setitem__(self, key, value):
-
-        if self.__safety:
-            if key in self.__dict.keys():
-                self.__dict[key] = value
-            else:
-                raise KeyError('3 The key ' + key + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
-        else:
-            self.__dict[key] = value
-
-    def __getitem__(self, key):
+    def __setitem__(self, item, value):
 
         if self.__safety:
-            if key in self.__dict.keys():
-                return self.__dict[key]
-            else:
-                raise KeyError('4 The key ' + key + ' is not valid. Valid options are ' + str(self.__dict.keys()) + '.')
-        else:
-            return self.__dict[key]
+            if item not in self.data.keys():
+                raise KeyError('3 The key ' + item + ' is not valid. Valid options are ' + str(self.data.keys()) + '.')
+        self.data[item] = value
 
-    def keys(self):
+    def __getitem__(self, item):
 
-        return self.__dict.keys()
-
-    def items(self):
-
-        return self.__dict.items()
+        if self.__safety:
+            if item not in self.data.keys():
+                raise KeyError('4 The key ' + item + ' is not valid. Valid options are ' + str(self.data.keys()) + '.')
+        return self.data[item]
 
     def safety_on(self):
 
