@@ -29,18 +29,13 @@ python-3.5 / casadi-3.4.5
 '''
 
 from . import initialization
-
 from . import initialization_modular as initialization_modular
-
 from . import reference
-
 import awebox.tools.struct_operations as struct_op
-
 import copy
-
 import casadi as cas
-
 import logging
+from awebox.opts.funcs import safe_dict
 
 def initialize_arg(nlp, formulation, model, options):
 
@@ -112,9 +107,9 @@ def set_p_fix_num(V_ref, nlp, model, options):
     # system parameters
     param_options = options['initialization']['sys_params_num']
     for param_type in list(param_options.keys()):
-        if isinstance(param_options[param_type],dict):
+        if isinstance(param_options[param_type],(dict,safe_dict)):
             for param in list(param_options[param_type].keys()):
-                if isinstance(param_options[param_type][param],dict):
+                if isinstance(param_options[param_type][param],(dict,safe_dict)):
                     for subparam in list(param_options[param_type][param].keys()):
                         p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
 

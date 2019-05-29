@@ -40,6 +40,7 @@ import awebox.opti.initialization_interpolation as interp
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.wind as wind
 import awebox.viz.tools as visualization_tools
+from awebox.opts.funcs import safe_dict
 
 def get_initial_guess(nlp, model, formulation, options):
     """
@@ -452,7 +453,7 @@ def __generate_interpolation_parameters(time_grid_parameters, model, initializat
 
     params_num = params(0.0)
     for name in list(initialization_options['sys_params_num']['wind'].keys()):
-        if type(initialization_options['sys_params_num']['wind'][name]) == dict:
+        if type(initialization_options['sys_params_num']['wind'][name]) in [dict, safe_dict]:
             for sub_name in list(initialization_options['sys_params_num']['wind'][name].keys()):
                 params_num['theta0','wind', name, sub_name] = initialization_options['sys_params_num']['wind'][name][sub_name]
         else:
