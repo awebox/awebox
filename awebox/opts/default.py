@@ -230,6 +230,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'xd',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],         ('kite position bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                     ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'xa',          'lambda',       [0., cas.inf],                                                         ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                 ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'tether_stress', 'include',              True,       ('include tether stress inequality in constraints', [True, False]),'x'),

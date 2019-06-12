@@ -147,3 +147,9 @@ def test_drag_mode_model():
     assert(cas.jacobian(integral_outputs,model.variables['xd','l_t']).nnz()==0)
     assert(cas.jacobian(integral_outputs,model.variables['xd','dl_t']).nnz()==0)
     assert(cas.jacobian(integral_outputs,model.variables['xa','lambda10']).nnz()==0)
+
+    # test variable bounds
+    assert(model.variable_bounds['u']['dkappa21']['lb'] == options['model']['system_bounds']['u']['dkappa'][0])
+    assert(model.variable_bounds['u']['dkappa31']['lb'] == options['model']['system_bounds']['u']['dkappa'][0])
+    assert(model.variable_bounds['u']['dkappa21']['ub'] == options['model']['system_bounds']['u']['dkappa'][1])
+    assert(model.variable_bounds['u']['dkappa31']['ub'] == options['model']['system_bounds']['u']['dkappa'][1])
