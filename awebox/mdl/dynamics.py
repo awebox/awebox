@@ -112,6 +112,8 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
+    if options['trajectory']['type'] == 'drag_mode':
+        outputs = drag_mode_outputs(system_variables['SI'],outputs, architecture)
     outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
@@ -197,8 +199,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     if options['trajectory']['type'] == 'drag_mode':
         power = cas.SX.zeros(1,1)
         for n in architecture.kite_nodes:
-            power += cas.mtimes(outputs['aerodynamics']['v_app{}'.format(n)].T, \
-                            outputs['aerodynamics']['f_gen{}'.format(n)])
+            power += - outputs['power_balance']['P_gen{}'.format(n)]
 
     else:
         power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * system_variables['SI']['xd']['dl_t']
@@ -618,6 +619,17 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
 
     # the winch is at ground level
     outputs['e_potential']['groundstation'] = cas.DM(0.)
+
+    return outputs
+
+def drag_mode_outputs(variables, outputs, architecture):
+
+    for n in architecture.kite_nodes:
+        parent = architecture.parent_map[n]
+        outputs['power_balance']['P_gen{}'.format(n)] = cas.mtimes(
+                    variables['xd']['dq{}{}'.format(n, parent)].T,
+                    outputs['aerodynamics']['f_gen{}'.format(n)]
+                )
 
     return outputs
 
