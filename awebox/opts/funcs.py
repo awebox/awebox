@@ -182,13 +182,23 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
-    if options['model']['tether']['control_var'] == 'ddl_t':
-        options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-    elif options['model']['tether']['control_var'] == 'dddl_t':
-        options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-        options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+    if user_options['trajectory']['type'] == 'drag_mode':
+        options_tree.append(('model', 'system_bounds', 'xd', 'dl_t', [0.0, 0.0], ('main tether reel-out speed', None),'x'))
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'xd','ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
     else:
-        raise ValueError('invalid tether control variable chosen')
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
@@ -710,7 +720,7 @@ def share_trajectory_type(options, options_tree=[]):
     options_tree.append(('model', 'trajectory', None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', 'tracking', 'fix_tether_length', user_options['trajectory']['tracking']['fix_tether_length'], descript,'x'))
 
-    if trajectory_type == 'lift_mode' or trajectory_type == 'tracking':
+    if trajectory_type in ['lift_mode', 'tracking', 'drag_mode']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
             options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],
