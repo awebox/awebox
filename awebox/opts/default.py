@@ -265,6 +265,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
+        ('model',  'scaling', 'xd',     'kappa',    1e3,      ('generator braking parameter [m]', None),'x'),
 
         ('model',   'scaling_overwrite', 'lambda_tree', 'include', True, ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xa',     'lambda',    None,    ('scaling of tether tension per length', None),'t'),

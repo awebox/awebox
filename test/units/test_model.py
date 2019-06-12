@@ -149,9 +149,18 @@ def test_drag_mode_model():
     assert(cas.jacobian(integral_outputs,model.variables['xa','lambda10']).nnz()==0)
 
     # test variable bounds
-    assert(model.variable_bounds['u']['dkappa21']['lb'] == options['model']['system_bounds']['u']['dkappa'][0])
-    assert(model.variable_bounds['u']['dkappa31']['lb'] == options['model']['system_bounds']['u']['dkappa'][0])
-    assert(model.variable_bounds['u']['dkappa21']['ub'] == options['model']['system_bounds']['u']['dkappa'][1])
-    assert(model.variable_bounds['u']['dkappa31']['ub'] == options['model']['system_bounds']['u']['dkappa'][1])
+    lb = options['model']['system_bounds']['u']['dkappa'][0]/options['model']['scaling']['xd']['kappa']
+    ub = options['model']['system_bounds']['u']['dkappa'][1]/options['model']['scaling']['xd']['kappa']
+
+    assert(model.variable_bounds['u']['dkappa21']['lb'] == lb)
+    assert(model.variable_bounds['u']['dkappa31']['lb'] == lb)
+    assert(model.variable_bounds['u']['dkappa21']['ub'] == ub)
+    assert(model.variable_bounds['u']['dkappa31']['ub'] == ub)
     assert(model.variable_bounds['u']['dddl_t']['lb'] == 0.0)
     assert(model.variable_bounds['u']['dddl_t']['ub'] == 0.0)
+
+    # test scaling
+    assert(model.scaling['xd']['kappa21'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['xd']['kappa31'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
