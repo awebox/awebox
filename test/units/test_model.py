@@ -88,3 +88,33 @@ def generate_architecture_dict():
     test_archi_dict['triple_dual_kites'] = archi_dict
 
     return test_archi_dict
+
+def test_drag_mode_model():
+    """ Test drag mode construction routines
+    """
+
+    # make default options object
+    options = awe.Options(True)
+
+    # single kite with point-mass model
+    options['user_options']['system_model']['architecture'] = {1:0}
+    options['user_options']['system_model']['kite_dof'] = 3
+    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options']['trajectory']['type'] = 'drag_mode'
+
+    # don't include induction effects, use trivial tether drag
+    options['user_options']['induction_model'] = 'not_in_use'
+    options['user_options']['tether_drag_model'] = 'trivial'
+
+    # build model
+    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
+    options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(options['model'], architecture)
+
+    # extract states and controls
+    states = model.variables_dict['xd']
+    controls = model.variables_dict['u']
+
+    assert('kappa10' in list(states.keys()))
+    assert('dkappa10' in list(controls.keys()))
