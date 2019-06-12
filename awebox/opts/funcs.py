@@ -183,12 +183,10 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
     if user_options['trajectory']['type'] == 'drag_mode':
-        options_tree.append(('model', 'system_bounds', 'xd', 'dl_t', [0.0, 0.0], ('main tether reel-out speed', None),'x'))
         if options['model']['tether']['control_var'] == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
         elif options['model']['tether']['control_var'] == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
-            options_tree.append(('model', 'system_bounds', 'xd','ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
         else:
             raise ValueError('invalid tether control variable chosen')
     else:
