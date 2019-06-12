@@ -245,7 +245,7 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 def build_nlp_options(options, help_options, user_options, options_tree, architecture):
 
     ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc','drag_mode']:
         phase_fix = False
     else:
         phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
