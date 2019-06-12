@@ -352,7 +352,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     else:
         windings = options['trajectory']['lift_mode']['windings']
 
-    options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
+    options_tree.append(('solver', 'initialization',  None, 'windings', windings, ('number of windings [int]', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
