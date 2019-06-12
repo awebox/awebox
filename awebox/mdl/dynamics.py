@@ -197,7 +197,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     if options['trajectory']['type'] == 'drag_mode':
         power = cas.SX.zeros(1,1)
         for n in architecture.kite_nodes:
-            power += - cas.mtimes(outputs['aerodynamics']['v_app{}'.format(n)].T, \
+            power += cas.mtimes(outputs['aerodynamics']['v_app{}'.format(n)].T, \
                             outputs['aerodynamics']['f_gen{}'.format(n)])
 
     else:
@@ -469,7 +469,7 @@ def generate_drag_mode_forces(options, variables, parameters, outputs, architect
         kappa = variables['xd']['kappa{}{}'.format(n, parent)]
         speed = outputs['aerodynamics']['speed{}'.format(n)]
         v_app = outputs['aerodynamics']['v_app{}'.format(n)]
-        gen_force =  - kappa*speed*v_app
+        gen_force = kappa*speed*v_app
 
         # store generator force
         generator_forces['f{}{}'.format(n,parent)] = gen_force
