@@ -366,6 +366,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None,   'landing_velocity',      22.,       ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None,   'interpolation_scheme',     's_curve',       ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']),'x'),
         ('solver',  'initialization', None,   'fix_tether_length',     False,       ('fix tether length for trajectory', [True, False]),'x'),
+        ('solver',  'initialization', 'xd',   'l_t',                   500.0,       ('initial main tether length', [True, False]),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
 

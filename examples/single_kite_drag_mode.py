@@ -19,7 +19,7 @@ options['user_options']['trajectory']['type'] = 'drag_mode'
 # don't include induction effects, use trivial tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'trivial'
-options['model']['scaling']['xd']['l_t'] = 170.0 # initial guess
+options['solver']['initialization']['xd']['l_t'] = 170.0 # initial guess
 
 # choose coarser grid (single-loop trajectory)
 options['nlp']['n_k'] = 20
