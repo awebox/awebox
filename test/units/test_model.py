@@ -97,7 +97,7 @@ def test_drag_mode_model():
     options = awe.Options(True)
 
     # single kite with point-mass model
-    options['user_options']['system_model']['architecture'] = {1:0}
+    options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options']['trajectory']['type'] = 'drag_mode'
@@ -112,9 +112,22 @@ def test_drag_mode_model():
     model = awe.mdl.model.Model()
     model.build(options['model'], architecture)
 
-    # extract states and controls
+    # extract model info
     states = model.variables_dict['xd']
     controls = model.variables_dict['u']
+    outputs = model.outputs_dict
 
-    assert('kappa10' in list(states.keys()))
-    assert('dkappa10' in list(controls.keys()))
+    # test states and controls
+    assert('kappa10' not in list(states.keys()))
+    assert('kappa21' in     list(states.keys()))
+    assert('kappa31' in     list(states.keys()))
+
+    assert('dkappa10' not in list(controls.keys()))
+    assert('dkappa21' in     list(controls.keys()))
+    assert('dkappa31' in     list(controls.keys()))
+
+    # test outptus
+    aero = outputs['aerodynamics']
+    assert('f_gen1' not in list(aero.keys()))
+    assert('f_gen2' in     list(aero.keys()))
+    assert('f_gen3' in     list(aero.keys()))

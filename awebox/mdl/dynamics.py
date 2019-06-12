@@ -434,15 +434,40 @@ def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, archi
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture)
     aero_forces, outputs = generate_aerodynamic_forces(options, variables, parameters, atmos, wind, outputs, architecture)
 
+    if options['trajectory']['type'] == 'drag_mode':
+        generator_forces, outputs = generate_drag_mode_forces(options, variables, parameters, outputs, architecture)
+
     for force in list(node_forces.keys()):
         if force[0] == 'f':
             node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
+            if options['trajectory']['type'] == 'drag_mode':
+                if force in list(generator_forces.keys()):
+                    node_forces[force] += generator_forces[force]
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
 
     return node_forces, outputs
+
+def generate_drag_mode_forces(options, variables, parameters, outputs, architecture):
+
+    # create generator forces
+    generator_forces = {}
+    for n in architecture.kite_nodes:
+        parent = architecture.parent_map[n]
+
+        # compute generator force
+        kappa = variables['xd']['kappa{}{}'.format(n, parent)]
+        speed = outputs['aerodynamics']['speed{}'.format(n)]
+        v_app = outputs['aerodynamics']['v_app{}'.format(n)]
+        gen_force =  - kappa*speed*v_app
+
+        # store generator force
+        generator_forces['f{}{}'.format(n,parent)] = gen_force
+        outputs['aerodynamics']['f_gen{}'.format(n)] = gen_force
+
+    return generator_forces, outputs
 
 def generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture):
 
