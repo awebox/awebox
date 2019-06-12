@@ -194,7 +194,15 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     integral_scaling = {}
 
     # energy
-    power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * system_variables['SI']['xd']['dl_t']
+    if options['trajectory']['type'] == 'drag_mode':
+        power = cas.SX.zeros(1,1)
+        for n in architecture.kite_nodes:
+            power += - cas.mtimes(outputs['aerodynamics']['v_app{}'.format(n)].T, \
+                            outputs['aerodynamics']['f_gen{}'.format(n)])
+
+    else:
+        power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * system_variables['SI']['xd']['dl_t']
+
     if options['integral_outputs']:
         integral_outputs = cas.struct_SX([cas.entry('e',expr = power/options['scaling']['xd']['e'])])
         integral_outputs_struct = cas.struct_symSX([cas.entry('e')])

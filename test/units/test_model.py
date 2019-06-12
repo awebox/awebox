@@ -6,6 +6,7 @@
 
 import awebox as awe
 import logging
+import casadi as cas
 import awebox.mdl.architecture as archi
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
@@ -126,8 +127,21 @@ def test_drag_mode_model():
     assert('dkappa21' in     list(controls.keys()))
     assert('dkappa31' in     list(controls.keys()))
 
-    # test outptus
+    # test outputs
     aero = outputs['aerodynamics']
     assert('f_gen1' not in list(aero.keys()))
     assert('f_gen2' in     list(aero.keys()))
     assert('f_gen3' in     list(aero.keys()))
+
+    # test dynamics
+    dynamics = model.dynamics(model.variables, model.parameters)
+    assert(cas.jacobian(dynamics,model.variables['xd','kappa21']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['xd','kappa31']).nnz()!=0)
+
+    # test power expression
+    integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa21']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa31']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','l_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','dl_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['xa','lambda10']).nnz()==0)
