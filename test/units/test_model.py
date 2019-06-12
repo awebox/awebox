@@ -137,6 +137,8 @@ def test_drag_mode_model():
     dynamics = model.dynamics(model.variables, model.parameters)
     assert(cas.jacobian(dynamics,model.variables['xd','kappa21']).nnz()!=0)
     assert(cas.jacobian(dynamics,model.variables['xd','kappa31']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
 
     # test power expression
     integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
