@@ -3,7 +3,7 @@
 import awebox as awe
 import logging
 import matplotlib.pyplot as plt
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 # make default options object
 options = awe.Options(True)
@@ -28,3 +28,4 @@ trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize()
 trial.plot(['isometric','states','controls','constraints'])
+plt.show()

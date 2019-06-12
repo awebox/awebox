@@ -11,7 +11,7 @@ import pickle
 import copy
 
 # set-up logging
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 # make default options object
 options = awe.Options(True)

@@ -4,7 +4,7 @@ import awebox as awe
 import logging
 import matplotlib.pyplot as plt
 import copy
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 
 
