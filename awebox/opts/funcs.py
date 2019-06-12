@@ -339,6 +339,11 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
+    if user_options['trajectory']['type'] == 'drag_mode':
+        windings = 1
+    else:
+        windings = options['trajectory']['lift_mode']['windings']
+
     options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
@@ -697,7 +702,7 @@ def share_trajectory_type(options, options_tree=[]):
     user_options = options['user_options']
 
     trajectory_type = user_options['trajectory']['type']
-    descript = ('type of trajectory to optimize', ['lift_mode', 'transition', 'aero_test'])
+    descript = ('type of trajectory to optimize', ['lift_mode', 'drag_mode', 'transition', 'aero_test'])
 
     options_tree.append(('nlp', None, None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', None, 'type', trajectory_type, descript,'x'))
