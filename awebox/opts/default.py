@@ -38,7 +38,7 @@ def set_default_user_options(internal_access = False):
     default_user_options_tree = [
 
         ## user options
-        ('user_options',    'trajectory',  None,        'type',                  'lift_mode',        ('possible options', ['lift_mode','transition']), 't'),
+        ('user_options',    'trajectory',  None,        'type',                  'lift_mode',        ('possible options', ['lift_mode','drag_mode','transition']), 't'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              5,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             True,               ('choose True or False', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
