@@ -16,6 +16,10 @@ options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 # pick drag-mode trajectory
 options['user_options']['trajectory']['type'] = 'drag_mode'
 
+# bounds on dkappa: be aware to check if these values make sense
+# from a physical point of view your specific system
+options['model']['system_bounds']['u']['dkappa'] = [-1.0, 1.0]
+
 # don't include induction effects, use trivial tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'trivial'
