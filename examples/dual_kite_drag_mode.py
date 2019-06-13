@@ -9,7 +9,7 @@ logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=l
 options = awe.Options(True)
 
 # single kite with point-mass model
-options['user_options']['system_model']['architecture'] = {1:0}
+options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
 options['user_options']['system_model']['kite_dof'] = 3
 options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 
@@ -23,13 +23,16 @@ options['model']['system_bounds']['u']['dkappa'] = [-1.0, 1.0]
 # don't include induction effects, use trivial tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'trivial'
-options['solver']['initialization']['xd']['l_t'] = 170.0 # initial guess
+
+# bounds on tether length
+options['model']['system_bounds']['xd']['l_t'] = [1.0e-2, 1.0e3]
+options['solver']['initialization']['xd']['l_t'] = 1.0e3 # initial guess
 
 # choose coarser grid (single-loop trajectory)
 options['nlp']['n_k'] = 20
 
 # initialize and optimize trial
-trial = awe.Trial(options, 'single_kite_lift_mode')
+trial = awe.Trial(options, 'dual_kite_drag_mode')
 trial.build()
 trial.optimize()
 trial.plot(['isometric','states','controls','constraints'])
