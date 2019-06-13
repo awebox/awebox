@@ -38,7 +38,7 @@ def set_default_user_options(internal_access = False):
     default_user_options_tree = [
 
         ## user options
-        ('user_options',    'trajectory',  None,        'type',                  'lift_mode',        ('possible options', ['lift_mode','transition']), 't'),
+        ('user_options',    'trajectory',  None,        'type',                  'lift_mode',        ('possible options', ['lift_mode','drag_mode','transition']), 't'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              5,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             True,               ('choose True or False', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -230,6 +230,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'xd',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],         ('kite position bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                     ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'xa',          'lambda',       [0., cas.inf],                                                         ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                 ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'tether_stress', 'include',              True,       ('include tether stress inequality in constraints', [True, False]),'x'),
@@ -264,6 +265,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
+        ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
 
         ('model',   'scaling_overwrite', 'lambda_tree', 'include', True, ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xa',     'lambda',    None,    ('scaling of tether tension per length', None),'t'),
@@ -364,6 +366,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None,   'landing_velocity',      22.,       ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None,   'interpolation_scheme',     's_curve',       ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']),'x'),
         ('solver',  'initialization', None,   'fix_tether_length',     False,       ('fix tether length for trajectory', [True, False]),'x'),
+        ('solver',  'initialization', 'xd',   'l_t',                   500.0,       ('initial main tether length', [True, False]),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
 
@@ -375,6 +378,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'ddelta',                1e-10,      ('optimization weight for all ddelta variables [-]', None),'x'),
         ('solver',   'weights',        None,   'lambda',                1.,         ('optimization weight for all lambda variables [-]', None),'x'),
         ('solver',   'weights',        None,   'a',                     1e-3,       ('optimization weight for lifted variable a [-]', None),'x'),
+        ('solver',   'weights',        None,   'dkappa',                1e1,          ('optimization weight for control variable dkappa [-]', None),'s'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',                None,        ('optimization weight for control variable dddl_t [-]', None),'s'),
 

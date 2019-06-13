@@ -3,7 +3,7 @@
 import awebox as awe
 import logging
 import matplotlib.pyplot as plt
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 
 ########################
@@ -25,6 +25,9 @@ options['user_options']['trajectory']['lift_mode']['windings'] = 5
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'simple'
+
+# initial tether length guess
+options['solver']['initialization']['xd']['l_t'] = 200.0 # initial guess
 
 ##################
 # OPTIMIZE TRIAL #

@@ -127,6 +127,7 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
     P_drag_total = np.zeros((N))
     P_side_total = np.zeros((N))
     P_moment_total = np.zeros((N))
+    P_gen_total = np.zeros((N))
 
     for name in list(power_outputs.keys()):
 
@@ -145,13 +146,16 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
         elif name[:] == 'P_moment':
             P_moment_total += power_outputs[name][0]
 
+        elif name[:5] == 'P_gen':
+            P_gen_total += power_outputs[name][0]
+
     if np.mean(P_side_total) > 0.0:
         P_in = np.mean(P_lift_total) + np.mean(P_side_total)
     else:
         P_in = np.mean(P_lift_total)
         power_and_performance['eff_sideforce_loss'] = -np.mean(P_side_total)/ P_in
 
-    power_and_performance['eff_overall'] = - np.mean(power_outputs['P_tether1'][0])/P_in
+    power_and_performance['eff_overall'] = - np.mean((power_outputs['P_tether1'][0]+P_gen_total))/P_in
     power_and_performance['eff_tether_drag_loss'] = -np.mean(P_tetherdrag_total)/P_in
     power_and_performance['eff_drag_loss'] =  -np.mean(P_drag_total)/P_in
 

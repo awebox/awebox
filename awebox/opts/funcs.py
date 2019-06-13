@@ -182,13 +182,21 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
-    if options['model']['tether']['control_var'] == 'ddl_t':
-        options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-    elif options['model']['tether']['control_var'] == 'dddl_t':
-        options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-        options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+    if user_options['trajectory']['type'] == 'drag_mode':
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
     else:
-        raise ValueError('invalid tether control variable chosen')
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
@@ -245,7 +253,7 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 def build_nlp_options(options, help_options, user_options, options_tree, architecture):
 
     ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc','drag_mode']:
         phase_fix = False
     else:
         phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
@@ -313,7 +321,6 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     for param in list(initialization_theta.keys()):
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
-    options_tree.append(('solver', 'initialization', 'xd', 'l_t', 500.0, ('secondary tether natural length [m]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
 
     # solver weights:
@@ -339,7 +346,12 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
-    options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
+    if user_options['trajectory']['type'] == 'drag_mode':
+        windings = 1
+    else:
+        windings = user_options['trajectory']['lift_mode']['windings']
+
+    options_tree.append(('solver', 'initialization',  None, 'windings', windings, ('number of windings [int]', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
@@ -697,7 +709,7 @@ def share_trajectory_type(options, options_tree=[]):
     user_options = options['user_options']
 
     trajectory_type = user_options['trajectory']['type']
-    descript = ('type of trajectory to optimize', ['lift_mode', 'transition', 'aero_test'])
+    descript = ('type of trajectory to optimize', ['lift_mode', 'drag_mode', 'transition', 'aero_test'])
 
     options_tree.append(('nlp', None, None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', None, 'type', trajectory_type, descript,'x'))
@@ -705,7 +717,7 @@ def share_trajectory_type(options, options_tree=[]):
     options_tree.append(('model', 'trajectory', None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', 'tracking', 'fix_tether_length', user_options['trajectory']['tracking']['fix_tether_length'], descript,'x'))
 
-    if trajectory_type == 'lift_mode' or trajectory_type == 'tracking':
+    if trajectory_type in ['lift_mode', 'tracking', 'drag_mode']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
             options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],

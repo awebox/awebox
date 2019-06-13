@@ -112,6 +112,8 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
+    if options['trajectory']['type'] == 'drag_mode':
+        outputs = drag_mode_outputs(system_variables['SI'],outputs, architecture)
     outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
@@ -194,7 +196,14 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     integral_scaling = {}
 
     # energy
-    power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * system_variables['SI']['xd']['dl_t']
+    if options['trajectory']['type'] == 'drag_mode':
+        power = cas.SX.zeros(1,1)
+        for n in architecture.kite_nodes:
+            power += - outputs['power_balance']['P_gen{}'.format(n)]
+
+    else:
+        power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * system_variables['SI']['xd']['dl_t']
+
     if options['integral_outputs']:
         integral_outputs = cas.struct_SX([cas.entry('e',expr = power/options['scaling']['xd']['e'])])
         integral_outputs_struct = cas.struct_symSX([cas.entry('e')])
@@ -434,15 +443,40 @@ def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, archi
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture)
     aero_forces, outputs = generate_aerodynamic_forces(options, variables, parameters, atmos, wind, outputs, architecture)
 
+    if options['trajectory']['type'] == 'drag_mode':
+        generator_forces, outputs = generate_drag_mode_forces(options, variables, parameters, outputs, architecture)
+
     for force in list(node_forces.keys()):
         if force[0] == 'f':
             node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
+            if options['trajectory']['type'] == 'drag_mode':
+                if force in list(generator_forces.keys()):
+                    node_forces[force] += generator_forces[force]
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
 
     return node_forces, outputs
+
+def generate_drag_mode_forces(options, variables, parameters, outputs, architecture):
+
+    # create generator forces
+    generator_forces = {}
+    for n in architecture.kite_nodes:
+        parent = architecture.parent_map[n]
+
+        # compute generator force
+        kappa = variables['xd']['kappa{}{}'.format(n, parent)]
+        speed = outputs['aerodynamics']['speed{}'.format(n)]
+        v_app = outputs['aerodynamics']['v_app{}'.format(n)]
+        gen_force = kappa*speed*v_app
+
+        # store generator force
+        generator_forces['f{}{}'.format(n,parent)] = gen_force
+        outputs['aerodynamics']['f_gen{}'.format(n)] = gen_force
+
+    return generator_forces, outputs
 
 def generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture):
 
@@ -585,6 +619,17 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
 
     # the winch is at ground level
     outputs['e_potential']['groundstation'] = cas.DM(0.)
+
+    return outputs
+
+def drag_mode_outputs(variables, outputs, architecture):
+
+    for n in architecture.kite_nodes:
+        parent = architecture.parent_map[n]
+        outputs['power_balance']['P_gen{}'.format(n)] = cas.mtimes(
+                    variables['xd']['dq{}{}'.format(n, parent)].T,
+                    outputs['aerodynamics']['f_gen{}'.format(n)]
+                )
 
     return outputs
 

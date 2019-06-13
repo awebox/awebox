@@ -6,6 +6,7 @@
 
 import awebox as awe
 import logging
+import casadi as cas
 import awebox.mdl.architecture as archi
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
@@ -88,3 +89,78 @@ def generate_architecture_dict():
     test_archi_dict['triple_dual_kites'] = archi_dict
 
     return test_archi_dict
+
+def test_drag_mode_model():
+    """ Test drag mode construction routines
+    """
+
+    # make default options object
+    options = awe.Options(True)
+
+    # single kite with point-mass model
+    options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
+    options['user_options']['system_model']['kite_dof'] = 3
+    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options']['trajectory']['type'] = 'drag_mode'
+
+    # don't include induction effects, use trivial tether drag
+    options['user_options']['induction_model'] = 'not_in_use'
+    options['user_options']['tether_drag_model'] = 'trivial'
+
+    # build model
+    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
+    options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(options['model'], architecture)
+
+    # extract model info
+    states = model.variables_dict['xd']
+    controls = model.variables_dict['u']
+    outputs = model.outputs_dict
+
+    # test states and controls
+    assert('kappa10' not in list(states.keys()))
+    assert('kappa21' in     list(states.keys()))
+    assert('kappa31' in     list(states.keys()))
+
+    assert('dkappa10' not in list(controls.keys()))
+    assert('dkappa21' in     list(controls.keys()))
+    assert('dkappa31' in     list(controls.keys()))
+
+    # test outputs
+    aero = outputs['aerodynamics']
+    assert('f_gen1' not in list(aero.keys()))
+    assert('f_gen2' in     list(aero.keys()))
+    assert('f_gen3' in     list(aero.keys()))
+
+    # test dynamics
+    dynamics = model.dynamics(model.variables, model.parameters)
+    assert(cas.jacobian(dynamics,model.variables['xd','kappa21']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['xd','kappa31']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
+
+    # test power expression
+    integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa21']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa31']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','l_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['xd','dl_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['xa','lambda10']).nnz()==0)
+
+    # test variable bounds
+    lb = options['model']['system_bounds']['u']['dkappa'][0]/options['model']['scaling']['xd']['kappa']
+    ub = options['model']['system_bounds']['u']['dkappa'][1]/options['model']['scaling']['xd']['kappa']
+
+    assert(model.variable_bounds['u']['dkappa21']['lb'] == lb)
+    assert(model.variable_bounds['u']['dkappa31']['lb'] == lb)
+    assert(model.variable_bounds['u']['dkappa21']['ub'] == ub)
+    assert(model.variable_bounds['u']['dkappa31']['ub'] == ub)
+    assert(model.variable_bounds['u']['dddl_t']['lb'] == 0.0)
+    assert(model.variable_bounds['u']['dddl_t']['ub'] == 0.0)
+
+    # test scaling
+    assert(model.scaling['xd']['kappa21'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['xd']['kappa31'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
