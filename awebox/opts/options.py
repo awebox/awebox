@@ -28,6 +28,8 @@
 
 from . import default
 from . import funcs
+from awebox.logger import Logger as awelogger
+import logging
 
 class Options:
     def __init__(self, internal_access=False):
@@ -84,6 +86,8 @@ class Options:
 
     def build(self, architecture):
         self.__options_dict, self.__help_dict = funcs.build_options_dict(self.__options_dict, self.__help_dict, architecture)
+        log_level = logging.getLevelName(self.__options_dict['user_options']['log_level'])
+        awelogger.logger.setLevel(log_level)
         return None
 
     @property
@@ -115,5 +119,3 @@ def get_keys(item):
         help_flag = True
 
     return category_key, sub_category_key, sub_sub_category_key, option_key, help_flag
-
-
