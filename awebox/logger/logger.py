@@ -27,6 +27,7 @@
 ###################################
 
 import logging.config
+import os
 
 def singleton(cls):
     instances = {}
@@ -39,6 +40,8 @@ def singleton(cls):
 @singleton
 class Logger():
     def __init__(self):
-        logging.config.fileConfig('/home/thilo/awebox/awebox/logger/logging.conf')
+
+        config_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'logging.conf')
+        logging.config.fileConfig(config_path)
         logger = logging.getLogger('awebox')
         self.logger = logger
