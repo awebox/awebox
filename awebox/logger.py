@@ -26,7 +26,7 @@
 # LOGGER class to manage awelogger.logger.in the awebox
 ###################################
 
-import logging
+import logging.config
 
 def singleton(cls):
     instances = {}
@@ -39,9 +39,6 @@ def singleton(cls):
 @singleton
 class Logger():
     def __init__(self):
+        logging.config.fileConfig('/home/thilo/awebox/awebox/logging.conf')
         logger = logging.getLogger('awebox')
-        ch = logging.StreamHandler()
-        formatter = logging.Formatter('%(levelname)s:    %(message)s')
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
         self.logger = logger

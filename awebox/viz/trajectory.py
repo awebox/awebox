@@ -102,7 +102,7 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
 
     # set equal aspect ratio for a trajectory plots
     for ax in fig.axes:
-        if side != 'isometric':
+        if side not in ['isometric','quad']:
             ax.set_aspect('equal')
 
 def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, reload_dict):

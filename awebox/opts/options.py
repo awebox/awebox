@@ -86,8 +86,6 @@ class Options:
 
     def build(self, architecture):
         self.__options_dict, self.__help_dict = funcs.build_options_dict(self.__options_dict, self.__help_dict, architecture)
-        log_level = logging.getLevelName(self.__options_dict['user_options']['log_level'])
-        awelogger.logger.setLevel(log_level)
         return None
 
     @property
