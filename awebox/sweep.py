@@ -28,7 +28,7 @@ Class sweep contains functions to manipulate multiple trials at once
 @author: jochem de schutter alu-freiburg 2018
 """
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.sweep_funcs as sweep_funcs
 import copy

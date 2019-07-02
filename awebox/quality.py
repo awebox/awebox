@@ -28,7 +28,7 @@
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import awebox.quality_funcs as quality_funcs
 
 class Quality(object):

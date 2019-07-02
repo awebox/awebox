@@ -34,7 +34,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
 import numpy as np
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import casadi as cas
 
 def print_homotopy_values(nlp, solution, p_fix_num):

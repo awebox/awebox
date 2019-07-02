@@ -35,7 +35,7 @@ import casadi as cas
 import collections
 import awebox.tools.vector_operations as vect_op
 import math
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import awebox.opti.initialization_interpolation as interp
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.wind as wind

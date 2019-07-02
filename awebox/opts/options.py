@@ -28,7 +28,7 @@
 
 from . import default
 from . import funcs
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import logging
 
 class Options:

@@ -42,7 +42,7 @@ import matplotlib.pyplot as plt
 
 import copy
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 import time
 

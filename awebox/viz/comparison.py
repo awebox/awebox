@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from . import trajectory
 import numpy as np
 from . import tools
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
 

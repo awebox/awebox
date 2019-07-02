@@ -34,7 +34,7 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def get_reference(nlp, model, V_init, options):
 

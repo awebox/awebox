@@ -22,7 +22,7 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import numpy as np

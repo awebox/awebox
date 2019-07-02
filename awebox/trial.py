@@ -40,7 +40,7 @@ import awebox.quality as quality
 import awebox.tools.data_saving as data_tools
 import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import copy
 
 class Trial(object):

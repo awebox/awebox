@@ -40,7 +40,7 @@ import copy
 
 import casadi as cas
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def initialize_arg(nlp, formulation, model, options):
 

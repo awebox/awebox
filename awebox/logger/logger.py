@@ -39,6 +39,6 @@ def singleton(cls):
 @singleton
 class Logger():
     def __init__(self):
-        logging.config.fileConfig('/home/thilo/awebox/awebox/logging.conf')
+        logging.config.fileConfig('/home/thilo/awebox/awebox/logger/logging.conf')
         logger = logging.getLogger('awebox')
         self.logger = logger

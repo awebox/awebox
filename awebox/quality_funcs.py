@@ -28,7 +28,7 @@
 ######################################
 
 import numpy as np
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def test_opti_success(trial, test_param_dict, results):
     """

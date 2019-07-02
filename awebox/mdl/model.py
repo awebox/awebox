@@ -34,7 +34,7 @@ from . import dynamics as dyn
 import awebox.tools.print_operations as print_op
 import time
 from . import dae
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 
 class Model(object):

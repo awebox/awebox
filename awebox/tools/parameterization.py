@@ -25,7 +25,7 @@
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.viz.tools as viz_tools
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 
 def get_splines(variables, xi_dict, initial_or_terminal):

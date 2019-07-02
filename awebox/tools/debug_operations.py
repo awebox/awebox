@@ -35,7 +35,7 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.print_operations as print_op
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def check_display(check_condition, check_name, label_pass, label_warning):
 

@@ -33,7 +33,7 @@ from . import discretization
 
 from . import objective
 
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 from . import var_bounds
 

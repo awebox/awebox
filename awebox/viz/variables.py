@@ -25,7 +25,7 @@
 import matplotlib.pyplot as plt
 from . import tools
 import numpy as np
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 

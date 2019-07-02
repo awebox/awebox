@@ -26,7 +26,7 @@ import numpy as np
 import awebox as awe
 import casadi as cas
 import copy
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import pickle
 
 import awebox.tools.struct_operations as struct_op

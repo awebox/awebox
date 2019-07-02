@@ -31,7 +31,7 @@ Periodic MPC routines for awebox models
 import awebox as awe
 import awebox.viz.tools as viz_tools
 import casadi.tools as ct
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 import matplotlib.pyplot as plt
 import numpy as np
 import copy

@@ -38,7 +38,7 @@ import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 def generate_trial_data_csv(trial, name, freq, rotation_representation):
     """

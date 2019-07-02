@@ -30,7 +30,7 @@ import casadi.tools as cas
 
 import time
 import pickle
-from awebox.logger import Logger as awelogger
+from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.print_operations as print_op
 
