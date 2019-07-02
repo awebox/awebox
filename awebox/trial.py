@@ -40,7 +40,7 @@ import awebox.quality as quality
 import awebox.tools.data_saving as data_tools
 import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
-import logging
+from awebox.logger import Logger as awelogger
 import copy
 
 class Trial(object):
@@ -94,10 +94,10 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Build method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        logging.info('')
+        awelogger.logger.info('')
 
-        logging.info('Building trial (%s) ...', self.__name)
-        logging.info('')
+        awelogger.logger.info('Building trial (%s) ...', self.__name)
+        awelogger.logger.info('')
 
         architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
         self.__options.build(architecture)
@@ -108,9 +108,9 @@ class Trial(object):
         self.__visualization.build(self.__model, self.__nlp, self.__name, self.__options)
         self.__quality.build(self.__options['quality'], self.__name)
         self.set_timings('construction')
-        logging.info('Trial (%s) built.', self.__name)
-        logging.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
-        logging.info('')
+        awelogger.logger.info('Trial (%s) built.', self.__name)
+        awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
+        awelogger.logger.info('')
 
     def optimize(self, options = [], final_homotopy_step = 'final',
                  warmstart_file = None, debug_flags = [],
@@ -125,8 +125,8 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Optimize method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        logging.info('Optimizing trial (%s) ...', self.__name)
-        logging.info('')
+        awelogger.logger.info('Optimizing trial (%s) ...', self.__name)
+        awelogger.logger.info('')
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
@@ -140,12 +140,12 @@ class Trial(object):
         self.__return_status_numeric = self.__optimization.return_status_numeric['optimization']
 
         if self.__optimization.solve_succeeded:
-            logging.info('Trial (%s) optimized.', self.__name)
-            logging.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
+            awelogger.logger.info('Trial (%s) optimized.', self.__name)
+            awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
 
         else:
 
-            logging.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
+            awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
         cost_fun = self.nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
@@ -160,7 +160,7 @@ class Trial(object):
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
             self.save()
 
-        logging.info('')
+        awelogger.logger.info('')
 
     def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
 
@@ -191,7 +191,7 @@ class Trial(object):
     def save(self, saving_method = 'dict', fn = None):
 
         # log saving method
-        logging.info('Saving trial ' + self.__name + ' using ' + saving_method)
+        awelogger.logger.info('Saving trial ' + self.__name + ' using ' + saving_method)
 
         # set savefile name to trial name if unspecified
         if not fn:
@@ -203,15 +203,15 @@ class Trial(object):
         elif saving_method == 'dict':
             self.save_to_dict(fn)
         else:
-            logging.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
+            awelogger.logger.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
 
         # log that save is complete
-        logging.info('Trial (%s) saved.', self.__name)
-        logging.info('')
-        logging.info(print_op.hline('&'))
-        logging.info(print_op.hline('&'))
-        logging.info('')
-        logging.info('')
+        awelogger.logger.info('Trial (%s) saved.', self.__name)
+        awelogger.logger.info('')
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info('')
+        awelogger.logger.info('')
 
     def save_to_awe(self, fn):
 
@@ -235,7 +235,7 @@ class Trial(object):
 
         # pickle data
         data_tools.pickle_data(data_to_save, fn, 'dict')
-        
+
     def generate_solution_dict(self):
 
         solution_dict = {}
@@ -386,4 +386,3 @@ def generate_initial_state(model, V_init):
     for name in list(model.struct_list['xd'].keys()):
         x0[name] = V_init['xd',0,0,name]
     return x0
-

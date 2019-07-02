@@ -31,7 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import logging
+from awebox.logger import Logger as awelogger
 import numpy as np
 import awebox.tools.struct_operations as struct_op
 from collections import OrderedDict
@@ -401,4 +401,4 @@ class Collocation(object):
 
     @quad_weights.setter
     def quad_weights(self, value):
-        logging.warning('Cannot set quad_weights object.')
+        awelogger.logger.warning('Cannot set quad_weights object.')

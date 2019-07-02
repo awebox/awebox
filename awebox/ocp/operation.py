@@ -42,7 +42,7 @@ import awebox.tools.struct_operations as struct_op
 
 import awebox.tools.parameterization as parameterization
 
-import logging
+from awebox.logger import Logger as awelogger
 
 
 def get_operation_conditions(options):
@@ -255,7 +255,7 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables)
 def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    logging.info('Parameterizing initial constraint...')
+    awelogger.logger.info('Parameterizing initial constraint...')
     xi_0 = xi_dict['xi']['xi_0']
     initial_splines = parameterization.get_splines(initial_model_variables, xi_dict, 'initial')
 
@@ -290,7 +290,7 @@ def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dic
 def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    logging.info('Introducing initial constraint...')
+    awelogger.logger.info('Introducing initial constraint...')
 
     xd_struct = model.variables_dict['xd']
 
@@ -310,7 +310,7 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
 def make_param_terminal_conditions(terminal_model_variables, ref_variables, xi_dict, model, options):
     terminal_states = terminal_model_variables
 
-    logging.info('Parameterizing terminal constraint...')
+    awelogger.logger.info('Parameterizing terminal constraint...')
     xi_f = xi_dict['xi']['xi_f']
     terminal_splines = parameterization.get_splines(terminal_model_variables, xi_dict, 'terminal')
 
@@ -427,5 +427,3 @@ def make_entry_list(eqs_dict, ineqs_dict):
         entry_list.append(cas.entry('inequality', struct = ineq_struct))
 
     return entry_list
-
-

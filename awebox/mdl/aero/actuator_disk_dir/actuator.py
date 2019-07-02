@@ -33,7 +33,7 @@ _python-3.5 / casadi-3.4.5
 
 import casadi as cas
 import numpy as np
-import logging
+from awebox.logger import Logger as awelogger
 
 from . import geom as geom
 from . import flow as flow
@@ -119,7 +119,7 @@ def get_final_residual(model_options, atmos, wind, variables, parameters, output
 
             else:
                 induction_final = []
-                logging.warning('unsteady model not yet implemented.')
+                awelogger.logger.warning('unsteady model not yet implemented.')
 
         all_residuals = cas.vertcat(all_residuals, induction_final)
 

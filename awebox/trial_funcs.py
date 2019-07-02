@@ -38,7 +38,7 @@ import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
-import logging
+from awebox.logger import Logger as awelogger
 
 def generate_trial_data_csv(trial, name, freq, rotation_representation):
     """
@@ -157,7 +157,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                         dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
                     var = vect_op.rotationMatrixToEulerAngles(dcm)
                 elif rotation_representation not in ['euler', 'dcm']:
-                    logging.error('Error: Only euler agnles and direct cosine matrix supported.')
+                    awelogger.logger.error('Error: Only euler agnles and direct cosine matrix supported.')
                 else:
                     var = plot_dict[variable_type][variable]
                 variable_length = len(var)
@@ -250,7 +250,7 @@ def generate_var_bounds_fun(model):
     var_constraints = []
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
-        
+
         if var_type in ['xd','u','xa']:
 
             for var in list(model.variables_dict[var_type].keys()):
@@ -263,7 +263,7 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
                             )
-                        
+
                         if var_bounds[var_type][var]['lb'][i] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
@@ -273,11 +273,10 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var] - var_bounds[var_type][var]['ub']
                             )
-                        
+
                         if var_bounds[var_type][var]['lb'] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
                             )
 
     return cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
-

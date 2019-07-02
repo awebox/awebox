@@ -25,7 +25,7 @@
 import matplotlib.pyplot as plt
 from . import tools
 import numpy as np
-import logging
+from awebox.logger import Logger as awelogger
 
 def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
@@ -113,7 +113,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     # check if lifted variables exist
     if 'xl' not in variables_dict.keys():
-        logging.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
+        awelogger.logger.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
         return None
 
     if individual_state == None:

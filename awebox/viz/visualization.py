@@ -35,7 +35,7 @@ from . import output
 
 import matplotlib.pyplot as plt
 
-import logging
+from awebox.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
 #todo: options for saving plots

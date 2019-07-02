@@ -22,11 +22,28 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# Import main interface classes
-from .trial import Trial
-from .sweep import Sweep
-from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data, flatplate_data
+###################################
+# LOGGER class to manage awelogger.logger.in the awebox
+###################################
 
-# Visualization classes
-from .viz.visualization import Visualization
+import logging
+
+def singleton(cls):
+    instances = {}
+    def get_instance():
+        if cls not in instances:
+            instances[cls] = cls()
+        return instances[cls]
+    return get_instance()
+
+@singleton
+class Logger():
+    def __init__(self):
+        logger = logging.getLogger('awebox')
+        logger.setLevel(logging.ERROR)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.ERROR)
+        formatter = logging.Formatter('%(levelname)s:    %(message)s')
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+        self.logger = logger

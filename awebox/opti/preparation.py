@@ -40,7 +40,7 @@ import copy
 
 import casadi as cas
 
-import logging
+from awebox.logger import Logger as awelogger
 
 def initialize_arg(nlp, formulation, model, options):
 
@@ -79,7 +79,7 @@ def set_p_fix_num(V_ref, nlp, model, options):
     # --------------------
     # build reference parameters, references of cost function should match the
     # initial guess
-    logging.info('generate OCP parameter values...')
+    awelogger.logger.info('generate OCP parameter values...')
     P = nlp.P
     p_fix_num = P(0.)
     p_fix_num['p', 'weights'] = 1.0e-8
@@ -203,7 +203,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
 def generate_default_solver_options(options):
 
-    logging_level = logging.getLogger().getEffectiveLevel()
     opts = {}
     opts['expand'] = options['expand']
     opts['ipopt.linear_solver'] = options['linear_solver']
@@ -214,7 +213,7 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
 
-    if logging_level > 10:
+    if awelogger.logger.getEffectiveLevel() > 10:
         opts['ipopt.print_level'] = 0
         opts['print_time'] = 0
 

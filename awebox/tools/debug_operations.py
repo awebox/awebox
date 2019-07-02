@@ -35,26 +35,26 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.print_operations as print_op
 
-import logging
+from awebox.logger import Logger as awelogger
 
 def check_display(check_condition, check_name, label_pass, label_warning):
 
-    logging.debug('')
-    logging.debug(print_op.hline('*'))
+    awelogger.logger.debug('')
+    awelogger.logger.debug(print_op.hline('*'))
 
     if check_condition:
-        logging.debug('{0:>15}:'.format(check_name + ' PASSED') + ' ' + label_pass)
+        awelogger.logger.debug('{0:>15}:'.format(check_name + ' PASSED') + ' ' + label_pass)
     else:
-        logging.debug('{0:>15}:'.format(check_name + ' WARNING') + ' ' + label_warning)
+        awelogger.logger.debug('{0:>15}:'.format(check_name + ' WARNING') + ' ' + label_warning)
 
     return None
 
 def addon_disply(label, value):
-    logging.debug('{0:>40} = {1:5}'.format(label, value))
+    awelogger.logger.debug('{0:>40} = {1:5}'.format(label, value))
 
 def sosc_check(health_solver_options, nlp, solution, arg):
 
-    logging.debug('sosc check...')
+    awelogger.logger.debug('sosc check...')
 
     V = nlp.V
     P = nlp.P
@@ -64,32 +64,32 @@ def sosc_check(health_solver_options, nlp, solution, arg):
     lambda_x_vals = solution['lam_x']
     p_fix_num = nlp.P(arg['p'])
 
-    logging.debug('get constraints...')
+    awelogger.logger.debug('get constraints...')
 
     [stacked_cstr_fun, stacked_lam_fun, stacked_labels] = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
     relevant_constraints = stacked_cstr_fun(V, P, arg['lbx'], arg['ubx'])
 
-    logging.debug('get jacobian...')
+    awelogger.logger.debug('get jacobian...')
 
     linearization = cas.jacobian(relevant_constraints, V)
     linearization_fun = cas.Function('linearization_fun', [V, P], [linearization])
     linearization_eval = np.array(linearization_fun(V_vals, p_fix_num))
 
-    logging.debug('find the null space...')
+    awelogger.logger.debug('find the null space...')
 
 
     null = vect_op.null(linearization_eval, health_solver_options['sosc']['reduced_hessian_null_tol'])
 
-    logging.debug('make lagrangian')
+    awelogger.logger.debug('make lagrangian')
 
     [lagr_fun, lagr_jacobian_fun, lagr_hessian_fun] = generate_lagrangian(health_solver_options, nlp, arg, solution)
     lagr_hessian = lagr_hessian_fun(V_vals, p_fix_num, lambda_g_vals, lambda_x_vals)
 
-    logging.debug('get reduced hessian')
+    awelogger.logger.debug('get reduced hessian')
 
     reduced_hessian = cas.mtimes(cas.mtimes(null.T, lagr_hessian), null)
 
-    logging.debug('rank check on reduced hessian')
+    awelogger.logger.debug('rank check on reduced hessian')
 
     full_rank_check(health_solver_options, reduced_hessian, 'reduced hessian', 'SOSC')
 
@@ -598,6 +598,6 @@ def interpret_kkt_index(health_solver_options, idx, nlp, solution, arg):
             addon_disply('index ' + str(idx), stacked_labels[idx_remainder])
 
         else:
-            logging.error('index error in interpretation')
+            awelogger.logger.error('index error in interpretation')
 
     return None

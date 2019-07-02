@@ -26,7 +26,7 @@ import numpy as np
 import awebox as awe
 import casadi as cas
 import copy
-import logging
+from awebox.logger import Logger as awelogger
 import pickle
 
 import awebox.tools.struct_operations as struct_op
@@ -166,7 +166,7 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
             else:
                 tether_constraint_includes['stress'] += [node]
-    
+
     else:
         if options['model']['model_bounds']['tether_stress']['include']:
             tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
@@ -398,7 +398,7 @@ def build_options_dict(options, help_options, architecture):
 
     # check for unsupported settings
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+        awelogger.logger.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
 
     # initialize additional options tree
     options_tree = []
@@ -519,7 +519,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
             power_cost = given_scaling[2]
 
     else:
-        logging.warning('Warning: no scalings match the chosen kite data. Default values are used.')
+        awelogger.logger.warning('Warning: no scalings match the chosen kite data. Default values are used.')
 
     if user_options['trajectory']['type'] == 'nominal_landing':
         power_cost = 1e-4

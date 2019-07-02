@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from . import trajectory
 import numpy as np
 from . import tools
-import logging
+from awebox.logger import Logger as awelogger
 
 def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
 
@@ -53,7 +53,7 @@ def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
         plot_bar_x(ax, values, labels, stat_name, rgb_tuple_colors)
 
 def compare_tracking_cost(plot_dict, cosmetics, fig_name):
-    
+
     interesting_stats = ['tracking_cost']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats)
 
@@ -136,7 +136,7 @@ def get_stats_values_from_trial(plot_dict, stat_name):
 
     elif stat_name == 'loyd_factor':
         return np.mean(plot_dict['outputs']['performance']['loyd_factor'][0])
-        logging.warning('loyd factor calculation should be revisited!')
+        awelogger.logger.warning('loyd factor calculation should be revisited!')
         #todo: loyd power factor calculation?
 
     elif stat_name == 'zeta':
