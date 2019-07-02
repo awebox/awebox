@@ -40,9 +40,10 @@ def singleton(cls):
 class Logger():
     def __init__(self):
         logger = logging.getLogger('awebox')
-        logger.setLevel(logging.ERROR)
+        loglevel = logging.getLevelName('DEBUG')
+        logger.setLevel(loglevel)
         ch = logging.StreamHandler()
-        ch.setLevel(logging.ERROR)
+        ch.setLevel(loglevel)
         formatter = logging.Formatter('%(levelname)s:    %(message)s')
         ch.setFormatter(formatter)
         logger.addHandler(ch)
