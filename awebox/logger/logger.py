@@ -41,7 +41,11 @@ def singleton(cls):
 class Logger():
     def __init__(self):
 
-        config_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'logging.conf')
-        logging.config.fileConfig(config_path)
+        config_file = 'logging.conf'
+        default_config_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), config_file)
+        if os.path.exists(config_file):
+            logging.config.fileConfig(config_file)
+        else:
+            logging.config.fileConfig(default_config_file)
         logger = logging.getLogger('awebox')
         self.logger = logger
