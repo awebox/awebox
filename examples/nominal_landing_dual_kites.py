@@ -1,10 +1,8 @@
 #!/usr/bin/python3
 
 import awebox as awe
-import logging
 import matplotlib.pyplot as plt
 import copy
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 
 
@@ -12,7 +10,7 @@ logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=l
 # GENERATE TRIAL OPTIONS #
 ##########################
 
-## PUMPING TRIAL 
+## PUMPING TRIAL
 
 # make pumping options object
 pumping_options = awe.Options(True)

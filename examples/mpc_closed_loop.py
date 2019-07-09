@@ -1,17 +1,13 @@
 #!/usr/bin/python3
-""" 
+"""
 MPC-based closed loop simulation example for a single 3DOF kite system.
 """
 
 # imports
 import awebox as awe
 import casadi as ca
-import logging
 import pickle
 import copy
-
-# set-up logging
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.INFO)
 
 # make default options object
 options = awe.Options(True)

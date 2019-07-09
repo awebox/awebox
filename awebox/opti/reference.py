@@ -34,14 +34,14 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 def get_reference(nlp, model, V_init, options):
 
     # -------------------
     # generate tracking reference
     # -------------------
-    logging.info('generate tracking reference...')
+    awelogger.logger.info('generate tracking reference...')
     nk = nlp.n_k
     if nlp.discretization == 'direct_collocation':
         direct_collocation = True

@@ -31,7 +31,7 @@ Periodic MPC routines for awebox models
 import awebox as awe
 import awebox.viz.tools as viz_tools
 import casadi.tools as ct
-import logging
+from awebox.logger.logger import Logger as awelogger
 import matplotlib.pyplot as plt
 import numpy as np
 import copy
@@ -42,9 +42,9 @@ class Pmpc(object):
         """ Constructor.
         """
 
-        logging.info("Creating a {} periodic MPC controller with horizon length {}...".format(
+        awelogger.logger.info("Creating a {} periodic MPC controller with horizon length {}...".format(
             mpc_options['cost_type'], mpc_options['N']))
-        logging.info("Based on direct collocation with {} polynomials of order {}.".format(
+        awelogger.logger.info("Based on direct collocation with {} polynomials of order {}.".format(
             mpc_options['scheme'], mpc_options['d']))
 
         # store discretization data
@@ -93,7 +93,7 @@ class Pmpc(object):
         # initialize
         self.__initialize_solver()
 
-        logging.info("Periodic MPC controller built.")
+        awelogger.logger.info("Periodic MPC controller built.")
 
         return None
 
@@ -101,14 +101,14 @@ class Pmpc(object):
         """ Build options, model, formulation and nlp of mpc trial.
         """
 
-        logging.info("Building MPC trial...")
+        awelogger.logger.info("Building MPC trial...")
 
         # build
         import awebox.mdl.architecture as archi
         architecture = archi.Architecture(self.__trial.options['user_options']['system_model']['architecture'])
         self.__trial.options.build(architecture)
         self.__trial.model.build(self.__trial.options['model'], architecture)
-        self.__trial.formulation.build(self.__trial.options['formulation'], self.__trial.model) 
+        self.__trial.formulation.build(self.__trial.options['formulation'], self.__trial.model)
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
@@ -118,7 +118,7 @@ class Pmpc(object):
         """ Construct casadi.nlpsol Object based on MPC trial information.
         """
 
-        logging.info("Constructing MPC solver object...")
+        awelogger.logger.info("Constructing MPC solver object...")
 
         if self.__cost_type == 'economic':
 
@@ -128,7 +128,7 @@ class Pmpc(object):
             ])
 
         if self.__cost_type == 'tracking':
-        
+
             # parameters
             self.__p = ct.struct_symMX([
                 ct.entry('x0',  shape = (self.__nx,)),
@@ -162,7 +162,7 @@ class Pmpc(object):
         self.__lbg = self.__trial.nlp.g_bounds['lb']
         self.__ubg = self.__trial.nlp.g_bounds['ub']
 
-        logging_level = logging.getLogger().getEffectiveLevel()
+        awelogger.logger.level = awelogger.logger.getLogger().getEffectiveLevel()
         opts = {}
         opts['expand'] = self.__mpc_options['expand']
         opts['ipopt.linear_solver'] = self.__mpc_options['linear_solver']
@@ -170,7 +170,7 @@ class Pmpc(object):
         opts['ipopt.max_cpu_time'] = self.__mpc_options['max_cpu_time']
         opts['jit'] = self.__mpc_options['jit']
 
-        if logging_level > 10:
+        if awelogger.logger.level > 10:
             opts['ipopt.print_level'] = 0
             opts['print_time'] = 0
 
@@ -182,8 +182,8 @@ class Pmpc(object):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
-        
-        logging.info("Compute MPC feedback...")
+
+        awelogger.logger.info("Compute MPC feedback...")
 
         # update nlp parameters
         self.__p0 = self.__p(0.0)
@@ -226,7 +226,7 @@ class Pmpc(object):
         """ Generate mpc objective.
         """
 
-        logging.info("Generate MPC {} objective...".format(self.__cost_type))
+        awelogger.logger.info("Generate MPC {} objective...".format(self.__cost_type))
 
         # initialize
         f = 0.0
@@ -276,7 +276,7 @@ class Pmpc(object):
         """ Compile solver dependencies.
         """
 
-        logging.info("Compiling solver...")
+        awelogger.logger.info("Compiling solver...")
 
         # record compilation time
         import time
@@ -291,7 +291,7 @@ class Pmpc(object):
         os.system("g++ -std=c++11 -o mpc.out mpc_codegen.cpp -lcasadi -ldl -Wl,-rpath,'$ORIGIN'")
 
         tc = time.time() - ts
-        logging.info("Compilation time: {}s".format(tc))
+        awelogger.logger.info("Compilation time: {}s".format(tc))
 
         return None
 
@@ -406,7 +406,7 @@ class Pmpc(object):
                     counter += 1
 
         V_list.append(ip_dict['xd'][:,counter_x])
-        
+
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
@@ -544,7 +544,7 @@ class Pmpc(object):
 
     @trial.setter
     def trial(self, value):
-        logging.info('Cannot set trial object.')
+        awelogger.logger.info('Cannot set trial object.')
 
     @property
     def log(self):
@@ -554,7 +554,7 @@ class Pmpc(object):
 
     @log.setter
     def log(self, value):
-        logging.info('Cannot set log object.')
+        awelogger.logger.info('Cannot set log object.')
 
     @property
     def solver(self):
@@ -564,7 +564,7 @@ class Pmpc(object):
 
     @solver.setter
     def solver(self, value):
-        logging.info('Cannot set solver object.')
+        awelogger.logger.info('Cannot set solver object.')
 
     @property
     def solver_bounds(self):
@@ -574,7 +574,7 @@ class Pmpc(object):
 
     @solver_bounds.setter
     def solver_bounds(self, value):
-        logging.info('Cannot set solver_bounds object.')
+        awelogger.logger.info('Cannot set solver_bounds object.')
 
     @property
     def w0(self):
@@ -584,7 +584,7 @@ class Pmpc(object):
 
     @w0.setter
     def w0(self, value):
-        logging.info('Cannot set w0 object.')
+        awelogger.logger.info('Cannot set w0 object.')
 
     @property
     def t_grid_coll(self):
@@ -594,7 +594,7 @@ class Pmpc(object):
 
     @t_grid_coll.setter
     def t_grid_coll(self, value):
-        logging.info('Cannot set t_grid_coll object.')
+        awelogger.logger.info('Cannot set t_grid_coll object.')
 
     @property
     def t_grid_x_coll(self):
@@ -604,7 +604,7 @@ class Pmpc(object):
 
     @t_grid_x_coll.setter
     def t_grid_x_coll(self, value):
-        logging.info('Cannot set t_grid_x_coll object.')
+        awelogger.logger.info('Cannot set t_grid_x_coll object.')
 
     @property
     def interpolator(self):
@@ -614,4 +614,4 @@ class Pmpc(object):
 
     @interpolator.setter
     def interpolator(self, value):
-        logging.info('Cannot set interpolator object.')
+        awelogger.logger.info('Cannot set interpolator object.')

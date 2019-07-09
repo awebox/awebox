@@ -34,7 +34,7 @@ from . import dynamics as dyn
 import awebox.tools.print_operations as print_op
 import time
 from . import dae
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 
 class Model(object):
@@ -45,10 +45,10 @@ class Model(object):
 
     def build(self, options, architecture):
 
-        logging.info('Building model...')
+        awelogger.logger.info('Building model...')
 
         if self.__status == 'I am a model.':
-            logging.info('Model already built.')
+            awelogger.logger.info('Model already built.')
             return None
         else:
             self.__timings = {}
@@ -66,9 +66,9 @@ class Model(object):
             self.__timings['overall'] = time.time()-timer
 
             self.__status = 'I am a model.'
-            logging.info('Model built.')
-            logging.info('Model construction time: %s', print_op.print_single_timing(self.__timings['overall']))
-            logging.info('')
+            awelogger.logger.info('Model built.')
+            awelogger.logger.info('Model construction time: %s', print_op.print_single_timing(self.__timings['overall']))
+            awelogger.logger.info('')
 
     def __generate_system_parameters(self, options):
 
@@ -78,7 +78,7 @@ class Model(object):
 
     def __generate_atmosphere(self, atmosphere_options):
 
-        logging.info('generate atmosphere...')
+        awelogger.logger.info('generate atmosphere...')
 
         self.__atmos = atmosphere.Atmosphere(atmosphere_options, self.__parameters)
 
@@ -86,7 +86,7 @@ class Model(object):
 
     def __generate_wind(self, wind_model_options):
 
-        logging.info('generate wind...')
+        awelogger.logger.info('generate wind...')
 
         self.__wind = wind.Wind(wind_model_options, self.__parameters)
         self.__wind_options = wind_model_options
@@ -96,7 +96,7 @@ class Model(object):
 
     def __generate_system_dynamics(self,options):
 
-        logging.info('generate system dynamics...')
+        awelogger.logger.info('generate system dynamics...')
 
         [variables,
         variables_dict,
@@ -137,7 +137,7 @@ class Model(object):
         """Generate DAE object for casadi integrators, rootfinder,...
         """
 
-        logging.info('generate dae object')
+        awelogger.logger.info('generate dae object')
         model_dae = dae.Dae(self.__variables, self.__parameters, self.__dynamics, self.__integral_outputs_fun)
         model_dae.build_rootfinder()
 
@@ -145,7 +145,7 @@ class Model(object):
 
     def __generate_variable_bounds(self, options):
 
-        logging.info('generate variable bounds...')
+        awelogger.logger.info('generate variable bounds...')
 
         # define bounds for all system variables (except pfix) in SI units
         variable_bounds = system.define_bounds(options['system_bounds'],
@@ -157,7 +157,7 @@ class Model(object):
 
     def __generate_parameter_bounds(self,options):
 
-        logging.info('generate parameter bounds...')
+        awelogger.logger.info('generate parameter bounds...')
 
         # define bounds for variable optimization parameters
         param_bounds = {}
@@ -172,7 +172,7 @@ class Model(object):
 
     def __generate_constraints(self, options):
 
-        logging.info('generate constraints..')
+        awelogger.logger.info('generate constraints..')
 
         constraints, constraints_fun, constraints_dict = dyn.generate_constraints(
                            options, self.__variables,self.__parameters,self.__constraint_out(self.__constraint_out_fun(self.__variables, self.__parameters)))
@@ -199,7 +199,7 @@ class Model(object):
 
     @status.setter
     def status(self, value):
-        logging.warning('Cannot set status object.')
+        awelogger.logger.warning('Cannot set status object.')
 
     @property
     def outputs(self):
@@ -207,7 +207,7 @@ class Model(object):
 
     @outputs.setter
     def outputs(self, value):
-        logging.warning('Cannot set outputs object.')
+        awelogger.logger.warning('Cannot set outputs object.')
 
     @property
     def outputs_fun(self):
@@ -215,7 +215,7 @@ class Model(object):
 
     @outputs_fun.setter
     def outputs_fun(self, value):
-        logging.warning('Cannot set outputs_fun object.')
+        awelogger.logger.warning('Cannot set outputs_fun object.')
 
     @property
     def outputs_dict(self):
@@ -223,7 +223,7 @@ class Model(object):
 
     @outputs_dict.setter
     def outputs_dict(self, value):
-        logging.warning('Cannot set outputs_dict object.')
+        awelogger.logger.warning('Cannot set outputs_dict object.')
 
     @property   #todo: write setters
     def variables(self):
@@ -275,7 +275,7 @@ class Model(object):
 
     @integral_outputs.setter
     def integral_outputs(self, value):
-        logging.warning('Cannot set integral_outputs object.')
+        awelogger.logger.warning('Cannot set integral_outputs object.')
 
     @property
     def integral_outputs_fun(self):
@@ -283,7 +283,7 @@ class Model(object):
 
     @integral_outputs_fun.setter
     def integral_outputs_fun(self, value):
-        logging.warning('Cannot set integral_outputs_fun object.')
+        awelogger.logger.warning('Cannot set integral_outputs_fun object.')
 
     @property
     def integral_scaling(self):
@@ -291,7 +291,7 @@ class Model(object):
 
     @integral_scaling.setter
     def integral_scaling(self, value):
-        logging.warning('Cannot set integral_scaling object.')
+        awelogger.logger.warning('Cannot set integral_scaling object.')
 
     @property
     def atmos(self):
@@ -299,7 +299,7 @@ class Model(object):
 
     @atmos.setter
     def atmos(self, value):
-        logging.warning('Cannot set atmos object.')
+        awelogger.logger.warning('Cannot set atmos object.')
 
     @property
     def wind(self):
@@ -307,7 +307,7 @@ class Model(object):
 
     @wind.setter
     def wind(self, value):
-        logging.warning('Cannot set wind object.')
+        awelogger.logger.warning('Cannot set wind object.')
 
     @property
     def wind_options(self):
@@ -315,7 +315,7 @@ class Model(object):
 
     @wind_options.setter
     def wind_options(self, value):
-        logging.warning('Cannot set wind_options object.')
+        awelogger.logger.warning('Cannot set wind_options object.')
 
     @property
     def variables_dict(self):
@@ -323,7 +323,7 @@ class Model(object):
 
     @variables_dict.setter
     def variables_dict(self, value):
-        logging.warning('Cannot set variables_dict object.')
+        awelogger.logger.warning('Cannot set variables_dict object.')
 
     @property
     def kite_dof(self):
@@ -331,7 +331,7 @@ class Model(object):
 
     @kite_dof.setter
     def kite_dof(self, value):
-        logging.warning('Cannot set kite_dof object.')
+        awelogger.logger.warning('Cannot set kite_dof object.')
 
     @property
     def timings(self):
@@ -339,7 +339,7 @@ class Model(object):
 
     @timings.setter
     def timings(self, value):
-        logging.warning('Cannot set timings object.')
+        awelogger.logger.warning('Cannot set timings object.')
 
     @property
     def holonomic_fun(self):
@@ -347,7 +347,7 @@ class Model(object):
 
     @holonomic_fun.setter
     def holonomic_fun(self, value):
-        logging.warning('Cannot set holonomic_fun object.')
+        awelogger.logger.warning('Cannot set holonomic_fun object.')
 
     @property
     def type(self):
@@ -355,7 +355,7 @@ class Model(object):
 
     @type.setter
     def type(self, value):
-        logging.warning('Cannot set type object.')
+        awelogger.logger.warning('Cannot set type object.')
 
     @property
     def options(self):
@@ -363,4 +363,4 @@ class Model(object):
 
     @options.setter
     def options(self, value):
-        logging.warning('Cannot set options object.')
+        awelogger.logger.warning('Cannot set options object.')

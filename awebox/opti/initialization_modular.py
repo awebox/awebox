@@ -35,7 +35,7 @@ import casadi as cas
 import collections
 import awebox.tools.vector_operations as vect_op
 import math
-import logging
+from awebox.logger.logger import Logger as awelogger
 import awebox.opti.initialization_interpolation as interp
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.wind as wind
@@ -72,7 +72,7 @@ def __build_si_initial_guess(nlp, model, formulation, options):
     """
 
     # logging
-    logging.info('build si initial guess...')
+    awelogger.logger.info('build si initial guess...')
 
     # compute initial guess
     primitives = __set_primitives(options, model)
@@ -105,7 +105,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         acc = angular_looping_velocity * ua_norm
         if acc > acc_max:
             cone_angle = np.arcsin(ua_norm**2 / acc_max / tether_length)
-            logging.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
+            awelogger.logger.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
             configuration['cone_angle'] = cone_angle
 
         # check for min radius
@@ -118,7 +118,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         radius = np.sin(cone_angle * np.pi / 180.) * tether_length
         if radius > min_radius:
             cone_angle = np.arcsin(min_radius / tether_length)
-            logging.warning('Warning: configuaration has radius that is smaller than minmum radius. Changing cone_angle to correspond to minimum radius.')
+            awelogger.logger.warning('Warning: configuaration has radius that is smaller than minmum radius. Changing cone_angle to correspond to minimum radius.')
             configuration['cone_angle'] = cone_angle
 
     return configuration
@@ -1248,8 +1248,7 @@ def __assemble_lse_for_s_curve(tgrid_s_curve, boundary_conditions):
 
     ## set solver options
     jerk_options = {}
-    logging_level = logging.getLogger().getEffectiveLevel()
-    if logging_level > 10:
+    if awelogger.logger.getEffectiveLevel() > 10:
         jerk_options['ipopt.print_level'] = 0
         jerk_options['print_time'] = 0
 
