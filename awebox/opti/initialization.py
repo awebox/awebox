@@ -35,7 +35,7 @@ import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.struct_operations as struct_op
 
@@ -50,7 +50,7 @@ def build_si_initial_guess(nlp, model, formulation, options):
 
     initialization_options = options
 
-    logging.info('build si initial guess...')
+    awelogger.logger.info('build si initial guess...')
     nk = nlp.n_k
     d = nlp.d
 
@@ -540,7 +540,7 @@ def initial_node_variables_for_aero_test_test(t, options, model, formulation, re
     kite_nodes = model.architecture.kite_nodes
 
     if len(kite_nodes) > 1:
-        logging.error('ERROR: pitch-plunge test only defined (to date) for one wing')
+        awelogger.logger.error('ERROR: pitch-plunge test only defined (to date) for one wing')
 
     [l_t, dl_t, q10, dq10, r_dcm, omega] = get_aero_test_values(t, options)
 

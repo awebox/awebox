@@ -28,7 +28,7 @@
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 import awebox.quality_funcs as quality_funcs
 
 class Quality(object):
@@ -74,15 +74,15 @@ class Quality(object):
         name = self.__name
         number_of_passed = sum(results.values())
         number_of_tests = len(list(results.keys()))
-        logging.warning('#################################################')
-        logging.warning('QUALITY CHECK results for ' + name + ':')
-        logging.warning(str(number_of_passed) + ' of ' + str(number_of_tests) + ' tests passed.')
+        awelogger.logger.warning('#################################################')
+        awelogger.logger.warning('QUALITY CHECK results for ' + name + ':')
+        awelogger.logger.warning(str(number_of_passed) + ' of ' + str(number_of_tests) + ' tests passed.')
         if number_of_tests == number_of_passed:
-            logging.warning('All tests passed, solution is numerically sound.')
+            awelogger.logger.warning('All tests passed, solution is numerically sound.')
         else:
-            logging.warning(str(number_of_tests - number_of_passed) + ' tests failed. Solution might be numerically unsound.')
-        logging.warning('For more information, use trial.quality.print_results()')
-        logging.warning('#################################################')
+            awelogger.logger.warning(str(number_of_tests - number_of_passed) + ' tests failed. Solution might be numerically unsound.')
+        awelogger.logger.warning('For more information, use trial.quality.print_results()')
+        awelogger.logger.warning('#################################################')
 
     def print_results(self):
 

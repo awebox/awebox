@@ -28,7 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
 '''
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 import os
 
 def print_single_timing(timing):
@@ -85,11 +85,11 @@ def get_awebox_license_info():
     return license_info
 
 def log_license_info():
-    logging.info('')
+    awelogger.logger.info('')
     license_info = get_awebox_license_info()
     for line in license_info:
-        logging.info(line)
-    logging.info('')
+        awelogger.logger.info(line)
+    awelogger.logger.info('')
 
 def print_license_info():
     print('')
