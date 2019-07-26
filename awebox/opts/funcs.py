@@ -182,7 +182,7 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
-    if user_options['trajectory']['type'] == 'drag_mode':
+    if user_options['trajectory']['system_type'] == 'drag_mode':
         if options['model']['tether']['control_var'] == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
         elif options['model']['tether']['control_var'] == 'dddl_t':
@@ -253,10 +253,13 @@ def build_model_options(options, help_options, user_options, options_tree, archi
 def build_nlp_options(options, help_options, user_options, options_tree, architecture):
 
     ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc','drag_mode']:
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
         phase_fix = False
     else:
-        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
+        if user_options['trajectory']['system_type'] == 'lift_mode':
+            phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
+        else:
+            phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
     n_k = options['nlp']['n_k']
@@ -346,7 +349,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
-    if user_options['trajectory']['type'] == 'drag_mode':
+    if user_options['trajectory']['system_type'] == 'drag_mode':
         windings = 1
     else:
         windings = user_options['trajectory']['lift_mode']['windings']
@@ -709,15 +712,19 @@ def share_trajectory_type(options, options_tree=[]):
     user_options = options['user_options']
 
     trajectory_type = user_options['trajectory']['type']
-    descript = ('type of trajectory to optimize', ['lift_mode', 'drag_mode', 'transition', 'aero_test'])
+    system_type = user_options['trajectory']['system_type']
+    descript = ('type of trajectory to optimize', ['power_cycle', 'transition', 'aero_test', 'mpc'])
 
     options_tree.append(('nlp', None, None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('solver','initialization',None,'type', trajectory_type, descript,'x'))
+    options_tree.append(('solver','initialization',None,'system_type', system_type, descript,'x'))
     options_tree.append(('model', 'trajectory', None, 'type', trajectory_type, descript,'x'))
+    options_tree.append(('model', 'trajectory', None, 'system_type', system_type, descript,'x'))
+
     options_tree.append(('formulation', 'trajectory', 'tracking', 'fix_tether_length', user_options['trajectory']['tracking']['fix_tether_length'], descript,'x'))
 
-    if trajectory_type in ['lift_mode', 'tracking', 'drag_mode']:
+    if trajectory_type in ['power_cycle', 'tracking']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
             options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],
