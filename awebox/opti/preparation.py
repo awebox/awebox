@@ -218,6 +218,7 @@ def generate_default_solver_options(options):
     if logging_level > 10:
         opts['ipopt.print_level'] = 0
         opts['print_time'] = 0
+        opts['ipopt.sb'] = 'yes'
 
     if options['hessian_approximation']:
         opts['ipopt.hessian_approximation'] = 'limited-memory'
