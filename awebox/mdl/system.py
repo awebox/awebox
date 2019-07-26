@@ -88,7 +88,7 @@ def generate_structure(options, architecture):
         raise ValueError('kite dof option %s not inluded at present', str(kite_dof))
 
     # add drag mode states and controls
-    if options['trajectory']['type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode':
         kite_states += [('kappa', (1,1))]
         kite_controls += [('dkappa',(1,1))]
 
