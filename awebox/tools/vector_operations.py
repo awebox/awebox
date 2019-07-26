@@ -334,7 +334,7 @@ def estimate_1d_frequency(x, sample_step=1, dt=1.0):
 def isRotationMatrix(R):
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype=R.dtype)
+    I = np.identity(3)
     n = np.linalg.norm(I - shouldBeIdentity)
     return n < 1e-1
 
