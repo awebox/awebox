@@ -429,7 +429,7 @@ def __process_interpolation_Variables(interpolation_variables, configurations, m
 
                 # compute rotation around axis
                 omega_norm = vect_op.norm(sstates['dvar']['q' + node_str]) / radius
-                if trajectory_type == 'lift_mode':
+                if trajectory_type == 'power_cycle':
                     omega_vector = vect_op.normalize(axis_of_rot) * omega_norm
                 elif trajectory_type == 'nominal_landing':
                     omega_vector = cas.DM([0,0,0])
