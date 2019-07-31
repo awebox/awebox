@@ -153,16 +153,18 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                 # convert rotations from dcm to euler
                 if variable[0] == 'r' and rotation_representation == 'euler':
                     dcm = []
-                    for i in range(3):
+                    for i in range(9):
                         dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
-                    var = vect_op.rotationMatrixToEulerAngles(dcm)
+                    var = vect_op.rotationMatrixToEulerAngles(cas.reshape(dcm,3,3))
+                    for index in range(3):
+                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
                 elif rotation_representation not in ['euler', 'dcm']:
-                    awelogger.logger.error('Error: Only euler agnles and direct cosine matrix supported.')
+                    awelogger.logger.error('Error: Only euler angles and direct cosine matrix supported.')
                 else:
                     var = plot_dict[variable_type][variable]
-                variable_length = len(var)
-                for index in range(variable_length):
-                    write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
+                    variable_length = len(var)
+                    for index in range(variable_length):
+                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
 
     write_csv_dict['time'] = tgrid_ip[k]
 
