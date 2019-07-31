@@ -72,7 +72,7 @@ def define_homotopy_schedule(formulation):
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
-    if traj_type in ['lift_mode', 'drag_mode']:
+    if traj_type == 'power_cycle':
         homotopy_schedule = homotopy_schedule + power_schedule
 
     if traj_type == 'nominal_landing':

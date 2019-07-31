@@ -112,7 +112,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
-    if options['trajectory']['type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(system_variables['SI'],outputs, architecture)
     outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
     if options['kite_dof'] == 6:
@@ -196,7 +196,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     integral_scaling = {}
 
     # energy
-    if options['trajectory']['type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1,1)
         for n in architecture.kite_nodes:
             power += - outputs['power_balance']['P_gen{}'.format(n)]
@@ -443,7 +443,7 @@ def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, archi
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture)
     aero_forces, outputs = generate_aerodynamic_forces(options, variables, parameters, atmos, wind, outputs, architecture)
 
-    if options['trajectory']['type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(options, variables, parameters, outputs, architecture)
 
     for force in list(node_forces.keys()):
@@ -451,7 +451,7 @@ def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, archi
             node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
-            if options['trajectory']['type'] == 'drag_mode':
+            if options['trajectory']['system_type'] == 'drag_mode':
                 if force in list(generator_forces.keys()):
                     node_forces[force] += generator_forces[force]
         if (force[0] == 'm') and force in list(aero_forces.keys()):

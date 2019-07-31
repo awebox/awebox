@@ -12,7 +12,8 @@ options['user_options']['system_model']['kite_dof'] = 3
 options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 
 # pick drag-mode trajectory
-options['user_options']['trajectory']['type'] = 'drag_mode'
+options['user_options']['trajectory']['type'] = 'power_cycle'
+options['user_options']['trajectory']['system_type'] = 'drag_mode'
 
 # bounds on dkappa: be aware to check if these values make sense
 # from a physical point of view your specific system

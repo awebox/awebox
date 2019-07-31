@@ -18,6 +18,7 @@ options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 
 # trajectory should be a single looping
 options['user_options']['trajectory']['type'] = 'tracking'
+options['user_options']['trajectory']['system_type'] = 'lift_mode'
 options['user_options']['trajectory']['lift_mode']['windings'] = 1
 
 # don't include induction effects, use simple tether drag

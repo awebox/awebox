@@ -17,7 +17,8 @@ options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
 options['user_options']['system_model']['kite_dof'] = 6
 options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 # trajectory should be a single pumping cycle with initial number of five windings
-options['user_options']['trajectory']['type'] = 'lift_mode'
+options['user_options']['trajectory']['type'] = 'power_cycle'
+options['user_options']['trajectory']['system_type'] = 'lift_mode'
 options['user_options']['trajectory']['lift_mode']['windings'] = 5
 
 # don't include induction effects, use simple tether drag

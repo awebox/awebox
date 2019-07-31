@@ -148,9 +148,9 @@ def __set_primitives(options, model):
 
     ## build motion primitive for lift mode
 
-    if trajectory_type == 'lift_mode' or trajectory_type == 'tracking':
+    if trajectory_type == 'power_cycle' or trajectory_type == 'tracking':
 
-        lift_mode_args = {}
+        power_cycle_args = {}
 
         # get fixed parameters
         number_of_loopings = options['windings']
@@ -181,21 +181,21 @@ def __set_primitives(options, model):
         terminal_configuration = copy.deepcopy(initial_configuration)
 
         # build primitive
-        lift_mode_args['type'] = 'goto'
-        lift_mode_args['normed_times'] = normed_times
-        lift_mode_args['number_of_loopings'] = number_of_loopings
-        lift_mode_args['initial_configuration'] = {}
-        lift_mode_args['initial_configuration']['type'] = 'simple_pos'
-        lift_mode_args['initial_configuration']['configuration'] = initial_configuration
-        lift_mode_args['terminal_configuration'] = {}
-        lift_mode_args['terminal_configuration']['type'] = 'simple_pos'
-        lift_mode_args['terminal_configuration']['configuration'] = terminal_configuration
+        power_cycle_args['type'] = 'goto'
+        power_cycle_args['normed_times'] = normed_times
+        power_cycle_args['number_of_loopings'] = number_of_loopings
+        power_cycle_args['initial_configuration'] = {}
+        power_cycle_args['initial_configuration']['type'] = 'simple_pos'
+        power_cycle_args['initial_configuration']['configuration'] = initial_configuration
+        power_cycle_args['terminal_configuration'] = {}
+        power_cycle_args['terminal_configuration']['type'] = 'simple_pos'
+        power_cycle_args['terminal_configuration']['configuration'] = terminal_configuration
 
         # add primitive to primitive args
-        if trajectory_type == 'lift_mode':
-            primitives['lift_mode'] = lift_mode_args
+        if trajectory_type == 'power_cycle':
+            primitives['power_cycle'] = power_cycle_args
         elif trajectory_type == 'tracking':
-            primitives['tracking'] = lift_mode_args
+            primitives['tracking'] = power_cycle_args
 
     ## build motion primitive for transition
     if trajectory_type == 'transition':
@@ -284,11 +284,11 @@ def __estimate_t_f(primitives, options):
     # get trajectory type
     trajectory_type = options['type']
 
-    if trajectory_type == 'lift_mode':
+    if trajectory_type == 'power_cycle':
 
         # get parameters
-        number_of_loopings = primitives['lift_mode']['number_of_loopings']
-        angular_looping_velocity = (primitives['lift_mode']['initial_configuration']['configuration']['angular_looping_velocity'] + primitives['lift_mode']['terminal_configuration']['configuration']['angular_looping_velocity'])/2.
+        number_of_loopings = primitives['power_cycle']['number_of_loopings']
+        angular_looping_velocity = (primitives['power_cycle']['initial_configuration']['configuration']['angular_looping_velocity'] + primitives['power_cycle']['terminal_configuration']['configuration']['angular_looping_velocity'])/2.
 
         # compute final time
         t_f = 2 * np.pi * number_of_loopings / angular_looping_velocity
@@ -317,8 +317,8 @@ def __build_initial_guess_schedule(options, primitives):
     trajectory_type = options['type']
 
     # add primitives to schedule
-    if trajectory_type == 'lift_mode':
-        initial_guess_schedule['primitives'] += ['lift_mode']
+    if trajectory_type == 'power_cycle':
+        initial_guess_schedule['primitives'] += ['power_cycle']
     if trajectory_type in ['transition']:
         initial_guess_schedule['primitives'] += ['transition']
     if trajectory_type in ['nominal_landing', 'compromised_landing']:
