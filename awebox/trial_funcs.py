@@ -55,7 +55,7 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
 
     # write into ,csv
     with open(name + '.csv', 'w') as point_cloud:
-        pcdw = csv.DictWriter(point_cloud, delimiter=' ', fieldnames=write_csv_dict)
+        pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
         pcdw.writeheader()
         for k in range(plot_dict['time_grids']['ip'].shape[0]):
             write_data_row(pcdw, plot_dict, write_csv_dict, plot_dict['time_grids']['ip'], k, rotation_representation)
@@ -91,6 +91,11 @@ def init_write_csv_dict(plot_dict):
 
     # add time stamp
     write_csv_dict['time'] = None
+
+    # add architecture information
+    write_csv_dict['nodes'] = None
+    write_csv_dict['parent'] = None
+    write_csv_dict['kites'] = None
 
     return write_csv_dict
 
@@ -167,6 +172,20 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
 
     write_csv_dict['time'] = tgrid_ip[k]
+
+    parent_map = plot_dict['architecture'].parent_map
+    if k < plot_dict['architecture'].number_of_nodes-1:
+        node = list(parent_map.keys())[k]
+        write_csv_dict['nodes']  = str(node)
+        write_csv_dict['parent'] = str(parent_map[node])
+        if k < len(plot_dict['architecture'].kite_nodes):
+            write_csv_dict['kites']  = plot_dict['architecture'].kite_nodes[k]
+        else:
+            write_csv_dict['kites']  = None
+    else:
+        write_csv_dict['nodes']  = None
+        write_csv_dict['parent'] = None
+        write_csv_dict['kites']  = None
 
     # write out sorted row
     ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
