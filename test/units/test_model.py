@@ -193,6 +193,7 @@ def test_cross_tether_model():
     algvars = model.variables_dict['xa']
     theta   = model.variables_dict['theta']
     outputs = model.outputs_dict
+    constraints = model.constraints_dict
 
     # check variables
     assert('lambda10' in list(algvars.keys()))
@@ -209,3 +210,5 @@ def test_cross_tether_model():
     assert('c31' in outputs['tether_length'].keys())
     assert('c23' in outputs['tether_length'].keys())
     assert('c32' not in outputs['tether_length'].keys())
+
+    assert(constraints['inequality']['tether_stress'].shape[0] == 4)

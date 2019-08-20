@@ -226,9 +226,11 @@ def set_default_options(default_user_options, help_options):
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                  ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'xd',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_s',          [1.0e-2, 1.0e3],                                                   ('secondary tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                    ('intermediate tether length bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                    ('cross-tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'xd',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],         ('kite position bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                     ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'xa',          'lambda',       [0., cas.inf],                                                         ('multiplier bounds', None),'x'),

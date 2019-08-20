@@ -962,6 +962,27 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
         outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section
         outputs['local_performance']['tether_force' + str(n)+str(parent)] = tension
 
+    if options['cross_tether'] and len(architecture.kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            seg_length = theta['l_c{}'.format(l)]
+            seg_diam   = theta['diam_c{}'.format(l)]
+            cross_section = np.pi * seg_diam ** 2. / 4.
+            cross_section_max = np.pi * options['system_bounds']['theta']['diam_c'][1]  ** 2.0 / 4.
+            tau_max = sigma_max * cross_section_max
+
+            if len(kites) == 2:
+                tension = xa['lambda{}{}'.format(kites[0],kites[1])] * seg_length
+                stress_inequality_untightened = tension / tau_max - cross_section / cross_section_max
+                outputs['tether_stress']['n{}{}'.format(kites[0],kites[1])] = stress_inequality_untightened * tightness
+                outputs['local_performance']['tether_stress{}{}'.format(kites[0],kites[1])] = tension / cross_section
+            else:
+                for k in range(len(kites)):
+                    tension = xa['lambda{}{}'.format(kites[k],kites[(k+1)%len(kites)])] * seg_length
+                    stress_inequality_untightened = tension / tau_max - cross_section / cross_section_max
+                    outputs['tether_stress']['n{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = stress_inequality_untightened * tightness
+                    outputs['local_performance']['tether_stress{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = tension / cross_section
+
     return outputs
 
 def actuator_disk_equations(options, atmos, wind, variables, outputs, parameters, architecture):
