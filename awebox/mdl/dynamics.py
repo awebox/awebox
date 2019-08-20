@@ -85,7 +85,12 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # define outputs to monitor system constraints etc.
     outputs = {}
 
-    holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun = generate_holonomic_constraints(architecture,outputs,system_variables,generalized_coordinates)
+    holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun = generate_holonomic_constraints(
+        architecture,
+        outputs,
+        system_variables,
+        generalized_coordinates,
+        options)
     holonomic_scaling = generate_holonomic_scaling(options, architecture)
 
     # -------------------------------
@@ -1043,7 +1048,7 @@ def generate_generalized_coordinates(system_variables, system_gc):
 
     return generalized_coordinates
 
-def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates):
+def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates, options):
 
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
@@ -1067,7 +1072,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     if 'tether_length' not in list(outputs.keys()):
         outputs['tether_length'] = {}
 
-    # build[ constraints with scaled variables and obtain derivatives w.r.t unscaled variables
+    # build constraints with si variables and obtain derivatives w.r.t scaled variables
     g = []
     gdot = []
     gddot = []
@@ -1104,6 +1109,47 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
         outputs['tether_length']['dc' + str(n) + str(parent)] = gdot[-1]
         outputs['tether_length']['ddc' + str(n) + str(parent)] = gddot[-1]
+
+    # add cross-tethers
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kite_children = architecture.kites_map[l]
+            if len(kite_children) == 2:
+                first_node = xgc_si['q{}{}'.format(kite_children[0], parent_map[kite_children[0]])]
+                second_node = xgc_si['q{}{}'.format(kite_children[1], parent_map[kite_children[1]])]
+                segment_length = theta_si['l_c{}'.format(l)]
+                length_constraint = 0.5 * (
+                    cas.mtimes(
+                        (first_node - second_node).T,
+                        (first_node - second_node)) - segment_length ** 2.0)
+                g.append(length_constraint)
+                gdot.append(cas.mtimes(
+                    cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
+                gddot.append(cas.mtimes(
+                    cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+
+                outputs['tether_length']['c{}{}'.format(kite_children[0],kite_children[1])] = g[-1]
+                outputs['tether_length']['dc{}{}'.format(kite_children[0],kite_children[1])] = gdot[-1]
+                outputs['tether_length']['ddc{}{}'.format(kite_children[0],kite_children[1])] = gddot[-1]
+
+            else:
+                for k in range(len(kite_children)):
+                    first_node = xgc_si['q{}{}'.format(kite_children[k], parent_map[kite_children[k]])]
+                    second_node = xgc_si['q{}{}'.format(kite_children[(k+1)%len(kite_children)], parent_map[kite_children[(k+1)%len(kite_children)]])]
+                    segment_length = theta_si['l_c{}'.format(l)]
+                    length_constraint = 0.5 * (
+                        cas.mtimes(
+                            (first_node - second_node).T,
+                            (first_node - second_node)) - segment_length ** 2.0)
+                    g.append(length_constraint)
+                    gdot.append(cas.mtimes(
+                        cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
+                    gddot.append(cas.mtimes(
+                        cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+
+                    outputs['tether_length']['c{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = g[-1]
+                    outputs['tether_length']['dc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gdot[-1]
+                    outputs['tether_length']['ddc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gddot[-1]
 
         if n in kite_nodes:
             if 'r' + str(n) + str(parent) in list(xd_si.keys()):
