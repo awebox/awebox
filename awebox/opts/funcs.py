@@ -101,6 +101,9 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     ## system outputs
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
 
+    ## cross-tether
+    options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
+
     ## aerodynamics
     options_tree = share_aerodynamics_options(options, options_tree, help_options)
 
