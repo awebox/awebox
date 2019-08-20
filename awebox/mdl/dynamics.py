@@ -1076,6 +1076,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     g = []
     gdot = []
     gddot = []
+    holonomic_constraints = 0.0
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
 
@@ -1109,6 +1110,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
         outputs['tether_length']['dc' + str(n) + str(parent)] = gdot[-1]
         outputs['tether_length']['ddc' + str(n) + str(parent)] = gddot[-1]
+        holonomic_constraints += xa_si['lambda{}{}'.format(n,parent)]*g[-1]
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -1131,6 +1133,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                 outputs['tether_length']['c{}{}'.format(kite_children[0],kite_children[1])] = g[-1]
                 outputs['tether_length']['dc{}{}'.format(kite_children[0],kite_children[1])] = gdot[-1]
                 outputs['tether_length']['ddc{}{}'.format(kite_children[0],kite_children[1])] = gddot[-1]
+                holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[0],kite_children[1])]*g[-1]
 
             else:
                 for k in range(len(kite_children)):
@@ -1150,6 +1153,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                     outputs['tether_length']['c{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = g[-1]
                     outputs['tether_length']['dc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gdot[-1]
                     outputs['tether_length']['ddc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gddot[-1]
+                    holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])]*g[-1]
 
         if n in kite_nodes:
             if 'r' + str(n) + str(parent) in list(xd_si.keys()):
@@ -1174,8 +1178,6 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     gddot = cas.vertcat(*gddot)
     # holonomic_fun = cas.Function('holonomic_fun', [xgc,xgcdot,xgcddot,var['xd','l_t'],var['xd','dl_t'],ddl_t_scaled],[g,gdot,gddot])
     holonomic_fun = None # todo: still used?
-
-    holonomic_constraints = cas.mtimes(xa_si.cat.T, g)
 
     return holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun
 
