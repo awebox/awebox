@@ -165,3 +165,43 @@ def test_drag_mode_model():
     assert(model.scaling['xd']['kappa31'] == options['model']['scaling']['xd']['kappa'])
     assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
     assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
+
+def test_cross_tether_model():
+    """ Test cross-tether construction routines
+    """
+
+    # make default options object
+    options = awe.Options(True)
+
+    # single kite with point-mass model
+    options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
+    options['user_options']['system_model']['kite_dof'] = 3
+    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options']['system_model']['cross_tether'] = True
+
+    # don't include induction effects, use trivial tether drag
+    options['user_options']['induction_model'] = 'not_in_use'
+    options['user_options']['tether_drag_model'] = 'trivial'
+
+    # build model
+    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
+    options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(options['model'], architecture)
+
+    # extract model info
+    algvars = model.variables_dict['xa']
+    theta   = model.variables_dict['theta']
+    outputs = model.outputs_dict
+
+    # check variables
+    assert('lambda10' in list(algvars.keys()))
+    assert('lambda21' in list(algvars.keys()))
+    assert('lambda31' in list(algvars.keys()))
+    assert('lambda23' in list(algvars.keys()))
+    assert('lambda32' not in list(algvars.keys()))
+    assert('l_c1' in list(theta.keys()))
+    assert('diam_c1' in list(theta.keys()))
+
+    # check constraints
+    
