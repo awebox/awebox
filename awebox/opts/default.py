@@ -263,6 +263,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'xd',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'l_i',      100.,     ('intermediate tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'l_s',      50.,      ('secondary tether natural length [m]', None),'x'),
+        ('model',  'scaling', 'theta',  'l_c',      100.,     ('cross-tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_t',   5e-3,     ('main tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),

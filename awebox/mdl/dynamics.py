@@ -1198,6 +1198,15 @@ def generate_holonomic_scaling(options, architecture):
 
         holonomic_scaling = cas.vertcat(holonomic_scaling,length_scaling)
 
+    if len(architecture.kite_nodes) > 1 and ['cross_tether']:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            if len(kites) == 2:
+                holonomic_scaling = cas.vertcat(holonomic_scaling,scaling['theta']['l_c']**2)
+            else:
+                for k in architecture.kites_map[l]:
+                    holonomic_scaling = cas.vertcat(holonomic_scaling,scaling['theta']['l_c']**2)
+
     return holonomic_scaling
 
 
