@@ -130,9 +130,10 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
 
-    if architecture.number_of_kites == 1:
+    if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
 
+    # model equality constraints
     options_tree.append(('model', 'model_constr', None, 'include', False, None,'x'))
 
     # map single tether power interval constraint to min and max constraint
