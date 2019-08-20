@@ -204,4 +204,8 @@ def test_cross_tether_model():
     assert('diam_c1' in list(theta.keys()))
 
     # check constraints
-    
+    assert('c10' in outputs['tether_length'].keys())
+    assert('c21' in outputs['tether_length'].keys())
+    assert('c31' in outputs['tether_length'].keys())
+    assert('c23' in outputs['tether_length'].keys())
+    assert('c32' not in outputs['tether_length'].keys())
