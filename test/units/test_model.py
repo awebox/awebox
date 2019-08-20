@@ -101,7 +101,8 @@ def test_drag_mode_model():
     options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['trajectory']['type'] = 'drag_mode'
+    options['user_options']['trajectory']['type'] = 'power_cycle'
+    options['user_options']['trajectory']['system_type'] = 'drag_mode'
 
     # don't include induction effects, use trivial tether drag
     options['user_options']['induction_model'] = 'not_in_use'
