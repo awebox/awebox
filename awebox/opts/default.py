@@ -268,6 +268,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'theta',  'l_c',      100.,     ('cross-tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_t',   5e-3,     ('main tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
+        ('model',  'scaling', 'theta',  'diam_c',   5e-3,     ('cross-tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
