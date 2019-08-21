@@ -33,24 +33,30 @@ import casadi.tools as cas
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
 
     time_grid_ip = plot_dict['time_grids']['ip']
-    ref_time_grid_ip = plot_dict['time_grids']['ref']['ip']
-
     outputs = plot_dict['outputs']
-    ref_outputs = plot_dict['ref']['outputs']
+
+    if cosmetics['plot_ref']:
+        ref_time_grid_ip = plot_dict['time_grids']['ref']['ip']
+        ref_outputs = plot_dict['ref']['outputs']
+
     output_key_list = output_path.split(':')
     if len(output_key_list) == 1:
         output = outputs[output_key_list[0]]
-        ref_output = ref_outputs[output_key_list[0]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]]
     elif len(output_key_list) == 2:
         output = outputs[output_key_list[0]][output_key_list[1]]
-        ref_output = ref_outputs[output_key_list[0]][output_key_list[1]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]][output_key_list[1]]
     elif len(output_key_list) == 3:
         output = outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
-        ref_output = ref_outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
     else:
         raise ValueError('Error: Wrong recursion depth (' + str(len(output_key_list)) + ') for output plots!' + str(output_key_list))
     recursive_output_plot(output, fig_name, time_grid_ip, fig_num)
-    recursive_output_plot(ref_output, fig_name, ref_time_grid_ip,  plt.gcf().number , linestyle = '--')
+    if cosmetics['plot_ref']:
+        recursive_output_plot(ref_output, fig_name, ref_time_grid_ip,  plt.gcf().number , linestyle = '--')
 
     return None
 
