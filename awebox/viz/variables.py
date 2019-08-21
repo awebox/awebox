@@ -254,15 +254,42 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
     fig = plt.figure()
     fig.clf()
     legend_names = []
+    tgrid_ip = plot_dict['time_grids']['ip']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
         lambdavec = plot_dict['xa']['lambda' + str(n) + str(parent)]
-        tgrid_ip = plot_dict['time_grids']['ip']
         p = plt.plot(tgrid_ip, lambdavec[0])
         if cosmetics['plot_ref']:
             plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa']['lambda' + str(n) + str(parent)][0],
                 linestyle= '--', color = p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
+    
+    if plot_dict['options']['model']['cross_tether'] and number_of_nodes > 2:
+        for l in plot_dict['architecture'].layer_nodes:
+            kites = plot_dict['architecture'].kites_map[l]
+            if len(kites) == 2:
+                lam_name = 'lambda{}{}'.format(kites[0], kites[1])
+                lambdavec = plot_dict['xa'][lam_name]
+                p = plt.plot(tgrid_ip, lambdavec[0])
+                if cosmetics['plot_ref']:
+                    plt.plot(
+                        plot_dict['time_grids']['ref']['ip'],
+                        plot_dict['ref']['xa'][lam_name][0],
+                        linestyle= '--', color = p[-1].get_color()
+                        )
+                legend_names.append(lam_name)
+            else:
+                for k in range(len(kites)):
+                    lam_name = 'lambda{}{}'.format(kites[k], kites[(k+1)%len(kites)])
+                    lambdavec = plot_dict['xa'][lam_name]
+                    p = plt.plot(tgrid_ip, lambdavec[0])
+                    if cosmetics['plot_ref']:
+                        plt.plot(
+                            plot_dict['time_grids']['ref']['ip'],
+                            plot_dict['ref']['xa'][lam_name][0],
+                            linestyle= '--', color = p[-1].get_color()
+                            )
+                    legend_names.append(lam_name)
     plt.legend(legend_names)
     plt.suptitle(fig_name)
