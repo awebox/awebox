@@ -611,6 +611,11 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
             ehat2 = vect_op.normed_cross(ehat3, ehat1)
 
             dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            if options['cross_tether']:
+                dcm_old = dcm
+                ang = -options['rotation_bounds']*1.05
+                rotx = np.array([[1,0,0],[0, np.cos(ang), -np.sin(ang)],[0, np.sin(ang), np.cos(ang)]])
+                dcm = cas.mtimes(dcm, rotx)
             dcm_column = cas.reshape(dcm, (9, 1))
 
             ret['q' + str(node) + str(parent)] = position
