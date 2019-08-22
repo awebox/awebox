@@ -1268,47 +1268,47 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, archit
 
     return rotation_dynamics
 
-def get_roll_expr(xd, n, parent_map):
+def get_roll_expr(xd, n0, n1, parent_map):
 
     """ Return the expression that allows to compute the bridle roll angle via roll = atan(expr),
-    (see https://gitlab.syscop.de/Jochem.De.Schutter/AWEbox/issues/94)
     :param xd: system variables
-    :param n:  node number
+    :param n0: node number of kite node
+    :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
     :return: tan(roll)
     """ 
 
     # node + parent position
-    q = xd['q'+str(n)+str(parent_map[n])] 
-    if n == 1:
-        q_parent = np.zeros((3,1))
+    q0 = xd['q{}{}'.format(n0, parent_map[n0])] 
+    if n1 == 0:
+        q1 = np.zeros((3,1))
     else:
-        q_parent = xd['q'+str(parent_map[n])+str(parent_map[parent_map[n]])] 
+        q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q - q_parent # tether direction
-    r          = cas.reshape(xd['r' + str(n) + str(parent_map[n])], (3, 3)) # rotation matrix
+    q_hat      = q0 - q1 # tether direction
+    r          = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,1] / cas.mtimes(q_hat.T, r[:,2]))
 
-def get_pitch_expr(xd, n, parent_map):
+def get_pitch_expr(xd, n0, n1, parent_map):
 
     """ Return the expression that allows to compute the bridle pitch angle via pitch = asin(expr),
-    (see https://gitlab.syscop.de/Jochem.De.Schutter/AWEbox/issues/94)
     :param xd: system variables
-    :param n:  node number
+    :param n0: node number of kite node
+    :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
     :return: sin(pitch)
     """ 
 
     # node + parent position
-    q = xd['q'+str(n)+str(parent_map[n])] 
-    if n == 1:
-        q_parent = np.zeros((3,1))
+    q0 = xd['q{}{}'.format(n0, parent_map[n0])] 
+    if n1 == 0:
+        q1 = np.zeros((3,1))
     else:
-        q_parent = xd['q'+str(parent_map[n])+str(parent_map[parent_map[n]])] 
+        q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q - q_parent # tether direction
-    r          = cas.reshape(xd['r' + str(n) + str(parent_map[n])], (3, 3)) # rotation matrix
+    q_hat      = q0 - q1 # tether direction
+    r          = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,0] / vect_op.norm(q_hat))
 
@@ -1332,12 +1332,12 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     for n in kite_nodes:
         parent = parent_map[n]
         rotation_angles = cas.vertcat(
-            get_roll_expr(xd, n, parent_map),
-            get_pitch_expr(xd, n, parent_map)
+            get_roll_expr(xd, n, parent_map[n], parent_map),
+            get_pitch_expr(xd, n, parent_map[n], parent_map)
         )
         outputs['rotation']['max_n' + str(n) + str(parent)] = - expr + rotation_angles
         outputs['rotation']['min_n' + str(n) + str(parent)] = - expr - rotation_angles
-        outputs['local_performance']['rot_angles'] = cas.vertcat(
+        outputs['local_performance']['rot_angles' + str(n) + str(parent)] = cas.vertcat(
             cas.atan(rotation_angles[0]),
             cas.asin(rotation_angles[1])
         )
