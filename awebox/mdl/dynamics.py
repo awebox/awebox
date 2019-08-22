@@ -1285,8 +1285,8 @@ def get_roll_expr(xd, n0, n1, parent_map):
     else:
         q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q0 - q1 # tether direction
-    r          = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
+    q_hat = q0 - q1 # tether direction
+    r     = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,1] / cas.mtimes(q_hat.T, r[:,2]))
 
@@ -1307,8 +1307,8 @@ def get_pitch_expr(xd, n0, n1, parent_map):
     else:
         q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q0 - q1 # tether direction
-    r          = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
+    q_hat = q0 - q1 # tether direction
+    r     = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,0] / vect_op.norm(q_hat))
 
@@ -1341,7 +1341,43 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
             cas.atan(rotation_angles[0]),
             cas.asin(rotation_angles[1])
         )
-    
+
+    # cross-tether
+    if options['cross_tether'] and number_of_nodes > 2:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            if len(kites) == 2:
+                no_tethers = 1
+            else:
+                no_tethers = len(kites)
+
+            for k in range(no_tethers):
+                tether_name = '{}{}'.format(kites[k],kites[(k+1)%len(kites)])
+                tether_name2 = '{}{}'.format(kites[(k+1)%len(kites)],kites[k])
+
+                # get roll and pitch expressions at each end of the cross-tether
+                rotation_angles = cas.vertcat(
+                    get_roll_expr(xd, kites[k], kites[(k+1)%len(kites)], parent_map),
+                    get_pitch_expr(xd, kites[k],kites[(k+1)%len(kites)], parent_map)
+                )
+                rotation_angles2 = cas.vertcat(
+                    get_roll_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map),
+                    get_pitch_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map)
+                )
+
+                outputs['rotation']['max_n'+tether_name] = - expr + rotation_angles
+                outputs['rotation']['max_n'+tether_name2] = - expr + rotation_angles2
+                outputs['rotation']['min_n'+tether_name] = - expr - rotation_angles
+                outputs['rotation']['min_n'+tether_name2] = - expr - rotation_angles2
+                outputs['local_performance']['rot_angles'+tether_name] = cas.vertcat(
+                    cas.atan(rotation_angles[0]),
+                    cas.asin(rotation_angles[1])
+                )
+                outputs['local_performance']['rot_angles'+tether_name2] = cas.vertcat(
+                    cas.atan(rotation_angles2[0]),
+                    cas.asin(rotation_angles2[1])
+                )
+
     return outputs
 
 
