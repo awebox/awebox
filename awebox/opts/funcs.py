@@ -330,6 +330,11 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
 
+    ## cross-tether
+    options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
+    rotation_bounds = options['params']['model_bounds']['rot_angles'][0]
+    options_tree.append(('solver', 'initialization', None, 'rotation_bounds', np.pi/2-rotation_bounds, ('enable cross-tether',[True,False]),'x'))
+
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
         jerk_weight = 1e1*options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
