@@ -96,6 +96,7 @@ def init_write_csv_dict(plot_dict):
     write_csv_dict['nodes'] = None
     write_csv_dict['parent'] = None
     write_csv_dict['kites'] = None
+    write_csv_dict['cross_tether'] = None
 
     return write_csv_dict
 
@@ -186,6 +187,8 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
         write_csv_dict['nodes']  = None
         write_csv_dict['parent'] = None
         write_csv_dict['kites']  = None
+
+    write_csv_dict['cross_tether'] = int(plot_dict['options']['user_options']['system_model']['cross_tether'])
 
     # write out sorted row
     ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
