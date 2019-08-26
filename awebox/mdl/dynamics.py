@@ -1081,6 +1081,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     theta_si = variables['SI']['theta']
     xgc_si = generalized_coordinates['SI']['xgc']
     xa_si = variables['SI']['xa']
+    xddot_si = variables['SI']['xddot']
 
     # extract necessary scaled variables
     xgc = generalized_coordinates['scaled']['xgc']
@@ -1125,18 +1126,71 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
             previous_node = xgc_si['q' + str(parent) + str(grandparent)]
             segment_length = theta_si['l_i']
 
+        # holonomic constraint
         length_constraint = 0.5 * (
             cas.mtimes(
                 (current_node - previous_node).T,
                 (current_node - previous_node)) - segment_length ** 2.0)
         g.append(length_constraint)
 
-        # todo: are we sure about the g[-1], part?
-        gdot.append(cas.mtimes(
-            cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
+        # first-order derivative
+        gdot.append(
+            cas.mtimes(
+                cas.jacobian(
+                    g[-1],
+                    cas.vertcat(xgc.cat, var['xd','l_t'])
+                ),
+                cas.vertcat(xgcdot.cat, var['xd','dl_t'])
+            )
+        )
 
-        gddot.append(cas.mtimes(
-            cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+        if int(options['kite_dof']) == 6:
+            for k in kite_nodes:
+                kparent = parent_map[k]
+                dcm_si = xd_si['r{}{}'.format(k, kparent)]
+                dcm_sc = var['xd','r{}{}'.format(k, kparent)]
+                gdot[-1] += 2*cas.mtimes(
+                    vect_op.rot_op(
+                        cas.reshape(dcm_si, (3,3)),
+                        cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
+                        ).T,
+                    xd_si['omega{}{}'.format(k, kparent)]
+                )
+
+        # second-order derivative
+        gddot.append(
+            cas.mtimes(
+                cas.jacobian(
+                    gdot[-1],
+                    cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])
+                    ),
+                cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)
+            )
+        )
+
+        if int(options['kite_dof']) == 6:
+            for k in kite_nodes:
+                kparent = parent_map[k]
+                dcm_si = xd_si['r{}{}'.format(k, kparent)]
+                dcm_sc = var['xd','r{}{}'.format(k, kparent)]
+
+                # add time derivative due to angular velocity
+                gddot[-1] += 2*cas.mtimes(
+                    vect_op.rot_op(
+                        cas.reshape(dcm_si, (3,3)),
+                        cas.reshape(cas.jacobian(gdot[-1], dcm_sc), (3,3))
+                        ).T,
+                    xd_si['omega{}{}'.format(k, kparent)]
+                )
+
+                # add time derivative due to angular acceleration
+                gddot[-1] += 2*cas.mtimes(
+                    vect_op.rot_op(
+                        cas.reshape(dcm_si, (3,3)),
+                        cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
+                        ).T,
+                    xddot_si['domega{}{}'.format(k, kparent)]
+                )
 
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
         outputs['tether_length']['dc' + str(n) + str(parent)] = gdot[-1]
