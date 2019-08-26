@@ -331,7 +331,7 @@ def set_default_options(default_user_options, help_options):
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
-        ('nlp',  'integrator',       None, 'jit_coll',             True,                   ('code-generate coll integrator', (True, False)),'t'),
+        ('nlp',  'integrator',       None, 'jit_coll',             False,                  ('code-generate coll integrator', (True, False)),'t'),
         ('nlp',  'integrator',       None, 'num_steps_coll',       1,                      ('number of steps within coll integrator', None),'t'),
         ('nlp',  'integrator',       None, 'jit_idas',             False,                  ('code-generate idas integrator', (True, False)),'t'),
         ('nlp',  'integrator',       None, 'num_steps_rk4root',    20,                     ('number of steps within rk4rootintegrator', None),'t'),
