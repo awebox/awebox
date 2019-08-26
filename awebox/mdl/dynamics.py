@@ -1102,7 +1102,16 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
 
-        current_node = xgc_si['q' + str(n) + str(parent)]
+        if n not in kite_nodes or options['tether']['attachment'] == 'com':
+            current_node = xgc_si['q' + str(n) + str(parent)]
+        elif n in kite_nodes and options['tether']['attachment'] == 'stick':
+            if int(options['kite_dof']) == 6:
+                dcm = cas.reshape(xd_si['r{}{}'.format(n, parent)],(3,3))
+            elif int(options['kite_dif']) == 3:
+                raise ValueError('Stick tether attachment option not implemented for 3DOF kites')
+            current_node = xgc_si['q{}{}'.format(n, parent)] + cas.mtimes(dcm,parameters['theta0','geometry','r_tether'])
+        else:
+            raise ValueError('Unknown tether attachment option: {}'.format(options['tether']['attachment']))
 
         if n == 1:
             previous_node = cas.vertcat(0., 0., 0.)
