@@ -90,6 +90,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
         outputs,
         system_variables,
         generalized_coordinates,
+        parameters,
         options)
     holonomic_scaling = generate_holonomic_scaling(options, architecture)
 
@@ -1069,7 +1070,7 @@ def generate_generalized_coordinates(system_variables, system_gc):
 
     return generalized_coordinates
 
-def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates, options):
+def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates, parameters, options):
 
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
