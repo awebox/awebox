@@ -147,6 +147,14 @@ def build_si_initial_guess(nlp, model, formulation, options):
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
         if name in list(initialization_options['theta'].keys()):
             V_init['theta', name] = initialization_options['theta'][name]
+        elif name[:3] == 'l_c':
+            layer = int(name[3:])
+            kites = model.architecture.kites_map[layer]
+            q_first = V_init['xd',0,'q{}{}'.format(kites[0],model.architecture.parent_map[kites[0]])]
+            q_second = V_init['xd',0,'q{}{}'.format(kites[1],model.architecture.parent_map[kites[1]])]
+            V_init['theta', name] = np.linalg.norm(q_first - q_second)
+        elif name[:6] == 'diam_c':
+            V_init['theta', name] = initialization_options['theta']['diam_c']
         else:
             raise ValueError("please specify an initial value for variable '" + name + "' of type 'theta'")
 
@@ -603,6 +611,11 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
             ehat2 = vect_op.normed_cross(ehat3, ehat1)
 
             dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            if options['cross_tether']:
+                dcm_old = dcm
+                ang = -options['rotation_bounds']*1.05
+                rotx = np.array([[1,0,0],[0, np.cos(ang), -np.sin(ang)],[0, np.sin(ang), np.cos(ang)]])
+                dcm = cas.mtimes(dcm, rotx)
             dcm_column = cas.reshape(dcm, (9, 1))
 
             ret['q' + str(node) + str(parent)] = position

@@ -144,7 +144,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
         V_bounds['ub']['xi', name] = xi_bounds[name][1]
 
     for name in struct_op.subkeys(model.variables, 'theta'):
-        if not name == 't_f':
+        if not name == 't_f' and not name[:3] == 'l_c' and not name[:6] == 'diam_c':
             initial_si_value = options['initialization']['theta'][name]
             initial_scaled_value = initial_si_value / model.scaling['theta'][name]
 

@@ -126,6 +126,32 @@ def generate_structure(options, architecture):
             system_gc.extend([tether_gc[i] + str(n) + str(parent)
                               for i in range(len(tether_gc))])
 
+    # add cross-tethers
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kite_children = architecture.kites_map[l]
+            if len(kite_children) == 2:
+                system_multipliers.extend(
+                        [
+                            (
+                            tether_multipliers[i][0] + str(kite_children[0]) + str(kite_children[1]),
+                            tether_multipliers[i][1]
+                            )
+                            for i in range(len(tether_multipliers))
+                        ]
+                    )
+            else:
+                for k in range(len(kite_children)):
+                    system_multipliers.extend(
+                        [
+                            (
+                            tether_multipliers[i][0] + str(kite_children[k]) + str(kite_children[(k+1)%len(kite_children)]),
+                            tether_multipliers[i][1]
+                            )
+                            for i in range(len(tether_multipliers))
+                        ]
+                    )
+
     # _add global states and controls
     system_states.extend([('l_t', (1, 1)), ('dl_t', (1, 1))]) # main tether length and speed
 
@@ -153,6 +179,15 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('l_s', (1, 1)), ('l_i', (1, 1)), ('diam_s', (1, 1)), ('diam_t', (1, 1)), ('t_f',(1,1))]
+
+    # add cross-tether lengths and diameters
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            system_parameters.extend(
+                [
+                    ('l_c{}'.format(l),(1,1)), ('diam_c{}'.format(l),(1,1))
+                ]
+            )
 
     # store variables in dict
     system_variables_list = {'xd':system_states,

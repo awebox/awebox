@@ -101,6 +101,9 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     ## system outputs
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
 
+    ## cross-tether
+    options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
+
     ## aerodynamics
     options_tree = share_aerodynamics_options(options, options_tree, help_options)
 
@@ -127,9 +130,10 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
 
-    if architecture.number_of_kites == 1:
+    if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
 
+    # model equality constraints
     options_tree.append(('model', 'model_constr', None, 'include', False, None,'x'))
 
     # map single tether power interval constraint to min and max constraint
@@ -325,6 +329,11 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
+
+    ## cross-tether
+    options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
+    rotation_bounds = options['params']['model_bounds']['rot_angles'][0]
+    options_tree.append(('solver', 'initialization', None, 'rotation_bounds', np.pi/2-rotation_bounds, ('enable cross-tether',[True,False]),'x'))
 
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:

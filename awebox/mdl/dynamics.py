@@ -85,7 +85,12 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # define outputs to monitor system constraints etc.
     outputs = {}
 
-    holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun = generate_holonomic_constraints(architecture,outputs,system_variables,generalized_coordinates)
+    holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun = generate_holonomic_constraints(
+        architecture,
+        outputs,
+        system_variables,
+        generalized_coordinates,
+        options)
     holonomic_scaling = generate_holonomic_scaling(options, architecture)
 
     # -------------------------------
@@ -957,6 +962,27 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
         outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section
         outputs['local_performance']['tether_force' + str(n)+str(parent)] = tension
 
+    if options['cross_tether'] and len(architecture.kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            seg_length = theta['l_c{}'.format(l)]
+            seg_diam   = theta['diam_c{}'.format(l)]
+            cross_section = np.pi * seg_diam ** 2. / 4.
+            cross_section_max = np.pi * options['system_bounds']['theta']['diam_c'][1]  ** 2.0 / 4.
+            tau_max = sigma_max * cross_section_max
+
+            if len(kites) == 2:
+                tension = xa['lambda{}{}'.format(kites[0],kites[1])] * seg_length
+                stress_inequality_untightened = tension / tau_max - cross_section / cross_section_max
+                outputs['tether_stress']['n{}{}'.format(kites[0],kites[1])] = stress_inequality_untightened * tightness
+                outputs['local_performance']['tether_stress{}{}'.format(kites[0],kites[1])] = tension / cross_section
+            else:
+                for k in range(len(kites)):
+                    tension = xa['lambda{}{}'.format(kites[k],kites[(k+1)%len(kites)])] * seg_length
+                    stress_inequality_untightened = tension / tau_max - cross_section / cross_section_max
+                    outputs['tether_stress']['n{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = stress_inequality_untightened * tightness
+                    outputs['local_performance']['tether_stress{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = tension / cross_section
+
     return outputs
 
 def actuator_disk_equations(options, atmos, wind, variables, outputs, parameters, architecture):
@@ -1043,7 +1069,7 @@ def generate_generalized_coordinates(system_variables, system_gc):
 
     return generalized_coordinates
 
-def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates):
+def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates, options):
 
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
@@ -1067,10 +1093,11 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     if 'tether_length' not in list(outputs.keys()):
         outputs['tether_length'] = {}
 
-    # build[ constraints with scaled variables and obtain derivatives w.r.t unscaled variables
+    # build constraints with si variables and obtain derivatives w.r.t scaled variables
     g = []
     gdot = []
     gddot = []
+    holonomic_constraints = 0.0
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
 
@@ -1104,6 +1131,50 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
         outputs['tether_length']['dc' + str(n) + str(parent)] = gdot[-1]
         outputs['tether_length']['ddc' + str(n) + str(parent)] = gddot[-1]
+        holonomic_constraints += xa_si['lambda{}{}'.format(n,parent)]*g[-1]
+
+    # add cross-tethers
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kite_children = architecture.kites_map[l]
+            if len(kite_children) == 2:
+                first_node = xgc_si['q{}{}'.format(kite_children[0], parent_map[kite_children[0]])]
+                second_node = xgc_si['q{}{}'.format(kite_children[1], parent_map[kite_children[1]])]
+                segment_length = theta_si['l_c{}'.format(l)]
+                length_constraint = 0.5 * (
+                    cas.mtimes(
+                        (first_node - second_node).T,
+                        (first_node - second_node)) - segment_length ** 2.0)
+                g.append(length_constraint)
+                gdot.append(cas.mtimes(
+                    cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
+                gddot.append(cas.mtimes(
+                    cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+
+                outputs['tether_length']['c{}{}'.format(kite_children[0],kite_children[1])] = g[-1]
+                outputs['tether_length']['dc{}{}'.format(kite_children[0],kite_children[1])] = gdot[-1]
+                outputs['tether_length']['ddc{}{}'.format(kite_children[0],kite_children[1])] = gddot[-1]
+                holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[0],kite_children[1])]*g[-1]
+
+            else:
+                for k in range(len(kite_children)):
+                    first_node = xgc_si['q{}{}'.format(kite_children[k], parent_map[kite_children[k]])]
+                    second_node = xgc_si['q{}{}'.format(kite_children[(k+1)%len(kite_children)], parent_map[kite_children[(k+1)%len(kite_children)]])]
+                    segment_length = theta_si['l_c{}'.format(l)]
+                    length_constraint = 0.5 * (
+                        cas.mtimes(
+                            (first_node - second_node).T,
+                            (first_node - second_node)) - segment_length ** 2.0)
+                    g.append(length_constraint)
+                    gdot.append(cas.mtimes(
+                        cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
+                    gddot.append(cas.mtimes(
+                        cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+
+                    outputs['tether_length']['c{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = g[-1]
+                    outputs['tether_length']['dc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gdot[-1]
+                    outputs['tether_length']['ddc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gddot[-1]
+                    holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])]*g[-1]
 
         if n in kite_nodes:
             if 'r' + str(n) + str(parent) in list(xd_si.keys()):
@@ -1129,8 +1200,6 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     # holonomic_fun = cas.Function('holonomic_fun', [xgc,xgcdot,xgcddot,var['xd','l_t'],var['xd','dl_t'],ddl_t_scaled],[g,gdot,gddot])
     holonomic_fun = None # todo: still used?
 
-    holonomic_constraints = cas.mtimes(xa_si.cat.T, g)
-
     return holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun
 
 def generate_holonomic_scaling(options, architecture):
@@ -1149,6 +1218,15 @@ def generate_holonomic_scaling(options, architecture):
             length_scaling = scaling['theta']['l_i']**2
 
         holonomic_scaling = cas.vertcat(holonomic_scaling,length_scaling)
+
+    if len(architecture.kite_nodes) > 1 and options['cross_tether']:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            if len(kites) == 2:
+                holonomic_scaling = cas.vertcat(holonomic_scaling,scaling['theta']['l_c']**2)
+            else:
+                for k in architecture.kites_map[l]:
+                    holonomic_scaling = cas.vertcat(holonomic_scaling,scaling['theta']['l_c']**2)
 
     return holonomic_scaling
 
@@ -1190,47 +1268,47 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, archit
 
     return rotation_dynamics
 
-def get_roll_expr(xd, n, parent_map):
+def get_roll_expr(xd, n0, n1, parent_map):
 
     """ Return the expression that allows to compute the bridle roll angle via roll = atan(expr),
-    (see https://gitlab.syscop.de/Jochem.De.Schutter/AWEbox/issues/94)
     :param xd: system variables
-    :param n:  node number
+    :param n0: node number of kite node
+    :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
     :return: tan(roll)
     """ 
 
     # node + parent position
-    q = xd['q'+str(n)+str(parent_map[n])] 
-    if n == 1:
-        q_parent = np.zeros((3,1))
+    q0 = xd['q{}{}'.format(n0, parent_map[n0])] 
+    if n1 == 0:
+        q1 = np.zeros((3,1))
     else:
-        q_parent = xd['q'+str(parent_map[n])+str(parent_map[parent_map[n]])] 
+        q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q - q_parent # tether direction
-    r          = cas.reshape(xd['r' + str(n) + str(parent_map[n])], (3, 3)) # rotation matrix
+    q_hat = q0 - q1 # tether direction
+    r     = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,1] / cas.mtimes(q_hat.T, r[:,2]))
 
-def get_pitch_expr(xd, n, parent_map):
+def get_pitch_expr(xd, n0, n1, parent_map):
 
     """ Return the expression that allows to compute the bridle pitch angle via pitch = asin(expr),
-    (see https://gitlab.syscop.de/Jochem.De.Schutter/AWEbox/issues/94)
     :param xd: system variables
-    :param n:  node number
+    :param n0: node number of kite node
+    :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
     :return: sin(pitch)
     """ 
 
     # node + parent position
-    q = xd['q'+str(n)+str(parent_map[n])] 
-    if n == 1:
-        q_parent = np.zeros((3,1))
+    q0 = xd['q{}{}'.format(n0, parent_map[n0])] 
+    if n1 == 0:
+        q1 = np.zeros((3,1))
     else:
-        q_parent = xd['q'+str(parent_map[n])+str(parent_map[parent_map[n]])] 
+        q1 = xd['q{}{}'.format(n1, parent_map[n1])] 
 
-    q_hat      = q - q_parent # tether direction
-    r          = cas.reshape(xd['r' + str(n) + str(parent_map[n])], (3, 3)) # rotation matrix
+    q_hat = q0 - q1 # tether direction
+    r     = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:,0] / vect_op.norm(q_hat))
 
@@ -1254,16 +1332,52 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     for n in kite_nodes:
         parent = parent_map[n]
         rotation_angles = cas.vertcat(
-            get_roll_expr(xd, n, parent_map),
-            get_pitch_expr(xd, n, parent_map)
+            get_roll_expr(xd, n, parent_map[n], parent_map),
+            get_pitch_expr(xd, n, parent_map[n], parent_map)
         )
         outputs['rotation']['max_n' + str(n) + str(parent)] = - expr + rotation_angles
         outputs['rotation']['min_n' + str(n) + str(parent)] = - expr - rotation_angles
-        outputs['local_performance']['rot_angles'] = cas.vertcat(
+        outputs['local_performance']['rot_angles' + str(n) + str(parent)] = cas.vertcat(
             cas.atan(rotation_angles[0]),
             cas.asin(rotation_angles[1])
         )
-    
+
+    # cross-tether
+    if options['cross_tether'] and number_of_nodes > 2:
+        for l in architecture.layer_nodes:
+            kites = architecture.kites_map[l]
+            if len(kites) == 2:
+                no_tethers = 1
+            else:
+                no_tethers = len(kites)
+
+            for k in range(no_tethers):
+                tether_name = '{}{}'.format(kites[k],kites[(k+1)%len(kites)])
+                tether_name2 = '{}{}'.format(kites[(k+1)%len(kites)],kites[k])
+
+                # get roll and pitch expressions at each end of the cross-tether
+                rotation_angles = cas.vertcat(
+                    get_roll_expr(xd, kites[k], kites[(k+1)%len(kites)], parent_map),
+                    get_pitch_expr(xd, kites[k],kites[(k+1)%len(kites)], parent_map)
+                )
+                rotation_angles2 = cas.vertcat(
+                    get_roll_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map),
+                    get_pitch_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map)
+                )
+
+                outputs['rotation']['max_n'+tether_name] = - expr + rotation_angles
+                outputs['rotation']['max_n'+tether_name2] = - expr + rotation_angles2
+                outputs['rotation']['min_n'+tether_name] = - expr - rotation_angles
+                outputs['rotation']['min_n'+tether_name2] = - expr - rotation_angles2
+                outputs['local_performance']['rot_angles'+tether_name] = cas.vertcat(
+                    cas.atan(rotation_angles[0]),
+                    cas.asin(rotation_angles[1])
+                )
+                outputs['local_performance']['rot_angles'+tether_name2] = cas.vertcat(
+                    cas.atan(rotation_angles2[0]),
+                    cas.asin(rotation_angles2[1])
+                )
+
     return outputs
 
 
