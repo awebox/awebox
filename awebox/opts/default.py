@@ -125,6 +125,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 'wing',        None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'tail',        None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'wing_profile',None,     ('geometrical parameter', None),'x'),
+        ('model',  'geometry', 'overwrite', 'r_tether',    None,     ('geometrical parameter', None),'s'),
 
         # stability derivatives
         ('model',  'aero', 'overwrite', 'CL0',         None,     ('aerodynamic parameter', None),'s'),
@@ -222,6 +223,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'tether', None, 'aero_elements', 10,     ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',  'tether', None, 'reynolds_smoothing',    1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',  'tether', None, 'cd_model',              'constant',  ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
+        ('model',  'tether', None, 'attachment',    'com',  ('tether attachment mode', ['com', 'stick']),'x'),
+        ('model',  'tether', 'cross_tether', 'attachment',    'com',  ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                  ('main tether diameter bounds [m]', None),'x'),
