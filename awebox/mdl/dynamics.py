@@ -1108,7 +1108,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         elif n in kite_nodes and options['tether']['attachment'] == 'stick':
             if int(options['kite_dof']) == 6:
                 dcm = cas.reshape(xd_si['r{}{}'.format(n, parent)],(3,3))
-            elif int(options['kite_dif']) == 3:
+            elif int(options['kite_dof']) == 3:
                 raise ValueError('Stick tether attachment option not implemented for 3DOF kites')
             current_node = xgc_si['q{}{}'.format(n, parent)] + cas.mtimes(dcm,parameters['theta0','geometry','r_tether'])
         else:
