@@ -1154,7 +1154,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                         cas.reshape(dcm_si, (3,3)),
                         cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
                         ).T,
-                    xd_si['omega{}{}'.format(k, kparent)]
+                    var['xd','omega{}{}'.format(k, kparent)]
                 )
 
         # second-order derivative
@@ -1180,7 +1180,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                         cas.reshape(dcm_si, (3,3)),
                         cas.reshape(cas.jacobian(gdot[-1], dcm_sc), (3,3))
                         ).T,
-                    xd_si['omega{}{}'.format(k, kparent)]
+                    var['xd','omega{}{}'.format(k, kparent)]
                 )
 
                 # add time derivative due to angular acceleration
@@ -1189,7 +1189,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                         cas.reshape(dcm_si, (3,3)),
                         cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
                         ).T,
-                    xddot_si['domega{}{}'.format(k, kparent)]
+                    var['xddot','domega{}{}'.format(k, kparent)]
                 )
 
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
