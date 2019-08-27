@@ -127,7 +127,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # ---------------------------------
     # rotation second law
     # ---------------------------------
-    rotation_dynamics = generate_rotational_dynamics(options, system_variables, f_nodes, holonomic_constraints, parameters, architecture)
+    rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, holonomic_constraints, parameters, outputs,  architecture)
 
     # ---------------------------------
     # lagrangian function of the system
@@ -1296,7 +1296,7 @@ def generate_holonomic_scaling(options, architecture):
 
 
 
-def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constraints, parameters, architecture):
+def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constraints, parameters, outputs, architecture):
 
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
@@ -1308,6 +1308,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constrai
 
     rotation_dynamics = []
     if int(options['kite_dof']) == 6:
+        outputs['tether_moments'] = {}
         for n in kite_nodes:
             parent = parent_map[n]
             moment = f_nodes['m' + str(n) + str(parent)]
@@ -1324,10 +1325,14 @@ def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constrai
             omega_derivative = cas.mtimes(j_inertia, domega) + vect_op.cross(omega, cas.mtimes(j_inertia, omega)) - moment
 
             # tether constraint contribution
-            omega_derivative += 2*vect_op.rot_op(
+            tether_moment = 2*vect_op.rot_op(
                 rlocal,
                 cas.reshape(cas.jacobian(holonomic_constraints,  variables['scaled']['xd','r{}{}'.format(n,parent)]), (3,3))
             )
+            omega_derivative += tether_moment
+            outputs['tether_moments']['n{}{}'.format(n,parent)] = tether_moment
+
+            # concatenate
             rotation_dynamics = cas.vertcat(rotation_dynamics, omega_derivative)
 
             # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
@@ -1336,7 +1341,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constrai
             ref_frame_derivative = cas.reshape(ref_frame_deriv_matrix, (9, 1))
             rotation_dynamics = cas.vertcat(rotation_dynamics, ref_frame_derivative)
 
-    return rotation_dynamics
+    return rotation_dynamics, outputs
 
 def get_roll_expr(xd, n0, n1, parent_map):
 
