@@ -153,6 +153,8 @@ def build_si_initial_guess(nlp, model, formulation, options):
             q_first = V_init['xd',0,'q{}{}'.format(kites[0],model.architecture.parent_map[kites[0]])]
             q_second = V_init['xd',0,'q{}{}'.format(kites[1],model.architecture.parent_map[kites[1]])]
             V_init['theta', name] = np.linalg.norm(q_first - q_second)
+            if options['cross_tether_attachment'] == 'wing_tip':
+                V_init['theta', name] += - options['sys_params_num']['geometry']['b_ref']
         elif name[:6] == 'diam_c':
             V_init['theta', name] = initialization_options['theta']['diam_c']
         else:
