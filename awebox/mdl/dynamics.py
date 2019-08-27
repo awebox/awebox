@@ -1201,44 +1201,123 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     if options['cross_tether'] and len(kite_nodes) > 1:
         for l in architecture.layer_nodes:
             kite_children = architecture.kites_map[l]
+
+            # dual kite system (per layer) only has one tether
             if len(kite_children) == 2:
-                first_node = xgc_si['q{}{}'.format(kite_children[0], parent_map[kite_children[0]])]
-                second_node = xgc_si['q{}{}'.format(kite_children[1], parent_map[kite_children[1]])]
+                no_tethers = 1
+            else:
+                no_tethers = len(kite_children)
+
+            # add cross-tether constraints
+            for k in range(no_tethers):
+
+                # set-up relevant node numbers
+                n0 = '{}{}'.format(kite_children[k], parent_map[kite_children[k]])
+                n1 = '{}{}'.format(kite_children[(k+1)%len(kite_children)], parent_map[kite_children[(k+1)%len(kite_children)]])
+                n01 = '{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])
+
+                # center-of-mass attachment
+                if options['tether']['cross_tether']['attachment'] == 'com':
+                    first_node  = xgc_si['q{}'.format(n0)]
+                    second_node = xgc_si['q{}'.format(n1)]
+
+                # stick or wing-tip attachment
+                else:
+
+                    # only implemented for 6DOF
+                    if int(options['kite_dof']) == 6:
+
+                        # rotation matrices of relevant kites
+                        dcm_first  = cas.reshape(xd_si['r{}'.format(n0)],(3,3))
+                        dcm_second = cas.reshape(xd_si['r{}'.format(n1)],(3,3))
+
+                        # stick: same attachment point as secondary tether
+                        if options['tether']['cross_tether']['attachment'] == 'stick':
+                            r_tether = parameters['theta0','geometry','r_tether']
+
+                        # wing_tip: attachment half a wing span in negative span direction
+                        elif options['tether']['cross_tether']['attachment'] == 'wing_tip':
+                            r_tether = ct.vertcat(0.0, -parameters['theta0','geometry', 'b_ref']/2.0, 0.0)
+
+                        # unknown option notifier
+                        else:
+                            raise ValueError('Unknown cross-tether attachment option: {}'.format(options['tether']['cross_tether']['attachment']))
+
+                        # create attachment nodes
+                        first_node  = xgc_si['q{}'.format(n0)] + cas.mtimes(dcm_first, r_tether)
+                        second_node = xgc_si['q{}'.format(n1)] + cas.mtimes(dcm_second, r_tether)
+
+                    # not implemented for 3DOF
+                    elif int(options['kite_dof']) == 3:
+                        raise ValueError('Stick cross-tether attachment options not implemented for 3DOF kites')
+
+                # cross-tether length
                 segment_length = theta_si['l_c{}'.format(l)]
+
+                # create constraint
                 length_constraint = 0.5 * (
                     cas.mtimes(
                         (first_node - second_node).T,
                         (first_node - second_node)) - segment_length ** 2.0)
+
+                # append constraint
                 g.append(length_constraint)
-                gdot.append(cas.mtimes(
-                    cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
-                gddot.append(cas.mtimes(
-                    cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
 
-                outputs['tether_length']['c{}{}'.format(kite_children[0],kite_children[1])] = g[-1]
-                outputs['tether_length']['dc{}{}'.format(kite_children[0],kite_children[1])] = gdot[-1]
-                outputs['tether_length']['ddc{}{}'.format(kite_children[0],kite_children[1])] = gddot[-1]
-                holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[0],kite_children[1])]*g[-1]
+                # first-order derivative
+                gdot.append(
+                    cas.mtimes(
+                        cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])),
+                        cas.vertcat(xgcdot.cat, var['xd','dl_t'])
+                    )
+                )
+                if int(options['kite_dof']) == 6:
+                    import ipdb; ipdb.set_trace()
+                    for kite in kite_children:
+                        kparent = parent_map[kite]
+                        dcm_si = xd_si['r{}{}'.format(kite, kparent)]
+                        dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
+                        gdot[-1] += 2*cas.mtimes(
+                            vect_op.rot_op(
+                                cas.reshape(dcm_si, (3,3)),
+                                cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
+                                ).T,
+                            var['xd','omega{}{}'.format(kite, kparent)]
+                        )
 
-            else:
-                for k in range(len(kite_children)):
-                    first_node = xgc_si['q{}{}'.format(kite_children[k], parent_map[kite_children[k]])]
-                    second_node = xgc_si['q{}{}'.format(kite_children[(k+1)%len(kite_children)], parent_map[kite_children[(k+1)%len(kite_children)]])]
-                    segment_length = theta_si['l_c{}'.format(l)]
-                    length_constraint = 0.5 * (
-                        cas.mtimes(
-                            (first_node - second_node).T,
-                            (first_node - second_node)) - segment_length ** 2.0)
-                    g.append(length_constraint)
-                    gdot.append(cas.mtimes(
-                        cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd','l_t'])), cas.vertcat(xgcdot.cat, var['xd','dl_t'])))
-                    gddot.append(cas.mtimes(
-                        cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])), cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)))
+                # second-order derivative
+                gddot.append(
+                    cas.mtimes(
+                        cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])),
+                        cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)
+                    )
+                )
+                if int(options['kite_dof']) == 6:
+                    for kite in kite_children:
+                        kparent = parent_map[kite]
+                        dcm_si = xd_si['r{}{}'.format(kite, kparent)]
+                        dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
+                        gddot[-1] += 2*cas.mtimes(
+                            vect_op.rot_op(
+                                cas.reshape(dcm_si, (3,3)),
+                                cas.reshape(cas.jacobian(gdot[-1], dcm_sc), (3,3))
+                                ).T,
+                            var['xd','omega{}{}'.format(kite, kparent)]
+                        )
+                        gddot[-1] += 2*cas.mtimes(
+                            vect_op.rot_op(
+                                cas.reshape(dcm_si, (3,3)),
+                                cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
+                                ).T,
+                            var['xddot','domega{}{}'.format(kite, kparent)]
+                        )
 
-                    outputs['tether_length']['c{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = g[-1]
-                    outputs['tether_length']['dc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gdot[-1]
-                    outputs['tether_length']['ddc{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])] = gddot[-1]
-                    holonomic_constraints += xa_si['lambda{}{}'.format(kite_children[k],kite_children[(k+1)%len(kite_children)])]*g[-1]
+                # save invariants to outputs
+                outputs['tether_length']['c{}'.format(n01)] = g[-1]
+                outputs['tether_length']['dc{}'.format(n01)] = gdot[-1]
+                outputs['tether_length']['ddc{}'.format(n01)] = gddot[-1]
+
+                # add to holonomic constraints
+                holonomic_constraints += xa_si['lambda{}'.format(n01)]*g[-1]
 
         if n in kite_nodes:
             if 'r' + str(n) + str(parent) in list(xd_si.keys()):
