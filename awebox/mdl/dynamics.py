@@ -127,7 +127,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # ---------------------------------
     # rotation second law
     # ---------------------------------
-    rotation_dynamics = generate_rotational_dynamics(options, system_variables['SI'], f_nodes, parameters, architecture)
+    rotation_dynamics = generate_rotational_dynamics(options, system_variables, f_nodes, holonomic_constraints, parameters, architecture)
 
     # ---------------------------------
     # lagrangian function of the system
@@ -1296,15 +1296,15 @@ def generate_holonomic_scaling(options, architecture):
 
 
 
-def generate_rotational_dynamics(options, variables, f_nodes, parameters, architecture):
+def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constraints, parameters, architecture):
 
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
     j_inertia = parameters['theta0','geometry','j']
 
-    xd = variables['xd']
-    xddot = variables['xddot']
+    xd = variables['SI']['xd']
+    xddot = variables['SI']['xddot']
 
     rotation_dynamics = []
     if int(options['kite_dof']) == 6:
@@ -1322,6 +1322,12 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, archit
 
             # moment = J dot(omega) + omega x (J omega)
             omega_derivative = cas.mtimes(j_inertia, domega) + vect_op.cross(omega, cas.mtimes(j_inertia, omega)) - moment
+
+            # tether constraint contribution
+            omega_derivative += 2*vect_op.rot_op(
+                rlocal,
+                cas.reshape(cas.jacobian(holonomic_constraints,  variables['scaled']['xd','r{}{}'.format(n,parent)]), (3,3))
+            )
             rotation_dynamics = cas.vertcat(rotation_dynamics, omega_derivative)
 
             # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
