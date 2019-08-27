@@ -1491,7 +1491,7 @@ def get_span_angle_expr(xd, n0, n1, parent_map, parameters):
     q_second = q1 + cas.mtimes(r1, r_wtip)
 
     q_hat = q_first - q_second
-    span_ineq = cas.cos(-parameters['theta0','model_bounds','rot_angles',0])*vect_op.norm(q_hat) - cas.mtimes(r0[:,1].T, q_hat)
+    span_ineq = cas.cos(parameters['theta0', 'model_bounds','span_angle'])*vect_op.norm(q_hat) - cas.mtimes(r0[:,1].T, q_hat)
     span_angle = cas.acos(cas.mtimes(r0[:,1].T, q_hat) / vect_op.norm(q_hat))
 
     return span_ineq, span_angle

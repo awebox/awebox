@@ -256,6 +256,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration [g]', None),'x'),
         ('model',   'model_bounds', 'rotation',     'include',               True,     ('include constraints on roll and pitch motion', None), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180.]), ('[roll, pitch] - [rad]', None), 's'),
+        ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
         ('model',   'model_bounds', 'dcoeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
         ('model',   'model_bounds', 'coeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
         ('model',   'model_bounds', None, 'dcoeff_max',      [5.,80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
