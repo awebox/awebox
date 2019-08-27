@@ -1496,7 +1496,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
         )
 
     # cross-tether
-    if options['cross_tether'] and number_of_nodes > 2:
+    if options['cross_tether'] and (number_of_nodes > 2) and not (options['tether']['cross_tether']['attachment'] == 'wing_tip'):
         for l in architecture.layer_nodes:
             kites = architecture.kites_map[l]
             if len(kites) == 2:
