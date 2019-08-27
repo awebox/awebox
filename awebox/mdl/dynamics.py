@@ -1237,7 +1237,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
 
                         # wing_tip: attachment half a wing span in negative span direction
                         elif options['tether']['cross_tether']['attachment'] == 'wing_tip':
-                            r_tether = ct.vertcat(0.0, -parameters['theta0','geometry', 'b_ref']/2.0, 0.0)
+                            r_tether = cas.vertcat(0.0, -parameters['theta0','geometry', 'b_ref']/2.0, 0.0)
 
                         # unknown option notifier
                         else:
@@ -1271,7 +1271,6 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                     )
                 )
                 if int(options['kite_dof']) == 6:
-                    import ipdb; ipdb.set_trace()
                     for kite in kite_children:
                         kparent = parent_map[kite]
                         dcm_si = xd_si['r{}{}'.format(kite, kparent)]
