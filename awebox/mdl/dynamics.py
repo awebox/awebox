@@ -1467,7 +1467,7 @@ def get_pitch_expr(xd, n0, n1, parent_map):
 
 def get_span_angle_expr(xd, n0, n1, parent_map, parameters):
 
-    """ Return the expression that allows to compute the cross-tether vs. span angle and related inequality,
+    """ Return the expression that allows to compute the cross-tether vs. body span-vector angle and related inequality,
     :param xd: system variables
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
@@ -1565,11 +1565,13 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     )
 
                 else:
+
+                    # get angle between body span vector and cross-tether and related inequality
                     rotation_angle_expr, span   = get_span_angle_expr(xd, kites[k], kites[(k+1)%len(kites)], parent_map, parameters)
                     rotation_angle_expr2, span2 = get_span_angle_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map, parameters)
 
-                    outputs['rotation']['min_n'+tether_name] = rotation_angle_expr
-                    outputs['rotation']['min_n'+tether_name2] = rotation_angle_expr2
+                    outputs['rotation']['max_n'+tether_name] = rotation_angle_expr
+                    outputs['rotation']['max_n'+tether_name2] = rotation_angle_expr2
                     outputs['local_performance']['rot_angles'+tether_name] = span
                     outputs['local_performance']['rot_angles'+tether_name2] = span2
 
