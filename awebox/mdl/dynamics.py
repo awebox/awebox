@@ -1258,7 +1258,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, archit
 
             # moment = J dot(omega) + omega x (J omega)
             omega_derivative = cas.mtimes(j_inertia, domega) + vect_op.cross(omega, cas.mtimes(j_inertia, omega)) - moment
-            rotation_dynamics = cas.vertcat(rotation_dynamics, omega_derivative)
+            rotation_dynamics = cas.vertcat(rotation_dynamics, omega_derivative/vect_op.norm(cas.diag(j_inertia)))
 
             # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
             orthonormality = parameters['theta0','kappa_r'] / 2. * (np.eye(3) - cas.mtimes(rlocal.T, rlocal))
