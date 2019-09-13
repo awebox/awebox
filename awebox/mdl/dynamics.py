@@ -1147,15 +1147,10 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         if int(options['kite_dof']) == 6:
             for k in kite_nodes:
                 kparent = parent_map[k]
-                dcm_si = xd_si['r{}{}'.format(k, kparent)]
-                dcm_sc = var['xd','r{}{}'.format(k, kparent)]
                 gdot[-1] += 2*cas.mtimes(
-                    vect_op.rot_op(
-                        cas.reshape(dcm_si, (3,3)),
-                        cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
-                        ).T,
-                    var['xd','omega{}{}'.format(k, kparent)]
-                )
+                            vect_op.jacobian_dcm(g[-1], xd_si, var, k, kparent),
+                            var['xd','omega{}{}'.format(k, kparent)]
+                        )
 
         # second-order derivative
         gddot.append(
@@ -1171,24 +1166,16 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         if int(options['kite_dof']) == 6:
             for k in kite_nodes:
                 kparent = parent_map[k]
-                dcm_si = xd_si['r{}{}'.format(k, kparent)]
-                dcm_sc = var['xd','r{}{}'.format(k, kparent)]
 
                 # add time derivative due to angular velocity
                 gddot[-1] += 2*cas.mtimes(
-                    vect_op.rot_op(
-                        cas.reshape(dcm_si, (3,3)),
-                        cas.reshape(cas.jacobian(gdot[-1], dcm_sc), (3,3))
-                        ).T,
+                    vect_op.jacobian_dcm(gdot[-1], xd_si,var,k,kparent),
                     var['xd','omega{}{}'.format(k, kparent)]
                 )
 
                 # add time derivative due to angular acceleration
                 gddot[-1] += 2*cas.mtimes(
-                    vect_op.rot_op(
-                        cas.reshape(dcm_si, (3,3)),
-                        cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
-                        ).T,
+                    vect_op.jacobian_dcm(g[-1], xd_si, var, k, kparent),
                     var['xddot','domega{}{}'.format(k, kparent)]
                 )
 
@@ -1273,13 +1260,8 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                 if int(options['kite_dof']) == 6:
                     for kite in kite_children:
                         kparent = parent_map[kite]
-                        dcm_si = xd_si['r{}{}'.format(kite, kparent)]
-                        dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
                         gdot[-1] += 2*cas.mtimes(
-                            vect_op.rot_op(
-                                cas.reshape(dcm_si, (3,3)),
-                                cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
-                                ).T,
+                            vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
                             var['xd','omega{}{}'.format(kite, kparent)]
                         )
 
@@ -1293,20 +1275,12 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                 if int(options['kite_dof']) == 6:
                     for kite in kite_children:
                         kparent = parent_map[kite]
-                        dcm_si = xd_si['r{}{}'.format(kite, kparent)]
-                        dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
                         gddot[-1] += 2*cas.mtimes(
-                            vect_op.rot_op(
-                                cas.reshape(dcm_si, (3,3)),
-                                cas.reshape(cas.jacobian(gdot[-1], dcm_sc), (3,3))
-                                ).T,
+                            vect_op.jacobian_dcm(gdot[-1], xd_si,var,kite,kparent),
                             var['xd','omega{}{}'.format(kite, kparent)]
                         )
                         gddot[-1] += 2*cas.mtimes(
-                            vect_op.rot_op(
-                                cas.reshape(dcm_si, (3,3)),
-                                cas.reshape(cas.jacobian(g[-1], dcm_sc), (3,3))
-                                ).T,
+                            vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
                             var['xddot','domega{}{}'.format(kite, kparent)]
                         )
 
