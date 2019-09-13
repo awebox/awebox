@@ -237,6 +237,17 @@ def rot_op(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
+def jacobian_dcm(expr, xd_si, var, kite, kparent):
+    """ Differentiate expression w.r.t. kite direct cosine matrix"""
+
+    dcm_si = xd_si['r{}{}'.format(kite, kparent)]
+    dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
+    jac_dcm = rot_op(
+            cas.reshape(dcm_si, (3,3)),
+            cas.reshape(cas.jacobian(expr, dcm_sc), (3,3))
+    ).T
+    return jac_dcm
+
 def upper_triangular_inclusive(matrix):
     elements = []
     for r in range(matrix.shape[0]):
