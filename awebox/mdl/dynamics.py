@@ -1439,7 +1439,7 @@ def get_pitch_expr(xd, n0, n1, parent_map):
 
     return cas.mtimes(q_hat.T, r[:,0] / vect_op.norm(q_hat))
 
-def get_span_angle_expr(xd, n0, n1, parent_map, parameters):
+def get_span_angle_expr(options, xd, n0, n1, parent_map, parameters):
 
     """ Return the expression that allows to compute the cross-tether vs. body span-vector angle and related inequality,
     :param xd: system variables
@@ -1464,8 +1464,16 @@ def get_span_angle_expr(xd, n0, n1, parent_map, parameters):
     q_first  = q0 + cas.mtimes(r0, r_wtip)
     q_second = q1 + cas.mtimes(r1, r_wtip)
 
+    # tether direction
     q_hat = q_first - q_second
+
+    # span inequality
     span_ineq = cas.cos(parameters['theta0', 'model_bounds','span_angle'])*vect_op.norm(q_hat) - cas.mtimes(r0[:,1].T, q_hat)
+
+    # scale span inequality
+    span_ineq = span_ineq/options['scaling']['theta']['l_s']
+
+    # angle between aircraft span vector and cross-tether
     span_angle = cas.acos(cas.mtimes(r0[:,1].T, q_hat) / vect_op.norm(q_hat))
 
     return span_ineq, span_angle
@@ -1541,8 +1549,8 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                 else:
 
                     # get angle between body span vector and cross-tether and related inequality
-                    rotation_angle_expr, span   = get_span_angle_expr(xd, kites[k], kites[(k+1)%len(kites)], parent_map, parameters)
-                    rotation_angle_expr2, span2 = get_span_angle_expr(xd, kites[(k+1)%len(kites)], kites[k], parent_map, parameters)
+                    rotation_angle_expr, span   = get_span_angle_expr(options, xd, kites[k], kites[(k+1)%len(kites)], parent_map, parameters)
+                    rotation_angle_expr2, span2 = get_span_angle_expr(options, xd, kites[(k+1)%len(kites)], kites[k], parent_map, parameters)
 
                     outputs['rotation']['max_n'+tether_name] = rotation_angle_expr
                     outputs['rotation']['max_n'+tether_name2] = rotation_angle_expr2
