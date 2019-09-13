@@ -1312,6 +1312,38 @@ def get_pitch_expr(xd, n0, n1, parent_map):
 
     return cas.mtimes(q_hat.T, r[:,0] / vect_op.norm(q_hat))
 
+def get_yaw_expr(options, xd, n0, n1, parent_map, gamma_max):
+
+    """ Compute angle between kite yaw vector and tether, including corresponding inequality.
+    :param xd: system variables
+    :param n0: node number of kite node
+    :param n1: node number of tether attachment node
+    :param parent_map: architecture parent map
+    :return: yaw expression, yaw angle
+    """
+
+    # node + parent position
+    q0 = xd['q{}{}'.format(n0, parent_map[n0])]
+    if n1 == 0:
+        q1 = np.zeros((3,1))
+    else:
+        q1 = xd['q{}{}'.format(n1, parent_map[n1])]
+
+    q_hat = q0 - q1 # tether direction
+    r     = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3)) # rotation matrix
+
+    yaw_angle = cas.arccos(cas.mtimes(q_hat.T, r[:,2])/vect_op.norm(q_hat))
+    yaw_expr = (cas.mtimes(q_hat.T, r[:,2]) - cas.cos(gamma_max)*vect_op.norm(q_hat))
+
+    # scale yaw_expression
+    if n0 == 1:
+        scale = options['scaling']['xd']['l_t']
+    else:
+        scale = options['scaling']['theta']['l_s']
+    yaw_expr = yaw_expr/scale
+
+    return yaw_expr, yaw_angle
+
 def rotation_inequality(options, variables, parameters, architecture, outputs):
     
     # system architecture
@@ -1324,23 +1356,34 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     outputs['rotation'] = {}
 
     # create bound expressions from angle bounds
-    expr = cas.vertcat(
-        cas.tan(parameters['theta0','model_bounds','rot_angles',0]),
-        cas.sin(parameters['theta0','model_bounds','rot_angles',1])
-    )
+    if options['model_bounds']['rotation']['type'] == 'roll_pitch':
+        expr = cas.vertcat(
+            cas.tan(parameters['theta0','model_bounds','rot_angles',0]),
+            cas.sin(parameters['theta0','model_bounds','rot_angles',1])
+        )
 
     for n in kite_nodes:
         parent = parent_map[n]
-        rotation_angles = cas.vertcat(
-            get_roll_expr(xd, n, parent_map[n], parent_map),
-            get_pitch_expr(xd, n, parent_map[n], parent_map)
-        )
-        outputs['rotation']['max_n' + str(n) + str(parent)] = - expr + rotation_angles
-        outputs['rotation']['min_n' + str(n) + str(parent)] = - expr - rotation_angles
-        outputs['local_performance']['rot_angles' + str(n) + str(parent)] = cas.vertcat(
-            cas.atan(rotation_angles[0]),
-            cas.asin(rotation_angles[1])
-        )
+
+        if options['model_bounds']['rotation']['type'] == 'roll_pitch':
+            rotation_angles = cas.vertcat(
+                get_roll_expr(xd, n, parent_map[n], parent_map),
+                get_pitch_expr(xd, n, parent_map[n], parent_map)
+            )
+            outputs['rotation']['max_n' + str(n) + str(parent)] = - expr + rotation_angles
+            outputs['rotation']['min_n' + str(n) + str(parent)] = - expr - rotation_angles
+            outputs['local_performance']['rot_angles' + str(n) + str(parent)] = cas.vertcat(
+                cas.atan(rotation_angles[0]),
+                cas.asin(rotation_angles[1])
+            )
+
+        elif options['model_bounds']['rotation']['type'] == 'yaw':
+            yaw_expr, yaw_angle = get_yaw_expr(
+                options, xd, n, parent_map[n], parent_map,
+                parameters['theta0','model_bounds','rot_angles',2]
+                )
+            outputs['rotation']['max_n' + str(n) + str(parent)] = - yaw_expr
+            outputs['local_performance']['rot_angles' + str(n) + str(parent)] = yaw_angle
 
     # cross-tether
     if options['cross_tether'] and number_of_nodes > 2:
