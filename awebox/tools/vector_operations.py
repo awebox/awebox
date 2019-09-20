@@ -25,7 +25,7 @@
 '''
 file to provide vector operations to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-18
+- author: rachel leuthold, jochem de schutter alu-fr 2017-19
 '''
 
 import matplotlib.pylab as plt
@@ -221,6 +221,32 @@ def skew(vec):
                         [c, 0., -a],
                         [-b, a, 0.]])
     return vecskew
+
+def unskew(A):
+    "Unskew matrix to vector"
+    B = 0.5*np.array(
+        [
+            A[2,1]-A[1,2],
+            A[0,2]-A[2,0],
+            A[1,0]-A[0,1]
+        ]
+    )
+    return B[:,np.newaxis]
+
+def rot_op(R, A):
+    "Rotation operator as defined in Gros2013b"
+    return  unskew(cas.mtimes(R.T,A))
+
+def jacobian_dcm(expr, xd_si, var, kite, kparent):
+    """ Differentiate expression w.r.t. kite direct cosine matrix"""
+
+    dcm_si = xd_si['r{}{}'.format(kite, kparent)]
+    dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
+    jac_dcm = rot_op(
+            cas.reshape(dcm_si, (3,3)),
+            cas.reshape(cas.jacobian(expr, dcm_sc), (3,3))
+    ).T
+    return jac_dcm
 
 def upper_triangular_inclusive(matrix):
     elements = []

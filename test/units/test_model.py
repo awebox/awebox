@@ -8,6 +8,7 @@ import awebox as awe
 import logging
 import casadi as cas
 import awebox.mdl.architecture as archi
+import numpy as np
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
 def test_architecture():
@@ -28,6 +29,8 @@ def test_architecture():
         assert test_archi.number_of_nodes == architecture['number_of_nodes'], 'number_of_nodes of '+archi_name
         assert test_archi.children_map    == architecture['children_map']   , 'children map of '+archi_name
         assert test_archi.kites_map       == architecture['kites_map']   , 'kite-children map of '+archi_name
+
+    return None
 
 def generate_architecture_dict():
     """Generate dict containing tree-structured architectures with built
@@ -166,6 +169,8 @@ def test_drag_mode_model():
     assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
     assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
 
+    return None
+
 def test_cross_tether_model():
     """ Test cross-tether construction routines
     """
@@ -212,3 +217,56 @@ def test_cross_tether_model():
     assert('c32' not in outputs['tether_length'].keys())
 
     assert(constraints['inequality']['tether_stress'].shape[0] == 4)
+
+    return None
+
+def test_tether_moments():
+    """ Test moment contribution due to holonomic constraints """
+    options = awe.Options(True)
+
+    # single kite with point-mass model
+    options['user_options']['system_model']['architecture'] = {1:0}
+    options['user_options']['system_model']['kite_dof'] = 6
+    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options']['induction_model'] = 'not_in_use'
+    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['trajectory']['system_type'] = 'drag_mode'
+
+    # tether attachment
+    r_tether = np.array([0.0, 0.0, -0.1])
+    options['model']['tether']['attachment'] = 'stick'
+    options['model']['geometry']['overwrite']['r_tether'] = r_tether
+
+    # build model
+    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
+    options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(options['model'], architecture)
+
+    # scaled variables
+    var_sc = model.variables(0.0)
+    var_sc['xd'] = np.array([130.644, 24.5223, 74.2863, -16.3061, -27.0514, 37.5959, -0.0181481, 0.275884, 1.5743, 0.271805, 0.334641, -0.902295, 0.0595685, 0.929945, 0.362839, 0.960506, -0.15237, 0.23283, 0.0693676, 0.261684, -0.258425, -0.0146057, 0.304368, 1.45373e-14, 1.89869e-15])
+    var_sc['xa'] = 0.045024
+    var_sc['theta'] = np.array([1, 1, 1, 0.984553, 3.93805])
+    parameters = model.parameters(0.0)
+    parameters['theta0','geometry','r_tether'] = r_tether
+
+    # si variables
+    var_si = model.variables(0.0)
+    var_si['xd'] = np.array([130.644, 24.5223, 74.2863, -16.3061, -27.0514, 37.5959, -0.0181481, 0.275884, 1.5743, 0.271805, 0.334641, -0.902295, 0.0595685, 0.929945, 0.362839, 0.960506, -0.15237, 0.23283, 0.0693676, 0.261684, -0.258425, -0.146057, 152.184, 7.26866e-12, 9.49347e-13])
+    var_si['xa'] = 45.024
+    var_si['theta'] = np.array([50, 100, 0.005, 0.00492276, 3.93805])
+
+    # numerical result
+    outputs = model.outputs(model.outputs_fun(var_sc, parameters))
+    tether_moment = outputs['tether_moments', 'n10']
+
+    # analytic expression
+    dcm = cas.reshape(var_si['xd', 'r10'],(3,3))
+    tether_moment_true = var_si['xa','lambda10']*cas.cross(r_tether, cas.mtimes(dcm.T, var_si['xd','q10']))
+
+    # test implementation
+    msg = 'Incorrect tether moment contribution for single kite systems'
+    assert np.linalg.norm(tether_moment_true-tether_moment)/np.linalg.norm(tether_moment_true) < 1e-8, msg
+
+    return None

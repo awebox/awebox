@@ -153,6 +153,8 @@ def build_si_initial_guess(nlp, model, formulation, options):
             q_first = V_init['xd',0,'q{}{}'.format(kites[0],model.architecture.parent_map[kites[0]])]
             q_second = V_init['xd',0,'q{}{}'.format(kites[1],model.architecture.parent_map[kites[1]])]
             V_init['theta', name] = np.linalg.norm(q_first - q_second)
+            if options['cross_tether_attachment'] == 'wing_tip':
+                V_init['theta', name] += - options['sys_params_num']['geometry']['b_ref']
         elif name[:6] == 'diam_c':
             V_init['theta', name] = initialization_options['theta']['diam_c']
         else:
@@ -612,10 +614,11 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
 
             dcm = cas.horzcat(ehat1, ehat2, ehat3)
             if options['cross_tether']:
-                dcm_old = dcm
-                ang = -options['rotation_bounds']*1.05
-                rotx = np.array([[1,0,0],[0, np.cos(ang), -np.sin(ang)],[0, np.sin(ang), np.cos(ang)]])
-                dcm = cas.mtimes(dcm, rotx)
+                if options['cross_tether_attachment'] in ['com','stick']:
+                    dcm_old = dcm
+                    ang = -options['rotation_bounds']*1.05
+                    rotx = np.array([[1,0,0],[0, np.cos(ang), -np.sin(ang)],[0, np.sin(ang), np.cos(ang)]])
+                    dcm = cas.mtimes(dcm, rotx)
             dcm_column = cas.reshape(dcm, (9, 1))
 
             ret['q' + str(node) + str(parent)] = position
