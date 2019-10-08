@@ -280,3 +280,13 @@ class Simulation:
     @F.setter
     def F(self, value):
         print('Cannot set F object.')
+
+    @property
+    def visualization(self):
+        """ awebox.pmpc.Visualization attribute containing MPC info.
+        """
+        return self.__visualization
+
+    @visualization.setter
+    def visualization(self, value):
+        print('Cannot set visualization object.')
