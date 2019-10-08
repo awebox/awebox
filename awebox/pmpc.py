@@ -162,7 +162,7 @@ class Pmpc(object):
         self.__lbg = self.__trial.nlp.g_bounds['lb']
         self.__ubg = self.__trial.nlp.g_bounds['ub']
 
-        awelogger.logger.level = awelogger.logger.getLogger().getEffectiveLevel()
+        awelogger.logger.level = awelogger.logger.getEffectiveLevel()
         opts = {}
         opts['expand'] = self.__mpc_options['expand']
         opts['ipopt.linear_solver'] = self.__mpc_options['linear_solver']
