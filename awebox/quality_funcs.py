@@ -28,21 +28,29 @@
 ######################################
 
 import numpy as np
-import logging
-import awebox.tools.struct_operations as struct_op
-import pdb
+from awebox.logger.logger import Logger as awelogger
+
+def test_opti_success(trial, test_param_dict, results):
+    """
+    Test whether optimization was successful
+    :return: results
+    """
+
+    results['solve_succeeded'] = trial.optimization.solve_succeeded
+
+    return results
 
 def test_numerics(trial, test_param_dict, results):
     """
     Test whether optimal parameters are chosen in a reasonable way
-    :return: None
+    :return: results
     """
 
     # test if t_f makes sense
     t_f_min = test_param_dict['t_f_min']
     t_f = np.array(trial.optimization.V_final['theta','t_f']).sum() # compute sum in case of phase fix
     if t_f < t_f_min:
-        logging.warning('Final time < ' + str(t_f_min) + ' s for trial ' + trial.name)
+        awelogger.logger.warning('Final time < ' + str(t_f_min) + ' s for trial ' + trial.name)
         results['t_f_min'] = False
     else:
         results['t_f_min'] = True
@@ -51,7 +59,7 @@ def test_numerics(trial, test_param_dict, results):
     max_control_interval = test_param_dict['max_control_interval']
     n_k = trial.nlp.n_k
     if t_f / float(n_k) > max_control_interval:
-        logging.warning('t_f/n_k ratio is > ' + str(max_control_interval) + ' s for trial ' + trial.name)
+        awelogger.logger.warning('t_f/n_k ratio is > ' + str(max_control_interval) + ' s for trial ' + trial.name)
         results['max_control_interval'] = False
     else:
         results['max_control_interval'] = True
@@ -98,19 +106,19 @@ def test_invariants(trial, test_param_dict, results):
             elif i == 1:
                 suffix = ''
                 if c_avg > c_max:
-                    logging.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                    awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
                     results['c' + str(node) + str(parent)] = False
                 else:
                     results['c' + str(node) + str(parent)] = True
 
                 if dc_avg > dc_max:
-                    logging.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
+                    awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
                     results['dc' + str(node) + str(parent)] = False
                 else:
                     results['dc' + str(node) + str(parent)] = True
 
                 if ddc_avg > ddc_max:
-                    logging.warning('Invariant ddc' + str(node) + str(parent) + ' > ' + str(ddc_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                    awelogger.logger.warning('Invariant ddc' + str(node) + str(parent) + ' > ' + str(ddc_max) + ' of V' + suffix + ' for trial ' + trial.name)
                     results['ddc' + str(node) + str(parent)] = False
                 else:
                     results['ddc' + str(node) + str(parent)] = True
@@ -134,7 +142,7 @@ def test_outputs(trial, test_param_dict, results):
         loyd_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'loyd_factor'])
     avg_loyd_factor = np.average(loyd_factor)
     if avg_loyd_factor > max_loyd_factor:
-        logging.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
+        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
         results['loyd_factor'] = False
     else:
         results['loyd_factor'] = True
@@ -147,7 +155,7 @@ def test_outputs(trial, test_param_dict, results):
         power_harvesting_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'phf'])
     avg_power_harvesting_factor = np.average(power_harvesting_factor)
     if avg_power_harvesting_factor > max_power_harvesting_factor:
-        logging.warning('Average power harvesting factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
+        awelogger.logger.warning('Average power harvesting factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
         results['power_harvesting_factor'] = False
     else:
         results['power_harvesting_factor'] = True
@@ -159,7 +167,7 @@ def test_outputs(trial, test_param_dict, results):
     main_tension = l_t[0] * lambda10[0]
     tension = np.max(main_tension)
     if tension > max_tension:
-        logging.warning('Max main tether tension > ' + str(max_tension*1e-6) + ' MN for trial ' + trial.name)
+        awelogger.logger.warning('Max main tether tension > ' + str(max_tension*1e-6) + ' MN for trial ' + trial.name)
         results['tau_max'] = False
     else:
         results['tau_max'] = True
@@ -193,11 +201,11 @@ def test_variables(trial, test_param_dict, results):
             if np.min(heights_coll_var) < 0.:
                 coll_height_flag = True
         if np.min(heights_xd) < 0.:
-            logging.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
+            awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
             results['min_node_height'] = False
         if discretization == 'direct_collocation':
             if np.min(heights_coll_var) < 0:
-                logging.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
+                awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
                 results['min_node_height'] = False
         else:
             results['min_node_height'] = True
@@ -251,7 +259,7 @@ def test_power_balance(trial, test_param_dict, results):
 
     for node in list(balance.keys()):
         if balance[node] > test_param_dict['power_balance_tresh']:
-            logging.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_tresh']))
+            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_tresh']))
             results['energy_balance' + str(node)] = False
         else:
             results['energy_balance' + str(node)] = True
@@ -277,5 +285,3 @@ def generate_test_param_dict(options):
     test_param_dict['power_balance_tresh'] = options['test_param']['power_balance_tresh']
 
     return test_param_dict
-
-

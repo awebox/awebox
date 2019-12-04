@@ -42,14 +42,12 @@ import matplotlib.pyplot as plt
 
 import copy
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 import time
 
 import pickle
 import pdb
-import pdb
-import numpy as np
 
 class Optimization(object):
     def __init__(self):
@@ -60,6 +58,7 @@ class Optimization(object):
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
+        self.__outputs_ref = None
         self.__time_grids = None
         self.__debug_fig_num = 1000
 
@@ -67,12 +66,12 @@ class Optimization(object):
 
     def build(self, options, nlp, model, formulation, name):
 
-        logging.info('Building optimization...')
+        awelogger.logger.info('Building optimization...')
 
         self.__name = name
 
         if self.__status == 'I am an optimization.':
-            logging.info('Optimization already built.')
+            awelogger.logger.info('Optimization already built.')
             return None
         elif nlp.status == 'I am an NLP.':
 
@@ -87,9 +86,9 @@ class Optimization(object):
             self.__timings['setup'] = time.time() - timer
 
             self.__status = 'I am an optimization.'
-            logging.info('Optimization built.')
-            logging.info('Optimization construction time: %s', print_op.print_single_timing(self.__timings['setup']))
-            logging.info('')
+            awelogger.logger.info('Optimization built.')
+            awelogger.logger.info('Optimization construction time: %s', print_op.print_single_timing(self.__timings['setup']))
+            awelogger.logger.info('')
 
         else:
             raise ValueError('Cannot build optimization without building NLP.')
@@ -107,7 +106,7 @@ class Optimization(object):
             self.__debug_locations = debug_locations
 
         if self.__status in ['I am an optimization.','I am a solved optimization.', 'I am a failed optimization.']:
-            logging.info('Solving optimization...')
+            awelogger.logger.info('Solving optimization...')
 
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
@@ -135,20 +134,20 @@ class Optimization(object):
                     self.solve_from_warmstart(nlp, model, options, warmstart_file, final_homotopy_step, visualization)
             else:
                 self.__generate_outputs_from_V(nlp, self.__V_init)
-                self.__solve_succeeded = 'True'
+                self.__solve_succeeded = True
                 self.__stats = None
 
             # process the solution
             self.process_solution(options, nlp, model, final_homotopy_step)
 
             if self.solve_succeeded:
-                logging.info('Optimization solved.')
+                awelogger.logger.info('Optimization solved.')
                 self.__status = 'I am a solved optimization.'
-                logging.info('Optimization solving time: %s', print_op.print_single_timing(self.__timings['optimization']))
+                awelogger.logger.info('Optimization solving time: %s', print_op.print_single_timing(self.__timings['optimization']))
             else:
                 self.__status = 'I am a failed optimization.'
 
-            logging.info('')
+            awelogger.logger.info('')
         else:
             raise ValueError('Cannot solve optimization without building it.')
 
@@ -162,15 +161,16 @@ class Optimization(object):
         sweep_toggle = False
         cost_fun = nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
+        V_ref = self.__V_ref
         visualization.plot(V_plot, visualization.options, [self.__outputs_init,
-                                                           self.__outputs_opt],
-                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, fig_name=fig_name)
+                                                           self.__outputs_opt, self.__outputs_ref],
+                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
 
         return None
 
     def initialize_args_and_updates(self, nlp, formulation, model, options, visualization):
 
-        logging.info('initialize args and updates...')
+        awelogger.logger.info('initialize args and updates...')
 
         self.__arg = preparation.initialize_arg(nlp, formulation, model, options)
         self.__arg_initial = {}
@@ -180,7 +180,7 @@ class Optimization(object):
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
 
-        # pdb.set_trace()
+        self.__V_ref = nlp.V(self.__p_fix_num['p','ref'])
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')
@@ -199,7 +199,7 @@ class Optimization(object):
 
     def initialize_callback(self, name, nlp, model, options):
 
-        logging.info('initialize callback...')
+        awelogger.logger.info('initialize callback...')
 
         V = nlp.V
         P = nlp.P
@@ -212,7 +212,7 @@ class Optimization(object):
 
     def generate_solvers(self, model, nlp, formulation, options, awe_callback):
 
-        logging.info('generate solvers...')
+        awelogger.logger.info('generate solvers...')
 
         self.__solvers = preparation.generate_solvers(awe_callback, model, nlp, formulation, options)
 
@@ -220,7 +220,7 @@ class Optimization(object):
 
     def define_homotopy_update_schedule(self, model, formulation, nlp, cost_options):
 
-        logging.info('define homotopy update schedule...')
+        awelogger.logger.info('define homotopy update schedule...')
 
         self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options)
 
@@ -228,8 +228,8 @@ class Optimization(object):
 
     def solve_from_warmstart(self, nlp, model, options, warmstart_file, final_homotopy_step, visualization):
 
-        logging.info('solve from warmstart...')
-        logging.info('')
+        awelogger.logger.info('solve from warmstart...')
+        awelogger.logger.info('')
 
         self.__solve_succeeded = True
 
@@ -240,7 +240,7 @@ class Optimization(object):
         # solve homotopy with warmstart
         self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
 
-        logging.info(print_op.hline('#'))
+        awelogger.logger.info(print_op.hline('#'))
 
         return None
 
@@ -260,8 +260,8 @@ class Optimization(object):
 
     def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
 
-        logging.info('solve with homotopy procedure...')
-        logging.info('')
+        awelogger.logger.info('solve with homotopy procedure...')
+        awelogger.logger.info('')
 
         # do not consider homotopy steps after specified final_homotopy_step
         final_index = self.__schedule['homotopy'].index(final_homotopy_step)
@@ -278,7 +278,7 @@ class Optimization(object):
                 self.solve_specific_homotopy_step(step_name, nlp, model, options, visualization)
                 self.update_runtime_info(timer, step_name)
 
-        logging.info(print_op.hline('#'))
+        awelogger.logger.info(print_op.hline('#'))
 
         return None
 
@@ -305,9 +305,9 @@ class Optimization(object):
 
         if self.__solve_succeeded:
 
-            logging.info(print_op.hline("#"))
-            logging.info(self.__schedule['labels'][step_name][counter])
-            logging.info('')
+            awelogger.logger.info(print_op.hline("#"))
+            awelogger.logger.info(self.__schedule['labels'][step_name][counter])
+            awelogger.logger.info('')
 
             [self.__cost_update_counter, self.__p_fix_num] = scheduling.update_cost(self.__schedule, step_name, counter, self.__cost_update_counter, self.__p_fix_num)
 
@@ -408,7 +408,7 @@ class Optimization(object):
     def define_warmstart_schedule(self, final_homotopy_step, warmstart_trial, nlp, model):
 
         # final homotopy step of warmstart file
-        warmstart_step = warmstart_trial['final_homotopy_step']
+        warmstart_step = final_homotopy_step
         initial_index = self.__schedule['homotopy'].index(warmstart_step)
 
         # check if schedule is still consistent
@@ -443,8 +443,8 @@ class Optimization(object):
         if return_status_number > 3:
 
             self.__solve_succeeded = False
-            logging.info('')
-            logging.info('ERROR: Solver FAILED, not moving on to next step...')
+            awelogger.logger.info('')
+            awelogger.logger.info('ERROR: Solver FAILED, not moving on to next step...')
 
         else:
 
@@ -452,7 +452,7 @@ class Optimization(object):
                 self.arg_initial['lam_x0'] = self.__arg['lam_x0']
                 self.arg_initial['lam_g0'] = self.__arg['lam_g0']
             except:
-                logging.info('no initial multipliers to be stored.')
+                awelogger.logger.info('no initial multipliers to be stored.')
 
             # retrieve and update
             self.__arg['lam_x0'] = self.__solution['lam_x']
@@ -480,6 +480,7 @@ class Optimization(object):
         [nlp_outputs, nlp_output_fun] = nlp.output_components
         outputs_init = nlp_outputs(nlp_output_fun(V_initial, self.__p_fix_num))
         outputs_opt = nlp_outputs(nlp_output_fun(V_final, self.__p_fix_num))
+        outputs_ref = nlp_outputs(nlp_output_fun(self.__V_ref, self.__p_fix_num))
 
         # integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = nlp.integral_output_components
@@ -487,13 +488,15 @@ class Optimization(object):
         integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_final, self.__p_fix_num))
 
         # time grids
-        time_grids = {}
+        time_grids = {'ref':{}}
         for grid in nlp.time_grids:
             time_grids[grid] = nlp.time_grids[grid](V_final['theta','t_f'])
+            time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta','t_f'])
 
         # set properties
         self.__outputs_opt = outputs_opt
         self.__outputs_init = outputs_init
+        self.__outputs_ref = outputs_ref
         self.__integral_outputs_init = integral_outputs_init
         self.__integral_outputs_opt = integral_outputs_opt
         self.__integral_outputs_fun = nlp_integral_outputs_fun
@@ -502,8 +505,8 @@ class Optimization(object):
 
     def process_solution(self, options, nlp, model, final_homotopy_step):
 
-        logging.info('')
-        logging.info('process the solution...')
+        awelogger.logger.info('')
+        awelogger.logger.info('process the solution...')
 
         if final_homotopy_step == 'initial_guess':
             self.__V_opt = self.__V_init
@@ -543,7 +546,7 @@ class Optimization(object):
 
     @status.setter
     def status(self, value):
-        logging.warning('Cannot set status object.')
+        awelogger.logger.warning('Cannot set status object.')
 
     @property
     def solvers(self):
@@ -551,7 +554,7 @@ class Optimization(object):
 
     @solvers.setter
     def solvers(self, value):
-        logging.warning('Cannot set solvers object.')
+        awelogger.logger.warning('Cannot set solvers object.')
 
     @property
     def V_opt(self):
@@ -559,7 +562,15 @@ class Optimization(object):
 
     @V_opt.setter
     def V_opt(self, value):
-        logging.warning('Cannot set V_opt object.')
+        awelogger.logger.warning('Cannot set V_opt object.')
+
+    @property
+    def V_ref(self):
+        return self.__V_ref
+
+    @V_ref.setter
+    def V_ref(self, value):
+        awelogger.logger.warning('Cannot set V_ref object.')
 
     @property
     def V_final(self):
@@ -567,7 +578,7 @@ class Optimization(object):
 
     @V_final.setter
     def V_final(self, value):
-        logging.warning('Cannot set V_final object.')
+        awelogger.logger.warning('Cannot set V_final object.')
 
     @property
     def V_init(self):
@@ -575,7 +586,7 @@ class Optimization(object):
 
     @V_init.setter
     def V_init(self, value):
-        logging.warning('Cannot set V_init object.')
+        awelogger.logger.warning('Cannot set V_init object.')
 
     @property
     def V_bounds(self):
@@ -583,7 +594,7 @@ class Optimization(object):
 
     @V_bounds.setter
     def V_bounds(self, value):
-        logging.warning('Cannot set V_bounds object.')
+        awelogger.logger.warning('Cannot set V_bounds object.')
 
     @property
     def p_fix_num(self):
@@ -591,7 +602,7 @@ class Optimization(object):
 
     @p_fix_num.setter
     def p_fix_num(self, value):
-        logging.warning('Cannot set p_fix_num object.')
+        awelogger.logger.warning('Cannot set p_fix_num object.')
 
     @property
     def timings(self):
@@ -599,7 +610,7 @@ class Optimization(object):
 
     @timings.setter
     def timings(self, value):
-        logging.warning('Cannot set timings object.')
+        awelogger.logger.warning('Cannot set timings object.')
 
     @property
     def arg(self):
@@ -607,7 +618,7 @@ class Optimization(object):
 
     @arg.setter
     def arg(self, value):
-        logging.warning('Cannot set arg object.')
+        awelogger.logger.warning('Cannot set arg object.')
 
     @property
     def arg_initial(self):
@@ -615,11 +626,11 @@ class Optimization(object):
 
     @arg_initial.setter
     def arg_initial(self, value):
-        logging.warning('Cannot set arg_initial object.')
+        awelogger.logger.warning('Cannot set arg_initial object.')
 
     @property
     def output_vals(self):
-        return [self.__outputs_init, self.__outputs_opt]
+        return [self.__outputs_init, self.__outputs_opt, self.__outputs_ref]
 
     @property
     def integral_output_vals(self):
@@ -627,7 +638,7 @@ class Optimization(object):
 
     @output_vals.setter
     def output_vals(self, value):
-        logging.warning('Cannot set output_vals object.')
+        awelogger.logger.warning('Cannot set output_vals object.')
 
     @property
     def integral_outputs_final(self):
@@ -635,7 +646,7 @@ class Optimization(object):
 
     @integral_outputs_final.setter
     def integral_outputs_final(self, value):
-        logging.warning('Cannot set integral_outputs_final object.')
+        awelogger.logger.warning('Cannot set integral_outputs_final object.')
 
     @property
     def solve_succeeded(self):
@@ -643,7 +654,7 @@ class Optimization(object):
 
     @solve_succeeded.setter
     def solve_succeeded(self, value):
-        logging.warning('Cannot set solve_succeeded object.')
+        awelogger.logger.warning('Cannot set solve_succeeded object.')
 
     @property
     def solution(self):
@@ -651,7 +662,7 @@ class Optimization(object):
 
     @solution.setter
     def solution(self, value):
-        logging.warning('Cannot set solution object.')
+        awelogger.logger.warning('Cannot set solution object.')
 
     @property
     def stats(self):
@@ -659,7 +670,7 @@ class Optimization(object):
 
     @stats.setter
     def stats(self, value):
-        logging.warning('Cannot set stats object.')
+        awelogger.logger.warning('Cannot set stats object.')
 
     @property
     def iterations(self):
@@ -667,7 +678,7 @@ class Optimization(object):
 
     @iterations.setter
     def iterations(self, value):
-        logging.warning('Cannot set iterations object.')
+        awelogger.logger.warning('Cannot set iterations object.')
 
     @property
     def return_status_numeric(self):
@@ -675,7 +686,7 @@ class Optimization(object):
 
     @return_status_numeric.setter
     def return_status_numeric(self, value):
-        logging.warning('Cannot set return_status_numeric object.')
+        awelogger.logger.warning('Cannot set return_status_numeric object.')
 
     @property
     def schedule(self):
@@ -683,7 +694,7 @@ class Optimization(object):
 
     @schedule.setter
     def schedule(self, value):
-        logging.warning('Cannot set schedule object.')
+        awelogger.logger.warning('Cannot set schedule object.')
 
     @property
     def time_grids(self):
@@ -691,7 +702,7 @@ class Optimization(object):
 
     @time_grids.setter
     def time_grids(self, value):
-        logging.warning('Cannot set time_grids object.')
+        awelogger.logger.warning('Cannot set time_grids object.')
 
     @property
     def final_homotopy_step(self):
@@ -699,7 +710,7 @@ class Optimization(object):
 
     @final_homotopy_step.setter
     def final_homotopy_step(self, value):
-        logging.warning('Cannot set final_homotopy_step object.')
+        awelogger.logger.warning('Cannot set final_homotopy_step object.')
 
     @property
     def integral_outputs_opt(self):
@@ -707,4 +718,4 @@ class Optimization(object):
 
     @integral_outputs_opt.setter
     def integral_outputs_opt(self, value):
-        logging.warning('Cannot set integral_outputs_opt object.')
+        awelogger.logger.warning('Cannot set integral_outputs_opt object.')

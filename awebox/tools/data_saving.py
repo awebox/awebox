@@ -30,6 +30,7 @@ author: Thilo Bronnenmeyer, kiteswarms, 2019
 import pickle
 
 def pickle_data(data, file_name, file_type):
+
     file_pi = open(file_name + '.' + file_type, 'wb')
     pickle.dump(data, file_pi)
     file_pi.close()

@@ -68,6 +68,9 @@ def geometry():
     geometry['tail'] = True
     geometry['wing_profile'] = None
 
+    # tether attachment point
+    geometry['r_tether'] = np.zeros((3,1))
+
     return geometry
 
 def battery_model_parameters(coeff_max, coeff_min):

@@ -33,9 +33,7 @@ _python-3.5 / casadi-3.4.5
 
 import numpy as np
 import casadi as cas
-import logging
-
-import pdb
+from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
 
@@ -65,7 +63,7 @@ def get_nhat(model_options, parent, variables, parameters, architecture):
         nhat = get_tether_parallel_single_nhat(parent, variables, parameters, architecture)
 
     else:
-        logging.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
+        awelogger.logger.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
         nhat = vect_op.xhat_np()
 
     return nhat

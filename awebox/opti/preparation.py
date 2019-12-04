@@ -40,7 +40,8 @@ import copy
 
 import casadi as cas
 
-import logging
+from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def initialize_arg(nlp, formulation, model, options):
 
@@ -79,7 +80,7 @@ def set_p_fix_num(V_ref, nlp, model, options):
     # --------------------
     # build reference parameters, references of cost function should match the
     # initial guess
-    logging.info('generate OCP parameter values...')
+    awelogger.logger.info('generate OCP parameter values...')
     P = nlp.P
     p_fix_num = P(0.)
     p_fix_num['p', 'weights'] = 1.0e-8
@@ -95,7 +96,11 @@ def set_p_fix_num(V_ref, nlp, model, options):
                 p_fix_num['p', 'weights', variable_type, name] = 1.0
             # set references
             if variable_type == 'u':
-                p_fix_num['p', 'ref', variable_type, :, name] = V_ref[variable_type, :, name]
+                if 'u' in V_ref.keys():
+                    p_fix_num['p', 'ref', variable_type, :, name] = V_ref[variable_type, :, name]
+                else:
+                    p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
+
             elif variable_type == 'theta':
                 p_fix_num['p', 'ref', variable_type, name] = V_ref[variable_type, name]
             elif variable_type in {'xd','xl','xa'}:
@@ -124,6 +129,7 @@ def set_p_fix_num(V_ref, nlp, model, options):
 
 def set_initial_bounds(nlp, model, formulation, options, V_init):
     V_bounds = {}
+
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
     # V_bounds = copy.deepcopy(nlp.V_bounds)
@@ -140,7 +146,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
         V_bounds['ub']['xi', name] = xi_bounds[name][1]
 
     for name in struct_op.subkeys(model.variables, 'theta'):
-        if not name == 't_f':
+        if not name == 't_f' and not name[:3] == 'l_c' and not name[:6] == 'diam_c':
             initial_si_value = options['initialization']['theta'][name]
             initial_scaled_value = initial_si_value / model.scaling['theta'][name]
 
@@ -156,17 +162,30 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
         if 'fict' in name:
-            V_bounds['lb']['u', :, name] = -cas.inf
-            V_bounds['ub']['u', :, name] = cas.inf
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, name] = -cas.inf
+                V_bounds['ub']['u', :, name] = cas.inf
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
+                V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
     # set state bounds
-    if (options['initialization']['type'] == 'lift_mode') or (options['initialization']['type'] == 'tracking'):
+    if (options['initialization']['type'] == 'power_cycle' and options['initialization']['system_type'] == 'lift_mode') \
+        or (options['initialization']['type'] == 'tracking'):
         if 'ddl_t' in list(model.variables_dict['u'].keys()):
-            V_bounds['lb']['u', :, 'ddl_t'] = 0.
-            V_bounds['ub']['u', :, 'ddl_t'] = 0.
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, 'ddl_t'] = 0.
+                V_bounds['ub']['u', :, 'ddl_t'] = 0.
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', 'ddl_t'] = 0.
+                V_bounds['ub']['coll_var', :, :, 'u', 'ddl_t'] = 0.
         elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-            V_bounds['lb']['u', :, 'dddl_t'] = 0.
-            V_bounds['ub']['u', :, 'dddl_t'] = 0.
+            if 'u' in V_init.keys():
+                V_bounds['lb']['u', :, 'dddl_t'] = 0.
+                V_bounds['ub']['u', :, 'dddl_t'] = 0.
+            else:
+                V_bounds['lb']['coll_var', :, :, 'u', 'dddl_t'] = 0.
+                V_bounds['ub']['coll_var', :, :, 'u', 'dddl_t'] = 0.
 
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta','t_f'].shape[0] > 1:
@@ -187,7 +206,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
 def generate_default_solver_options(options):
 
-    logging_level = logging.getLogger().getEffectiveLevel()
     opts = {}
     opts['expand'] = options['expand']
     opts['ipopt.linear_solver'] = options['linear_solver']
@@ -198,9 +216,10 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
 
-    if logging_level > 10:
+    if awelogger.logger.getEffectiveLevel() > 10:
         opts['ipopt.print_level'] = 0
         opts['print_time'] = 0
+        opts['ipopt.sb'] = 'yes'
 
     if options['hessian_approximation']:
         opts['ipopt.hessian_approximation'] = 'limited-memory'

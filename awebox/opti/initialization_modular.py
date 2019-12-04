@@ -35,7 +35,7 @@ import casadi as cas
 import collections
 import awebox.tools.vector_operations as vect_op
 import math
-import logging
+from awebox.logger.logger import Logger as awelogger
 import awebox.opti.initialization_interpolation as interp
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.wind as wind
@@ -72,7 +72,7 @@ def __build_si_initial_guess(nlp, model, formulation, options):
     """
 
     # logging
-    logging.info('build si initial guess...')
+    awelogger.logger.info('build si initial guess...')
 
     # compute initial guess
     primitives = __set_primitives(options, model)
@@ -105,7 +105,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         acc = angular_looping_velocity * ua_norm
         if acc > acc_max:
             cone_angle = np.arcsin(ua_norm**2 / acc_max / tether_length)
-            logging.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
+            awelogger.logger.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
             configuration['cone_angle'] = cone_angle
 
         # check for min radius
@@ -118,7 +118,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         radius = np.sin(cone_angle * np.pi / 180.) * tether_length
         if radius > min_radius:
             cone_angle = np.arcsin(min_radius / tether_length)
-            logging.warning('Warning: configuaration has radius that is smaller than minmum radius. Changing cone_angle to correspond to minimum radius.')
+            awelogger.logger.warning('Warning: configuaration has radius that is smaller than minmum radius. Changing cone_angle to correspond to minimum radius.')
             configuration['cone_angle'] = cone_angle
 
     return configuration
@@ -148,9 +148,9 @@ def __set_primitives(options, model):
 
     ## build motion primitive for lift mode
 
-    if trajectory_type == 'lift_mode' or trajectory_type == 'tracking':
+    if trajectory_type == 'power_cycle' or trajectory_type == 'tracking':
 
-        lift_mode_args = {}
+        power_cycle_args = {}
 
         # get fixed parameters
         number_of_loopings = options['windings']
@@ -181,21 +181,21 @@ def __set_primitives(options, model):
         terminal_configuration = copy.deepcopy(initial_configuration)
 
         # build primitive
-        lift_mode_args['type'] = 'goto'
-        lift_mode_args['normed_times'] = normed_times
-        lift_mode_args['number_of_loopings'] = number_of_loopings
-        lift_mode_args['initial_configuration'] = {}
-        lift_mode_args['initial_configuration']['type'] = 'simple_pos'
-        lift_mode_args['initial_configuration']['configuration'] = initial_configuration
-        lift_mode_args['terminal_configuration'] = {}
-        lift_mode_args['terminal_configuration']['type'] = 'simple_pos'
-        lift_mode_args['terminal_configuration']['configuration'] = terminal_configuration
+        power_cycle_args['type'] = 'goto'
+        power_cycle_args['normed_times'] = normed_times
+        power_cycle_args['number_of_loopings'] = number_of_loopings
+        power_cycle_args['initial_configuration'] = {}
+        power_cycle_args['initial_configuration']['type'] = 'simple_pos'
+        power_cycle_args['initial_configuration']['configuration'] = initial_configuration
+        power_cycle_args['terminal_configuration'] = {}
+        power_cycle_args['terminal_configuration']['type'] = 'simple_pos'
+        power_cycle_args['terminal_configuration']['configuration'] = terminal_configuration
 
         # add primitive to primitive args
-        if trajectory_type == 'lift_mode':
-            primitives['lift_mode'] = lift_mode_args
+        if trajectory_type == 'power_cycle':
+            primitives['power_cycle'] = power_cycle_args
         elif trajectory_type == 'tracking':
-            primitives['tracking'] = lift_mode_args
+            primitives['tracking'] = power_cycle_args
 
     ## build motion primitive for transition
     if trajectory_type == 'transition':
@@ -284,11 +284,11 @@ def __estimate_t_f(primitives, options):
     # get trajectory type
     trajectory_type = options['type']
 
-    if trajectory_type == 'lift_mode':
+    if trajectory_type == 'power_cycle':
 
         # get parameters
-        number_of_loopings = primitives['lift_mode']['number_of_loopings']
-        angular_looping_velocity = (primitives['lift_mode']['initial_configuration']['configuration']['angular_looping_velocity'] + primitives['lift_mode']['terminal_configuration']['configuration']['angular_looping_velocity'])/2.
+        number_of_loopings = primitives['power_cycle']['number_of_loopings']
+        angular_looping_velocity = (primitives['power_cycle']['initial_configuration']['configuration']['angular_looping_velocity'] + primitives['power_cycle']['terminal_configuration']['configuration']['angular_looping_velocity'])/2.
 
         # compute final time
         t_f = 2 * np.pi * number_of_loopings / angular_looping_velocity
@@ -317,8 +317,8 @@ def __build_initial_guess_schedule(options, primitives):
     trajectory_type = options['type']
 
     # add primitives to schedule
-    if trajectory_type == 'lift_mode':
-        initial_guess_schedule['primitives'] += ['lift_mode']
+    if trajectory_type == 'power_cycle':
+        initial_guess_schedule['primitives'] += ['power_cycle']
     if trajectory_type in ['transition']:
         initial_guess_schedule['primitives'] += ['transition']
     if trajectory_type in ['nominal_landing', 'compromised_landing']:
@@ -1073,7 +1073,8 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
             V_init['xd', k, name] = continuous_guess[name]
         if k < (n_max):
             if model.options['tether']['control_var'] == 'ddl_t':
-                V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
+                if 'u' in V_init.keys():
+                    V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
         if nlp.discretization == 'direct_collocation':
             if k == n_max:
                 d_vals = d_max
@@ -1084,7 +1085,9 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                 continuous_guess, interpolation_variables = __get_continuous_guess(t_coll, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
                 for name in struct_op.subkeys(model.variables, 'xd'):
                     V_init['coll_var', k, j, 'xd', name] = continuous_guess[name]
-
+                if model.options['tether']['control_var'] == 'ddl_t':
+                    if 'u' in V_init.keys():
+                        V_init['coll_var', k, j, 'u', 'ddl_t'] = continuous_guess['ddl_t']
     return V_init
 
 def __get_continuous_guess(t_cont, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme):
@@ -1245,8 +1248,7 @@ def __assemble_lse_for_s_curve(tgrid_s_curve, boundary_conditions):
 
     ## set solver options
     jerk_options = {}
-    logging_level = logging.getLogger().getEffectiveLevel()
-    if logging_level > 10:
+    if awelogger.logger.getEffectiveLevel() > 10:
         jerk_options['ipopt.print_level'] = 0
         jerk_options['print_time'] = 0
 

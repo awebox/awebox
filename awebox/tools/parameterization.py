@@ -25,7 +25,7 @@
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.viz.tools as viz_tools
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 
 def get_splines(variables, xi_dict, initial_or_terminal):
@@ -56,7 +56,7 @@ def get_splines(variables, xi_dict, initial_or_terminal):
             xd_values = xd_values.full().reshape(xd_values.shape[0],).tolist()
             time_grid = plot_dict['time_grids']['ip']
             theta_grid = [t / time_grid[-1] for t in time_grid]
-            logging.info('Approximating ' + variable + '_' + str(j) + '...')
+            awelogger.logger.info('Approximating ' + variable + '_' + str(j) + '...')
             if all(v == 0 for v in xd_values):
                 raise ValueError('Cannot approximate constant 0 function with spline!')
             spline = cas.interpolant(variable + '_' + str(j), 'bspline', [theta_grid], xd_values, interpolant_options)

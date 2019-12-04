@@ -32,14 +32,9 @@ _python _version 2.7 / casadi-3.4.5
 
 import numpy as np
 import casadi.tools as cas
-
 import awebox.tools.vector_operations as vect_op
-
-import logging
-
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
-import awebox.mdl.aero.actuator_disk_dir.geom as act_disk_geom
-import awebox.mdl.aero.actuator_disk_dir.flow as act_disk_flow
 
 import pdb
 
@@ -54,19 +49,67 @@ def build_si_initial_guess(nlp, model, formulation, options):
 
     initialization_options = options
 
-    logging.info('build si initial guess...')
-    nk = nlp.n_k
-    d = nlp.d
+    awelogger.logger.info('build si initial guess...')
 
     V = nlp.V
     V_init = V(0.0)
-    tau_roots = cas.vertcat(0.0, cas.collocation_points(d, 'radau'))
 
     # set lagrange multipliers different from zero to avoid singularity
     if 'xa' in list(V_init.keys()):
         V_init['xa', :] = 1.
     if 'coll_var' in list(V_init.keys()):
         V_init['coll_var',:,:,'xa'] = 1.
+
+    V_init, n_d_list = set_xi_initial_values(nlp, formulation, initialization_options, V_init)
+    n_min = n_d_list[1]
+    d_min = n_d_list[2]
+
+    tf_init = guess_tf(initialization_options, model, formulation, n_min, d_min)
+    if V_init['theta','t_f'].shape[0] > 1:
+        tf_init = cas.vertcat(tf_init, tf_init)
+
+    V_init = extract_time_grid(model, nlp, formulation, initialization_options, V_init, tf_init, n_d_list)
+
+    V_init = initial_guess_induction(initialization_options, nlp, formulation, model, V_init)
+
+    # specified initial values for system parameters
+    for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
+        if name in list(initialization_options['theta'].keys()):
+            V_init['theta', name] = initialization_options['theta'][name]
+        elif name[:3] == 'l_c':
+            layer = int(name[3:])
+            kites = model.architecture.kites_map[layer]
+            q_first = V_init['xd',0,'q{}{}'.format(kites[0],model.architecture.parent_map[kites[0]])]
+            q_second = V_init['xd',0,'q{}{}'.format(kites[1],model.architecture.parent_map[kites[1]])]
+            V_init['theta', name] = np.linalg.norm(q_first - q_second)
+            if options['cross_tether_attachment'] == 'wing_tip':
+                V_init['theta', name] += - options['sys_params_num']['geometry']['b_ref']
+        elif name[:6] == 'diam_c':
+            V_init['theta', name] = initialization_options['theta']['diam_c']
+        else:
+            raise ValueError("please specify an initial value for variable '" + name + "' of type 'theta'")
+
+    # initial time guess (same for both intervals in case of phase fixing)
+    V_init['theta', 't_f'] = tf_init
+
+    # initial values for homotopy parameters
+    for name in list(model.parameters_dict['phi'].keys()):
+        V_init['phi', name] = 1.
+
+    return V_init
+
+
+def set_xi_initial_values(nlp, formulation, initialization_options, V_init):
+
+    d = nlp.d
+
+    n0 = -999
+    n_min = -999
+    d_min = -999
+    n_min_f = -999
+    d_min_f = -999
+    n_min_0 = -999
+    d_min_0 = -999
 
     # set xi initial values
     if initialization_options['type'] in ['nominal_landing']:
@@ -106,114 +149,149 @@ def build_si_initial_guess(nlp, model, formulation, options):
     V_init['xi', 'xi_0'] = xi_0_init
     V_init['xi', 'xi_f'] = xi_f_init
 
-    tf_init = initial_guess_t_f(initialization_options, model, formulation, n_min, d_min)
-    if V_init['theta','t_f'].shape[0] > 1:
-        tf_init = cas.vertcat(tf_init, tf_init)
+    n_d_list = [n0, n_min, d_min, n_min_f, d_min_f, n_min_0, d_min_0]
+
+    return V_init, n_d_list
+
+def extract_time_grid(model, nlp, formulation, initialization_options, V_init, tf_init, n_d_list):
+
+    n0 = n_d_list[0]
+    n_min = n_d_list[1]
+    d_min = n_d_list[2]
+    n_min_f = n_d_list[3]
+    d_min_f = n_d_list[4]
+    n_min_0 = n_d_list[5]
+    d_min_0 = n_d_list[6]
 
     # extract time grid
     tgrid_xd = nlp.time_grids['x'](tf_init)
     if 'coll' in list(nlp.time_grids.keys()):
         tgrid_coll = nlp.time_grids['coll'](tf_init)
 
-    for k in range(nk+1):
+    d = nlp.d
+    n_k = nlp.n_k
+
+    for k in range(n_k+1):
 
         t = tgrid_xd[k]
 
         # initialize kite(s) on trajectory
         if initialization_options['type'] in ['nominal_landing','compromised_landing']:
             guess = initial_guess_landing(t, initialization_options, model, formulation, tf_init, n_min, d_min)
+
         elif initialization_options['type'] in ['transition']:
             guess = initial_guess_transition(t, initialization_options, model, formulation, tf_init, n_min_0, d_min_0, n_min_f, d_min_f)
+
+        elif initialization_options['type'] == 'aero_test':
+            guess = initial_guess_aero_test(t, initialization_options, model, formulation)
+
         else:
             guess = initial_guess(t, initialization_options, nlp, model, formulation)
 
         for name in struct_op.subkeys(model.variables, 'xd'):
             V_init['xd', k, name] = guess[name]
 
-        if nlp.discretization == 'direct_collocation' and (k < nk):
+        if nlp.discretization == 'direct_collocation' and (k < n_k):
             for j in range(d):
                 t = tgrid_coll[k,j]
 
                 # initialize kite(s) on trajectory
                 if initialization_options['type'] in ['nominal_landing','compromised_landing']:
                     guess = initial_guess_landing(t, initialization_options, model, formulation, tf_init, n_min, d_min)
+
                 elif initialization_options['type'] in ['transition']:
                     guess = initial_guess_transition(t, initialization_options, model, formulation, tf_init, n_min_0, d_min_0, n_min_f, d_min_f)
+
+                elif initialization_options['type'] == 'aero_test':
+                    guess = initial_guess_aero_test(t, initialization_options, model, formulation)
+
                 else:
                     guess = initial_guess(t, initialization_options, nlp, model, formulation)
 
                 for name in struct_op.subkeys(model.variables, 'xd'):
                     V_init['coll_var', k, j, 'xd', name] = guess[name]
 
-    V_init = initial_guess_induction(initialization_options, nlp, formulation, model, V_init)
-
-    # specified initial values for system parameters
-    for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
-        if name in list(initialization_options['theta'].keys()):
-            V_init['theta', name] = initialization_options['theta'][name]
-        else:
-            raise ValueError("please specify an initial value for variable '" + name + "' of type 'theta'")
-
-    # initial time guess (same for both intervals in case of phase fixing)
-    V_init['theta', 't_f'] = tf_init
-
-    # initial values for homotopy parameters
-    for name in list(model.parameters_dict['phi'].keys()):
-        V_init['phi', name] = 1.
-
     return V_init
 
-def estimate_radius_and_flight_time(options, model):
 
-    trajectory_type = options['type']
-    if not trajectory_type == 'aero_test':
-        [radius, t_f_guess] = estimate_radius_and_flight_time_for_standard_path(options, model)
-    else:
-        radius = 999.
+def guess_tf(initialization_options, model, formulation, n_min = None, d_min = None):
 
-        if options['aero_test']['omega'] > 0:
-            t_f_guess = options['aero_test']['total_periods'] * (2. * np.pi / options['aero_test']['omega'])
-        else:
-            t_f_guess = options['aero_test']['total_periods']
+    if initialization_options['type'] in ['nominal_landing','compromised_landing']:
+        tf_guess = guess_tf_nominal_or_compromised(initialization_options, formulation, n_min, d_min)
 
-    return radius, t_f_guess
+    elif initialization_options['type'] == 'transition':
+        tf_guess = guess_tf_transition()
 
-def estimate_radius_and_flight_time_for_standard_path(options, model):
-
-    kite_nodes = model.architecture.kite_nodes
-    max_cone_angle_multi = options['max_cone_angle_multi']
-    max_cone_angle_single = options['max_cone_angle_single']
-
-    if 1 in kite_nodes:
-        tether_length = options['xd']['l_t']
-        max_cone_angle = max_cone_angle_single
+    elif initialization_options['type'] == 'aero_test':
+        _, tf_guess = guess_radius_and_tf_aero_test(initialization_options)
 
     else:
-        tether_length = options['theta']['l_s']
-        max_cone_angle = max_cone_angle_multi
+        _, tf_guess = guess_radius_and_tf_standard(initialization_options, model)
 
-    windings = options['windings']
-    winding_period_guess = options['winding_period']
-    ua_norm = options['ua_norm']
+    return tf_guess
 
-    # acc = omega * ua = 2 pi ua / winding_period < hardware_limit
-    acc_max = options['acc_max']
 
-    winding_period_min = 2. * np.pi * ua_norm / acc_max
-    if winding_period_guess < winding_period_min:
-        winding_period = winding_period_min
+def guess_tf_transition():
+    tf_guess = 30.
+    return tf_guess
+
+
+def guess_tf_nominal_or_compromised(initialization_options, formulation, n_min, d_min):
+    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'l_t'] * initialization_options['xd']['l_t']
+    tf_guess = l_0 / initialization_options['landing_velocity']
+    return tf_guess
+
+
+def guess_radius_and_tf_aero_test(initialization_options):
+    radius = 999.
+
+    if initialization_options['aero_test']['omega'] > 0:
+        tf_guess = initialization_options['aero_test']['total_periods'] * (2. * np.pi / initialization_options['aero_test']['omega'])
     else:
-        winding_period = winding_period_guess
+        tf_guess = initialization_options['aero_test']['total_periods']
 
-    t_f_guess = windings * winding_period
+    return radius, tf_guess
 
-    total_distance = ua_norm * t_f_guess
+
+def guess_radius_and_tf_standard(initialization_options, model):
+
+    tether_length, max_cone_angle = get_hypotenuse_and_max_cone_angle(model, initialization_options)
+
+    windings = initialization_options['windings']
+    winding_period = initialization_options['winding_period']
+    ua_norm = initialization_options['ua_norm']
+
+    winding_period = clip_winding_period(initialization_options, winding_period)
+    tf_guess = windings * winding_period
+
+    total_distance = ua_norm * tf_guess
     circumference = total_distance / windings
     radius = circumference / 2. / np.pi
 
-    b_ref = options['sys_params_num']['geometry']['b_ref']
+    radius = clip_radius(initialization_options, max_cone_angle, tether_length, radius)
 
-    min_radius = options['min_rel_radius'] * b_ref
+    total_distance = 2. * np.pi * radius * windings
+    tf_guess = total_distance / ua_norm
+
+    return radius, tf_guess
+
+
+def clip_winding_period(initialization_options, winding_period):
+    # acc = omega * ua = 2 pi ua / winding_period < hardware_limit
+    acc_max = initialization_options['acc_max']
+    ua_norm = initialization_options['ua_norm']
+
+    winding_period_min = 2. * np.pi * ua_norm / acc_max
+    if winding_period < winding_period_min:
+        winding_period = winding_period_min
+    else:
+        winding_period = winding_period
+
+    return winding_period
+
+def clip_radius(initialization_options, max_cone_angle, tether_length, radius):
+    b_ref = initialization_options['sys_params_num']['geometry']['b_ref']
+    min_radius = initialization_options['min_rel_radius'] * b_ref
     max_radius = np.sin(max_cone_angle * np.pi / 180.) * tether_length
 
     if radius < min_radius:
@@ -222,57 +300,35 @@ def estimate_radius_and_flight_time_for_standard_path(options, model):
     if radius > max_radius:
         radius = max_radius
 
-    total_distance = 2. * np.pi * radius * windings
-    t_f_guess = total_distance / ua_norm
-    return radius, t_f_guess
+    return radius
 
-def initial_guess_t_f(options, model, formulation, n_min = None, d_min = None):
+def get_hypotenuse_and_max_cone_angle(model, initialization_options):
+    max_cone_angle_multi = initialization_options['max_cone_angle_multi']
+    max_cone_angle_single = initialization_options['max_cone_angle_single']
 
-    if options['type'] in ['transition','nominal_landing','compromised_landing']:
-        l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'l_t'] * options['xd']['l_t']
-        t_f_guess = l_0/options['landing_velocity']
-
-        if options['type'] == 'transition':
-            t_f_guess = 30.
-
+    number_kites = model.architecture.number_of_kites
+    if number_kites == 1:
+        tether_length = initialization_options['xd']['l_t']
+        max_cone_angle = max_cone_angle_single
     else:
-        [radius, t_f_guess] = estimate_radius_and_flight_time(options, model)
+        tether_length = initialization_options['theta']['l_s']
+        max_cone_angle = max_cone_angle_multi
 
-    return t_f_guess
+    return tether_length, max_cone_angle
 
-def get_all_level_siblings(options, model):
 
-    parent_map = model.architecture.parent_map
-    kite_nodes = model.architecture.kite_nodes
 
-    level_siblings = {}
-    for kite in kite_nodes:
-        parent = parent_map[kite]
 
-        if not(parent in list(level_siblings.keys())):
-            level_siblings[parent] = []
 
-        level_siblings[parent] += [kite]
 
-    return level_siblings
-
-def get_orbit_cone_parameters(options, model, l_t):
-
-    # get rotation plane axes:
-    # zhat is along tether (out)
-    # xhat is along earth-fixed yhat
-    # yhat is up and out, back towards the wind
-
-    ehat_tether = get_ehat_tether(options)
-    ehat_side = vect_op.yhat()
-    ehat_up = vect_op.normed_cross(ehat_tether, ehat_side)
+def get_cone_height_and_radius(options, model, l_t):
 
     # get radius and height of the cones in use
     # two cone types specified, based on main tether (single kite option) and secondary tether (multi-kite option)
     # radius is dependent on flight velocity
     # height is a dependent
     hypotenuse_list = cas.vertcat(l_t, options['theta']['l_s'])
-    [radius, t_f_guess] = estimate_radius_and_flight_time(options, model)
+    [radius, _] = guess_radius_and_tf_standard(options, model)
 
     height_list = []
     for hdx in range(hypotenuse_list.shape[0]):
@@ -280,7 +336,9 @@ def get_orbit_cone_parameters(options, model, l_t):
         height = (hypotenuse**2. - radius**2.)**0.5
         height_list = cas.vertcat(height_list, height)
 
-    return height_list, radius, ehat_tether, ehat_side, ehat_up
+    return height_list, radius
+
+
 
 def get_tether_node_position(options, parent_position, node, l_t):
 
@@ -294,13 +352,8 @@ def get_tether_node_position(options, parent_position, node, l_t):
 
     return position
 
-def get_ehat_tether(options):
-    inclination = options['incid_deg'] * np.pi / 180.
-    ehat_tether = np.cos(inclination) * vect_op.xhat() + np.sin(inclination) * vect_op.zhat()
-
-    return ehat_tether
-
 def get_azimuthal_angle(t, level_siblings, node, parent, omega_norm):
+
     number_of_siblings = len(level_siblings[parent])
     if number_of_siblings == 1:
         psi0 = 0.
@@ -312,10 +365,8 @@ def get_azimuthal_angle(t, level_siblings, node, parent, omega_norm):
 
     return psi
 
-def angle_between(a,b):
-    fraction = cas.mtimes(a.T,b)/(vect_op.norm(a) * vect_op.norm(b))
-    angle = np.arccos(fraction)
-    return angle
+
+
 
 def initial_guess_transition(t, initialization_options, model, formulation, t_f, n_min_0, d_min_0, n_min_f, d_min_f):
 
@@ -326,7 +377,6 @@ def initial_guess_transition(t, initialization_options, model, formulation, t_f,
     for name in struct_op.subkeys(model.variables,'xd'):
         ret[name] = 0.0
 
-    kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
     parent_map[0] = -1
     number_of_nodes = model.architecture.number_of_nodes
@@ -501,40 +551,31 @@ def initial_guess_landing(t, initialization_options, model, formulation, t_f, n_
 
     return ret
 
-def initial_guess(t, options, nlp, model, formulation):
-
+def initial_guess_aero_test(t, initialization_options, model, formulation):
     ret = {}
-    for name in struct_op.subkeys(model.variables,'xd'):
+    for name in struct_op.subkeys(model.variables, 'xd'):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    # if options['type'] == 'landing':
-    #
-    #     nk = nlp.n_k
-    #     d = nlp.d
-    #
-    #     tf_init = initial_guess_t_f(options, model, formulation)
-    #     V_0 = formulation.xi_dict['V_pickle_initial']
-    #     min_dl_t_arg = np.argmin(np.array(V_0['xd', :, :, 'dl_t']))
-    #
-    #     n_min = min_dl_t_arg/(d+1)
-    #     d_min = min_dl_t_arg - min_dl_t_arg/(d+1) * (d+1)
-    #
-    #     ret = initial_guess_landing(t, options, model, formulation, tf_init, n_min, d_min)
+    l_t, dl_t, _, _, _, _ = get_aero_test_values(t, initialization_options)
 
-    if options['type'] == 'aero_test':
-        [l_t, dl_t, q10, dq10, r_dcm, omega] = get_aero_test_values(t, options)
+    ret['l_t'] = l_t
+    ret['dl_t'] = dl_t
 
-        ret['l_t'] = l_t
-        ret['dl_t'] = dl_t
+    ret = initial_node_variables_for_aero_test_test(t, initialization_options, model, formulation, ret)
 
-        ret = initial_node_variables_for_aero_test_test(t, options, model, formulation, ret)
+    return ret
 
-    else:
-        ret['l_t'] = options['xd']['l_t']
-        ret['dl_t'] = 0.0
+def initial_guess(t, options, nlp, model, formulation):
+    ret = {}
+    for name in struct_op.subkeys(model.variables, 'xd'):
+        ret[name] = 0.0
+    ret['e'] = 0.0
 
-        ret = initial_node_variables_for_standard_path(t, options, model, formulation, ret)
+    ret['l_t'] = options['xd']['l_t']
+    ret['dl_t'] = 0.0
+
+    ret = initial_node_variables_for_standard_path(t, options, model, formulation, ret)
 
     return ret
 
@@ -544,9 +585,9 @@ def initial_node_variables_for_aero_test_test(t, options, model, formulation, re
     kite_nodes = model.architecture.kite_nodes
 
     if len(kite_nodes) > 1:
-        logging.error('ERROR: pitch-plunge test only defined (to date) for one wing')
+        awelogger.logger.error('ERROR: pitch-plunge test only defined (to date) for one wing')
 
-    [l_t, dl_t, q10, dq10, r_dcm, omega] = get_aero_test_values(t, options)
+    _, _, q10, dq10, r_dcm, omega = get_aero_test_values(t, options)
 
     ret['q10'] = q10
     ret['dq10'] = dq10
@@ -558,17 +599,15 @@ def initial_node_variables_for_aero_test_test(t, options, model, formulation, re
 
 def initial_node_variables_for_standard_path(t, options, model, formulation, ret={}):
 
-    trajectory_type = options['type']
-
     number_of_nodes = model.architecture.number_of_nodes
     parent_map = model.architecture.parent_map
     kite_nodes = model.architecture.kite_nodes
-    level_siblings = get_all_level_siblings(options, model)
+    level_siblings = model.architecture.get_all_level_siblings()
 
     ua_norm = options['ua_norm']
     kite_dof = model.kite_dof
 
-    [height_list, radius, ehat_tether, ehat_side, ehat_up] = get_orbit_cone_parameters(options, model, ret['l_t'])
+    height_list, radius = get_cone_height_and_radius(options, model, ret['l_t'])
 
     for node in range(1, number_of_nodes):
 
@@ -590,23 +629,35 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
                 height = height_list[1]
 
             omega_norm = ua_norm / radius
-            omega_vector = ehat_tether * omega_norm
-
             psi = get_azimuthal_angle(t, level_siblings, node, parent, omega_norm)
 
-            ehat_radial = ehat_side * np.cos(psi) + ehat_up * np.sin(psi)
-            tether_vector = ehat_radial * radius + ehat_tether * height
+            n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
 
+            cospsi_var = np.cos(psi)
+            sinpsi_var = np.sin(psi)
+
+            ehat_normal = n_rot_hat
+
+            # for positive yaw(turns around +zhat, normal towards +yhat):
+            #     rhat = zhat * cos(psi) - yhat * sin(psi)
+            ehat_radial = z_rot_hat * cospsi_var - y_rot_hat * sinpsi_var
+            ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
+
+            omega_vector = ehat_normal * omega_norm
+
+            tether_vector = ehat_radial * radius + ehat_normal * height
             position = parent_position + tether_vector
 
-            ehat_tangential = -1. * ehat_side * np.sin(psi) + ehat_up * np.cos(psi)
             velocity = ua_norm * ehat_tangential
 
             ehat1 = -1. * ehat_tangential
-            ehat3 = ehat_tether
+            ehat3 = n_rot_hat
             ehat2 = vect_op.normed_cross(ehat3, ehat1)
 
             dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            if options['cross_tether']:
+                if options['cross_tether_attachment'] in ['com','stick']:
+                    dcm = get_cross_tether_dcm(options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
             ret['q' + str(node) + str(parent)] = position
@@ -617,6 +668,45 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
                 ret['r' + str(node) + str(parent)] = dcm_column
 
     return ret
+
+def get_cross_tether_dcm(options, dcm):
+    ang = -options['rotation_bounds'] * 1.05
+    rotx = np.array([[1, 0, 0], [0, np.cos(ang), -np.sin(ang)], [0, np.sin(ang), np.cos(ang)]])
+    dcm = cas.mtimes(dcm, rotx)
+    return dcm
+
+
+def get_ehat_tether(options):
+    inclination = options['incid_deg'] * np.pi / 180.
+    ehat_tether = np.cos(inclination) * vect_op.xhat() + np.sin(inclination) * vect_op.zhat()
+    return ehat_tether
+
+def get_rotor_reference_frame(initialization_options):
+    n_rot_hat = get_ehat_tether(initialization_options)
+    u_hat = vect_op.xhat_np()
+    z_rot_hat = vect_op.normed_cross(u_hat, n_rot_hat)
+    y_rot_hat = vect_op.normed_cross(z_rot_hat, n_rot_hat)
+    return n_rot_hat, y_rot_hat, z_rot_hat
+
+def get_local_wind_reference_frame(initialization_options):
+    u_hat = vect_op.xhat_np()
+    n_rot_hat = get_ehat_tether(initialization_options)
+    w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
+    v_hat = vect_op.normed_cross(w_hat, u_hat)
+    return u_hat, v_hat, w_hat
+
+def get_gamma_angle(initialization_options):
+    n_rot_hat = get_ehat_tether(initialization_options)
+    u_hat = vect_op.xhat_np()
+    gamma = vect_op.angle_between(u_hat, n_rot_hat)
+    return gamma
+
+def get_chi_angle(options, var_type):
+    a = options[var_type]['a']
+    gamma = get_gamma_angle(options)
+    chi = (0.6 * a + 1.) * gamma
+    return chi
+
 
 def get_aero_test_values(t, options):
 
@@ -655,20 +745,35 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
     steadyness = options['model']['induction_steadyness']
     induction_varrho_ref = options['model']['induction_varrho_ref']
 
+    level_siblings = model.architecture.get_all_level_siblings()
+
+    tf_init = guess_tf(options, model, formulation)
+    tgrid_coll = nlp.time_grids['coll'](tf_init)
+
+    ua_norm = options['ua_norm']
+    l_t_temp = options['xd']['l_t']
+    _, radius = get_cone_height_and_radius(options, model, l_t_temp)
+    omega_norm = ua_norm / radius
+
     # induction factor
     if not (induction_model in set(['not_in_use'])):
 
-        if steadyness == 'steady':
-            var_type = 'xl'
-        else:
-            var_type = 'xd'
+        var_type = 'xd'
 
         # initialize induction factor
         for name in struct_op.subkeys(model.variables, var_type):
 
-            if name[0] == 'a' and not name[:4] == 'area':
+            if name[0] == 'a' and (not name[:4] == 'area') and (not name[:4] == 'asin') and (not name[:4] == 'acos'):
 
-                init_val = options[var_type]['a']
+                init_val = 1. #options[var_type]['a']
+                V_init = insert_val(V_init, var_type, name, init_val)
+
+            elif name[:4] == 'asin':
+                init_val = 0.
+                V_init = insert_val(V_init, var_type, name, init_val)
+
+            elif name[:4] == 'acos':
+                init_val = 0.
                 V_init = insert_val(V_init, var_type, name, init_val)
 
             elif name[:2] == 'ct':
@@ -679,12 +784,13 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
                 V_init = insert_val(V_init, var_type, name, init_val)
 
             elif name[:10] == 'bar_varrho':
-                init_val = induction_varrho_ref
+                init_val = 1.
                 V_init = insert_val(V_init, var_type, name, init_val)
 
-            elif name[0] == 'f':
-                init_val = 1./3.
-                V_init = insert_val(V_init, var_type, name, init_val)
+        for name in struct_op.subkeys(model.variables, 'xd'):
+            if 'psi' in name:
+                V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+
 
         for name in struct_op.subkeys(model.variables, 'xl'):
 
@@ -692,43 +798,196 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
                 init_val = 1.
                 V_init = insert_val(V_init, 'xl', name, init_val)
 
-            elif name[:4] == 'nhat':
-                V_init['coll_var', :, :, 'xl', name, 0] = 1.
-                V_init['coll_var', :, :, 'xl', name, 1] = 0.
-                V_init['coll_var', :, :, 'xl', name, 2] = 0.
-
-            elif name[:6] == 'varrho':
-                init_val = induction_varrho_ref
+            elif name[:3] == 'cmy':
+                init_val = 0.
                 V_init = insert_val(V_init, 'xl', name, init_val)
 
-            elif name[:4] == 'qapp':
+            elif name[:3] == 'cmz':
+                init_val = 0.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:8] == 'rot_matr':
+
+                n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
+                rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
+                rot_matr_cols = cas.reshape(rot_matr, (9, 1))
+
+                for idx in range(rot_matr_cols.shape[0]):
+                    V_init = insert_val(V_init, 'xl', name, rot_matr_cols[idx], idx)
+
+            elif name[:10] == 'uzero_matr':
+
+                u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)
+                rot_matr = cas.horzcat(u_hat, v_hat, w_hat)
+                rot_matr_cols = cas.reshape(rot_matr, (9, 1))
+
+                for idx in range(rot_matr_cols.shape[0]):
+                    V_init = insert_val(V_init, 'xl', name, rot_matr_cols[idx], idx)
+
+            elif name[:12] == 'n_vec_length':
                 init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:12] == 'g_vec_length':
+                init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:12] == 'z_vec_length':
+                init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:12] == 'u_vec_length':
+                init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif 'varrho' in name:
+                init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:5] == 'qzero':
+                init_val = 1.
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:5] == 'gamma':
+                gamma = get_gamma_angle(options)
+                init_val = gamma
                 V_init = insert_val(V_init, 'xl', name, init_val)
 
             elif name[:8] == 'cosgamma':
-                init_val = 1.
+                gamma = get_gamma_angle(options)
+                init_val = np.cos(gamma)
                 V_init = insert_val(V_init, 'xl', name, init_val)
 
-            elif name[:5] == 'fnorm':
-                if options['fnorm'] == 'tether_length':
-                    if name[5] in ['0','1'] and len(name) == 6:
-                        init_val = 1.0/options['xd']['l_t']
-                    else:
-                        init_val = 1.0/options['theta']['l_i']
-                else:
-                    init_val = 1.
+            elif name[:8] == 'singamma':
+                gamma = get_gamma_angle(options)
+                init_val = np.sin(gamma)
                 V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:3] == 'chi':
+                chi = get_chi_angle(options, var_type)
+                init_val = chi
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:6] == 'coschi':
+                chi = get_chi_angle(options, var_type)
+                init_val = np.cos(chi)
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif 'tanhalfchi' in name:
+                chi = get_chi_angle(options, var_type)
+                init_val = np.tan(chi / 2.)
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif 'sechalfchi' in name:
+                chi = get_chi_angle(options, var_type)
+                init_val = 1. / np.cos(chi / 2.)
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif name[:2] == 'LL' and not(name[:5] == 'LLinv'):
+                vals = [0.375, 0., 0.,     0., -1., 0.,      0., -1., 0.]
+                for idx in range(len(vals)):
+                    V_init = insert_val(V_init, 'xl', name, vals[idx], idx)
+
+            elif name[:5] == 'LLinv':
+                vals = [2.667, 0., 0.,     0., -1., 0.,      0., -1., 0.]
+                for idx in range(len(vals)):
+                    V_init = insert_val(V_init, 'xl', name, vals[idx], idx)
+
+            elif name[:4] == 'corr':
+                a_var = options[var_type]['a']
+                init_val = (1. - a_var)
+                V_init = insert_val(V_init, 'xl', name, init_val)
+
+            elif 'psi' in name:
+                V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
     return V_init
 
 
-def insert_val(V_init, var_type, name, init_val):
+
+def insert_val(V_init, var_type, name, init_val, idx = 0):
 
     # initialize on collocation nodes
-    V_init['coll_var', :, :, var_type, name] = init_val
+    V_init['coll_var', :, :, var_type, name, idx] = init_val
 
     if var_type == 'xd':
         # initialize on interval nodes
-        V_init[var_type, :, :, name] = init_val
+        # V_init[var_type, :, :, name] = init_val
+
+        V_init[var_type, :, name, idx] = init_val
+
+    return V_init
+
+def set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+    kite_parent = name[3:]
+    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
+
+    idx = 0
+    for nn in range(nlp.n_k):
+        for dd in range(nlp.d):
+
+            t = tgrid_coll[nn, dd]
+            psi_scale = 2. * np.pi
+            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+
+            init_val = psi / psi_scale
+            V_init['coll_var', nn, dd, 'xd', name] = init_val
+
+            if dd == 0:
+                V_init['xd', nn, name] = init_val
+
+            idx = idx + 1
+
+    return V_init
+
+def set_dpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+    V_init = insert_val(V_init, 'xd', name, omega_norm / (2. * np.pi))
+    return V_init
+
+
+def set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+    kite_parent = name[6:]
+    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
+
+    idx = 0
+    for nn in range(nlp.n_k):
+        for dd in range(nlp.d):
+            t = tgrid_coll[nn, dd]
+            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+
+            init_val = np.sin(psi)
+            V_init['coll_var', nn, dd, 'xl', name] = init_val
+
+            idx = idx + 1
+
+    return V_init
+
+def set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+    kite_parent = name[6:]
+    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
+
+    idx = 0
+    for nn in range(nlp.n_k):
+        for dd in range(nlp.d):
+            t = tgrid_coll[nn, dd]
+            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+
+            init_val = np.cos(psi)
+            V_init['coll_var', nn, dd, 'xl', name] = init_val
+
+            idx = idx + 1
+
+    return V_init
+
+def set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+
+    if 'cos' in name:
+        V_init = set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+    elif 'sin' in name:
+        V_init = set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+    elif 'dpsi' in name:
+        V_init = set_dpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+    else:
+        V_init = set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
     return V_init

@@ -42,7 +42,8 @@ import awebox.tools.struct_operations as struct_op
 
 import awebox.tools.parameterization as parameterization
 
-import logging
+from awebox.logger.logger import Logger as awelogger
+import pdb
 
 
 def get_operation_conditions(options):
@@ -74,7 +75,7 @@ def determine_if_terminal_inequalities(options):
 def determine_if_periodic(options):
 
     enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'aero_test', 'launch']:
+    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'aero_test', 'launch','mpc']:
          enforce_periodicity = bool(False)
 
     return enforce_periodicity
@@ -92,7 +93,7 @@ def determine_if_initial_conditions(options):
 
     enforce_initial_conditions = bool(False)
 
-    if options['trajectory']['type'] in ['launch']:
+    if options['trajectory']['type'] in ['launch','mpc']:
          enforce_initial_conditions = bool(True)
 
     return enforce_initial_conditions
@@ -212,7 +213,7 @@ def generate_periodic_constraints(options, initial_model_variables, terminal_mod
 
     # list all periodic equalities ==> put SX expressions in dict
     if periodic:
-        eqs_dict['state_periodicity'] = make_periodicity_equality(initial_model_variables, terminal_model_variables)
+        eqs_dict['state_periodicity'] = make_periodicity_equality(initial_model_variables, terminal_model_variables, options)
         constraint_list.append(eqs_dict['state_periodicity'])
 
     # list all periodic inequalities ==> put SX expressions in dict
@@ -235,11 +236,41 @@ def make_initial_energy_equality(initial_model_variables, ref_variables):
 
     return initial_energy_eq
 
-def make_periodicity_equality(initial_model_variables, terminal_model_variables):
+def variable_does_not_belong_to_unselected_induction_model(name, options):
+    induction_steadyness = options['induction']['steadyness']
+    induction_symmetry = options['induction']['symmetry']
+
+    induction_label = ''
+    if induction_steadyness == 'steady':
+        induction_label += 'q'
+    elif induction_steadyness == 'unsteady':
+        induction_label += 'u'
+
+    if induction_symmetry == 'axisymmetric':
+        induction_label += 'axi'
+    elif induction_symmetry == 'asymmetric':
+        induction_label += 'asym'
+
+    remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
+    remaining_induction_labels.remove(induction_label)
+
+    not_unselected = True
+    for label in remaining_induction_labels:
+        if label in name:
+            not_unselected = False
+
+    return not_unselected
+
+
+
+def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
     for name in set(struct_op.subkeys(initial_model_variables, 'xd')):
-        if not name[0] == 'e' and not name[0] == 'w': # and not name[0] == 'a':
+
+        not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
+
+        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])
             final_value = vect_op.columnize(terminal_model_variables['xd', name])
@@ -255,7 +286,7 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables)
 def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    logging.info('Parameterizing initial constraint...')
+    awelogger.logger.info('Parameterizing initial constraint...')
     xi_0 = xi_dict['xi']['xi_0']
     initial_splines = parameterization.get_splines(initial_model_variables, xi_dict, 'initial')
 
@@ -290,7 +321,7 @@ def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dic
 def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    logging.info('Introducing initial constraint...')
+    awelogger.logger.info('Introducing initial constraint...')
 
     xd_struct = model.variables_dict['xd']
 
@@ -302,7 +333,7 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        initial_conditions_eq_list += [initial_states['xd', variable] - ref_variables['xd',variable] / model.scaling['xd'][variable]]
+        initial_conditions_eq_list += [initial_states['xd', variable] - ref_variables['xd',variable]]
     initial_conditions_eq = cas.vertcat(*initial_conditions_eq_list)
 
     return initial_conditions_eq
@@ -310,7 +341,7 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
 def make_param_terminal_conditions(terminal_model_variables, ref_variables, xi_dict, model, options):
     terminal_states = terminal_model_variables
 
-    logging.info('Parameterizing terminal constraint...')
+    awelogger.logger.info('Parameterizing terminal constraint...')
     xi_f = xi_dict['xi']['xi_f']
     terminal_splines = parameterization.get_splines(terminal_model_variables, xi_dict, 'terminal')
 
@@ -427,5 +458,3 @@ def make_entry_list(eqs_dict, ineqs_dict):
         entry_list.append(cas.entry('inequality', struct = ineq_struct))
 
     return entry_list
-
-

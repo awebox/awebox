@@ -112,14 +112,30 @@ def find_tracking(nlp_numerics_options, V, P, variables):
 
 def find_regularisation(nlp_numerics_options, V, P, variables):
     nk = nlp_numerics_options['n_k']
+    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+
+
+    # check control parameterization
+    if (direct_collocation and nlp_numerics_options['collocation']['u_param'] == 'poly'):
+        u_param = 'poly'
+    else:
+        u_param = 'zoh'
 
     regularisation = 0.
 
-    for kdx in range(nk):
-        for name in set(struct_op.subkeys(variables, 'u')) - set(['ddl_t']):
-            if not 'fict' in name:
-                difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
-                regularisation += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
+    if u_param == 'zoh':
+        for kdx in range(nk):
+            for name in set(struct_op.subkeys(variables, 'u')) - set(['ddl_t']):
+                if not 'fict' in name:
+                    difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
+                    regularisation += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
+    elif u_param == 'poly':
+        for kdx in range(nk):
+            for jdx in range(d):
+                for name in set(struct_op.subkeys(variables, 'u')) - set(['ddl_t']):
+                    if not 'fict' in name:
+                        difference = V['coll_var', kdx, jdx, 'u', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'u', name]
+                        regularisation += int_weights[jdx]*P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
 
     return regularisation
 
@@ -147,14 +163,29 @@ def find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs):
 
 def find_fictitious(nlp_numerics_options, V, P, variables):
     nk = nlp_numerics_options['n_k']
+    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+
+    # check control parameterization
+    if (direct_collocation and nlp_numerics_options['collocation']['u_param'] == 'poly'):
+        u_param = 'poly'
+    else:
+        u_param = 'zoh'
 
     fictitious = 0.
 
-    for kdx in range(nk):
-        for name in set(struct_op.subkeys(variables, 'u')):
-            if 'fict' in name:
-                difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
-                fictitious += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
+    if u_param == 'zoh':
+        for kdx in range(nk):
+            for name in set(struct_op.subkeys(variables, 'u')):
+                if 'fict' in name:
+                    difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
+                    fictitious += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
+    elif u_param == 'poly':
+        for kdx in range(nk):
+            for jdx in range(d):
+                for name in set(struct_op.subkeys(variables, 'u')):
+                    if 'fict' in name:
+                        difference = V['coll_var', kdx, jdx, 'u', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'u', name]
+                        fictitious += int_weights[jdx]*P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
 
     return fictitious
 

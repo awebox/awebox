@@ -30,7 +30,7 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import logging
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.lagr_interpol as lagr_interpol
 
@@ -156,4 +156,4 @@ class Wind:
 
     @options.setter
     def options(self, value):
-        logging.warning('Cannot set options object.')
+        awelogger.logger.warning('Cannot set options object.')

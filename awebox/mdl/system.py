@@ -33,8 +33,6 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
-import pdb
-
 
 def generate_structure(options, architecture):
 
@@ -89,6 +87,11 @@ def generate_structure(options, architecture):
     else:
         raise ValueError('kite dof option %s not inluded at present', str(kite_dof))
 
+    # add drag mode states and controls
+    if options['trajectory']['system_type'] == 'drag_mode':
+        kite_states += [('kappa', (1,1))]
+        kite_controls += [('dkappa',(1,1))]
+
     # _list states, generalized coordinates and controls of all the nodes
     # together
     system_states = []
@@ -123,6 +126,32 @@ def generate_structure(options, architecture):
             system_gc.extend([tether_gc[i] + str(n) + str(parent)
                               for i in range(len(tether_gc))])
 
+    # add cross-tethers
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            kite_children = architecture.kites_map[l]
+            if len(kite_children) == 2:
+                system_multipliers.extend(
+                        [
+                            (
+                            tether_multipliers[i][0] + str(kite_children[0]) + str(kite_children[1]),
+                            tether_multipliers[i][1]
+                            )
+                            for i in range(len(tether_multipliers))
+                        ]
+                    )
+            else:
+                for k in range(len(kite_children)):
+                    system_multipliers.extend(
+                        [
+                            (
+                            tether_multipliers[i][0] + str(kite_children[k]) + str(kite_children[(k+1)%len(kite_children)]),
+                            tether_multipliers[i][1]
+                            )
+                            for i in range(len(tether_multipliers))
+                        ]
+                    )
+
     # _add global states and controls
     system_states.extend([('l_t', (1, 1)), ('dl_t', (1, 1))]) # main tether length and speed
 
@@ -151,6 +180,15 @@ def generate_structure(options, architecture):
     # system parameters
     system_parameters = [('l_s', (1, 1)), ('l_i', (1, 1)), ('diam_s', (1, 1)), ('diam_t', (1, 1)), ('t_f',(1,1))]
 
+    # add cross-tether lengths and diameters
+    if options['cross_tether'] and len(kite_nodes) > 1:
+        for l in architecture.layer_nodes:
+            system_parameters.extend(
+                [
+                    ('l_c{}'.format(l),(1,1)), ('diam_c{}'.format(l),(1,1))
+                ]
+            )
+
     # store variables in dict
     system_variables_list = {'xd':system_states,
                              'xddot':system_derivatives,
@@ -165,11 +203,8 @@ def generate_structure(options, architecture):
 
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
-    induction_model  = options['induction_model']
-    steadyness = options['aero']['actuator']['steadyness']
-    correct_tilt = options['aero']['actuator']['correct_tilt']
-    normal_vector_model = options['aero']['actuator']['normal_vector_model']
-
+    induction_model = options['induction_model']
+    comparison_labels = options['aero']['actuator']['comparison_labels']
 
     # induction factor
     if not (induction_model in set(['not_in_use'])):
@@ -177,29 +212,49 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
         for kite in architecture.kite_nodes:
             parent = architecture.parent_map[kite]
             system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
+            system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
+
+            system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
+            system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
+            system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
 
         for layer_node in architecture.layer_nodes:
 
-                if steadyness == 'steady':
-                    system_lifted.extend([('a' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('ct' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('f' + str(layer_node), (1, 1))])
+            for label in comparison_labels:
+                 system_states.extend([('a_' + label + str(layer_node), (1, 1))])
+                 system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+                 system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                 system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+                 system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+                 system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+                 system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
+                 system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
+                 system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
+                 system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
+                 system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
+                 system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
 
-                elif steadyness == 'unsteady':
-                    system_states.extend([('a' + str(layer_node), (1, 1))])
-                    system_states.extend([('ct' + str(layer_node), (1, 1))])
-                    system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-                    system_states.extend([('f' + str(layer_node), (1, 1))])
+            system_states.extend([('ct' + str(layer_node), (1, 1))])
+            system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
+            system_lifted.extend([('t_star' + str(layer_node), (1, 1))])
 
+            system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
+            system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
 
-                system_lifted.extend([('fnorm' + str(layer_node), (1, 1))])
-                system_lifted.extend([('nhat' + str(layer_node), (3, 1))])
-                system_lifted.extend([('qapp' + str(layer_node), (1, 1))])
-                system_lifted.extend([('area' + str(layer_node), (1, 1))])
+            system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+            system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
 
-                if correct_tilt:
-                    system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+            system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+            system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+            system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+
+            system_lifted.extend([('qzero' + str(layer_node), (1, 1))])
+            system_lifted.extend([('area' + str(layer_node), (1, 1))])
+
+            system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
+            system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
+            system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+            system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
 
     return system_lifted, system_states
 
@@ -272,3 +327,4 @@ def generate_optimization_parameters():
     optimization_parameters = p_dec
 
     return optimization_parameters
+

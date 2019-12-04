@@ -25,12 +25,11 @@
 import matplotlib.pyplot as plt
 from . import tools
 import numpy as np
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
     # read in inputs
-    integral_outputs = plot_dict['integral_outputs_final']
     variables_dict = plot_dict['variables_dict']
     integral_variables = plot_dict['integral_variables']
     tgrid_ip = plot_dict['time_grids']['ip']
@@ -50,7 +49,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     for name in variables_to_plot:
         if not name[0] == 'w':
             counter += 1
-    counter += len(list(integral_outputs.keys()))
+    counter += len(integral_variables)
 
     if individual_state == None:
         plot_table_r = 4
@@ -81,14 +80,21 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xd'][name].shape[0]):
-                plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                p = plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xd'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
+
                 plt.title(name)
 
     for name in integral_variables_to_plot:
         counter += 1
         ax = plt.axes(axes[counter-1])
-        out_values, tgrid_out = tools.merge_integral_output_values(integral_outputs,name, plot_dict, cosmetics)
-        plt.plot(tgrid_out, out_values)
+        if plot_dict['discretization'] == 'multiple_shooting':
+            out_values, tgrid_out = tools.merge_integral_output_values(plot_dict['integral_outputs_final'],name, plot_dict, cosmetics)
+            p = plt.plot(tgrid_out, out_values)
+        else:
+            p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][name][0])
         plt.title(name)
 
     ax.tick_params(axis='both', which='major')
@@ -107,7 +113,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     # check if lifted variables exist
     if 'xl' not in variables_dict.keys():
-        logging.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
+        awelogger.logger.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
         return None
 
     if individual_state == None:
@@ -156,7 +162,10 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xl'][name].shape[0]):
-                plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                p = plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xl'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
                 plt.title(name)
 
     for name in integral_variables_to_plot:
@@ -217,14 +226,36 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
     fig = plt.figure()
     fig.clf()
     legend_names = []
+    tgrid_ip = plot_dict['time_grids']['ip']
+    invariants = plot_dict['outputs']['tether_length']
+    if cosmetics['plot_ref']:
+        ref_invariants = plot_dict['ref']['outputs']['tether_length']
+        ref_tgrid_ip = plot_dict['time_grids']['ref']['ip']
+
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
-        invariants = plot_dict['outputs']['tether_length']
-        tgrid_ip = plot_dict['time_grids']['ip']
         for prefix in ['','d', 'dd']:
-            plt.semilogy(tgrid_ip, abs(invariants[prefix + 'c' + str(n) + str(parent)][0]))
-            legend_names.append(prefix + 'c' + str(n) + str(parent))
-    plt.legend(legend_names)
+            p = plt.semilogy(tgrid_ip, abs(invariants[prefix + 'c' + str(n) + str(parent)][0]), label = prefix + 'c' + str(n) + str(parent))
+            if cosmetics['plot_ref']:
+                plt.semilogy(ref_tgrid_ip, abs(ref_invariants[prefix + 'c' + str(n) + str(parent)][0]), linestyle = '--', color = p[-1].get_color())
+
+    if plot_dict['options']['model']['cross_tether'] and number_of_nodes > 2:
+        for l in plot_dict['architecture'].layer_nodes:
+            kites = plot_dict['architecture'].kites_map[l]
+            if len(kites) == 2:
+                c_name = 'c{}{}'.format(kites[0], kites[1])
+                for prefix in ['','d', 'dd']:
+                    p = plt.semilogy(tgrid_ip, abs(invariants[prefix + c_name][0]), label = prefix + c_name)
+                    if cosmetics['plot_ref']:
+                        plt.semilogy(ref_tgrid_ip, abs(ref_invariants[prefix + c_name][0]), linestyle = '--', color = p[-1].get_color())
+            else:
+                for k in range(len(kites)):
+                    c_name = 'c{}{}'.format(kites[k], kites[(k+1)%len(kites)])
+                    for prefix in ['','d', 'dd']:
+                        p = plt.semilogy(tgrid_ip, abs(invariants[prefix + c_name][0]), label = prefix + c_name)
+                        if cosmetics['plot_ref']:
+                            plt.semilogy(ref_tgrid_ip, abs(ref_invariants[prefix + c_name][0]), linestyle = '--', color = p[-1].get_color())
+    plt.legend()
     plt.suptitle(fig_name)
 
     return None
@@ -238,12 +269,42 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
     fig = plt.figure()
     fig.clf()
     legend_names = []
+    tgrid_ip = plot_dict['time_grids']['ip']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
         lambdavec = plot_dict['xa']['lambda' + str(n) + str(parent)]
-        tgrid_ip = plot_dict['time_grids']['ip']
-        plt.plot(tgrid_ip, lambdavec[0])
+        p = plt.plot(tgrid_ip, lambdavec[0])
+        if cosmetics['plot_ref']:
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa']['lambda' + str(n) + str(parent)][0],
+                linestyle= '--', color = p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
+    
+    if plot_dict['options']['model']['cross_tether'] and number_of_nodes > 2:
+        for l in plot_dict['architecture'].layer_nodes:
+            kites = plot_dict['architecture'].kites_map[l]
+            if len(kites) == 2:
+                lam_name = 'lambda{}{}'.format(kites[0], kites[1])
+                lambdavec = plot_dict['xa'][lam_name]
+                p = plt.plot(tgrid_ip, lambdavec[0])
+                if cosmetics['plot_ref']:
+                    plt.plot(
+                        plot_dict['time_grids']['ref']['ip'],
+                        plot_dict['ref']['xa'][lam_name][0],
+                        linestyle= '--', color = p[-1].get_color()
+                        )
+                legend_names.append(lam_name)
+            else:
+                for k in range(len(kites)):
+                    lam_name = 'lambda{}{}'.format(kites[k], kites[(k+1)%len(kites)])
+                    lambdavec = plot_dict['xa'][lam_name]
+                    p = plt.plot(tgrid_ip, lambdavec[0])
+                    if cosmetics['plot_ref']:
+                        plt.plot(
+                            plot_dict['time_grids']['ref']['ip'],
+                            plot_dict['ref']['xa'][lam_name][0],
+                            linestyle= '--', color = p[-1].get_color()
+                            )
+                    legend_names.append(lam_name)
     plt.legend(legend_names)
     plt.suptitle(fig_name)

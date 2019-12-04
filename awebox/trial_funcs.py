@@ -38,7 +38,7 @@ import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
-import logging
+from awebox.logger.logger import Logger as awelogger
 
 def generate_trial_data_csv(trial, name, freq, rotation_representation):
     """
@@ -55,7 +55,7 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
 
     # write into ,csv
     with open(name + '.csv', 'w') as point_cloud:
-        pcdw = csv.DictWriter(point_cloud, delimiter=' ', fieldnames=write_csv_dict)
+        pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
         pcdw.writeheader()
         for k in range(plot_dict['time_grids']['ip'].shape[0]):
             write_data_row(pcdw, plot_dict, write_csv_dict, plot_dict['time_grids']['ip'], k, rotation_representation)
@@ -92,6 +92,12 @@ def init_write_csv_dict(plot_dict):
     # add time stamp
     write_csv_dict['time'] = None
 
+    # add architecture information
+    write_csv_dict['nodes'] = None
+    write_csv_dict['parent'] = None
+    write_csv_dict['kites'] = None
+    write_csv_dict['cross_tether'] = None
+
     return write_csv_dict
 
 def interpolate_data(trial, freq):
@@ -119,7 +125,8 @@ def interpolate_data(trial, freq):
     cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
     name = trial.name
     parametric_options = trial.options
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, N=N)
+    V_ref = trial.optimization.V_ref
+    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, N=N)
 
     return plot_dict
 
@@ -152,18 +159,36 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                 # convert rotations from dcm to euler
                 if variable[0] == 'r' and rotation_representation == 'euler':
                     dcm = []
-                    for i in range(3):
+                    for i in range(9):
                         dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
-                    var = vect_op.rotationMatrixToEulerAngles(dcm)
+                    var = vect_op.rotationMatrixToEulerAngles(cas.reshape(dcm,3,3))
+                    for index in range(3):
+                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
                 elif rotation_representation not in ['euler', 'dcm']:
-                    logging.error('Error: Only euler agnles and direct cosine matrix supported.')
+                    awelogger.logger.error('Error: Only euler angles and direct cosine matrix supported.')
                 else:
                     var = plot_dict[variable_type][variable]
-                variable_length = len(var)
-                for index in range(variable_length):
-                    write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
+                    variable_length = len(var)
+                    for index in range(variable_length):
+                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
 
     write_csv_dict['time'] = tgrid_ip[k]
+
+    parent_map = plot_dict['architecture'].parent_map
+    if k < plot_dict['architecture'].number_of_nodes-1:
+        node = list(parent_map.keys())[k]
+        write_csv_dict['nodes']  = str(node)
+        write_csv_dict['parent'] = str(parent_map[node])
+        if k < len(plot_dict['architecture'].kite_nodes):
+            write_csv_dict['kites']  = plot_dict['architecture'].kite_nodes[k]
+        else:
+            write_csv_dict['kites']  = None
+    else:
+        write_csv_dict['nodes']  = None
+        write_csv_dict['parent'] = None
+        write_csv_dict['kites']  = None
+
+    write_csv_dict['cross_tether'] = int(plot_dict['options']['user_options']['system_model']['cross_tether'])
 
     # write out sorted row
     ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
@@ -171,7 +196,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
 
     return None
 
-def generate_optimal_model(trial):
+def generate_optimal_model(trial, param_options = None):
 
     """
     Generate optimal model dict based on both optimized parameter values
@@ -200,7 +225,8 @@ def generate_optimal_model(trial):
 
     # fill in parameters structure
     parameters = trial.model.parameters(0.0)
-    param_options = trial.options['solver']['initialization']['sys_params_num']
+    if param_options is None:
+        param_options = trial.options['solver']['initialization']['sys_params_num']
     for param_type in list(param_options.keys()):
         if isinstance(param_options[param_type],dict):
             for param in list(param_options[param_type].keys()):
@@ -248,7 +274,7 @@ def generate_var_bounds_fun(model):
     var_constraints = []
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
-        
+
         if var_type in ['xd','u','xa']:
 
             for var in list(model.variables_dict[var_type].keys()):
@@ -261,7 +287,7 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
                             )
-                        
+
                         if var_bounds[var_type][var]['lb'][i] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
@@ -271,11 +297,10 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var] - var_bounds[var_type][var]['ub']
                             )
-                        
+
                         if var_bounds[var_type][var]['lb'] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
                             )
 
     return cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
-

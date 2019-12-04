@@ -99,10 +99,11 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax.yaxis.set_major_locator(MaxNLocator(4))
         ax.legend(loc = 'upper right')
     plt.suptitle(fig_name)
-    
+
     # set equal aspect ratio for a trajectory plots
-    for ax in fig.axes:
-        ax.set_aspect('equal')
+    if side != 'isometric':
+        for ax in fig.axes:
+            ax.set_aspect('equal')
 
 def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, reload_dict):
 

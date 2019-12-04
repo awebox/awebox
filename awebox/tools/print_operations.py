@@ -28,7 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
 '''
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 import os
 
 def print_single_timing(timing):
@@ -77,19 +77,19 @@ def hline(charact):
 def get_awebox_license_info():
     license_info = []
     license_info += [hline('+')]
-    license_info += ['This is awebox, a modeling and optimization framework for multi-kite AWE systems..']
-    license_info += ['awebox is free software; you can redistribute it and/or modify it under the terms']
+    license_info += ['This is the awebox, a modeling and optimization framework for multi-kite AWE systems..']
+    license_info += ['The awebox is a free software; you can redistribute it and/or modify it under the terms']
     license_info += ['of the GNU Lesser General Public License as published by the Free Software']
     license_info += ['Foundation license. More information can be found at http://github.com/awebox.']
     license_info += [hline('+')]
     return license_info
 
 def log_license_info():
-    logging.info('')
+    awelogger.logger.info('')
     license_info = get_awebox_license_info()
     for line in license_info:
-        logging.info(line)
-    logging.info('')
+        awelogger.logger.info(line)
+    awelogger.logger.info('')
 
 def print_license_info():
     print('')

@@ -35,7 +35,8 @@ from . import output
 
 import matplotlib.pyplot as plt
 
-import logging
+from awebox.logger.logger import Logger as awelogger
+import pdb
 
 #todo: compare to initial guess for all plots as option
 #todo: options for saving plots
@@ -61,13 +62,13 @@ class Visualization(object):
 
         return None
 
-    def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name):
+    def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref):
 
-        self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name)
+        self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref)
 
         return None
 
-    def plot(self, V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, name, sweep_toggle, fig_name='plot', fig_num = None):
+    def plot(self, V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, name, sweep_toggle, V_ref, fig_name='plot', fig_num = None, recalibrate = True):
         """
         Generate plots with given parametric and visualization options
         :param V_plot: plot data (scaled)
@@ -77,7 +78,8 @@ class Visualization(object):
         """
 
         # recalibrate plot_dict
-        self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name)
+        if recalibrate:
+            self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref)
 
         if type(flags) is not list:
             flags = [flags]
@@ -144,7 +146,8 @@ class Visualization(object):
         # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['induction_factor_vs_tether_reel'] = output.plot_induction_factor_vs_tether_reel(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['induction_factor_cycle'] = (output.plot_induction_factor_cycle, None)
+        plot_logic_dict['relative_radius_cycle'] = (output.plot_relative_radius_cycle, None)
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)

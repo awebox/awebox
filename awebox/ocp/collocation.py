@@ -31,7 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import logging
+from awebox.logger.logger import Logger as awelogger
 import numpy as np
 import awebox.tools.struct_operations as struct_op
 from collections import OrderedDict
@@ -88,6 +88,7 @@ class Collocation(object):
 
         # for all collocation points
         ls = []
+        ls_u = []
         for j in range(d + 1):
             # construct lagrange polynomials to get the polynomial basis at the
             # collocation point
@@ -108,16 +109,27 @@ class Collocation(object):
             for r in range(d + 1):
                 coeff_collocation[j][r] = tfcn(tau_root[r])
 
+            # construct lagrange polynomials to get the polynomial basis
+            # for the controls and algebraic variables
+            if j > 0:
+                l = 1
+                for r in range(1,d+1):
+                    if r != j:
+                        l *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                ls_u = cas.vertcat(ls_u, l)
+
         # interpolating function for all polynomials
         lfcns = cas.Function('lfcns',[tau],[ls])
+        lfcns_u = cas.Function('lfcns_u',[tau],[ls_u])
 
         self.__coeff_continuity = coeff_continuity
         self.__coeff_collocation = coeff_collocation
         self.__coeff_fun = lfcns
+        self.__coeff_fun_u = lfcns_u
 
         return None
 
-    def build_interpolator(self, nlp_params, V):
+    def build_interpolator(self, nlp_params, V, integral_outputs = None):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -126,7 +138,7 @@ class Collocation(object):
         @return interpolation function
         """
 
-        def coll_interpolator(time_grid, name, dim):
+        def coll_interpolator(time_grid, name, dim, var_type):
             """Interpolating function
 
             @param time_grid list with time points
@@ -137,8 +149,15 @@ class Collocation(object):
             vals = []
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
-                poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
-                vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                if var_type == 'xd':
+                    poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                elif var_type in ['u', 'xa', 'xl']:
+                    poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
+                elif var_type in ['int_out']:
+                    poly_vars = cas.vertcat(integral_outputs['int_out',kdx, name, dim], *integral_outputs['coll_int_out',kdx, :, name, dim])
+                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
 
             return vals
 
@@ -205,21 +224,20 @@ class Collocation(object):
 
         return xp_jk
 
-    def get_collocation_variables_struct(self, variables_dict):
+    def get_collocation_variables_struct(self, variables_dict, u_param):
+
+        entry_list = [
+            cas.entry('xd', struct = variables_dict['xd']),
+            cas.entry('xa', struct = variables_dict['xa'])
+        ]
 
         if 'xl' in list(variables_dict.keys()):
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-                cas.entry('xl', struct = variables_dict['xl'])
-            ])
-        else:
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-            ])
+            entry_list += [cas.entry('xl', struct = variables_dict['xl'])]
 
-        return coll_var
+        if u_param == 'poly':
+            entry_list += [cas.entry('u', struct = variables_dict['u'])]
+
+        return cas.struct_symMX(entry_list)
 
     def __integrate_integral_outputs(self, Integral_outputs_list, integral_outputs_deriv, model, tf):
 
@@ -383,4 +401,4 @@ class Collocation(object):
 
     @quad_weights.setter
     def quad_weights(self, value):
-        logging.warning('Cannot set quad_weights object.')
+        awelogger.logger.warning('Cannot set quad_weights object.')

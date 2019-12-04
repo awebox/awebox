@@ -40,7 +40,7 @@ import awebox.quality as quality
 import awebox.tools.data_saving as data_tools
 import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
-import logging
+from awebox.logger.logger import Logger as awelogger
 import copy
 
 class Trial(object):
@@ -72,7 +72,6 @@ class Trial(object):
             self.__model          = model.Model()
             self.__formulation    = formulation.Formulation()
             self.__nlp            = nlp.NLP()
-            self.__simulation     = sim.Simulation(self.__options['simulation'])
             self.__optimization   = optimization.Optimization()
             self.__visualization  = visualization.Visualization()
             self.__quality        = quality.Quality()
@@ -92,10 +91,13 @@ class Trial(object):
         if is_standalone_trial:
             print_op.log_license_info()
 
-        logging.info('')
+        if self.__options['user_options']['trajectory']['type'] == 'mpc':
+            raise ValueError('Build method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        logging.info('Building trial (%s) ...', self.__name)
-        logging.info('')
+        awelogger.logger.info('')
+
+        awelogger.logger.info('Building trial (%s) ...', self.__name)
+        awelogger.logger.info('')
 
         architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
         self.__options.build(architecture)
@@ -106,9 +108,9 @@ class Trial(object):
         self.__visualization.build(self.__model, self.__nlp, self.__name, self.__options)
         self.__quality.build(self.__options['quality'], self.__name)
         self.set_timings('construction')
-        logging.info('Trial (%s) built.', self.__name)
-        logging.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
-        logging.info('')
+        awelogger.logger.info('Trial (%s) built.', self.__name)
+        awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
+        awelogger.logger.info('')
 
     def optimize(self, options = [], final_homotopy_step = 'final',
                  warmstart_file = None, debug_flags = [],
@@ -120,8 +122,11 @@ class Trial(object):
         # get save_flag
         self.__save_flag = save_flag
 
-        logging.info('Optimizing trial (%s) ...', self.__name)
-        logging.info('')
+        if self.__options['user_options']['trajectory']['type'] == 'mpc':
+            raise ValueError('Optimize method not supported for MPC trials. Use PMPC wrapper instead.')
+
+        awelogger.logger.info('Optimizing trial (%s) ...', self.__name)
+        awelogger.logger.info('')
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
@@ -135,25 +140,28 @@ class Trial(object):
         self.__return_status_numeric = self.__optimization.return_status_numeric['optimization']
 
         if self.__optimization.solve_succeeded:
-            logging.info('Trial (%s) optimized.', self.__name)
-            logging.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
+            awelogger.logger.info('Trial (%s) optimized.', self.__name)
+            awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
 
         else:
 
-            logging.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
+            awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
         cost_fun = self.nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
-        self.visualization.recalibrate(self.optimization.V_opt, self.visualization.plot_dict, self.optimization.output_vals, self.optimization.integral_outputs_final, self.options, self.optimization.time_grids, cost, self.name)
+        self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
+                                        self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
+                                        cost, self.name, self.__optimization.V_ref)
 
         # perform quality check
         self.__quality.check_quality(self)
 
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
-            self.save()
+            saving_method = self.__options['solver']['save_format']
+            self.save(saving_method = saving_method)
 
-        logging.info('')
+        awelogger.logger.info('')
 
     def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
 
@@ -167,23 +175,12 @@ class Trial(object):
             cost = self.__solution_dict['cost']
         time_grids = self.__solution_dict['time_grids']
         integral_outputs_final = self.__solution_dict['integral_outputs_final']
+        V_ref = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle,'plot',fig_num)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, 'plot',fig_num)
 
         return None
-
-    def simulate(self):
-
-        logging.info('Simulating trial (%s) ...', self.__name)
-        logging.info('')
-
-        self.__simulation.build_integrator(self.__options['simulation'], self.__model)
-
-        x0 = generate_initial_state(self.__model, self.__optimization.V_init)
-        self.__simulation.run(x0, self.__optimization.V_init['u'], self.__optimization.V_init['theta'], self.__optimization.V_init['phi'])
-        logging.info('Trial (%s) simulated.', self.__name)
-        logging.info('')
 
     def set_timings(self, timing):
         if timing == 'construction':
@@ -195,7 +192,7 @@ class Trial(object):
     def save(self, saving_method = 'dict', fn = None):
 
         # log saving method
-        logging.info('Saving trial ' + self.__name + ' using ' + saving_method)
+        awelogger.logger.info('Saving trial ' + self.__name + ' using ' + saving_method)
 
         # set savefile name to trial name if unspecified
         if not fn:
@@ -207,15 +204,15 @@ class Trial(object):
         elif saving_method == 'dict':
             self.save_to_dict(fn)
         else:
-            logging.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
+            awelogger.logger.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
 
         # log that save is complete
-        logging.info('Trial (%s) saved.', self.__name)
-        logging.info('')
-        logging.info(print_op.hline('&'))
-        logging.info(print_op.hline('&'))
-        logging.info('')
-        logging.info('')
+        awelogger.logger.info('Trial (%s) saved.', self.__name)
+        awelogger.logger.info('')
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info('')
+        awelogger.logger.info('')
 
     def save_to_awe(self, fn):
 
@@ -239,7 +236,7 @@ class Trial(object):
 
         # pickle data
         data_tools.pickle_data(data_to_save, fn, 'dict')
-        
+
     def generate_solution_dict(self):
 
         solution_dict = {}
@@ -251,10 +248,12 @@ class Trial(object):
         # parametric sweep data
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final'] = self.__optimization.V_final
+        solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = [
             copy.deepcopy(self.__optimization.output_vals[0]),
-            copy.deepcopy(self.__optimization.output_vals[1])
+            copy.deepcopy(self.__optimization.output_vals[1]),
+            copy.deepcopy(self.__optimization.output_vals[2])
         ]
         solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
         solution_dict['stats'] = self.__optimization.stats
@@ -280,8 +279,9 @@ class Trial(object):
 
         return None
 
-    def generate_optimal_model(self):
-        return trial_funcs.generate_optimal_model(self)
+
+    def generate_optimal_model(self, param_options = None):
+        return trial_funcs.generate_optimal_model(self, param_options= param_options)
 
     @property
     def options(self):
@@ -297,7 +297,6 @@ class Trial(object):
         status_dict['model'] = self.__model.status
         status_dict['nlp'] = self.__nlp.status
         status_dict['optimization'] = self.__optimization.status
-        status_dict['simulation'] = self.__simulation.status
         return status_dict
 
     @status.setter
@@ -361,14 +360,6 @@ class Trial(object):
         print('Cannot set timings object.')
 
     @property
-    def simulation(self):
-        return self.__simulation
-
-    @simulation.setter
-    def simulation(self, value):
-        print('Cannot set simulation object.')
-
-    @property
     def visualization(self):
         return self.__visualization
 
@@ -397,4 +388,3 @@ def generate_initial_state(model, V_init):
     for name in list(model.struct_list['xd'].keys()):
         x0[name] = V_init['xd',0,0,name]
     return x0
-

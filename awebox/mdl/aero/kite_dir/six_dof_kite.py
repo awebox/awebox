@@ -65,7 +65,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if options['induction_model'] == 'actuator':
-            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture)
+            label = actuator_disk_flow.get_label(options)
+            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture, label)
         else:
             ua = uw_infty - dq
 

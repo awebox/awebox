@@ -28,6 +28,8 @@
 
 from . import default
 from . import funcs
+from awebox.logger.logger import Logger as awelogger
+import logging
 
 class Options:
     def __init__(self, internal_access=False):
@@ -115,5 +117,3 @@ def get_keys(item):
         help_flag = True
 
     return category_key, sub_category_key, sub_sub_category_key, option_key, help_flag
-
-

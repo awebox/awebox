@@ -62,7 +62,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if options['induction_model'] == 'actuator':
-            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture)
+            label = actuator_disk_flow.get_label(options)
+            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture, label)
         else:
             ua = uw_infty - dq
 
@@ -93,7 +94,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # lift and drag coefficients
         CL = coeff[0]
-        CD = parameters['theta0','aero','CD0'] + 0.02 * CL ** 2
+        CD = parameters['theta0','aero','CD0'] + CL ** 2/ (np.pi*parameters['theta0','geometry','ar'])
 
         # lift and drag force
         f_lift = CL * 1. / 2. * rho_infty * cas.mtimes(ua.T, ua) * parameters['theta0','geometry','s_ref'] * ehat_l

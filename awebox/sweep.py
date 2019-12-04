@@ -28,7 +28,7 @@ Class sweep contains functions to manipulate multiple trials at once
 @author: jochem de schutter alu-freiburg 2018
 """
 
-import logging
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.sweep_funcs as sweep_funcs
 import copy
@@ -70,7 +70,7 @@ class Sweep:
 
         else:
             error_str = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
-            logging.error(error_str)
+            awelogger.logger.error(error_str)
             raise TypeError(error_str)
 
     def build(self):
@@ -90,7 +90,7 @@ class Sweep:
         # build sweep in order to run it
         self.build()
 
-        logging.info('Running sweep (' + self.__name +  ') containing ' + str(len(list(self.__trial_dict.keys()))) + ' trials...')
+        awelogger.logger.info('Running sweep (' + self.__name +  ') containing ' + str(len(list(self.__trial_dict.keys()))) + ' trials...')
 
         # for all trials, run a parametric sweep
         for trial_to_run in list(self.__trial_dict.keys()):
@@ -105,7 +105,7 @@ class Sweep:
             # run parametric sweep
             for param in list(self.__param_dict.keys()):
 
-                logging.info('Optimize trial (%s) with parametric setting (%s)',trial_to_run, param)
+                awelogger.logger.info('Optimize trial (%s) with parametric setting (%s)',trial_to_run, param)
 
                 if param == 'base_options':
                     # take the existing trial options for optimizing
@@ -137,7 +137,8 @@ class Sweep:
                 timings = single_trial.optimization.timings
                 cost_fun = single_trial.nlp.cost_components[0]
                 cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
-                recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+                V_ref = single_trial.optimization.V_ref
+                recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
                 self.__plot_dict[trial_to_run][param] = copy.deepcopy(recalibrated_plot_dict)
 
                 # overwrite outputs to work around pickle bug
@@ -153,7 +154,7 @@ class Sweep:
                     self.__sweep_dict[trial_to_run][param]['output_vals'][i] = copy.deepcopy(single_trial_solution_dict['output_vals'][i])
                 self.__sweep_labels[trial_to_run][param] = trial_to_run + '_' + param
 
-        logging.info('Sweep (' + self.__name +  ') completed.')
+        awelogger.logger.info('Sweep (' + self.__name +  ') completed.')
 
     def plot(self, flags):
 
@@ -280,7 +281,7 @@ class Sweep:
     def save(self, saving_method = 'dict'):
 
         # log saving method
-        logging.info('Saving sweep ' + self.__name + ' using ' + saving_method)
+        awelogger.logger.info('Saving sweep ' + self.__name + ' using ' + saving_method)
 
         # choose correct function for saving method
         if saving_method == 'awe':
@@ -288,10 +289,10 @@ class Sweep:
         elif saving_method == 'dict':
             self.save_to_dict()
         else:
-            logging.error(saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!')
+            awelogger.logger.error(saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!')
 
-        logging.info('Sweep (%s) saved.', self.__name)
-        logging.info('')
+        awelogger.logger.info('Sweep (%s) saved.', self.__name)
+        awelogger.logger.info('')
 
     def save_to_awes(self):
 
@@ -299,7 +300,7 @@ class Sweep:
         data_tools.pickle_data(self, self.__name, 'awes')
 
     def save_to_dict(self):
-        
+
         # create dict to be saved
         data_to_save = {}
 
@@ -319,7 +320,7 @@ class Sweep:
 
     @name.setter
     def name(self, value):
-        logging.critical('Cannot set name object.')
+        awelogger.logger.critical('Cannot set name object.')
 
     @property
     def trial_dict(self):
@@ -327,7 +328,7 @@ class Sweep:
 
     @trial_dict.setter
     def trial_dict(self, value):
-        logging.critical('Cannot set trial_dict object.')
+        awelogger.logger.critical('Cannot set trial_dict object.')
 
     @property
     def sweep_dict(self):
@@ -335,7 +336,7 @@ class Sweep:
 
     @sweep_dict.setter
     def sweep_dict(self, value):
-        logging.critical('Cannot set sweep_dict object.')
+        awelogger.logger.critical('Cannot set sweep_dict object.')
 
     @property
     def param_dict(self):

@@ -26,8 +26,9 @@ import numpy as np
 import awebox as awe
 import casadi as cas
 import copy
-import logging
+from awebox.logger.logger import Logger as awelogger
 import pickle
+import pdb
 
 import awebox.tools.struct_operations as struct_op
 
@@ -66,21 +67,8 @@ def build_options_tree(options_tree, options, help_options):
 
     return options, help_options
 
-def build_options_dict(options, help_options, architecture):
+def build_model_options(options, help_options, user_options, options_tree, architecture):
 
-    # single out user options
-    user_options = options['user_options']
-
-    # check for unsupported settings
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        logging.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
-
-    # initialize additional options tree
-    options_tree = []
-
-    options_tree = share_trajectory_type(options, options_tree)
-
-    ## kite model
     ### geometry
     geometry = load_kite_geometry(options['user_options']['kite_standard'])
     geometry = build_geometry(options['model']['geometry']['overwrite'], geometry)
@@ -91,32 +79,21 @@ def build_options_dict(options, help_options, architecture):
             dict_type = 'model'
         options_tree.append((dict_type, 'geometry', None, name,geometry[name], ('???', None),'x'))
 
-    ### switch off phase fixing for landing/transition trajectories
-    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        phase_fix = False
-    else:
-        phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
-
-    ### control surfaces
-    coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-    coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+    ### system bounds
     if int(user_options['system_model']['kite_dof']) == 3:
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
+    elif int(user_options['system_model']['kite_dof']) == 6:
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
-
         options_tree.append(('model', 'system_bounds', 'xd', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
+    else:
+        raise ValueError('Invalid kite DOF chosen.')
+
 
     options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
-    battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
-    for name in list(battery_model_parameters.keys()):
-        if options['formulation']['compromised_landing']['battery'][name] is None:
-            options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
     ## orientation
     options_tree.append(('model', None, None, 'kite_dof', user_options['system_model']['kite_dof'],('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
@@ -124,6 +101,9 @@ def build_options_dict(options, help_options, architecture):
 
     ## system outputs
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
+
+    ## cross-tether
+    options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
 
     ## aerodynamics
     options_tree = share_aerodynamics_options(options, options_tree, help_options)
@@ -151,12 +131,10 @@ def build_options_dict(options, help_options, architecture):
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
 
-    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
-        options['solver']['initialization']['fix_tether_length'] = True
-
-    if architecture.number_of_kites == 1:
+    if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
 
+    # model equality constraints
     options_tree.append(('model', 'model_constr', None, 'include', False, None,'x'))
 
     # map single tether power interval constraint to min and max constraint
@@ -193,7 +171,7 @@ def build_options_dict(options, help_options, architecture):
 
             else:
                 tether_constraint_includes['stress'] += [node]
-    
+
     else:
         if options['model']['model_bounds']['tether_stress']['include']:
             tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
@@ -207,24 +185,23 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('model', 'model_bounds', 'airspeed_max', 'include', True,   ('include max airspeed constraint', None),'x'))
         options_tree.append(('model', 'model_bounds', 'airspeed_min', 'include', True,   ('include min airspeed constraint', None),'x'))
 
-    ### system bounds
-    if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
-        # options_tree.append(('model', 'system_bounds','xd','coeff',[coeff_min, coeff_max],('roll-control bounds',None),'x'))
-    else:
-        delta_max = geometry['delta_max']
-        ddelta_max = geometry['ddelta_max']
-
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
 
-    if options['model']['tether']['control_var'] == 'ddl_t':
-        options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-    elif options['model']['tether']['control_var'] == 'dddl_t':
-        options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-        options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+    if user_options['trajectory']['system_type'] == 'drag_mode':
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
     else:
-        raise ValueError('invalid tether control variable chosen')
+        if options['model']['tether']['control_var'] == 'ddl_t':
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+        elif options['model']['tether']['control_var'] == 'dddl_t':
+            options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+        else:
+            raise ValueError('invalid tether control variable chosen')
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
@@ -260,9 +237,8 @@ def build_options_dict(options, help_options, architecture):
 
     lambda_scaling_overwrite = options['model']['scaling_overwrite']['xa']['lambda']
     e_scaling_overwrite = options['model']['scaling_overwrite']['xd']['e']
-    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
 
-    [lambda_scaling, energy_scaling, power_cost] = get_suggested_lambda_energy_power_scaling(options, architecture)
+    lambda_scaling, energy_scaling, _ = get_suggested_lambda_energy_power_scaling(options, architecture)
 
     if not lambda_scaling_overwrite == None:
         lambda_scaling = lambda_scaling_overwrite
@@ -270,32 +246,33 @@ def build_options_dict(options, help_options, architecture):
     if not e_scaling_overwrite == None:
         energy_scaling = e_scaling_overwrite
 
-    if not power_cost_overwrite == None:
-        power_cost = power_cost_overwrite
-
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
     else:
         options_tree.append(('model', 'scaling', 'xa', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'xd', 'e', energy_scaling, ('scaling of the energy', None),'x'))
-    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
+    return options_tree, fixed_params
 
-    ## numerics
-    ### nlp
+def build_nlp_options(options, help_options, user_options, options_tree, architecture):
+
+    ### switch off phase fixing for landing/transition trajectories
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
+        phase_fix = False
+    else:
+        if user_options['trajectory']['system_type'] == 'lift_mode':
+            phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
+        else:
+            phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
     n_k = options['nlp']['n_k']
-    d = options['nlp']['collocation']['d']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'regularisation',       n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
 
-    # options_tree.append(('nlp', 'cost', 'normalization', 'power',                1.,                    ('power cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 't_f',                  1.,                    ('t_f cost normalization', None),'x'))
-    # options_tree.append(('nlp', 'cost', 'normalization', 'theta',                1.,                    ('theta cost normalization', None),'x'))
     options_tree.append(('nlp', 'landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
@@ -319,7 +296,6 @@ def build_options_dict(options, help_options, architecture):
     elif options['nlp']['integrator']['type'] in ['idas', 'rk4root']:
         options_tree.append(('nlp', 'integrator', None, 'jit', options['nlp']['integrator']['jit_idas'],  ('jit integrator', (True, False)),'x'))
 
-
     if options['nlp']['integrator']['num_steps_overwrite'] is not None:
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_overwrite'],  ('number of internal integrator steps', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'collocation':
@@ -329,7 +305,11 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('nlp', 'parallelization', None, 'include', parallelize,  ('parallelize functions in nlp', (True, False)),'x'))
 
-    ### solver
+
+    return options_tree, phase_fix
+
+def build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix):
+
     if user_options['trajectory']['type'] in ['nominal_landing','compromised_landing']:
         options_tree.append(('solver', 'cost', 'ddq_regularisation', 0,       1e-1,        ('starting cost for ddq_regularisation', None),'x'))
         options_tree.append(('solver', None, None, 'mu_hippo',       1e-5,        ('target for interior point homotop parameter for hippo strategy [float]', None),'x'))
@@ -349,9 +329,13 @@ def build_options_dict(options, help_options, architecture):
     for param in list(initialization_theta.keys()):
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
-    options_tree.append(('solver', 'initialization', 'xd', 'l_t', 500.0, ('secondary tether natural length [m]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
 
+    ## cross-tether
+    options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
+    options_tree.append(('solver', 'initialization', None, 'cross_tether_attachment', options['model']['tether']['cross_tether']['attachment'], ('cross-tether attachment',[True,False]),'x'))
+    rotation_bounds = options['params']['model_bounds']['rot_angles'][0]
+    options_tree.append(('solver', 'initialization', None, 'rotation_bounds', np.pi/2-rotation_bounds, ('enable cross-tether',[True,False]),'x'))
 
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
@@ -373,10 +357,15 @@ def build_options_dict(options, help_options, architecture):
 
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * gravity
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
-    options_tree.append(('solver', 'initialization',  None, 'windings', user_options['trajectory']['lift_mode']['windings'], ('number of windings [int]', None),'x'))
+    if user_options['trajectory']['system_type'] == 'drag_mode':
+        windings = 1
+    else:
+        windings = user_options['trajectory']['lift_mode']['windings']
+
+    options_tree.append(('solver', 'initialization',  None, 'windings', windings, ('number of windings [int]', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
@@ -387,12 +376,55 @@ def build_options_dict(options, help_options, architecture):
         options_tree.append(('solver', None, None, 'fixed_q_r_values', False,
                              ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
 
-    # formulation
+    if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
+        options['solver']['initialization']['fix_tether_length'] = True
+
+    _, _, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
+    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+    if not power_cost_overwrite == None:
+        power_cost = power_cost_overwrite
+
+    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+
+    return options_tree
+
+def build_formulation_options(options, help_options, user_options, options_tree, architecture):
+
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
+    if int(user_options['system_model']['kite_dof']) == 3:
+        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
+        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+        battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
+        for name in list(battery_model_parameters.keys()):
+            if options['formulation']['compromised_landing']['battery'][name] is None:
+                options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
+    return options_tree
+
+def build_options_dict(options, help_options, architecture):
+
+    # single out user options
+    user_options = options['user_options']
+
+    # check for unsupported settings
+    if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
+        awelogger.logger.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+
+    # initialize additional options tree
+    options_tree = []
+
+    options_tree = share_trajectory_type(options, options_tree)
+
+    options_tree, fixed_params = build_model_options(options, help_options, user_options, options_tree, architecture)
+    options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
+    options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
+
+    # BUILD OPTIONS
     options, help_options = build_options_tree(options_tree, options, help_options)
     options, help_options = build_system_parameter_dict(options, help_options)
 
@@ -451,7 +483,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     kite_poss = ['ampyx', 'boeing747', 'bubble']
     induction_poss = ['not_in_use', 'actuator']
     kite_dof_poss = [3, 6]
-    children_poss = [1, 2, 3, 4, 5]
+    children_poss = [1, 2, 3, 4, 5, 6, 7, 8]
     levels_poss = [1, 2, 3]
 
     lam_scale_dict = {}
@@ -501,7 +533,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
             power_cost = given_scaling[2]
 
     else:
-        logging.warning('Warning: no scalings match the chosen kite data. Default values are used.')
+        awelogger.logger.warning('Warning: no scalings match the chosen kite data. Default values are used.')
 
     if user_options['trajectory']['type'] == 'nominal_landing':
         power_cost = 1e-4
@@ -642,42 +674,99 @@ def share_aerodynamics_options(options, options_tree, help_options):
     ## induction
     induction_model_descript = ('model to approximate induction from wake', ['not_in_use', 'actuator'])
     options_tree.append(('model', None, None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
-    options_tree.append(('formulation', None, None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
+    options_tree.append(('formulation', 'induction', None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
     options_tree.append(('nlp', None, None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
 
     induction_steadyness = options['model']['aero']['actuator']['steadyness']
+    induction_symmetry = options['model']['aero']['actuator']['symmetry']
     options_tree.append(('solver', 'initialization', 'model', 'induction_steadyness', induction_steadyness, ('????', None), 'x')),
+
+    steadyness_comparison = options['model']['aero']['actuator']['steadyness_comparison']
+    symmetry_comparison = options['model']['aero']['actuator']['symmetry_comparison']
+
+    if induction_steadyness == 'steady' and 'q' not in steadyness_comparison: 
+        steadyness_comparison += ['q']
+    if induction_steadyness == 'unsteady' and 'u' not in steadyness_comparison: 
+        steadyness_comparison += ['u']
+    if induction_symmetry == 'axisymmetric' and 'axi' not in symmetry_comparison: 
+        symmetry_comparison += ['axi']
+    if induction_symmetry == 'asymmetric' and 'asym' not in symmetry_comparison: 
+        symmetry_comparison += ['asym']
+
+    comparison_labels = []
+    for steadyness_label in steadyness_comparison: 
+        for symmetry_label in symmetry_comparison: 
+            new_label = steadyness_label + symmetry_label
+            comparison_labels += [new_label]
+
+    options_tree.append(('model', 'aero', 'actuator', 'comparison_labels', comparison_labels, ('????', None), 'x')),
+
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('solver', 'initialization', 'model', 'induction_varrho_ref', induction_varrho_ref, ('????', None), 'x')),
-    induction_correct_tilt = options['model']['aero']['actuator']['correct_tilt']
-    options_tree.append(('solver', 'initialization', 'model', 'induction_correct_tilt', induction_correct_tilt, ('????', None), 'x')),
+
+    options_tree.append(('formulation', 'induction', None, 'steadyness', induction_steadyness, ('induction steadyness', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'symmetry',   induction_symmetry, ('induction symmetry', None), 'x')),
+
+    options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
+
+
+    local_label = ''
+    if induction_steadyness == 'steady':
+        if induction_symmetry == 'axisymmetric':
+            local_label = 'qaxi'
+
+        elif induction_symmetry == 'asymmetric':
+            local_label = 'qasym'
+
+    elif induction_steadyness == 'unsteady':
+        if induction_symmetry == 'axisymmetric':
+            local_label = 'uaxi'
+
+        elif induction_symmetry == 'asymmetric':
+            local_label = 'uasym'
+
+    options_tree.append(('model', 'system_bounds', 'xl', 'chi_' + local_label, [-np.pi/2., np.pi/2.], ('chi limit', None), 'x')),
 
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
+    # options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     if induction_model_descript == 'not_in_use':
         a_ref = None
 
     options_tree.append(('model', 'aero', None, 'a_ref', a_ref, ('reference value for the induction factors. takes values between 0. and 0.4', None),'x'))
 
-    if options['model']['aero']['actuator']['steadyness'] == 'steady':
-        a_var_type = 'xl'
-    elif options['model']['aero']['actuator']['steadyness'] == 'unsteady':
-        a_var_type = 'xd'
-
+    a_var_type = 'xd'
     options_tree.append(('solver', 'initialization', a_var_type, 'a', a_ref, ('induction factor [-]', None),'x'))
-    options_tree.append(('model', 'system_bounds', a_var_type, 'a', a_range, ('induction factor bounds [-]', None),'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0.,cas.inf], ('relative radius bounds [-]', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'cosgamma', [0., 1.], ('tilt angle cosine bounds [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'fnorm', [0., cas.inf], ('normalization factor for normal vector [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'nhat', [np.array([0., -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])],   ('normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', a_var_type, 'ct', [-1., 1.], ('induction factor bounds [-]', None), 'x'))
+    options_tree.append(('model', 'system_bounds', 'xl', 'cmy', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
+    options_tree.append(('model', 'system_bounds', 'xl', 'cmz', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
+
+    options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
+    options_tree.append(
+        ('model', 'system_bounds', 'xl', 'corr', [0., cas.inf], ('square root sign bounds on glauert correction [-]', None), 'x'))
+
+    gamma_range = options['model']['aero']['actuator']['gamma_range']
+    options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
+    # options_tree.append(('model', 'system_bounds', 'xl', 'chi', [-np.pi / 2., np.pi / 2.], ('tilt angle bounds [rad]', None), 'x')),
+
+    options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
+                         ('normalization factor for normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0.1, 2.],
+                         ('normalization factor for normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0.1, 2.],
+                         ('normalization factor for normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'u_vec_length', [0.1, cas.inf],
+                         ('normalization factor for normal vector [-]', None), 'x')),
+
+    options_tree.append(('model', 'system_bounds', 'xl', 'LLinv', [-100., 100.], ('relative radius bounds [-]', None), 'x'))
 
     if options['model']['aero']['actuator']['normal_vector_model'] in ['default','tether_parallel']:
-        options_tree.append(('solver', 'initialization', None, 'fnorm', 'tether_length', ('induction factor [-]', None),'x'))
+        options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
     else:
-        options_tree.append(('solver', 'initialization', None, 'fnorm', 'unit_length', ('induction factor [-]', None),'x'))
+        options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
 
     ## tether drag
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['trivial', 'simple', 'equivalence', 'not_in_use'])
@@ -691,15 +780,19 @@ def share_trajectory_type(options, options_tree=[]):
     user_options = options['user_options']
 
     trajectory_type = user_options['trajectory']['type']
-    descript = ('type of trajectory to optimize', ['lift_mode', 'transition', 'aero_test'])
+    system_type = user_options['trajectory']['system_type']
+    descript = ('type of trajectory to optimize', ['power_cycle', 'transition', 'aero_test', 'mpc'])
 
     options_tree.append(('nlp', None, None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('solver','initialization',None,'type', trajectory_type, descript,'x'))
+    options_tree.append(('solver','initialization',None,'system_type', system_type, descript,'x'))
     options_tree.append(('model', 'trajectory', None, 'type', trajectory_type, descript,'x'))
+    options_tree.append(('model', 'trajectory', None, 'system_type', system_type, descript,'x'))
+
     options_tree.append(('formulation', 'trajectory', 'tracking', 'fix_tether_length', user_options['trajectory']['tracking']['fix_tether_length'], descript,'x'))
 
-    if trajectory_type == 'lift_mode' or trajectory_type == 'tracking':
+    if trajectory_type in ['power_cycle', 'tracking']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
             options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],

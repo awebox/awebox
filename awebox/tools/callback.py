@@ -27,13 +27,11 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 import awebox.tools.struct_operations as struct_op
-import pdb
 
 class awebox_callback(cas.Callback):
     def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
 
         if options['callback']:
-            pdb.set_trace()
             cas.Callback.__init__(self)
 
             self.nx = nx

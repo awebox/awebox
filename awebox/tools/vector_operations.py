@@ -25,7 +25,7 @@
 '''
 file to provide vector operations to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-18
+- author: rachel leuthold, jochem de schutter alu-fr 2017-19
 '''
 
 import matplotlib.pylab as plt
@@ -114,6 +114,10 @@ def angle_between(a, b):
     theta = np.arctan2(norm(cross(a, b)), dot(a, b))
 
     return theta
+
+def angle_between_resi(a, b, theta):
+    resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
+    return resi
 
 def xhat():
     return xhat_np()
@@ -222,6 +226,32 @@ def skew(vec):
                         [-b, a, 0.]])
     return vecskew
 
+def unskew(A):
+    "Unskew matrix to vector"
+    B = 0.5*np.array(
+        [
+            A[2,1]-A[1,2],
+            A[0,2]-A[2,0],
+            A[1,0]-A[0,1]
+        ]
+    )
+    return B[:,np.newaxis]
+
+def rot_op(R, A):
+    "Rotation operator as defined in Gros2013b"
+    return  unskew(cas.mtimes(R.T,A))
+
+def jacobian_dcm(expr, xd_si, var, kite, kparent):
+    """ Differentiate expression w.r.t. kite direct cosine matrix"""
+
+    dcm_si = xd_si['r{}{}'.format(kite, kparent)]
+    dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
+    jac_dcm = rot_op(
+            cas.reshape(dcm_si, (3,3)),
+            cas.reshape(cas.jacobian(expr, dcm_sc), (3,3))
+    ).T
+    return jac_dcm
+
 def upper_triangular_inclusive(matrix):
     elements = []
     for r in range(matrix.shape[0]):
@@ -235,6 +265,14 @@ def lower_triangular_exclusive(matrix):
     for r in range(matrix.shape[0]):
         for c in range(matrix.shape[1]):
             if c < r:
+                elements = cas.vertcat(elements, matrix[r, c])
+    return elements
+
+def lower_triangular_inclusive(matrix):
+    elements = []
+    for r in range(matrix.shape[0]):
+        for c in range(matrix.shape[1]):
+            if c <= r:
                 elements = cas.vertcat(elements, matrix[r, c])
     return elements
 
@@ -334,7 +372,7 @@ def estimate_1d_frequency(x, sample_step=1, dt=1.0):
 def isRotationMatrix(R):
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3, dtype=R.dtype)
+    I = np.identity(3)
     n = np.linalg.norm(I - shouldBeIdentity)
     return n < 1e-1
 

@@ -31,29 +31,43 @@ import awebox.viz.tools as tools
 import awebox.tools.struct_operations as struct_op
 
 import casadi.tools as cas
+import pdb
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
 
     time_grid_ip = plot_dict['time_grids']['ip']
     outputs = plot_dict['outputs']
+
+    if cosmetics['plot_ref']:
+        ref_time_grid_ip = plot_dict['time_grids']['ref']['ip']
+        ref_outputs = plot_dict['ref']['outputs']
+
     output_key_list = output_path.split(':')
     if len(output_key_list) == 1:
         output = outputs[output_key_list[0]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]]
     elif len(output_key_list) == 2:
         output = outputs[output_key_list[0]][output_key_list[1]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]][output_key_list[1]]
     elif len(output_key_list) == 3:
         output = outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
+        if cosmetics['plot_ref']:
+            ref_output = ref_outputs[output_key_list[0]][output_key_list[1]][output_key_list[2]]
     else:
         raise ValueError('Error: Wrong recursion depth (' + str(len(output_key_list)) + ') for output plots!' + str(output_key_list))
     recursive_output_plot(output, fig_name, time_grid_ip, fig_num)
+    if cosmetics['plot_ref']:
+        recursive_output_plot(ref_output, fig_name, ref_time_grid_ip,  plt.gcf().number , linestyle = '--')
 
     return None
 
-def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None):
+def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None, linestyle = '-'):
 
     try:
         for key in list(outputs.keys()):
-            recursive_output_plot(outputs[key], key, time_grid_ip, fig_num)
+            recursive_output_plot(outputs[key], key, time_grid_ip, fig_num, linestyle = linestyle)
     except:
         if fig_num is None:
             fig = plt.figure()
@@ -61,53 +75,133 @@ def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None):
         else:
             fig = plt.figure(fig_num)
 
-        plt.plot(time_grid_ip, outputs[0])
+        plt.plot(time_grid_ip, outputs[0], linestyle = linestyle)
         plt.title(fig_name)
 
-def plot_induction_factor_vs_tether_reel(solution_dict, cosmetics, reload_dict, fig_num):
+def plot_induction_factor_cycle(plot_dict, cosmetics, fig_name):
+    idx = 0
+    for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
+        idx += 1
+        fig_num = 1000 + idx
+        try:
+            plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, label)
+        except:
+            32.0
 
-    V_plot = solution_dict['V_final']
-    variables_dict = solution_dict['variables_dict']
-    scaling = solution_dict['scaling']
-    steadyness = solution_dict['options']['model']['aero']['actuator']['steadyness']
+def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, label):
 
-    if steadyness == 'steady':
-        var_keys = list(variables_dict['xl'].keys())
-    elif steadyness == 'unsteady':
-        var_keys = list(variables_dict['xd'].keys())
+    architecture = plot_dict['architecture']
+    colors = cosmetics['trajectory']['colors']
+    actuator_outputs = plot_dict['outputs']['actuator']
+    layers = architecture.layer_nodes
 
-    a_keys = set()
-    for var in var_keys:
-        if var[0] == 'a':
-            a_keys.add(var)
+    nrows = len(layers)
 
-    a_keys = list(a_keys)
-    num_a = len(a_keys)
+    f_vals = np.array(actuator_outputs['f1'][0])
+    f_min = np.min(f_vals)
+    f_max = np.max(f_vals)
 
-    # get tether reel values
-    dlt_vals = tools.merge_xd_values(V_plot, 'dl_t',0, reload_dict, cosmetics)[0]
+    pdb.set_trace()
 
     plt.figure(fig_num).clear()
-    fig, axes = plt.subplots(nrows=num_a, ncols=1, sharex='all', num=fig_num)
+    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
 
-    for adx in range(num_a):
-        if steadyness == 'steady':
-            a_vals = tools.merge_xa_values(V_plot,'xl', a_keys[adx],0,reload_dict,cosmetics)[0]
+    a_min = 0.
+    a_max = 0.3
 
-        elif steadyness == 'unsteady':
-            a_vals = tools.merge_xd_values(V_plot, a_keys[adx],0,reload_dict,cosmetics)[0]
+    if nrows == 1:
+        axes.set_title('induction factor (' + label + ') vs tether reel-out speed')
+    else:
+        axes[0].set_title('induction factor (' + label + ') vs tether reel-out speed')
 
-        if num_a == 1:
-            axes.plot(dlt_vals, a_vals, 'ko:')
-            axes.set_ylabel(a_keys[adx] + ' [-]')
-            axes.set_xlabel('reel-out speed [m/s]')
-            axes.set_title('induction factor vs tether reel-out speed')
+    ldx = 0
+    for layer in layers:
+
+        kites = architecture.children_map[layer]
+        kdx = 0
+        for kite in kites:
+
+            a_vals = actuator_outputs['local_a_' + label + str(kite)][0]
+
+            a_min = np.min([a_min, np.min(a_vals)])
+            a_max = np.max([a_max, np.max(a_vals)])
+
+            color_vals = colors[kdx]
+
+            if nrows == 1:
+                axes.plot(f_vals, a_vals, color_vals + 'o:')
+                axes.arrow(f_vals[0], a_vals[0], f_vals[1] - f_vals[0], a_vals[1] - a_vals[0], color=color_vals, fill=True)
+                axes.set_ylabel('local induction factor a (' + label + ') [-]')
+                axes.set_xlabel('reel-out factor [-]')
+            else:
+                axes[ldx].plot(f_vals, a_vals, color_vals + 'o:')
+                axes[ldx].arrow(f_vals[0], a_vals[0], f_vals[1] - f_vals[0], a_vals[1] - a_vals[0], color=color_vals,
+                            fill=True)
+                axes[ldx].set_ylabel('local induction factor a (' + label + ') [-]')
+                axes[ldx].set_xlabel('reel-out factor [-]')
+
+            kdx += 1
+
+        ldx += 1
+
+    if nrows == 1:
+        axes.set_autoscale_on(False)
+        axes.axis([f_min, f_max, a_min, a_max])
+    else:
+        for idx in range(nrows):
+            axes[idx].set_autoscale_on(False)
+            axes[idx].axis([f_min, f_max, a_min, a_max])
+
+
+
+def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
+
+    architecture = plot_dict['architecture']
+    actuator_outputs = plot_dict['outputs']['actuator']
+    layers = architecture.layer_nodes
+
+    nrows = len(layers)
+
+    f_vals = np.array(actuator_outputs['f1'][0])
+    f_min = np.min(f_vals)
+    f_max = np.max(f_vals)
+
+    fig_num = 2000.
+    plt.figure(fig_num).clear()
+    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
+
+    if nrows == 1:
+        axes.set_title('relative radius vs tether reel-out speed')
+        axes.set_autoscale_on(False)
+        axes.axis([f_min, f_max, 0, 15])
+
+    else:
+        axes[0].set_title('relative radius vs tether reel-out speed')
+        for idx in range(nrows):
+            axes[idx].set_autoscale_on(False)
+            axes[idx].axis([f_min, f_max, 0, 15])
+
+    ldx = 0
+    for layer in layers:
+
+        bar_varrho = np.array(actuator_outputs['bar_varrho' + str(layer)][0])
+        color_vals = 'k'
+
+        if nrows == 1:
+            axes.plot(f_vals, bar_varrho, color_vals + 'o:')
+            axes.arrow(f_vals[0], bar_varrho[0], f_vals[1] - f_vals[0], bar_varrho[1] - bar_varrho[0], color=color_vals, fill=True)
+            axes.set_ylabel('avg. relative radius [-]')
+            axes.set_xlabel('reel-out factor [-]')
         else:
-            axes[adx].plot(dlt_vals, a_vals, 'ko:')
-            axes[adx].set_ylabel(a_keys[adx] + ' [-]')
-            axes[adx].set_xlabel('reel-out speed [m/s]')
-            if adx == 0:
-                axes[adx].set_title('induction factor vs tether reel-out speed')
+            axes[ldx].plot(f_vals, bar_varrho, color_vals + 'o:')
+            axes[ldx].arrow(f_vals[0], bar_varrho[0], f_vals[1] - f_vals[0], bar_varrho[1] - bar_varrho[0], color=color_vals, fill=True)
+            axes[ldx].set_ylabel('avg. relative radius [-]')
+            axes[ldx].set_xlabel('reel-out factor [-]')
+
+        ldx += 1
+
+
+
 
 def plot_reduced_frequency(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -412,7 +506,6 @@ def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 #     outputs = solution_dict['outputs']
 #
 #     fig = plt.figure(fig_num)
-#     pdb.set_trace()
 #     selected_outputs = [('aerodynamics','alpha_deg'), ('aerodynamics','beta_deg'), ('aerodynamics','CA'), ('aerodynamics','CY'), ('aerodynamics','CN'), ('aerodynamics','CD'), ('aerodynamics','CS'), ('aerodynamics','CL'), ('aerodynamics','reynolds'), ('aerodynamics','mach'), ('aerodynamics','speed')]
 #
 #     plot_table_r = 4
@@ -701,7 +794,12 @@ def plot_constraints(plot_dict, cosmetics, fig_num, constr_type):
                     label = name+'_'+str(idx)
 
                 # plot data with label
-                axes[counter].plot(tgrid, output_vals, label = label)
+                p = axes[counter].plot(tgrid, output_vals, label = label)
+
+                if cosmetics['plot_ref']:
+                    ref_output_vals = plot_dict['ref']['outputs'][constr_name][name][idx]
+                    ref_tgrid = plot_dict['time_grids']['ref']['ip']
+                    axes[counter].plot(ref_tgrid, ref_output_vals, linestyle = '--',color = p[-1].get_color())
 
         axes[counter].plot(tgrid, np.zeros(tgrid.shape),'k--')
         axes[counter].set_ylabel(constr_name)
