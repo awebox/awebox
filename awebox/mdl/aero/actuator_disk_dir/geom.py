@@ -38,7 +38,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.actuator_disk_dir.geometry_dir.path_geom as path_based
 import awebox.mdl.aero.actuator_disk_dir.geometry_dir.multi_kite_geom as multi_kite_geom
 import awebox.mdl.aero.actuator_disk_dir.geometry_dir.n_hat_opt as n_hat_opt
-import pdb
 
 
 # switches
