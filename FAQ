@@ -1,0 +1,81 @@
+how do I warmstart from a previous run? 
+
+make sure that your previous run was saved in .dict format as "trialname.dict"
+in your run file:
+---> import pickle
+
+---> load the previous run:
+warmstart_dict = open('/home/usr/...path_to_file.../trialname.dict', "rb")
+warmstart_file = pickle.load(warmstart_dict)
+
+---> decrease the interior-point homotopy parameter 'mu', so that the hippo strategy doesn't relax mu too far away from the loaded solution:
+options['solver']['mu_hippo'] = 1.e-6
+
+---> include warmstart_file information into the trial.optimize() call:
+trial.optimize(warmstart_file = warmstart_file)
+
+
+
+how do I access a part of the solved optimization variables, such as the system parameters theta?
+
+theta = trial.optimization.V_final['theta']
+
+
+
+how do I access the solved performance metric, like the power harvesting factor 'zeta'? 
+
+plot_dict = trial.visualization.plot_dict
+zeta = plot_dict['power_and_performance']['zeta']
+
+
+
+
+how do I get the IPOPT verbose output to print during the optimization process? 
+
+include the following into the preamble of the run file: 
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
+
+
+
+
+
+the sub-problems of the homotopy converge nicely until we get to the power problems. what should I do? 
+
+you may need to re-tune the scaling values for the tether tensions, the energy, and the power. To do this: 
+---> first, cap the number of iterations at a small value:
+options['solver']['max_iter'] = 250
+
+---> second, create a sweep over some new scaling values: 
+sweep_opts = [
+    (['model', 'scaling_overwrite', 'xa', 'lambda'], [1.e2, 1.e3, 1.e4]),
+    (['model', 'scaling_overwrite', 'xd', 'e'], [1.e3, 1.e4, 1.e5]),
+    (['solver', 'cost_overwrite', 'power', 1], [1.e-2, 1.e-1, 1.e0])
+]
+
+---> run the tuning sweep (with the same "options" that you've previously defined): 
+sweep = awe.Sweep(name = 'tuning_sweep', options = options, seed = sweep_opts)
+sweep.run()
+sweep.plot('comp_stats')
+plt.show()
+
+---> chose the sweep trial with the "best" convergence behavior, and use these values to re-set your original trial scalings: 
+lambda_scaling = 1e2
+energy_scaling = 1e3
+power_cost = 1e-1
+options['model']['scaling_overwrite']['xa']['lambda'] = lambda_scaling
+options['model']['scaling_overwrite']['xd']['e'] = energy_scaling
+options['solver']['cost_overwrite']['power'][1] = power_cost
+
+---> don't forget to un-cap the number of iterations!
+
+
+
+
+
+what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
+
+this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
+
+
