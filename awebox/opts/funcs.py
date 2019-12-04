@@ -685,7 +685,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
     steadyness_comparison = options['model']['aero']['actuator']['steadyness_comparison']
     symmetry_comparison = options['model']['aero']['actuator']['symmetry_comparison']
 
-    if induction_steadyness == 'steady' and 'q' not in steadyness_comparison: 
+    if induction_steadyness == 'quasi-steady' and 'q' not in steadyness_comparison:
         steadyness_comparison += ['q']
     if induction_steadyness == 'unsteady' and 'u' not in steadyness_comparison: 
         steadyness_comparison += ['u']
@@ -712,7 +712,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
 
 
     local_label = ''
-    if induction_steadyness == 'steady':
+    if induction_steadyness == 'quasi-steady':
         if induction_symmetry == 'axisymmetric':
             local_label = 'qaxi'
 
@@ -731,7 +731,9 @@ def share_aerodynamics_options(options, options_tree, help_options):
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
-    # options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
+
+    if induction_symmetry == 'asymmetric':
+        options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     if induction_model_descript == 'not_in_use':
         a_ref = None

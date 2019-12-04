@@ -52,13 +52,10 @@ def get_a_var(model_options, variables, parent, label):
     return a_var
 
 def get_acos_var(model_options, variables, parent, label):
-    steadyness = model_options['aero']['actuator']['steadyness']
     acos_var = variables['xd']['acos_' + label + str(parent)]
     return acos_var
 
 def get_asin_var(model_options, variables, parent, label):
-
-    steadyness = model_options['aero']['actuator']['steadyness']
     asin_var = variables['xd']['asin_' + label + str(parent)]
     return asin_var
 
@@ -563,7 +560,7 @@ def get_label(model_options):
     steadyness = model_options['aero']['actuator']['steadyness']
     symmetry = model_options['aero']['actuator']['symmetry']
 
-    if steadyness == 'steady':
+    if steadyness == 'quasi-steady':
         if symmetry == 'axisymmetric':
             label = 'qaxi'
 

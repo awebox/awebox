@@ -1,4 +1,4 @@
-how do I warmstart from a previous run? 
+1. how do I warmstart from a previous run?
 
 make sure that your previous run was saved in .dict format as "trialname.dict"
 in your run file:
@@ -15,33 +15,25 @@ options['solver']['mu_hippo'] = 1.e-6
 trial.optimize(warmstart_file = warmstart_file)
 
 
-
-how do I access a part of the solved optimization variables, such as the system parameters theta?
+2. how do I access a part of the solved optimization variables, such as the system parameters theta?
 
 theta = trial.optimization.V_final['theta']
 
 
-
-how do I access the solved performance metric, like the power harvesting factor 'zeta'? 
+3. how do I access the solved performance metric, like the power harvesting factor 'zeta'?
 
 plot_dict = trial.visualization.plot_dict
 zeta = plot_dict['power_and_performance']['zeta']
 
 
-
-
-how do I get the IPOPT verbose output to print during the optimization process? 
+4. how do I get the IPOPT verbose output to print during the optimization process?
 
 include the following into the preamble of the run file: 
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
 
 
-
-
-
-
-the sub-problems of the homotopy converge nicely until we get to the power problems. what should I do? 
+5. the sub-problems of the homotopy converge nicely until we get to the power problems. what should I do?
 
 you may need to re-tune the scaling values for the tether tensions, the energy, and the power. To do this: 
 ---> first, cap the number of iterations at a small value:
@@ -71,11 +63,6 @@ options['solver']['cost_overwrite']['power'][1] = power_cost
 ---> don't forget to un-cap the number of iterations!
 
 
-
-
-
-what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
+6. what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
 
 this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
-
-
