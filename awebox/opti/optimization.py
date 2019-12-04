@@ -47,7 +47,6 @@ from awebox.logger.logger import Logger as awelogger
 import time
 
 import pickle
-import pdb
 
 class Optimization(object):
     def __init__(self):

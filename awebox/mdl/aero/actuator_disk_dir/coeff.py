@@ -47,6 +47,7 @@ def get_ct_var(model_options, variables, parent):
     return ct_var
 
 def get_dct_var(variables, parent):
+
     dct_var = variables['xd']['dct' + str(parent)]
     return dct_var
 

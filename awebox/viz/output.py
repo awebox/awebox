@@ -28,8 +28,6 @@ import matplotlib.ticker as mtick
 import matplotlib.pyplot as plt
 import awebox.viz.tools as tools
 
-import awebox.tools.struct_operations as struct_op
-
 import casadi.tools as cas
 import pdb
 

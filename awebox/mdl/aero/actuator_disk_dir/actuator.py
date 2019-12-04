@@ -34,7 +34,6 @@ _python-3.5 / casadi-3.4.5
 import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 from . import geom as geom
 from . import flow as flow
@@ -63,7 +62,7 @@ def get_trivial_residual(model_options, atmos, wind, variables, parameters, outp
             if label in ['qasym', 'uasym']:
                 LL_resi = coeff.get_LL_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, LL_resi)
-    
+
                 c_tilde_resi = coeff.get_c_tilde_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, c_tilde_resi)
 

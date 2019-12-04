@@ -101,7 +101,7 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
     plt.suptitle(fig_name)
 
     # set equal aspect ratio for a trajectory plots
-    if side != 'isometric':
+    if side not in ['isometric', 'quad']:
         for ax in fig.axes:
             ax.set_aspect('equal')
 

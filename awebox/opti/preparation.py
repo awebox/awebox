@@ -41,7 +41,6 @@ import copy
 import casadi as cas
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def initialize_arg(nlp, formulation, model, options):
 

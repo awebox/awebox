@@ -31,7 +31,6 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
-import pdb
 
 def get_naca_airfoil_coordinates(s, m, p, t):
 

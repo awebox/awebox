@@ -279,7 +279,6 @@ class Trial(object):
 
         return None
 
-
     def generate_optimal_model(self, param_options = None):
         return trial_funcs.generate_optimal_model(self, param_options= param_options)
 

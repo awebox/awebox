@@ -43,7 +43,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 def get_operation_conditions(options):
