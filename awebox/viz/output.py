@@ -77,14 +77,80 @@ def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None, lines
         plt.title(fig_name)
 
 def plot_induction_factor_cycle(plot_dict, cosmetics, fig_name):
+    actuator_outputs = plot_dict['outputs']['actuator']
+    architecture = plot_dict['architecture']
+    layers = architecture.layer_nodes
+    layer_test = layers[0]
+
+    kites = architecture.children_map[layer_test]
+    kite_test = kites[0]
+
     idx = 0
+    comparison_labels = []
     for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
-        idx += 1
-        fig_num = 1000 + idx
-        try:
-            plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, label)
-        except:
-            32.0
+        test_name = 'local_a_' + label + str(kite_test)
+        if test_name in actuator_outputs.keys():
+            idx += 1
+            comparison_labels += [label]
+            plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1000 + idx, label)
+
+    plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1500, comparison_labels)
+    plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1600, comparison_labels)
+
+def set_a_max_and_min(a_vals, a_max, a_min):
+
+    a_min = np.min([a_min, np.min(a_vals)])
+    a_max = np.max([a_max, np.max(a_vals)])
+
+    return a_max, a_min
+
+def make_layer_plot_in_fig(layers, fig_num):
+    nrows = len(layers)
+    plt.figure(fig_num).clear()
+    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
+    return fig, axes, nrows
+
+def set_layer_plot_titles(axes, nrows, title):
+    if nrows == 1:
+        axes.set_title(title)
+    else:
+        axes[0].set_title(title)
+    return axes
+
+def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
+    if nrows == 1:
+        axes.set_ylabel(ylabel)
+        axes.set_xlabel(xlabel)
+    else:
+        axes[ldx].set_ylabel(ylabel)
+        axes[ldx].set_xlabel(xlabel)
+    return axes
+
+def set_layer_plot_legend(axes, nrows, ldx = 0):
+    if nrows == 1:
+        axes.legend()
+    else:
+        axes[ldx].legend()
+    return axes
+
+def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
+    if nrows == 1:
+        axes.set_autoscale_on(False)
+        axes.axis([x_min, x_max, y_min, y_max])
+    else:
+        for idx in range(nrows):
+            axes[idx].set_autoscale_on(False)
+            axes[idx].axis([x_min, x_max, y_min, y_max])
+    return axes
+
+def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
+    if nrows == 1:
+        axes.plot([tau, tau], [y_min, y_max], 'k--')
+    else:
+        for idx in range(nrows):
+            axes[idx].plot([tau, tau], [y_min, y_max], 'k--')
+    return axes
+
 
 def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, label):
 
@@ -93,24 +159,16 @@ def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num
     actuator_outputs = plot_dict['outputs']['actuator']
     layers = architecture.layer_nodes
 
-    nrows = len(layers)
-
     f_vals = np.array(actuator_outputs['f1'][0])
     f_min = np.min(f_vals)
     f_max = np.max(f_vals)
 
-    pdb.set_trace()
-
-    plt.figure(fig_num).clear()
-    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
-
     a_min = 0.
-    a_max = 0.3
+    a_max = 0.1
 
-    if nrows == 1:
-        axes.set_title('induction factor (' + label + ') vs tether reel-out speed')
-    else:
-        axes[0].set_title('induction factor (' + label + ') vs tether reel-out speed')
+    fig, axes, nrows = make_layer_plot_in_fig(layers, fig_num)
+    title = 'induction factor (' + label + ') vs tether reel-out speed'
+    axes = set_layer_plot_titles(axes, nrows, title)
 
     ldx = 0
     for layer in layers:
@@ -120,36 +178,133 @@ def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num
         for kite in kites:
 
             a_vals = actuator_outputs['local_a_' + label + str(kite)][0]
-
-            a_min = np.min([a_min, np.min(a_vals)])
-            a_max = np.max([a_max, np.max(a_vals)])
+            a_max, a_min = set_a_max_and_min(a_vals, a_max, a_min)
 
             color_vals = colors[kdx]
 
             if nrows == 1:
                 axes.plot(f_vals, a_vals, color_vals + 'o:')
                 axes.arrow(f_vals[0], a_vals[0], f_vals[1] - f_vals[0], a_vals[1] - a_vals[0], color=color_vals, fill=True)
-                axes.set_ylabel('local induction factor a (' + label + ') [-]')
-                axes.set_xlabel('reel-out factor [-]')
             else:
                 axes[ldx].plot(f_vals, a_vals, color_vals + 'o:')
                 axes[ldx].arrow(f_vals[0], a_vals[0], f_vals[1] - f_vals[0], a_vals[1] - a_vals[0], color=color_vals,
                             fill=True)
-                axes[ldx].set_ylabel('local induction factor a (' + label + ') [-]')
-                axes[ldx].set_xlabel('reel-out factor [-]')
 
             kdx += 1
 
+        xlabel = 'reel-out factor [-]'
+        ylabel = 'local induction factor a (' + label + ') [-]'
+        axes = set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+
         ldx += 1
 
-    if nrows == 1:
-        axes.set_autoscale_on(False)
-        axes.axis([f_min, f_max, a_min, a_max])
-    else:
-        for idx in range(nrows):
-            axes[idx].set_autoscale_on(False)
-            axes[idx].axis([f_min, f_max, a_min, a_max])
+    axes = set_layer_plot_scale(axes, nrows, f_min, f_max, a_min, a_max)
 
+def get_nondim_time_and_switch(plot_dict):
+    actuator_outputs = plot_dict['outputs']['actuator']
+
+    time_dim = np.array(plot_dict['time_grids']['ip'])
+    t_f = time_dim[-1]
+    time_nondim = time_dim / t_f
+
+    f1 = np.array(actuator_outputs['f1'][0][1:-1])
+    f1_sq = f1**2.
+    switch_index = np.argmin(f1_sq) + 1
+    tau = time_nondim[switch_index]
+
+    return time_nondim, tau
+
+def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+
+    architecture = plot_dict['architecture']
+    colors = cosmetics['trajectory']['colors']
+    actuator_outputs = plot_dict['outputs']['actuator']
+    layers = architecture.layer_nodes
+
+    time_nondim, tau = get_nondim_time_and_switch(plot_dict)
+
+    fig, axes, nrows = make_layer_plot_in_fig(layers, fig_num)
+    title = 'avg. induction factor by model and non-dimensional time'
+    axes = set_layer_plot_titles(axes, nrows, title)
+
+    a_min = 0.
+    a_max = 0.1
+
+    ldx = 0
+    for layer in layers:
+
+        kdx = 0
+        for label in comparison_labels:
+
+            a_vals = actuator_outputs['a0_' + label + str(layer)][0]
+            a_max, a_min = set_a_max_and_min(a_vals, a_max, a_min)
+
+            color_vals = colors[kdx]
+
+            if nrows == 1:
+                line, = axes.plot(time_nondim, a_vals, color_vals + '-', label=label)
+
+            else:
+                line, = axes[ldx].plot(time_nondim, a_vals, color_vals + '-', label=label)
+
+            kdx += 1
+
+        xlabel = 'non-dimensional time $t/t_f$ [-]'
+        ylabel = 'avg. induction factor $a_0$ [-]'
+        axes = set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+        axes = set_layer_plot_legend(axes, nrows, ldx)
+
+        ldx += 1
+
+    axes = set_layer_plot_scale(axes, nrows, 0., 1., a_min, a_max)
+    axes = add_switching_time_epigraph(axes, nrows, tau, a_min, a_max)
+
+
+def plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+
+    architecture = plot_dict['architecture']
+    colors = cosmetics['trajectory']['colors']
+    actuator_outputs = plot_dict['outputs']['actuator']
+    layers = architecture.layer_nodes
+
+    fig, axes, nrows = make_layer_plot_in_fig(layers, fig_num)
+    title = 'avg. induction factor by model and non-dimensional time'
+    axes = set_layer_plot_titles(axes, nrows, title)
+
+    f_vals = np.array(actuator_outputs['f1'][0])
+    f_min = np.min(f_vals)
+    f_max = np.max(f_vals)
+
+    a_min = 0.
+    a_max = 0.1
+
+    ldx = 0
+    for layer in layers:
+
+        kdx = 0
+        for label in comparison_labels:
+
+            a_vals = actuator_outputs['a0_' + label + str(layer)][0]
+            a_max, a_min = set_a_max_and_min(a_vals, a_max, a_min)
+
+            color_vals = colors[kdx]
+
+            if nrows == 1:
+                line, = axes.plot(f_vals, a_vals, color_vals + '-', label=label)
+
+            else:
+                line, = axes[ldx].plot(f_vals, a_vals, color_vals + '-', label=label)
+
+            kdx += 1
+
+        xlabel = 'reel-out factor [-]'
+        ylabel = 'avg. induction factor $a_0$ [-]'
+        axes = set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+        axes = set_layer_plot_legend(axes, nrows, ldx)
+
+        ldx += 1
+
+    axes = set_layer_plot_scale(axes, nrows, f_min, f_max, a_min, a_max)
 
 
 def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
@@ -158,26 +313,14 @@ def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
     actuator_outputs = plot_dict['outputs']['actuator']
     layers = architecture.layer_nodes
 
-    nrows = len(layers)
-
     f_vals = np.array(actuator_outputs['f1'][0])
     f_min = np.min(f_vals)
     f_max = np.max(f_vals)
 
     fig_num = 2000.
-    plt.figure(fig_num).clear()
-    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
-
-    if nrows == 1:
-        axes.set_title('relative radius vs tether reel-out speed')
-        axes.set_autoscale_on(False)
-        axes.axis([f_min, f_max, 0, 15])
-
-    else:
-        axes[0].set_title('relative radius vs tether reel-out speed')
-        for idx in range(nrows):
-            axes[idx].set_autoscale_on(False)
-            axes[idx].axis([f_min, f_max, 0, 15])
+    fig, axes, nrows = make_layer_plot_in_fig(layers, fig_num)
+    set_layer_plot_titles(axes, nrows, 'relative radius vs tether reel-out speed')
+    axes = set_layer_plot_scale(axes, nrows, f_min, f_max, 0., 15.)
 
     ldx = 0
     for layer in layers:
@@ -188,17 +331,15 @@ def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
         if nrows == 1:
             axes.plot(f_vals, bar_varrho, color_vals + 'o:')
             axes.arrow(f_vals[0], bar_varrho[0], f_vals[1] - f_vals[0], bar_varrho[1] - bar_varrho[0], color=color_vals, fill=True)
-            axes.set_ylabel('avg. relative radius [-]')
-            axes.set_xlabel('reel-out factor [-]')
         else:
             axes[ldx].plot(f_vals, bar_varrho, color_vals + 'o:')
             axes[ldx].arrow(f_vals[0], bar_varrho[0], f_vals[1] - f_vals[0], bar_varrho[1] - bar_varrho[0], color=color_vals, fill=True)
-            axes[ldx].set_ylabel('avg. relative radius [-]')
-            axes[ldx].set_xlabel('reel-out factor [-]')
+
+        xlabel = 'reel-out factor [-]'
+        ylabel = 'avg. relative radius [-]'
+        axes = set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
 
         ldx += 1
-
-
 
 
 def plot_reduced_frequency(solution_dict, cosmetics, fig_num, reload_dict):

@@ -290,6 +290,9 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
     layer_parents = architecture.layer_nodes
     for parent in layer_parents:
 
+        for label in comparison_labels:
+            outputs['actuator']['a0_' + label + str(parent)] = flow.get_a_var(model_options, variables, parent, label)
+
         center = geom.get_center_point(model_options, parent, variables, architecture)
         velocity = geom.get_center_velocity(model_options, parent, variables, architecture)
         area = geom.get_actuator_area(model_options, parent, variables, parameters)
