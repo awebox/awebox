@@ -139,6 +139,10 @@ def construct_time_grids(nlp_numerics_options):
     if nlp_numerics_options['phase_fix']:
         tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_numerics_options['phase_fix_reelout'])
+
+        t_switch = tfsym[0] * nk_reelout / nk
+        time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
+
     else:
         tfsym = cas.SX.sym('tfsym',1)
 
@@ -185,6 +189,7 @@ def construct_time_grids(nlp_numerics_options):
     # write out interval grid
     time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
     time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
+
 
     return time_grids
 

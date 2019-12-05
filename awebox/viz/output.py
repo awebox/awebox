@@ -207,10 +207,8 @@ def get_nondim_time_and_switch(plot_dict):
     t_f = time_dim[-1]
     time_nondim = time_dim / t_f
 
-    f1 = np.array(actuator_outputs['f1'][0][1:-1])
-    f1_sq = f1**2.
-    switch_index = np.argmin(f1_sq) + 1
-    tau = time_nondim[switch_index]
+    t_switch = plot_dict['time_grids']['t_switch']
+    tau = t_switch / t_f
 
     return time_nondim, tau
 

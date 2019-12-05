@@ -31,6 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 import casadi.tools as cas
 from . import collocation
+from . import performance
 import awebox.tools.struct_operations as struct_op
 
 def get_local_tracking_function(variables, P):
@@ -189,27 +190,13 @@ def find_fictitious(nlp_numerics_options, V, P, variables):
 
     return fictitious
 
-def find_time_period(nlp_numerics_options, V):
-    nk = nlp_numerics_options['n_k']
 
-    use_phase_fix = nlp_numerics_options['phase_fix']
-    phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
 
-    if use_phase_fix:
-        time_period_zeroth = V['theta', 't_f', 0] * round(nk * phase_fix_reel_out)
-        time_period_first = V['theta', 't_f', 1] * (nk - round(nk * phase_fix_reel_out))
-
-        # average over collocation nodes
-        time_period = (time_period_zeroth + time_period_first) / nk
-    else:
-        time_period = V['theta', 't_f']
-
-    return time_period
 
 def find_time_cost(nlp_numerics_options, V, P):
 
-    time_period = find_time_period(nlp_numerics_options, V)
-    tf_init = find_time_period(nlp_numerics_options, P.prefix['p', 'ref'])
+    time_period = performance.find_time_period(nlp_numerics_options, V)
+    tf_init = performance.find_time_period(nlp_numerics_options, P.prefix['p', 'ref'])
 
     time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
 
@@ -303,7 +290,7 @@ def find_upsilon_cost(V, P):
 def find_power_cost(nlp_numerics_options, V, P, Integral_outputs):
 
     # maximization term for average power
-    time_period = find_time_period(nlp_numerics_options, V)
+    time_period = performance.find_time_period(nlp_numerics_options, V)
 
     if not nlp_numerics_options['cost']['output_quadrature']:
         average_power = V['xd', -1, 'e'] / time_period
