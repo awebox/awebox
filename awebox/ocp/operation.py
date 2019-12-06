@@ -251,7 +251,8 @@ def variable_does_not_belong_to_unselected_induction_model(name, options):
         induction_label += 'asym'
 
     remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
-    remaining_induction_labels.remove(induction_label)
+    if induction_label in remaining_induction_labels:
+        remaining_induction_labels.remove(induction_label)
 
     not_unselected = True
     for label in remaining_induction_labels:
