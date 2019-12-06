@@ -234,24 +234,20 @@ def get_chi_residual(model_options, parent, variables, label):
 
     chi_var = get_chi_var(variables, parent, label)
     f_chi = chi_var - chi_val
-
-    tanhalfchi_var = get_tanhalfchi_var(variables, parent, label)
-    f_tan = tanhalfchi_var - np.tan(chi_var / 2.)
-
-    sechalfchi_var = get_sechalfchi_var(variables, parent, label)
-    f_sec = sechalfchi_var * np.cos(chi_var / 2.) - 1.
-
-    resi = cas.vertcat(f_chi, f_tan, f_sec)
-    return resi
+    return f_chi
 
 
 
 def get_chi_trivial(model_options, parent, variables, label):
-
     chi_val = 0.
-
     chi_var = get_chi_var(variables, parent, label)
     f_chi = chi_var - chi_val
+    return f_chi
+
+
+def get_chi_trig_residual(model_options, parent, variables, label):
+
+    chi_var = get_chi_var(variables, parent, label)
 
     tanhalfchi_var = get_tanhalfchi_var(variables, parent, label)
     f_tan = tanhalfchi_var - np.tan(chi_var / 2.)
@@ -259,9 +255,8 @@ def get_chi_trivial(model_options, parent, variables, label):
     sechalfchi_var = get_sechalfchi_var(variables, parent, label)
     f_sec = sechalfchi_var * np.cos(chi_var / 2.) - 1.
 
-    resi = cas.vertcat(f_chi, f_tan, f_sec)
+    resi = cas.vertcat(f_tan, f_sec)
     return resi
-
 
 def get_uzero_matr_ortho_residual(model_options, parent, variables, parameters, architecture):
 

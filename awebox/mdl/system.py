@@ -206,8 +206,8 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
     induction_model = options['induction_model']
     comparison_labels = options['aero']['actuator']['comparison_labels']
 
-    any_asym = ('qasym' in comparison_labels) or ('uasym' in comparison_labels)
-    any_unsteady = ('uaxi' in comparison_labels) or ('uasym' in comparison_labels)
+    any_asym = any('asym' in label for label in comparison_labels)
+    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
 
     # induction factor
     if not (induction_model in set(['not_in_use'])):
@@ -225,23 +225,26 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
             for label in comparison_labels:
                  system_states.extend([('a_' + label + str(layer_node), (1, 1))])
                  system_states.extend([('da_' + label + str(layer_node), (1, 1))])
-                 system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-                 system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-                 system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-                 system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
                  system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
-                 system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
-                 system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
                  system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
-                 system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
-                 system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
+
+                 if any_asym:
+                     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                     system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+                     system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+                     system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+                     system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
+                     system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
+                     system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
+                     system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
 
             system_states.extend([('ct' + str(layer_node), (1, 1))])
             system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
             system_lifted.extend([('t_star' + str(layer_node), (1, 1))])
 
-            system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
-            system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
+            if any_asym:
+                system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
+                system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
 
             system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
             system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])

@@ -45,6 +45,8 @@ def get_trivial_residual(model_options, atmos, wind, variables, parameters, outp
 
     all_residuals = []
     comparison_labels = model_options['aero']['actuator']['comparison_labels']
+    any_asym = any('asym' in label for label in comparison_labels)
+    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
 
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
@@ -59,15 +61,19 @@ def get_trivial_residual(model_options, atmos, wind, variables, parameters, outp
             chi_resi = flow.get_chi_trivial(model_options, parent, variables, label)
             all_residuals = cas.vertcat(all_residuals, chi_resi)
 
-            if label in ['qasym', 'uasym']:
+            if any_asym and label in ['qasym', 'uasym']:
+                chi_trig_resi = flow.get_chi_trig_residual(model_options, parent, variables, label)
+                all_residuals = cas.vertcat(all_residuals, chi_trig_resi)
+
                 LL_resi = coeff.get_LL_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, LL_resi)
 
                 c_tilde_resi = coeff.get_c_tilde_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, c_tilde_resi)
 
-        moments_trivial = coeff.get_moments_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, moments_trivial)
+        if any_asym:
+            moments_trivial = coeff.get_moments_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+            all_residuals = cas.vertcat(all_residuals, moments_trivial)
 
         thrust_trivial = coeff.get_thrust_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
         all_residuals = cas.vertcat(all_residuals, thrust_trivial)
@@ -108,6 +114,8 @@ def get_final_residual(model_options, atmos, wind, variables, parameters, output
 
     all_residuals = []
     comparison_labels = model_options['aero']['actuator']['comparison_labels']
+    any_asym = any('asym' in label for label in comparison_labels)
+    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
 
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
@@ -122,15 +130,19 @@ def get_final_residual(model_options, atmos, wind, variables, parameters, output
             chi_resi = flow.get_chi_residual(model_options, parent, variables, label)
             all_residuals = cas.vertcat(all_residuals, chi_resi)
 
-            if label in ['qasym', 'uasym']:
+            if any_asym and label in ['qasym', 'uasym']:
+                chi_trig_resi = flow.get_chi_trig_residual(model_options, parent, variables, label)
+                all_residuals = cas.vertcat(all_residuals, chi_trig_resi)
+
                 LL_resi = coeff.get_LL_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, LL_resi)
 
                 c_tilde_resi = coeff.get_c_tilde_residual(model_options, variables, parent, label)
                 all_residuals = cas.vertcat(all_residuals, c_tilde_resi)
 
-        moments_final = coeff.get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, moments_final)
+        if any_asym:
+            moments_final = coeff.get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+            all_residuals = cas.vertcat(all_residuals, moments_final)
 
         thrust_final = coeff.get_thrust_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
         all_residuals = cas.vertcat(all_residuals, thrust_final)
