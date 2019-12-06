@@ -90,6 +90,7 @@ def plot_induction_factor(plot_dict, cosmetics, fig_name):
     plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1500, comparison_labels)
     plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1600, comparison_labels)
 
+
 def plot_relative_radius(plot_dict, cosmetics, fig_name):
     plot_relative_radius_with_time(plot_dict, cosmetics, fig_name)
     plot_relative_radius_cycle(plot_dict, cosmetics, fig_name)
@@ -117,15 +118,13 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
     else:
         awelogger.logger.error('model not yet implemented.')
 
-
-
     fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
     title = y_var_name + ' by model and ' + x_var_name
     axes = tools.set_layer_plot_titles(axes, nrows, title)
 
     x_min = np.min(x_vals)
     x_max = np.max(x_vals)
-    y_min = 0.
+    y_min = 10.
     y_max = 0.
 
     ldx = 0
@@ -148,7 +147,7 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
                         y_vals = actuator_outputs[y_var_sym + label + str(layer)][0]
                         line_label = label
                 except:
-                    pdb.set_trace()
+                    awelogger.logger.error('requested actuator output does not exist.')
 
                 y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
 
@@ -173,77 +172,14 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
         axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
 
 
-
-def plot_time_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
-
-    architecture = plot_dict['architecture']
-    colors = cosmetics['trajectory']['colors']
-    actuator_outputs = plot_dict['outputs']['actuator']
-    layers = architecture.layer_nodes
-
-    fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
-    title = y_var_name + ' by model and non-dim. time'
-    axes = tools.set_layer_plot_titles(axes, nrows, title)
-
-    t_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
-    t_min = np.min(t_vals)
-    t_max = np.max(t_vals)
-
-    y_min = 0.
-    y_max = 0.
-
-    ldx = 0
-    for layer in layers:
-
-        kdx = 0
-
-        kites = architecture.children_map[layer]
-        if not y_is_per_kite:
-            kites = [kites[0]]
-
-        for kite in kites:
-            for label in comparison_labels:
-
-                try:
-                    if y_is_per_kite:
-                        y_vals = actuator_outputs[y_var_sym + label + str(kite)][0]
-                        line_label = 'kite ' + str(kite) +', ' + label
-                    else:
-                        y_vals = actuator_outputs[y_var_sym + label + str(layer)][0]
-                        line_label = label
-                except:
-                    pdb.set_trace()
-
-
-                y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
-
-                color_vals = colors[kdx]
-
-                if nrows == 1:
-                    line, = axes.plot(t_vals, y_vals, color_vals + '-', label=line_label)
-                else:
-                    line, = axes[ldx].plot(t_vals, y_vals, color_vals + '-', label=line_label)
-
-                kdx += 1
-
-        xlabel = 'non-dimensional time $t/t_f$ [-]'
-        ylabel = y_var_name + ' ' + y_var_latex
-        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
-        axes = tools.set_layer_plot_legend(axes, nrows, ldx)
-
-        ldx += 1
-
-    axes = tools.set_layer_plot_scale(axes, nrows, t_min, t_max, y_min, y_max)
-    axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
-
-
 def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
     y_var_name = 'avg. induction factor'
     y_var_sym = 'a0_'
     y_var_latex = r'$a_0$ [-]'
     y_is_per_kite = False
 
-    plot_time_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
 
 def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
     y_var_name = 'avg. relative radius'
@@ -254,71 +190,7 @@ def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
     fig_num = 2100
     comparison_labels = ['']
 
-    plot_time_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
-
-
-
-def plot_cycle_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
-
-    architecture = plot_dict['architecture']
-    colors = cosmetics['trajectory']['colors']
-    actuator_outputs = plot_dict['outputs']['actuator']
-    layers = architecture.layer_nodes
-
-    fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
-    title = y_var_name + ' by model and reel-out factor'
-    axes = tools.set_layer_plot_titles(axes, nrows, title)
-
-    f_vals = np.array(actuator_outputs['f1'][0])
-    f_min = np.min(f_vals)
-    f_max = np.max(f_vals)
-
-    y_min = 0.
-    y_max = 0.
-
-    ldx = 0
-    for layer in layers:
-
-        kdx = 0
-
-        kites = architecture.children_map[layer]
-        if not y_is_per_kite:
-            kites = [kites[0]]
-
-        for kite in kites:
-            for label in comparison_labels:
-
-                try:
-                    if y_is_per_kite:
-                        y_vals = actuator_outputs[y_var_sym + label + str(kite)][0]
-                        line_label = 'kite ' + str(kite) +', ' + label
-                    else:
-                        y_vals = actuator_outputs[y_var_sym + label + str(layer)][0]
-                        line_label = label
-                except:
-                    pdb.set_trace()
-
-
-                y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
-
-                color_vals = colors[kdx]
-
-                if nrows == 1:
-                    line, = axes.plot(f_vals, y_vals, color_vals + '-', label=line_label)
-                else:
-                    line, = axes[ldx].plot(f_vals, y_vals, color_vals + '-', label=line_label)
-
-                kdx += 1
-
-        xlabel = 'reel-out factor [-]'
-        ylabel = y_var_name + ' ' + y_var_latex
-        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
-        axes = tools.set_layer_plot_legend(axes, nrows, ldx)
-
-        ldx += 1
-
-    axes = tools.set_layer_plot_scale(axes, nrows, f_min, f_max, y_min, y_max)
-
+    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 
 def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, label):
@@ -329,7 +201,7 @@ def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num
 
     comparison_labels = [label]
 
-    plot_cycle_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 
 def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
@@ -341,7 +213,8 @@ def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
     fig_num = 2000
     comparison_labels = ['']
 
-    plot_cycle_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
 
 def plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
     y_var_name = 'avg. induction factor'
@@ -349,7 +222,7 @@ def plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, com
     y_var_latex = r'$a_0$ [-]'
     y_is_per_kite = False
 
-    plot_cycle_plot(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 
 
