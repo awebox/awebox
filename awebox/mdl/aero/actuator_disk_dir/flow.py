@@ -560,7 +560,7 @@ def get_label(model_options):
     steadyness = model_options['aero']['actuator']['steadyness']
     symmetry = model_options['aero']['actuator']['symmetry']
 
-    if steadyness == 'quasi-steady':
+    if steadyness == 'quasi-steady' or steadyness == 'steady':
         if symmetry == 'axisymmetric':
             label = 'qaxi'
 

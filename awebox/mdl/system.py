@@ -206,6 +206,9 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
     induction_model = options['induction_model']
     comparison_labels = options['aero']['actuator']['comparison_labels']
 
+    any_asym = ('qasym' in comparison_labels) or ('uasym' in comparison_labels)
+    any_unsteady = ('uaxi' in comparison_labels) or ('uasym' in comparison_labels)
+
     # induction factor
     if not (induction_model in set(['not_in_use'])):
 
@@ -213,7 +216,6 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
             parent = architecture.parent_map[kite]
             system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
             system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
-
             system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
             system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
             system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])

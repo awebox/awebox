@@ -685,7 +685,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
     steadyness_comparison = options['model']['aero']['actuator']['steadyness_comparison']
     symmetry_comparison = options['model']['aero']['actuator']['symmetry_comparison']
 
-    if induction_steadyness == 'quasi-steady' and 'q' not in steadyness_comparison:
+    if (induction_steadyness == 'quasi-steady' or induction_steadyness == 'steady') and 'q' not in steadyness_comparison:
         steadyness_comparison += ['q']
     if induction_steadyness == 'unsteady' and 'u' not in steadyness_comparison: 
         steadyness_comparison += ['u']
@@ -712,7 +712,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
 
 
     local_label = ''
-    if induction_steadyness == 'quasi-steady':
+    if (induction_steadyness == 'quasi-steady' or induction_steadyness == 'steady'):
         if induction_symmetry == 'axisymmetric':
             local_label = 'qaxi'
 

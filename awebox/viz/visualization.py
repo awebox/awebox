@@ -107,7 +107,7 @@ class Visualization(object):
         # iterate over flags
         for flag in flags:
             if flag[:5] == 'comp_':
-                logging.warning('Comparison plots are only supported for sweeps. Flag "' + flag + '" ignored.')
+                awelogger.logger.warning('Comparison plots are only supported for sweeps. Flag "' + flag + '" ignored.')
             else:
                 self.__produce_plot(flag, fig_name, parametric_options['visualization']['cosmetics'], fig_num)
 
@@ -145,8 +145,8 @@ class Visualization(object):
         # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)
-        plot_logic_dict['induction_factor_cycle'] = (output.plot_induction_factor_cycle, None)
-        plot_logic_dict['relative_radius_cycle'] = (output.plot_relative_radius_cycle, None)
+        plot_logic_dict['induction_factor'] = (output.plot_induction_factor, None)
+        plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)

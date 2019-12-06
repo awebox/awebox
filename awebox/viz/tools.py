@@ -1026,3 +1026,93 @@ def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
         raise TypeError('Additional arguments for plot functions must be passed as a dict or as None.')
 
     return None
+
+
+def reconstruct_comparison_labels(plot_dict):
+    actuator_outputs = plot_dict['outputs']['actuator']
+    architecture = plot_dict['architecture']
+    layers = architecture.layer_nodes
+    layer_test = layers[0]
+
+    kites = architecture.children_map[layer_test]
+    kite_test = kites[0]
+
+    idx = 0
+    comparison_labels = []
+    for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
+        test_name = 'local_a_' + label + str(kite_test)
+        if test_name in actuator_outputs.keys():
+            idx += 1
+            comparison_labels += [label]
+
+    return comparison_labels
+
+
+def set_max_and_min(y_vals, y_max, y_min):
+
+    y_min = np.min([y_min, np.min(y_vals)])
+    y_max = np.max([y_max, np.max(y_vals)])
+
+    return y_max, y_min
+
+
+def make_layer_plot_in_fig(layers, fig_num):
+    nrows = len(layers)
+    plt.figure(fig_num).clear()
+    fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
+    return fig, axes, nrows
+
+def set_layer_plot_titles(axes, nrows, title):
+    if nrows == 1:
+        axes.set_title(title)
+    else:
+        axes[0].set_title(title)
+    return axes
+
+def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
+    if nrows == 1:
+        axes.set_ylabel(ylabel)
+        axes.set_xlabel(xlabel)
+    else:
+        axes[ldx].set_ylabel(ylabel)
+        axes[ldx].set_xlabel(xlabel)
+    return axes
+
+def set_layer_plot_legend(axes, nrows, ldx = 0):
+    if nrows == 1:
+        axes.legend()
+    else:
+        axes[ldx].legend()
+    return axes
+
+def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
+    if nrows == 1:
+        axes.set_autoscale_on(False)
+        axes.axis([x_min, x_max, y_min, y_max])
+    else:
+        for idx in range(nrows):
+            axes[idx].set_autoscale_on(False)
+            axes[idx].axis([x_min, x_max, y_min, y_max])
+    return axes
+
+def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
+    if nrows == 1:
+        axes.plot([tau, tau], [y_min, y_max], 'k--')
+    else:
+        for idx in range(nrows):
+            axes[idx].plot([tau, tau], [y_min, y_max], 'k--')
+    return axes
+
+
+
+def get_nondim_time_and_switch(plot_dict):
+    actuator_outputs = plot_dict['outputs']['actuator']
+
+    time_dim = np.array(plot_dict['time_grids']['ip'])
+    t_f = time_dim[-1]
+    time_nondim = time_dim / t_f
+
+    t_switch = plot_dict['time_grids']['t_switch']
+    tau = t_switch / t_f
+
+    return time_nondim, tau
