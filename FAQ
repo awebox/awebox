@@ -66,3 +66,9 @@ options['solver']['cost_overwrite']['power'][1] = power_cost
 6. what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
 
 this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
+
+7. how do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'n_hat_slack1'...)
+
+ V_final = trial.optimization.V_final
+ V_final['coll_var', :, :, 'xl', 'n_hat_slack1']
+

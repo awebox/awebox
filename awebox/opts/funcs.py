@@ -732,8 +732,8 @@ def share_aerodynamics_options(options, options_tree, help_options):
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
 
-    if induction_symmetry == 'asymmetric':
-        options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
+    # if induction_symmetry == 'asymmetric':
+    options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     if induction_model_descript == 'not_in_use':
         a_ref = None
@@ -742,9 +742,9 @@ def share_aerodynamics_options(options, options_tree, help_options):
 
     a_var_type = 'xd'
     options_tree.append(('solver', 'initialization', a_var_type, 'a', a_ref, ('induction factor [-]', None),'x'))
-    options_tree.append(('model', 'system_bounds', a_var_type, 'ct', [-1., 1.], ('induction factor bounds [-]', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'cmy', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'cmz', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
+    # options_tree.append(('model', 'system_bounds', a_var_type, 'ct', [-1., 1.], ('induction factor bounds [-]', None), 'x'))
+    # options_tree.append(('model', 'system_bounds', 'xl', 'cmy', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
+    # options_tree.append(('model', 'system_bounds', 'xl', 'cmz', [-100., 100.], ('induction factor bounds [-]', None), 'x'))
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
     options_tree.append(
@@ -753,6 +753,9 @@ def share_aerodynamics_options(options, options_tree, help_options):
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
     # options_tree.append(('model', 'system_bounds', 'xl', 'chi', [-np.pi / 2., np.pi / 2.], ('tilt angle bounds [rad]', None), 'x')),
+
+    n_hat_slack_range = options['model']['aero']['actuator']['n_hat_slack_range']
+    options_tree.append(('model', 'system_bounds', 'xl', 'n_hat_slack', n_hat_slack_range, ('slacks remain positive [-]', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
                          ('normalization factor for normal vector [-]', None), 'x')),

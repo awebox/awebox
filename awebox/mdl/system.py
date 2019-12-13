@@ -253,6 +253,8 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
             system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
             system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
 
+            system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+
             system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
             system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
             system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])

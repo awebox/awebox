@@ -134,6 +134,14 @@ def get_n_hat_var(variables, parent):
     n_hat = rot_matr[:, 0]
     return n_hat
 
+def get_n_hat_slack_lower(variables, parent):
+    slack = variables['xl']['n_hat_slack' + str(parent)][:3]
+    return slack
+
+def get_n_hat_slack_upper(variables, parent):
+    slack = variables['xl']['n_hat_slack' + str(parent)][3:]
+    return slack
+
 def get_y_rotor_hat_var(variables, parent):
     rot_matr = get_rot_matr_var(variables, parent)
     y_hat = rot_matr[:, 1]
@@ -279,7 +287,10 @@ def get_rot_matr_n_along_normal_residual(model_options, parent, variables, param
     n_hat_var = get_n_hat_var(variables, parent)
     n_vec_length_var = n_hat_opt.get_n_vec_length_var(variables, parent)
 
-    n_diff = n_vec_val - n_hat_var * n_vec_length_var
+    slack_lower = get_n_hat_slack_lower(variables, parent)
+    slack_upper = get_n_hat_slack_upper(variables, parent)
+
+    n_diff = n_vec_val - (n_hat_var - slack_lower + slack_upper) * n_vec_length_var
 
     n_vec_length_ref = n_hat_opt.get_n_vec_length_ref(variables, parent)
     f_n_vec = n_diff / n_vec_length_ref

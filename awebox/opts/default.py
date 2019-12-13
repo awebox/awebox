@@ -111,6 +111,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
+        ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 1.],   ('range for the normal vector slack variables', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -388,18 +389,19 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),
         ('solver',   'weights',        None,   'omega',                 1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
-        ('solver',   'weights',        None,   'r',                     10.,        ('optimization weight for all r variables [-]', None),'x'),
+        ('solver',   'weights',        None,   'r',                     1e1,        ('optimization weight for all r variables [-]', None),'x'),
         ('solver',   'weights',        None,   'delta',                 1e-10,      ('optimization weight for all delta variables [-]', None),'x'),
         ('solver',   'weights',        None,   'ddelta',                1e-10,      ('optimization weight for all ddelta variables [-]', None),'x'),
         ('solver',   'weights',        None,   'lambda',                1.,         ('optimization weight for all lambda variables [-]', None),'x'),
         ('solver',   'weights',        None,   'a',                     1e-3,       ('optimization weight for lifted variable a [-]', None),'x'),
-        ('solver',   'weights',        None,   'dkappa',                1e1,          ('optimization weight for control variable dkappa [-]', None),'s'),
+        ('solver',   'weights',        None,   'dkappa',                1e1,        ('optimization weight for control variable dkappa [-]', None),'s'),
+        ('solver',   'weights',        None,   'n_hat_slack',           1e6,        ('optimization weight for L1 n_hat_slack constraints [-]', None), 's'),
 
-        ('solver',   'weights_overwrite', None,   'dddl_t',                None,        ('optimization weight for control variable dddl_t [-]', None),'s'),
+        ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
 
-        ('solver',  'cost',             'tracking',         0,      1e-1,       ('starting cost for tracking', None),'x'),
-        ('solver',  'cost',             'regularisation',   0,      1e-4,       ('starting cost for regularisation', None),'s'),
-        ('solver',  'cost',             'ddq_regularisation', 0,    0,       ('starting cost for ddq_regularisation', None),'s'),
+        ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
+        ('solver',  'cost',             'regularisation',       0,  1e-4,       ('starting cost for regularisation', None),'s'),
+        ('solver',  'cost',             'ddq_regularisation',   0,  0,          ('starting cost for ddq_regularisation', None),'s'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'x'),
         ('solver',  'cost',             'iota',             0,      0.,         ('starting cost for iota', None),'x'),
@@ -497,16 +499,17 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', None, 'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
 
         # quality check options
-        ('quality', 'test_param', None, 'c_max', 1e0,             ('maximum invariant test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'dc_max', 1e1,             ('maximum invariant test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'ddc_max', 5e1,             ('maximum invariant test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'max_loyd_factor', 30,             ('maximum loyd factor test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'max_power_harvesting_factor', 100,             ('maximum power harvesting factor test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'max_tension', 1e6,             ('maximum max main tether tension test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'max_velocity', 100.,             ('maximum kite velocity test parameter', None), 'x'),
-        ('quality', 'test_param', None, 't_f_min', 5.,             ('minimum final time test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'power_balance_tresh', 2e-2,             ('power balance threshold test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'max_control_interval', 10.,             ('max control interval test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'dc_max', 1e1,                      ('maximum invariant test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'ddc_max', 5e1,                     ('maximum invariant test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'max_loyd_factor', 30,              ('maximum loyd factor test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'max_power_harvesting_factor', 100, ('maximum power harvesting factor test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'max_tension', 1e6,                 ('maximum max main tether tension test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'max_velocity', 100.,               ('maximum kite velocity test parameter', None), 'x'),
+        ('quality', 'test_param', None, 't_f_min', 5.,                      ('minimum final time test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'power_balance_thresh', 2e-2,       ('power balance threshold test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
+        ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
     ]
 
     default_options, help_options = funcs.build_options_tree(default_options_tree, default_user_options, help_options)

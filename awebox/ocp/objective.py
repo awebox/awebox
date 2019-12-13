@@ -32,7 +32,10 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from . import collocation
 from . import performance
+import numpy as np
 import awebox.tools.struct_operations as struct_op
+
+import pdb
 
 def get_local_tracking_function(variables, P):
     # initialization tracking
@@ -48,8 +51,9 @@ def get_local_tracking_function(variables, P):
         tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
 
     for name in set(struct_op.subkeys(variables, 'xl')):
-        difference = variables['xl', name] - P['p', 'ref', name]
-        tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
+        if not 'slack' in name:
+            difference = variables['xl', name] - P['p', 'ref', name]
+            tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
 
     tracking_fun = cas.Function('tracking_fun', [variables, P], [tracking])
 
@@ -88,7 +92,8 @@ def find_tracking(nlp_numerics_options, V, P, variables):
             if 'xl' in list(variables.keys()):
                 for name in set(struct_op.subkeys(variables, 'xl')):
                     difference = V['xl', kdx, name] - P['p', 'ref', 'xl', kdx, name]
-                    tracking += P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
+                    if not 'slack' in name:
+                        tracking += P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
 
         elif direct_collocation:
 
@@ -106,8 +111,32 @@ def find_tracking(nlp_numerics_options, V, P, variables):
                 if 'xl' in list(variables.keys()):
                     for name in set(struct_op.subkeys(variables, 'xl')):
                         difference = V['coll_var', kdx, jdx, 'xl', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xl', name]
-                        tracking += int_weights[jdx]*P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
+                        if not 'slack' in name:
+                            tracking += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
 
+    return tracking
+
+def find_slack(nlp_numerics_options, V, P, variables):
+
+    nk = nlp_numerics_options['n_k']
+    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+    tracking = 0.
+    for kdx in range(nk):
+        if multiple_shooting:
+            if 'xl' in list(variables.keys()):
+                for name in set(struct_op.subkeys(variables, 'xl')):
+                    difference = V['xl', kdx, name] - P['p', 'ref', 'xl', kdx, name]
+                    if 'slack' in name:
+                        ones = np.ones(difference.shape)
+                        tracking += P['p', 'weights', 'xl', name][0] * cas.mtimes(ones.T, difference)
+        elif direct_collocation:
+            for jdx in range(d):
+                if 'xl' in list(variables.keys()):
+                    for name in set(struct_op.subkeys(variables, 'xl')):
+                        difference = V['coll_var', kdx, jdx, 'xl', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xl', name]
+                        if 'slack' in name:
+                            ones = np.ones(difference.shape)
+                            tracking += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.mtimes(ones.T, difference)
 
     return tracking
 
@@ -205,36 +234,36 @@ def find_time_cost(nlp_numerics_options, V, P):
 def find_tracking_cost(nlp_numerics_options, V, P, variables):
     # tracking of initial guess
 
+    normalization = nlp_numerics_options['cost']['normalization']['tracking']
     tracking = find_tracking(nlp_numerics_options, V, P, variables)
-    tracking_cost = P['cost', 'tracking'] * tracking
-    tracking_cost /= nlp_numerics_options['cost']['normalization']['tracking']
+    tracking_cost = P['cost', 'tracking'] * tracking / normalization
 
     return tracking_cost
 
 def find_regularisation_cost(nlp_numerics_options, V, P, variables):
-    # regularisation of inputs
 
+    # regularisation of inputs
+    normalization = nlp_numerics_options['cost']['normalization']['regularisation']
+    slack = find_slack(nlp_numerics_options, V, P, variables)
     regularisation = find_regularisation(nlp_numerics_options, V, P, variables)
-    regularisation_cost = P['cost', 'regularisation'] * regularisation
-    regularisation_cost /= nlp_numerics_options['cost']['normalization']['regularisation']
+
+    regularisation_cost = P['cost', 'regularisation'] * (regularisation + slack) / normalization
 
     return regularisation_cost
 
 def find_ddq_regularisation_cost(nlp_numerics_options, V, P, xdot, outputs):
     # regularisation of ddq
-
+    normalization = nlp_numerics_options['cost']['normalization']['ddq_regularisation']
     ddq_regularisation = find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs)
-    ddq_regularisation_cost = P['cost', 'ddq_regularisation'] * ddq_regularisation
-    ddq_regularisation_cost /= nlp_numerics_options['cost']['normalization']['ddq_regularisation']
+    ddq_regularisation_cost = P['cost', 'ddq_regularisation'] * ddq_regularisation / normalization
 
     return ddq_regularisation_cost
 
 def find_fictitious_cost(nlp_numerics_options, V, P, variables):
     # the penalization/regularization of the fictitious forces
-
+    normalization = nlp_numerics_options['cost']['normalization']['fictitious']
     fictitious = find_fictitious(nlp_numerics_options, V, P, variables)
-    fictitious_cost = P['cost', 'fictitious'] * fictitious
-    fictitious_cost /= nlp_numerics_options['cost']['normalization']['fictitious']
+    fictitious_cost = P['cost', 'fictitious'] * fictitious / normalization
 
     return fictitious_cost
 
@@ -310,11 +339,11 @@ def find_theta_regularisation_cost(V, P):
 
 def find_transition_problem_cost(V, P, nlp_numerics_options, xdot, outputs, variables):
 
-    ddq_regularisation = find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs)
-    ddq_regularisation /= nlp_numerics_options['cost']['normalization']['ddq_regularisation']
-    regularisation = find_regularisation(nlp_numerics_options, V, P, variables)
-    regularisation /= nlp_numerics_options['cost']['normalization']['regularisation']
+    normalization_ddq = nlp_numerics_options['cost']['normalization']['ddq_regularisation']
+    ddq_regularisation = find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs) / normalization_ddq
 
+    normalization_reg = nlp_numerics_options['cost']['normalization']['regularisation']
+    regularisation = find_regularisation(nlp_numerics_options, V, P, variables) / normalization_reg
 
     transition_cost = ddq_regularisation + regularisation
     transition_cost = P['cost','transition']*transition_cost
