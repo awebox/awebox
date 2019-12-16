@@ -148,31 +148,16 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
     qkite1 = variables['xd']['q' + str(kite1) + str(parent)]
     qkite2 = variables['xd']['q' + str(kite2) + str(parent)]
 
-    x1 = qkite0[0]
-    x2 = qkite1[0]
-    x3 = qkite2[0]
+    arm1 = qkite1 - qkite0
+    arm2 = qkite2 - qkite0
 
-    y1 = qkite0[1]
-    y2 = qkite1[1]
-    y3 = qkite2[1]
+    n_vec = vect_op.cross(arm1, arm2)
 
-    z1 = qkite0[2]
-    z2 = qkite1[2]
-    z3 = qkite2[2]
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    varrho_temp = 8.
 
-    aa = (-y2 * z1 + y3 * z1 + y1 * z2 - y3 * z2 - y1 * z3 + y2 * z3)
-    bb = ( x2 * z1 - x3 * z1 - x1 * z2 + x3 * z2 + x1 * z3 - x2 * z3)
-    cc = (-x2 * y1 + x3 * y1 + x1 * y2 - x3 * y2 - x1 * y3 + x2 * y3)
-
-    n_vec_unscale = cas.vertcat(aa, bb, cc)
-
-    scale = 1.e3
-    #
-    # b_ref = parameters['theta0', 'geometry', 'b_ref']
-    # varrho_temp = 7.
-    #
-    # scale = b_ref**2. * varrho_temp**2.
-    n_vec = n_vec_unscale / scale
+    scale = b_ref**2. * varrho_temp**2.
+    n_vec = n_vec / scale
 
     return n_vec
 
