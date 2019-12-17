@@ -31,6 +31,7 @@ _python-3.5 / casadi-3.4.5
 import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.vector_operations as vect_op
 import pdb
 
 def reshape_wake_var(options, var):
@@ -40,13 +41,12 @@ def reshape_wake_var(options, var):
     var_reshape = cas.reshape(var, dimensions)
     return var_reshape
 
-def get_vector_var(options, variables, xd_xddot, sym, ext_int, kite, ndx, ddx, architecture):
+def get_vector_var(options, variables, xd_xddot, ext_int, kite, ndx, ddx, architecture):
     parent = architecture.parent_map[kite]
 
     sym = 'w'
     if xd_xddot == 'xddot':
-        sym = 'dw'
-
+        sym = 'd' + sym
 
     vect = []
     dims = ['x', 'y', 'z']
@@ -59,21 +59,12 @@ def get_vector_var(options, variables, xd_xddot, sym, ext_int, kite, ndx, ddx, a
     return vect
 
 def get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
+    pos = get_vector_var(options, variables, 'xd', ext_int, kite, ndx, ddx, architecture)
+    return pos
 
-    pos = get_vector_var(options, variables, 'xd', 'w')
-
-    local = var_reshape[ndx, ddx]
-
-    return local
-
-def get_dx_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
-
-    parent = architecture.parent_map[kite]
-    var = variables['xddot']['dwx_' + ext_int + str(kite) + str(parent)]
-    var_reshape = reshape_wake_var(options, var)
-    local = var_reshape[ndx, ddx]
-
-    return local
+def get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
+    vel = get_vector_var(options, variables, 'xddot', ext_int, kite, ndx, ddx, architecture)
+    return vel
 
 def get_convection_residual(options, variables, architecture):
     n_k = options['aero']['vortex']['n_k']
@@ -86,8 +77,8 @@ def get_convection_residual(options, variables, architecture):
         for ndx in range(n_k):
             for ddx in range(d):
                 for ext_int in ext_int_combi:
-                    dx = get_dx_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
-                    local = dx - 1.
+                    dx = get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
+                    local = dx - vect_op.xhat()
                     resi = cas.vertcat(resi, local)
 
     return resi

@@ -225,9 +225,8 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
         full_length = (n_k * d)
         for kite in architecture.kite_nodes:
             parent = architecture.parent_map[kite]
-            system_states.extend([('wx_ext' + str(kite) + str(parent), (full_length, 1))])
-            system_states.extend([('wy_ext' + str(kite) + str(parent), (full_length, 1))])
-            system_states.extend([('wz_ext' + str(kite) + str(parent), (full_length, 1))])
+            for dim in ['x', 'y', 'z']:
+                system_states.extend([('w' + dim + '_ext' + str(kite) + str(parent), (full_length, 1))])
 
     if induction_model == 'actuator':
 
