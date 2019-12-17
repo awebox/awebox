@@ -481,7 +481,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     power_cost = 1e-1
 
     kite_poss = ['ampyx', 'boeing747', 'bubble']
-    induction_poss = ['not_in_use', 'actuator']
+    induction_poss = ['not_in_use', 'actuator', 'vortex']
     kite_dof_poss = [3, 6]
     children_poss = [1, 2, 3, 4, 5, 6, 7, 8]
     levels_poss = [1, 2, 3]
@@ -772,6 +772,15 @@ def share_aerodynamics_options(options, options_tree, help_options):
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
+
+    ## vortex induction
+    n_k = options['nlp']['n_k']
+    d = options['nlp']['collocation']['d']
+    options_tree.append(('model', 'aero', 'vortex', 'n_k', n_k, ('how many nodes to track over one period: n_k', None), 'x')),
+    options_tree.append(
+        ('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
+
+
 
     ## tether drag
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['trivial', 'simple', 'equivalence', 'not_in_use'])

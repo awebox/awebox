@@ -39,16 +39,19 @@ import pdb
 
 def subkeys(casadi_struct, key):
 
-    indices = np.array(casadi_struct.f[key])
-    number_index = indices.shape[0]
+    if key in casadi_struct.keys():
+        indices = np.array(casadi_struct.f[key])
+        number_index = indices.shape[0]
 
-    subkeys = set()
-    for idx in range(number_index):
-        canonical = casadi_struct.getCanonicalIndex(indices[idx])
-        new_key = canonical[1]
-        subkeys.add(new_key)
+        subkeys = set()
+        for idx in range(number_index):
+            canonical = casadi_struct.getCanonicalIndex(indices[idx])
+            new_key = canonical[1]
+            subkeys.add(new_key)
 
-    subkey_list = sorted(subkeys)
+        subkey_list = sorted(subkeys)
+    else:
+        subkey_list = []
 
     return subkey_list
 

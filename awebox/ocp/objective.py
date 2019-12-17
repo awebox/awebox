@@ -517,6 +517,7 @@ def make_cost_function(V, P, component_costs):
     f = []
     for cost in list(component_costs.keys()):
         f = cas.vertcat(f, component_costs[cost])
+
     f = cas.sum1(f)
 
     f_fun = cas.Function('f', [V, P], [f])

@@ -29,10 +29,10 @@ dependent on the position of the kite.
 _aerodynamic coefficients are assumptions.
 _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, jochem de schutter alu-fr 2017
+- edited: rachel leuthold, jochem de schutter alu-fr 2017-2019
 '''
 
-import awebox.mdl.aero.actuator_disk_dir.actuator as actuator_disk
+import awebox.mdl.aero.induction as induction
 import awebox.mdl.aero.indicators as indicators
 
 from . import three_dof_kite
@@ -49,7 +49,8 @@ def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters,
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    if options['induction_model'] != 'not_in_use':
-        outputs = actuator_disk.collect_actuator_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+
+    if not (options['induction_model'] == 'not_in_use'):
+        outputs = induction.collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
     return outputs

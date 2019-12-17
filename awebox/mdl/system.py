@@ -33,6 +33,7 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 def generate_structure(options, architecture):
 
@@ -172,6 +173,7 @@ def generate_structure(options, architecture):
     # introduce aerodynamics variables
     [system_lifted, system_states] = extend_aerodynamics(options, system_lifted, system_states, architecture)
 
+
     # system state derivatives
     system_derivatives = []
     for i in range(len(system_states)):
@@ -210,7 +212,24 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
     any_unsteady = any(label[0] == 'u' for label in comparison_labels)
 
     # induction factor
-    if not (induction_model in set(['not_in_use'])):
+    if not (induction_model == 'not_in_use'):
+
+        for kite in architecture.kite_nodes:
+            parent = architecture.parent_map[kite]
+            system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+
+    if induction_model == 'vortex':
+
+        n_k = options['aero']['vortex']['n_k']
+        d = options['aero']['vortex']['d']
+        full_length = (n_k * d)
+        for kite in architecture.kite_nodes:
+            parent = architecture.parent_map[kite]
+            system_states.extend([('wx_ext' + str(kite) + str(parent), (full_length, 1))])
+            system_states.extend([('wy_ext' + str(kite) + str(parent), (full_length, 1))])
+            system_states.extend([('wz_ext' + str(kite) + str(parent), (full_length, 1))])
+
+    if induction_model == 'actuator':
 
         for kite in architecture.kite_nodes:
             parent = architecture.parent_map[kite]
@@ -218,7 +237,6 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
             system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
             system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
             system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
-            system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
 
         for layer_node in architecture.layer_nodes:
 

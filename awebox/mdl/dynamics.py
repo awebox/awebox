@@ -40,7 +40,7 @@ from . import system
 
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 
-import awebox.mdl.aero.actuator_disk_dir.actuator as actuator_disk
+import awebox.mdl.aero.induction as induction
 
 import awebox.mdl.aero.indicators as indicators
 
@@ -51,7 +51,7 @@ import awebox.mdl.aero.tether_dir.tether_drag_coefficients as tether_drag_coeff
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
-
+import pdb
 
 def make_dynamics(options,atmos,wind,parameters,architecture):
 
@@ -222,8 +222,8 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # induction constraint
     if options['induction_model'] != 'not_in_use':
 
-        induction_init = outputs['induction']['actuator_initial']
-        induction_final = outputs['induction']['actuator_final']
+        induction_init = outputs['induction']['induction_init']
+        induction_final = outputs['induction']['induction_final']
 
         induction_constraint = parameters['phi','iota'] * induction_init \
                             + (1.-parameters['phi','iota']) * induction_final
@@ -991,8 +991,8 @@ def actuator_disk_equations(options, atmos, wind, variables, outputs, parameters
     if 'induction' not in list(outputs.keys()):
         outputs['induction'] = {}
 
-    outputs['induction']['actuator_initial'] = actuator_disk.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-    outputs['induction']['actuator_final'] = actuator_disk.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    outputs['induction']['induction_init'] = induction.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    outputs['induction']['induction_final'] = induction.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
 
     return outputs
 

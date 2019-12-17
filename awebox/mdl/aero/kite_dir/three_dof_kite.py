@@ -36,8 +36,7 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.indicators as indicators
-
-import awebox.mdl.aero.actuator_disk_dir.flow as actuator_disk_flow
+import awebox.mdl.aero.induction as induction
 
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
     parent_map = architecture.parent_map
@@ -61,9 +60,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         uw_infty = wind.get_velocity(q[2])
 
         # apparent air velocity
-        if options['induction_model'] == 'actuator':
-            label = actuator_disk_flow.get_label(options)
-            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture, label)
+        if not (options['induction_model'] == 'not_in_use'):
+            ua = induction.get_kite_effective_velocity(options, variables, wind, n, parent)
         else:
             ua = uw_infty - dq
 

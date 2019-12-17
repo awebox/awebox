@@ -791,7 +791,6 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
             if 'psi' in name:
                 V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
-
         for name in struct_op.subkeys(model.variables, 'xl'):
 
             if name[:4] == 'area':

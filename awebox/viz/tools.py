@@ -1029,21 +1029,23 @@ def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
 
 
 def reconstruct_comparison_labels(plot_dict):
-    actuator_outputs = plot_dict['outputs']['actuator']
-    architecture = plot_dict['architecture']
-    layers = architecture.layer_nodes
-    layer_test = layers[0]
-
-    kites = architecture.children_map[layer_test]
-    kite_test = kites[0]
-
-    idx = 0
     comparison_labels = []
-    for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
-        test_name = 'local_a_' + label + str(kite_test)
-        if test_name in actuator_outputs.keys():
-            idx += 1
-            comparison_labels += [label]
+
+    if 'actuator' in plot_dict['outputs']:
+        actuator_outputs = plot_dict['outputs']['actuator']
+        architecture = plot_dict['architecture']
+        layers = architecture.layer_nodes
+        layer_test = layers[0]
+
+        kites = architecture.children_map[layer_test]
+        kite_test = kites[0]
+
+        idx = 0
+        for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
+            test_name = 'local_a_' + label + str(kite_test)
+            if test_name in actuator_outputs.keys():
+                idx += 1
+                comparison_labels += [label]
 
     return comparison_labels
 

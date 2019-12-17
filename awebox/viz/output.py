@@ -100,76 +100,77 @@ def plot_relative_radius(plot_dict, cosmetics, fig_name):
 
 def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
 
-    architecture = plot_dict['architecture']
-    colors = cosmetics['trajectory']['colors']
-    actuator_outputs = plot_dict['outputs']['actuator']
-    layers = architecture.layer_nodes
+    if 'actuator' in plot_dict['outputs'].keys():
+        architecture = plot_dict['architecture']
+        colors = cosmetics['trajectory']['colors']
+        actuator_outputs = plot_dict['outputs']['actuator']
+        layers = architecture.layer_nodes
 
-    if time_or_cycle == 'time':
-        x_var_name = 'non-dim. time'
-        x_var_latex = r'$t/t_f$ [-]'
-        x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
+        if time_or_cycle == 'time':
+            x_var_name = 'non-dim. time'
+            x_var_latex = r'$t/t_f$ [-]'
+            x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
 
-    elif time_or_cycle == 'cycle':
-        x_var_name = 'reel-out factor'
-        x_var_latex = r'$f$ [-]'
-        x_vals = np.array(actuator_outputs['f1'][0])
+        elif time_or_cycle == 'cycle':
+            x_var_name = 'reel-out factor'
+            x_var_latex = r'$f$ [-]'
+            x_vals = np.array(actuator_outputs['f1'][0])
 
-    else:
-        awelogger.logger.error('model not yet implemented.')
+        else:
+            awelogger.logger.error('model not yet implemented.')
 
-    fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
-    title = y_var_name + ' by model and ' + x_var_name
-    axes = tools.set_layer_plot_titles(axes, nrows, title)
+        fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
+        title = y_var_name + ' by model and ' + x_var_name
+        axes = tools.set_layer_plot_titles(axes, nrows, title)
 
-    x_min = np.min(x_vals)
-    x_max = np.max(x_vals)
-    y_min = 10.
-    y_max = 0.
+        x_min = np.min(x_vals)
+        x_max = np.max(x_vals)
+        y_min = 10.
+        y_max = 0.
 
-    ldx = 0
-    for layer in layers:
+        ldx = 0
+        for layer in layers:
 
-        kdx = 0
+            kdx = 0
 
-        kites = architecture.children_map[layer]
-        if not y_is_per_kite:
-            kites = [kites[0]]
+            kites = architecture.children_map[layer]
+            if not y_is_per_kite:
+                kites = [kites[0]]
 
-        for kite in kites:
-            for label in comparison_labels:
+            for kite in kites:
+                for label in comparison_labels:
 
-                try:
-                    if y_is_per_kite:
-                        y_vals = actuator_outputs[y_var_sym + label + str(kite)][0]
-                        line_label = 'kite ' + str(kite) +', ' + label
+                    try:
+                        if y_is_per_kite:
+                            y_vals = actuator_outputs[y_var_sym + label + str(kite)][0]
+                            line_label = 'kite ' + str(kite) +', ' + label
+                        else:
+                            y_vals = actuator_outputs[y_var_sym + label + str(layer)][0]
+                            line_label = label
+                    except:
+                        awelogger.logger.error('requested actuator output does not exist.')
+
+                    y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
+
+                    color_vals = colors[kdx]
+
+                    if nrows == 1:
+                        line, = axes.plot(x_vals, y_vals, color_vals + '-', label=line_label)
                     else:
-                        y_vals = actuator_outputs[y_var_sym + label + str(layer)][0]
-                        line_label = label
-                except:
-                    awelogger.logger.error('requested actuator output does not exist.')
+                        line, = axes[ldx].plot(x_vals, y_vals, color_vals + '-', label=line_label)
 
-                y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
+                    kdx += 1
 
-                color_vals = colors[kdx]
+            xlabel = x_var_name + ' ' + x_var_latex
+            ylabel = y_var_name + ' ' + y_var_latex
+            axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+            axes = tools.set_layer_plot_legend(axes, nrows, ldx)
 
-                if nrows == 1:
-                    line, = axes.plot(x_vals, y_vals, color_vals + '-', label=line_label)
-                else:
-                    line, = axes[ldx].plot(x_vals, y_vals, color_vals + '-', label=line_label)
+            ldx += 1
 
-                kdx += 1
-
-        xlabel = x_var_name + ' ' + x_var_latex
-        ylabel = y_var_name + ' ' + y_var_latex
-        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
-        axes = tools.set_layer_plot_legend(axes, nrows, ldx)
-
-        ldx += 1
-
-    axes = tools.set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max)
-    if time_or_cycle == 'time':
-        axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
+        axes = tools.set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max)
+        if time_or_cycle == 'time':
+            axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
 
 
 def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):

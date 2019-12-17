@@ -271,37 +271,39 @@ def test_power_balance(trial, test_param_dict, results):
 
 def test_slack_equalities(trial, test_param_dict, results):
 
-    V_final = trial.optimization.V_final
-    xl_vars = trial.model.variables['xl']
-    epsilon = test_param_dict['slacks_thresh']
+    if 'xl' in trial.model.variables.keys():
 
-    discretization = trial.options['nlp']['discretization']
-    if discretization == 'direct_collocation':
+        V_final = trial.optimization.V_final
+        xl_vars = trial.model.variables['xl']
+        epsilon = test_param_dict['slacks_thresh']
 
-        for idx in range(xl_vars.shape[0]):
-            var_name = str(xl_vars[idx])
+        discretization = trial.options['nlp']['discretization']
+        if discretization == 'direct_collocation':
 
-            if 'slack' in var_name:
-                slack_name = var_name[3:-2]
+            for idx in range(xl_vars.shape[0]):
+                var_name = str(xl_vars[idx])
 
-                max_val = 0.
+                if 'slack' in var_name:
+                    slack_name = var_name[3:-2]
 
-                for ndx in range(trial.nlp.n_k):
-                    for ddx in range(trial.nlp.d):
+                    max_val = 0.
 
-                        data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
-                        max_val = np.max([np.max(data), max_val])
+                    for ndx in range(trial.nlp.n_k):
+                        for ddx in range(trial.nlp.d):
 
-                if max_val < epsilon:
-                    # assume that slack equalities are satisfied
-                    results['slacks_' + var_name] = True
-                else:
-                    awelogger.logger.warning('slacked equality did not find a feasible solution. ' + var_name + ' > ' + str(test_param_dict['slacks_thresh']))
-                    # slack equalities are not satisfied
-                    results['slacks_' + var_name] = False
+                            data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
+                            max_val = np.max([np.max(data), max_val])
 
-    else:
-        awelogger.logger.warning('slack test not yet implemented for multiple-shooting solution')
+                    if max_val < epsilon:
+                        # assume that slack equalities are satisfied
+                        results['slacks_' + var_name] = True
+                    else:
+                        awelogger.logger.warning('slacked equality did not find a feasible solution. ' + var_name + ' > ' + str(test_param_dict['slacks_thresh']))
+                        # slack equalities are not satisfied
+                        results['slacks_' + var_name] = False
+
+        else:
+            awelogger.logger.warning('slack test not yet implemented for multiple-shooting solution')
 
     return results
 

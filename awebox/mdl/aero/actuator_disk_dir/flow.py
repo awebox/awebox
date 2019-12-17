@@ -472,7 +472,7 @@ def get_actuator_freestream_velocity(model_options, wind, parent, variables, arc
 
     return u_infty
 
-def get_local_induced_velocity(model_options, variables, wind, kite, parent, architecture, label):
+def get_local_induced_velocity(model_options, variables, wind, kite, parent, label):
 
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
     nhat = geom.get_n_hat_var(variables, parent)
@@ -482,18 +482,20 @@ def get_local_induced_velocity(model_options, variables, wind, kite, parent, arc
 
     return u_ind
 
-def get_kite_effective_velocity(model_options, variables, wind, kite, parent, architecture, label):
+def get_kite_effective_velocity(model_options, variables, wind, kite, parent):
+
+    label = get_label(model_options)
 
     q_kite = variables['xd']['q' + str(kite) + str(parent)]
     u_infty = wind.get_velocity(q_kite[2])
 
     u_kite = variables['xd']['dq' + str(kite) + str(parent)]
 
-    u_induced = get_local_induced_velocity(model_options, variables, wind, kite, parent, architecture, label)
+    u_induced = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
 
-    u_app_kite = u_infty - u_kite + u_induced
+    u_eff_kite = u_infty - u_kite + u_induced
 
-    return u_app_kite
+    return u_eff_kite
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
