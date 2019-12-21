@@ -32,6 +32,7 @@ import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
+import awebox.mdl.wind as wind
 import pdb
 
 def reshape_wake_var(options, var):
@@ -66,7 +67,7 @@ def get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
     vel = get_vector_var(options, variables, 'xddot', ext_int, kite, ndx, ddx, architecture)
     return vel
 
-def get_convection_residual(options, variables, architecture):
+def get_convection_residual(options, wind, variables, architecture):
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
     kite_nodes = architecture.kite_nodes
@@ -77,8 +78,13 @@ def get_convection_residual(options, variables, architecture):
         for ndx in range(n_k):
             for ddx in range(d):
                 for ext_int in ext_int_combi:
-                    dx = get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
-                    local = dx - vect_op.xhat()
+                    vel_var = get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
+                    pos_var = get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
+                    z_var = cas.mtimes(pos_var.T, vect_op.zhat())
+
+                    vel_comp = wind.get_velocity(z_var)
+
+                    local = vel_var - vel_comp
                     resi = cas.vertcat(resi, local)
 
     return resi

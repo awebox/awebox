@@ -70,7 +70,7 @@ def build_si_initial_guess(nlp, model, formulation, options):
 
     V_init = extract_time_grid(model, nlp, formulation, initialization_options, V_init, tf_init, n_d_list)
 
-    V_init = initial_guess_induction(initialization_options, nlp, formulation, model, V_init)
+    V_init = initial_guess_actuator(initialization_options, nlp, formulation, model, V_init)
 
     # specified initial values for system parameters
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
@@ -739,11 +739,9 @@ def get_aero_test_values(t, options):
 
     return l_t, dl_t, q10, dq10, r_dcm, omega
 
-def initial_guess_induction(options, nlp, formulation, model, V_init):
+def initial_guess_actuator(options, nlp, formulation, model, V_init):
 
     induction_model = options['model']['induction_model']
-    steadyness = options['model']['induction_steadyness']
-    induction_varrho_ref = options['model']['induction_varrho_ref']
 
     level_siblings = model.architecture.get_all_level_siblings()
 
@@ -756,11 +754,9 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
     omega_norm = ua_norm / radius
 
     # induction factor
-    if not (induction_model in set(['not_in_use'])):
+    if induction_model == 'actuator':
 
         var_type = 'xd'
-
-        # initialize induction factor
         for name in struct_op.subkeys(model.variables, var_type):
 
             if name[0] == 'a' and (not name[:4] == 'area') and (not name[:4] == 'asin') and (not name[:4] == 'acos'):
@@ -787,8 +783,7 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
                 init_val = 1.
                 V_init = insert_val(V_init, var_type, name, init_val)
 
-        for name in struct_op.subkeys(model.variables, 'xd'):
-            if 'psi' in name:
+            elif 'psi' in name:
                 V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
         for name in struct_op.subkeys(model.variables, 'xl'):

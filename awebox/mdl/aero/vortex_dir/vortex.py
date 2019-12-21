@@ -37,7 +37,7 @@ import pdb
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
 
-    convection_resi = geom.get_convection_residual(options, variables, architecture)
+    convection_resi = geom.get_convection_residual(options, wind, variables, architecture)
 
     resi = cas.vertcat(resi, convection_resi)
 
