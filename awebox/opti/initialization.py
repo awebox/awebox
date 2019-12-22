@@ -702,7 +702,7 @@ def get_gamma_angle(initialization_options):
     return gamma
 
 def get_chi_angle(options, var_type):
-    a = options[var_type]['a']
+    a = options['xd']['a']
     gamma = get_gamma_angle(options)
     chi = (0.6 * a + 1.) * gamma
     return chi
@@ -739,9 +739,33 @@ def get_aero_test_values(t, options):
 
     return l_t, dl_t, q10, dq10, r_dcm, omega
 
-def initial_guess_actuator(options, nlp, formulation, model, V_init):
+def initial_guess_induction(options, nlp, formulation, model, V_init):
 
     induction_model = options['model']['induction_model']
+    if induction_model == 'actuator':
+        V_init = initial_guess_actuator(options, nlp, formulation, model, V_init)
+
+    if induction_model == 'vortex':
+        V_init = initial_guess_vortex(options, nlp, formulation, model, V_init)
+
+    return V_init
+
+def initial_guess_vortex(options, nlp, formulation, model, V_init):
+
+    return V_init
+
+def initial_guess_actuator(options, nlp, formulation, model, V_init):
+
+    V_init = initial_guess_actuator_xd(options, nlp, formulation, model, V_init)
+    V_init = initial_guess_actuator_xl(options, nlp, formulation, model, V_init)
+
+    return V_init
+
+
+
+
+
+def initial_guess_actuator_xd(options, nlp, formulation, model, V_init):
 
     level_siblings = model.architecture.get_all_level_siblings()
 
@@ -753,150 +777,89 @@ def initial_guess_actuator(options, nlp, formulation, model, V_init):
     _, radius = get_cone_height_and_radius(options, model, l_t_temp)
     omega_norm = ua_norm / radius
 
-    # induction factor
-    if induction_model == 'actuator':
+    dict = {}
+    dict['a'] = cas.DM(options['xd']['a'])
+    dict['asin'] = cas.DM(0.)
+    dict['acos'] = cas.DM(0.)
+    dict['ct'] = 4. * dict['a'] * (1. - dict['a'])
+    dict['bar_varrho'] = cas.DM(1.)
 
-        var_type = 'xd'
-        for name in struct_op.subkeys(model.variables, var_type):
+    var_type = 'xd'
+    for name in struct_op.subkeys(model.variables, var_type):
+        name_stripped = struct_op.get_node_variable_name(name)
 
-            if name[0] == 'a' and (not name[:4] == 'area') and (not name[:4] == 'asin') and (not name[:4] == 'acos'):
+        if 'psi' in name_stripped:
+            V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
-                init_val = 1. #options[var_type]['a']
-                V_init = insert_val(V_init, var_type, name, init_val)
-
-            elif name[:4] == 'asin':
-                init_val = 0.
-                V_init = insert_val(V_init, var_type, name, init_val)
-
-            elif name[:4] == 'acos':
-                init_val = 0.
-                V_init = insert_val(V_init, var_type, name, init_val)
-
-            elif name[:2] == 'ct':
-
-                init_a = options[var_type]['a']
-                init_val = 4. * init_a * (1. - init_a)
-
-                V_init = insert_val(V_init, var_type, name, init_val)
-
-            elif name[:10] == 'bar_varrho':
-                init_val = 1.
-                V_init = insert_val(V_init, var_type, name, init_val)
-
-            elif 'psi' in name:
-                V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-
-        for name in struct_op.subkeys(model.variables, 'xl'):
-
-            if name[:4] == 'area':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:3] == 'cmy':
-                init_val = 0.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:3] == 'cmz':
-                init_val = 0.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:8] == 'rot_matr':
-
-                n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
-                rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
-                rot_matr_cols = cas.reshape(rot_matr, (9, 1))
-
-                for idx in range(rot_matr_cols.shape[0]):
-                    V_init = insert_val(V_init, 'xl', name, rot_matr_cols[idx], idx)
-
-            elif name[:10] == 'uzero_matr':
-
-                u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)
-                rot_matr = cas.horzcat(u_hat, v_hat, w_hat)
-                rot_matr_cols = cas.reshape(rot_matr, (9, 1))
-
-                for idx in range(rot_matr_cols.shape[0]):
-                    V_init = insert_val(V_init, 'xl', name, rot_matr_cols[idx], idx)
-
-            elif name[:12] == 'n_vec_length':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:12] == 'g_vec_length':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:12] == 'z_vec_length':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:12] == 'u_vec_length':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif 'varrho' in name:
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:5] == 'qzero':
-                init_val = 1.
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:5] == 'gamma':
-                gamma = get_gamma_angle(options)
-                init_val = gamma
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:8] == 'cosgamma':
-                gamma = get_gamma_angle(options)
-                init_val = np.cos(gamma)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:8] == 'singamma':
-                gamma = get_gamma_angle(options)
-                init_val = np.sin(gamma)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:3] == 'chi':
-                chi = get_chi_angle(options, var_type)
-                init_val = chi
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:6] == 'coschi':
-                chi = get_chi_angle(options, var_type)
-                init_val = np.cos(chi)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif 'tanhalfchi' in name:
-                chi = get_chi_angle(options, var_type)
-                init_val = np.tan(chi / 2.)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif 'sechalfchi' in name:
-                chi = get_chi_angle(options, var_type)
-                init_val = 1. / np.cos(chi / 2.)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif name[:2] == 'LL' and not(name[:5] == 'LLinv'):
-                vals = [0.375, 0., 0.,     0., -1., 0.,      0., -1., 0.]
-                for idx in range(len(vals)):
-                    V_init = insert_val(V_init, 'xl', name, vals[idx], idx)
-
-            elif name[:5] == 'LLinv':
-                vals = [2.667, 0., 0.,     0., -1., 0.,      0., -1., 0.]
-                for idx in range(len(vals)):
-                    V_init = insert_val(V_init, 'xl', name, vals[idx], idx)
-
-            elif name[:4] == 'corr':
-                a_var = options[var_type]['a']
-                init_val = (1. - a_var)
-                V_init = insert_val(V_init, 'xl', name, init_val)
-
-            elif 'psi' in name:
-                V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        elif name_stripped in dict.keys():
+            V_init = initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
+
+def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
+
+    level_siblings = model.architecture.get_all_level_siblings()
+
+    tf_init = guess_tf(options, model, formulation)
+    tgrid_coll = nlp.time_grids['coll'](tf_init)
+
+    ua_norm = options['ua_norm']
+    l_t_temp = options['xd']['l_t']
+    _, radius = get_cone_height_and_radius(options, model, l_t_temp)
+    omega_norm = ua_norm / radius
+
+    n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
+    rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
+    rot_matr_cols = cas.reshape(rot_matr, (9, 1))
+
+    u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)
+    uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
+    uzero_matr_cols = cas.reshape(uzero_matr, (9, 1))
+
+    dict = {}
+    dict['area'] = cas.DM(1.)
+    dict['cmy'] = cas.DM(0.)
+    dict['cmz'] = cas.DM(0.)
+    dict['rot_matr'] = rot_matr_cols
+    dict['uzero_matr'] = uzero_matr_cols
+    dict['n_vec_length'] = cas.DM(1.)
+    dict['g_vec_length'] = cas.DM(1.)
+    dict['z_vec_length'] = cas.DM(1.)
+    dict['u_vec_length'] = cas.DM(1.)
+    dict['varrho'] = cas.DM(1.)
+    dict['qzero'] = cas.DM(1.)
+    dict['gamma'] = get_gamma_angle(options)
+    dict['cosgamma'] = np.cos(dict['gamma'])
+    dict['singamma'] = np.sin(dict['gamma'])
+    dict['chi'] = get_chi_angle(options, 'xl')
+    dict['coschi'] = np.cos(dict['chi'])
+    dict['sinchi'] = np.sin(dict['chi'])
+    dict['tanhalfchi'] = np.tan(dict['chi']/2.)
+    dict['sechalfchi'] = 1./np.cos(dict['chi']/2.)
+    dict['LL'] = cas.DM([0.375, 0., 0., 0., -1., 0., 0., -1., 0.])
+    dict['corr'] = 1. - options['xd']['a']
+
+    var_type = 'xl'
+    for name in struct_op.subkeys(model.variables, 'xl'):
+        name_stripped = struct_op.get_node_variable_name(name)
+
+        if 'psi' in name_stripped:
+            V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+
+        elif name_stripped in dict.keys():
+            V_init = initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init)
+
+    return V_init
+
+
+def initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init):
+    init_val = dict[name_stripped]
+
+    for idx in range(init_val.shape[0]):
+        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
+
+    return V_init
 
 
 def insert_val(V_init, var_type, name, init_val, idx = 0):

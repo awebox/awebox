@@ -111,7 +111,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
-        ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 1.],   ('range for the normal vector slack variables', None), 'x'),
+        ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
 
         ('model', 'aero', 'vortex',     'periods_tracked',      1,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
 
