@@ -43,7 +43,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
-
+import pdb
+import awebox.mdl.aero.vortex_dir.geom as geom
 
 def get_operation_conditions(options):
 
@@ -201,6 +202,36 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
     terminal_constraints_fun = cas.Function('terminal_constraints_fun',[terminal_variables, ref_variables, xi],[terminal_constraints.cat])
 
     return terminal_constraints_struct, terminal_constraints_fun
+
+
+def get_wake_fix_constraints(options, variables, architecture):
+
+    eqs_dict = {}
+    ineqs_dict = {}
+    constraint_list = []
+
+    induction_model = options['induction']['induction_model']
+    kite_nodes = architecture.kite_nodes
+
+    if induction_model == 'vortex':
+
+        n_k = options['n_k']
+        d = options['collocation']['d']
+
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for kite in kite_nodes:
+                    wake_pos = geom.get_pos_wake_var(options, variables, 'ext', kite, ndx, ddx, architecture)
+
+                    kite_pos = vect_op.xhat()
+
+
+
+
+    pdb.set_trace()
+
+    return wake_fix_constraints, wake_fix_constraints_fun
+
 
 def generate_periodic_constraints(options, initial_model_variables, terminal_model_variables):
 

@@ -27,11 +27,13 @@ constraints code of the awebox
 takes model inequalities, generates constraint structures, and defines the nlp constraints
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: jochem de schutter, rachel leuthold, alu-fr 2018
+- edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2019
 '''
 
 import casadi.tools as cas
 import numpy as np
+import pdb
+import awebox.mdl.aero.vortex_dir.geom as vortex_geom
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
@@ -226,6 +228,12 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
     # append constraint bounds
     for cstr_type in list(constraints['initial'].keys()): # cstr_type = equality / inequality
         g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['initial'][cstr_type].size()[0])
+
+    return [g_list, g_bounds]
+
+def append_wake_fix_constraints(g_list, g_bounds, V, architecture):
+
+    pdb.set_trace()
 
     return [g_list, g_bounds]
 
