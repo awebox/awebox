@@ -854,13 +854,13 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
                     dict_xd[kite][ext_int][dim][ndx] = cas.reshape(dict_xd[kite][ext_int][dim][ndx], (n_nodes, 1))
                     V_init['xd', ndx, var_name] = dict_xd[kite][ext_int][dim][ndx]
 
-                    V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                    # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 
                     for ddx in range(d):
                         dict_coll[kite][ext_int][dim][ndx][ddx] = cas.reshape(dict_coll[kite][ext_int][dim][ndx][ddx], (n_nodes, 1))
                         V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][ext_int][dim][ndx][ddx]
 
-                        V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                        # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 
     return V_init
 
