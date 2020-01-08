@@ -37,6 +37,7 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.induction as induction
+import pdb
 
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
     parent_map = architecture.parent_map
@@ -46,14 +47,14 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
     elevation_angle = indicators.get_elevation_angle(xd)
 
-    for n in kite_nodes:
+    for kite in kite_nodes:
 
-        parent = parent_map[n]
+        parent = parent_map[kite]
 
-        # get relevant variables for kite n
-        q = xd['q' + str(n) + str(parent)]
-        dq = xd['dq' + str(n) + str(parent)]
-        coeff = xd['coeff' + str(n) + str(parent)]
+        # get relevant variables for kite kite
+        q = xd['q' + str(kite) + str(parent)]
+        dq = xd['dq' + str(kite) + str(parent)]
+        coeff = xd['coeff' + str(kite) + str(parent)]
 
         # wind parameters
         rho_infty = atmos.get_density(q[2])
@@ -61,30 +62,14 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if not (options['induction_model'] == 'not_in_use'):
-            ua = induction.get_kite_effective_velocity(options, variables, wind, n, parent)
+            ua = induction.get_kite_effective_velocity(options, variables, wind, kite, parent)
         else:
             ua = uw_infty - dq
 
         # relative air speed
         ua_norm = vect_op.smooth_norm(ua, epsilon=1e-8)
-        # ua_norm = mtimes(ua.T, ua) ** 0.5
 
-        # in kite body:
-        if parent > 0:
-            grandparent = parent_map[parent]
-            qparent = xd['q' + str(parent) + str(grandparent)]
-        else:
-            qparent = np.array([0., 0., 0.])
-
-        ehat_r = (q - qparent) / vect_op.norm(q - qparent)
-        ehat_t = vect_op.normed_cross(ua, ehat_r)
-        ehat_s = vect_op.normed_cross(ehat_t, ua)
-
-        # roll angle
-        psi = coeff[1]
-
-        ehat_l = cas.cos(psi) * ehat_s + cas.sin(psi) * ehat_t
-        ehat_span = cas.cos(psi) * ehat_t - cas.sin(psi) * ehat_s
+        ehat_l, ehat_span = get_ehat_l_and_span(kite, options, wind, variables, architecture)
         ehat_chord = ua/ua_norm
 
         # implicit direct cosine matrix (for plotting only)
@@ -114,11 +99,76 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['CY'] = CY
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero,
-                                                               f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs,parameters)
-        outputs = indicators.collect_environmental_outputs(atmos, wind, q, n, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, ua, n, parent, outputs,parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, n, parent,
+                                                               f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, kite, outputs,parameters)
+        outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
+        outputs = indicators.collect_aero_validity_outputs(options, xd, ua, kite, parent, outputs,parameters)
+        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, kite, parent,
                                           outputs, parameters)
-        outputs = indicators.collect_power_balance_outputs(variables, n, outputs, architecture)
+        outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
 
     return outputs
+
+
+
+def get_ehat_l_and_span(kite, options, wind, variables, architecture):
+    parent_map = architecture.parent_map
+    xd = variables['xd']
+
+    parent = parent_map[kite]
+
+    # get relevant variables for kite
+    q = xd['q' + str(kite) + str(parent)]
+    dq = xd['dq' + str(kite) + str(parent)]
+    coeff = xd['coeff' + str(kite) + str(parent)]
+
+    # wind parameters
+    uw_infty = wind.get_velocity(q[2])
+
+    # apparent air velocity
+    if not (options['induction_model'] == 'not_in_use'):
+        ua = induction.get_kite_effective_velocity(options, variables, wind, kite, parent)
+    else:
+        ua = uw_infty - dq
+
+    # in kite body:
+    if parent > 0:
+        grandparent = parent_map[parent]
+        qparent = xd['q' + str(parent) + str(grandparent)]
+    else:
+        qparent = np.array([0., 0., 0.])
+
+    ehat_r = (q - qparent) / vect_op.norm(q - qparent)
+    ehat_t = vect_op.normed_cross(ua, ehat_r)
+    ehat_s = vect_op.normed_cross(ehat_t, ua)
+
+    # roll angle
+    psi = coeff[1]
+
+    ehat_l = cas.cos(psi) * ehat_s + cas.sin(psi) * ehat_t
+    ehat_span = cas.cos(psi) * ehat_t - cas.sin(psi) * ehat_s
+
+    return ehat_l, ehat_span
+
+def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
+
+    parent_map = model.architecture.parent_map
+    xd = model.variables_dict['xd'](variables['xd'])
+
+    if ext_int == 'ext':
+        span_sign = 1.
+    elif ext_int == 'int':
+        span_sign = -1.
+    else:
+        pdb.set_trace()
+
+    parent = parent_map[kite]
+
+    q = xd['q' + str(kite) + str(parent)]
+
+    _, ehat_span = get_ehat_l_and_span(kite, options, model.wind, variables, model.architecture)
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+
+    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+
+    return wingtip_position

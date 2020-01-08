@@ -273,6 +273,8 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
 
+    options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
+
     options_tree.append(('nlp', 'landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
@@ -777,8 +779,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
     n_k = options['nlp']['n_k']
     d = options['nlp']['collocation']['d']
     options_tree.append(('model', 'aero', 'vortex', 'n_k', n_k, ('how many nodes to track over one period: n_k', None), 'x')),
-    options_tree.append(
-        ('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
+    options_tree.append(('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
 
 
 

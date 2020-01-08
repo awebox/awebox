@@ -111,7 +111,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     if options['induction_model'] != 'not_in_use':
-        outputs = actuator_disk_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
+        outputs = induction_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
     outputs = xddot_outputs(options, system_variables['SI'], outputs)
     outputs = anticollision_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters,architecture)
@@ -986,7 +986,7 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
 
     return outputs
 
-def actuator_disk_equations(options, atmos, wind, variables, outputs, parameters, architecture):
+def induction_equations(options, atmos, wind, variables, outputs, parameters, architecture):
 
     if 'induction' not in list(outputs.keys()):
         outputs['induction'] = {}

@@ -42,6 +42,8 @@ from . import multiple_shooting
 
 from . import performance
 
+import pdb
+
 import awebox.tools.struct_operations as struct_op
 
 def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
@@ -456,8 +458,6 @@ def discretize(nlp_numerics_options, model, formulation):
     var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_numerics_options, P, Xdot, model)
 
     # add terminal and periodicity constraints
-    [g_list, g_bounds] = constraints.append_wake_fix_constraints(g_list, g_bounds, V, model.architecture)
-
     [g_list, g_bounds] = constraints.append_terminal_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_terminal, var_ref_terminal, xi)
     [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
 
@@ -470,6 +470,8 @@ def discretize(nlp_numerics_options, model, formulation):
     # Create Outputs struct and function
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
+
+    [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_numerics_options, g_list, g_bounds, V, P, Outputs, model)
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_numerics_options, model.integral_outputs)

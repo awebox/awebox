@@ -59,7 +59,6 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
 
     var_list = []
 
-
     # extract discretization type
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
@@ -67,8 +66,6 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
         u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
-
-    nk = nlp_options['n_k']
 
     # extract variables
     variables = model.variables
@@ -146,9 +143,9 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     return var_at_time
 
 def get_variables_at_final_time(nlp_options, V, Xdot, model):
+    nk = nlp_options['n_k']
 
     var_list = []
-    nk = nlp_options['n_k']
 
     # extract variables
     variables = model.variables
@@ -177,13 +174,16 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, model):
+def get_parameters_at_time(V, P, model):
     param_list = []
 
     parameters = model.parameters
 
     for var_type in list(parameters.keys()):
-        param_list.append(V['phi', var_type])
+        if var_type == 'phi':
+            param_list.append(V[var_type])
+        if var_type == 'theta0':
+            param_list.append(P[var_type])
 
     param_at_time = parameters(cas.vertcat(*param_list))
 

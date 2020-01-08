@@ -205,6 +205,7 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
 
 
 def get_wake_fix_constraints(options, variables, architecture):
+    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     eqs_dict = {}
     ineqs_dict = {}
@@ -218,17 +219,35 @@ def get_wake_fix_constraints(options, variables, architecture):
         n_k = options['n_k']
         d = options['collocation']['d']
 
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for kite in kite_nodes:
-                    wake_pos = geom.get_pos_wake_var(options, variables, 'ext', kite, ndx, ddx, architecture)
+        for kite in kite_nodes:
+            for ext_int in ['ext']:
 
-                    kite_pos = vect_op.xhat()
+                parent_map = architecture.parent_map
+                parent = parent_map[kite]
 
+                sym = 'w'
+                wake_pos_dir = {}
+                for dim in ['x', 'y', 'z']:
+                    var_name = 'w' + dim + '_' + ext_int + str(kite) + str(parent)
+                    wake_pos_dir[dim] = variables['xd', var_name]
 
+                n_nodes = n_k * d
+                for ldx in range(n_nodes):
+                    wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
+                    # reminder! this function is just the placeholder.
+                    wing_tip_pos = 0. * vect_op.zhat()
+                    resi = wake_pos - wing_tip_pos
 
+                    name = 'wake_fix_' + str(kite) + '_' + ext_int + '_' + str(ldx)
+                    eqs_dict[name] = resi
+                    constraint_list.append(resi)
 
-    pdb.set_trace()
+    # generate initial constraints - empty struct containing both equalities and inequalitiess
+    wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+
+    # fill in struct and create function
+    wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
+    wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
 
     return wake_fix_constraints, wake_fix_constraints_fun
 
@@ -301,7 +320,7 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
 
         not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
 
-        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:3] == 'psi') and not_unselected_induction_model:
+        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])
             final_value = vect_op.columnize(terminal_model_variables['xd', name])

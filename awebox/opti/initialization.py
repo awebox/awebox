@@ -27,7 +27,7 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017/18)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 19)
 '''
 
 import numpy as np
@@ -70,7 +70,7 @@ def build_si_initial_guess(nlp, model, formulation, options):
 
     V_init = extract_time_grid(model, nlp, formulation, initialization_options, V_init, tf_init, n_d_list)
 
-    V_init = initial_guess_actuator(initialization_options, nlp, formulation, model, V_init)
+    V_init = initial_guess_induction(options, nlp, formulation, model, V_init)
 
     # specified initial values for system parameters
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
@@ -597,12 +597,41 @@ def initial_node_variables_for_aero_test_test(t, options, model, formulation, re
 
     return ret
 
+def get_ehat_radial(t, options, model, kite, ret={}):
+    parent_map = model.architecture.parent_map
+    level_siblings = model.architecture.get_all_level_siblings()
+
+    ua_norm = options['ua_norm']
+
+    if ret == {}:
+        l_t = options['xd']['l_t']
+    else:
+        l_t = ret['l_t']
+
+    height_list, radius = get_cone_height_and_radius(options, model, l_t)
+
+    parent = parent_map[kite]
+
+    omega_norm = ua_norm / radius
+    psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+
+    _, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
+
+    cospsi_var = np.cos(psi)
+    sinpsi_var = np.sin(psi)
+
+    # for positive yaw(turns around +zhat, normal towards +yhat):
+    #     rhat = zhat * cos(psi) - yhat * sin(psi)
+    ehat_radial = z_rot_hat * cospsi_var - y_rot_hat * sinpsi_var
+
+    return ehat_radial
+
+
 def initial_node_variables_for_standard_path(t, options, model, formulation, ret={}):
 
     number_of_nodes = model.architecture.number_of_nodes
     parent_map = model.architecture.parent_map
     kite_nodes = model.architecture.kite_nodes
-    level_siblings = model.architecture.get_all_level_siblings()
 
     ua_norm = options['ua_norm']
     kite_dof = model.kite_dof
@@ -629,18 +658,11 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
                 height = height_list[1]
 
             omega_norm = ua_norm / radius
-            psi = get_azimuthal_angle(t, level_siblings, node, parent, omega_norm)
 
             n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
 
-            cospsi_var = np.cos(psi)
-            sinpsi_var = np.sin(psi)
-
             ehat_normal = n_rot_hat
-
-            # for positive yaw(turns around +zhat, normal towards +yhat):
-            #     rhat = zhat * cos(psi) - yhat * sin(psi)
-            ehat_radial = z_rot_hat * cospsi_var - y_rot_hat * sinpsi_var
+            ehat_radial = get_ehat_radial(t, options, model, node, ret)
             ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
 
             omega_vector = ehat_normal * omega_norm
@@ -752,7 +774,96 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
 
 def initial_guess_vortex(options, nlp, formulation, model, V_init):
 
+    tf_init = guess_tf(options, model, formulation)
+    tgrid_xd = nlp.time_grids['x'](tf_init)
+    if 'coll' in list(nlp.time_grids.keys()):
+        tgrid_coll = nlp.time_grids['coll'](tf_init)
+
+    U_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
+    b_ref = options['sys_params_num']['geometry']['b_ref']
+    n_k = nlp.n_k
+    d = nlp.d
+    n_nodes = n_k * d
+    dims = ['x', 'y', 'z']
+    tips = ['ext']
+    signs = [+1.]
+    kite_nodes = model.architecture.kite_nodes
+    parent_map = model.architecture.parent_map
+
+    # create space for vortex nodes
+    dict_coll = {}
+    dict_xd = {}
+    for kite in kite_nodes:
+        dict_coll[kite] = {}
+        dict_xd[kite] = {}
+        for ext_int in tips:
+            dict_coll[kite][ext_int] = {}
+            dict_xd[kite][ext_int] = {}
+            for dim in dims:
+                dict_coll[kite][ext_int][dim] = {}
+                dict_xd[kite][ext_int][dim] = {}
+                for ndx in range(n_k):
+                    dict_coll[kite][ext_int][dim][ndx] = {}
+                    dict_xd[kite][ext_int][dim][ndx] = np.zeros((n_k, d))
+
+                    for ddx in range(d):
+                        dict_coll[kite][ext_int][dim][ndx][ddx] = np.zeros((n_k, d))
+
+    # fix values
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+        for sdx in range(len(tips)):
+            sign = signs[sdx]
+            ext_int = tips[sdx]
+
+            for jdx in range(len(dims)):
+                dim = dims[jdx]
+                for ndx in range(n_k):
+
+                    for ndx_shed in range(n_k):
+                        for ddx_shed in range(d):
+
+                            q_kite = V_init['coll_var', ndx_shed, ddx_shed, 'xd', 'q' + str(kite) + str(parent)]
+
+                            t_shed = tgrid_coll[ndx_shed, ddx_shed]
+                            ehat_radial = get_ehat_radial(t_shed, options, model, kite)
+                            q_tip = q_kite + b_ref * sign * ehat_radial / 2.
+
+                            t_local_xd = tgrid_xd[ndx]
+                            time_convected_xd = t_local_xd - t_shed
+                            q_convected_xd = q_tip + U_ref * time_convected_xd
+
+                            dict_xd[kite][ext_int][dim][ndx][ndx_shed][ddx_shed] = q_convected_xd[jdx]
+
+                            for ddx in range(d):
+                                t_local_coll = tgrid_coll[ndx, ddx]
+                                time_convected_coll = t_local_coll - t_shed
+                                q_convected_coll = q_tip + U_ref * time_convected_coll
+
+                                dict_coll[kite][ext_int][dim][ndx][ddx][ndx_shed][ddx_shed] = q_convected_coll[jdx]
+
+    # save values to V_init
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+        for ext_int in tips:
+            for jdx in range(len(dims)):
+                dim = dims[jdx]
+                var_name = 'w' + dim + '_' + ext_int + str(kite) + str(parent)
+
+                for ndx in range(n_k):
+                    dict_xd[kite][ext_int][dim][ndx] = cas.reshape(dict_xd[kite][ext_int][dim][ndx], (n_nodes, 1))
+                    V_init['xd', ndx, var_name] = dict_xd[kite][ext_int][dim][ndx]
+
+                    V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+
+                    for ddx in range(d):
+                        dict_coll[kite][ext_int][dim][ndx][ddx] = cas.reshape(dict_coll[kite][ext_int][dim][ndx][ddx], (n_nodes, 1))
+                        V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][ext_int][dim][ndx][ddx]
+
+                        V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+
     return V_init
+
 
 def initial_guess_actuator(options, nlp, formulation, model, V_init):
 
@@ -792,7 +903,7 @@ def initial_guess_actuator_xd(options, nlp, formulation, model, V_init):
             V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
         elif name_stripped in dict.keys():
-            V_init = initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init)
+            V_init = insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
@@ -848,12 +959,12 @@ def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
             V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
         elif name_stripped in dict.keys():
-            V_init = initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init)
+            V_init = insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
 
-def initial_guess_actuator_from_dict(dict, var_type, name, name_stripped, V_init):
+def insert_dict(dict, var_type, name, name_stripped, V_init):
     init_val = dict[name_stripped]
 
     for idx in range(init_val.shape[0]):

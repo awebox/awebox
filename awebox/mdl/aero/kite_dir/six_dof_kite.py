@@ -38,6 +38,8 @@ from . import stability_derivatives
 
 import awebox.mdl.aero.induction as induction
 
+import pdb
+
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
@@ -144,3 +146,33 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         outputs = indicators.collect_power_balance_outputs(variables, n, outputs, architecture)
 
     return outputs
+
+
+def get_wingtip_position(kite, model, variables, parameters, ext_int):
+    parent_map = model.architecture.parent_map
+
+    xd = model.variables_dict['xd'](variables['xd'])
+
+    if ext_int == 'ext':
+        span_sign = 1.
+    elif ext_int == 'int':
+        span_sign = -1.
+    else:
+        pdb.set_trace()
+
+    parent = parent_map[kite]
+    name = 'q' + str(kite) + str(parent)
+    q_unscaled = xd[name]
+    scale = model.scaling['xd'][name]
+    q = q_unscaled * scale
+
+    r = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
+    # ehat_span = r[:, 1]
+    ehat_span = vect_op.zhat()
+
+    # b_ref = parameters['theta0','geometry','b_ref']
+    b_ref = 1.
+
+    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+
+    return wingtip_position

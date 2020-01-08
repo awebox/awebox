@@ -72,3 +72,7 @@ this likely means that the memory useage was too high. maybe try breaking your s
  V_final = trial.optimization.V_final
  V_final['coll_var', :, :, 'xl', 'n_hat_slack1']
 
+8. how do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
+
+plot_dict = trial.visualization.plot_dict
+b_ref = plot_dict['options']['params']['geometry']['b_ref']

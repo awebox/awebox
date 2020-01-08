@@ -105,6 +105,10 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
     outputs['aerodynamics']['ehat_chord' + str(n)] = ehat_chord
     outputs['aerodynamics']['ehat_span' + str(n)] = ehat_span
 
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
+    outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.
+
     c_ref = parameters['theta0','geometry','c_ref']
     outputs['aerodynamics']['fstar_aero' + str(n)] = cas.mtimes(ua.T, ehat_chord) / c_ref
 

@@ -42,17 +42,28 @@ def reshape_wake_var(options, var):
     var_reshape = cas.reshape(var, dimensions)
     return var_reshape
 
-def get_vector_var(options, variables, xd_xddot, ext_int, kite, ndx, ddx, architecture):
+def get_vector_var(options, variables, pos_vel, ext_int, kite, ndx, ddx, architecture):
     parent = architecture.parent_map[kite]
 
-    sym = 'w'
-    if xd_xddot == 'xddot':
-        sym = 'd' + sym
+    loc = 'xd'
+    dims = ['x', 'y', 'z']
+
+    if pos_vel == 'pos':
+        sym = 'w'
+    elif pos_vel == 'vel':
+        sym = 'dw'
+    else:
+        pdb.set_trace()
 
     vect = []
-    dims = ['x', 'y', 'z']
     for dim in dims:
-        comp_all = variables[xd_xddot][sym + dim + '_' + ext_int + str(kite) + str(parent)]
+        name = sym + dim + '_' + ext_int + str(kite) + str(parent)
+
+        try:
+            comp_all = variables[loc][name]
+        except:
+            pdb.set_trace()
+
         comp_reshape = reshape_wake_var(options, comp_all)
         comp = comp_reshape[ndx, ddx]
         vect = cas.vertcat(vect, comp)
@@ -60,11 +71,11 @@ def get_vector_var(options, variables, xd_xddot, ext_int, kite, ndx, ddx, archit
     return vect
 
 def get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
-    pos = get_vector_var(options, variables, 'xd', ext_int, kite, ndx, ddx, architecture)
+    pos = get_vector_var(options, variables, 'pos', ext_int, kite, ndx, ddx, architecture)
     return pos
 
 def get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
-    vel = get_vector_var(options, variables, 'xddot', ext_int, kite, ndx, ddx, architecture)
+    vel = get_vector_var(options, variables, 'vel', ext_int, kite, ndx, ddx, architecture)
     return vel
 
 def get_convection_residual(options, wind, variables, architecture):
@@ -80,11 +91,12 @@ def get_convection_residual(options, wind, variables, architecture):
                 for ext_int in ext_int_combi:
                     vel_var = get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
                     pos_var = get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
-                    z_var = cas.mtimes(pos_var.T, vect_op.zhat())
 
+                    z_var = cas.mtimes(pos_var.T, vect_op.zhat())
                     vel_comp = wind.get_velocity(z_var)
 
-                    local = vel_var - vel_comp
-                    resi = cas.vertcat(resi, local)
+                    vel_resi = vel_var - vel_comp
+
+                    resi = cas.vertcat(resi, vel_resi)
 
     return resi

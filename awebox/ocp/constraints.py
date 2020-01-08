@@ -34,6 +34,10 @@ import casadi.tools as cas
 import numpy as np
 import pdb
 import awebox.mdl.aero.vortex_dir.geom as vortex_geom
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
+
+import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
@@ -119,6 +123,9 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
     # add periodicity constraints
     if list(constraints['periodic'].keys()):
         constraints_entry_list.append(cas.entry('periodic', struct = constraints['periodic']))
+
+    if list(constraints['wake_fix'].keys()):
+        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
 
     if list(constraints['integral'].keys()):
         constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
@@ -231,9 +238,46 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
 
     return [g_list, g_bounds]
 
-def append_wake_fix_constraints(g_list, g_bounds, V, architecture):
+def append_wake_fix_constraints(options, g_list, g_bounds, V, P, Outputs, model):
 
-    pdb.set_trace()
+    induction_model = options['induction_model']
+    kite_nodes = model.architecture.kite_nodes
+    parent_map = model.architecture.parent_map
+
+    if induction_model == 'vortex':
+
+        n_k = options['n_k']
+        d = options['collocation']['d']
+
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for kite in kite_nodes:
+                    for ext_int in ['ext']:
+
+                        parent = parent_map[kite]
+
+                        node_pos = []
+                        for dim in ['x', 'y', 'z']:
+                            wx_ext_column = V['coll_var', ndx, ddx, 'xd', 'w' + dim + '_' + ext_int + str(kite) + str(parent)]
+                            wx_ext_reshape = cas.reshape(wx_ext_column, (n_k, d))
+                            wx_local = wx_ext_reshape[ndx, ddx]
+                            node_pos = cas.vertcat(node_pos, wx_local)
+
+                        # Xdot = struct_op.construct_Xdot_struct(options, model)
+                        # variables_at_time = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx)
+                        #
+                        # parameters_at_time = struct_op.get_parameters_at_time(V, P, model)
+
+                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + ext_int + str(kite)]
+                        # wingtip_pos = vect_op.zhat() * 200.
+                        # pdb.set_trace()
+
+                        fix = node_pos - wingtip_pos
+
+                        g_list.append(fix)
+
+                        g_bounds['ub'].append(np.zeros(fix.shape))
+                        g_bounds['lb'].append(np.zeros(fix.shape))
 
     return [g_list, g_bounds]
 
