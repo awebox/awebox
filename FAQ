@@ -1,7 +1,8 @@
 1. how do I warmstart from a previous run?
 
-make sure that your previous run was saved in .dict format as "trialname.dict"
-in your run file:
+---> make sure that your previous run was saved in .dict format as "trialname.dict"
+in your run file
+
 ---> import pickle
 
 ---> load the previous run:
@@ -61,18 +62,34 @@ options['model']['scaling_overwrite']['xd']['e'] = energy_scaling
 options['solver']['cost_overwrite']['power'][1] = power_cost
 
 ---> don't forget to un-cap the number of iterations!
+options['solver']['max_iter'] = 2e3
 
 
 6. what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
 
 this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
 
+
 7. how do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'n_hat_slack1'...)
 
  V_final = trial.optimization.V_final
  V_final['coll_var', :, :, 'xl', 'n_hat_slack1']
 
+
 8. how do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
 
 plot_dict = trial.visualization.plot_dict
 b_ref = plot_dict['options']['params']['geometry']['b_ref']
+
+
+9. how do I get an animated output of the trajectory?
+
+---> make sure that you have the 'ffmpeg' movie writer installed on your computer
+
+---> include 'animation' into the list of plots desired:
+plot_list = ['animation']
+
+---> then, be sure to ask trial to create the plots
+trial.plot(plot_list)
+
+---> be aware that creating the animation is a fairly slow process.

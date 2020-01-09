@@ -104,6 +104,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     outputs['aerodynamics']['ehat_chord' + str(n)] = ehat_chord
     outputs['aerodynamics']['ehat_span' + str(n)] = ehat_span
+    outputs['aerodynamics']['ehat_up' + str(n)] = vect_op.normed_cross(ehat_chord, ehat_span)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
