@@ -677,7 +677,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
     induction_model_descript = ('model to approximate induction from wake', ['not_in_use', 'actuator'])
     options_tree.append(('model', None, None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
     options_tree.append(('formulation', 'induction', None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
-    options_tree.append(('nlp', None, None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
+    options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
 
     induction_steadyness = options['model']['aero']['actuator']['steadyness']
@@ -781,7 +781,10 @@ def share_aerodynamics_options(options, options_tree, help_options):
     options_tree.append(('model', 'aero', 'vortex', 'n_k', n_k, ('how many nodes to track over one period: n_k', None), 'x')),
     options_tree.append(('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
 
-
+    periods_tracked = options['model']['aero']['vortex']['periods_tracked']
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
 
     ## tether drag
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['trivial', 'simple', 'equivalence', 'not_in_use'])

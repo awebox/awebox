@@ -205,7 +205,7 @@ def fill_in_dashboard(fig, plot_dict,index):
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    dl_t = plot_dict['xd']['dl_t'][0][index].toarray().round(1)
+    dl_t = plot_dict['xd']['dl_t'][0][index].toarray().round(1)[0][0]
     global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
 
 

@@ -789,6 +789,7 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
     signs = [+1., -1.]
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
+    periods_tracked = options['model']['vortex_periods_tracked']
 
     # create space for vortex nodes
     dict_coll = {}
@@ -802,12 +803,16 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
             for dim in dims:
                 dict_coll[kite][tip][dim] = {}
                 dict_xd[kite][tip][dim] = {}
-                for ndx in range(n_k):
-                    dict_coll[kite][tip][dim][ndx] = {}
-                    dict_xd[kite][tip][dim][ndx] = np.zeros((n_k, d))
 
-                    for ddx in range(d):
-                        dict_coll[kite][tip][dim][ndx][ddx] = np.zeros((n_k, d))
+                for period in range(periods_tracked):
+                    dict_coll[kite][tip][dim][period] = {}
+                    dict_xd[kite][tip][dim][period] = {}
+
+                    for ndx in range(n_k):
+                        dict_coll[kite][tip][dim][period][ndx] = {}
+                        dict_xd[kite][tip][dim][period][ndx] = np.zeros((n_k, d))
+                        for ddx in range(d):
+                            dict_coll[kite][tip][dim][period][ndx][ddx] = np.zeros((n_k, d))
 
     # fix values
     for kite in kite_nodes:
@@ -818,29 +823,32 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
 
             for jdx in range(len(dims)):
                 dim = dims[jdx]
-                for ndx in range(n_k):
 
-                    for ndx_shed in range(n_k):
-                        for ddx_shed in range(d):
+                for period in range(periods_tracked):
 
-                            q_kite = V_init['coll_var', ndx_shed, ddx_shed, 'xd', 'q' + str(kite) + str(parent)]
+                    for ndx in range(n_k):
 
-                            t_shed = tgrid_coll[ndx_shed, ddx_shed]
-                            ehat_radial = get_ehat_radial(t_shed, options, model, kite)
-                            q_tip = q_kite + b_ref * sign * ehat_radial / 2.
+                        for ndx_shed in range(n_k):
+                            for ddx_shed in range(d):
 
-                            t_local_xd = tgrid_xd[ndx]
-                            time_convected_xd = t_local_xd - t_shed
-                            q_convected_xd = q_tip + U_ref * time_convected_xd
+                                q_kite = V_init['coll_var', ndx_shed, ddx_shed, 'xd', 'q' + str(kite) + str(parent)]
 
-                            dict_xd[kite][tip][dim][ndx][ndx_shed][ddx_shed] = q_convected_xd[jdx]
+                                t_shed = period * tf_init + tgrid_coll[ndx_shed, ddx_shed]
+                                ehat_radial = get_ehat_radial(t_shed, options, model, kite)
+                                q_tip = q_kite + b_ref * sign * ehat_radial / 2.
 
-                            for ddx in range(d):
-                                t_local_coll = tgrid_coll[ndx, ddx]
-                                time_convected_coll = t_local_coll - t_shed
-                                q_convected_coll = q_tip + U_ref * time_convected_coll
+                                t_local_xd = tgrid_xd[ndx]
+                                time_convected_xd = t_local_xd - t_shed
+                                q_convected_xd = q_tip + U_ref * time_convected_xd
 
-                                dict_coll[kite][tip][dim][ndx][ddx][ndx_shed][ddx_shed] = q_convected_coll[jdx]
+                                dict_xd[kite][tip][dim][period][ndx][ndx_shed][ddx_shed] = q_convected_xd[jdx]
+
+                                for ddx in range(d):
+                                    t_local_coll = tgrid_coll[ndx, ddx]
+                                    time_convected_coll = t_local_coll - t_shed
+                                    q_convected_coll = q_tip + U_ref * time_convected_coll
+
+                                    dict_coll[kite][tip][dim][period][ndx][ddx][ndx_shed][ddx_shed] = q_convected_coll[jdx]
 
     # save values to V_init
     for kite in kite_nodes:
@@ -848,19 +856,21 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
         for tip in wingtips:
             for jdx in range(len(dims)):
                 dim = dims[jdx]
-                var_name = 'w' + dim + '_' + tip + str(kite) + str(parent)
 
-                for ndx in range(n_k):
-                    dict_xd[kite][tip][dim][ndx] = cas.reshape(dict_xd[kite][tip][dim][ndx], (n_nodes, 1))
-                    V_init['xd', ndx, var_name] = dict_xd[kite][tip][dim][ndx]
+                for period in range(periods_tracked):
+                    var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
-                    # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                    for ndx in range(n_k):
+                        dict_xd[kite][tip][dim][period][ndx] = cas.reshape(dict_xd[kite][tip][dim][period][ndx], (n_nodes, 1))
+                        V_init['xd', ndx, var_name] = dict_xd[kite][tip][dim][period][ndx]
 
-                    for ddx in range(d):
-                        dict_coll[kite][tip][dim][ndx][ddx] = cas.reshape(dict_coll[kite][tip][dim][ndx][ddx], (n_nodes, 1))
-                        V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][tip][dim][ndx][ddx]
+                        # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 
-                        # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                        for ddx in range(d):
+                            dict_coll[kite][tip][dim][period][ndx][ddx] = cas.reshape(dict_coll[kite][tip][dim][period][ndx][ddx], (n_nodes, 1))
+                            V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][tip][dim][period][ndx][ddx]
+
+                            # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 
     return V_init
 

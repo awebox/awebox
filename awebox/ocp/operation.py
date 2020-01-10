@@ -212,6 +212,7 @@ def get_wake_fix_constraints(options, variables, architecture):
     constraint_list = []
 
     induction_model = options['induction']['induction_model']
+    periods_tracked = options['induction']['vortex_periods_tracked']
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']
 
@@ -222,26 +223,27 @@ def get_wake_fix_constraints(options, variables, architecture):
 
         for kite in kite_nodes:
             for tip in wingtips:
+                for period in range(periods_tracked):
 
-                parent_map = architecture.parent_map
-                parent = parent_map[kite]
+                    parent_map = architecture.parent_map
+                    parent = parent_map[kite]
 
-                wake_pos_dir = {}
-                for dim in ['x', 'y', 'z']:
-                    var_name = 'w' + dim + '_' + tip + str(kite) + str(parent)
-                    wake_pos_dir[dim] = variables['xd', var_name]
+                    wake_pos_dir = {}
+                    for dim in ['x', 'y', 'z']:
+                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                        wake_pos_dir[dim] = variables['xd', var_name]
 
-                n_nodes = n_k * d
-                for ldx in range(n_nodes):
-                    wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
+                    n_nodes = n_k * d
+                    for ldx in range(n_nodes):
+                        wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
 
-                    # reminder! this function is just the space-holder.
-                    wing_tip_pos = 0. * vect_op.zhat()
-                    resi = wake_pos - wing_tip_pos
+                        # reminder! this function is just the space-holder.
+                        wing_tip_pos = 0. * vect_op.zhat()
+                        resi = wake_pos - wing_tip_pos
 
-                    name = 'wake_fix_' + str(kite) + '_' + tip + '_' + str(ldx)
-                    eqs_dict[name] = resi
-                    constraint_list.append(resi)
+                        name = 'wake_fix_period' + str(period) + '_kite' + str(kite) + '_' + tip + str(ldx)
+                        eqs_dict[name] = resi
+                        constraint_list.append(resi)
 
     # generate initial constraints - empty struct containing both equalities and inequalitiess
     wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)

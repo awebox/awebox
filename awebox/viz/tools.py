@@ -251,20 +251,22 @@ def draw_wake_nodes(ax, side, plot_dict, index, wake_color):
     parent_map = plot_dict['architecture'].parent_map
     dims = ['x', 'y', 'z']
     wingtips = ['ext', 'int']
+    periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
 
     vals = {}
     for kite in kite_nodes:
         parent = parent_map[kite]
         for tip in wingtips:
-            short_name = 'w' + '_' + tip + str(kite) + str(parent)
-            vals[short_name] = {}
+            for period in range(periods_tracked):
+                short_name = 'w' + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                vals[short_name] = {}
 
-            for dim in dims:
-                name = 'w' + dim + '_' + tip + str(kite) + str(parent)
-                vals[short_name][dim] = []
-                for node in range(n_nodes):
-                    val_col = plot_dict['xd'][name][node][index]
-                    vals[short_name][dim] = cas.vertcat(vals[short_name][dim], val_col)
+                for dim in dims:
+                    var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                    vals[short_name][dim] = []
+                    for node in range(n_nodes):
+                        val_col = plot_dict['xd'][var_name][node][index]
+                        vals[short_name][dim] = cas.vertcat(vals[short_name][dim], val_col)
 
 
     for name in vals.keys():

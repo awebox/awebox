@@ -33,11 +33,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 import pdb
-import awebox.mdl.aero.vortex_dir.geom as vortex_geom
-import awebox.tools.vector_operations as vect_op
-import awebox.tools.struct_operations as struct_op
-
-import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
+import awebox.mdl.aero.vortex_dir.fix_constraints as vortex_fix
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
@@ -238,42 +234,21 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
 
     return [g_list, g_bounds]
 
-def append_wake_fix_constraints(options, g_list, g_bounds, V, P, Outputs, model):
+def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
 
-    induction_model = options['induction_model']
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    
+    induction_model = options['induction']['induction_model']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+
     if induction_model == 'vortex':
 
-        n_k = options['n_k']
-        d = options['collocation']['d']
+        g_list, g_bounds = vortex_fix.fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model)
 
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for kite in kite_nodes:
-                    for tip in wingtips:
-
-                        parent = parent_map[kite]
-
-                        node_pos = []
-                        for dim in ['x', 'y', 'z']:
-                            wx_ext_column = V['coll_var', ndx, ddx, 'xd', 'w' + dim + '_' + tip + str(kite) + str(parent)]
-                            wx_ext_reshape = cas.reshape(wx_ext_column, (n_k, d))
-                            wx_local = wx_ext_reshape[ndx, ddx]
-                            node_pos = cas.vertcat(node_pos, wx_local)
-
-                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-
-                        fix = node_pos - wingtip_pos
-
-                        g_list.append(fix)
-
-                        g_bounds['ub'].append(np.zeros(fix.shape))
-                        g_bounds['lb'].append(np.zeros(fix.shape))
+        for period in range(1, periods_tracked):
+            g_list, g_bounds = vortex_fix.fixing_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, period)
 
     return [g_list, g_bounds]
+
+
 
 def append_periodic_constraints(g_list, g_bounds, constraints, constraints_fun, var_init, var_terminal):
 

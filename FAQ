@@ -82,14 +82,14 @@ plot_dict = trial.visualization.plot_dict
 b_ref = plot_dict['options']['params']['geometry']['b_ref']
 
 
-9. how do I get an animated output of the trajectory?
+9. how do I get an animated output of the trajectory ("monitor plot")?
 
 ---> make sure that you have the 'ffmpeg' movie writer installed on your computer
 
 ---> include 'animation' into the list of plots desired:
 plot_list = ['animation']
 
----> then, be sure to ask trial to create the plots
+---> then, ask trial to create the plots
 trial.plot(plot_list)
 
 ---> be aware that creating the animation is a fairly slow process.

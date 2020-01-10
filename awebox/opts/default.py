@@ -113,7 +113,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
 
-        ('model', 'aero', 'vortex',     'periods_tracked',      1,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
+        ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
