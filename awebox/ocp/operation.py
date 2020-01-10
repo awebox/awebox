@@ -213,6 +213,7 @@ def get_wake_fix_constraints(options, variables, architecture):
 
     induction_model = options['induction']['induction_model']
     kite_nodes = architecture.kite_nodes
+    wingtips = ['ext', 'int']
 
     if induction_model == 'vortex':
 
@@ -220,25 +221,25 @@ def get_wake_fix_constraints(options, variables, architecture):
         d = options['collocation']['d']
 
         for kite in kite_nodes:
-            for ext_int in ['ext']:
+            for tip in wingtips:
 
                 parent_map = architecture.parent_map
                 parent = parent_map[kite]
 
-                sym = 'w'
                 wake_pos_dir = {}
                 for dim in ['x', 'y', 'z']:
-                    var_name = 'w' + dim + '_' + ext_int + str(kite) + str(parent)
+                    var_name = 'w' + dim + '_' + tip + str(kite) + str(parent)
                     wake_pos_dir[dim] = variables['xd', var_name]
 
                 n_nodes = n_k * d
                 for ldx in range(n_nodes):
                     wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
-                    # reminder! this function is just the placeholder.
+
+                    # reminder! this function is just the space-holder.
                     wing_tip_pos = 0. * vect_op.zhat()
                     resi = wake_pos - wing_tip_pos
 
-                    name = 'wake_fix_' + str(kite) + '_' + ext_int + '_' + str(ldx)
+                    name = 'wake_fix_' + str(kite) + '_' + tip + '_' + str(ldx)
                     eqs_dict[name] = resi
                     constraint_list.append(resi)
 

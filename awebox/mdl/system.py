@@ -223,11 +223,13 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
         n_k = options['aero']['vortex']['n_k']
         d = options['aero']['vortex']['d']
         full_length = (n_k * d)
+        wingtips = ['ext', 'int']
         for kite in architecture.kite_nodes:
             parent = architecture.parent_map[kite]
             for dim in ['x', 'y', 'z']:
-                system_states.extend([('w' + dim + '_ext' + str(kite) + str(parent), (full_length, 1))])
-                system_states.extend([('dw' + dim + '_ext' + str(kite) + str(parent), (full_length, 1))])
+                for tip in wingtips:
+                    system_states.extend([('w' + dim + '_' + tip + str(kite) + str(parent), (full_length, 1))])
+                    system_states.extend([('dw' + dim + '_' + tip + str(kite) + str(parent), (full_length, 1))])
 
 
     if induction_model == 'actuator':

@@ -785,8 +785,8 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
     d = nlp.d
     n_nodes = n_k * d
     dims = ['x', 'y', 'z']
-    tips = ['ext']
-    signs = [+1.]
+    wingtips = ['ext', 'int']
+    signs = [+1., -1.]
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
 
@@ -796,25 +796,25 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
     for kite in kite_nodes:
         dict_coll[kite] = {}
         dict_xd[kite] = {}
-        for ext_int in tips:
-            dict_coll[kite][ext_int] = {}
-            dict_xd[kite][ext_int] = {}
+        for tip in wingtips:
+            dict_coll[kite][tip] = {}
+            dict_xd[kite][tip] = {}
             for dim in dims:
-                dict_coll[kite][ext_int][dim] = {}
-                dict_xd[kite][ext_int][dim] = {}
+                dict_coll[kite][tip][dim] = {}
+                dict_xd[kite][tip][dim] = {}
                 for ndx in range(n_k):
-                    dict_coll[kite][ext_int][dim][ndx] = {}
-                    dict_xd[kite][ext_int][dim][ndx] = np.zeros((n_k, d))
+                    dict_coll[kite][tip][dim][ndx] = {}
+                    dict_xd[kite][tip][dim][ndx] = np.zeros((n_k, d))
 
                     for ddx in range(d):
-                        dict_coll[kite][ext_int][dim][ndx][ddx] = np.zeros((n_k, d))
+                        dict_coll[kite][tip][dim][ndx][ddx] = np.zeros((n_k, d))
 
     # fix values
     for kite in kite_nodes:
         parent = parent_map[kite]
-        for sdx in range(len(tips)):
+        for sdx in range(len(wingtips)):
             sign = signs[sdx]
-            ext_int = tips[sdx]
+            tip = wingtips[sdx]
 
             for jdx in range(len(dims)):
                 dim = dims[jdx]
@@ -833,32 +833,32 @@ def initial_guess_vortex(options, nlp, formulation, model, V_init):
                             time_convected_xd = t_local_xd - t_shed
                             q_convected_xd = q_tip + U_ref * time_convected_xd
 
-                            dict_xd[kite][ext_int][dim][ndx][ndx_shed][ddx_shed] = q_convected_xd[jdx]
+                            dict_xd[kite][tip][dim][ndx][ndx_shed][ddx_shed] = q_convected_xd[jdx]
 
                             for ddx in range(d):
                                 t_local_coll = tgrid_coll[ndx, ddx]
                                 time_convected_coll = t_local_coll - t_shed
                                 q_convected_coll = q_tip + U_ref * time_convected_coll
 
-                                dict_coll[kite][ext_int][dim][ndx][ddx][ndx_shed][ddx_shed] = q_convected_coll[jdx]
+                                dict_coll[kite][tip][dim][ndx][ddx][ndx_shed][ddx_shed] = q_convected_coll[jdx]
 
     # save values to V_init
     for kite in kite_nodes:
         parent = parent_map[kite]
-        for ext_int in tips:
+        for tip in wingtips:
             for jdx in range(len(dims)):
                 dim = dims[jdx]
-                var_name = 'w' + dim + '_' + ext_int + str(kite) + str(parent)
+                var_name = 'w' + dim + '_' + tip + str(kite) + str(parent)
 
                 for ndx in range(n_k):
-                    dict_xd[kite][ext_int][dim][ndx] = cas.reshape(dict_xd[kite][ext_int][dim][ndx], (n_nodes, 1))
-                    V_init['xd', ndx, var_name] = dict_xd[kite][ext_int][dim][ndx]
+                    dict_xd[kite][tip][dim][ndx] = cas.reshape(dict_xd[kite][tip][dim][ndx], (n_nodes, 1))
+                    V_init['xd', ndx, var_name] = dict_xd[kite][tip][dim][ndx]
 
                     # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 
                     for ddx in range(d):
-                        dict_coll[kite][ext_int][dim][ndx][ddx] = cas.reshape(dict_coll[kite][ext_int][dim][ndx][ddx], (n_nodes, 1))
-                        V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][ext_int][dim][ndx][ddx]
+                        dict_coll[kite][tip][dim][ndx][ddx] = cas.reshape(dict_coll[kite][tip][dim][ndx][ddx], (n_nodes, 1))
+                        V_init['coll_var', ndx, ddx, 'xd', var_name] = dict_coll[kite][tip][dim][ndx][ddx]
 
                         # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
 

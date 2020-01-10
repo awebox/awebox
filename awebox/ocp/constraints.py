@@ -243,7 +243,8 @@ def append_wake_fix_constraints(options, g_list, g_bounds, V, P, Outputs, model)
     induction_model = options['induction_model']
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
-
+    wingtips = ['ext', 'int']
+    
     if induction_model == 'vortex':
 
         n_k = options['n_k']
@@ -252,25 +253,18 @@ def append_wake_fix_constraints(options, g_list, g_bounds, V, P, Outputs, model)
         for ndx in range(n_k):
             for ddx in range(d):
                 for kite in kite_nodes:
-                    for ext_int in ['ext']:
+                    for tip in wingtips:
 
                         parent = parent_map[kite]
 
                         node_pos = []
                         for dim in ['x', 'y', 'z']:
-                            wx_ext_column = V['coll_var', ndx, ddx, 'xd', 'w' + dim + '_' + ext_int + str(kite) + str(parent)]
+                            wx_ext_column = V['coll_var', ndx, ddx, 'xd', 'w' + dim + '_' + tip + str(kite) + str(parent)]
                             wx_ext_reshape = cas.reshape(wx_ext_column, (n_k, d))
                             wx_local = wx_ext_reshape[ndx, ddx]
                             node_pos = cas.vertcat(node_pos, wx_local)
 
-                        # Xdot = struct_op.construct_Xdot_struct(options, model)
-                        # variables_at_time = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx)
-                        #
-                        # parameters_at_time = struct_op.get_parameters_at_time(V, P, model)
-
-                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + ext_int + str(kite)]
-                        # wingtip_pos = vect_op.zhat() * 200.
-                        # pdb.set_trace()
+                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                         fix = node_pos - wingtip_pos
 

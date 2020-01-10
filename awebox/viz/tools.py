@@ -250,8 +250,7 @@ def draw_wake_nodes(ax, side, plot_dict, index, wake_color):
     kite_nodes = plot_dict['architecture'].kite_nodes
     parent_map = plot_dict['architecture'].parent_map
     dims = ['x', 'y', 'z']
-    wingtips = ['ext']
-
+    wingtips = ['ext', 'int']
 
     vals = {}
     for kite in kite_nodes:

@@ -42,7 +42,7 @@ def reshape_wake_var(options, var):
     var_reshape = cas.reshape(var, dimensions)
     return var_reshape
 
-def get_vector_var(options, variables, pos_vel, ext_int, kite, ndx, ddx, architecture):
+def get_vector_var(options, variables, pos_vel, tip, kite, ndx, ddx, architecture):
     parent = architecture.parent_map[kite]
 
     loc = 'xd'
@@ -57,7 +57,7 @@ def get_vector_var(options, variables, pos_vel, ext_int, kite, ndx, ddx, archite
 
     vect = []
     for dim in dims:
-        name = sym + dim + '_' + ext_int + str(kite) + str(parent)
+        name = sym + dim + '_' + tip + str(kite) + str(parent)
 
         try:
             comp_all = variables[loc][name]
@@ -70,27 +70,27 @@ def get_vector_var(options, variables, pos_vel, ext_int, kite, ndx, ddx, archite
 
     return vect
 
-def get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
-    pos = get_vector_var(options, variables, 'pos', ext_int, kite, ndx, ddx, architecture)
+def get_pos_wake_var(options, variables, tip, kite, ndx, ddx, architecture):
+    pos = get_vector_var(options, variables, 'pos', tip, kite, ndx, ddx, architecture)
     return pos
 
-def get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture):
-    vel = get_vector_var(options, variables, 'vel', ext_int, kite, ndx, ddx, architecture)
+def get_vel_wake_var(options, variables, tip, kite, ndx, ddx, architecture):
+    vel = get_vector_var(options, variables, 'vel', tip, kite, ndx, ddx, architecture)
     return vel
 
 def get_convection_residual(options, wind, variables, architecture):
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
     kite_nodes = architecture.kite_nodes
-    ext_int_combi = ['ext']
+    wingtips = ['ext', 'int']
 
     resi = []
     for kite in kite_nodes:
         for ndx in range(n_k):
             for ddx in range(d):
-                for ext_int in ext_int_combi:
-                    vel_var = get_vel_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
-                    pos_var = get_pos_wake_var(options, variables, ext_int, kite, ndx, ddx, architecture)
+                for tip in wingtips:
+                    vel_var = get_vel_wake_var(options, variables, tip, kite, ndx, ddx, architecture)
+                    pos_var = get_pos_wake_var(options, variables, tip, kite, ndx, ddx, architecture)
 
                     z_var = cas.mtimes(pos_var.T, vect_op.zhat())
                     vel_comp = wind.get_velocity(z_var)
