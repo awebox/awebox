@@ -240,7 +240,6 @@ def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
     periods_tracked = options['induction']['vortex_periods_tracked']
 
     if induction_model == 'vortex':
-
         g_list, g_bounds = vortex_fix.fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model)
 
         for period in range(1, periods_tracked):

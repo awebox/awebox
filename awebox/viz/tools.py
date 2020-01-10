@@ -246,7 +246,7 @@ def draw_wake_nodes(ax, side, plot_dict, index, wake_color):
 
     n_k = plot_dict['n_k']
     d = plot_dict['d']
-    n_nodes = n_k * d
+    n_nodes = n_k * d + 1
     kite_nodes = plot_dict['architecture'].kite_nodes
     parent_map = plot_dict['architecture'].parent_map
     dims = ['x', 'y', 'z']
@@ -273,15 +273,21 @@ def draw_wake_nodes(ax, side, plot_dict, index, wake_color):
         points = []
 
         local_vals = {}
+
+        new_point = []
         for dim in dims:
-            local_vals[dim] = cas.reshape(vals[name][dim], (n_k, d))
+            new_point = cas.horzcat(new_point, vals[name][dim][0])
+        points = cas.vertcat(points, new_point)
+
+        for dim in dims:
+            regular = vals[name][dim][1:]
+            local_vals[dim] = cas.reshape(regular, (n_k, d))
 
         for ndx_shed in range(n_k):
             for ddx_shed in range(d):
                 new_point = []
                 for dim in dims:
                     new_point = cas.horzcat(new_point, local_vals[dim][ndx_shed, ddx_shed])
-
                 points = cas.vertcat(points, new_point)
 
         make_side_plot(ax, points, side, wake_color)

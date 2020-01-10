@@ -222,7 +222,7 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
         n_k = options['aero']['vortex']['n_k']
         d = options['aero']['vortex']['d']
-        full_length = (n_k * d)
+        full_length = (n_k * d) + 1
         wingtips = ['ext', 'int']
         periods_tracked = options['aero']['vortex']['periods_tracked']
 

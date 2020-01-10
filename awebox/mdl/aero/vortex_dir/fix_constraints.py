@@ -34,42 +34,49 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import pdb
+import awebox.mdl.aero.vortex_dir.geom as geom
 
 def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model):
 
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
     wingtips = ['ext', 'int']
+    dims = ['x', 'y', 'z']
 
     n_k = options['n_k']
     d = options['collocation']['d']
 
     period = 0
 
-    for ndx in range(n_k):
-        for ddx in range(d):
-            for kite in kite_nodes:
-                for tip in wingtips:
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+        for tip in wingtips:
+            for jdx in range(len(dims)):
+                dim = dims[jdx]
+                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
-                    parent = parent_map[kite]
+                var_column = V['xd', 0, var_name]
+                node_pos = geom.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
 
-                    node_pos = []
-                    for dim in ['x', 'y', 'z']:
-                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                # remember: periodicity! wingtip positions at end, must be equal to positions at start
+                wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
+
+                fix = node_pos - wingtip_pos
+                g_list.append(fix)
+                g_bounds['ub'].append(np.zeros(fix.shape))
+                g_bounds['lb'].append(np.zeros(fix.shape))
+
+                for ndx in range(n_k):
+                    for ddx in range(d):
 
                         var_column = V['coll_var', ndx, ddx, 'xd', var_name]
-                        var_reshape = cas.reshape(var_column, (n_k, d))
-                        var_local = var_reshape[ndx, ddx]
-                        node_pos = cas.vertcat(node_pos, var_local)
+                        node_pos = geom.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
+                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
 
-                    wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-
-                    fix = node_pos - wingtip_pos
-
-                    g_list.append(fix)
-
-                    g_bounds['ub'].append(np.zeros(fix.shape))
-                    g_bounds['lb'].append(np.zeros(fix.shape))
+                        fix = node_pos - wingtip_pos
+                        g_list.append(fix)
+                        g_bounds['ub'].append(np.zeros(fix.shape))
+                        g_bounds['lb'].append(np.zeros(fix.shape))
 
     return [g_list, g_bounds]
 
@@ -78,38 +85,24 @@ def fixing_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs,
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
     wingtips = ['ext', 'int']
+    dims = ['x', 'y', 'z']
 
-    n_k = options['n_k']
-    d = options['collocation']['d']
+    for kite in kite_nodes:
+        parent = parent_map[kite]
 
-    for ndx_shed in range(n_k):
-        for ddx_shed in range(d):
-            for kite in kite_nodes:
-                for tip in wingtips:
+        for tip in wingtips:
+            for dim in dims:
 
-                    parent = parent_map[kite]
+                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                prev_name = 'w' + dim + '_' + tip + '_' + str(period - 1) + '_' + str(kite) + str(parent)
 
-                    node_pos = []
-                    prev_pos = []
-                    for dim in ['x', 'y', 'z']:
-                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                        prev_name = 'w' + dim + '_' + tip + '_' + str(period - 1) + '_' + str(kite) + str(parent)
+                node_column = V['xd', 0, var_name]
 
-                        var_column = V['coll_var', 0, 0, 'xd', var_name]
-                        var_reshape = cas.reshape(var_column, (n_k, d))
-                        var_local = var_reshape[ndx_shed, ddx_shed]
-                        node_pos = cas.vertcat(node_pos, var_local)
+                prev_column = V['coll_var', -1, -1, 'xd', prev_name]
 
-                        prev_column = V['coll_var', n_k-1, d-1, 'xd', prev_name] # indexing starts at 0
-                        prev_reshape = cas.reshape(prev_column, (n_k, d))
-                        prev_local = prev_reshape[ndx_shed, ddx_shed]
-                        prev_pos = cas.vertcat(prev_pos, prev_local)
-
-                    fix = node_pos - prev_pos
-
-                    g_list.append(fix)
-
-                    g_bounds['ub'].append(np.zeros(fix.shape))
-                    g_bounds['lb'].append(np.zeros(fix.shape))
+                fix = node_column - prev_column
+                g_list.append(fix)
+                g_bounds['ub'].append(np.zeros(fix.shape))
+                g_bounds['lb'].append(np.zeros(fix.shape))
 
     return [g_list, g_bounds]

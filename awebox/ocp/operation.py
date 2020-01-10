@@ -233,7 +233,7 @@ def get_wake_fix_constraints(options, variables, architecture):
                         var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
                         wake_pos_dir[dim] = variables['xd', var_name]
 
-                    n_nodes = n_k * d
+                    n_nodes = n_k * d + 1
                     for ldx in range(n_nodes):
                         wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
 

@@ -37,14 +37,20 @@ import pdb
 
 # name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
-def reshape_wake_var(options, var):
+def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
+    if start:
+        return var[0]
+    else:
+        var_regular = var[1:]
+
+        dimensions = (n_k, d)
+        var_reshape = cas.reshape(var_regular, dimensions)
+
+        return var_reshape[ndx, ddx]
+
+def get_vector_var(options, variables, pos_vel, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
-    dimensions = (n_k, d)
-    var_reshape = cas.reshape(var, dimensions)
-    return var_reshape
-
-def get_vector_var(options, variables, pos_vel, tip, period, kite, ndx, ddx, architecture):
     parent = architecture.parent_map[kite]
 
     loc = 'xd'
@@ -66,18 +72,17 @@ def get_vector_var(options, variables, pos_vel, tip, period, kite, ndx, ddx, arc
         except:
             pdb.set_trace()
 
-        comp_reshape = reshape_wake_var(options, comp_all)
-        comp = comp_reshape[ndx, ddx]
+        comp = get_wake_var_at_ndx_ddx(n_k, d, comp_all, start=start, ndx=ndx, ddx=ddx)
         vect = cas.vertcat(vect, comp)
 
     return vect
 
-def get_pos_wake_var(options, variables, tip, period, kite, ndx, ddx, architecture):
-    pos = get_vector_var(options, variables, 'pos', tip, period, kite, ndx, ddx, architecture)
+def get_pos_wake_var(options, variables, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
+    pos = get_vector_var(options, variables, 'pos', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
     return pos
 
-def get_vel_wake_var(options, variables, tip, period, kite, ndx, ddx, architecture):
-    vel = get_vector_var(options, variables, 'vel', tip, period, kite, ndx, ddx, architecture)
+def get_vel_wake_var(options, variables, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
+    vel = get_vector_var(options, variables, 'vel', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
     return vel
 
 def get_convection_residual(options, wind, variables, architecture):
@@ -89,18 +94,27 @@ def get_convection_residual(options, wind, variables, architecture):
 
     resi = []
     for kite in kite_nodes:
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for tip in wingtips:
-                    for period in range(periods_tracked):
-                        vel_var = get_vel_wake_var(options, variables, tip, period, kite, ndx, ddx, architecture)
-                        pos_var = get_pos_wake_var(options, variables, tip, period, kite, ndx, ddx, architecture)
+        for tip in wingtips:
+            for period in range(periods_tracked):
 
-                        z_var = cas.mtimes(pos_var.T, vect_op.zhat())
-                        vel_comp = wind.get_velocity(z_var)
+                vel_resi = get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, start=True)
+                resi = cas.vertcat(resi, vel_resi)
 
-                        vel_resi = vel_var - vel_comp
-
+                for ndx in range(n_k):
+                    for ddx in range(d):
+                        vel_resi = get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, ndx=ndx, ddx=ddx)
                         resi = cas.vertcat(resi, vel_resi)
 
     return resi
+
+def get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, start=bool(False), ndx=0, ddx=0):
+
+    vel_var = get_vel_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
+    pos_var = get_pos_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
+
+    z_var = cas.mtimes(pos_var.T, vect_op.zhat())
+    vel_comp = wind.get_velocity(z_var)
+
+    vel_resi = vel_var - vel_comp
+
+    return vel_resi
