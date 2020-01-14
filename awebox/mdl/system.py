@@ -228,12 +228,16 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
         for kite in architecture.kite_nodes:
             parent = architecture.parent_map[kite]
-            for dim in ['x', 'y', 'z']:
-                for tip in wingtips:
-                    for period in range(periods_tracked):
+            for period in range(periods_tracked):
+                gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+                system_lifted.extend([(gamma_name, (n_k * d, 1))])
+
+                for dim in ['x', 'y', 'z']:
+                    for tip in wingtips:
                         name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
                         system_states.extend([(name, (full_length, 1))])
                         system_states.extend([('d' + name, (full_length, 1))])
+
 
     if induction_model == 'actuator':
 

@@ -204,6 +204,56 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
     return terminal_constraints_struct, terminal_constraints_fun
 
 
+
+def get_vortex_strength_constraints(options, variables, architecture):
+    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
+
+    eqs_dict = {}
+    ineqs_dict = {}
+    constraint_list = []
+
+    induction_model = options['induction']['induction_model']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+    kite_nodes = architecture.kite_nodes
+
+    if induction_model == 'vortex':
+
+        n_k = options['n_k']
+        d = options['collocation']['d']
+
+        for kite in kite_nodes:
+            for period in range(periods_tracked):
+
+                parent_map = architecture.parent_map
+                parent = parent_map[kite]
+
+                var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+                gamma_all = variables['xl', var_name]
+
+                n_nodes = n_k * d
+                for ldx in range(n_nodes):
+                    gamma_loc = []
+
+                    for ldx_shed in range(n_nodes):
+                        gamma_loc = cas.vertcat(gamma_loc, gamma_all[ldx_shed])
+
+                    # reminder! this function is just the space-holder.
+                    resi = gamma_loc
+
+                    name = 'vortex_strength' + str(period) + '_kite' + str(kite) + '_' + str(ldx)
+                    eqs_dict[name] = resi
+                    constraint_list.append(resi)
+
+    # generate initial constraints - empty struct containing both equalities and inequalitiess
+    vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+
+    # fill in struct and create function
+    vortex_strength_constraints = vortex_strength_constraints_struct(cas.vertcat(*constraint_list))
+    vortex_strength_constraints_fun = cas.Function('vortex_strength_constraints_fun', [variables], [vortex_strength_constraints.cat])
+
+    return vortex_strength_constraints, vortex_strength_constraints_fun
+
+
 def get_wake_fix_constraints(options, variables, architecture):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 

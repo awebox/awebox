@@ -107,6 +107,13 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
     outputs['aerodynamics']['ehat_up' + str(n)] = vect_op.normed_cross(ehat_chord, ehat_span)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
+    AR = parameters['theta0', 'geometry', 'AR']
+    rho = atmos.get_density(q[2])
+    gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ehat_span, ua))
+    gamma_cl = 0.5 * ua_norm * aero_coefficients['CL'] / AR
+    outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
+    outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
+
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.
 
@@ -117,18 +124,6 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     if int(options['kite_dof']) == 6:
         outputs['aerodynamics']['m_aero' + str(n)] = m_aero
-
-    # should be cl not CL...
-    gamma = 0.5 * aero_coefficients['CL'] * ua_norm * c_ref
-    outputs['aerodynamics']['bamma' + str(n)] = gamma #bound gamma...
-
-    # ua_cross_ehat_span = vect_op.cross(ua, ehat_span)
-    # outputs['aerodynamics']['ua_cross_ehat_span' + str(n)] = ua_cross_ehat_span
-    #
-    # gamma_prop_num = cas.mtimes(f_aero.T, ua_cross_ehat_span)
-    # gamma_prop_den = cas.mtimes(ua_cross_ehat_span.T, ua_cross_ehat_span) + 1e-6
-    # gamma_prop = gamma_prop_num / gamma_prop_den
-    # outputs['aerodynamics']['gamma_prop' + str(n)] = gamma_prop
 
     outputs['aerodynamics']['mach' + str(n)] = get_mach(options, atmos, ua, q)
     outputs['aerodynamics']['reynolds' + str(n)] = get_reynolds(options, atmos, ua, q, parameters)

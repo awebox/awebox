@@ -472,6 +472,7 @@ def discretize(nlp_numerics_options, model, formulation):
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
 
     [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
+    [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_numerics_options, model.integral_outputs)
