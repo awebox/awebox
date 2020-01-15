@@ -258,7 +258,7 @@ def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, mo
 
     if induction_model == 'vortex':
         for period in range(periods_tracked):
-            g_list, g_bounds = vortex_strength.fix_strengths_of_on_vortices(options, g_list, g_bounds, V, Outputs, model, period)
+            g_list, g_bounds = vortex_strength.fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
 
     return [g_list, g_bounds]
 

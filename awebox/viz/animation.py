@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 import casadi.tools as cas
 from . import tools
+import awebox.viz.trajectory as trajectory
 import numpy as np
 import pdb
 
@@ -133,7 +134,7 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
         axes[ax].clear()
 
         # plot system
-        tools.plot_trajectory_instant(axes[ax], axes['ax2'], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
+        trajectory.plot_trajectory_instant(axes[ax], axes['ax2'], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
 
     # plot trajectories
     counter = 0

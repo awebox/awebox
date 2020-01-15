@@ -34,6 +34,7 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
+import pdb
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -107,12 +108,13 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
     outputs['aerodynamics']['ehat_up' + str(n)] = vect_op.normed_cross(ehat_chord, ehat_span)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    AR = parameters['theta0', 'geometry', 'AR']
+    ar = parameters['theta0', 'geometry', 'ar']
     rho = atmos.get_density(q[2])
     gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ehat_span, ua))
-    gamma_cl = 0.5 * ua_norm * aero_coefficients['CL'] / AR
+    gamma_cl = 0.5 * ua_norm * aero_coefficients['CL'] / ar
     outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
+    outputs['aerodynamics']['gamma' + str(n)] = cas.DM(2.)
 
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.

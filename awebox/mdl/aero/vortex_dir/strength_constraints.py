@@ -34,44 +34,62 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import pdb
-import awebox.mdl.aero.vortex_dir.geom as geom
 
-def fix_strengths_of_on_vortices(options, g_list, g_bounds, V, Outputs, model, period):
+def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
 
+    dimensions = (n_k, d)
+    var_reshape = cas.reshape(var, dimensions)
+
+    return var_reshape[ndx, ddx]
+
+
+def fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period):
     n_k = options['n_k']
     d = options['collocation']['d']
-    n_nodes = n_k * d
 
     architecture = model.architecture
 
-    for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
+    if period == 0:
+        for kite in architecture.kite_nodes:
+            for ndx in range(n_k):
+                for ddx in range(d):
+                    for ndx_shed in range(n_k):
+                        for ddx_shed in range(d):
 
-        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+                            if is_bound_vortex(ndx, ddx, ndx_shed, ddx_shed):
+                                resi = get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx)
 
-        for ndx in range(n_k):
-            for ddx in range(d):
-                var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+                            elif is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+                                resi = get_residual_for_on_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
 
-                for ndx_shed in range(n_k):
-                    for ddx_shed in range(d):
+                            else:
+                                resi = get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
 
-                        gamma_var = geom.get_wake_var_at_ndx_ddx(n_k, d, var, False, ndx_shed, ddx_shed)
+                            g_list.append(resi)
+                            g_bounds['ub'].append(np.zeros(resi.shape))
+                            g_bounds['lb'].append(np.zeros(resi.shape))
 
-                        gamma_cross_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma_cross' + str(kite)]
-                        gamma_cl_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma_cl' + str(kite)]
-
-                        pdb.set_trace()
-
-                        fix = gamma_var - 2. * np.ones((n_nodes, 1))
-                        g_list.append(fix)
-                        g_bounds['ub'].append(np.zeros(fix.shape))
-                        g_bounds['lb'].append(np.zeros(fix.shape))
+    else:
+        g_list, g_bounds = fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, model, period)
 
     return g_list, g_bounds
 
-def vortex_is_on(ndx, ddx, ndx_shed, ddx_shed):
-    return False
+
+def is_bound_vortex(ndx, ddx, ndx_shed, ddx_shed):
+    if ndx == ndx_shed and ddx == ddx_shed:
+        return True
+    else:
+        return False
+
+def is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+    if ndx > ndx_shed:
+        return True
+    elif ndx == ndx_shed and ddx > ddx_shed:
+        return True
+    else:
+        return False
+
+
 
 def get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx):
     period = 0
@@ -81,10 +99,80 @@ def get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx):
 
     gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
     var = V['coll_var', ndx, ddx, 'xl', gamma_name]
-    gamma_var = geom.get_wake_var_at_ndx_ddx(n_k, d, var, False, ndx, ddx)
+    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx)
 
-    gamma_cross_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma_cross' + str(kite)]
-    gamma_cl_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma_cl' + str(kite)]
+    # gamma_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma' + str(kite)]
+    gamma_val = 3.
 
-    resi = gamma_var - gamma_cl_val
+    resi = gamma_var - gamma_val
+    return resi
+
+def get_residual_for_on_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
+    period = 0
+
+    architecture = model.architecture
+    parent = architecture.parent_map[kite]
+
+    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
+
+    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+    gamma_val = 5.
+
+    resi = gamma_var - gamma_val
+    return resi
+
+def get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
+    period = 0
+
+    architecture = model.architecture
+    parent = architecture.parent_map[kite]
+
+    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
+
+    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+    gamma_val = 0.
+
+    resi = gamma_var - gamma_val
+    return resi
+
+
+
+
+
+def fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, model, period):
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    architecture = model.architecture
+
+    for kite in architecture.kite_nodes:
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for ndx_shed in range(n_k):
+                    for ddx_shed in range(d):
+                        resi = get_residual_for_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed, period)
+
+                        g_list.append(resi)
+                        g_bounds['ub'].append(np.zeros(resi.shape))
+                        g_bounds['lb'].append(np.zeros(resi.shape))
+
+    return g_list, g_bounds
+
+
+def get_residual_for_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed, period):
+    architecture = model.architecture
+    parent = architecture.parent_map[kite]
+
+    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
+    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+
+    gamma_val = 5.
+
+    resi = gamma_var - gamma_val
     return resi

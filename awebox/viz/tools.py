@@ -242,57 +242,7 @@ def draw_kite(ax, q, r, model_options, kite_color, side, num_per_meter):
         draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, num_per_meter)
         draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, num_per_meter)
 
-def draw_wake_nodes(ax, side, plot_dict, index, wake_color):
 
-    n_k = plot_dict['n_k']
-    d = plot_dict['d']
-    n_nodes = n_k * d + 1
-    kite_nodes = plot_dict['architecture'].kite_nodes
-    parent_map = plot_dict['architecture'].parent_map
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
-
-    vals = {}
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for tip in wingtips:
-            for period in range(periods_tracked):
-                short_name = 'w' + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                vals[short_name] = {}
-
-                for dim in dims:
-                    var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                    vals[short_name][dim] = []
-                    for node in range(n_nodes):
-                        val_col = plot_dict['xd'][var_name][node][index]
-                        vals[short_name][dim] = cas.vertcat(vals[short_name][dim], val_col)
-
-
-    for name in vals.keys():
-        points = []
-
-        local_vals = {}
-
-        new_point = []
-        for dim in dims:
-            new_point = cas.horzcat(new_point, vals[name][dim][0])
-        points = cas.vertcat(points, new_point)
-
-        for dim in dims:
-            regular = vals[name][dim][1:]
-            local_vals[dim] = cas.reshape(regular, (n_k, d))
-
-        for ndx_shed in range(n_k):
-            for ddx_shed in range(d):
-                new_point = []
-                for dim in dims:
-                    new_point = cas.horzcat(new_point, local_vals[dim][ndx_shed, ddx_shed])
-                points = cas.vertcat(points, new_point)
-
-        make_side_plot(ax, points, side, wake_color)
-
-    return None
 
 def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx, output_type, output_name, cosmetics, reload_dict, dim=0):
 
@@ -678,76 +628,6 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
 
     return q_lim
 
-def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
-
-    options = plot_dict['options']
-    architecture = plot_dict['architecture']
-    number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
-    parent_map = architecture.parent_map
-    num_per_meter = cosmetics['trajectory']['kite_num_per_meter']
-
-    for node in range(1, number_of_nodes):
-
-        # node information
-        parent = parent_map[node]
-
-        # construct local q
-        q_node = []
-        for j in range(3):
-            q_node = cas.vertcat(q_node, plot_dict['xd']['q'+str(node)+str(parent)][j][index])
-
-        # construct local parent
-        if node == 1:
-            q_parent = np.zeros((3,1))
-        else:
-            grandparent = parent_map[parent]
-            q_parent = []
-            for j in range(3):
-                q_parent = cas.vertcat(q_parent, plot_dict['xd']['q'+str(parent)+str(grandparent)][j][index])
-
-        # stack node + parent vertically
-        vert_stack = cas.vertcat(q_node.T, q_parent.T)
-
-        # plot tether
-        make_side_plot(ax, vert_stack, side, 'k')
-
-    if cosmetics['trajectory']['kite_bodies'] and plot_kites:
-        for kite in kite_nodes:
-
-            # kite colors
-            if init_colors:
-                local_color = 'k'
-            else:
-                local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-
-            parent = parent_map[kite]
-
-            # kite position information
-            q_kite = []
-            for j in range(3):
-                q_kite = cas.vertcat(q_kite, plot_dict['xd']['q'+str(kite)+str(parent)][j][index])
-
-            # dcm information
-            r_dcm = []
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
-
-            # draw kite body
-            draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, num_per_meter)
-
-    if cosmetics['trajectory']['wake_nodes']:
-
-        wake_color = 'k'
-        draw_wake_nodes(ax, side, plot_dict, index, wake_color)
-
-    ax.get_figure().canvas.draw()
-
-    return None
 
 def plot_control_block_smooth(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, idx, location, name, plot_dict, number_dim=1):
 
