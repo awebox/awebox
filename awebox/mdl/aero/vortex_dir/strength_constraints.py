@@ -101,8 +101,7 @@ def get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx):
     var = V['coll_var', ndx, ddx, 'xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx)
 
-    # gamma_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma' + str(kite)]
-    gamma_val = 3.
+    gamma_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma' + str(kite)]
 
     resi = gamma_var - gamma_val
     return resi
@@ -117,8 +116,7 @@ def get_residual_for_on_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_sh
     var = V['coll_var', ndx, ddx, 'xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
-    gamma_val = 5.
+    gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
 
     resi = gamma_var - gamma_val
     return resi
@@ -133,7 +131,6 @@ def get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_s
     var = V['coll_var', ndx, ddx, 'xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
     gamma_val = 0.
 
     resi = gamma_var - gamma_val
@@ -170,9 +167,8 @@ def get_residual_for_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, 
     gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
     var = V['coll_var', ndx, ddx, 'xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
-    # gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
 
-    gamma_val = 5.
+    gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
 
     resi = gamma_var - gamma_val
     return resi
