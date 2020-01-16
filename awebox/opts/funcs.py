@@ -786,7 +786,14 @@ def share_aerodynamics_options(options, options_tree, help_options):
     options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
 
-    ## tether drag
+    enable_pool = options['user_options']['processing']['enable_pool']
+    processes = options['user_options']['processing']['processes']
+    options_tree.append(('model', 'processing', None, 'enable_pool', enable_pool, ('????', None), 'x')),
+    options_tree.append(('model', 'processing', None, 'processes', processes, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'processing', 'enable_pool', enable_pool, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'processing', 'processes', processes, ('????', None), 'x')),
+
+     ## tether drag
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['trivial', 'simple', 'equivalence', 'not_in_use'])
     options_tree.append(('model', 'tether', 'tether_drag', 'model_type', user_options['tether_drag_model'], tether_drag_descript,'x'))
     options_tree.append(('formulation', None, None, 'tether_drag_model', user_options['tether_drag_model'], tether_drag_descript,'x'))

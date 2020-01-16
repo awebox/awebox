@@ -44,7 +44,12 @@ def draw_wake_nodes(ax, side, plot_dict, index):
     architecture = plot_dict['architecture']
     periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
 
-    vortex_list = vortex_tools.get_list_of_all_vortices(variables_xd, variables_xl, architecture, periods_tracked, n_k, d)
+    enable_pool = plot_dict['cosmetics']['processing']['enable_pool']
+    processes = plot_dict['cosmetics']['processing']['processes']
+
+    U_ref = plot_dict['options']['model']['params']['wind']['u_ref'] * vect_op.xhat_np()
+
+    vortex_list = vortex_tools.get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, enable_pool=enable_pool, processes=processes)
 
     n_segments = vortex_list.shape[1]
     for sdx in range(n_segments):
