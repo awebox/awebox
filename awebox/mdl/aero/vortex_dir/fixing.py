@@ -34,7 +34,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import pdb
-import awebox.mdl.aero.vortex_dir.geom as geom
+import awebox.mdl.aero.vortex_dir.tools as tools
 
 def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model):
 
@@ -56,7 +56,7 @@ def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, m
                 var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
                 var_column = V['xd', 0, var_name]
-                node_pos = geom.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
+                node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
 
                 # remember: periodicity! wingtip positions at end, must be equal to positions at start
                 wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
@@ -70,7 +70,7 @@ def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, m
                     for ddx in range(d):
 
                         var_column = V['coll_var', ndx, ddx, 'xd', var_name]
-                        node_pos = geom.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
+                        node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
                         wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
 
                         fix = node_pos - wingtip_pos

@@ -500,7 +500,8 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'diagnostics', 'colors',     dim_colors,     ('list of colors for algebraic variables', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'ylabelsize', 15,             ('???', None), 'x'),
-        ('visualization', 'cosmetics', None, 'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
+        ('visualization', 'cosmetics', 'animation',   'snapshot_index', 0,          ('???', None), 'x'),
+        ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
 
         # quality check options
         ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),

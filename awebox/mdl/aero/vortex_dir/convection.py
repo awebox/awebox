@@ -32,58 +32,8 @@ import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.wind as wind
+import awebox.mdl.aero.vortex_dir.tools as tools
 import pdb
-
-# name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-
-def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
-    if start:
-        return var[0]
-    else:
-        var_regular = var[1:]
-
-        dimensions = (n_k, d)
-        var_reshape = cas.reshape(var_regular, dimensions)
-
-        return var_reshape[ndx, ddx]
-
-def get_vector_var(options, variables, pos_vel, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    parent = architecture.parent_map[kite]
-
-    loc = 'xd'
-    dims = ['x', 'y', 'z']
-
-    if pos_vel == 'pos':
-        sym = 'w'
-    elif pos_vel == 'vel':
-        sym = 'dw'
-    else:
-        pdb.set_trace()
-
-    vect = []
-    for dim in dims:
-        name = sym + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-
-        try:
-            comp_all = variables[loc][name]
-        except:
-            pdb.set_trace()
-
-        comp = get_wake_var_at_ndx_ddx(n_k, d, comp_all, start=start, ndx=ndx, ddx=ddx)
-        vect = cas.vertcat(vect, comp)
-
-    return vect
-
-def get_pos_wake_var(options, variables, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
-    pos = get_vector_var(options, variables, 'pos', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
-    return pos
-
-def get_vel_wake_var(options, variables, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
-    vel = get_vector_var(options, variables, 'vel', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
-    return vel
 
 def get_convection_residual(options, wind, variables, architecture):
     n_k = options['aero']['vortex']['n_k']
@@ -109,8 +59,8 @@ def get_convection_residual(options, wind, variables, architecture):
 
 def get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, start=bool(False), ndx=0, ddx=0):
 
-    vel_var = get_vel_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
-    pos_var = get_pos_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
+    vel_var = tools.get_vel_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
+    pos_var = tools.get_pos_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
 
     z_var = cas.mtimes(pos_var.T, vect_op.zhat())
     vel_comp = wind.get_velocity(z_var)

@@ -31,13 +31,13 @@ _python-3.5 / casadi-3.4.5
 import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-from . import geom as geom
+from . import convection as convection
 import pdb
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
 
-    convection_resi = geom.get_convection_residual(options, wind, variables, architecture)
+    convection_resi = convection.get_convection_residual(options, wind, variables, architecture)
 
     resi = cas.vertcat(resi, convection_resi)
 

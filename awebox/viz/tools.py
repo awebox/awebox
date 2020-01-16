@@ -1107,3 +1107,27 @@ def get_nondim_time_and_switch(plot_dict):
     tau = t_switch / t_f
 
     return time_nondim, tau
+
+def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
+
+    variables_dict = plot_dict['variables_dict']
+
+    if not var_type in variables_dict.keys():
+        awelogger.logger.error('requested variable type does not exist.')
+        return None
+
+    else:
+        local_dict = variables_dict[var_type]
+        collected_vals = []
+
+        for name in local_dict.keys():
+            column_vals = plot_dict[var_type][name]
+            # assume that all variables are saved in column format!!
+            n_entries = len(column_vals)
+
+            for edx in range(n_entries):
+                entry_val = column_vals[edx][index]
+                collected_vals = cas.vertcat(collected_vals, entry_val)
+
+        var_slice = local_dict(collected_vals)
+        return var_slice

@@ -44,7 +44,6 @@ import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
 import pdb
-import awebox.mdl.aero.vortex_dir.geom as geom
 
 def get_operation_conditions(options):
 

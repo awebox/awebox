@@ -109,7 +109,7 @@ def animate_snapshot(plot_dict, cosmetics, fig_name, init_colors=bool(False), pl
     axes['ax_yz'] = plt.subplot(2, 2, 2)
     axes['ax_xy'] = plt.subplot(2, 2, 3)
 
-    index = 31
+    index = cosmetics['animation']['snapshot_index']
     animation_snapshot(axes, plot_dict, index, cosmetics, init_colors, plot_kites)
 
     # make text plot

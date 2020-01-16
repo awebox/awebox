@@ -32,7 +32,6 @@ _python-3.5 / casadi-3.4.5
 import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
 import pdb
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):

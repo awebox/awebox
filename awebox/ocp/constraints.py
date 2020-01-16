@@ -33,8 +33,8 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 import pdb
-import awebox.mdl.aero.vortex_dir.fix_constraints as vortex_fix
-import awebox.mdl.aero.vortex_dir.strength_constraints as vortex_strength
+import awebox.mdl.aero.vortex_dir.fixing as vortex_fix
+import awebox.mdl.aero.vortex_dir.strength as vortex_strength
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
