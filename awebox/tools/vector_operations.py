@@ -119,6 +119,19 @@ def angle_between_resi(a, b, theta):
     resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
     return resi
 
+def zeros_mx(shape):
+    return cas.MX.zeros(shape[0], shape[1])
+
+def zeros_sx(shape):
+    return cas.SX.zeros(shape[0], shape[1])
+
+def ones_mx(shape):
+    return cas.MX.ones(shape[0], shape[1])
+
+def ones_sx(shape):
+    return cas.SX.ones(shape[0], shape[1])
+
+
 def xhat():
     return xhat_np()
 

@@ -24,18 +24,14 @@
 #
 import casadi.tools as cas
 import matplotlib.pyplot as plt
-
-import awebox.tools.vector_operations as vect_op
-import awebox.tools.struct_operations as struct_op
-
 import numpy as np
 import pdb
 import awebox.viz.tools as tools
 import awebox.mdl.aero.vortex_dir.tools as vortex_tools
+import awebox.tools.vector_operations as vect_op
 
 
 def draw_wake_nodes(ax, side, plot_dict, index):
-
     variables_xd = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index, 'xd')
     variables_xl = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index, 'xl')
 
@@ -44,25 +40,32 @@ def draw_wake_nodes(ax, side, plot_dict, index):
     architecture = plot_dict['architecture']
     periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
 
+    U_ref = plot_dict['options']['model']['params']['wind']['u_ref'] * vect_op.xhat_np()
+
     enable_pool = plot_dict['cosmetics']['processing']['enable_pool']
     processes = plot_dict['cosmetics']['processing']['processes']
 
-    U_ref = plot_dict['options']['model']['params']['wind']['u_ref'] * vect_op.xhat_np()
-
-    vortex_list = vortex_tools.get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, enable_pool=enable_pool, processes=processes)
+    vortex_list = vortex_tools.get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_ref,
+                                                        periods_tracked, n_k, d, enable_pool=enable_pool,
+                                                        processes=processes)
 
     n_segments = vortex_list.shape[1]
     for sdx in range(n_segments):
-        local_data = vortex_list[:, sdx]
-        start_point = local_data[:3].T
-        end_point = local_data[3:6].T
-        gamma = local_data[-1]
+        seg_data = vortex_list[:, sdx]
+        start_point = seg_data[:3].T
+        end_point = seg_data[3:6].T
+        gamma = seg_data[6]
 
         points = cas.vertcat(start_point, end_point)
         wake_color = convert_gamma_to_color(gamma, plot_dict)
-        tools.make_side_plot(ax, points, side, wake_color)
+        try:
+            tools.make_side_plot(ax, points, side, wake_color)
+        except:
+            pdb.set_trace()
 
     return None
+
+
 
 
 def get_gamma_extrema(plot_dict):

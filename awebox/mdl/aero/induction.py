@@ -59,7 +59,7 @@ def collect_outputs(options, atmos, wind, variables, outputs, parameters, archit
     if options['induction_model'] == 'actuator':
         outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
     if options['induction_model'] == 'vortex':
-        32.0
+        outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
     return outputs
 

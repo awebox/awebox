@@ -32,18 +32,26 @@ import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 from . import convection as convection
+from . import induction as induction
 import pdb
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = []
-
-    convection_resi = convection.get_convection_residual(options, wind, variables, architecture)
-
-    resi = cas.vertcat(resi, convection_resi)
-
+    resi = convection.get_convection_residual(options, wind, variables, architecture)
     return resi
-
 
 def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
     return resi
+
+
+def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):
+
+    if 'vortex' not in list(outputs.keys()):
+        outputs['vortex'] = {}
+
+    kite_nodes = architecture.kite_nodes
+
+    for kite in kite_nodes:
+        outputs['vortex']['U_ind_vortex' + str(kite)] = induction.get_induced_velocity_at_kite(model_options, wind, variables, architecture, kite)
+
+    return outputs

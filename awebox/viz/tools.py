@@ -91,7 +91,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
     return x
 
 def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-'):
-    vsa = np.array(vertically_stacked_array)
+    vsa = np.array(cas.DM(vertically_stacked_array))
 
     if vsa.shape[0] == 3 and (not vsa.shape[1] == 3):
         vsa = vsa.T

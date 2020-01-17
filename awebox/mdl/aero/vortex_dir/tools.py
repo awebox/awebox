@@ -36,8 +36,6 @@ import awebox.mdl.wind as wind
 import pdb
 from multiprocessing import Pool
 
-# name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
         return var[0]
@@ -99,38 +97,40 @@ def get_vel_wake_var(options, variables, tip, period, kite, architecture, start=
     vel = get_vector_var(options, variables, 'vel', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
     return vel
 
-def get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, enable_pool=False, processes=3):
+def get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, enable_pool=False, processes=3):
 
     if enable_pool:
-        vortex_list = get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, processes)
+        vortex_list = get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, processes)
     else:
-        vortex_list = get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d)
+        vortex_list = get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d)
 
     return vortex_list
 
-def get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, processes=3):
+def get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, processes=3):
 
     args = {}
 
     args['variables_xd'] = variables_xd
     args['variables_xl'] = variables_xl
     args['architecture'] = architecture
-    args['U_ref'] = U_ref
+    args['U_infty'] = U_infty
     args['periods_tracked'] = periods_tracked
     args['n_k'] = n_k
     args['d'] = d
 
-    vortex_list = []
-
     kite_nodes = architecture.kite_nodes
     args_list = []
     for kite in kite_nodes:
-        args_list += [args_list]
-        args_list[-1]['kite'] = kite
+        new_arg = args
+        new_arg['kite'] = kite
+        args_list += [new_arg]
 
     with Pool(processes=processes) as pool:
-        sol = pool.map(get_parallel_sublist_of_all_vortices, args_list)
-        pdb.set_trace()
+        list_set = pool.map(get_parallel_sublist_of_all_vortices, args_list)
+
+    vortex_list = []
+    for sublist in list_set:
+        vortex_list = cas.horzcat(vortex_list, sublist)
 
     return vortex_list
 
@@ -139,7 +139,7 @@ def get_parallel_sublist_of_all_vortices(args):
     variables_xd = args['variables_xd']
     variables_xl = args['variables_xl']
     architecture = args['architecture']
-    U_ref = args['U_ref']
+    U_infty = args['U_infty']
     periods_tracked = args['periods_tracked']
     n_k = args['n_k']
     d = args['d']
@@ -157,14 +157,14 @@ def get_parallel_sublist_of_all_vortices(args):
                 vortex_list = cas.horzcat(vortex_list, ring_list)
 
     # add infinite trailing vortices
-    infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, kite)
+    infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite)
     vortex_list = cas.horzcat(vortex_list, infinite_list)
 
     return vortex_list
 
 
 
-def get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d):
+def get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d):
 
     vortex_list = []
 
@@ -181,13 +181,13 @@ def get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, 
 
     # add infinite trailing vortices
     for kite in kite_nodes:
-        infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, kite)
+        infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite)
         vortex_list = cas.horzcat(vortex_list, infinite_list)
 
     return vortex_list
 
 
-def get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_ref, periods_tracked, n_k, d, kite):
+def get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite):
 
     infinite_list = []
 
@@ -199,14 +199,14 @@ def get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture
                                        ddx_shed)
 
     ## semi-infinite vortex: interior wingtip
-    start_point = points['int_trailing'] + U_ref * 1000.
+    start_point = points['int_trailing'] + U_infty * 1000.
     end_point = points['int_trailing']
     new_vortex = cas.vertcat(start_point, end_point, strength)
     infinite_list = cas.horzcat(infinite_list, new_vortex)
 
     ## semi-infinite vortex: interior wingtip
     start_point = points['ext_trailing']
-    end_point = points['ext_trailing'] + U_ref * 1000.
+    end_point = points['ext_trailing'] + U_infty * 1000.
     new_vortex = cas.vertcat(start_point, end_point, strength)
     infinite_list = cas.horzcat(infinite_list, new_vortex)
 
@@ -274,7 +274,7 @@ def get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite,
     for tip in wingtips:
         for long in longitudes:
             entry_name = tip + '_' + long
-            points[entry_name] = np.zeros((3, 1))
+            points[entry_name] = vect_op.zeros_sx((3, 1))
 
     # fill in information
     for tip in wingtips:
@@ -287,18 +287,18 @@ def get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite,
                 var = variables_xd[point_name]
 
                 if long == 'trailing' and ndx_shed == 0 and ddx_shed == 0:
-                    points[entry_name][jdx] = get_wake_var_at_ndx_ddx(n_k, d, var, start=True)
+                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=True)
 
                 elif long == 'trailing' and ddx_shed == 0:
-                    points[entry_name][jdx] = get_wake_var_at_ndx_ddx(n_k, d, var, start=False, ndx=ndx_shed - 1,
+                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False, ndx=ndx_shed - 1,
                                                                       ddx=d - 1)
 
                 elif long == 'trailing':
-                    points[entry_name][jdx] = get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
+                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
                                                                       ndx=ndx_shed, ddx=ddx_shed - 1)
 
                 elif long == 'leading':
-                    points[entry_name][jdx] = get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
+                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
                                                                       ndx=ndx_shed, ddx=ddx_shed)
 
                 else:

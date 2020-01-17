@@ -29,6 +29,7 @@
 import numpy as np
 from . import funcs
 import casadi as cas
+import multiprocessing as mp
 
 def set_default_user_options(internal_access = False):
 
@@ -67,7 +68,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
         ('user_options',    None,          None,        'tether_drag_model',     'trivial',          ('possible options',['trivial', 'simple', 'equivalence', 'not_in_use']),'t'),
         ('user_options',    'processing',  None,        'enable_pool',           False,              ('use pooling to speed up construction time', [True, False]), 'x'),
-        ('user_options',    'processing',  None,        'processes',             3,                  ('number of processes to use when pooling tasks. int', None), 'x'),
+        ('user_options',    'processing',  None,        'processes',             mp.cpu_count() - 1, ('number of processes to use when pooling tasks. int', None), 'x'),
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
@@ -116,6 +117,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
 
         ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
+        ('model', 'aero', 'vortex',     'epsilon',              1.e-6,      ('biot-savart smoothing value, [m^4]', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
