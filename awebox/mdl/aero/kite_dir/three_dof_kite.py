@@ -36,7 +36,7 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.indicators as indicators
-import awebox.mdl.aero.induction as induction
+import awebox.mdl.aero.induction_dir.induction as induction
 import pdb
 
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
@@ -62,7 +62,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if not (options['induction_model'] == 'not_in_use'):
-            ua = induction.get_kite_effective_velocity(options, variables, wind, kite, parent)
+            ua = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
         else:
             ua = uw_infty - dq
 
@@ -126,7 +126,7 @@ def get_ehat_l_and_span(kite, options, wind, variables, architecture):
 
     # apparent air velocity
     if not (options['induction_model'] == 'not_in_use'):
-        ua = induction.get_kite_effective_velocity(options, variables, wind, kite, parent)
+        ua = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
     else:
         ua = uw_infty - dq
 

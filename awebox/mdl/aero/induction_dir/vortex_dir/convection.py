@@ -29,11 +29,9 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi as cas
-import numpy as np
-from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.vortex_dir.tools as tools
-import pdb
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+
 
 def get_convection_residual(options, wind, variables, architecture):
     n_k = options['aero']['vortex']['n_k']

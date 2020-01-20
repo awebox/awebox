@@ -36,7 +36,7 @@ import awebox.mdl.aero.indicators as indicators
 
 from . import stability_derivatives
 
-import awebox.mdl.aero.induction as induction
+import awebox.mdl.aero.induction_dir.induction as induction
 
 import pdb
 
@@ -67,7 +67,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if not (options['induction_model'] == 'not_in_use'):
-            ua = induction.get_kite_effective_velocity(options, variables, wind, n, parent)
+            ua = induction.get_kite_effective_velocity(options, variables, wind, n, architecture)
         else:
             ua = uw_infty - dq
 

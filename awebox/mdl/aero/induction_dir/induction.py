@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,33 +25,53 @@
 """
 induction and local flow manager
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019
+- author: rachel leuthold, alu-fr 2020
 """
 
+import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.general_dir.general as general
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import casadi.tools as cas
-
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.actuator_disk_dir.flow as act_flow
-import awebox.mdl.aero.actuator_disk_dir.actuator as actuator
-import awebox.mdl.aero.vortex_dir.vortex as vortex
-import numpy as np
-import pdb
-from awebox.logger.logger import Logger as awelogger
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
+
+    if not (options['induction_model'] == 'not_in_use'):
+        general_resi = general.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        resi = cas.vertcat(resi, general_resi)
+
     if options['induction_model'] == 'actuator':
-        resi = actuator.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        actuator_resi = actuator.get_trivial_residual(options, atmos, wind, variables, parameters, outputs,
+                                                      architecture)
+        resi = cas.vertcat(resi, actuator_resi)
+
     if options['induction_model'] == 'vortex':
-        resi = vortex.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        vortex_resi = vortex.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
+
     return resi
 
+
 def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+
     resi = []
+
+    if not (options['induction_model'] == 'not_in_use'):
+        general_resi = general.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        resi = cas.vertcat(resi, general_resi)
+
     if options['induction_model'] == 'actuator':
-        resi = actuator.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        actuator_resi = actuator.get_final_residual(options, atmos, wind, variables, parameters, outputs,
+                                                      architecture)
+        resi = cas.vertcat(resi, actuator_resi)
+
     if options['induction_model'] == 'vortex':
-        resi = vortex.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        vortex_resi = vortex.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
+
     return resi
 
 
@@ -63,24 +83,17 @@ def collect_outputs(options, atmos, wind, variables, outputs, parameters, archit
 
     return outputs
 
-def get_kite_effective_velocity(model_options, variables, wind, kite, parent):
+def get_kite_effective_velocity(model_options, variables, wind, kite, architecture):
     induction_model = model_options['induction_model']
+    parent = architecture.parent_map[kite]
 
-    u_app_kite = get_kite_apparent_velocity(variables, wind, kite, parent)
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
 
     u_eff_kite = u_app_kite
     if induction_model == 'actuator':
-        u_eff_kite = act_flow.get_kite_effective_velocity(model_options, variables, wind, kite, parent)
+        u_eff_kite = actuator_flow.get_kite_effective_velocity(model_options, variables, wind, kite, parent)
     if induction_model == 'vortex':
         32.0
+        # u_eff_kite = vortex_flow.get_kite_effective_velocity(model_options, variables, wind, kite, architecture)
 
     return u_eff_kite
-
-
-def get_kite_apparent_velocity(variables, wind, kite, parent):
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
-    u_infty = wind.get_velocity(q_kite[2])
-    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
-    u_app_kite = u_infty - u_kite
-
-    return u_app_kite

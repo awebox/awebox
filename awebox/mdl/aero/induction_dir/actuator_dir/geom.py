@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-19
+- author: rachel leuthold, alu-fr 2017-20
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -35,10 +35,11 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.actuator_disk_dir.geometry_dir.path_geom as path_based
-import awebox.mdl.aero.actuator_disk_dir.geometry_dir.multi_kite_geom as multi_kite_geom
-import awebox.mdl.aero.actuator_disk_dir.geometry_dir.n_hat_opt as n_hat_opt
 
+import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
+import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
+
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 # switches
 
@@ -50,7 +51,7 @@ def get_center_point(model_options, parent, variables, architecture):
     if number_children > 1:
         center = multi_kite_geom.approx_center_point(parent, variables, architecture)
     else:
-        center = path_based.approx_center_point(model_options, children, variables, architecture)
+        center = path_based_geom.approx_center_point(model_options, children, variables, architecture)
 
     return center
 
@@ -64,7 +65,7 @@ def get_center_velocity(model_options, parent, variables, architecture):
     else:
         # dcenter = path_based.approx_center_velocity(model_options, children, variables, architecture)
 
-        n_hat_var = get_n_hat_var(variables, parent)
+        n_hat_var = general_geom.get_n_hat_var(variables, parent)
         dq = variables['xd']['dq' + str(children[0]) + str(parent)]
         dcenter = cas.mtimes(dq.T, n_hat_var) * n_hat_var
 
@@ -77,7 +78,7 @@ def get_kite_radius_vector(model_options, kite, variables, architecture):
         r_vec = multi_kite_geom.approx_kite_radius_vector(variables, architecture, kite)
     else:
         parent = architecture.parent_map[kite]
-        r_vec = path_based.approx_kite_radius_vector(model_options, variables, kite, parent)
+        r_vec = path_based_geom.approx_kite_radius_vector(model_options, variables, kite, parent)
     return r_vec
 
 
@@ -123,38 +124,7 @@ def get_varrho_var(model_options, variables, kite, parent):
     varrho_var = varrho_ref * variables['xl']['varrho' + str(kite) + str(parent)]
     return varrho_var
 
-def get_rot_matr_var(variables, parent):
-    rot_cols = variables['xl']['rot_matr' + str(parent)]
-    rot_matr = cas.reshape(rot_cols, (3, 3))
 
-    return rot_matr
-
-def get_n_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    n_hat = rot_matr[:, 0]
-    return n_hat
-
-def get_n_hat_slack_lower(variables, parent):
-    slack = variables['xl']['n_hat_slack' + str(parent)][:3]
-    return slack
-
-def get_n_hat_slack_upper(variables, parent):
-    slack = variables['xl']['n_hat_slack' + str(parent)][3:]
-    return slack
-
-def get_y_rotor_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    y_hat = rot_matr[:, 1]
-    return y_hat
-
-def get_z_rotor_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    y_hat = rot_matr[:, 2]
-    return y_hat
-
-def get_z_vec_length_var(variables, parent):
-    len_var = variables['xl']['z_vec_length' + str(parent)]
-    return len_var
 
 def get_psi_var(variables, kite, parent):
     psi_scale = 2. * np.pi
@@ -220,8 +190,6 @@ def get_bar_varrho_residual(model_options, parent, variables, architecture):
     varrho_ref = get_varrho_ref(model_options)
     resi = resi_unscaled / varrho_ref
 
-    # resi = bar_varrho_var - 7.
-
     return resi
 
 def get_bar_varrho_trivial(model_options, parent, variables, architecture):
@@ -247,8 +215,8 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
 
-    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
 
     y_rotor_comp = cas.mtimes(radius_vec.T, y_rotor_hat_var)
     z_rotor_comp = cas.mtimes(radius_vec.T, z_rotor_hat_var)
@@ -273,66 +241,6 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     return resi_combi
 
-def get_rot_matr_ortho_residual(model_options, parent, variables, parameters, architecture):
-    # rotation matrix is in SO3 = 6 constraints
-    rot_matr_var = get_rot_matr_var(variables, parent)
-    ortho_matr = cas.mtimes(rot_matr_var.T, rot_matr_var) - np.eye(3)
-    f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
-
-    return f_ortho
-
-def get_rot_matr_n_along_normal_residual(model_options, parent, variables, parameters, architecture):
-    # n_hat * length equals normal direction = 3 constraints
-    n_vec_val = n_hat_opt.get_n_vec(model_options, parent, variables, parameters, architecture)
-    n_hat_var = get_n_hat_var(variables, parent)
-    n_vec_length_var = n_hat_opt.get_n_vec_length_var(variables, parent)
-
-    slack_lower = get_n_hat_slack_lower(variables, parent)
-    slack_upper = get_n_hat_slack_upper(variables, parent)
-
-    n_diff = n_vec_val - (n_hat_var - slack_lower + slack_upper) * n_vec_length_var
-
-    n_vec_length_ref = n_hat_opt.get_n_vec_length_ref(variables, parent)
-    f_n_vec = n_diff / n_vec_length_ref
-
-    return f_n_vec
-
-def get_rot_matr_n_along_tether_residual(model_options, parent, variables, parameters, architecture):
-    # n_hat * length equals normal direction = 3 constraints
-    n_vec_val = n_hat_opt.get_n_vec_default(model_options, parent, variables, parameters, architecture)
-    n_hat_var = get_n_hat_var(variables, parent)
-    n_vec_length_var = n_hat_opt.get_n_vec_length_var(variables, parent)
-
-    n_diff = n_vec_val - n_hat_var * n_vec_length_var
-
-    n_vec_length_ref = n_hat_opt.get_n_vec_length_ref(variables, parent)
-    f_n_vec = n_diff / n_vec_length_ref
-
-    return f_n_vec
-
-
-def get_rot_matr_residual(model_options, parent, variables, parameters, architecture):
-
-    # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    f_ortho = get_rot_matr_ortho_residual(model_options, parent, variables, parameters, architecture)
-    f_n_vec = get_rot_matr_n_along_normal_residual(model_options, parent, variables, parameters, architecture)
-    #
-    # join the constraints
-    f_combi = cas.vertcat(f_ortho, f_n_vec)
-
-    return f_combi
-
-def get_rot_matr_trivial(model_options, parent, variables, parameters, architecture):
-
-    # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    f_ortho = get_rot_matr_ortho_residual(model_options, parent, variables, parameters, architecture)
-    f_n_vec = get_rot_matr_n_along_tether_residual(model_options, parent, variables, parameters, architecture)
-    #
-    # join the constraints
-    f_combi = cas.vertcat(f_ortho, f_n_vec)
-
-    return f_combi
-
 
 
 # processing
@@ -353,8 +261,8 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
 
     parent = architecture.parent_map[kite]
 
-    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
 
     psi_var = get_psi_var(variables, kite, parent)
     cospsi_var = get_cospsi_var(variables, kite, parent)
@@ -400,9 +308,6 @@ def get_bar_varrho_val(model_options, variables, parent, architecture):
     bar_varrho_val = sum_varrho / number_children
     return bar_varrho_val
 
-def get_n_vec_val(model_options, parent, variables, parameters, architecture):
-    n_vec_val = n_hat_opt.get_n_vec(model_options, parent, variables, parameters, architecture)
-    return n_vec_val
 
 def approximate_tip_radius(model_options, variables, kite, architecture, tip, parameters):
 

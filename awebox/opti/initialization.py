@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 19)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
 '''
 
 import numpy as np
@@ -35,6 +35,8 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
+import awebox.opti.initialization_induction as induction_init
+import awebox.opti.initialization_tools as tools_init
 
 import pdb
 
@@ -64,13 +66,13 @@ def build_si_initial_guess(nlp, model, formulation, options):
     n_min = n_d_list[1]
     d_min = n_d_list[2]
 
-    tf_init = guess_tf(initialization_options, model, formulation, n_min, d_min)
+    tf_init = tools_init.guess_tf(initialization_options, model, formulation, n_min, d_min)
     if V_init['theta','t_f'].shape[0] > 1:
         tf_init = cas.vertcat(tf_init, tf_init)
 
     V_init = extract_time_grid(model, nlp, formulation, initialization_options, V_init, tf_init, n_d_list)
 
-    V_init = initial_guess_induction(options, nlp, formulation, model, V_init)
+    V_init = induction_init.initial_guess_induction(options, nlp, formulation, model, V_init)
 
     # specified initial values for system parameters
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
@@ -214,135 +216,12 @@ def extract_time_grid(model, nlp, formulation, initialization_options, V_init, t
     return V_init
 
 
-def guess_tf(initialization_options, model, formulation, n_min = None, d_min = None):
-
-    if initialization_options['type'] in ['nominal_landing','compromised_landing']:
-        tf_guess = guess_tf_nominal_or_compromised(initialization_options, formulation, n_min, d_min)
-
-    elif initialization_options['type'] == 'transition':
-        tf_guess = guess_tf_transition()
-
-    elif initialization_options['type'] == 'aero_test':
-        _, tf_guess = guess_radius_and_tf_aero_test(initialization_options)
-
-    else:
-        _, tf_guess = guess_radius_and_tf_standard(initialization_options, model)
-
-    return tf_guess
-
-
-def guess_tf_transition():
-    tf_guess = 30.
-    return tf_guess
-
-
-def guess_tf_nominal_or_compromised(initialization_options, formulation, n_min, d_min):
-    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'l_t'] * initialization_options['xd']['l_t']
-    tf_guess = l_0 / initialization_options['landing_velocity']
-    return tf_guess
-
-
-def guess_radius_and_tf_aero_test(initialization_options):
-    radius = 999.
-
-    if initialization_options['aero_test']['omega'] > 0:
-        tf_guess = initialization_options['aero_test']['total_periods'] * (2. * np.pi / initialization_options['aero_test']['omega'])
-    else:
-        tf_guess = initialization_options['aero_test']['total_periods']
-
-    return radius, tf_guess
-
-
-def guess_radius_and_tf_standard(initialization_options, model):
-
-    tether_length, max_cone_angle = get_hypotenuse_and_max_cone_angle(model, initialization_options)
-
-    windings = initialization_options['windings']
-    winding_period = initialization_options['winding_period']
-    ua_norm = initialization_options['ua_norm']
-
-    winding_period = clip_winding_period(initialization_options, winding_period)
-    tf_guess = windings * winding_period
-
-    total_distance = ua_norm * tf_guess
-    circumference = total_distance / windings
-    radius = circumference / 2. / np.pi
-
-    radius = clip_radius(initialization_options, max_cone_angle, tether_length, radius)
-
-    total_distance = 2. * np.pi * radius * windings
-    tf_guess = total_distance / ua_norm
-
-    return radius, tf_guess
-
-
-def clip_winding_period(initialization_options, winding_period):
-    # acc = omega * ua = 2 pi ua / winding_period < hardware_limit
-    acc_max = initialization_options['acc_max']
-    ua_norm = initialization_options['ua_norm']
-
-    winding_period_min = 2. * np.pi * ua_norm / acc_max
-    if winding_period < winding_period_min:
-        winding_period = winding_period_min
-    else:
-        winding_period = winding_period
-
-    return winding_period
-
-def clip_radius(initialization_options, max_cone_angle, tether_length, radius):
-    b_ref = initialization_options['sys_params_num']['geometry']['b_ref']
-    min_radius = initialization_options['min_rel_radius'] * b_ref
-    max_radius = np.sin(max_cone_angle * np.pi / 180.) * tether_length
-
-    if radius < min_radius:
-        radius = min_radius
-
-    if radius > max_radius:
-        radius = max_radius
-
-    return radius
-
-def get_hypotenuse_and_max_cone_angle(model, initialization_options):
-    max_cone_angle_multi = initialization_options['max_cone_angle_multi']
-    max_cone_angle_single = initialization_options['max_cone_angle_single']
-
-    number_kites = model.architecture.number_of_kites
-    if number_kites == 1:
-        tether_length = initialization_options['xd']['l_t']
-        max_cone_angle = max_cone_angle_single
-    else:
-        tether_length = initialization_options['theta']['l_s']
-        max_cone_angle = max_cone_angle_multi
-
-    return tether_length, max_cone_angle
-
-
-
-
-
-
-def get_cone_height_and_radius(options, model, l_t):
-
-    # get radius and height of the cones in use
-    # two cone types specified, based on main tether (single kite option) and secondary tether (multi-kite option)
-    # radius is dependent on flight velocity
-    # height is a dependent
-    hypotenuse_list = cas.vertcat(l_t, options['theta']['l_s'])
-    [radius, _] = guess_radius_and_tf_standard(options, model)
-
-    height_list = []
-    for hdx in range(hypotenuse_list.shape[0]):
-        hypotenuse = hypotenuse_list[hdx]
-        height = (hypotenuse**2. - radius**2.)**0.5
-        height_list = cas.vertcat(height_list, height)
-
-    return height_list, radius
 
 
 
 def get_tether_node_position(options, parent_position, node, l_t):
 
-    ehat_tether = get_ehat_tether(options)
+    ehat_tether = tools_init.get_ehat_tether(options)
 
     seg_length = options['theta']['l_i']
     if node == 1:
@@ -352,18 +231,6 @@ def get_tether_node_position(options, parent_position, node, l_t):
 
     return position
 
-def get_azimuthal_angle(t, level_siblings, node, parent, omega_norm):
-
-    number_of_siblings = len(level_siblings[parent])
-    if number_of_siblings == 1:
-        psi0 = 0.
-    else:
-        idx = level_siblings[parent].index(node)
-        psi0 = np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
-
-    psi = psi0 + omega_norm * t
-
-    return psi
 
 
 
@@ -480,6 +347,7 @@ def initial_guess_transition(t, initialization_options, model, formulation, t_f,
 
     return ret
 
+
 def initial_guess_landing(t, initialization_options, model, formulation, t_f, n_min, d_min):
 
     l_s = model.variable_bounds['theta']['l_s']['lb'] * initialization_options['theta']['l_s']
@@ -551,6 +419,7 @@ def initial_guess_landing(t, initialization_options, model, formulation, t_f, n_
 
     return ret
 
+
 def initial_guess_aero_test(t, initialization_options, model, formulation):
     ret = {}
     for name in struct_op.subkeys(model.variables, 'xd'):
@@ -565,6 +434,7 @@ def initial_guess_aero_test(t, initialization_options, model, formulation):
     ret = initial_node_variables_for_aero_test_test(t, initialization_options, model, formulation, ret)
 
     return ret
+
 
 def initial_guess(t, options, nlp, model, formulation):
     ret = {}
@@ -597,34 +467,6 @@ def initial_node_variables_for_aero_test_test(t, options, model, formulation, re
 
     return ret
 
-def get_ehat_radial(t, options, model, kite, ret={}):
-    parent_map = model.architecture.parent_map
-    level_siblings = model.architecture.get_all_level_siblings()
-
-    ua_norm = options['ua_norm']
-
-    if ret == {}:
-        l_t = options['xd']['l_t']
-    else:
-        l_t = ret['l_t']
-
-    height_list, radius = get_cone_height_and_radius(options, model, l_t)
-
-    parent = parent_map[kite]
-
-    omega_norm = ua_norm / radius
-    psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
-
-    _, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
-
-    cospsi_var = np.cos(psi)
-    sinpsi_var = np.sin(psi)
-
-    # for positive yaw(turns around +zhat, normal towards +yhat):
-    #     rhat = zhat * cos(psi) - yhat * sin(psi)
-    ehat_radial = z_rot_hat * cospsi_var - y_rot_hat * sinpsi_var
-
-    return ehat_radial
 
 
 def initial_node_variables_for_standard_path(t, options, model, formulation, ret={}):
@@ -636,7 +478,7 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
     ua_norm = options['ua_norm']
     kite_dof = model.kite_dof
 
-    height_list, radius = get_cone_height_and_radius(options, model, ret['l_t'])
+    height_list, radius = tools_init.get_cone_height_and_radius(options, model, ret['l_t'])
 
     for node in range(1, number_of_nodes):
 
@@ -659,10 +501,10 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
 
             omega_norm = ua_norm / radius
 
-            n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
+            n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(options)
 
             ehat_normal = n_rot_hat
-            ehat_radial = get_ehat_radial(t, options, model, node, ret)
+            ehat_radial = tools_init.get_ehat_radial(t, options, model, node, ret)
             ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
 
             omega_vector = ehat_normal * omega_norm
@@ -698,36 +540,10 @@ def get_cross_tether_dcm(options, dcm):
     return dcm
 
 
-def get_ehat_tether(options):
-    inclination = options['incid_deg'] * np.pi / 180.
-    ehat_tether = np.cos(inclination) * vect_op.xhat() + np.sin(inclination) * vect_op.zhat()
-    return ehat_tether
 
-def get_rotor_reference_frame(initialization_options):
-    n_rot_hat = get_ehat_tether(initialization_options)
-    u_hat = vect_op.xhat_np()
-    z_rot_hat = vect_op.normed_cross(u_hat, n_rot_hat)
-    y_rot_hat = vect_op.normed_cross(z_rot_hat, n_rot_hat)
-    return n_rot_hat, y_rot_hat, z_rot_hat
 
-def get_local_wind_reference_frame(initialization_options):
-    u_hat = vect_op.xhat_np()
-    n_rot_hat = get_ehat_tether(initialization_options)
-    w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
-    v_hat = vect_op.normed_cross(w_hat, u_hat)
-    return u_hat, v_hat, w_hat
 
-def get_gamma_angle(initialization_options):
-    n_rot_hat = get_ehat_tether(initialization_options)
-    u_hat = vect_op.xhat_np()
-    gamma = vect_op.angle_between(u_hat, n_rot_hat)
-    return gamma
 
-def get_chi_angle(options, var_type):
-    a = options['xd']['a']
-    gamma = get_gamma_angle(options)
-    chi = (0.6 * a + 1.) * gamma
-    return chi
 
 
 def get_aero_test_values(t, options):
@@ -761,426 +577,9 @@ def get_aero_test_values(t, options):
 
     return l_t, dl_t, q10, dq10, r_dcm, omega
 
-def initial_guess_induction(options, nlp, formulation, model, V_init):
 
-    induction_model = options['model']['induction_model']
-    if induction_model == 'actuator':
-        V_init = initial_guess_actuator(options, nlp, formulation, model, V_init)
 
-    if induction_model == 'vortex':
-        V_init = initial_guess_vortex(options, nlp, formulation, model, V_init)
 
-    return V_init
 
-def initial_guess_vortex(options, nlp, formulation, model, V_init):
 
-    if not nlp.discretization == 'direct_collocation':
-        awelogger.logger.error('vortex induction model is only defined for direct-collocation model, at this point')
 
-    # create the dictionaries
-    dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(options, nlp, model)
-
-    # save values into dictionaries
-    dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, options, nlp, formulation, model, V_init)
-    dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, options, nlp, formulation, model, V_init)
-    dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, options, nlp, formulation, model, V_init)
-
-    # set dictionary values into V_init
-    V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, options, nlp, model, V_init)
-    
-    return V_init
-
-def reserve_space_in_wake_node_position_dicts(options, nlp, model):
-
-    n_k = nlp.n_k
-    d = nlp.d
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    kite_nodes = model.architecture.kite_nodes
-    periods_tracked = options['model']['vortex_periods_tracked']
-
-    # create space for vortex nodes
-    dict_coll = {}
-    dict_xd = {}
-    for kite in kite_nodes:
-        dict_coll[kite] = {}
-        dict_xd[kite] = {}
-        for tip in wingtips:
-            dict_coll[kite][tip] = {}
-            dict_xd[kite][tip] = {}
-            for dim in dims:
-                dict_coll[kite][tip][dim] = {}
-                dict_xd[kite][tip][dim] = {}
-
-                for period in range(periods_tracked):
-                    dict_coll[kite][tip][dim][period] = {}
-                    dict_xd[kite][tip][dim][period] = {}
-
-                    for ndx in range(n_k):
-                        dict_coll[kite][tip][dim][period][ndx] = {}
-                        dict_xd[kite][tip][dim][period][ndx] = {}
-
-                        dict_xd[kite][tip][dim][period][ndx]['start'] = 0.
-                        dict_xd[kite][tip][dim][period][ndx]['reg'] = np.zeros((n_k, d))
-
-                        for ddx in range(d):
-                            dict_coll[kite][tip][dim][period][ndx][ddx] = {}
-
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['start'] = np.zeros((n_k, d))
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['reg'] = np.zeros((n_k, d))
-
-    return dict_xd, dict_coll
-
-def set_wake_node_positions_from_dict(dict_xd, dict_coll, options, nlp, model, V_init): 
-    
-    n_k = nlp.n_k
-    d = nlp.d
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = options['model']['vortex_periods_tracked']
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for tip in wingtips:
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-
-                for period in range(periods_tracked):
-                    var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-
-                    for ndx in range(n_k):
-
-                        start_xd = dict_xd[kite][tip][dim][period][ndx]['start']
-                        regular_xd = cas.reshape(dict_xd[kite][tip][dim][period][ndx]['reg'], (n_k * d, 1))
-                        all_xd = cas.vertcat(start_xd, regular_xd)
-                        V_init['xd', ndx, var_name] = all_xd
-
-                        # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
-
-                        for ddx in range(d):
-                            start_coll = dict_coll[kite][tip][dim][period][ndx][ddx]['start']
-                            regular_coll = cas.reshape(dict_coll[kite][tip][dim][period][ndx][ddx]['reg'], (n_k * d, 1))
-                            all_coll = cas.vertcat(start_coll, regular_coll)
-                            V_init['coll_var', ndx, ddx, 'xd', var_name] = all_coll
-
-                            # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
-    return V_init
-
-def save_starting_wake_node_position_into_xd_dict(dict_xd, options, nlp, formulation, model, V_init):
-    U_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    b_ref = options['sys_params_num']['geometry']['b_ref']
-    n_k = nlp.n_k
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    signs = [+1., -1.]
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = options['model']['vortex_periods_tracked']
-
-    tf_init = guess_tf(options, model, formulation)
-    tgrid_xd = nlp.time_grids['x'](tf_init)
-
-    # fix values
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for sdx in range(len(wingtips)):
-            sign = signs[sdx]
-            tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-                for period in range(periods_tracked):
-
-                    q_kite = V_init['xd', 0, 'q' + str(kite) + str(parent)]
-                    t_shed = period * tf_init
-
-                    for ndx in range(n_k):
-                        t_local = tgrid_xd[ndx]
-
-                        q_convected = guess_vortex_node_position(t_shed, t_local, q_kite, options, model, kite, b_ref, sign, U_ref)
-                        dict_xd[kite][tip][dim][period][ndx]['start'] = q_convected[jdx]
-    return dict_xd
-
-def save_starting_wake_node_position_into_coll_dict(dict_coll, options, nlp, formulation, model, V_init):
-    U_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    b_ref = options['sys_params_num']['geometry']['b_ref']
-    n_k = nlp.n_k
-    d = nlp.d
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    signs = [+1., -1.]
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = options['model']['vortex_periods_tracked']
-
-    tf_init = guess_tf(options, model, formulation)
-    tgrid_coll = nlp.time_grids['coll'](tf_init)
-
-    # fix values
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for sdx in range(len(wingtips)):
-            sign = signs[sdx]
-            tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-                for period in range(periods_tracked):
-
-                    q_kite = V_init['xd', 0, 'q' + str(kite) + str(parent)]
-                    t_shed = period * tf_init
-
-                    for ndx in range(n_k):
-                        for ddx in range(d):
-                            t_local = tgrid_coll[ndx, ddx]
-
-                            q_convected = guess_vortex_node_position(t_shed, t_local, q_kite, options, model, kite, b_ref, sign, U_ref)
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['start'] = q_convected[jdx]
-    return dict_coll
-
-def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, options, nlp, formulation, model, V_init):
-    U_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    b_ref = options['sys_params_num']['geometry']['b_ref']
-    n_k = nlp.n_k
-    d = nlp.d
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    signs = [+1., -1.]
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = options['model']['vortex_periods_tracked']
-
-    tf_init = guess_tf(options, model, formulation)
-    tgrid_xd = nlp.time_grids['x'](tf_init)
-    tgrid_coll = nlp.time_grids['coll'](tf_init)
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for sdx in range(len(wingtips)):
-            sign = signs[sdx]
-            tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-
-                for period in range(periods_tracked):
-                    for ndx_shed in range(n_k):
-                        for ddx_shed in range(d):
-                            q_kite = V_init['coll_var', ndx_shed, ddx_shed, 'xd', 'q' + str(kite) + str(parent)]
-                            t_shed = period * tf_init + tgrid_coll[ndx_shed, ddx_shed]
-                            
-                            for ndx in range(n_k):
-                                t_local_xd = tgrid_xd[ndx]    
-                                q_convected_xd = guess_vortex_node_position(t_shed, t_local_xd, q_kite, options, model, kite, b_ref, sign, U_ref)
-                                dict_xd[kite][tip][dim][period][ndx]['reg'][ndx_shed][ddx_shed] = q_convected_xd[jdx]
-
-                                for ddx in range(d):
-                                    t_local_coll = tgrid_coll[ndx, ddx]
-                                    q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, options, model, kite, b_ref, sign, U_ref)
-                                    dict_coll[kite][tip][dim][period][ndx][ddx]['reg'][ndx_shed][ddx_shed] = q_convected_coll[jdx]
-
-    return dict_xd, dict_coll
-
-def guess_vortex_node_position(t_shed, t_local, q_kite, options, model, kite, b_ref, sign, U_ref):
-    ehat_radial = get_ehat_radial(t_shed, options, model, kite)
-    q_tip = q_kite + b_ref * sign * ehat_radial / 2.
-
-    time_convected = t_local - t_shed
-    q_convected = q_tip + U_ref * time_convected
-
-    return q_convected
-
-def initial_guess_actuator(options, nlp, formulation, model, V_init):
-
-    V_init = initial_guess_actuator_xd(options, nlp, formulation, model, V_init)
-    V_init = initial_guess_actuator_xl(options, nlp, formulation, model, V_init)
-
-    return V_init
-
-
-
-
-
-def initial_guess_actuator_xd(options, nlp, formulation, model, V_init):
-
-    level_siblings = model.architecture.get_all_level_siblings()
-
-    tf_init = guess_tf(options, model, formulation)
-    tgrid_coll = nlp.time_grids['coll'](tf_init)
-
-    ua_norm = options['ua_norm']
-    l_t_temp = options['xd']['l_t']
-    _, radius = get_cone_height_and_radius(options, model, l_t_temp)
-    omega_norm = ua_norm / radius
-
-    dict = {}
-    dict['a'] = cas.DM(options['xd']['a'])
-    dict['asin'] = cas.DM(0.)
-    dict['acos'] = cas.DM(0.)
-    dict['ct'] = 4. * dict['a'] * (1. - dict['a'])
-    dict['bar_varrho'] = cas.DM(1.)
-
-    var_type = 'xd'
-    for name in struct_op.subkeys(model.variables, var_type):
-        name_stripped = struct_op.get_node_variable_name(name)
-
-        if 'psi' in name_stripped:
-            V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-
-        elif name_stripped in dict.keys():
-            V_init = insert_dict(dict, var_type, name, name_stripped, V_init)
-
-    return V_init
-
-
-def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
-
-    level_siblings = model.architecture.get_all_level_siblings()
-
-    tf_init = guess_tf(options, model, formulation)
-    tgrid_coll = nlp.time_grids['coll'](tf_init)
-
-    ua_norm = options['ua_norm']
-    l_t_temp = options['xd']['l_t']
-    _, radius = get_cone_height_and_radius(options, model, l_t_temp)
-    omega_norm = ua_norm / radius
-
-    n_rot_hat, y_rot_hat, z_rot_hat = get_rotor_reference_frame(options)
-    rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
-    rot_matr_cols = cas.reshape(rot_matr, (9, 1))
-
-    u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)
-    uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
-    uzero_matr_cols = cas.reshape(uzero_matr, (9, 1))
-
-    dict = {}
-    dict['area'] = cas.DM(1.)
-    dict['cmy'] = cas.DM(0.)
-    dict['cmz'] = cas.DM(0.)
-    dict['rot_matr'] = rot_matr_cols
-    dict['uzero_matr'] = uzero_matr_cols
-    dict['n_vec_length'] = cas.DM(1.)
-    dict['g_vec_length'] = cas.DM(1.)
-    dict['z_vec_length'] = cas.DM(1.)
-    dict['u_vec_length'] = cas.DM(1.)
-    dict['varrho'] = cas.DM(1.)
-    dict['qzero'] = cas.DM(1.)
-    dict['gamma'] = get_gamma_angle(options)
-    dict['cosgamma'] = np.cos(dict['gamma'])
-    dict['singamma'] = np.sin(dict['gamma'])
-    dict['chi'] = get_chi_angle(options, 'xl')
-    dict['coschi'] = np.cos(dict['chi'])
-    dict['sinchi'] = np.sin(dict['chi'])
-    dict['tanhalfchi'] = np.tan(dict['chi']/2.)
-    dict['sechalfchi'] = 1./np.cos(dict['chi']/2.)
-    dict['LL'] = cas.DM([0.375, 0., 0., 0., -1., 0., 0., -1., 0.])
-    dict['corr'] = 1. - options['xd']['a']
-
-    var_type = 'xl'
-    for name in struct_op.subkeys(model.variables, 'xl'):
-        name_stripped = struct_op.get_node_variable_name(name)
-
-        if 'psi' in name_stripped:
-            V_init = set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-
-        elif name_stripped in dict.keys():
-            V_init = insert_dict(dict, var_type, name, name_stripped, V_init)
-
-    return V_init
-
-
-def insert_dict(dict, var_type, name, name_stripped, V_init):
-    init_val = dict[name_stripped]
-
-    for idx in range(init_val.shape[0]):
-        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
-
-    return V_init
-
-
-def insert_val(V_init, var_type, name, init_val, idx = 0):
-
-    # initialize on collocation nodes
-    V_init['coll_var', :, :, var_type, name, idx] = init_val
-
-    if var_type == 'xd':
-        # initialize on interval nodes
-        # V_init[var_type, :, :, name] = init_val
-
-        V_init[var_type, :, name, idx] = init_val
-
-    return V_init
-
-def set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-    kite_parent = name[3:]
-    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
-
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
-
-            t = tgrid_coll[nn, dd]
-            psi_scale = 2. * np.pi
-            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
-
-            init_val = psi / psi_scale
-            V_init['coll_var', nn, dd, 'xd', name] = init_val
-
-            if dd == 0:
-                V_init['xd', nn, name] = init_val
-
-            idx = idx + 1
-
-    return V_init
-
-def set_dpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-    V_init = insert_val(V_init, 'xd', name, omega_norm / (2. * np.pi))
-    return V_init
-
-
-def set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-    kite_parent = name[6:]
-    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
-
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
-            t = tgrid_coll[nn, dd]
-            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
-
-            init_val = np.sin(psi)
-            V_init['coll_var', nn, dd, 'xl', name] = init_val
-
-            idx = idx + 1
-
-    return V_init
-
-def set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-    kite_parent = name[6:]
-    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
-
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
-            t = tgrid_coll[nn, dd]
-            psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
-
-            init_val = np.cos(psi)
-            V_init['coll_var', nn, dd, 'xl', name] = init_val
-
-            idx = idx + 1
-
-    return V_init
-
-def set_azimuth_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-
-    if 'cos' in name:
-        V_init = set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-    elif 'sin' in name:
-        V_init = set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-    elif 'dpsi' in name:
-        V_init = set_dpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-    else:
-        V_init = set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-
-    return V_init

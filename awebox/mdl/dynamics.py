@@ -40,7 +40,7 @@ from . import system
 
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 
-import awebox.mdl.aero.induction as induction
+import awebox.mdl.aero.induction_dir.induction as induction
 
 import awebox.mdl.aero.indicators as indicators
 
@@ -51,7 +51,7 @@ import awebox.mdl.aero.tether_dir.tether_drag_coefficients as tether_drag_coeff
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
-import pdb
+
 
 def make_dynamics(options,atmos,wind,parameters,architecture):
 

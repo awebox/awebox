@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -22,36 +22,31 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-'''
-vortex model of awebox aerodynamics
+"""
+flow functions for the vortex based model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019
-'''
+- author: rachel leuthold, alu-fr 2017-20
+- edit: jochem de schutter, alu-fr 2019
+"""
 
-import casadi as cas
+import casadi.tools as cas
+
+import awebox.tools.vector_operations as vect_op
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-from . import convection as convection
-from . import induction as induction
-import pdb
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as vortex_induction
 
-def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = convection.get_convection_residual(options, wind, variables, architecture)
-    return resi
-
-def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-    return resi
+def get_kite_effective_velocity(options, variables, wind, kite, architecture):
 
 
-def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):
+    parent = architecture.parent_map[kite]
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
 
-    if 'vortex' not in list(outputs.keys()):
-        outputs['vortex'] = {}
+    u_ind_kite = vortex_induction.get_induced_velocity_at_kite(options, wind, variables, architecture, kite)
 
-    kite_nodes = architecture.kite_nodes
+    u_eff_kite = u_app_kite + u_ind_kite
 
-    for kite in kite_nodes:
-        outputs['vortex']['U_ind_vortex' + str(kite)] = induction.get_induced_velocity_at_kite(model_options, wind, variables, architecture, kite)
+    return u_eff_kite
 
-    return outputs

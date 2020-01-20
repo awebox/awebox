@@ -33,6 +33,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
 import pdb
 
@@ -116,7 +117,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
     outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
     outputs['aerodynamics']['gamma_unity' + str(n)] = gamma_unity
-    outputs['aerodynamics']['gamma' + str(n)] = gamma_unity
+    outputs['aerodynamics']['gamma' + str(n)] = gamma_cl
 
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.
@@ -229,12 +230,12 @@ def collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, e
     outputs['local_performance']['p_loyd' + str(n)] = p_loyd
     outputs['local_performance']['loyd_speed' + str(n)] = loyd_speed
     outputs['local_performance']['loyd_phf' + str(n)] = loyd_phf
-    outputs['local_performance']['radius' + str(n)] = get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['radius' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
     outputs['local_performance']['speed_ratio' + str(n)] = norm_ua / vect_op.norm(wind.get_velocity(q[2]))
     outputs['local_performance']['speed_ratio_loyd' + str(n)] = loyd_speed / vect_op.norm(wind.get_velocity(q[2]))
 
-    outputs['local_performance']['radius_of_curvature' + str(n)] = get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['radius_of_curvature' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
 
     return outputs
@@ -443,73 +444,6 @@ def get_power_density(atmos, wind, zz):
     return power_density
 
 
-def get_radius_of_curvature(variables, kite, parent):
-
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-
-    gamma_dot = dq
-    gamma_ddot = ddq
-
-    # from frenet vectors + curvature definition
-    # r = || gamma' || / (e1' cdot e2)
-    # e1 = gamma' / || gamma' ||
-    # e1' = ( gamma" || gamma' ||^2  - gamma' (gamma' cdot gamma") ) / || gamma' ||^3
-    # e2 = ebar2 / || ebar2 ||
-    # ebar2 = gamma" - (gamma' cdot gamma") gamma' / || gamma' ||^2
-    # ....
-    # r = || gamma' ||^4 // || gamma" || gamma' ||^2 - gamma' (gamma' cdot gamma") ||
-
-    num = cas.mtimes(gamma_dot.T, gamma_dot)**2. + 1.0e-8
-
-    den_vec = gamma_ddot * cas.mtimes(gamma_dot.T, gamma_dot) - gamma_dot * cas.mtimes(gamma_dot.T, gamma_ddot)
-    den = vect_op.smooth_norm(den_vec)
-
-    radius = num / den
-    return radius
-
-def get_trajectory_tangent(variables, kite, parent):
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    tangent = vect_op.smooth_normalize(dq)
-    return tangent
-
-def get_trajectory_normal(variables, kite, parent):
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-    normal = vect_op.smooth_normalize(ddq)
-    return normal
-
-def get_trajectory_binormal(variables, kite, parent):
-
-    tangent = get_trajectory_tangent(variables, kite, parent)
-    normal = get_trajectory_normal(variables, kite, parent)
-    binormal = vect_op.smooth_normed_cross(tangent, normal)
-
-    forwards_orientation = binormal[0] / vect_op.smooth_abs(binormal[0])
-
-    forwards_binormal = forwards_orientation * binormal
-    return forwards_binormal
-
 def get_radius_inequality(model_options, variables, kite, parent, parameters):
-    # no projection included...
-
-    b_ref = parameters['theta0','geometry','b_ref']
-    half_span = b_ref / 2.
-    num_ref = model_options['model_bounds']['anticollision_radius']['num_ref']
-
-    # half_span - radius < 0
-    # half_span * den - num < 0
-
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-
-    gamma_dot = cas.vertcat(0., dq[1], dq[2])
-    gamma_ddot = cas.vertcat(0., ddq[1], ddq[2])
-
-    num = cas.mtimes(gamma_dot.T, gamma_dot)**2.
-
-    den_vec = gamma_ddot * cas.mtimes(gamma_dot.T, gamma_dot) - gamma_dot * cas.mtimes(gamma_dot.T, gamma_ddot)
-    den = vect_op.norm(den_vec)
-
-    inequality = (half_span * den - num) / num_ref
-
+    inequality = path_based_geom.get_radius_inequality(model_options, variables, kite, parent, parameters)
     return inequality

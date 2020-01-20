@@ -27,16 +27,17 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-19
+- author: rachel leuthold, alu-fr 2017-20
 - edit: jochem de schutter, alu-fr 2019
 """
 
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
-from . import geom as geom
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import numpy as np
-import pdb
 from awebox.logger.logger import Logger as awelogger
 
 ## variables
@@ -47,7 +48,7 @@ def get_local_a_var(variables, kite, parent):
 
 def get_a_var(model_options, variables, parent, label):
     a_ref = get_a_ref(model_options)
-    var_type = geom.get_var_type(model_options)
+    var_type = actuator_geom.get_var_type(model_options)
     a_var = a_ref * variables[var_type]['a_' + label + str(parent)]
     return a_var
 
@@ -149,14 +150,13 @@ def get_sechalfchi_var(variables, parent, label):
     return sechalfchi_var
 
 def get_uzero_vec_length_var(wind, variables, parent):
-    scale = get_uzero_vec_length_ref(wind, variables, parent)
+    scale = get_uzero_vec_length_ref(wind)
     len_var = scale * variables['xl']['u_vec_length' + str(parent)]
     return len_var
 
 def get_g_vec_length_var(variables, parent):
     len_var = variables['xl']['g_vec_length' + str(parent)]
     return len_var
-
 
 
 ## residuals
@@ -186,7 +186,7 @@ def get_gamma_residual(model_options, wind, parent, variables, architecture):
     uzero_hat_var = get_uzero_hat_var(variables, parent)
     vzero_hat_var = get_vzero_hat_var(variables, parent)
 
-    n_hat_var = geom.get_n_hat_var(variables, parent)
+    n_hat_var = general_geom.get_n_hat_var(variables, parent)
     u_comp = cas.mtimes(n_hat_var.T, uzero_hat_var)
     v_comp = cas.mtimes(n_hat_var.T, vzero_hat_var)
 
@@ -276,22 +276,22 @@ def get_uzero_matr_u_along_uzero_residual(model_options, wind, parent, variables
 
     u_diff = u_vec_val - u_hat_var * u_vec_length_var
 
-    u_vec_length_ref = get_uzero_vec_length_ref(wind, variables, parent)
+    u_vec_length_ref = get_uzero_vec_length_ref(wind)
     f_u_vec = u_diff / u_vec_length_ref
 
     return f_u_vec
 
 def get_wzero_hat_is_z_rotor_hat_residual(variables, parent):
     w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rot_length = geom.get_z_vec_length_var(variables, parent)
-    z_rotor_hat = geom.get_z_rotor_hat_var(variables, parent)
+    z_rot_length = general_geom.get_z_vec_length_var(variables, parent)
+    z_rotor_hat = general_geom.get_z_rotor_hat_var(variables, parent)
     f_full = w_hat_var - z_rotor_hat * z_rot_length
 
     return f_full
 
 def get_wzero_parallel_z_rotor_check(variables, parent):
     w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rotor_hat = geom.get_z_rotor_hat_var(variables, parent)
+    z_rotor_hat = general_geom.get_z_rotor_hat_var(variables, parent)
     check = cas.mtimes(w_hat_var.T, z_rotor_hat) - 1.
     return check
 
@@ -403,7 +403,7 @@ def get_df_val(model_options, wind, parent, variables, architecture):
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
 
     uzero = get_uzero_vec(model_options, wind, parent, variables, architecture)
-    n_vec = geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
+    n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
     gamma = vect_op.angle_between(n_vec, uzero)
     return gamma
 
@@ -431,15 +431,15 @@ def get_a_ref(model_options):
     a_ref = model_options['aero']['a_ref']
     return a_ref
 
-def get_uzero_vec_length_ref(wind, variables, parent):
-    return get_uinfty_ref(wind)
+def get_uzero_vec_length_ref(wind):
+    return wind.get_velocity_ref()
 
 
 def get_local_induction_factor(model_options, variables, kite, parent, label):
 
-    cospsi = geom.get_cospsi_var(variables, kite, parent)
-    sinpsi = geom.get_sinpsi_var(variables, kite, parent)
-    mu = geom.get_mu_radial_ratio(model_options, variables, kite, parent)
+    cospsi = actuator_geom.get_cospsi_var(variables, kite, parent)
+    sinpsi = actuator_geom.get_sinpsi_var(variables, kite, parent)
+    mu = actuator_geom.get_mu_radial_ratio(model_options, variables, kite, parent)
     # mu = 1.
     # see Suzuki 2000 for motivation for evaluating at the edges of the "annulus"
 
@@ -459,7 +459,7 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
 def get_uzero_vec(model_options, wind, parent, variables, architecture):
 
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    u_actuator = geom.get_center_velocity(model_options, parent, variables, architecture)
+    u_actuator = actuator_geom.get_center_velocity(model_options, parent, variables, architecture)
 
     u_apparent = u_infty - u_actuator
 
@@ -467,7 +467,7 @@ def get_uzero_vec(model_options, wind, parent, variables, architecture):
 
 def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
 
-    center = geom.get_center_point(model_options, parent, variables, architecture)
+    center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
     u_infty = wind.get_velocity(center[2])
 
     return u_infty
@@ -475,7 +475,7 @@ def get_actuator_freestream_velocity(model_options, wind, parent, variables, arc
 def get_local_induced_velocity(model_options, variables, wind, kite, parent, label):
 
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
-    nhat = geom.get_n_hat_var(variables, parent)
+    nhat = general_geom.get_n_hat_var(variables, parent)
 
     a_val = get_local_a_var(variables, kite, parent)
     u_ind = -1. * a_val * uzero_vec_length * nhat
@@ -484,22 +484,18 @@ def get_local_induced_velocity(model_options, variables, wind, kite, parent, lab
 
 def get_kite_effective_velocity(model_options, variables, wind, kite, parent):
 
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
+
     label = get_label(model_options)
+    u_ind_kite = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
 
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
-    u_infty = wind.get_velocity(q_kite[2])
-
-    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
-
-    u_induced = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
-
-    u_eff_kite = u_infty - u_kite + u_induced
+    u_eff_kite = u_app_kite + u_ind_kite
 
     return u_eff_kite
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
-    center = geom.get_center_point(model_options, parent, variables, architecture)
+    center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
     rho_infty = atmos.get_density(center[2])
 
     uzero_mag = get_uzero_vec_length_var(wind, variables, parent)
@@ -527,7 +523,7 @@ def get_wake_angle_chi_jimenez(model_options, parent, variables, label):
     cosgamma = get_cosgamma_var(variables, parent)
     singamma = get_singamma_var(variables, parent)
 
-    var_type = geom.get_var_type(model_options)
+    var_type = actuator_geom.get_var_type(model_options)
     ct_var = variables[var_type]['ct' + str(parent)]
 
     chi = gamma + 0.5 * ct_var * cosgamma**2. * singamma

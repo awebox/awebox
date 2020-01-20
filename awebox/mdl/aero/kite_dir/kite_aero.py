@@ -32,7 +32,7 @@ _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-2019
 '''
 
-import awebox.mdl.aero.induction as induction
+import awebox.mdl.aero.induction_dir.induction as induction
 import awebox.mdl.aero.indicators as indicators
 
 from . import three_dof_kite

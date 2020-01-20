@@ -29,12 +29,8 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
 
-import casadi as cas
 import numpy as np
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
-import pdb
-import awebox.mdl.aero.vortex_dir.tools as tools
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 
 def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model):
 
