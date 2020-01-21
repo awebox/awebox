@@ -284,6 +284,7 @@ def get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite,
             for jdx in range(len(dims)):
                 point_name = 'w' + dims[jdx] + '_' + tip + '_' + str(period) + '_' + str(kite) + str(
                     parent)
+
                 var = variables_xd[point_name]
 
                 if long == 'trailing' and ndx_shed == 0 and ddx_shed == 0:

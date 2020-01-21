@@ -82,6 +82,9 @@ def get_trivial_residual(model_options, atmos, wind, variables, parameters, outp
         dt_resi = actuator_coeff.get_t_star_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
         all_residuals = cas.vertcat(all_residuals, dt_resi)
 
+        uzero_matr_resi = actuator_flow.get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture)
+        all_residuals = cas.vertcat(all_residuals, uzero_matr_resi)
+
         qzero_trivial = actuator_flow.get_qzero_trivial(model_options, parent, atmos, wind, variables, architecture)
         all_residuals = cas.vertcat(all_residuals, qzero_trivial)
 
@@ -153,9 +156,6 @@ def get_final_residual(model_options, atmos, wind, variables, parameters, output
 
         gamma_resi = actuator_flow.get_gamma_residual(model_options, wind, parent, variables, architecture)
         all_residuals = cas.vertcat(all_residuals, gamma_resi)
-
-        rot_matr_resi = actuator_geom.get_rot_matr_residual(model_options, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, rot_matr_resi)
 
         area_resi = actuator_geom.get_area_residual(model_options, parent, variables, parameters)
         all_residuals = cas.vertcat(all_residuals, area_resi)
