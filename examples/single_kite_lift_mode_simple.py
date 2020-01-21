@@ -24,7 +24,7 @@ options['user_options']['trajectory']['lift_mode']['windings'] = 5
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'trivial'
 
-options['solver']['linear_solver'] = 'ma27'
+# options['solver']['linear_solver'] = 'ma27'
 
 # initial tether length guess
 options['solver']['initialization']['xd']['l_t'] = 200.0 # initial guess
@@ -37,5 +37,5 @@ options['solver']['initialization']['xd']['l_t'] = 200.0 # initial guess
 trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize()
-trial.plot('level_3')
-plt.show()
+# trial.plot('level_3')
+# plt.show()
