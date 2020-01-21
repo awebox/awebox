@@ -93,3 +93,50 @@ plot_list = ['animation']
 trial.plot(plot_list)
 
 ---> be aware that creating the animation is a fairly slow process.
+
+
+10. when I try to run a script that imports the awebox (like one of the included examples), I get the following error:
+
+user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
+Traceback (most recent call last):
+  File "single_kite_lift_mode_simple.py", line 3, in <module>
+    import awebox as awe
+ImportError: No module named 'awebox'
+
+what should I do? 
+
+----> check that the location of the awebox is in your PYTHONPATH from your terminal. ( note, that the "awebox" folder that we're talking about here, is the folder that contains sub-folders ["awebox", "docs", "examples", ...]. It is not the "awebox" folder that contains sub-folders ["mdl", "ocp", "viz", ...]. )
+
+user@computer:~$ python3 -c "import sys; print('\n'.join(sys.path))"
+['', '/home/user', '/usr/local/lib', ..., '/home/user/path_to_the_awebox/awebox', ...]
+
+the printed list should include the path to the awebox. if it doesn't, then add it to the list by typing (in the terminal):
+
+user@computer:~$ export PYTHONPATH="${PYTHONPATH}:/home/user/path_to_the_awebox/awebox"
+
+
+
+11. when I try to run a script that uses the awebox (like one of the included examples), I get the following error: 
+
+user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
+Traceback (most recent call last):
+  File "single_kite_lift_mode_simple.py", line 3, in <module>
+    import awebox as awe
+  File "/home/rachel/awebox/awebox/__init__.py", line 26, in <module>
+    from .trial import Trial
+  File "/home/rachel/awebox/awebox/trial.py", line 31, in <module>
+    import awebox.trial_funcs as trial_funcs
+  File "/home/rachel/awebox/awebox/trial_funcs.py", line 35, in <module>
+    import awebox.tools.vector_operations as vect_op
+  File "/home/rachel/awebox/awebox/tools/vector_operations.py", line 36, in <module>
+    import casadi.tools as cas
+ImportError: No module named 'casadi'
+
+what should I do? 
+
+----> use pip3 to install casadi! 
+
+user@computer:~$ pip3 install casadi
+
+
+
