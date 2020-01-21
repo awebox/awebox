@@ -548,6 +548,15 @@ def get_wake_angle_chi(model_options, parent, variables, label):
     return chi_val
 
 
+def get_actuator_comparison_labels(model_options):
+    comparison_labels = model_options['aero']['induction']['comparison_labels']
+
+    actuator_comp_labels = []
+    for label in comparison_labels:
+        if label[:3] == 'act':
+            actuator_comp_labels += [label[4:]]
+
+    return actuator_comp_labels
 
 def get_label(model_options):
     steadyness = model_options['aero']['actuator']['steadyness']

@@ -680,52 +680,41 @@ def share_aerodynamics_options(options, options_tree, help_options):
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], induction_model_descript,'x'))
 
-    induction_steadyness = options['model']['aero']['actuator']['steadyness']
-    induction_symmetry = options['model']['aero']['actuator']['symmetry']
-    options_tree.append(('solver', 'initialization', 'model', 'induction_steadyness', induction_steadyness, ('????', None), 'x')),
+    actuator_symmetry = options['model']['aero']['actuator']['symmetry']
+    actuator_steadyness = options['model']['aero']['actuator']['steadyness']
+    options_tree.append(
+        ('solver', 'initialization', 'model', 'actuator_steadyness', actuator_steadyness, ('????', None), 'x')),
 
-    steadyness_comparison = options['model']['aero']['actuator']['steadyness_comparison']
-    symmetry_comparison = options['model']['aero']['actuator']['symmetry_comparison']
+    comparison_labels = get_comparison_labels(options, user_options)
+    options_tree.append(('model', 'aero', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'model', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
-    if (induction_steadyness == 'quasi-steady' or induction_steadyness == 'steady') and 'q' not in steadyness_comparison:
-        steadyness_comparison += ['q']
-    if induction_steadyness == 'unsteady' and 'u' not in steadyness_comparison: 
-        steadyness_comparison += ['u']
-    if induction_symmetry == 'axisymmetric' and 'axi' not in symmetry_comparison: 
-        symmetry_comparison += ['axi']
-    if induction_symmetry == 'asymmetric' and 'asym' not in symmetry_comparison: 
-        symmetry_comparison += ['asym']
 
-    comparison_labels = []
-    for steadyness_label in steadyness_comparison: 
-        for symmetry_label in symmetry_comparison: 
-            new_label = steadyness_label + symmetry_label
-            comparison_labels += [new_label]
-
-    options_tree.append(('model', 'aero', 'actuator', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('solver', 'initialization', 'model', 'induction_varrho_ref', induction_varrho_ref, ('????', None), 'x')),
 
-    options_tree.append(('formulation', 'induction', None, 'steadyness', induction_steadyness, ('induction steadyness', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'symmetry',   induction_symmetry, ('induction symmetry', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
 
 
     local_label = ''
-    if (induction_steadyness == 'quasi-steady' or induction_steadyness == 'steady'):
-        if induction_symmetry == 'axisymmetric':
+    if (actuator_steadyness == 'quasi-steady' or actuator_steadyness == 'steady'):
+        if actuator_symmetry == 'axisymmetric':
             local_label = 'qaxi'
 
-        elif induction_symmetry == 'asymmetric':
+        elif actuator_symmetry == 'asymmetric':
             local_label = 'qasym'
 
-    elif induction_steadyness == 'unsteady':
-        if induction_symmetry == 'axisymmetric':
+    elif actuator_steadyness == 'unsteady':
+        if actuator_symmetry == 'axisymmetric':
             local_label = 'uaxi'
 
-        elif induction_symmetry == 'asymmetric':
+        elif actuator_symmetry == 'asymmetric':
             local_label = 'uasym'
 
     options_tree.append(('model', 'system_bounds', 'xl', 'chi_' + local_label, [-np.pi/2., np.pi/2.], ('chi limit', None), 'x')),
@@ -734,7 +723,7 @@ def share_aerodynamics_options(options, options_tree, help_options):
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
 
-    # if induction_symmetry == 'asymmetric':
+    # if actuator_symmetry == 'asymmetric':
     options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     if induction_model_descript == 'not_in_use':
@@ -906,3 +895,39 @@ def load_battery_parameters(kite_standard, coeff_max, coeff_min):
         battery = kite_standard['battery']
 
     return battery
+
+def get_comparison_labels(options, user_options):
+
+    induction_model = user_options['induction_model']  
+    induction_comparison = options['model']['aero']['induction_comparison']
+
+    if (induction_model[:3] not in induction_comparison) and (not induction_model == 'not_in_use'): 
+        induction_comparison += [induction_model[:3]]
+        
+    comparison_labels = []
+    if 'vor' in induction_comparison: 
+        comparison_labels += ['vor']
+
+    if 'act' in induction_comparison:
+
+        actuator_steadyness = options['model']['aero']['actuator']['steadyness']
+        actuator_symmetry = options['model']['aero']['actuator']['symmetry']
+    
+        steadyness_comparison = options['model']['aero']['actuator']['steadyness_comparison']
+        symmetry_comparison = options['model']['aero']['actuator']['symmetry_comparison']
+    
+        if (actuator_steadyness == 'quasi-steady' or actuator_steadyness == 'steady') and 'q' not in steadyness_comparison:
+            steadyness_comparison += ['q']
+        if actuator_steadyness == 'unsteady' and 'u' not in steadyness_comparison:
+            steadyness_comparison += ['u']
+        if actuator_symmetry == 'axisymmetric' and 'axi' not in symmetry_comparison:
+            symmetry_comparison += ['axi']
+        if actuator_symmetry == 'asymmetric' and 'asym' not in symmetry_comparison:
+            symmetry_comparison += ['asym']
+    
+        for steadyness_label in steadyness_comparison:
+            for symmetry_label in symmetry_comparison:
+                new_label = 'act_' + steadyness_label + symmetry_label
+                comparison_labels += [new_label]
+
+    return comparison_labels

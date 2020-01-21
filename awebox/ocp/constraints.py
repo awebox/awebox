@@ -239,10 +239,11 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
 
 def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
 
-    induction_model = options['induction']['induction_model']
+    comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
 
-    if induction_model == 'vortex':
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
         g_list, g_bounds = vortex_fix.fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model)
 
         for period in range(1, periods_tracked):
@@ -252,10 +253,11 @@ def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
 
 def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
 
-    induction_model = options['induction']['induction_model']
+    comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
 
-    if induction_model == 'vortex':
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
         for period in range(periods_tracked):
             g_list, g_bounds = vortex_strength.fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
 

@@ -240,9 +240,15 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
 def extend_actuator_induction(options, system_lifted, system_states, architecture):
 
-    comparison_labels = options['aero']['actuator']['comparison_labels']
-    any_asym = any('asym' in label for label in comparison_labels)
-    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
+    comparison_labels = options['aero']['induction']['comparison_labels']
+
+    actuator_comp_labels = []
+    for label in comparison_labels:
+        if label[:3] == 'act':
+            actuator_comp_labels += [label[4:]]
+
+    any_asym = any('asym' in label for label in actuator_comp_labels)
+    any_unsteady = any(label[0] == 'u' for label in actuator_comp_labels)
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
@@ -253,7 +259,7 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
     for layer_node in architecture.layer_nodes:
 
-        for label in comparison_labels:
+        for label in actuator_comp_labels:
             system_states.extend([('a_' + label + str(layer_node), (1, 1))])
             system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
             system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
@@ -297,17 +303,18 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
-    induction_model = options['induction_model']
+    comparison_labels = options['aero']['induction']['comparison_labels']
 
-    # induction factor
-    if not (induction_model == 'not_in_use'):
+    if comparison_labels:
         system_lifted, system_states = extend_general_induction(options, system_lifted, system_states, architecture)
 
-    if induction_model == 'vortex':
-        system_lifted, system_states = extend_vortex_induction(options, system_lifted, system_states, architecture)
-
-    if induction_model == 'actuator':
+    any_act = any(label[:3] == 'act' for label in comparison_labels)
+    if any_act:
         system_lifted, system_states = extend_actuator_induction(options, system_lifted, system_states, architecture)
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        system_lifted, system_states = extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     return system_lifted, system_states
 

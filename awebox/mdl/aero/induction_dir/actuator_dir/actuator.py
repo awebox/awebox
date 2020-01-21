@@ -45,14 +45,15 @@ import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 def get_trivial_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     all_residuals = []
-    comparison_labels = model_options['aero']['actuator']['comparison_labels']
-    any_asym = any('asym' in label for label in comparison_labels)
-    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
+
+    act_comp_labels = actuator_flow.get_actuator_comparison_labels(model_options)
+    any_asym = any('asym' in label for label in act_comp_labels)
+    any_unsteady = any(label[0] == 'u' for label in act_comp_labels)
 
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
 
-        for label in comparison_labels:
+        for label in act_comp_labels:
             induction_trivial = get_induction_trivial(model_options, variables, parent, label)
             all_residuals = cas.vertcat(all_residuals, induction_trivial)
 
@@ -111,14 +112,15 @@ def get_trivial_residual(model_options, atmos, wind, variables, parameters, outp
 def get_final_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     all_residuals = []
-    comparison_labels = model_options['aero']['actuator']['comparison_labels']
-    any_asym = any('asym' in label for label in comparison_labels)
-    any_unsteady = any(label[0] == 'u' for label in comparison_labels)
+
+    act_comp_labels = actuator_flow.get_actuator_comparison_labels(model_options)
+    any_asym = any('asym' in label for label in act_comp_labels)
+    any_unsteady = any(label[0] == 'u' for label in act_comp_labels)
 
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
 
-        for label in comparison_labels:
+        for label in act_comp_labels:
             induction_trivial = get_induction_residual(model_options, wind, variables, parent, architecture, label)
             all_residuals = cas.vertcat(all_residuals, induction_trivial)
 
@@ -277,7 +279,7 @@ def get_induction_trivial(model_options, variables, parent, label):
 def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):
 
     kite_nodes = architecture.kite_nodes
-    comparison_labels = model_options['aero']['actuator']['comparison_labels']
+    act_comp_labels = actuator_flow.get_actuator_comparison_labels(model_options)
 
     if 'actuator' not in list(outputs.keys()):
         outputs['actuator'] = {}
@@ -291,13 +293,13 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['radius_vec' + str(kite)] = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
         outputs['actuator']['radius' + str(kite)] = actuator_geom.get_kite_radius(model_options, kite, variables, architecture, parameters)
 
-        for label in comparison_labels:
+        for label in act_comp_labels:
             outputs['actuator']['local_a_' + label + str(kite)] = actuator_flow.get_local_induction_factor(model_options, variables, kite, parent, label)
 
     layer_parents = architecture.layer_nodes
     for parent in layer_parents:
 
-        for label in comparison_labels:
+        for label in act_comp_labels:
             outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(model_options, variables, parent, label)
 
         center = actuator_geom.get_center_point(model_options, parent, variables, architecture)

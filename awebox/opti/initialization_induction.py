@@ -40,15 +40,18 @@ import pdb
 
 
 def initial_guess_induction(options, nlp, formulation, model, V_init):
-    induction_model = options['model']['induction_model']
 
-    if not (induction_model == 'not_in_use'):
+    comparison_labels = options['model']['comparison_labels']
+
+    if comparison_labels:
         V_init = initial_guess_general(options, nlp, formulation, model, V_init)
 
-    if induction_model == 'actuator':
+    any_act = any(label[:3] == 'act' for label in comparison_labels)
+    if any_act:
         V_init = initial_guess_actuator(options, nlp, formulation, model, V_init)
 
-    if induction_model == 'vortex':
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
         V_init = initial_guess_vortex(options, nlp, formulation, model, V_init)
 
     return V_init

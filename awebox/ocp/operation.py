@@ -211,11 +211,12 @@ def get_vortex_strength_constraints(options, variables, architecture):
     ineqs_dict = {}
     constraint_list = []
 
-    induction_model = options['induction']['induction_model']
+    comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
     kite_nodes = architecture.kite_nodes
 
-    if induction_model == 'vortex':
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
 
         n_k = options['n_k']
         d = options['collocation']['d']
@@ -260,13 +261,14 @@ def get_wake_fix_constraints(options, variables, architecture):
     ineqs_dict = {}
     constraint_list = []
 
-    induction_model = options['induction']['induction_model']
+    comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']
 
-    if induction_model == 'vortex':
 
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
         n_k = options['n_k']
         d = options['collocation']['d']
 
