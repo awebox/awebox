@@ -63,7 +63,7 @@ def print_runtime_values(stats):
     try:
         awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
     except:
-        awelogger.logger.warning("total wall time statistic not available")
+        32.0 # do nothing!
 
     awelogger.logger.info('')
 
