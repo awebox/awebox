@@ -139,4 +139,22 @@ what should I do?
 user@computer:~$ pip3 install casadi
 
 
+12. when I try to run a script that uses the awebox (like one of the included examples), I get the following output: 
+
+INFO:	Initial solution...
+INFO:	
+INFO:	
+INFO:	ERROR: Solver FAILED, not moving on to next step...
+INFO:	solver return status..........: Invalid_Option                
+INFO:	number of iterations..........: 1                 
+
+what should I do? 
+
+----> you probably don't have the HSL/COIN solvers installed correctly on your computer. you can test that this is the problem, by adding the following line to your python3 script: 
+
+options['solver']['linear_solver'] = 'mumps'
+
+if, when you run the script, the optimization itself succeeds, then you should focus your attention on correctly installing the solvers. you can find these instructions at: 
+https://github.com/casadi/casadi/wiki/Obtaining-HSL
+
 
