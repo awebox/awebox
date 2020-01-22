@@ -28,7 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-2020
 '''
 
-import casadi as cas
+import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
@@ -47,9 +47,7 @@ def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
 
         return var_reshape[ndx, ddx]
 
-def get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx, ddx):
-    parent_map = architecture.parent_map
-    parent = parent_map[kite]
+def get_strength_at_ndx_ddx(variables_xl, n_k, d, period, kite, parent, ndx, ddx):
 
     gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
 
@@ -97,213 +95,181 @@ def get_vel_wake_var(options, variables, tip, period, kite, architecture, start=
     vel = get_vector_var(options, variables, 'vel', tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
     return vel
 
-def get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, enable_pool=False, processes=3):
 
-    if enable_pool:
-        vortex_list = get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, processes)
-    else:
-        vortex_list = get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d)
 
-    return vortex_list
 
-def get_list_of_all_vortices_parallel(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, processes=3):
 
-    args = {}
 
-    args['variables_xd'] = variables_xd
-    args['variables_xl'] = variables_xl
-    args['architecture'] = architecture
-    args['U_infty'] = U_infty
-    args['periods_tracked'] = periods_tracked
-    args['n_k'] = n_k
-    args['d'] = d
 
-    kite_nodes = architecture.kite_nodes
-    args_list = []
-    for kite in kite_nodes:
-        new_arg = args
-        new_arg['kite'] = kite
-        args_list += [new_arg]
 
-    with Pool(processes=processes) as pool:
-        list_set = pool.map(get_parallel_sublist_of_all_vortices, args_list)
 
-    vortex_list = []
-    for sublist in list_set:
-        vortex_list = cas.horzcat(vortex_list, sublist)
 
-    return vortex_list
 
-def get_parallel_sublist_of_all_vortices(args):
 
-    variables_xd = args['variables_xd']
-    variables_xl = args['variables_xl']
-    architecture = args['architecture']
-    U_infty = args['U_infty']
-    periods_tracked = args['periods_tracked']
-    n_k = args['n_k']
-    d = args['d']
-    kite = args['kite']
 
-    vortex_list = []
+def get_time_ordered_wake_var_without_start(n_k, d, var):
+    dimensions = (n_k, d)
+    n_regular = n_k * d
 
-    # add all "typical/ladder" vortex rings
+    var_regular = var[1:]
+    var_reshape = cas.reshape(var_regular, dimensions)
+    time_ordered = cas.reshape(var_reshape.T, (n_regular, 1))
+
+    oldest_behind = time_ordered[::-1]
+
+    return oldest_behind
+
+
+def get_time_ordered_wake_var_with_start(n_k, d, var):
+
+    var_start = var[0]
+    without_start = get_time_ordered_wake_var_without_start(n_k, d, var)
+    oldest_behind = cas.vertcat(without_start, var_start)
+
+    return oldest_behind
+
+
+def get_time_ordered_strength(n_k, d, var):
+    dimensions = (n_k, d)
+    n_regular = n_k * d
+
+    var_regular = var
+    var_reshape = cas.reshape(var_regular, dimensions)
+    time_ordered = cas.reshape(var_reshape.T, (n_regular, 1))
+
+    oldest_behind = time_ordered[::-1]
+
+    return oldest_behind
+
+def get_all_time_ordered_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, tip):
+
+    dims = ['x', 'y', 'z']
+
+    all_dims = []
+    for dim in dims:
+
+        all_ordered = []
+        for period in range(periods_tracked - 1):
+            var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+            var = variables_xd[var_name]
+            var_ordered = get_time_ordered_wake_var_without_start(n_k, d, var)
+            all_ordered = cas.vertcat(all_ordered, var_ordered)
+
+        period = periods_tracked - 1
+        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+        var = variables_xd[var_name]
+        var_ordered = get_time_ordered_wake_var_with_start(n_k, d, var)
+        all_ordered = cas.vertcat(all_ordered, var_ordered)
+
+        all_dims = cas.horzcat(all_dims, all_ordered)
+
+    return all_dims
+
+def get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, tip, u_vec_ref, infinite_time):
+
+    regular = get_all_time_ordered_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, tip)
+
+    leading = regular[0, :]
+    trailing = regular[-1, :]
+
+    infinite_leading = leading + infinite_time * (-1.) * u_vec_ref.T
+    infinite_trailing = trailing + infinite_time * u_vec_ref.T
+
+    padded = cas.vertcat(infinite_leading, regular, infinite_trailing)
+
+    return padded
+
+
+def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent):
+
+    all_ordered = []
     for period in range(periods_tracked):
-        for ndx_shed in range(n_k):
-            for ddx_shed in range(d):
+        var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+        var = variables_xl[var_name]
+        var_ordered = get_time_ordered_strength(n_k, d, var)
+        all_ordered = cas.vertcat(all_ordered, var_ordered)
 
-                points = get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-                ring_list = get_list_entries_for_vortex_ring(points, variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-                vortex_list = cas.horzcat(vortex_list, ring_list)
+    return all_ordered
 
-    # add infinite trailing vortices
-    infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite)
-    vortex_list = cas.horzcat(vortex_list, infinite_list)
+def get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent):
+    regular = get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent)
 
-    return vortex_list
+    trailing = regular[-1]
 
+    infinite_leading = cas.DM(0)
+    infinite_trailing = trailing
 
+    padded = cas.vertcat(infinite_leading, regular, infinite_trailing)
 
-def get_list_of_all_vortices_singular(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d):
-
-    vortex_list = []
-
-    # add all "typical/ladder" vortex rings
-    kite_nodes = architecture.kite_nodes
-    for kite in kite_nodes:
-        for period in range(periods_tracked):
-            for ndx_shed in range(n_k):
-                for ddx_shed in range(d):
-
-                    points = get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-                    ring_list = get_list_entries_for_vortex_ring(points, variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-                    vortex_list = cas.horzcat(vortex_list, ring_list)
-
-    # add infinite trailing vortices
-    for kite in kite_nodes:
-        infinite_list = get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite)
-        vortex_list = cas.horzcat(vortex_list, infinite_list)
-
-    return vortex_list
+    return padded
 
 
-def get_semi_infinite_trailing_vortices(variables_xd, variables_xl, architecture, U_infty, periods_tracked, n_k, d, kite):
+def get_vortex_ring_filaments(padded_strengths, padded_points_ext, padded_points_int, rdx):
 
-    infinite_list = []
+    points = {}
+    points['int_trailing'] = padded_points_int[rdx + 1, :]
+    points['int_leading'] = padded_points_int[rdx, :]
+    points['ext_leading'] = padded_points_ext[rdx, :]
+    points['ext_trailing'] = padded_points_ext[rdx + 1, :]
 
-    period = periods_tracked - 1
-    ndx_shed = 0
-    ddx_shed = 0
-    points = get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-    strength = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed,
-                                       ddx_shed)
-
-    ## semi-infinite vortex: interior wingtip
-    start_point = points['int_trailing'] + U_infty * 1000.
-    end_point = points['int_trailing']
-    new_vortex = cas.vertcat(start_point, end_point, strength)
-    infinite_list = cas.horzcat(infinite_list, new_vortex)
-
-    ## semi-infinite vortex: interior wingtip
-    start_point = points['ext_trailing']
-    end_point = points['ext_trailing'] + U_infty * 1000.
-    new_vortex = cas.vertcat(start_point, end_point, strength)
-    infinite_list = cas.horzcat(infinite_list, new_vortex)
-
-    return infinite_list
-
-
-def get_list_entries_for_vortex_ring(points, variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed):
+    strength_leading = padded_strengths[rdx]
+    strength_trailing = padded_strengths[rdx - 1]
 
     ring_list = []
-    # identify every given vortex segment by starting point of segment
-    # do not add trailing edge vortex segment
 
     ## vortex segment
     # from: interior, trailing point
     # to: interior, leading point
     start_point = points['int_trailing']
     end_point = points['int_leading']
-    strength = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-    new_vortex = cas.vertcat(start_point, end_point, strength)
-    ring_list = cas.horzcat(ring_list, new_vortex)
+    strength = strength_leading
+    new_vortex = cas.horzcat(start_point, end_point, strength)
+    ring_list = cas.vertcat(ring_list, new_vortex)
 
     ## vortex segment
     # from: interior, leading point
     # to: exterior, leading point
     start_point = points['int_leading']
     end_point = points['ext_leading']
-    strength_leading_edge = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-
-    if (period == 0) and (ndx_shed == n_k - 1) and (ddx_shed == d - 1):
-        strength_trailing_edge = 0.
-    elif (ndx_shed == n_k - 1) and (ddx_shed == d - 1):
-        strength_trailing_edge = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period - 1, kite, 0, 0)
-    elif (ddx_shed == d - 1):
-        strength_trailing_edge = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed + 1, 0)
-    else:
-        strength_trailing_edge = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed + 1)
-
-    strength = strength_leading_edge - strength_trailing_edge
-    new_vortex = cas.vertcat(start_point, end_point, strength)
-    ring_list = cas.horzcat(ring_list, new_vortex)
+    strength = strength_leading - strength_trailing
+    new_vortex = cas.horzcat(start_point, end_point, strength)
+    ring_list = cas.vertcat(ring_list, new_vortex)
 
     ## vortex segment
     # from: exterior, leading point
     # to: exterior, trailing point
     start_point = points['ext_leading']
     end_point = points['ext_trailing']
-    strength = get_strength_at_ndx_ddx(variables_xl, architecture, n_k, d, period, kite, ndx_shed, ddx_shed)
-    new_vortex = cas.vertcat(start_point, end_point, strength)
-    ring_list = cas.horzcat(ring_list, new_vortex)
+    strength = strength_leading
+    new_vortex = cas.horzcat(start_point, end_point, strength)
+    ring_list = cas.vertcat(ring_list, new_vortex)
 
     return ring_list
 
+def get_list_of_all_vortices(variables_xd, variables_xl, architecture, u_vec_ref, periods_tracked, n_k, d, enable_pool=False, processes=3):
 
-
-def get_points_for_vortex_ring(variables_xd, architecture, n_k, d, period, kite, ndx_shed, ddx_shed):
+    kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
-    parent = parent_map[kite]
 
-    wingtips = ['ext', 'int']
-    longitudes = ['leading', 'trailing']
-    dims = ['x', 'y', 'z']
+    infinite_time = 1000.
 
-    # reserve space for ring position information
-    points = {}
-    for tip in wingtips:
-        for long in longitudes:
-            entry_name = tip + '_' + long
-            points[entry_name] = vect_op.zeros_sx((3, 1))
+    filaments = []
 
-    # fill in information
-    for tip in wingtips:
-        for long in longitudes:
-            entry_name = tip + '_' + long
+    for kite in kite_nodes:
+        parent = parent_map[kite]
 
-            for jdx in range(len(dims)):
-                point_name = 'w' + dims[jdx] + '_' + tip + '_' + str(period) + '_' + str(kite) + str(
-                    parent)
+        padded_strengths = get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent)
+        padded_points_int = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'int',
+                                                       u_vec_ref, infinite_time)
+        padded_points_ext = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'ext',
+                                                       u_vec_ref, infinite_time)
 
-                var = variables_xd[point_name]
+        n_rings = padded_strengths.shape[0]
+        for rdx in range(1, n_rings):
+            ring_filaments = get_vortex_ring_filaments(padded_strengths, padded_points_ext, padded_points_int, rdx)
+            filaments = cas.vertcat(filaments, ring_filaments)
 
-                if long == 'trailing' and ndx_shed == 0 and ddx_shed == 0:
-                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=True)
+    horz_filaments = filaments.T
 
-                elif long == 'trailing' and ddx_shed == 0:
-                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False, ndx=ndx_shed - 1,
-                                                                      ddx=d - 1)
+    return horz_filaments
 
-                elif long == 'trailing':
-                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
-                                                                      ndx=ndx_shed, ddx=ddx_shed - 1)
-
-                elif long == 'leading':
-                    points[entry_name][jdx] += get_wake_var_at_ndx_ddx(n_k, d, var, start=False,
-                                                                      ndx=ndx_shed, ddx=ddx_shed)
-
-                else:
-                    awelogger.logger.error(
-                        'requested vortex position does not belong to recognized interior/exterior or leading/trailing position')
-
-    return points

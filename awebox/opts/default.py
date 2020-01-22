@@ -118,7 +118,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', None,         'induction_comparison', [],         ('which induction models should we include for comparison', [['act', 'vor']]), 'x'),
         ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
-        ('model', 'aero', 'vortex',     'epsilon',              1.e-6,      ('biot-savart smoothing value, [m^4]', None), 'x'),
+        ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),

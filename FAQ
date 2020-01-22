@@ -158,3 +158,6 @@ if, when you run the script, the optimization itself succeeds, then you should f
 https://github.com/casadi/casadi/wiki/Obtaining-HSL
 
 
+13. on the Obtaining-HSL page install instructions, they keep referring to a path (where_you_want_to_install) and (hsl_install_directory). if I don't use the --prefix flag, where does HSL install normally? 
+
+to /usr/local/lib
