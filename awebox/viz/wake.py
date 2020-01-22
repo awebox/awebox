@@ -32,26 +32,13 @@ import awebox.tools.vector_operations as vect_op
 
 
 def draw_wake_nodes(ax, side, plot_dict, index):
-    variables_xd = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index, 'xd')
-    variables_xl = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index, 'xl')
 
-    n_k = plot_dict['n_k']
-    d = plot_dict['d']
-    architecture = plot_dict['architecture']
-    periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
+    filament_list = reconstruct_filament_list(plot_dict, index)
 
-    U_ref = plot_dict['options']['model']['params']['wind']['u_ref'] * vect_op.xhat_np()
+    n_filaments = filament_list.shape[1]
 
-    enable_pool = plot_dict['cosmetics']['processing']['enable_pool']
-    processes = plot_dict['cosmetics']['processing']['processes']
-
-    vortex_list = vortex_tools.get_list_of_all_vortices(variables_xd, variables_xl, architecture, U_ref,
-                                                        periods_tracked, n_k, d, enable_pool=enable_pool,
-                                                        processes=processes)
-
-    n_segments = vortex_list.shape[1]
-    for sdx in range(n_segments):
-        seg_data = vortex_list[:, sdx]
+    for fdx in range(n_filaments):
+        seg_data = filament_list[:, fdx]
         start_point = seg_data[:3].T
         end_point = seg_data[3:6].T
         gamma = seg_data[6]
@@ -66,7 +53,20 @@ def draw_wake_nodes(ax, side, plot_dict, index):
     return None
 
 
+def reconstruct_filament_list(plot_dict, index):
 
+    all_time = plot_dict['outputs']['vortex']['filament_list']
+    n_entries = len(all_time)
+    n_filaments = int(n_entries / 7)
+
+    filament_list = []
+    for edx in range(n_entries):
+        new_entry = all_time[edx][index]
+        filament_list = cas.vertcat(filament_list, new_entry)
+
+    filament_list = cas.reshape(filament_list, (7, n_filaments))
+
+    return filament_list
 
 def get_gamma_extrema(plot_dict):
     n_k = plot_dict['n_k']

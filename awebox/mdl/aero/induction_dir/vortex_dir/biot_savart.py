@@ -28,7 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
 
-import casadi as cas
+import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
@@ -39,10 +39,12 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 import pdb
 
-def get_induced_velocity_at_kite(options, wind, variables, architecture, kite):
+def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
+
+    processes = options['processing']['processes']
 
     include_normal_info = False
-    segment_list = get_segment_list(options, wind, variables, architecture, kite, include_normal_info)
+    segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
 
     # define the symbolic function
     n_symbolics = segment_list.shape[0]
@@ -51,15 +53,17 @@ def get_induced_velocity_at_kite(options, wind, variables, architecture, kite):
     filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
 
     # evaluate the symbolic function
-    total_U_ind = evaluate_symbolic_on_segments_and_sum(filament_fun, seg_data_sym, segment_list)
+    total_u_vec_ind = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes)
 
-    return total_U_ind
+    return total_u_vec_ind
 
 
-def get_induction_factor_at_kite(options, wind, variables, architecture, kite):
+def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, parent):
+
+    processes = options['processing']['processes']
 
     include_normal_info = True
-    segment_list = get_segment_list(options, wind, variables, architecture, kite, include_normal_info)
+    segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
 
     # define the symbolic function
     n_symbolics = segment_list.shape[0]
@@ -68,9 +72,8 @@ def get_induction_factor_at_kite(options, wind, variables, architecture, kite):
     filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
 
     # evaluate the symbolic function
-    total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, seg_data_sym, segment_list)
+    total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes)
 
-    parent = architecture.parent_map[kite]
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     u_mag = vect_op.smooth_norm(u_app_kite)
 
@@ -80,55 +83,51 @@ def get_induction_factor_at_kite(options, wind, variables, architecture, kite):
 
 
 
-def evaluate_symbolic_on_segments_and_sum(filament_fun, seg_data_sym, segment_list):
+def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes):
 
-    filament_out = filament_fun(seg_data_sym)
-    total_out = vect_op.zeros_sx(filament_out.shape)
+    n_filaments = segment_list.shape[1]
+    filament_map = filament_fun.map(n_filaments, "thread", processes)
+    all = filament_map(segment_list)
 
-    n_segments = segment_list.shape[1]
-    for sdx in range(n_segments):
-        seg_data = segment_list[:, sdx]
-        local_out = filament_fun(seg_data)
-        total_out = total_out + local_out
+    n_dims = all.shape[0]
 
-    return total_out
+    total = []
+    for jdx in range(n_dims):
+        in_dim = vect_op.sum(all[jdx, :].T)
+        total = cas.vertcat(total, in_dim)
+
+    return total
 
 
-def get_segment_list(options, wind, variables, architecture, kite, include_normal_info):
-    # get a list of all the vortex segments
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
-    u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
 
-    enable_pool = options['processing']['enable_pool']
-    processes = options['processing']['processes']
+def get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info):
 
-    vortex_list = vortex_tools.get_list_of_all_vortices(variables['xd'], variables['xl'], architecture, u_vec_ref, periods_tracked, n_k, d, enable_pool=enable_pool, processes=processes)
-    n_segments = vortex_list.shape[1]
+    n_filaments = filament_list.shape[1]
 
     # join the vortex_list to the observation data
-    parent = architecture.parent_map[kite]
     point_obs = variables['xd']['q' + str(kite) + str(parent)]
     epsilon = options['aero']['vortex']['epsilon']
 
-    point_obs_ext = []
+    point_obs_extended = []
     for jdx in range(3):
-        point_obs_ext = cas.vertcat(point_obs_ext, vect_op.ones_sx((1, n_segments)) * point_obs[jdx])
-    eps_ext = vect_op.ones_sx((1, n_segments)) * epsilon
+        point_obs_extended = cas.vertcat(point_obs_extended, vect_op.ones_sx((1, n_filaments)) * point_obs[jdx])
+    eps_extended = vect_op.ones_sx((1, n_filaments)) * epsilon
 
     if include_normal_info:
         n_hat = general_geom.get_n_hat_var(variables, parent)
 
         n_hat_ext = []
         for jdx in range(3):
-            n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_segments)) * n_hat[jdx])
+            n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
 
-        segment_list = cas.vertcat(point_obs_ext, vortex_list, eps_ext, n_hat_ext)
+        segment_list = cas.vertcat(point_obs_extended, filament_list, eps_extended, n_hat_ext)
     else:
-        segment_list = cas.vertcat(point_obs_ext, vortex_list, eps_ext)
+        segment_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
 
     return segment_list
+
+
+
 
 
 def normal_induction(seg_data):

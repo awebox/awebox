@@ -67,8 +67,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
         ('user_options',    None,          None,        'tether_drag_model',     'trivial',          ('possible options',['trivial', 'simple', 'equivalence', 'not_in_use']),'t'),
-        ('user_options',    'processing',  None,        'enable_pool',           False,              ('use pooling to speed up construction time', [True, False]), 'x'),
-        ('user_options',    'processing',  None,        'processes',             mp.cpu_count() - 1, ('number of processes to use when pooling tasks. int', None), 'x'),
+        ('user_options',    None,          None,        'processes',             mp.cpu_count() - 1, ('number of processes to use when pooling tasks (integer)', None), 'x'),
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
