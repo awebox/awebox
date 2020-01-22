@@ -34,7 +34,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.wind as wind
 import pdb
-from multiprocessing import Pool
 import copy
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):

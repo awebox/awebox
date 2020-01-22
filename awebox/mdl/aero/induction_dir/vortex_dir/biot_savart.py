@@ -37,11 +37,13 @@ import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
+import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+
 import pdb
 
 def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
 
-    processes = options['processing']['processes']
+    processes = options['processes']
 
     include_normal_info = False
     segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
@@ -58,9 +60,10 @@ def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent
     return total_u_vec_ind
 
 
-def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, parent):
+def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, architecture):
 
-    processes = options['processing']['processes']
+    parent = architecture.parent_map[kite]
+    processes = options['processes']
 
     include_normal_info = True
     segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
@@ -74,8 +77,11 @@ def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, 
     # evaluate the symbolic function
     total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes)
 
-    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
-    u_mag = vect_op.smooth_norm(u_app_kite)
+    # u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
+    # u_mag = vect_op.smooth_norm(u_app_kite)
+
+    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
+    u_mag = vect_op.smooth_norm(u_app_act)
 
     a_calc = -1. * total_u_proj / u_mag
 

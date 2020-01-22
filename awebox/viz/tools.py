@@ -798,12 +798,16 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['scale_power'] = 1.  # e-3
     plot_dict['scale_axes'] = np.float(V_plot['xd', 0, 'l_t'])
 
-    # induction plots
-    # if options['model']['induction_model'] != 'not_in_use':
-        # plot_dict = __get_aerotime_grids(plot_dict)
 
-    # todo: all of these still in use?
-    # todo: tgrid_aerotime options still used?
+    dashes = []
+    for ldx in range(20):
+        new_dash = []
+        for jdx in range(4):
+            new_dash += [int(np.random.randint(1,6))]
+        new_dash += [1, 1]
+
+        dashes += [new_dash]
+    plot_dict['dashes'] = dashes
 
     return plot_dict
 

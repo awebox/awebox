@@ -262,12 +262,20 @@ def get_inverse_equivalence_matrix(tether_length):
 
     L = tether_length / 2.
 
-    Ainv = np.matrix([[1., 0., 0., 0., 1./L, 0.],
-                      [0., 1., 0., 1./L, 0., 0.],
-                      [0., 0., 1., 0., 0., 1./L],
-                      [1., 0., 0., 0., -1. / L, 0.],
-                      [0., 1., 0., -1. / L, 0., 0.],
-                      [0., 0., 1., 0., 0., -1. / L]]) / 2.
+    Ainv_row1 = cas.horzcat(1., 0., 0., 0., 1./L, 0.) / 2.
+    Ainv_row2 = cas.horzcat(0., 1., 0., 1./L, 0., 0.) / 2.
+    Ainv_row3 = cas.horzcat(0., 0., 1., 0., 0., 1./L) / 2.
+    Ainv_row4 = cas.horzcat(1., 0., 0., 0., -1. / L, 0.) / 2.
+    Ainv_row5 = cas.horzcat(0., 1., 0., -1. / L, 0., 0.) / 2.
+    Ainv_row6 = cas.horzcat(0., 0., 1., 0., 0., -1. / L) / 2.
+
+    Ainv = cas.vertcat(Ainv_row1,
+                       Ainv_row2,
+                       Ainv_row3,
+                       Ainv_row4,
+                       Ainv_row5,
+                       Ainv_row6
+                       )
 
     return Ainv
 

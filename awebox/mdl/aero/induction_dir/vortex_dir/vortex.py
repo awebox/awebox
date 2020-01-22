@@ -61,7 +61,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
         parent = architecture.parent_map[kite]
 
         outputs['vortex']['u_ind_vortex' + str(kite)] = biot_savart.get_induced_velocity_at_kite(filament_list, model_options, variables, kite, parent)
-        outputs['vortex']['local_a' + str(kite)] = biot_savart.get_induction_factor_at_kite(filament_list, model_options, wind, variables, kite, parent)
+        outputs['vortex']['local_a' + str(kite)] = biot_savart.get_induction_factor_at_kite(filament_list, model_options, wind, variables, kite, architecture)
 
     return outputs
 
