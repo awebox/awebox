@@ -31,6 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options):
 
@@ -101,7 +102,7 @@ def define_costs_to_update(P, formulation):
     updates = {}
 
     initial_updates = {}
-    initial_updates[0] = struct_op.subkeys(P, 'cost')
+    initial_updates[0] = set(struct_op.subkeys(P, 'cost'))
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma', 'fictitious']
@@ -443,7 +444,7 @@ def define_cost_update_schedule(cost_solver_options):
 def initialize_cost_update_counter(P):
 
     cost_update_counter = {}
-    for name in struct_op.subkeys(P, 'cost'):
+    for name in set(struct_op.subkeys(P, 'cost')):
 
         cost_update_counter[name] = -1
 

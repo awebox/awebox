@@ -269,9 +269,11 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     n_k = options['nlp']['n_k']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'regularisation',       n_k,             ('regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k,             ('regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
 
@@ -774,9 +776,6 @@ def share_aerodynamics_options(options, options_tree, help_options):
     options_tree.append(('solver', 'initialization', 'model', 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
-
-    processes = options['user_options']['processes']
-    options_tree.append(('model', None, None, 'processes', processes, ('????', None), 'x')),
 
      ## tether drag
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['trivial', 'simple', 'equivalence', 'not_in_use'])

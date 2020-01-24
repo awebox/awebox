@@ -324,7 +324,7 @@ def step_in_out(number, step_in, step_out, eps=1e-4):
     return step
 
 def sum(all_array):
-    sum = cas.mtimes(all_array.T, np.ones(all_array.shape))
+    sum = cas.sum1(all_array)
     return sum
 
 def smooth_max(all_array):

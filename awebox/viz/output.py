@@ -181,8 +181,8 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
                 line_label = set_name + ' ' + str(node) +', ' + model
                 y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
 
-                color_vals = colors[kdx]
-                dash_style = dashes[mdx]
+                color_vals = colors[mdx]
+                dash_style = dashes[kdx]
                 line_style = ':'
 
                 line, = axes.plot(x_vals, y_vals, color=color_vals, linestyle=line_style, label=line_label)

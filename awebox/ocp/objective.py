@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,17 +27,152 @@ objective code of the awebox
 constructs an objective function from the various fictitious costs.
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: rachel leuthold, jochem de schutter alu-fr 2018
+- edited: rachel leuthold, jochem de schutter alu-fr 2018-2020
 '''
 import casadi.tools as cas
 from . import collocation
 from . import performance
 import numpy as np
 import awebox.tools.struct_operations as struct_op
+import time
 
 import pdb
 
+def get_general_regularization_function(variables):
+
+    weight_sym = cas.SX.sym('weight_sym', variables.cat.shape)
+    var_sym = cas.SX.sym('var_sym', variables.cat.shape)
+    ref_sym = cas.SX.sym('ref_sym', variables.cat.shape)
+
+    diff = var_sym - ref_sym
+    diff_sq = cas.mtimes(cas.diag(diff), diff)
+    reg = cas.mtimes(cas.diag(weight_sym), diff_sq)
+
+    reg_fun = cas.Function('reg_fun', [var_sym, ref_sym, weight_sym], [reg])
+
+    return reg_fun
+
+def get_general_reg_costs_function(variables):
+
+    var_sym = cas.SX.sym('var_sym', variables.cat.shape)
+    ref_sym = cas.SX.sym('ref_sym', variables.cat.shape)
+    weight_sym = cas.SX.sym('weight_sym', variables.cat.shape)
+
+    reg_fun = get_general_regularization_function(variables)
+    regs = variables(reg_fun(var_sym, ref_sym, weight_sym))
+
+    sorting_dict = get_regularization_sorting_dict()
+    reg_costs_struct = get_reg_costs_struct()
+    reg_costs = reg_costs_struct(cas.SX.zeros(reg_costs_struct.shape))
+
+    for type in set(variables.keys()):
+        category = sorting_dict[type]['category']
+        exceptions = sorting_dict[type]['exceptions']
+
+        for subkey in set(struct_op.subkeys(variables, type)):
+            name = struct_op.get_node_variable_name(subkey)
+
+            if (not name in exceptions.keys()) and (not category == None):
+                reg_costs[category] = reg_costs[category] + cas.sum1(regs[type, subkey])
+
+            elif (name in exceptions.keys()) and (not exceptions[name] == None):
+                exc_category = exceptions[name]
+                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[type, subkey])
+
+    reg_costs_list = reg_costs.cat
+    reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
+
+    return reg_costs_fun, reg_costs_struct
+
+
+def get_reg_costs_struct():
+
+    reg_costs_struct = cas.struct_symSX([
+        cas.entry("tracking_cost"),
+        cas.entry("ddq_regularisation_cost"),
+        cas.entry("u_regularisation_cost"),
+        cas.entry("fictitious_cost"),
+        cas.entry("theta_regularisation_cost")
+    ])
+
+    return reg_costs_struct
+
+
+def get_regularization_sorting_dict():
+
+    # in general, regularization of the variables of type TYPE, enters the cost in the category CATEGORY,
+    # with the exception of those variables named EXCLUDED_VARIABLE_NAME, which enter the cost in the category CATEGORY_FOR_EXCLUDED_VARIABLE
+    #
+    # sorting_dict[TYPE] = {'category': CATEGORY, 'exceptions': {EXCLUDED_VARIABLE_NAME: CATEGORY_FOR_EXCLUDED_VARIABLE}}
+
+    sorting_dict = {}
+    sorting_dict['xd'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
+    sorting_dict['xddot'] = {'category': None, 'exceptions': {'ddq': 'ddq_regularisation_cost'} }
+    sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'ddl_t': None, 'fict': 'fictitious_cost'} }
+    sorting_dict['xa'] = {'category': 'tracking_cost', 'exceptions': {}}
+    sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {}}
+    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {'slack': None} }
+
+    return sorting_dict
+
+def get_coll_parallel_info(nlp_numerics_options, V, P, Xdot, model):
+
+    n_k = nlp_numerics_options['n_k']
+    d = nlp_numerics_options['collocation']['d']
+    N_coll = n_k * d
+
+    coll_weights = []
+    int_weights = find_int_weights(nlp_numerics_options)
+    p_weights = P['p', 'weights']
+    for ndx in range(n_k):
+        for ddx in range(d):
+            coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
+
+    coll_vars, _ = struct_op.get_coll_vars_and_params(nlp_numerics_options, V, P, Xdot, model)
+    coll_refs, _ = struct_op.get_coll_vars_and_params(nlp_numerics_options, V(P['p', 'ref']), P, Xdot, model)
+
+    return coll_vars, coll_refs, coll_weights, N_coll
+
+
+def get_ms_parallel_info(nlp_numerics_options, V, P, Xdot, model):
+    n_k = nlp_numerics_options['n_k']
+    N_ms = n_k
+
+    ms_weights = []
+    p_weights = P['p', 'weights']
+    for ndx in range(n_k):
+        ms_weights = cas.horzcat(ms_weights, p_weights)
+
+    ms_vars, _ = struct_op.get_ms_vars_and_params(nlp_numerics_options, V, P, Xdot, model)
+    ms_refs, _ = struct_op.get_ms_vars_and_params(nlp_numerics_options, V(P['p', 'ref']), P, Xdot, model)
+
+    return ms_vars, ms_refs, ms_weights, N_ms
+
+
+def find_general_regularisation(nlp_numerics_options, V, P, Xdot, model):
+
+    variables = model.variables
+
+    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+    if direct_collocation:
+        vars, refs, weights, N_steps = get_coll_parallel_info(nlp_numerics_options, V, P, Xdot, model)
+    elif multiple_shooting:
+        vars, refs, weights, N_steps = get_ms_parallel_info(nlp_numerics_options, V, P, Xdot, model)
+
+    parallellization = nlp_numerics_options['parallelization']['type']
+
+    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables)
+    reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+
+    reg_costs = reg_costs_struct(cas.sum2(reg_costs_map(vars, refs, weights)))
+
+    return reg_costs
+
+
+
 def get_local_tracking_function(variables, P):
+    # todo: this does not appear to be used anywhere... remove?
+
     # initialization tracking
 
     tracking = 0.
@@ -69,157 +204,49 @@ def find_int_weights(nlp_numerics_options):
 
     return int_weights
 
-def find_tracking(nlp_numerics_options, V, P, variables):
 
-    nk = nlp_numerics_options['n_k']
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
 
-    tracking = 0.
+def find_slack_cost(nlp_numerics_options, V, P, variables):
 
-    for kdx in range(nk):
+    slack_cost = 0.
+
+    there_are_lifted_variables = 'xl' in list(variables.keys())
+    there_are_slacks_in_lifted = there_are_lifted_variables and any(['slack' in name for name in set(struct_op.subkeys(variables, 'xl'))])
+
+    if there_are_lifted_variables and there_are_slacks_in_lifted:
+
+        direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
 
         if multiple_shooting:
-
-            for name in set(struct_op.subkeys(variables, 'xd')) - set('e'):
-
-                difference = V['xd', kdx, name] - P['p', 'ref', 'xd', kdx, name]
-                tracking += P['p', 'weights', 'xd', name][0] * cas.mtimes(difference.T, difference)
-
-            for name in set(struct_op.subkeys(variables, 'xa')):
-                difference = V['xa', kdx, name] - P['p', 'ref', 'xa', kdx, name]
-                tracking += P['p', 'weights', 'xa', name][0] * cas.mtimes(difference.T, difference)
-
-            if 'xl' in list(variables.keys()):
-                for name in set(struct_op.subkeys(variables, 'xl')):
-                    difference = V['xl', kdx, name] - P['p', 'ref', 'xl', kdx, name]
-                    if not 'slack' in name:
-                        tracking += P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
+            for name in set(struct_op.subkeys(variables, 'xl')):
+                if 'slack' in name:
+                    difference = cas.vertcat(*V['xl', :, name]) - cas.vertcat(*P['p', 'ref', 'xl', :, name])
+                    slack_cost += P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
 
         elif direct_collocation:
-
             for jdx in range(d):
-
-                for name in set(struct_op.subkeys(variables, 'xd')) - set('e'):
-
-                    difference = V['coll_var',kdx, jdx, 'xd', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xd', name]
-                    tracking += int_weights[jdx]*P['p', 'weights', 'xd', name][0] * cas.mtimes(difference.T, difference)
-
-                for name in set(struct_op.subkeys(variables, 'xa')):
-                    difference = V['coll_var', kdx, jdx, 'xa', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xa', name]
-                    tracking += int_weights[jdx]*P['p', 'weights', 'xa', name][0] * cas.mtimes(difference.T, difference)
-
-                if 'xl' in list(variables.keys()):
-                    for name in set(struct_op.subkeys(variables, 'xl')):
-                        difference = V['coll_var', kdx, jdx, 'xl', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xl', name]
-                        if not 'slack' in name:
-                            tracking += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.mtimes(difference.T, difference)
-
-    return tracking
-
-def find_slack(nlp_numerics_options, V, P, variables):
-
-    nk = nlp_numerics_options['n_k']
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
-    tracking = 0.
-    for kdx in range(nk):
-        if multiple_shooting:
-            if 'xl' in list(variables.keys()):
                 for name in set(struct_op.subkeys(variables, 'xl')):
-                    difference = V['xl', kdx, name] - P['p', 'ref', 'xl', kdx, name]
                     if 'slack' in name:
-                        ones = np.ones(difference.shape)
-                        tracking += P['p', 'weights', 'xl', name][0] * cas.mtimes(ones.T, difference)
-        elif direct_collocation:
-            for jdx in range(d):
-                if 'xl' in list(variables.keys()):
-                    for name in set(struct_op.subkeys(variables, 'xl')):
-                        difference = V['coll_var', kdx, jdx, 'xl', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'xl', name]
-                        if 'slack' in name:
-                            ones = np.ones(difference.shape)
-                            tracking += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.mtimes(ones.T, difference)
+                        difference = cas.vertcat(*V['coll_var', :, jdx, 'xl', name]) - cas.vertcat(*P['p', 'ref', 'coll_var', :, jdx, 'xl', name])
+                        slack_cost += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
 
-    return tracking
+    slack_cost = slack_cost * P['cost', 'slack'] / nlp_numerics_options['cost']['normalization']['slack']
 
-def find_regularisation(nlp_numerics_options, V, P, variables):
-    nk = nlp_numerics_options['n_k']
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+    return slack_cost
 
 
-    # check control parameterization
-    if (direct_collocation and nlp_numerics_options['collocation']['u_param'] == 'poly'):
-        u_param = 'poly'
-    else:
-        u_param = 'zoh'
-
-    regularisation = 0.
-
-    if u_param == 'zoh':
-        for kdx in range(nk):
-            for name in set(struct_op.subkeys(variables, 'u')) - set(['ddl_t']):
-                if not 'fict' in name:
-                    difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
-                    regularisation += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
-    elif u_param == 'poly':
-        for kdx in range(nk):
-            for jdx in range(d):
-                for name in set(struct_op.subkeys(variables, 'u')) - set(['ddl_t']):
-                    if not 'fict' in name:
-                        difference = V['coll_var', kdx, jdx, 'u', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'u', name]
-                        regularisation += int_weights[jdx]*P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
-
-    return regularisation
-
-def find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs):
-    nk = nlp_numerics_options['n_k']
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
-
-    ddq_regularisation = 0.
-
-    for kdx in range(nk):
-
-        if multiple_shooting:
-
-            for name in set(struct_op.subkeys(outputs, 'xddot_from_var')):
-                ddq_regularisation += cas.mtimes(xdot['xd',kdx,name[1:]].T, xdot['xd',kdx,name[1:]])
-
-        elif direct_collocation:
-
-            for jdx in range(d):
-                for name in set(struct_op.subkeys(outputs, 'xddot_from_var')):
-                    if 'ddq' in name:
-                        ddq_regularisation += int_weights[jdx]*cas.mtimes(xdot['coll_xd',kdx,jdx,name[1:]].T, xdot['coll_xd',kdx,jdx,name[1:]])
-
-    return ddq_regularisation
-
-def find_fictitious(nlp_numerics_options, V, P, variables):
-    nk = nlp_numerics_options['n_k']
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
-
-    # check control parameterization
-    if (direct_collocation and nlp_numerics_options['collocation']['u_param'] == 'poly'):
-        u_param = 'poly'
-    else:
-        u_param = 'zoh'
-
-    fictitious = 0.
-
-    if u_param == 'zoh':
-        for kdx in range(nk):
-            for name in set(struct_op.subkeys(variables, 'u')):
-                if 'fict' in name:
-                    difference = V['u', kdx, name] - P['p', 'ref', 'u', kdx, name]
-                    fictitious += P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
-    elif u_param == 'poly':
-        for kdx in range(nk):
-            for jdx in range(d):
-                for name in set(struct_op.subkeys(variables, 'u')):
-                    if 'fict' in name:
-                        difference = V['coll_var', kdx, jdx, 'u', name] - P['p', 'ref', 'coll_var', kdx, jdx, 'u', name]
-                        fictitious += int_weights[jdx]*P['p', 'weights', 'u', name][0] * cas.mtimes(difference.T, difference)
-
-    return fictitious
 
 
+
+
+def find_homotopy_parameter_costs(V, P):
+    phi_struct = cas.struct_symSX([cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')])
+
+    phi_costs = phi_struct(cas.MX.zeros(phi_struct.shape))
+    for name in struct_op.subkeys(V, 'phi'):
+        phi_costs[name + '_cost'] += P['cost', name] * V['phi', name]
+
+    return phi_costs
 
 
 def find_time_cost(nlp_numerics_options, V, P):
@@ -231,90 +258,6 @@ def find_time_cost(nlp_numerics_options, V, P):
 
     return time_cost
 
-def find_tracking_cost(nlp_numerics_options, V, P, variables):
-    # tracking of initial guess
-
-    normalization = nlp_numerics_options['cost']['normalization']['tracking']
-    tracking = find_tracking(nlp_numerics_options, V, P, variables)
-    tracking_cost = P['cost', 'tracking'] * tracking / normalization
-
-    return tracking_cost
-
-def find_regularisation_cost(nlp_numerics_options, V, P, variables):
-
-    # regularisation of inputs
-    normalization = nlp_numerics_options['cost']['normalization']['regularisation']
-    slack = find_slack(nlp_numerics_options, V, P, variables)
-    regularisation = find_regularisation(nlp_numerics_options, V, P, variables)
-
-    regularisation_cost = P['cost', 'regularisation'] * (regularisation + slack) / normalization
-
-    return regularisation_cost
-
-def find_ddq_regularisation_cost(nlp_numerics_options, V, P, xdot, outputs):
-    # regularisation of ddq
-    normalization = nlp_numerics_options['cost']['normalization']['ddq_regularisation']
-    ddq_regularisation = find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs)
-    ddq_regularisation_cost = P['cost', 'ddq_regularisation'] * ddq_regularisation / normalization
-
-    return ddq_regularisation_cost
-
-def find_fictitious_cost(nlp_numerics_options, V, P, variables):
-    # the penalization/regularization of the fictitious forces
-    normalization = nlp_numerics_options['cost']['normalization']['fictitious']
-    fictitious = find_fictitious(nlp_numerics_options, V, P, variables)
-    fictitious_cost = P['cost', 'fictitious'] * fictitious / normalization
-
-    return fictitious_cost
-
-def find_gamma_cost(V, P):
-    # homotopy parameter for the fictitious forces
-
-    gamma_cost = P['cost', 'gamma'] * V['phi', 'gamma']
-
-    return gamma_cost
-
-def find_psi_cost(V, P):
-    # homotopy parameter for the power vs. tracking step
-
-    psi_cost = P['cost', 'psi'] * V['phi', 'psi']
-
-    return psi_cost
-
-def find_iota_cost(V, P):
-    # homotopy parameter for the induction step
-
-    iota_cost = P['cost', 'iota'] * V['phi', 'iota']
-
-    return iota_cost
-
-def find_tau_cost(V, P):
-    # homotopy parameter for the induction step
-
-    tau_cost = P['cost', 'tau'] * V['phi', 'tau']
-
-    return tau_cost
-
-def find_eta_cost(V, P):
-    # homotopy parameter for the landing step
-
-    eta_cost = P['cost', 'eta'] * V['phi', 'eta']
-
-    return eta_cost
-
-def find_nu_cost(V, P):
-    # homotopy parameter for the compromised emergency landing step
-
-    nu_cost = P['cost', 'nu'] * V['phi', 'nu']
-
-    return nu_cost
-
-def find_upsilon_cost(V, P):
-    # homotopy parameter for the transition step
-
-    upsilon_cost = P['cost', 'upsilon'] * V['phi', 'upsilon']
-
-    return upsilon_cost
 
 def find_power_cost(nlp_numerics_options, V, P, Integral_outputs):
 
@@ -330,25 +273,6 @@ def find_power_cost(nlp_numerics_options, V, P, Integral_outputs):
 
     return power_cost
 
-def find_theta_regularisation_cost(V, P):
-
-    difference = V['theta'] - P['p', 'ref', 'theta']
-    theta_regularisation_cost = P['cost', 'theta'] * cas.mtimes(difference.T, difference)
-
-    return theta_regularisation_cost
-
-def find_transition_problem_cost(V, P, nlp_numerics_options, xdot, outputs, variables):
-
-    normalization_ddq = nlp_numerics_options['cost']['normalization']['ddq_regularisation']
-    ddq_regularisation = find_ddq_regularisation(nlp_numerics_options, V, P, xdot, outputs) / normalization_ddq
-
-    normalization_reg = nlp_numerics_options['cost']['normalization']['regularisation']
-    regularisation = find_regularisation(nlp_numerics_options, V, P, variables) / normalization_reg
-
-    transition_cost = ddq_regularisation + regularisation
-    transition_cost = P['cost','transition']*transition_cost
-
-    return transition_cost
 
 def find_nominal_landing_cost(V, P, variables):
 
@@ -392,25 +316,42 @@ def find_compromised_battery_cost(nlp_numerics_options, V, P, emergency_scenario
 
     return compromised_battery_cost
 
+
+
+
+#### problem costs
+
 def find_compromised_battery_problem_cost(nlp_numerics_options, V, P, model):
     emergency_scenario = nlp_numerics_options['landing']['emergency_scenario']
     compromised_battery_problem_cost = find_compromised_battery_cost(nlp_numerics_options, V, P, emergency_scenario, model)
 
     return compromised_battery_problem_cost
 
-def find_tracking_problem_cost(nlp_numerics_options, V, P, variables, parameters):
+def find_transition_problem_cost(component_costs, P):
 
-    fictitious_cost = find_fictitious_cost(nlp_numerics_options, V, P, variables)
-    tracking_cost = find_tracking_cost(nlp_numerics_options, V, P, variables)
-    time_cost = find_time_cost(nlp_numerics_options, V, P)
+    ddq_regularisation = component_costs['ddq_regularisation_cost']
+    u_regularisation = component_costs['u_regularisation_cost']
+
+    transition_cost = ddq_regularisation + u_regularisation
+    transition_cost = P['cost','transition'] * transition_cost
+
+    return transition_cost
+
+def find_tracking_problem_cost(component_costs):
+
+    fictitious_cost = component_costs['fictitious_cost']
+    tracking_cost = component_costs['tracking_cost']
+    time_cost = component_costs['time_cost']
 
     tracking_problem_cost = fictitious_cost + tracking_cost + time_cost
 
     return tracking_problem_cost
 
-def find_power_problem_cost(nlp_numerics_options, V, P, Integral_outputs):
+def find_power_problem_cost(component_costs):
 
-    power_problem_cost = find_power_cost(nlp_numerics_options, V, P, Integral_outputs)
+    power_cost = component_costs['power_cost']
+
+    power_problem_cost = power_cost
 
     return power_problem_cost
 
@@ -420,67 +361,77 @@ def find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables):
 
     return nominal_landing_problem_cost
 
-def find_general_problem_cost(nlp_numerics_options, V, P, variables, parameters, xdot, outputs):
+def find_general_problem_cost(component_costs):
 
-    gamma_cost = find_gamma_cost(V, P)
-    iota_cost = find_iota_cost(V, P)
-    tau_cost = find_tau_cost(V, P)
-    psi_cost = find_psi_cost(V, P)
-    eta_cost = find_eta_cost(V, P)
-    nu_cost = find_nu_cost(V, P)
-    upsilon_cost = find_upsilon_cost(V, P)
+    gamma_cost = component_costs['gamma_cost']
+    iota_cost = component_costs['iota_cost']
+    tau_cost = component_costs['tau_cost']
+    psi_cost = component_costs['psi_cost']
+    eta_cost = component_costs['eta_cost']
+    nu_cost = component_costs['nu_cost']
+    upsilon_cost = component_costs['upsilon_cost']
 
-    regularisation_cost = find_regularisation_cost(nlp_numerics_options, V, P, variables)
-    ddq_regularisation_cost = find_ddq_regularisation_cost(nlp_numerics_options, V, P, xdot, outputs)
-    theta_regularisation_cost = find_theta_regularisation_cost(V, P)
+    u_regularisation_cost = component_costs['u_regularisation_cost']
+    ddq_regularisation_cost = component_costs['ddq_regularisation_cost']
+    theta_regularisation_cost = component_costs['theta_regularisation_cost']
 
-    general_problem_cost = regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost + ddq_regularisation_cost
+    general_problem_cost = u_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost + ddq_regularisation_cost
 
     return general_problem_cost
 
-def find_objective(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+
+
+
+###### assemble the objective!
+
+def find_objective(component_costs, V):
+
     # tracking dissappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
 
-    tracking_problem_cost = find_tracking_problem_cost(nlp_numerics_options, V, P, variables, parameters)
-    power_problem_cost = find_power_problem_cost(nlp_numerics_options, V, P, Integral_outputs)
-    nominal_landing_problem_cost = find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables)
-    compromised_battery_problem_cost = find_compromised_battery_problem_cost(nlp_numerics_options, V, P, model)
-    transition_problem_cost = find_transition_problem_cost(V, P, nlp_numerics_options, xdot, outputs, variables)
-    general_problem_cost = find_general_problem_cost(nlp_numerics_options, V, P, variables, parameters, xdot, outputs)
+    slack_cost = component_costs['slack_cost']
+    tracking_problem_cost = component_costs['tracking_problem_cost']
+    power_problem_cost = component_costs['power_problem_cost']
+    nominal_landing_problem_cost = component_costs['nominal_landing_cost']
+    compromised_battery_problem_cost = component_costs['compromised_battery_cost']
+    transition_problem_cost = component_costs['tracking_problem_cost']
+    general_problem_cost = component_costs['general_problem_cost']
 
-    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost# + (1. - V['phi', 'nu']) * compromised_battery_problem_cost
+    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost
+    # + (1. - V['phi', 'nu']) * compromised_battery_problem_cost
 
     return objective
 
+##### use the component_cost_dictionary to only do the calculation work once
+
 def get_component_cost_dictionary(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+
     component_costs = {}
 
-    component_costs['objective'] = find_objective(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs)
+    general_reg_costs = find_general_regularisation(nlp_numerics_options, V, P, xdot, model)
+    for reg_cost_type in list(general_reg_costs.keys()):
+        shortened_name = reg_cost_type[:-5]
+        normalization = nlp_numerics_options['cost']['normalization'][shortened_name]
+        factor = P['cost', shortened_name]
+        component_costs[reg_cost_type] = general_reg_costs[reg_cost_type] * factor / normalization
 
-    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(nlp_numerics_options, V, P, variables, parameters)
-    component_costs['power_problem_cost'] = find_power_problem_cost(nlp_numerics_options, V, P, Integral_outputs)
-    component_costs['general_problem_cost'] = find_general_problem_cost(nlp_numerics_options, V, P, variables, parameters, xdot, outputs)
+    homotopy_parameter_costs = find_homotopy_parameter_costs(V, P)
+    for phi_cost_type in list(homotopy_parameter_costs.keys()):
+        component_costs[phi_cost_type] = homotopy_parameter_costs[phi_cost_type]
 
-    component_costs['gamma_cost'] = find_gamma_cost(V, P)
-    component_costs['fictitious_cost'] = find_fictitious_cost(nlp_numerics_options, V, P, variables)
-    component_costs['tracking_cost'] = find_tracking_cost(nlp_numerics_options, V, P, variables)
     component_costs['time_cost'] = find_time_cost(nlp_numerics_options, V, P)
-    component_costs['iota_cost'] = find_iota_cost(V, P)
-    component_costs['tau_cost'] = find_tau_cost(V, P)
-    component_costs['eta_cost'] = find_eta_cost(V, P)
-    component_costs['nu_cost'] = find_nu_cost(V, P)
-    component_costs['upsilon_cost'] = find_upsilon_cost(V, P)
-
-    component_costs['u_regularisation_cost'] = find_regularisation_cost(nlp_numerics_options, V, P, variables)
-    component_costs['ddq_regularisation_cost'] = find_ddq_regularisation_cost(nlp_numerics_options, V, P, xdot, outputs)
-    component_costs['theta_regularisation_cost'] = find_theta_regularisation_cost(V, P)
-    component_costs['psi_cost'] = find_psi_cost(V, P)
-
     component_costs['power_cost'] = find_power_cost(nlp_numerics_options, V, P, Integral_outputs)
+    component_costs['slack_cost'] = find_slack_cost(nlp_numerics_options, V, P, variables)
+
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables)
-    component_costs['transition_cost'] = find_transition_problem_cost(V, P, nlp_numerics_options, xdot, outputs, variables)
+    component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_numerics_options, V, P, model)
+
+    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
+    component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
+    component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
+
+    component_costs['objective'] = find_objective(component_costs, V)
 
     return component_costs
 
@@ -514,11 +465,11 @@ def get_cost_function_and_structure(nlp_numerics_options, V, P, variables, param
     return [component_cost_function, component_cost_structure, f_fun, f_jacobian_fun, f_hessian_fun]
 
 def make_cost_function(V, P, component_costs):
-    f = []
-    for cost in list(component_costs.keys()):
-        f = cas.vertcat(f, component_costs[cost])
 
-    f = cas.sum1(f)
+    f = 0
+    for cost in list(component_costs.keys()):
+        f += component_costs[cost]
+    end = time.time()
 
     f_fun = cas.Function('f', [V, P], [f])
     [H,g] = cas.hessian(f,V)

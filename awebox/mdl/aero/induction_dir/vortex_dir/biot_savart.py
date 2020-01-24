@@ -43,8 +43,6 @@ import pdb
 
 def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
 
-    processes = options['processes']
-
     include_normal_info = False
     segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
 
@@ -55,7 +53,7 @@ def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent
     filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
 
     # evaluate the symbolic function
-    total_u_vec_ind = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes)
+    total_u_vec_ind = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list)
 
     return total_u_vec_ind
 
@@ -63,7 +61,6 @@ def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent
 def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, architecture):
 
     parent = architecture.parent_map[kite]
-    processes = options['processes']
 
     include_normal_info = True
     segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
@@ -75,7 +72,7 @@ def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, 
     filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
 
     # evaluate the symbolic function
-    total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes)
+    total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list)
 
     # u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     # u_mag = vect_op.smooth_norm(u_app_kite)
@@ -89,10 +86,10 @@ def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, 
 
 
 
-def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list, processes):
+def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     n_filaments = segment_list.shape[1]
-    filament_map = filament_fun.map(n_filaments, "thread", processes)
+    filament_map = filament_fun.map(n_filaments, 'openmp')
     all = filament_map(segment_list)
 
     n_dims = all.shape[0]

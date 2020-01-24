@@ -67,7 +67,6 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
         ('user_options',    None,          None,        'tether_drag_model',     'trivial',          ('possible options',['trivial', 'simple', 'equivalence', 'not_in_use']),'t'),
-        ('user_options',    None,          None,        'processes',             mp.cpu_count() - 1, ('number of processes to use when pooling tasks (integer)', None), 'x'),
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
@@ -408,8 +407,10 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
-        ('solver',  'cost',             'regularisation',       0,  1e-4,       ('starting cost for regularisation', None),'s'),
+        ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
+        ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
         ('solver',  'cost',             'ddq_regularisation',   0,  0,          ('starting cost for ddq_regularisation', None),'s'),
+        ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 'x'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'x'),
         ('solver',  'cost',             'iota',             0,      0.,         ('starting cost for iota', None),'x'),
@@ -422,7 +423,6 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'fictitious',       0,      1e-4,       ('starting cost for fictitious', None),'x'),
         ('solver',  'cost',             'power',            0,      0.,         ('starting cost for power', None),'x'),
         ('solver',  'cost',             't_f',              0,      1e-2,       ('starting cost for final time', None),'x'),
-        ('solver',  'cost',             'theta',            0,      1e-2,       ('starting cost for theta', None),'x'),
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'x'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'x'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'x'),

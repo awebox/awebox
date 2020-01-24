@@ -55,6 +55,43 @@ def subkeys(casadi_struct, key):
 
     return subkey_list
 
+def get_coll_vars_and_params(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+    N_coll = n_k * d # collocation points
+
+    # construct list of all collocation node variables and parameters
+    coll_vars = []
+    for kdx in range(n_k):
+        for ddx in range(d):
+            var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx)
+            coll_vars = cas.horzcat(coll_vars, var_at_time)
+
+    parameters = model.parameters
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+
+    return coll_vars, coll_params
+
+
+def get_ms_vars_and_params(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    N_ms = n_k # collocation points
+
+    # construct list of all collocation node variables and parameters
+    ms_vars = []
+    for kdx in range(n_k):
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx)
+        ms_vars = cas.horzcat(ms_vars, var_at_time)
+
+    parameters = model.parameters
+    ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
+
+    return ms_vars, ms_params
+
+
+
 def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
 
     var_list = []
