@@ -36,7 +36,6 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
-import pdb
 
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):

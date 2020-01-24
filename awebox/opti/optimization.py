@@ -48,8 +48,6 @@ import time
 
 import pickle
 
-import pdb
-
 class Optimization(object):
     def __init__(self):
         self.__status = 'Optimization not yet built.'

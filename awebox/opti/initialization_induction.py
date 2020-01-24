@@ -36,8 +36,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_tools as tools_init
 
-import pdb
-
 
 def initial_guess_induction(options, nlp, formulation, model, V_init):
 

@@ -29,12 +29,7 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.wind as wind
-import pdb
-import copy
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
@@ -71,7 +66,7 @@ def get_vector_var(options, variables, pos_vel, tip, period, kite, architecture,
     elif pos_vel == 'vel':
         sym = 'dw'
     else:
-        pdb.set_trace()
+        awelogger.logger.error('Unknown vector type. Please choose either pos (position) or vel (velocity).')
 
     vect = []
     for dim in dims:
@@ -80,7 +75,7 @@ def get_vector_var(options, variables, pos_vel, tip, period, kite, architecture,
         try:
             comp_all = variables[loc][name]
         except:
-            pdb.set_trace()
+            awelogger.logger.error('No such variable known.')
 
         comp = get_wake_var_at_ndx_ddx(n_k, d, comp_all, start=start, ndx=ndx, ddx=ddx)
         vect = cas.vertcat(vect, comp)

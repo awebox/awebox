@@ -33,7 +33,6 @@ and related models.
 import casadi.tools as ct
 import awebox.pmpc as pmpc
 import awebox.tools.integrator_routines as awe_integrators
-import awebox.tools.struct_operations as struct_op
 import awebox.viz.visualization as visualization
 import awebox.viz.tools as viz_tools
 import copy

@@ -32,11 +32,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from . import collocation
 from . import performance
-import numpy as np
 import awebox.tools.struct_operations as struct_op
-import time
-
-import pdb
 
 def get_general_regularization_function(variables):
 
@@ -415,6 +411,7 @@ def get_component_cost_dictionary(nlp_numerics_options, V, P, variables, paramet
         factor = P['cost', shortened_name]
         component_costs[reg_cost_type] = general_reg_costs[reg_cost_type] * factor / normalization
 
+
     homotopy_parameter_costs = find_homotopy_parameter_costs(V, P)
     for phi_cost_type in list(homotopy_parameter_costs.keys()):
         component_costs[phi_cost_type] = homotopy_parameter_costs[phi_cost_type]
@@ -469,7 +466,6 @@ def make_cost_function(V, P, component_costs):
     f = 0
     for cost in list(component_costs.keys()):
         f += component_costs[cost]
-    end = time.time()
 
     f_fun = cas.Function('f', [V, P], [f])
     [H,g] = cas.hessian(f,V)

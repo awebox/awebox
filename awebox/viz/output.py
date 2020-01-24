@@ -30,7 +30,6 @@ import awebox.viz.tools as tools
 from awebox.logger.logger import Logger as awelogger
 
 import casadi.tools as cas
-import pdb
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
 

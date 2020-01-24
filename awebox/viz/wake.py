@@ -27,8 +27,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pdb
 import awebox.viz.tools as tools
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.tools.vector_operations as vect_op
 
 
 def draw_wake_nodes(ax, side, plot_dict, index):

@@ -29,7 +29,6 @@
 import numpy as np
 from . import funcs
 import casadi as cas
-import multiprocessing as mp
 
 def set_default_user_options(internal_access = False):
 

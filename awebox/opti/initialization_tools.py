@@ -32,10 +32,6 @@ _python _version 2.7 / casadi-3.4.5
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.struct_operations as struct_op
-
-import pdb
 
 
 

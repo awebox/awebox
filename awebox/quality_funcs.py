@@ -30,7 +30,6 @@
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 def test_opti_success(trial, test_param_dict, results):

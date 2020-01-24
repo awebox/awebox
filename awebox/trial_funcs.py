@@ -33,7 +33,6 @@ python version 3.5 / casadi 3.4.5
 import csv
 import collections
 import awebox.tools.vector_operations as vect_op
-import awebox.tools.struct_operations as struct_op
 import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np

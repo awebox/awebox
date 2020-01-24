@@ -36,7 +36,6 @@ import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
 import casadi as cas
-import pdb
 
 def print_homotopy_values(nlp, solution, p_fix_num):
     V = nlp.V

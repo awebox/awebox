@@ -33,17 +33,10 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-
 from . import constraints
-
 from . import collocation
-
 from . import multiple_shooting
-
 from . import performance
-
-import pdb
-
 import awebox.tools.struct_operations as struct_op
 
 def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):

@@ -31,7 +31,6 @@ python-3.5 / casadi-3.4.5
 '''
 
 import awebox.tools.struct_operations as struct_op
-import pdb
 
 def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options):
 

@@ -28,7 +28,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-import time
 import awebox.viz.tools as tools
 import awebox.viz.wake as wake
 import casadi.tools as cas

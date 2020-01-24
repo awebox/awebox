@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
+- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
 
 import casadi.tools as cas
@@ -35,7 +35,6 @@ import operator
 
 import copy
 from functools import reduce
-import pdb
 
 def subkeys(casadi_struct, key):
 

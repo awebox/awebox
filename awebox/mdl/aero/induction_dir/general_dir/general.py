@@ -31,8 +31,6 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import numpy as np
-import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):

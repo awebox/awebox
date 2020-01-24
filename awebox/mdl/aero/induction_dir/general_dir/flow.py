@@ -29,13 +29,6 @@ _python-3.5 / casadi-3.4.5
 - edit: jochem de schutter, alu-fr 2019
 """
 
-import casadi.tools as cas
-
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
-import numpy as np
-from awebox.logger.logger import Logger as awelogger
-
 def get_kite_apparent_velocity(variables, wind, kite, parent):
 
     q_kite = variables['xd']['q' + str(kite) + str(parent)]

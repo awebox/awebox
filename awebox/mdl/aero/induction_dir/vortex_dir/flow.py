@@ -29,12 +29,6 @@ _python-3.5 / casadi-3.4.5
 - edit: jochem de schutter, alu-fr 2019
 """
 
-import casadi.tools as cas
-
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
-import numpy as np
-from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as vortex_induction
 

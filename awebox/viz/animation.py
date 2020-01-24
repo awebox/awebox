@@ -34,7 +34,6 @@ import casadi.tools as cas
 from . import tools
 import awebox.viz.trajectory as trajectory
 import numpy as np
-import pdb
 
 def animate_monitor_plot(plot_dict, cosmetics, fig_name, init_colors=bool(False), plot_kites=bool(True)):
     """ Create monitor plot for optimal trajectory.

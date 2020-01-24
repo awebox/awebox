@@ -34,12 +34,7 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
-
-import pdb
 
 def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
 
