@@ -271,7 +271,7 @@ def generate_lagrangian(health_solver_options, nlp, arg, solution):
     bounds = rel_fun(vars_sym, arg['lbx'], arg['ubx'])
     lam_x_bounds = rel_lam_fun(lam_x_sym)
 
-    [f_fun, f_jacobian_fun, f_hessian_fun] = nlp.f_jacobian_fun
+    f_fun = nlp.f_fun
 
     objective = f_fun(vars_sym, p_sym)
 

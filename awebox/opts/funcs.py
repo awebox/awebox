@@ -276,6 +276,9 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
 
+    options_tree.append(('nlp', 'landing', 'cost', 'position_weight', options['formulation']['nominal_landing']['position_weight'], ('???', None),'x'))
+    options_tree.append(('nlp', 'landing', 'cost', 'velocity_weight', options['formulation']['nominal_landing']['velocity_weight'], ('???', None),'x'))
+
     options_tree.append(('nlp', 'landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))

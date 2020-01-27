@@ -34,6 +34,7 @@ from . import collocation
 from . import performance
 import awebox.tools.struct_operations as struct_op
 import pdb
+import time
 
 def get_general_regularization_function(variables):
 
@@ -61,7 +62,7 @@ def get_local_slack_penalty_function():
     slack_fun = cas.Function('slack_fun', [var_sym, ref_sym, weight_sym], [slack])
     return slack_fun
 
-def get_general_reg_costs_function(variables):
+def get_general_reg_costs_function(variables, V):
 
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
     ref_sym = cas.SX.sym('ref_sym', variables.cat.shape)
@@ -71,7 +72,7 @@ def get_general_reg_costs_function(variables):
     regs = variables(reg_fun(var_sym, ref_sym, weight_sym))
 
     sorting_dict = get_regularization_sorting_dict()
-    reg_costs_struct = get_reg_costs_struct()
+    reg_costs_struct = get_costs_struct(V)
     reg_costs = reg_costs_struct(cas.SX.zeros(reg_costs_struct.shape))
 
     slack_fun = get_local_slack_penalty_function()
@@ -108,18 +109,28 @@ def get_general_reg_costs_function(variables):
     return reg_costs_fun, reg_costs_struct
 
 
-def get_reg_costs_struct():
+def get_costs_struct(V):
 
-    reg_costs_struct = cas.struct_symSX([
+    costs_struct = cas.struct_symSX([
         cas.entry("tracking_cost"),
         cas.entry("ddq_regularisation_cost"),
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
-        cas.entry("slack_cost")
-    ])
+        cas.entry("slack_cost")] +
+       [cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')] +
+       [cas.entry("time_cost"),
+        cas.entry("power_cost"),
+        cas.entry("nominal_landing_cost"),
+        cas.entry("transition_cost"),
+        cas.entry("compromised_battery_cost"),
+        cas.entry("tracking_problem_cost"),
+        cas.entry("power_problem_cost"),
+        cas.entry("general_problem_cost"),
+        cas.entry("objective")
+        ])
 
-    return reg_costs_struct
+    return costs_struct
 
 
 def get_regularization_sorting_dict():
@@ -141,53 +152,82 @@ def get_regularization_sorting_dict():
 
     return sorting_dict
 
-def get_coll_parallel_info(nlp_numerics_options, V, P, Xdot, model):
 
-    n_k = nlp_numerics_options['n_k']
-    d = nlp_numerics_options['collocation']['d']
+def get_regularization_weights(variables, P, nlp_options):
+
+    sorting_dict = get_regularization_sorting_dict()
+
+    weights = variables(P['p', 'weights'])
+
+    for type in set(variables.keys()):
+        category = sorting_dict[type]['category']
+        exceptions = sorting_dict[type]['exceptions']
+
+        for subkey in set(struct_op.subkeys(variables, type)):
+            name = struct_op.get_node_variable_name(subkey)
+
+            if (not name in exceptions.keys()) and (not category == None):
+                shortened_cat_name = category[:-5]
+                normalization = nlp_options['cost']['normalization'][shortened_cat_name]
+                factor = P['cost', shortened_cat_name]
+                weights[type, subkey] = weights[type, subkey] * factor / normalization
+
+            elif (name in exceptions.keys()) and (not exceptions[name] == None):
+                shortened_cat_name = exceptions[name][:-5]
+                normalization = nlp_options['cost']['normalization'][shortened_cat_name]
+                factor = P['cost', shortened_cat_name]
+                weights[type, subkey] = weights[type, subkey] * factor / normalization
+
+    return weights
+
+
+def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
     N_coll = n_k * d
 
     coll_weights = []
-    int_weights = find_int_weights(nlp_numerics_options)
-    p_weights = P['p', 'weights']
+    int_weights = find_int_weights(nlp_options)
+    p_weights = get_regularization_weights(model.variables, P, nlp_options).cat
     for ndx in range(n_k):
         for ddx in range(d):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
-    coll_vars, _ = struct_op.get_coll_vars_and_params(nlp_numerics_options, V, P, Xdot, model)
-    coll_refs, _ = struct_op.get_coll_vars_and_params(nlp_numerics_options, V(P['p', 'ref']), P, Xdot, model)
+    coll_vars, _ = struct_op.get_coll_vars_and_params(nlp_options, V, P, Xdot, model)
+    coll_refs, _ = struct_op.get_coll_vars_and_params(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return coll_vars, coll_refs, coll_weights, N_coll
 
 
-def get_ms_parallel_info(nlp_numerics_options, V, P, Xdot, model):
-    n_k = nlp_numerics_options['n_k']
+def get_ms_parallel_info(nlp_options, V, P, Xdot, model):
+    n_k = nlp_options['n_k']
     N_ms = n_k
 
     ms_weights = []
-    p_weights = P['p', 'weights']
+    p_weights = get_regularization_weights(model.variables, P, nlp_options).cat
     for ndx in range(n_k):
         ms_weights = cas.horzcat(ms_weights, p_weights)
 
-    ms_vars, _ = struct_op.get_ms_vars_and_params(nlp_numerics_options, V, P, Xdot, model)
-    ms_refs, _ = struct_op.get_ms_vars_and_params(nlp_numerics_options, V(P['p', 'ref']), P, Xdot, model)
+    ms_vars, _ = struct_op.get_ms_vars_and_params(nlp_options, V, P, Xdot, model)
+    ms_refs, _ = struct_op.get_ms_vars_and_params(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return ms_vars, ms_refs, ms_weights, N_ms
 
 
-def find_general_regularisation(nlp_numerics_options, V, P, Xdot, model):
+def find_general_regularisation(nlp_options, V, P, Xdot, model):
 
     variables = model.variables
 
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_options)
     if direct_collocation:
-        vars, refs, weights, N_steps = get_coll_parallel_info(nlp_numerics_options, V, P, Xdot, model)
+        vars, refs, weights, N_steps = get_coll_parallel_info(nlp_options, V, P, Xdot, model)
     elif multiple_shooting:
-        vars, refs, weights, N_steps = get_ms_parallel_info(nlp_numerics_options, V, P, Xdot, model)
+        vars, refs, weights, N_steps = get_ms_parallel_info(nlp_options, V, P, Xdot, model)
 
-    parallellization = nlp_numerics_options['parallelization']['type']
+    parallellization = nlp_options['parallelization']['type']
 
-    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables)
+    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
     reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
 
     reg_costs = reg_costs_struct(cas.sum2(reg_costs_map(vars, refs, weights)))
@@ -196,10 +236,10 @@ def find_general_regularisation(nlp_numerics_options, V, P, Xdot, model):
 
 
 
-def get_local_tracking_function(variables, P):
+def get_local_tracking_function(variables, V, P):
     # todo: this does not appear to be used anywhere... remove?
 
-    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables)
+    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
 
     vars = variables
     refs = variables(P['p']['ref'])
@@ -214,11 +254,11 @@ def get_local_tracking_function(variables, P):
 
 
 
-def find_int_weights(nlp_numerics_options):
+def find_int_weights(nlp_options):
 
-    nk = nlp_numerics_options['n_k']
-    d = nlp_numerics_options['collocation']['d']
-    scheme = nlp_numerics_options['collocation']['scheme']
+    nk = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+    scheme = nlp_options['collocation']['scheme']
     Collocation = collocation.Collocation(nk,d,scheme)
     int_weights = Collocation.quad_weights
 
@@ -226,65 +266,32 @@ def find_int_weights(nlp_numerics_options):
 
 
 
-# def find_slack_cost(nlp_numerics_options, V, P, variables):
-#
-#     slack_cost = 0.
-#
-#     there_are_lifted_variables = 'xl' in list(variables.keys())
-#     there_are_slacks_in_lifted = there_are_lifted_variables and any(['slack' in name for name in set(struct_op.subkeys(variables, 'xl'))])
-#
-#     if there_are_lifted_variables and there_are_slacks_in_lifted:
-#
-#         direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
-#
-#         if multiple_shooting:
-#             for name in set(struct_op.subkeys(variables, 'xl')):
-#                 if 'slack' in name:
-#                     difference = cas.vertcat(*V['xl', :, name]) - cas.vertcat(*P['p', 'ref', 'xl', :, name])
-#                     slack_cost += P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
-#
-#         elif direct_collocation:
-#             for jdx in range(d):
-#                 for name in set(struct_op.subkeys(variables, 'xl')):
-#                     if 'slack' in name:
-#                         difference = cas.vertcat(*V['coll_var', :, jdx, 'xl', name]) - cas.vertcat(*P['p', 'ref', 'coll_var', :, jdx, 'xl', name])
-#                         slack_cost += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
-#
-#     slack_cost = slack_cost * P['cost', 'slack'] / nlp_numerics_options['cost']['normalization']['slack']
-#
-#     return slack_cost
 
 
+def find_homotopy_parameter_costs(component_costs, V, P):
 
-
-
-
-def find_homotopy_parameter_costs(V, P):
-    phi_struct = cas.struct_symSX([cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')])
-
-    phi_costs = phi_struct(cas.MX.zeros(phi_struct.shape))
     for name in struct_op.subkeys(V, 'phi'):
-        phi_costs[name + '_cost'] += P['cost', name] * V['phi', name]
+        component_costs[name + '_cost'] = P['cost', name] * V['phi', name]
 
-    return phi_costs
+    return component_costs
 
 
-def find_time_cost(nlp_numerics_options, V, P):
+def find_time_cost(nlp_options, V, P):
 
-    time_period = performance.find_time_period(nlp_numerics_options, V)
-    tf_init = performance.find_time_period(nlp_numerics_options, P.prefix['p', 'ref'])
+    time_period = performance.find_time_period(nlp_options, V)
+    tf_init = performance.find_time_period(nlp_options, P.prefix['p', 'ref'])
 
     time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
 
     return time_cost
 
 
-def find_power_cost(nlp_numerics_options, V, P, Integral_outputs):
+def find_power_cost(nlp_options, V, P, Integral_outputs):
 
     # maximization term for average power
-    time_period = performance.find_time_period(nlp_numerics_options, V)
+    time_period = performance.find_time_period(nlp_options, V)
 
-    if not nlp_numerics_options['cost']['output_quadrature']:
+    if not nlp_options['cost']['output_quadrature']:
         average_power = V['xd', -1, 'e'] / time_period
     else:
         average_power = Integral_outputs['int_out',-1,'e'] / time_period
@@ -294,7 +301,9 @@ def find_power_cost(nlp_numerics_options, V, P, Integral_outputs):
     return power_cost
 
 
-def find_nominal_landing_cost(V, P, variables):
+def find_nominal_landing_cost(V, P, variables, nlp_options):
+    pos_weight = nlp_options['landing']['cost']['position_weight']
+    vel_weight = nlp_options['landing']['cost']['velocity_weight']
 
     q_end = {}
     dq_end = {}
@@ -303,22 +312,24 @@ def find_nominal_landing_cost(V, P, variables):
             q_end[name] = V['xd',-1,name]
         elif name[:2] == 'dq':
             dq_end[name] = V['xd',-1,name]
+
     velocity_end = 0.0
     position_end = 0.0
     for position in list(q_end.keys()):
         position_end += cas.mtimes(q_end[position].T,q_end[position])
     position_end *= 1./len(list(q_end.keys()))
+
     for velocity in list(dq_end.keys()):
         velocity_end += cas.mtimes(dq_end[velocity].T,dq_end[velocity])
     velocity_end *= 1./len(list(dq_end.keys()))
 
-    nominal_landing_cost = P['cost', 'nominal_landing'] * (10*velocity_end + 0*position_end)
+    nominal_landing_cost = P['cost', 'nominal_landing'] * (vel_weight * velocity_end + pos_weight * position_end)
 
     return nominal_landing_cost
 
-def find_compromised_battery_cost(nlp_numerics_options, V, P, emergency_scenario, model):
-    n_k = nlp_numerics_options['n_k']
-    if (len(model.architecture.kite_nodes) == 1 or nlp_numerics_options['system_model']['kite_dof'] == 6 or emergency_scenario[0] != 'broken_battery'):
+def find_compromised_battery_cost(nlp_options, V, P, emergency_scenario, model):
+    n_k = nlp_options['n_k']
+    if (len(model.architecture.kite_nodes) == 1 or nlp_options['system_model']['kite_dof'] == 6 or emergency_scenario[0] != 'broken_battery'):
         compromised_battery_cost = cas.DM(0.0)
     elif emergency_scenario[0] == 'broken_battery':
         actuator_len = V['u',0,'dcoeff21'].shape[0]
@@ -341,9 +352,9 @@ def find_compromised_battery_cost(nlp_numerics_options, V, P, emergency_scenario
 
 #### problem costs
 
-def find_compromised_battery_problem_cost(nlp_numerics_options, V, P, model):
-    emergency_scenario = nlp_numerics_options['landing']['emergency_scenario']
-    compromised_battery_problem_cost = find_compromised_battery_cost(nlp_numerics_options, V, P, emergency_scenario, model)
+def find_compromised_battery_problem_cost(nlp_options, V, P, model):
+    emergency_scenario = nlp_options['landing']['emergency_scenario']
+    compromised_battery_problem_cost = find_compromised_battery_cost(nlp_options, V, P, emergency_scenario, model)
 
     return compromised_battery_problem_cost
 
@@ -375,9 +386,9 @@ def find_power_problem_cost(component_costs):
 
     return power_problem_cost
 
-def find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables):
+def find_nominal_landing_problem_cost(nlp_options, V, P, variables):
 
-    nominal_landing_problem_cost = find_nominal_landing_cost(V, P, variables)
+    nominal_landing_problem_cost = find_nominal_landing_cost(V, P, variables, nlp_options)
 
     return nominal_landing_problem_cost
 
@@ -406,7 +417,7 @@ def find_general_problem_cost(component_costs):
 
 def find_objective(component_costs, V):
 
-    # tracking dissappears slowly in the cost function and energy maximising appears. at the final step, cost function
+    # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
 
     slack_cost = component_costs['slack_cost']
@@ -424,28 +435,18 @@ def find_objective(component_costs, V):
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
 
-    component_costs = {}
+    component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
-    general_reg_costs = find_general_regularisation(nlp_numerics_options, V, P, xdot, model)
-    for reg_cost_type in list(general_reg_costs.keys()):
-        shortened_name = reg_cost_type[:-5]
-        normalization = nlp_numerics_options['cost']['normalization'][shortened_name]
-        factor = P['cost', shortened_name]
-        component_costs[reg_cost_type] = general_reg_costs[reg_cost_type] * factor / normalization
+    component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
+    component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
+    component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
 
-    homotopy_parameter_costs = find_homotopy_parameter_costs(V, P)
-    for phi_cost_type in list(homotopy_parameter_costs.keys()):
-        component_costs[phi_cost_type] = homotopy_parameter_costs[phi_cost_type]
-
-    component_costs['time_cost'] = find_time_cost(nlp_numerics_options, V, P)
-    component_costs['power_cost'] = find_power_cost(nlp_numerics_options, V, P, Integral_outputs)
-
-    component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables)
+    component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
-    component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_numerics_options, V, P, model)
+    component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_options, V, P, model)
 
     component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
@@ -474,38 +475,42 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_numerics_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)
-    [f_fun, f_jacobian_fun, f_hessian_fun] = make_cost_function(V, P, component_costs)
+    f_fun = make_cost_function(V, P, component_costs)
 
-    return [component_cost_function, component_cost_structure, f_fun, f_jacobian_fun, f_hessian_fun]
+    return [component_cost_function, component_cost_structure, f_fun]
 
 def make_cost_function(V, P, component_costs):
 
-    f = 0
-    for cost in list(component_costs.keys()):
-        f += component_costs[cost]
-
+    f = cas.sum1(component_costs.cat)
     f_fun = cas.Function('f', [V, P], [f])
-    [H,g] = cas.hessian(f,V)
+
+    return f_fun
+
+def get_cost_derivatives(V, P, f_fun):
+
+    [H,g] = cas.hessian(f_fun,V)
     f_jacobian_fun = cas.Function('f_jacobian', [V, P], [g])
     f_hessian_fun = cas.Function('f_hessian', [V, P], [H])
 
     return [f_fun, f_jacobian_fun, f_hessian_fun]
 
-def extract_discretization_info(nlp_numerics_options):
 
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
+
+def extract_discretization_info(nlp_options):
+
+    if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         multiple_shooting = False
-        d = nlp_numerics_options['collocation']['d']
-        scheme = nlp_numerics_options['collocation']['scheme']
-        int_weights = find_int_weights(nlp_numerics_options)
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
+        d = nlp_options['collocation']['d']
+        scheme = nlp_options['collocation']['scheme']
+        int_weights = find_int_weights(nlp_options)
+    elif nlp_options['discretization'] == 'multiple_shooting':
         direct_collocation = False
         multiple_shooting = True
         d = None

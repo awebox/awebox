@@ -308,8 +308,10 @@ def set_default_options(default_user_options, help_options):
         ('formulation',     'trajectory',   'aero_test',     'total_periods',    10.,         ('total number of oscillations of the wing', None),'x'),
 
         #### emergency landing
-        ('formulation', 'nominal_landing', None, 'main_node_radius', 40., ('???', None), 'x'),
-        ('formulation', 'nominal_landing', None, 'kite_node_radius', 80., ('???', None), 'x'),
+        ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
+        ('formulation', 'nominal_landing', None, 'kite_node_radius', 80.,   ('???', None), 'x'),
+        ('formulation', 'nominal_landing', None, 'position_weight',  0.,    ('weight given to landing position in objective', None), 'x'),
+        ('formulation', 'nominal_landing', None, 'velocity_weight',  10.,   ('weight given to landing velocity in objective', None), 'x'),
 
         #### battery parameters
         # todo: some of these parameters have nothing to do with the battery.

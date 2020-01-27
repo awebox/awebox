@@ -27,17 +27,14 @@ Class NLP generates an NLP from the model of the tree-structure multi-kite syste
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter, thilo bronnenmeyer alu-fr 2017-2018
 '''
-import awebox.tools.print_operations as print_op
-
-from . import discretization
-
-from . import objective
 
 from awebox.logger.logger import Logger as awelogger
-
+import awebox.tools.print_operations as print_op
+from . import discretization
+from . import objective
 from . import var_bounds
-
 import time
+import pdb
 
 class NLP(object):
 
@@ -130,15 +127,13 @@ class NLP(object):
         awelogger.logger.info('generate objective... ')
         timer = time.time()
 
-        [component_cost_function, component_cost_structure, f_fun, f_jacobian_fun, f_hessian_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), model.outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), model.outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 
         self.__component_cost_fun = component_cost_function
         self.__component_cost_struct = component_cost_structure
         self.__f_fun = f_fun
-        self.__f_jacobian_fun = f_jacobian_fun
-        self.__f_hessian_fun = f_hessian_fun
 
         return None
 
@@ -152,6 +147,10 @@ class NLP(object):
         nlp = {'x': self.__V, 'p': self.__P, 'f': f, 'g': g}
 
         return nlp
+
+    def get_f_jacobian_fun(self):
+        return objective.get_cost_derivatives(self.__V, self.__P, self.__f_fun)
+
 
     @property
     def status(self):
@@ -218,20 +217,21 @@ class NLP(object):
         awelogger.logger.warning('Cannot set g_fun object.')
 
     @property
+    def f_fun(self):
+        return self.__f_fun
+
+    @f_fun.setter
+    def f_fun(self, value):
+        awelogger.logger.warning('Cannot set f_fun object.')
+
+
+    @property
     def g_jacobian_fun(self):
         return [self.__g_fun, self.__g_jacobian_fun]
 
     @g_jacobian_fun.setter
     def g_jacobian_fun(self, value):
         awelogger.logger.warning('Cannot set g_jacobian_fun object.')
-
-    @property
-    def f_jacobian_fun(self):
-        return self.__f_fun, self.__f_jacobian_fun, self.__f_hessian_fun
-
-    @f_jacobian_fun.setter
-    def f_jacobian_fun(self, value):
-        awelogger.logger.warning('Cannot set f_jacobian_fun object.')
 
     @property
     def n_k(self):
