@@ -33,6 +33,7 @@ import casadi.tools as cas
 from . import collocation
 from . import performance
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 def get_general_regularization_function(variables):
 
@@ -48,6 +49,18 @@ def get_general_regularization_function(variables):
 
     return reg_fun
 
+def get_local_slack_penalty_function():
+
+    var_sym = cas.SX.sym('var_sym', (1,1))
+    ref_sym = cas.SX.sym('ref_sym', (1,1))
+    weight_sym = cas.SX.sym('weight_sym', (1,1))
+
+    diff = var_sym - ref_sym
+    slack = weight_sym * diff
+
+    slack_fun = cas.Function('slack_fun', [var_sym, ref_sym, weight_sym], [slack])
+    return slack_fun
+
 def get_general_reg_costs_function(variables):
 
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
@@ -61,6 +74,8 @@ def get_general_reg_costs_function(variables):
     reg_costs_struct = get_reg_costs_struct()
     reg_costs = reg_costs_struct(cas.SX.zeros(reg_costs_struct.shape))
 
+    slack_fun = get_local_slack_penalty_function()
+
     for type in set(variables.keys()):
         category = sorting_dict[type]['category']
         exceptions = sorting_dict[type]['exceptions']
@@ -71,9 +86,21 @@ def get_general_reg_costs_function(variables):
             if (not name in exceptions.keys()) and (not category == None):
                 reg_costs[category] = reg_costs[category] + cas.sum1(regs[type, subkey])
 
-            elif (name in exceptions.keys()) and (not exceptions[name] == None):
+            elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
                 reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[type, subkey])
+
+            elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
+                exc_category = exceptions[name]
+
+                for idx in variables.f[type, subkey]:
+                    var_loc = var_sym[idx]
+                    ref_loc = ref_sym[idx]
+                    weight_loc = weight_sym[idx]
+                    pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
+
+                    reg_costs[exc_category] = reg_costs[exc_category] + pen_loc
+
 
     reg_costs_list = reg_costs.cat
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
@@ -88,7 +115,8 @@ def get_reg_costs_struct():
         cas.entry("ddq_regularisation_cost"),
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
-        cas.entry("theta_regularisation_cost")
+        cas.entry("theta_regularisation_cost"),
+        cas.entry("slack_cost")
     ])
 
     return reg_costs_struct
@@ -100,14 +128,16 @@ def get_regularization_sorting_dict():
     # with the exception of those variables named EXCLUDED_VARIABLE_NAME, which enter the cost in the category CATEGORY_FOR_EXCLUDED_VARIABLE
     #
     # sorting_dict[TYPE] = {'category': CATEGORY, 'exceptions': {EXCLUDED_VARIABLE_NAME: CATEGORY_FOR_EXCLUDED_VARIABLE}}
+    #
+    # NOTE!!! for category "slack_cost", linearized penalities are applied rather than L2 regularization.
 
     sorting_dict = {}
     sorting_dict['xd'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
     sorting_dict['xddot'] = {'category': None, 'exceptions': {'ddq': 'ddq_regularisation_cost'} }
-    sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'ddl_t': None, 'fict': 'fictitious_cost'} }
+    sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'ddl_t': None, 'f_fict': 'fictitious_cost', 'm_fict': 'fictitious_cost'} }
     sorting_dict['xa'] = {'category': 'tracking_cost', 'exceptions': {}}
     sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {}}
-    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {'slack': None} }
+    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {'n_hat_slack': 'slack_cost'} }
 
     return sorting_dict
 
@@ -169,26 +199,20 @@ def find_general_regularisation(nlp_numerics_options, V, P, Xdot, model):
 def get_local_tracking_function(variables, P):
     # todo: this does not appear to be used anywhere... remove?
 
-    # initialization tracking
+    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables)
 
-    tracking = 0.
+    vars = variables
+    refs = variables(P['p']['ref'])
+    weights = variables(P['p']['weights'])
 
-    for name in set(struct_op.subkeys(variables, 'xd')) - set('e'):
-        difference = variables['xd', name] - P['p', 'ref', name]
-        tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
+    all_reg_costs = reg_costs_struct(reg_costs_fun(vars, refs, weights))
+    tracking_cost = all_reg_costs['tracking_cost']
 
-    for name in set(struct_op.subkeys(variables, 'xa')):
-        difference = variables['xa', name] - P['p', 'ref', name]
-        tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
-
-    for name in set(struct_op.subkeys(variables, 'xl')):
-        if not 'slack' in name:
-            difference = variables['xl', name] - P['p', 'ref', name]
-            tracking += P['p', 'weights', name][0] * cas.mtimes(difference.T, difference)
-
-    tracking_fun = cas.Function('tracking_fun', [variables, P], [tracking])
+    tracking_fun = cas.Function('tracking_fun', [variables, P], [tracking_cost])
 
     return tracking_fun
+
+
 
 def find_int_weights(nlp_numerics_options):
 
@@ -202,33 +226,33 @@ def find_int_weights(nlp_numerics_options):
 
 
 
-def find_slack_cost(nlp_numerics_options, V, P, variables):
-
-    slack_cost = 0.
-
-    there_are_lifted_variables = 'xl' in list(variables.keys())
-    there_are_slacks_in_lifted = there_are_lifted_variables and any(['slack' in name for name in set(struct_op.subkeys(variables, 'xl'))])
-
-    if there_are_lifted_variables and there_are_slacks_in_lifted:
-
-        direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
-
-        if multiple_shooting:
-            for name in set(struct_op.subkeys(variables, 'xl')):
-                if 'slack' in name:
-                    difference = cas.vertcat(*V['xl', :, name]) - cas.vertcat(*P['p', 'ref', 'xl', :, name])
-                    slack_cost += P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
-
-        elif direct_collocation:
-            for jdx in range(d):
-                for name in set(struct_op.subkeys(variables, 'xl')):
-                    if 'slack' in name:
-                        difference = cas.vertcat(*V['coll_var', :, jdx, 'xl', name]) - cas.vertcat(*P['p', 'ref', 'coll_var', :, jdx, 'xl', name])
-                        slack_cost += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
-
-    slack_cost = slack_cost * P['cost', 'slack'] / nlp_numerics_options['cost']['normalization']['slack']
-
-    return slack_cost
+# def find_slack_cost(nlp_numerics_options, V, P, variables):
+#
+#     slack_cost = 0.
+#
+#     there_are_lifted_variables = 'xl' in list(variables.keys())
+#     there_are_slacks_in_lifted = there_are_lifted_variables and any(['slack' in name for name in set(struct_op.subkeys(variables, 'xl'))])
+#
+#     if there_are_lifted_variables and there_are_slacks_in_lifted:
+#
+#         direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_numerics_options)
+#
+#         if multiple_shooting:
+#             for name in set(struct_op.subkeys(variables, 'xl')):
+#                 if 'slack' in name:
+#                     difference = cas.vertcat(*V['xl', :, name]) - cas.vertcat(*P['p', 'ref', 'xl', :, name])
+#                     slack_cost += P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
+#
+#         elif direct_collocation:
+#             for jdx in range(d):
+#                 for name in set(struct_op.subkeys(variables, 'xl')):
+#                     if 'slack' in name:
+#                         difference = cas.vertcat(*V['coll_var', :, jdx, 'xl', name]) - cas.vertcat(*P['p', 'ref', 'coll_var', :, jdx, 'xl', name])
+#                         slack_cost += int_weights[jdx] * P['p', 'weights', 'xl', name][0] * cas.sum1(difference)
+#
+#     slack_cost = slack_cost * P['cost', 'slack'] / nlp_numerics_options['cost']['normalization']['slack']
+#
+#     return slack_cost
 
 
 
@@ -418,7 +442,6 @@ def get_component_cost_dictionary(nlp_numerics_options, V, P, variables, paramet
 
     component_costs['time_cost'] = find_time_cost(nlp_numerics_options, V, P)
     component_costs['power_cost'] = find_power_cost(nlp_numerics_options, V, P, Integral_outputs)
-    component_costs['slack_cost'] = find_slack_cost(nlp_numerics_options, V, P, variables)
 
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_numerics_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
