@@ -67,32 +67,32 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if not (options['induction_model'] == 'not_in_use'):
-            ua = induction.get_kite_effective_velocity(options, variables, wind, n, architecture)
+            ueff = induction.get_kite_effective_velocity(options, variables, wind, n, architecture)
         else:
-            ua = uw_infty - dq
+            ueff = uw_infty - dq
 
         # relative air speed
-        norm_ua_squared = cas.mtimes(ua.T, ua)
-        ua_norm = norm_ua_squared ** 0.5
+        norm_ueff_squeffred = cas.mtimes(ueff.T, ueff)
+        ueff_norm = norm_ueff_squeffred ** 0.5
 
         # angle of attack and sideslip angle
-        alpha = indicators.get_alpha(ua, r)
-        beta = indicators.get_beta(ua, r)
+        alpha = indicators.get_alpha(ueff, r)
+        beta = indicators.get_beta(ueff, r)
 
         if int(options['surface_control']) == 0:
             delta = u['delta' + str(n) + str(parent)]
             omega = xd['omega' + str(n) + str(parent)]
             [CF, CM] = stability_derivatives.stability_derivatives(
-                options, alpha, beta, ua, omega, delta, parameters)
+                options, alpha, beta, ueff, omega, delta, parameters)
         elif int(options['surface_control']) == 1:
             delta = xd['delta' + str(n) + str(parent)]
             omega = xd['omega' + str(n) + str(parent)]
-            [CF, CM] = stability_derivatives.stability_derivatives(options, alpha, beta, ua, omega, delta, parameters)
+            [CF, CM] = stability_derivatives.stability_derivatives(options, alpha, beta, ueff, omega, delta, parameters)
         else:
             raise ValueError('unsupported surface_control chosen: %i', options['surface_control'])
 
         # body-_frameforcecomponents
-        # notice that these are unusual because an apparent wind reference coordinate system is in use.
+        # notice that these are unusueffl because an apparent wind reference coordinate system is in use.
         # see below (get_coeffs_from_control_surfaces) for information
         CA = CF[0]
         CY = CF[1]
@@ -102,15 +102,15 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         Cm = CM[1]
         Cn = CM[2]
 
-        dynamic_pressure = 1. / 2. * rho_infty * norm_ua_squared
+        dynamic_pressure = 1. / 2. * rho_infty * norm_ueff_squeffred
         planform_area = parameters['theta0','geometry','s_ref']
         ftilde_aero = cas.mtimes(r, CF)
         f_aero = dynamic_pressure * planform_area * ftilde_aero
 
-        ehat_drag = vect_op.normalize(ua)
+        ehat_drag = vect_op.normalize(ueff)
         f_drag = cas.mtimes(cas.mtimes(f_aero.T, ehat_drag), ehat_drag)
 
-        ehat_lift = vect_op.normed_cross(ua, ehat_span)
+        ehat_lift = vect_op.normed_cross(ueff, ehat_span)
         f_lift = cas.mtimes(cas.mtimes(f_aero.T, ehat_lift), ehat_lift)
 
         f_side = f_aero - f_drag - f_lift
@@ -137,11 +137,11 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['Cm'] = Cm
         aero_coefficients['Cn'] = Cn
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero,
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ueff, ueff_norm, aero_coefficients, f_aero,
                                                                f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters)
         outputs = indicators.collect_environmental_outputs(atmos, wind, q, n, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, ua, n, parent, outputs, parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, n, parent,
+        outputs = indicators.collect_aero_validity_outputs(options, xd, ueff, n, parent, outputs, parameters)
+        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ueff, n, parent,
                                           outputs,parameters)
         outputs = indicators.collect_power_balance_outputs(variables, n, outputs, architecture)
 

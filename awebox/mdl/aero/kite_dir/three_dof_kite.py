@@ -62,15 +62,15 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         # apparent air velocity
         if not (options['induction_model'] == 'not_in_use'):
-            ua = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
+            ueff = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
         else:
-            ua = uw_infty - dq
+            ueff = uw_infty - dq
 
         # relative air speed
-        ua_norm = vect_op.smooth_norm(ua, epsilon=1e-8)
+        ueff_norm = vect_op.smooth_norm(ueff, epsilon=1e-8)
 
         ehat_l, ehat_span = get_ehat_l_and_span(kite, options, wind, variables, architecture)
-        ehat_chord = ua/ua_norm
+        ehat_chord = ueff/ueff_norm
 
         # implicit direct cosine matrix (for plotting only)
         r = cas.horzcat(ehat_chord, ehat_span, ehat_l)
@@ -80,8 +80,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         CD = parameters['theta0','aero','CD0'] + CL ** 2/ (np.pi*parameters['theta0','geometry','ar'])
 
         # lift and drag force
-        f_lift = CL * 1. / 2. * rho_infty * cas.mtimes(ua.T, ua) * parameters['theta0','geometry','s_ref'] * ehat_l
-        f_drag = CD * 1. / 2. * rho_infty * ua_norm * parameters['theta0','geometry','s_ref'] * ua
+        f_lift = CL * 1. / 2. * rho_infty * cas.mtimes(ueff.T, ueff) * parameters['theta0','geometry','s_ref'] * ehat_l
+        f_drag = CD * 1. / 2. * rho_infty * ueff_norm * parameters['theta0','geometry','s_ref'] * ueff
         f_side = cas.DM(np.zeros((3, 1)))
 
         f_aero = f_lift + f_drag
@@ -98,11 +98,11 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['CN'] = CN
         aero_coefficients['CY'] = CY
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero,
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ueff, ueff_norm, aero_coefficients, f_aero,
                                                                f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, kite, outputs,parameters)
         outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, ua, kite, parent, outputs,parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, kite, parent,
+        outputs = indicators.collect_aero_validity_outputs(options, xd, ueff, kite, parent, outputs,parameters)
+        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ueff, kite, parent,
                                           outputs, parameters)
         outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
 
@@ -126,9 +126,9 @@ def get_ehat_l_and_span(kite, options, wind, variables, architecture):
 
     # apparent air velocity
     if not (options['induction_model'] == 'not_in_use'):
-        ua = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
+        ueff = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
     else:
-        ua = uw_infty - dq
+        ueff = uw_infty - dq
 
     # in kite body:
     if parent > 0:
@@ -138,8 +138,8 @@ def get_ehat_l_and_span(kite, options, wind, variables, architecture):
         qparent = np.array([0., 0., 0.])
 
     ehat_r = (q - qparent) / vect_op.norm(q - qparent)
-    ehat_t = vect_op.normed_cross(ua, ehat_r)
-    ehat_s = vect_op.normed_cross(ehat_t, ua)
+    ehat_t = vect_op.normed_cross(ueff, ehat_r)
+    ehat_s = vect_op.normed_cross(ehat_t, ueff)
 
     # roll angle
     psi = coeff[1]
