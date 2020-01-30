@@ -19,7 +19,7 @@ def test_trial_serial():
     options['user_options']['system_model']['architecture'] = {1:0}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['lift_mode']['windings'] = 1
     options['user_options']['induction_model'] = 'not_in_use'
     options['nlp']['n_k'] = 2
@@ -66,7 +66,7 @@ def test_sweep_serial():
     options['user_options']['system_model']['architecture'] = {1:0}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['lift_mode']['windings'] = 1
     options['user_options']['induction_model'] = 'not_in_use'
     options['nlp']['n_k'] = 2

@@ -22,7 +22,7 @@ options['user_options']['trajectory']['lift_mode']['windings'] = 5
 
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
-options['user_options']['tether_drag_model'] = 'trivial'
+options['user_options']['tether_drag_model'] = 'split'
 
 # initial tether length guess
 options['solver']['initialization']['xd']['l_t'] = 200.0 # initial guess

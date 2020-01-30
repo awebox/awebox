@@ -26,7 +26,7 @@ def test_integrators():
     base_options['user_options']['system_model']['architecture'] = {1:0}
     base_options['user_options']['system_model']['kite_dof'] = 3
     base_options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    base_options['user_options']['tether_drag_model'] = 'trivial'
+    base_options['user_options']['tether_drag_model'] = 'split'
     base_options['user_options']['induction_model'] = 'not_in_use'
     
     # specify direct collocation options

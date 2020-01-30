@@ -153,10 +153,11 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
         elif name[:5] == 'P_gen':
             P_gen_total += power_outputs[name][0]
 
+    epsilon = 1.e-6 # use this to decrease chance of div-by-zero errors at start of optimization
     if np.mean(P_side_total) > 0.0:
-        P_in = np.mean(P_lift_total) + np.mean(P_side_total)
+        P_in = np.mean(P_lift_total) + np.mean(P_side_total) + epsilon
     else:
-        P_in = np.mean(P_lift_total)
+        P_in = np.mean(P_lift_total) + epsilon
         power_and_performance['eff_sideforce_loss'] = -np.mean(P_side_total)/ P_in
 
     power_and_performance['eff_overall'] = - np.mean((power_outputs['P_tether1'][0]+P_gen_total))/P_in

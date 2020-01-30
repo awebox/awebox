@@ -24,7 +24,7 @@ options['user_options']['trajectory']['lift_mode']['windings'] = 5
 # don't include induction effects, use simple tether drag
 options['user_options']['wind']['u_ref'] = 5.0 # m/s
 options['user_options']['induction_model'] = 'not_in_use'
-options['user_options']['tether_drag_model'] = 'trivial'
+options['user_options']['tether_drag_model'] = 'split'
 
 trial = awe.Trial(seed = options, name = 'opt_design')
 trial.build()

@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 lagrangian dynamics auto-generation module
 that generates the dynamics residual
 python-3.5 / casadi-3.4.5
-- authors: jochem de schutter, rachel leuthold alu-fr 2017-19
+- authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
 
 import casadi.tools as cas
@@ -46,7 +46,7 @@ import awebox.mdl.aero.indicators as indicators
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
-import awebox.mdl.aero.tether_dir.tether_drag_coefficients as tether_drag_coeff
+import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
 
 import awebox.tools.vector_operations as vect_op
 
@@ -219,6 +219,9 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     else:
         energy_dynamics = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
         dynamics_list +=  [energy_dynamics]
+
+    # tether drag constraints
+    dynamics_list += [tether_aero.get_residuals(outputs, system_variables['SI'], architecture, options, atmos, wind)]
 
     # induction constraint
     if options['induction_model'] != 'not_in_use':
@@ -491,7 +494,7 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
     p_dec = parameters.prefix['phi']
 
     # tether_drag_coeff.plot_cd_vs_reynolds(100, options)
-    cd_tether_fun = tether_drag_coeff.get_drag_coeff_equation(options, parameters)
+    tether_cd_fun = tether_drag_coeff.get_tether_cd_fun(options, parameters)
 
     # initialize dictionary
     tether_drag_forces = {}
@@ -504,38 +507,50 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
 
         parent = architecture.parent_map[n]
 
-        outputs = tether_aero.get_forces(options, variables, atmos, wind, n, cd_tether_fun, outputs, parameters, architecture)
+        outputs = tether_aero.get_force_outputs(options, variables, atmos, wind, n, tether_cd_fun, outputs, architecture)
 
-        physical_upper = outputs['tether_aero']['physical_upper' + str(n)]
-        physical_lower = outputs['tether_aero']['physical_lower' + str(n)]
-        simple_upper = outputs['tether_aero']['simple_upper' + str(n)]
-        simple_lower = outputs['tether_aero']['simple_lower' + str(n)]
-        trivial_upper = outputs['tether_aero']['trivial_upper' + str(n)]
-        trivial_lower = outputs['tether_aero']['trivial_lower' + str(n)]
+        force_vars = tether_aero.get_force_vars(variables, n, options, atmos, wind)
 
         tether_model = options['tether']['tether_drag']['model_type']
 
-        if tether_model == 'equivalence':
-            drag_parent = p_dec['tau'] * trivial_lower + (1. - p_dec['tau']) * physical_lower
-            drag_node = p_dec['tau'] * trivial_upper + (1. - p_dec['tau']) * physical_upper
-        elif tether_model == 'simple':
-            drag_parent = p_dec['tau'] * trivial_lower + (1. - p_dec['tau']) * simple_lower
-            drag_node = p_dec['tau'] * trivial_upper + (1. - p_dec['tau']) * simple_upper
-        elif tether_model == 'trivial':
-            drag_parent = trivial_lower
-            drag_node = trivial_upper
+        if tether_model == 'multi':
+            multi_upper = force_vars['multi_upper' + str(n)]
+            multi_lower = force_vars['multi_lower' + str(n)]
+            split_upper = force_vars['split_upper' + str(n)]
+            split_lower = force_vars['split_lower' + str(n)]
+
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+
+        elif tether_model == 'single':
+            single_upper = force_vars['single_upper' + str(n)]
+            single_lower = force_vars['single_lower' + str(n)]
+            split_upper = force_vars['split_upper' + str(n)]
+            split_lower = force_vars['split_lower' + str(n)]
+
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
+
+        elif tether_model == 'split':
+            split_upper = force_vars['split_upper' + str(n)]
+            split_lower = force_vars['split_lower' + str(n)]
+
+            drag_node = split_upper
+            drag_parent = split_lower
+
         elif tether_model == 'not_in_use':
             drag_parent = np.zeros((3, 1))
             drag_node = np.zeros((3, 1))
+
         else:
             raise ValueError('tether drag model not supported.')
 
-        # attribute half of segment drag to parent
+        # attribute portion of segment drag to parent
         if n > 1:
             grandparent = architecture.parent_map[parent]
             tether_drag_forces['f' + str(parent) + str(grandparent)] += drag_parent
 
-        # attribute half of segment drag to node
+        # attribute portion of segment drag to node
         tether_drag_forces['f' + str(n) + str(parent)] += drag_node
 
     # collect tether drag losses

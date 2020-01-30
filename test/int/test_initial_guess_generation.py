@@ -22,7 +22,7 @@ def test_initial_guess_generation():
     # choose simplest model
     options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1, 4:1, 5:4, 6:4}
     options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['lift_mode']['phase_fix'] = True
     options['user_options']['induction_model'] = 'not_in_use'
     options['user_options']['kite_standard'] = ampyx_data.data_dict()

@@ -23,7 +23,7 @@ def test_write_to_csv():
     options['user_options']['trajectory']['type'] = 'power_cycle'
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['nlp']['n_k'] = 2
     options['solver']['max_iter'] = 0
 

@@ -23,7 +23,7 @@ def test_visualization():
     options['user_options']['trajectory']['type'] = 'lift_mode'
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['nlp']['n_k'] = 2
     options['solver']['max_iter'] = 0
     options['visualization']['cosmetics']['plot_ref'] = True
@@ -58,7 +58,7 @@ def test_animation():
     options['user_options']['trajectory']['system_type'] = 'lift_mode'
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['nlp']['n_k'] = 2
     options['solver']['max_iter'] = 0
 

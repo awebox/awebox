@@ -35,6 +35,8 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
 
@@ -87,12 +89,7 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     filament_map = filament_fun.map(n_filaments, 'openmp')
     all = filament_map(segment_list)
 
-    n_dims = all.shape[0]
-
-    total = []
-    for jdx in range(n_dims):
-        in_dim = vect_op.sum(all[jdx, :].T)
-        total = cas.vertcat(total, in_dim)
+    total = cas.sum2(all)
 
     return total
 
@@ -189,7 +186,9 @@ def test_filament():
     difference = vec_norm - vect_op.xhat()
     resi = cas.mtimes(difference.T, difference)
 
-    print("filament test residual is:" + str(resi))
-    print()
+    epsilon = 1.e-8
+    if resi > epsilon:
+        awelogger.logger.error('biot-savart filament induction test gives error of size: ' + str(resi))
+        pdb.set_trace()
 
     return None

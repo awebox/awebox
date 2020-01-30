@@ -87,9 +87,7 @@ def define_homotopy_schedule(formulation):
 
 
 
-
-
-    if tether_drag_model in set(['equivalence', 'simple']):
+    if tether_drag_model in set(['single', 'multi']):
         homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
