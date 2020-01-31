@@ -47,10 +47,10 @@ sweep_opts = [
     (['solver', 'cost_overwrite', 'power', 1], [1.e-2, 1.e-1, 1.e0])
 ]
 
----> run the tuning sweep (with the same "options" that you've previously defined): 
+---> run the tuning sweep (with the same "options" that you've previously defined), and plotting the convergence and solution comparisons: 
 sweep = awe.Sweep(name = 'tuning_sweep', options = options, seed = sweep_opts)
 sweep.run()
-sweep.plot('comp_stats')
+sweep.plot('comp_stats', 'comp_convergence')
 plt.show()
 
 ---> chose the sweep trial with the "best" convergence behavior, and use these values to re-set your original trial scalings: 

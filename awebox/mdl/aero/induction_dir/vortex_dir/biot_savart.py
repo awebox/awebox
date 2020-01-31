@@ -189,6 +189,5 @@ def test_filament():
     epsilon = 1.e-8
     if resi > epsilon:
         awelogger.logger.error('biot-savart filament induction test gives error of size: ' + str(resi))
-        pdb.set_trace()
 
     return None

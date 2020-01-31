@@ -1,0 +1,5 @@
+{
+  "int/test_serialization.py::test_trial_serial": true,
+  "reg/test_trials.py::test_trials": true,
+  "units/test_aero_components.py": true
+}

@@ -32,7 +32,6 @@ import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 def get_body_axes(q_upper, q_lower):
@@ -104,7 +103,6 @@ def test_horizontal():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
 
 
     dir = 'y'
@@ -115,7 +113,7 @@ def test_horizontal():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
+        
 
 
 
@@ -127,7 +125,7 @@ def test_horizontal():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
+        
 
     return None
 
@@ -161,7 +159,7 @@ def test_vertical():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
+        
 
 
     dir = 'y'
@@ -172,7 +170,7 @@ def test_vertical():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
+        
 
 
 
@@ -184,7 +182,7 @@ def test_vertical():
     epsilon = 1.e-12
     if resi > epsilon:
         awelogger.logger.error('tether frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
-        pdb.set_trace()
+        
 
     return None
 
@@ -223,7 +221,7 @@ def test_transform_from_earthfixed():
     epsilon = 1.e-12
     if tot_error > epsilon:
         awelogger.logger.error('tether frame transformation test gives error of size: ' + str(tot_error))
-        pdb.set_trace()
+        
 
     return None
 
@@ -258,7 +256,7 @@ def test_transform_from_body():
     epsilon = 1.e-12
     if tot_error > epsilon:
         awelogger.logger.error('tether frame transformation test gives error of size: ' + str(tot_error))
-        pdb.set_trace()
+        
 
     return None
 
@@ -281,14 +279,18 @@ def get_inverse_equivalence_matrix(tether_length):
     # A [a, b, c, d, e, f].T = [Fx, Fy, Fz, Mx, My, 0].T
     # [a, b, c, d, e, f].T = Ainv [Fx, Fy, Fz, Mx, My, 0].T
 
-    L = tether_length / 2.
+    ell = tether_length
+    over = 1./ell
+    nver = -1. / ell
+    half = 0.5
+    nalf = -0.5
 
-    Ainv_row1 = cas.horzcat(1., 0., 0., 0., 1./L, 0.) / 2.
-    Ainv_row2 = cas.horzcat(0., 1., 0., 1./L, 0., 0.) / 2.
-    Ainv_row3 = cas.horzcat(0., 0., 1., 0., 0., 1./L) / 2.
-    Ainv_row4 = cas.horzcat(1., 0., 0., 0., -1. / L, 0.) / 2.
-    Ainv_row5 = cas.horzcat(0., 1., 0., -1. / L, 0., 0.) / 2.
-    Ainv_row6 = cas.horzcat(0., 0., 1., 0., 0., -1. / L) / 2.
+    Ainv_row1 = cas.horzcat(half, 0., 0., over, 0., 0.)
+    Ainv_row2 = cas.horzcat(0., half, 0., 0., over, 0.)
+    Ainv_row3 = cas.horzcat(0., 0., half, 0., 0., half)
+    Ainv_row4 = cas.horzcat(half, 0., 0., nver, 0., 0.)
+    Ainv_row5 = cas.horzcat(0., half, 0., 0., nver, 0.)
+    Ainv_row6 = cas.horzcat(0., 0., half, 0., 0., nalf)
 
     Ainv = cas.vertcat(Ainv_row1,
                        Ainv_row2,
