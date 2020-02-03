@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -28,6 +28,8 @@ import casadi as cas
 import copy
 from awebox.logger.logger import Logger as awelogger
 import pickle
+
+import pdb
 
 import awebox.tools.struct_operations as struct_op
 
@@ -108,14 +110,16 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     options_tree = share_aerodynamics_options(options, options_tree, help_options)
 
     ## wind
+    u_ref = user_options['wind']['u_ref']
     options_tree.append(('model', 'wind', None, 'model', user_options['wind']['model'],('wind model', None),'x'))
-    options_tree.append(('params', 'wind', None, 'u_ref', user_options['wind']['u_ref'],('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('params', 'wind', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', user_options['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', user_options['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
 
     ## atmosphere
     options_tree.append(('model',  'atmosphere', None, 'model', user_options['atmosphere'], ('atmosphere model', None),'x'))
-    options_tree.append(('params',  'atmosphere', None, 'q_ref', 0.5*options['params']['atmosphere']['rho_ref']*user_options['wind']['u_ref']**2, ('aerodynamic pressure [bar]', None),'x'))
+    q_ref = 0.5*options['params']['atmosphere']['rho_ref'] * u_ref**2
+    options_tree.append(('params',  'atmosphere', None, 'q_ref', q_ref, ('aerodynamic pressure [bar]', None),'x'))
 
     ### model bounds
     if int(user_options['system_model']['kite_dof']) == 3:
@@ -147,8 +151,7 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     # check which tether force/stress constraints to enforce on which node
     tether_constraint_includes = {'force': [], 'stress': []}
     diameter = None
-    if (options['model']['model_bounds']['tether_stress']['include'] and \
-        tether_force_include):
+    if (options['model']['model_bounds']['tether_stress']['include'] and tether_force_include):
 
         for node in range(1, architecture.number_of_nodes):
             if node in architecture.kite_nodes:
@@ -237,7 +240,26 @@ def build_model_options(options, help_options, user_options, options_tree, archi
     lambda_scaling_overwrite = options['model']['scaling_overwrite']['xa']['lambda']
     e_scaling_overwrite = options['model']['scaling_overwrite']['xd']['e']
 
-    lambda_scaling, energy_scaling, _ = get_suggested_lambda_energy_power_scaling(options, architecture)
+    zeta_guess = 10.
+
+    if user_options['trajectory']['system_type'] == 'drag_mode':
+        windings = 1
+    else:
+        windings = user_options['trajectory']['lift_mode']['windings']
+
+
+    time_guess = 20. * windings
+    s_ref = geometry['s_ref']
+    power_guess = zeta_guess * ( q_ref * u_ref ) * ( s_ref * architecture.number_of_kites )
+    energy_scaling_try = power_guess * time_guess
+
+    tether_force_max = options['params']['model_bounds']['tether_force_limits'][1]
+    l_t_guess = options['model']['scaling']['xd']['l_t']
+    lambda_scaling_try = tether_force_max / l_t_guess
+
+    # lambda_scaling, energy_scaling, _ = get_suggested_lambda_energy_power_scaling(options, architecture)
+    lambda_scaling = lambda_scaling_try
+    energy_scaling = energy_scaling_try
 
     if not lambda_scaling_overwrite == None:
         lambda_scaling = lambda_scaling_overwrite
@@ -251,6 +273,20 @@ def build_model_options(options, help_options, user_options, options_tree, archi
         options_tree.append(('model', 'scaling', 'xa', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'xd', 'e', energy_scaling, ('scaling of the energy', None),'x'))
+
+
+
+    # _, _, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
+    power_cost = power_guess
+
+    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+    if not power_cost_overwrite == None:
+        power_cost = power_cost_overwrite
+
+    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+
+
 
     return options_tree, fixed_params
 
@@ -385,13 +421,14 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
         options['solver']['initialization']['fix_tether_length'] = True
 
-    _, _, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
-    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
-    if not power_cost_overwrite == None:
-        power_cost = power_cost_overwrite
-
-    options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
-
+    # # _, _, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
+    #
+    # power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+    # if not power_cost_overwrite == None:
+    #     power_cost = power_cost_overwrite
+    #
+    # options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+    #
 
     return options_tree
 
@@ -526,7 +563,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     lam_scale_dict[1][2][6]['actuator']['bubble'] = [1e3, 10., 1e-2]
     lam_scale_dict[1][1][3]['actuator']['ampyx'] = [1e3, 1e3, 1]
     lam_scale_dict[1][1][3]['actuator']['bubble'] = [1e3, 1e3, 1]
-    lam_scale_dict[1][2][3]['actuator']['ampyx'] = [1., 1e5, 0.1]
+    lam_scale_dict[1][2][3]['actuator']['ampyx'] = [1.e3, 1e3, 1.e1]
     lam_scale_dict[1][2][3]['actuator']['bubble'] = [1., 1e5, 0.1]
     lam_scale_dict[1][2][6]['not_in_use']['ampyx'] = [10., 1e4, 0.1]
     lam_scale_dict[1][2][6]['not_in_use']['bubble'] = [10., 1e4, 0.1]

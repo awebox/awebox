@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-18
+- author: rachel leuthold, alu-fr 2017-20
 - edit: jochem de schutter, alu-fr 2019
 '''
 

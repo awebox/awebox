@@ -68,6 +68,31 @@ def from_body_to_earthfixed(vector, q_upper, q_lower):
 
     return transformed
 
+#
+# def from_earthfixed_to_body(earthfixed_vector, q_upper, q_lower):
+#
+#     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
+#
+#     body_x = cas.mtimes(earthfixed_vector.T, ehat_x)
+#     body_y = cas.mtimes(earthfixed_vector.T, ehat_y)
+#     body_z = cas.mtimes(earthfixed_vector.T, ehat_z)
+#
+#     body_vector = cas.vertcat(body_x, body_y, body_z)
+#
+#     return body_vector
+#
+# def from_body_to_earthfixed(body_vector, q_upper, q_lower):
+#
+#     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
+#
+#     earthfixed_x = body_vector[0] * ehat_x
+#     earthfixed_y = body_vector[1] * ehat_y
+#     earthfixed_z = body_vector[2] * ehat_z
+#
+#     earthfixed_vector = earthfixed_x + earthfixed_y + earthfixed_z
+#
+#     return earthfixed_vector
+
 
 def test_transforms():
 

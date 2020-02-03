@@ -173,9 +173,6 @@ def generate_structure(options, architecture):
     # introduce aerodynamics variables
     system_lifted, system_states = extend_aerodynamics(options, system_lifted, system_states, architecture)
 
-    # introduce tether drag variabels
-    system_lifted, system_states = extend_tether_forces(options, system_lifted, system_states, architecture)
-
     # system state derivatives
     system_derivatives = []
     for i in range(len(system_states)):
@@ -204,30 +201,6 @@ def generate_structure(options, architecture):
         system_variables_list['xl'] = system_lifted
 
     return system_variables_list, system_gc
-
-def extend_tether_forces(options, system_lifted, system_states, architecture):
-
-    selected_model = options['tether']['tether_drag']['model_type']
-
-    if selected_model == 'not_in_use':
-        tether_models = []
-
-    elif selected_model == 'split':
-        tether_models = ['split', 'single', 'multi']
-
-    else:
-        tether_models = ['split'] + [selected_model]
-
-    sides = ['upper', 'lower']
-    n_nodes = architecture.number_of_nodes
-
-    for model in tether_models:
-        for n in range(1, n_nodes):
-            for side in sides:
-                system_lifted.extend([('f_' + model + '_' + side + str(n), (3, 1))])
-
-    return system_lifted, system_states
-
 
 def extend_general_induction(options, system_lifted, system_states, architecture):
 

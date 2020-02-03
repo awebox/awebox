@@ -52,7 +52,6 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
 
-import pdb
 
 def make_dynamics(options,atmos,wind,parameters,architecture):
 
@@ -219,9 +218,6 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     else:
         energy_dynamics = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
         dynamics_list +=  [energy_dynamics]
-
-    # tether drag constraints
-    dynamics_list += [tether_aero.get_residuals(outputs, system_variables['SI'], architecture, options, atmos, wind)]
 
     # induction constraint
     if options['induction_model'] != 'not_in_use':
@@ -509,32 +505,24 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
 
         outputs = tether_aero.get_force_outputs(options, variables, atmos, wind, n, tether_cd_fun, outputs, architecture)
 
-        force_vars = tether_aero.get_force_vars(variables, n, options, atmos, wind)
+        multi_upper = outputs['tether_aero']['multi_upper' + str(n)]
+        multi_lower = outputs['tether_aero']['multi_lower' + str(n)]
+        single_upper = outputs['tether_aero']['single_upper' + str(n)]
+        single_lower = outputs['tether_aero']['single_lower' + str(n)]
+        split_upper = outputs['tether_aero']['split_upper' + str(n)]
+        split_lower = outputs['tether_aero']['split_lower' + str(n)]
 
         tether_model = options['tether']['tether_drag']['model_type']
 
         if tether_model == 'multi':
-            multi_upper = force_vars['multi_upper' + str(n)]
-            multi_lower = force_vars['multi_lower' + str(n)]
-            split_upper = force_vars['split_upper' + str(n)]
-            split_lower = force_vars['split_lower' + str(n)]
-
             drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
             drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
 
         elif tether_model == 'single':
-            single_upper = force_vars['single_upper' + str(n)]
-            single_lower = force_vars['single_lower' + str(n)]
-            split_upper = force_vars['split_upper' + str(n)]
-            split_lower = force_vars['split_lower' + str(n)]
-
             drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
             drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
 
         elif tether_model == 'split':
-            split_upper = force_vars['split_upper' + str(n)]
-            split_lower = force_vars['split_lower' + str(n)]
-
             drag_node = split_upper
             drag_parent = split_lower
 

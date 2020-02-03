@@ -4,12 +4,14 @@
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 """
 
-import awebox.trial as awe_trial
-import awebox.opts.kite_data.ampyx_data as ampyx_data
-import awebox.opts.options as options
-import logging
 import collections
 import copy
+import logging
+
+import awebox.opts.kite_data.ampyx_data as ampyx_data
+import awebox.opts.options as options
+import awebox.trial as awe_trial
+
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
 def generate_options_dict():
