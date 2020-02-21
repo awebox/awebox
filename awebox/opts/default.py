@@ -69,7 +69,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
-    default_user_options, help_options = funcs.build_options_tree(default_user_options_tree, {}, {})
+    default_user_options, help_options = funcs.assemble_options_tree(default_user_options_tree, {}, {})
 
     return default_user_options, help_options
 
@@ -96,6 +96,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'wind', 'log_wind', 'z0_air',    0.1,  ('surface roughness length of log-wind profile [m], (0.1: roughness farm land with wind breaks more than 1km apart)', None),'s'),
 
         ## aero model
+        ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',          ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
         ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'actuator',   'a_ref',        1./3.,              ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
@@ -522,6 +523,6 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
     ]
 
-    default_options, help_options = funcs.build_options_tree(default_options_tree, default_user_options, help_options)
+    default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)
 
     return default_options, help_options

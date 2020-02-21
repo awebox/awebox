@@ -34,10 +34,9 @@ _python-3.5 / casadi-3.4.5
 
 import awebox.mdl.aero.induction_dir.induction as induction
 import awebox.mdl.aero.indicators as indicators
+import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
+import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 
-from . import three_dof_kite
-
-from . import six_dof_kite
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
 
@@ -54,6 +53,19 @@ def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters,
         outputs = induction.collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
     return outputs
+
+def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+
+    if int(options['kite_dof']) == 3:
+        resi = three_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+
+    elif int(options['kite_dof']) == 6:
+        resi = six_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+    else:
+        raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
+
+    return resi
+
 
 def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
     if int(options['kite_dof']) == 3:

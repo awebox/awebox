@@ -68,8 +68,8 @@ def get_segment_equiv_fun():
 
     # frames.test_transforms()
 
-    drag_body = frames.from_earthfixed_to_body(drag_earthfixed, q_upper, q_lower)
-    moment_body = frames.from_earthfixed_to_body(moment_earthfixed, q_upper, q_lower)
+    drag_body = frames.from_earth_to_body(drag_earthfixed, q_upper, q_lower)
+    moment_body = frames.from_earth_to_body(moment_earthfixed, q_upper, q_lower)
 
     moment_body[2] = 0.
 
@@ -82,8 +82,8 @@ def get_segment_equiv_fun():
     equiv_force_upper_body = equiv_vect[0:3]
     equiv_force_lower_body = equiv_vect[3:6]
 
-    equiv_force_upper_earthfixed = frames.from_body_to_earthfixed(equiv_force_upper_body, q_upper, q_lower)
-    equiv_force_lower_earthfixed = frames.from_body_to_earthfixed(equiv_force_lower_body, q_upper, q_lower)
+    equiv_force_upper_earthfixed = frames.from_body_to_earth(equiv_force_upper_body, q_upper, q_lower)
+    equiv_force_lower_earthfixed = frames.from_body_to_earth(equiv_force_lower_body, q_upper, q_lower)
 
     equivs = cas.vertcat(equiv_force_upper_earthfixed, equiv_force_lower_earthfixed)
 

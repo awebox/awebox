@@ -161,3 +161,25 @@ https://github.com/casadi/casadi/wiki/Obtaining-HSL
 13. on the Obtaining-HSL page install instructions, they keep referring to a path (where_you_want_to_install) and (hsl_install_directory). if I don't use the --prefix flag, where does HSL install normally? 
 
 to /usr/local/lib
+
+
+14. when I try to run a script that uses the awebox (like one of the included examples), especially with the linear solver MA57, I get the following output:
+
+INFO:	Initial solution...
+INFO:
+...
+This is IPOPT version 3.12.3, running with linear solver ma57
+...
+Runtime parameters:
+    Objective type: Unknown!
+    Coarsening type: METIS_CTYPE_RM
+    Initial partitioning type: METIS_IPTYPE_GROW
+    Refinement type: Unknown!
+...
+Input Error: Incorrect objective type.
+...
+
+
+what should I do?
+
+----> you probably don't have the HSL/COIN solvers installed correctly on your computer. In particular, you should return to the steps of "make"ing the hsl solvers, paying special attention to the flags.

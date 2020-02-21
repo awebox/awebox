@@ -36,6 +36,8 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
 import pdb
+from awebox.logger.logger import Logger as awelogger
+
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -307,102 +309,8 @@ def get_elevation_angle(xd):
 
     return elevation_angle
 
-def convert_from_body_to_wind_axes(alpha, beta, axial_side_normal):
-    rotation1 = cas.horzcat(np.cos(alpha) * np.cos(beta),      np.sin(beta),   np.sin(alpha) * np.cos(beta))
-    rotation2 = cas.horzcat(-np.cos(alpha) * np.sin(beta),     np.cos(beta),   - np.sin(alpha) * np.sin(beta))
-    rotation3 = cas.horzcat(-np.sin(alpha),                    0.          ,   np.cos(alpha))
-    rotation = cas.vertcat(rotation1, rotation2, rotation3)
-
-    drag_cross_lift = cas.mtimes(rotation, axial_side_normal)
-    return drag_cross_lift
-
-def convert_from_wind_to_body_axes(alpha, beta, drag_cross_lift):
-    rotation1 = cas.horzcat(np.cos(alpha) * np.cos(beta),  -np.cos(alpha) * np.sin(beta),  -np.sin(alpha))
-    rotation2 = cas.horzcat(np.sin(beta),                   np.cos(beta),                   0.)
-    rotation3 = cas.horzcat(np.cos(beta) * np.sin(alpha),   -np.sin(alpha) * np.sin(beta),  np.cos(alpha))
-    rotation = cas.vertcat(rotation1, rotation2, rotation3)
-
-    axial_side_normal = cas.mtimes(rotation, drag_cross_lift)
-    return axial_side_normal
-
-def test_conversions():
-    # must return zeros...
 
 
-    #  -------------
-    print('test 1')
-
-    alpha = 0.
-    beta = 0.
-    # then CA = CD, CY = CS, CN = CL
-
-    test = vect_op.xhat_np
-    check = vect_op.xhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = vect_op.zhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    #  -------------
-    print('test 2')
-
-    alpha = np.pi / 2
-    beta = 0.
-    # then CA = -CL, CY = CS, CN = CD
-
-    test = vect_op.xhat_np
-    check = -1. * vect_op.zhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = vect_op.xhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    # -----
-    print('test 3')
-
-    # then CD = CN, CS = CY, CL = -CA
-
-    test = vect_op.xhat_np
-    check = vect_op.zhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = -1. * vect_op.xhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    print('')
 
 def get_alpha(ua, r):
     ehat1 = r[:, 0]  # chordwise, from le to te

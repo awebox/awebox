@@ -219,6 +219,9 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
         energy_dynamics = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
         dynamics_list +=  [energy_dynamics]
 
+    aero_force_resi = kite_aero.get_force_resi(options, system_variables['SI'], atmos, wind, architecture, parameters)
+    dynamics_list += [aero_force_resi]
+
     # induction constraint
     if options['induction_model'] != 'not_in_use':
 

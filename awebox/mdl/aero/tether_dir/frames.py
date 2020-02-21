@@ -46,7 +46,7 @@ def get_body_axes(q_upper, q_lower):
 
     return ehat_x, ehat_y, ehat_z
 
-def from_earthfixed_to_body(vector, q_upper, q_lower):
+def from_earth_to_body(vector, q_upper, q_lower):
 
     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
 
@@ -57,41 +57,14 @@ def from_earthfixed_to_body(vector, q_upper, q_lower):
 
     return transformed
 
-def from_body_to_earthfixed(vector, q_upper, q_lower):
+def from_body_to_earth(vector, q_upper, q_lower):
 
     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
 
     r_from_body_to_ef = cas.horzcat(ehat_x, ehat_y, ehat_z)
-    # r_from_ef_to_body = cas.inv(r_from_body_to_ef)
-
     transformed = cas.mtimes(r_from_body_to_ef, vector)
 
     return transformed
-
-#
-# def from_earthfixed_to_body(earthfixed_vector, q_upper, q_lower):
-#
-#     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
-#
-#     body_x = cas.mtimes(earthfixed_vector.T, ehat_x)
-#     body_y = cas.mtimes(earthfixed_vector.T, ehat_y)
-#     body_z = cas.mtimes(earthfixed_vector.T, ehat_z)
-#
-#     body_vector = cas.vertcat(body_x, body_y, body_z)
-#
-#     return body_vector
-#
-# def from_body_to_earthfixed(body_vector, q_upper, q_lower):
-#
-#     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
-#
-#     earthfixed_x = body_vector[0] * ehat_x
-#     earthfixed_y = body_vector[1] * ehat_y
-#     earthfixed_z = body_vector[2] * ehat_z
-#
-#     earthfixed_vector = earthfixed_x + earthfixed_y + earthfixed_z
-#
-#     return earthfixed_vector
 
 
 def test_transforms():
@@ -99,7 +72,7 @@ def test_transforms():
     test_horizontal()
     test_vertical()
 
-    test_transform_from_earthfixed()
+    test_transform_from_earth()
     test_transform_from_body()
 
     return None
@@ -121,7 +94,7 @@ def test_horizontal():
     q_lower = 2. * xhat
 
     dir = 'x'
-    transformed = from_earthfixed_to_body(xhat, q_upper, q_lower)
+    transformed = from_earth_to_body(xhat, q_upper, q_lower)
     reference = ehat_z
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -131,7 +104,7 @@ def test_horizontal():
 
 
     dir = 'y'
-    transformed = from_earthfixed_to_body(yhat, q_upper, q_lower) 
+    transformed = from_earth_to_body(yhat, q_upper, q_lower)
     reference = ehat_y
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -143,7 +116,7 @@ def test_horizontal():
 
 
     dir = 'z'
-    transformed = from_earthfixed_to_body(zhat, q_upper, q_lower) 
+    transformed = from_earth_to_body(zhat, q_upper, q_lower)
     reference = -1. * ehat_x
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -177,7 +150,7 @@ def test_vertical():
     q_lower = 8. * zhat
 
     dir = 'x'
-    transformed = from_earthfixed_to_body(xhat, q_upper, q_lower)
+    transformed = from_earth_to_body(xhat, q_upper, q_lower)
     reference = ehat_x
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -188,7 +161,7 @@ def test_vertical():
 
 
     dir = 'y'
-    transformed = from_earthfixed_to_body(yhat, q_upper, q_lower) 
+    transformed = from_earth_to_body(yhat, q_upper, q_lower)
     reference = ehat_y
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -200,7 +173,7 @@ def test_vertical():
 
 
     dir = 'z'
-    transformed = from_earthfixed_to_body(zhat, q_upper, q_lower) 
+    transformed = from_earth_to_body(zhat, q_upper, q_lower)
     reference = ehat_z
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
@@ -215,7 +188,7 @@ def test_vertical():
 
 
 
-def test_transform_from_earthfixed():
+def test_transform_from_earth():
 
     xhat = vect_op.xhat_np()
     yhat = vect_op.yhat_np()
@@ -234,11 +207,11 @@ def test_transform_from_earthfixed():
     test_vec = x_test * xhat + y_test * yhat + z_test * zhat
     test_mag = vect_op.norm(test_vec)
 
-    trans_vec = from_earthfixed_to_body(test_vec, q_upper, q_lower)
+    trans_vec = from_earth_to_body(test_vec, q_upper, q_lower)
     trans_mag = vect_op.norm(trans_vec)
     norm_error = vect_op.norm(trans_mag - test_mag)
 
-    reformed_vec = from_body_to_earthfixed(trans_vec, q_upper, q_lower)
+    reformed_vec = from_body_to_earth(trans_vec, q_upper, q_lower)
     vector_diff = reformed_vec - test_vec
     vector_error = cas.mtimes(vector_diff.T, vector_diff)
 
@@ -269,11 +242,11 @@ def test_transform_from_body():
     test_vec = x_test * xhat + y_test * yhat + z_test * zhat
     test_mag = vect_op.norm(test_vec)
 
-    trans_vec = from_body_to_earthfixed(test_vec, q_upper, q_lower)
+    trans_vec = from_body_to_earth(test_vec, q_upper, q_lower)
     trans_mag = vect_op.norm(trans_vec)
     norm_error = vect_op.norm(trans_mag - test_mag)
 
-    reformed_vec = from_earthfixed_to_body(trans_vec, q_upper, q_lower)
+    reformed_vec = from_earth_to_body(trans_vec, q_upper, q_lower)
     vector_diff = reformed_vec - test_vec
     vector_error = cas.mtimes(vector_diff.T, vector_diff)
 

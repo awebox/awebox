@@ -90,10 +90,12 @@ def test_integrators():
     err_coll_z = np.max(np.abs(np.divide(dae.z(zf)['xa'] - V_final['coll_var',0, -1, 'xa'], V_final['coll_var',0, -1, 'xa']).full()))
     err_coll_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
 
+    tolerance = 1e-8
+
     # values should match up to nlp solver accuracy
-    assert(err_coll_x < 1e-10)
-    assert(err_coll_z < 1e-10)
-    assert(err_coll_q < 1e-10)
+    assert(err_coll_x < tolerance)
+    assert(err_coll_z < tolerance)
+    assert(err_coll_q < tolerance)
 
     # ===================================
     # TEST RK4-ROOT INTEGRATOR
