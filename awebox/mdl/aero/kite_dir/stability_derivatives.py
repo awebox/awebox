@@ -125,11 +125,11 @@ def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, p
     Cn_surfs = parameters['theta0','aero','Cndeltaa'] * deltaa + parameters['theta0','aero','Cndeltar'] * deltar
 
     CD_split = stab_deriv['CDalpha_deltae'] * alpha * deltae + stab_deriv['CDbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CDbeta_deltar']
+        'CDbeta_deltar'] * beta * deltar
     CS_split = stab_deriv['CSalpha_deltae'] * alpha * deltae + stab_deriv['CSbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CSbeta_deltar']
+        'CSbeta_deltar'] + beta * deltar
     CL_split = stab_deriv['CLalpha_deltae'] * alpha * deltae + stab_deriv['CLbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CLbeta_deltar']
+        'CLbeta_deltar'] + beta * deltar
 
     # sum
     CD = CD0 + CD_wind + CD_surfs + CD_surfs2 + CD_split + CD_motion
