@@ -35,7 +35,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 def get_kite_effective_velocity(options, variables, wind, kite, architecture):
 
-
     parent = architecture.parent_map[kite]
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
 
