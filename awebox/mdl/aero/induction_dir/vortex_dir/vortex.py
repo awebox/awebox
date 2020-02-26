@@ -34,7 +34,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
-import awebox.tools.vector_operations as vect_op
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = convection.get_convection_residual(options, wind, variables, architecture)
@@ -49,7 +48,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
 
-    filament_list = get_filament_list(model_options, wind, variables, architecture)
+    filament_list = vortex_tools.get_filament_list(model_options, wind, variables, architecture)
 
     dims = filament_list.shape
     reshaped_list = cas.reshape(filament_list, (dims[0] * dims[1], 1))
@@ -65,14 +64,3 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
 
     return outputs
 
-
-def get_filament_list(options, wind, variables, architecture):
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
-    u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
-
-    filament_list = vortex_tools.get_list_of_all_filaments(variables['xd'], variables['xl'], architecture, u_vec_ref,
-                                                           periods_tracked, n_k, d)
-
-    return filament_list

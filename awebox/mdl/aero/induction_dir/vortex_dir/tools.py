@@ -30,6 +30,8 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.vector_operations as vect_op
+
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
@@ -298,3 +300,16 @@ def get_list_of_all_filaments(variables_xd, variables_xl, architecture, u_vec_re
     horz_filaments = filaments.T
 
     return horz_filaments
+
+
+
+def get_filament_list(options, wind, variables, architecture):
+    n_k = options['aero']['vortex']['n_k']
+    d = options['aero']['vortex']['d']
+    periods_tracked = options['aero']['vortex']['periods_tracked']
+    u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
+
+    filament_list = get_list_of_all_filaments(variables['xd'], variables['xl'], architecture, u_vec_ref,
+                                                           periods_tracked, n_k, d)
+
+    return filament_list
