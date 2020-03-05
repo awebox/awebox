@@ -161,9 +161,9 @@ def get_u_ind_alone_in_body_frame(vec_u_eff_in_body_frame, rho, variables, kite,
     ue_cross_e2 = vect_op.cross(vec_u_eff_in_body_frame, ehat2)
     gamma = cas.mtimes(f_aero_var.T, ue_cross_e2) / b_ref / rho / cas.mtimes(ue_cross_e2.T, ue_cross_e2)
 
-    u_ind_x = (alpha_eff * (2. + beta_eff**2) * gamma) / (2. * b_ref * np.pi)
+    u_ind_x = (gamma / np.pi / b_ref) * alpha_eff
     u_ind_y = 0
-    u_ind_z = ((-2. * (2. + beta_eff**2) + alpha_eff**2. * (2. + 3. * beta_eff**2.)) * gamma) / (4. * b_ref * np.pi)
+    u_ind_z = (gamma / np.pi / b_ref) * (-1.)
 
     u_ind = cas.vertcat(u_ind_x, u_ind_y, u_ind_z)
 
