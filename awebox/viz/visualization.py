@@ -87,6 +87,7 @@ class Visualization(object):
         if 'all' in flags:
             flags = list(self.__plot_logic_dict.keys())
             flags.remove('animation')
+            flags.remove('animation_snapshot')
             flags = [flag for flag in flags if 'outputs:' not in flag]
 
         if 'level_1' in flags:

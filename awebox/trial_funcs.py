@@ -52,7 +52,7 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
     plot_dict = interpolate_data(trial, freq)
     write_csv_dict = init_write_csv_dict(plot_dict)
 
-    # write into ,csv
+    # write into .csv
     with open(name + '.csv', 'w') as point_cloud:
         pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
         pcdw.writeheader()
