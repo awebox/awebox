@@ -64,15 +64,13 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         rho = atmos.get_density(q[2])
         q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
-        f_aero_earth = tools.get_f_aero_var(variables, kite, parent, parameters)
-
-        f_aero_body = frames.from_earth_to_body(kite_dcm, f_aero_earth)
+        f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters)
         coeff_body = f_aero_body / q_eff / s_ref
         CA = coeff_body[0]
         CY = coeff_body[1]
         CN = coeff_body[2]
 
-        f_aero_wind = frames.from_earth_to_wind(vec_u_eff, kite_dcm, f_aero_earth)
+        f_aero_wind = frames.from_body_to_wind(vec_u_eff, kite_dcm, f_aero_body)
         wind_dcm = frames.get_wind_dcm(vec_u_eff, kite_dcm)
         f_drag = f_aero_wind[0] * wind_dcm[:, 0]
         f_side = f_aero_wind[1] * wind_dcm[:, 1]
@@ -82,6 +80,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         CD = coeff_wind[0]
         CS = coeff_wind[1]
         CL = coeff_wind[2]
+
+        f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
 
         f_aero = f_aero_earth
         m_aero = cas.DM(np.zeros((3, 1)))
@@ -131,10 +131,11 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
             vec_u = vec_u_eff
 
         f_earth_frame = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
+        f_body_frame = frames.from_earth_to_body(kite_dcm, f_earth_frame)
 
         f_scale = tools.get_f_scale(parameters)
 
-        resi_f_kite = (f_aero_var - f_earth_frame) / f_scale
+        resi_f_kite = (f_aero_var - f_body_frame) / f_scale
 
         resi = cas.vertcat(resi, resi_f_kite)
 
