@@ -67,7 +67,6 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     outputs['performance']['elevation'] = get_elevation_angle(variables['xd'])
 
     outputs['performance']['p_loyd_total'] = 0.
-
     for n in kite_nodes:
         outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(n)]
 

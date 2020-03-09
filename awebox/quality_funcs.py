@@ -144,7 +144,7 @@ def test_outputs(trial, test_param_dict, results):
         loyd_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'loyd_factor'])
     avg_loyd_factor = np.average(loyd_factor)
     if avg_loyd_factor > max_loyd_factor:
-        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
+        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name + '. Average Loyd factor is ' + str(avg_loyd_factor))
         results['loyd_factor'] = False
     else:
         results['loyd_factor'] = True
