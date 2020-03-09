@@ -125,13 +125,12 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
 
         if aero_coeff_ref_velocity == 'app':
-
             vec_u_app_body = tools.get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
             vec_u = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
         elif aero_coeff_ref_velocity == 'eff':
             vec_u = vec_u_eff
 
-        f_earth_frame = get_force_from_u_sym_in_earth_frame(vec_u, variables, kite, atmos, architecture, parameters)
+        f_earth_frame = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
 
         f_scale = tools.get_f_scale(parameters)
 
@@ -157,26 +156,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
     vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
     kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
-
     Lhat = kite_dcm[:,2]
-
-
-    # # in kite body:
-    # if parent > 0:
-    #     grandparent = architecture.parent_map[parent]
-    #     qparent = variables['xd']['q' + str(parent) + str(grandparent)]
-    # else:
-    #     qparent = np.array([0., 0., 0.])
-    #
-    #
-    # ehat_r = (q - qparent) / vect_op.norm(q - qparent)
-    # ehat_t = vect_op.normed_cross(vec_u, ehat_r)
-    # ehat_s = vect_op.normed_cross(ehat_t, vec_u)
-    #
-    # # roll angle
-    # psi = coeff[1]
-    #
-    # Lhat = cas.cos(psi) * ehat_s + cas.sin(psi) * ehat_t
 
     # lift and drag coefficients
     CL = coeff[0]
@@ -202,7 +182,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
 
 
-def get_planar_dmc(vec_u, variables, kite, architecture):
+def get_planar_dmc(vec_u_eff, variables, kite, architecture):
 
     parent = architecture.parent_map[kite]
 
@@ -218,10 +198,10 @@ def get_planar_dmc(vec_u, variables, kite, architecture):
 
     vec_t = q - q_parent # should be roughly "up-wards", ie, act like vec_w
 
-    vec_v = vect_op.cross(vec_t, vec_u)
-    vec_w = vect_op.cross(vec_u, vec_v)
+    vec_v = vect_op.cross(vec_t, vec_u_eff)
+    vec_w = vect_op.cross(vec_u_eff, vec_v)
 
-    uhat = vect_op.smooth_normalize(vec_u)
+    uhat = vect_op.smooth_normalize(vec_u_eff)
     vhat = vect_op.smooth_normalize(vec_v)
     what = vect_op.smooth_normalize(vec_w)
 
@@ -230,7 +210,7 @@ def get_planar_dmc(vec_u, variables, kite, architecture):
     return planar_dcm
 
 
-def get_kite_dcm(vec_u, kite, variables, architecture):
+def get_kite_dcm(vec_u_eff, kite, variables, architecture):
 
     parent = architecture.parent_map[kite]
 
@@ -238,9 +218,7 @@ def get_kite_dcm(vec_u, kite, variables, architecture):
     coeff = variables['xd']['coeff' + str(kite) + str(parent)]
     psi = coeff[1]
 
-    # vec_u = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-
-    planar_dcm = get_planar_dmc(vec_u, variables, kite, architecture)
+    planar_dcm = get_planar_dmc(vec_u_eff, variables, kite, architecture)
     uhat = planar_dcm[:, 0]
     vhat = planar_dcm[:, 1]
     what = planar_dcm[:, 2]
@@ -250,34 +228,6 @@ def get_kite_dcm(vec_u, kite, variables, architecture):
     ehat3 = np.cos(psi) * what - np.sin(psi) * vhat
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
-
-
-    #
-    # parent = architecture.parent_map[kite]
-    #
-    # # get relevant variables for kite n
-    # q = variables['xd']['q' + str(kite) + str(parent)]
-    #
-    # # in kite body:
-    # if parent > 0:
-    #     grandparent = architecture.parent_map[parent]
-    #     qparent = variables['xd']['q' + str(parent) + str(grandparent)]
-    # else:
-    #     qparent = np.array([0., 0., 0.])
-    #
-    # ehat_r = (q - qparent) / vect_op.norm(q - qparent)
-    # ehat_t = vect_op.normed_cross(vec_u, ehat_r)
-    # ehat_s = vect_op.normed_cross(ehat_t, vec_u)
-    #
-    # # roll angle
-    # psi = coeff[1]
-    #
-    # ehat3 = cas.cos(psi) * ehat_s + cas.sin(psi) * ehat_t
-    # ehat1p = vec_u
-    # ehat2 = vect_op.smooth_normed_cross(ehat3, ehat1p)
-    # ehat1 = vect_op.smooth_normed_cross(ehat2, ehat3)
-    #
-    # kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
     return kite_dcm
 
@@ -299,12 +249,6 @@ def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
     parent = parent_map[kite]
 
     q = xd['q' + str(kite) + str(parent)]
-
-    if aero_coeff_ref_velocity == 'app':
-        vec_u = tools.get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture,
-                                                    parameters)
-    elif aero_coeff_ref_velocity == 'eff':
-        vec_u = tools.get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture)
 
     vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, model.wind, kite, model.architecture)
 
