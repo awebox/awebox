@@ -25,11 +25,13 @@
 ######################################
 # This file stores all quality tests
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
-# edit: Rachel Leuthold, ALU-FR, 2019
+# edit: Rachel Leuthold, ALU-FR, 2019-20
+
 ######################################
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 
 def test_opti_success(trial, test_param_dict, results):
@@ -306,6 +308,33 @@ def test_slack_equalities(trial, test_param_dict, results):
 
     return results
 
+def test_tracked_vortex_periods(trial, test_param_dict, results):
+
+    plot_dict = trial.visualization.plot_dict
+    kite_nodes = trial.model.architecture.kite_nodes
+
+    if 'vortex' in plot_dict['outputs']:
+        last_vortex_ind_factor_thresh = test_param_dict['last_vortex_ind_factor_thresh']
+
+        max_last_a = -99999.
+        kite_max_last = -1
+        for kite in kite_nodes:
+            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_a' + str(kite)]))
+            local_max_last_a = np.max(last_a)
+
+            if local_max_last_a > max_last_a:
+                kite_max_last = kite
+                max_last_a = local_max_last_a
+
+        if max_last_a > last_vortex_ind_factor_thresh:
+            awelogger.logger.warning('Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) + '. We recommend increasing the number of tracked periods.')
+            # slack equalities are not satisfied
+            results['last_vortex_ind_factor'] = False
+
+        pdb.set_trace()
+
+    return results
+
 def generate_test_param_dict(options):
     """
     Set parameters relevant for testing
@@ -324,5 +353,6 @@ def generate_test_param_dict(options):
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
     test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
     test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
+    test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
 
     return test_param_dict

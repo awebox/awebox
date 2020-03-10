@@ -206,6 +206,7 @@ def save_starting_wake_node_position_into_xd_dict(dict_xd, options, nlp, formula
                         q_convected = guess_vortex_node_position(t_shed, t_local, q_kite, options, model, kite, b_ref,
                                                                  sign, U_ref)
                         dict_xd[kite][tip][dim][period][ndx]['start'] = q_convected[jdx]
+
     return dict_xd
 
 

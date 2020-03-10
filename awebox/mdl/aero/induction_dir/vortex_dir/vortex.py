@@ -49,6 +49,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
         outputs['vortex'] = {}
 
     filament_list = vortex_tools.get_filament_list(model_options, wind, variables, architecture)
+    last_filament_list = vortex_tools.get_last_filament_list(model_options, wind, variables, architecture)
 
     dims = filament_list.shape
     reshaped_list = cas.reshape(filament_list, (dims[0] * dims[1], 1))
@@ -61,6 +62,8 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
 
         outputs['vortex']['u_ind_vortex' + str(kite)] = biot_savart.get_induced_velocity_at_kite(filament_list, model_options, variables, kite, parent)
         outputs['vortex']['local_a' + str(kite)] = biot_savart.get_induction_factor_at_kite(filament_list, model_options, wind, variables, kite, architecture)
+
+        outputs['vortex']['last_a' + str(kite)] = biot_savart.get_induction_factor_at_kite(last_filament_list, model_options, wind, variables, kite, architecture)
 
     return outputs
 

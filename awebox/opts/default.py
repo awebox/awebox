@@ -521,6 +521,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'power_balance_thresh', 2e-2,       ('power balance threshold test parameter', None), 'x'),
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
     ]
 
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)

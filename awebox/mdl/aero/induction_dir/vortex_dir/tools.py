@@ -313,3 +313,47 @@ def get_filament_list(options, wind, variables, architecture):
                                                            periods_tracked, n_k, d)
 
     return filament_list
+
+
+
+def get_list_of_last_filaments(variables_xd, variables_xl, architecture, u_vec_ref, periods_tracked, n_k, d):
+
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+
+    infinite_time = 1000.
+
+    args = {}
+    args['variables_xd'] = variables_xd
+    args['variables_xl'] = variables_xl
+    args['u_vec_ref'] = u_vec_ref
+    args['infinite_time'] = infinite_time
+    args['periods_tracked'] = periods_tracked
+    args['n_k'] = n_k
+    args['d'] = d
+
+    filaments = []
+
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+
+        args['kite'] = kite
+        args['parent'] = parent
+
+        new_filaments = get_list_of_filaments_by_kite(args)
+        filaments = cas.vertcat(filaments, new_filaments[-3:, :])
+
+    horz_filaments = filaments.T
+
+    return horz_filaments
+
+def get_last_filament_list(options, wind, variables, architecture):
+    n_k = options['aero']['vortex']['n_k']
+    d = options['aero']['vortex']['d']
+    periods_tracked = options['aero']['vortex']['periods_tracked']
+    u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
+
+    filament_list = get_list_of_last_filaments(variables['xd'], variables['xl'], architecture, u_vec_ref,
+                                                           periods_tracked, n_k, d)
+
+    return filament_list
