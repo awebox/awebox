@@ -51,7 +51,7 @@ def generate_options_dict():
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
     dual_kite_tracking_options['user_options']['trajectory']['lift_mode']['windings'] = 1
     dual_kite_tracking_options['user_options']['trajectory']['tracking']['fix_tether_length'] = True
-    dual_kite_tracking_options['nlp']['n_k'] = 10
+    dual_kite_tracking_options['nlp']['n_k'] = 20
 
     dual_kite_tracking_winch_options = copy.deepcopy(dual_kite_tracking_options)
     dual_kite_tracking_winch_options['user_options']['trajectory']['tracking']['fix_tether_length'] = False
