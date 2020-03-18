@@ -1,0 +1,190 @@
+1. how do I warmstart from a previous run?
+
+---> make sure that your previous run was saved in .dict format as "trialname.dict"
+in your run file
+
+---> import pickle
+
+---> load the previous run:
+warmstart_dict = open('/home/usr/...path_to_file.../trialname.dict', "rb")
+warmstart_file = pickle.load(warmstart_dict)
+
+---> decrease the interior-point homotopy parameter 'mu', so that the hippo strategy doesn't relax mu too far away from the loaded solution:
+options['solver']['mu_hippo'] = 1.e-6
+
+---> include warmstart_file information into the trial.optimize() call:
+trial.optimize(warmstart_file = warmstart_file)
+
+
+2. how do I access a part of the solved optimization variables, such as the system parameters theta?
+
+theta = trial.optimization.V_final['theta']
+
+
+3. how do I access the solved performance metric, like the power harvesting factor 'zeta'?
+
+plot_dict = trial.visualization.plot_dict
+zeta = plot_dict['power_and_performance']['zeta']
+
+
+4. how do I get the IPOPT verbose output to print during the optimization process?
+
+include the following into the preamble of the run file: 
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
+
+5. the sub-problems of the homotopy converge nicely until we get to the power problems. what should I do?
+
+you may need to re-tune the scaling values for the tether tensions, the energy, and the power. To do this: 
+---> first, cap the number of iterations at a small value:
+options['solver']['max_iter'] = 250
+
+---> second, create a sweep over some new scaling values: 
+sweep_opts = [
+    (['model', 'scaling_overwrite', 'xa', 'lambda'], [1.e2, 1.e3, 1.e4]),
+    (['model', 'scaling_overwrite', 'xd', 'e'], [1.e3, 1.e4, 1.e5]),
+    (['solver', 'cost_overwrite', 'power', 1], [1.e-2, 1.e-1, 1.e0])
+]
+
+---> run the tuning sweep (with the same "options" that you've previously defined), and plotting the convergence and solution comparisons: 
+sweep = awe.Sweep(name = 'tuning_sweep', options = options, seed = sweep_opts)
+sweep.run()
+sweep.plot('comp_stats', 'comp_convergence')
+plt.show()
+
+---> chose the sweep trial with the "best" convergence behavior, and use these values to re-set your original trial scalings: 
+lambda_scaling = 1e2
+energy_scaling = 1e3
+power_cost = 1e-1
+options['model']['scaling_overwrite']['xa']['lambda'] = lambda_scaling
+options['model']['scaling_overwrite']['xd']['e'] = energy_scaling
+options['solver']['cost_overwrite']['power'][1] = power_cost
+
+---> don't forget to un-cap the number of iterations!
+options['solver']['max_iter'] = 2e3
+
+
+6. what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
+
+this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
+
+
+7. how do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'n_hat_slack1'...)
+
+ V_final = trial.optimization.V_final
+ V_final['coll_var', :, :, 'xl', 'n_hat_slack1']
+
+
+8. how do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
+
+plot_dict = trial.visualization.plot_dict
+b_ref = plot_dict['options']['params']['geometry']['b_ref']
+
+
+9. how do I get an animated output of the trajectory ("monitor plot")?
+
+---> make sure that you have the 'ffmpeg' movie writer installed on your computer
+
+---> include 'animation' into the list of plots desired:
+plot_list = ['animation']
+
+---> then, ask trial to create the plots
+trial.plot(plot_list)
+
+---> be aware that creating the animation is a fairly slow process.
+
+
+10. when I try to run a script that imports the awebox (like one of the included examples), I get the following error:
+
+user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
+Traceback (most recent call last):
+  File "single_kite_lift_mode_simple.py", line 3, in <module>
+    import awebox as awe
+ImportError: No module named 'awebox'
+
+what should I do? 
+
+----> check that the location of the awebox is in your PYTHONPATH from your terminal. ( note, that the "awebox" folder that we're talking about here, is the folder that contains sub-folders ["awebox", "docs", "examples", ...]. It is not the "awebox" folder that contains sub-folders ["mdl", "ocp", "viz", ...]. )
+
+user@computer:~$ python3 -c "import sys; print('\n'.join(sys.path))"
+['', '/home/user', '/usr/local/lib', ..., '/home/user/path_to_the_awebox/awebox', ...]
+
+the printed list should include the path to the awebox. if it doesn't, then add it to the list by typing (in the terminal):
+
+user@computer:~$ export PYTHONPATH="${PYTHONPATH}:/home/user/path_to_the_awebox/awebox"
+
+
+
+11. when I try to run a script that uses the awebox (like one of the included examples), I get the following error: 
+
+user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
+Traceback (most recent call last):
+  File "single_kite_lift_mode_simple.py", line 3, in <module>
+    import awebox as awe
+  File "/home/rachel/awebox/awebox/__init__.py", line 26, in <module>
+    from .trial import Trial
+  File "/home/rachel/awebox/awebox/trial.py", line 31, in <module>
+    import awebox.trial_funcs as trial_funcs
+  File "/home/rachel/awebox/awebox/trial_funcs.py", line 35, in <module>
+    import awebox.tools.vector_operations as vect_op
+  File "/home/rachel/awebox/awebox/tools/vector_operations.py", line 36, in <module>
+    import casadi.tools as cas
+ImportError: No module named 'casadi'
+
+what should I do? 
+
+----> use pip3 to install casadi! 
+
+user@computer:~$ pip3 install casadi
+
+
+12. when I try to run a script that uses the awebox (like one of the included examples), I get the following output: 
+
+INFO:	Initial solution...
+INFO:	
+INFO:	
+INFO:	ERROR: Solver FAILED, not moving on to next step...
+INFO:	solver return status..........: Invalid_Option                
+INFO:	number of iterations..........: 1                 
+
+what should I do? 
+
+----> you probably don't have the HSL/COIN solvers installed correctly on your computer. you can test that this is the problem, by adding the following line to your python3 script: 
+
+options['solver']['linear_solver'] = 'mumps'
+
+if, when you run the script, the optimization itself succeeds, then you should focus your attention on correctly installing the solvers. you can find these instructions at: 
+https://github.com/casadi/casadi/wiki/Obtaining-HSL
+
+
+13. on the Obtaining-HSL page install instructions, they keep referring to a path (where_you_want_to_install) and (hsl_install_directory). if I don't use the --prefix flag, where does HSL install normally? 
+
+to /usr/local/lib
+
+
+14. when I try to run a script that uses the awebox (like one of the included examples), especially with the linear solver MA57, I get the following output:
+
+INFO:	Initial solution...
+INFO:
+...
+This is IPOPT version 3.12.3, running with linear solver ma57
+...
+Runtime parameters:
+    Objective type: Unknown!
+    Coarsening type: METIS_CTYPE_RM
+    Initial partitioning type: METIS_IPTYPE_GROW
+    Refinement type: Unknown!
+...
+Input Error: Incorrect objective type.
+...
+
+
+what should I do?
+
+----> you probably don't have the HSL/COIN solvers installed correctly on your computer. In particular, you should return to the steps of "make"ing the hsl solvers, paying special attention to the flags.
+
+
+15. Where on earth are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
+
+Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.

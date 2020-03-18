@@ -35,7 +35,7 @@ import awebox.tools.vector_operations as vect_op
 
 import matplotlib.pyplot as plt
 
-def get_drag_coeff_equation(model_options, parameters):
+def get_tether_cd_fun(model_options, parameters):
 
     reynolds = cas.SX.sym('reynolds')
 
@@ -52,9 +52,9 @@ def get_drag_coeff_equation(model_options, parameters):
     else:
         raise ValueError('invalid tether drag coefficient model selected: %s',model_options['tether']['cd_model'])
 
-    cd_tether_fun = cas.Function('cd_tether_fun', [reynolds], [drag_coeff])
+    tether_cd_fun = cas.Function('tether_cd_fun', [reynolds], [drag_coeff])
 
-    return cd_tether_fun
+    return tether_cd_fun
 
 def plot_cd_vs_reynolds(num_fig, model_options):
 

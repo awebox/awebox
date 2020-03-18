@@ -158,7 +158,8 @@ class Trial(object):
 
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
-            self.save()
+            saving_method = self.__options['solver']['save_format']
+            self.save(saving_method = saving_method)
 
         awelogger.logger.info('')
 

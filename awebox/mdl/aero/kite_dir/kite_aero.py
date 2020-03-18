@@ -29,15 +29,14 @@ dependent on the position of the kite.
 _aerodynamic coefficients are assumptions.
 _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, jochem de schutter alu-fr 2017
+- edited: rachel leuthold, jochem de schutter alu-fr 2017-2019
 '''
 
-import awebox.mdl.aero.actuator_disk_dir.actuator as actuator_disk
+import awebox.mdl.aero.induction_dir.induction as induction
 import awebox.mdl.aero.indicators as indicators
+import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
+import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 
-from . import three_dof_kite
-
-from . import six_dof_kite
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
 
@@ -49,7 +48,31 @@ def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters,
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    if options['induction_model'] != 'not_in_use':
-        outputs = actuator_disk.collect_actuator_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+
+    if not (options['induction_model'] == 'not_in_use'):
+        outputs = induction.collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
     return outputs
+
+def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+
+    if int(options['kite_dof']) == 3:
+        resi = three_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+
+    elif int(options['kite_dof']) == 6:
+        resi = six_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+    else:
+        raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
+
+    return resi
+
+
+def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
+    if int(options['kite_dof']) == 3:
+        wingtip_pos = three_dof_kite.get_wingtip_position(kite, options, model, variables, parameters, ext_int)
+    elif int(options['kite_dof']) == 6:
+        wingtip_pos = six_dof_kite.get_wingtip_position(kite, model, variables, parameters, ext_int)
+    else:
+        raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
+
+    return wingtip_pos

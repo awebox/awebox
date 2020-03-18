@@ -109,7 +109,7 @@ def test_drag_mode_model():
 
     # don't include induction effects, use trivial tether drag
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
 
     # build model
     architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
@@ -186,7 +186,7 @@ def test_cross_tether_model():
 
     # don't include induction effects, use trivial tether drag
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
 
     # build model
     architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
@@ -229,7 +229,7 @@ def test_tether_moments():
     options['user_options']['system_model']['kite_dof'] = 6
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['system_type'] = 'drag_mode'
 
     # tether attachment

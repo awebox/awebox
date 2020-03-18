@@ -33,15 +33,10 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-
 from . import constraints
-
 from . import collocation
-
 from . import multiple_shooting
-
 from . import performance
-
 import awebox.tools.struct_operations as struct_op
 
 def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
@@ -139,6 +134,10 @@ def construct_time_grids(nlp_numerics_options):
     if nlp_numerics_options['phase_fix']:
         tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_numerics_options['phase_fix_reelout'])
+
+        t_switch = tfsym[0] * nk_reelout / nk
+        time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
+
     else:
         tfsym = cas.SX.sym('tfsym',1)
 
@@ -186,13 +185,14 @@ def construct_time_grids(nlp_numerics_options):
     time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
     time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
 
+
     return time_grids
 
 def setup_nlp_cost():
 
     cost = cas.struct_symSX([(
         cas.entry('tracking'),
-        cas.entry('regularisation'),
+        cas.entry('u_regularisation'),
         cas.entry('ddq_regularisation'),
         cas.entry('gamma'),
         cas.entry('iota'),
@@ -204,10 +204,11 @@ def setup_nlp_cost():
         cas.entry('fictitious'),
         cas.entry('power'),
         cas.entry('t_f'),
-        cas.entry('theta'),
+        cas.entry('theta_regularisation'),
         cas.entry('nominal_landing'),
         cas.entry('compromised_battery'),
         cas.entry('transition'),
+        cas.entry('slack')
     )])
 
     return cost
@@ -463,6 +464,9 @@ def discretize(nlp_numerics_options, model, formulation):
     # Create Outputs struct and function
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
+
+    [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
+    [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_numerics_options, model.integral_outputs)

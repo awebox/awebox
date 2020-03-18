@@ -128,6 +128,7 @@ def set_p_fix_num(V_ref, nlp, model, options):
 
 def set_initial_bounds(nlp, model, formulation, options, V_init):
     V_bounds = {}
+
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
     # V_bounds = copy.deepcopy(nlp.V_bounds)

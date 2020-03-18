@@ -132,6 +132,21 @@ class Architecture:
         number_siblings = len(siblings)
         return number_siblings
 
+    def get_all_level_siblings(self):
+
+        parent_map = self.__parent_map
+        kite_nodes = self.__kite_nodes
+
+        level_siblings = {}
+        for kite in kite_nodes:
+            parent = parent_map[kite]
+
+            if not (parent in list(level_siblings.keys())):
+                level_siblings[parent] = []
+
+            level_siblings[parent] += [kite]
+
+        return level_siblings
 
     @property
     def parent_map(self):

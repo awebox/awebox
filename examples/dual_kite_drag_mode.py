@@ -21,7 +21,7 @@ options['model']['system_bounds']['u']['dkappa'] = [-1.0, 1.0]
 
 # don't include induction effects, use trivial tether drag
 options['user_options']['induction_model'] = 'not_in_use'
-options['user_options']['tether_drag_model'] = 'trivial'
+options['user_options']['tether_drag_model'] = 'split'
 
 # bounds on tether length
 options['model']['system_bounds']['xd']['l_t'] = [1.0e-2, 1.0e3]

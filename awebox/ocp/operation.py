@@ -44,7 +44,6 @@ import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
 
-
 def get_operation_conditions(options):
 
     periodic = determine_if_periodic(options)
@@ -202,6 +201,110 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
 
     return terminal_constraints_struct, terminal_constraints_fun
 
+
+
+def get_vortex_strength_constraints(options, variables, architecture):
+    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
+
+    eqs_dict = {}
+    ineqs_dict = {}
+    constraint_list = []
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+    kite_nodes = architecture.kite_nodes
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+
+        n_k = options['n_k']
+        d = options['collocation']['d']
+
+        for kite in kite_nodes:
+            for period in range(periods_tracked):
+
+                parent_map = architecture.parent_map
+                parent = parent_map[kite]
+
+                var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+                gamma_all = variables['xl', var_name]
+
+                n_nodes = n_k * d
+                for ldx in range(n_nodes):
+                    gamma_loc = []
+
+                    for ldx_shed in range(n_nodes):
+                        gamma_loc = cas.vertcat(gamma_loc, gamma_all[ldx_shed])
+
+                    # reminder! this function is just the space-holder.
+                    resi = gamma_loc
+
+                    name = 'vortex_strength' + str(period) + '_kite' + str(kite) + '_' + str(ldx)
+                    eqs_dict[name] = resi
+                    constraint_list.append(resi)
+
+    # generate initial constraints - empty struct containing both equalities and inequalitiess
+    vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+
+    # fill in struct and create function
+    vortex_strength_constraints = vortex_strength_constraints_struct(cas.vertcat(*constraint_list))
+    vortex_strength_constraints_fun = cas.Function('vortex_strength_constraints_fun', [variables], [vortex_strength_constraints.cat])
+
+    return vortex_strength_constraints, vortex_strength_constraints_fun
+
+
+def get_wake_fix_constraints(options, variables, architecture):
+    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
+
+    eqs_dict = {}
+    ineqs_dict = {}
+    constraint_list = []
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+    kite_nodes = architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        n_k = options['n_k']
+        d = options['collocation']['d']
+
+        for kite in kite_nodes:
+            for tip in wingtips:
+                for period in range(periods_tracked):
+
+                    parent_map = architecture.parent_map
+                    parent = parent_map[kite]
+
+                    wake_pos_dir = {}
+                    for dim in ['x', 'y', 'z']:
+                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                        wake_pos_dir[dim] = variables['xd', var_name]
+
+                    n_nodes = n_k * d + 1
+                    for ldx in range(n_nodes):
+                        wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
+
+                        # reminder! this function is just the space-holder.
+                        wing_tip_pos = 0. * vect_op.zhat()
+                        resi = wake_pos - wing_tip_pos
+
+                        name = 'wake_fix_period' + str(period) + '_kite' + str(kite) + '_' + tip + str(ldx)
+                        eqs_dict[name] = resi
+                        constraint_list.append(resi)
+
+    # generate initial constraints - empty struct containing both equalities and inequalitiess
+    wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+
+    # fill in struct and create function
+    wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
+    wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
+
+    return wake_fix_constraints, wake_fix_constraints_fun
+
+
 def generate_periodic_constraints(options, initial_model_variables, terminal_model_variables):
 
     eqs_dict = {}
@@ -212,7 +315,7 @@ def generate_periodic_constraints(options, initial_model_variables, terminal_mod
 
     # list all periodic equalities ==> put SX expressions in dict
     if periodic:
-        eqs_dict['state_periodicity'] = make_periodicity_equality(initial_model_variables, terminal_model_variables)
+        eqs_dict['state_periodicity'] = make_periodicity_equality(initial_model_variables, terminal_model_variables, options)
         constraint_list.append(eqs_dict['state_periodicity'])
 
     # list all periodic inequalities ==> put SX expressions in dict
@@ -235,11 +338,42 @@ def make_initial_energy_equality(initial_model_variables, ref_variables):
 
     return initial_energy_eq
 
-def make_periodicity_equality(initial_model_variables, terminal_model_variables):
+def variable_does_not_belong_to_unselected_induction_model(name, options):
+    induction_steadyness = options['induction']['steadyness']
+    induction_symmetry = options['induction']['symmetry']
+
+    induction_label = ''
+    if induction_steadyness == 'steady':
+        induction_label += 'q'
+    elif induction_steadyness == 'unsteady':
+        induction_label += 'u'
+
+    if induction_symmetry == 'axisymmetric':
+        induction_label += 'axi'
+    elif induction_symmetry == 'asymmetric':
+        induction_label += 'asym'
+
+    remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
+    if induction_label in remaining_induction_labels:
+        remaining_induction_labels.remove(induction_label)
+
+    not_unselected = True
+    for label in remaining_induction_labels:
+        if label in name:
+            not_unselected = False
+
+    return not_unselected
+
+
+
+def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
     for name in set(struct_op.subkeys(initial_model_variables, 'xd')):
-        if not name[0] == 'e' and not name[0] == 'w': # and not name[0] == 'a':
+
+        not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
+
+        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])
             final_value = vect_op.columnize(terminal_model_variables['xd', name])

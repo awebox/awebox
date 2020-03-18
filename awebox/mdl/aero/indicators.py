@@ -33,7 +33,10 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
+from awebox.logger.logger import Logger as awelogger
+
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -63,7 +66,6 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     outputs['performance']['elevation'] = get_elevation_angle(variables['xd'])
 
     outputs['performance']['p_loyd_total'] = 0.
-
     for n in kite_nodes:
         outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(n)]
 
@@ -104,26 +106,28 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     outputs['aerodynamics']['ehat_chord' + str(n)] = ehat_chord
     outputs['aerodynamics']['ehat_span' + str(n)] = ehat_span
+    outputs['aerodynamics']['ehat_up' + str(n)] = vect_op.normed_cross(ehat_chord, ehat_span)
 
-    c_ref = parameters['theta0','geometry','c_ref']
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
+    rho = atmos.get_density(q[2])
+    gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
+    gamma_cl = 0.5 * ua_norm**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(ua, ehat_span))
+    gamma_unity = cas.DM(1.)
+    outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
+    outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
+    outputs['aerodynamics']['gamma_unity' + str(n)] = gamma_unity
+    outputs['aerodynamics']['gamma' + str(n)] = gamma_cl
+
+    outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
+    outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.
+
     outputs['aerodynamics']['fstar_aero' + str(n)] = cas.mtimes(ua.T, ehat_chord) / c_ref
 
     outputs['aerodynamics']['r'+str(n)] = r.reshape((9,1))
 
     if int(options['kite_dof']) == 6:
         outputs['aerodynamics']['m_aero' + str(n)] = m_aero
-
-    # should be cl not CL...
-    gamma = 0.5 * aero_coefficients['CL'] * ua_norm * c_ref
-    outputs['aerodynamics']['bamma' + str(n)] = gamma #bound gamma...
-
-    # ua_cross_ehat_span = vect_op.cross(ua, ehat_span)
-    # outputs['aerodynamics']['ua_cross_ehat_span' + str(n)] = ua_cross_ehat_span
-    #
-    # gamma_prop_num = cas.mtimes(f_aero.T, ua_cross_ehat_span)
-    # gamma_prop_den = cas.mtimes(ua_cross_ehat_span.T, ua_cross_ehat_span) + 1e-6
-    # gamma_prop = gamma_prop_num / gamma_prop_den
-    # outputs['aerodynamics']['gamma_prop' + str(n)] = gamma_prop
 
     outputs['aerodynamics']['mach' + str(n)] = get_mach(options, atmos, ua, q)
     outputs['aerodynamics']['reynolds' + str(n)] = get_reynolds(options, atmos, ua, q, parameters)
@@ -226,12 +230,12 @@ def collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, e
     outputs['local_performance']['p_loyd' + str(n)] = p_loyd
     outputs['local_performance']['loyd_speed' + str(n)] = loyd_speed
     outputs['local_performance']['loyd_phf' + str(n)] = loyd_phf
-    outputs['local_performance']['radius' + str(n)] = get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['radius' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
     outputs['local_performance']['speed_ratio' + str(n)] = norm_ua / vect_op.norm(wind.get_velocity(q[2]))
     outputs['local_performance']['speed_ratio_loyd' + str(n)] = loyd_speed / vect_op.norm(wind.get_velocity(q[2]))
 
-    outputs['local_performance']['radius_of_curvature' + str(n)] = get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['radius_of_curvature' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
 
     return outputs
@@ -303,102 +307,8 @@ def get_elevation_angle(xd):
 
     return elevation_angle
 
-def convert_from_body_to_wind_axes(alpha, beta, axial_side_normal):
-    rotation1 = cas.horzcat(np.cos(alpha) * np.cos(beta),      np.sin(beta),   np.sin(alpha) * np.cos(beta))
-    rotation2 = cas.horzcat(-np.cos(alpha) * np.sin(beta),     np.cos(beta),   - np.sin(alpha) * np.sin(beta))
-    rotation3 = cas.horzcat(-np.sin(alpha),                    0.          ,   np.cos(alpha))
-    rotation = cas.vertcat(rotation1, rotation2, rotation3)
-
-    drag_cross_lift = cas.mtimes(rotation, axial_side_normal)
-    return drag_cross_lift
-
-def convert_from_wind_to_body_axes(alpha, beta, drag_cross_lift):
-    rotation1 = cas.horzcat(np.cos(alpha) * np.cos(beta),  -np.cos(alpha) * np.sin(beta),  -np.sin(alpha))
-    rotation2 = cas.horzcat(np.sin(beta),                   np.cos(beta),                   0.)
-    rotation3 = cas.horzcat(np.cos(beta) * np.sin(alpha),   -np.sin(alpha) * np.sin(beta),  np.cos(alpha))
-    rotation = cas.vertcat(rotation1, rotation2, rotation3)
-
-    axial_side_normal = cas.mtimes(rotation, drag_cross_lift)
-    return axial_side_normal
-
-def test_conversions():
-    # must return zeros...
 
 
-    #  -------------
-    print('test 1')
-
-    alpha = 0.
-    beta = 0.
-    # then CA = CD, CY = CS, CN = CL
-
-    test = vect_op.xhat_np
-    check = vect_op.xhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = vect_op.zhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    #  -------------
-    print('test 2')
-
-    alpha = np.pi / 2
-    beta = 0.
-    # then CA = -CL, CY = CS, CN = CD
-
-    test = vect_op.xhat_np
-    check = -1. * vect_op.zhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = vect_op.xhat_np
-    calc = convert_from_body_to_wind_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    # -----
-    print('test 3')
-
-    # then CD = CN, CS = CY, CL = -CA
-
-    test = vect_op.xhat_np
-    check = vect_op.zhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.yhat_np
-    check = vect_op.yhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    test = vect_op.zhat_np
-    check = -1. * vect_op.xhat_np
-    calc = convert_from_wind_to_body_axes(alpha, beta, test)
-    resultant = calc - check
-    print(resultant)
-
-    print('')
 
 def get_alpha(ua, r):
     ehat1 = r[:, 0]  # chordwise, from le to te
@@ -440,73 +350,6 @@ def get_power_density(atmos, wind, zz):
     return power_density
 
 
-def get_radius_of_curvature(variables, kite, parent):
-
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-
-    gamma_dot = dq
-    gamma_ddot = ddq
-
-    # from frenet vectors + curvature definition
-    # r = || gamma' || / (e1' cdot e2)
-    # e1 = gamma' / || gamma' ||
-    # e1' = ( gamma" || gamma' ||^2  - gamma' (gamma' cdot gamma") ) / || gamma' ||^3
-    # e2 = ebar2 / || ebar2 ||
-    # ebar2 = gamma" - (gamma' cdot gamma") gamma' / || gamma' ||^2
-    # ....
-    # r = || gamma' ||^4 // || gamma" || gamma' ||^2 - gamma' (gamma' cdot gamma") ||
-
-    num = cas.mtimes(gamma_dot.T, gamma_dot)**2. + 1.0e-8
-
-    den_vec = gamma_ddot * cas.mtimes(gamma_dot.T, gamma_dot) - gamma_dot * cas.mtimes(gamma_dot.T, gamma_ddot)
-    den = vect_op.smooth_norm(den_vec)
-
-    radius = num / den
-    return radius
-
-def get_trajectory_tangent(variables, kite, parent):
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    tangent = vect_op.smooth_normalize(dq)
-    return tangent
-
-def get_trajectory_normal(variables, kite, parent):
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-    normal = vect_op.smooth_normalize(ddq)
-    return normal
-
-def get_trajectory_binormal(variables, kite, parent):
-
-    tangent = get_trajectory_tangent(variables, kite, parent)
-    normal = get_trajectory_normal(variables, kite, parent)
-    binormal = vect_op.smooth_normed_cross(tangent, normal)
-
-    forwards_orientation = binormal[0] / vect_op.smooth_abs(binormal[0])
-
-    forwards_binormal = forwards_orientation * binormal
-    return forwards_binormal
-
 def get_radius_inequality(model_options, variables, kite, parent, parameters):
-    # no projection included...
-
-    b_ref = parameters['theta0','geometry','b_ref']
-    half_span = b_ref / 2.
-    num_ref = model_options['model_bounds']['anticollision_radius']['num_ref']
-
-    # half_span - radius < 0
-    # half_span * den - num < 0
-
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
-
-    gamma_dot = cas.vertcat(0., dq[1], dq[2])
-    gamma_ddot = cas.vertcat(0., ddq[1], ddq[2])
-
-    num = cas.mtimes(gamma_dot.T, gamma_dot)**2.
-
-    den_vec = gamma_ddot * cas.mtimes(gamma_dot.T, gamma_dot) - gamma_dot * cas.mtimes(gamma_dot.T, gamma_ddot)
-    den = vect_op.norm(den_vec)
-
-    inequality = (half_span * den - num) / num_ref
-
+    inequality = path_based_geom.get_radius_inequality(model_options, variables, kite, parent, parameters)
     return inequality

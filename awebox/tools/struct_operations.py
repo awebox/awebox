@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
+- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
 
 import casadi.tools as cas
@@ -38,23 +38,62 @@ from functools import reduce
 
 def subkeys(casadi_struct, key):
 
-    indices = np.array(casadi_struct.f[key])
-    number_index = indices.shape[0]
+    if key in casadi_struct.keys():
+        indices = np.array(casadi_struct.f[key])
+        number_index = indices.shape[0]
 
-    subkeys = set()
-    for idx in range(number_index):
-        canonical = casadi_struct.getCanonicalIndex(indices[idx])
-        new_key = canonical[1]
-        subkeys.add(new_key)
+        subkeys = set()
+        for idx in range(number_index):
+            canonical = casadi_struct.getCanonicalIndex(indices[idx])
+            new_key = canonical[1]
+            subkeys.add(new_key)
 
-    subkey_list = sorted(subkeys)
+        subkey_list = sorted(subkeys)
+    else:
+        subkey_list = []
 
     return subkey_list
+
+def get_coll_vars_and_params(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+    N_coll = n_k * d # collocation points
+
+    # construct list of all collocation node variables and parameters
+    coll_vars = []
+    for kdx in range(n_k):
+        for ddx in range(d):
+            var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx)
+            coll_vars = cas.horzcat(coll_vars, var_at_time)
+
+    parameters = model.parameters
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+
+    return coll_vars, coll_params
+
+
+def get_ms_vars_and_params(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    N_ms = n_k # collocation points
+
+    # construct list of all collocation node variables and parameters
+    ms_vars = []
+    for kdx in range(n_k):
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx)
+        ms_vars = cas.horzcat(ms_vars, var_at_time)
+
+    parameters = model.parameters
+    ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
+
+    return ms_vars, ms_params
+
+
 
 def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
 
     var_list = []
-
 
     # extract discretization type
     if nlp_options['discretization'] == 'direct_collocation':
@@ -63,8 +102,6 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
         u_param = nlp_options['collocation']['u_param']
     else:
         direct_collocation = False
-
-    nk = nlp_options['n_k']
 
     # extract variables
     variables = model.variables
@@ -142,9 +179,9 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     return var_at_time
 
 def get_variables_at_final_time(nlp_options, V, Xdot, model):
+    nk = nlp_options['n_k']
 
     var_list = []
-    nk = nlp_options['n_k']
 
     # extract variables
     variables = model.variables
@@ -173,13 +210,16 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, model):
+def get_parameters_at_time(V, P, model):
     param_list = []
 
     parameters = model.parameters
 
     for var_type in list(parameters.keys()):
-        param_list.append(V['phi', var_type])
+        if var_type == 'phi':
+            param_list.append(V[var_type])
+        if var_type == 'theta0':
+            param_list.append(P[var_type])
 
     param_at_time = parameters(cas.vertcat(*param_list))
 
@@ -697,7 +737,11 @@ def initialize_nested_dict(d,keys):
 
 def setup_warmstart_data(nlp, warmstart_trial):
 
-    if nlp.discretization != warmstart_trial['options']['nlp']['discretization']:
+    options_in_keys = 'options' in warmstart_trial.keys()
+    if options_in_keys:
+        nlp_discretization = warmstart_trial['options']['nlp']['discretization']
+
+    if options_in_keys and not (nlp.discretization == nlp_discretization):
 
         if nlp.discretization == 'multiple_shooting':
 
@@ -777,9 +821,9 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
     else:
 
-        V_init_proposed = warmstart_trial['V_opt']
-        lam_x_proposed  = warmstart_trial['opt_arg']['lam_x0']
-        lam_g_proposed  = warmstart_trial['opt_arg']['lam_g0']
+        V_init_proposed = warmstart_trial['solution_dict']['V_opt']
+        lam_x_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_x0']
+        lam_g_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_g0']
 
 
     V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
@@ -831,3 +875,17 @@ def evaluate_cost_dict(cost_fun, V_plot, p_fix_num):
             cost[name[:-4]] = cost_fun[name](V_plot, p_fix_num)
 
     return cost
+
+def split_kite_and_parent(kiteparent, architecture):
+
+    for idx in range(1, len(kiteparent)):
+
+        kite_try = int(kiteparent[:idx])
+        parent_try = int(kiteparent[idx:])
+
+        parent_of_kite_try = int(architecture.parent_map[kite_try])
+
+        if parent_of_kite_try == parent_try:
+            return kite_try, parent_try
+
+    return None, None

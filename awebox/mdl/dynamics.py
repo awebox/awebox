@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 lagrangian dynamics auto-generation module
 that generates the dynamics residual
 python-3.5 / casadi-3.4.5
-- authors: jochem de schutter, rachel leuthold alu-fr 2017-18
+- authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
 
 import casadi.tools as cas
@@ -40,13 +40,13 @@ from . import system
 
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 
-import awebox.mdl.aero.actuator_disk_dir.actuator as actuator_disk
+import awebox.mdl.aero.induction_dir.induction as induction
 
 import awebox.mdl.aero.indicators as indicators
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
-import awebox.mdl.aero.tether_dir.tether_drag_coefficients as tether_drag_coeff
+import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
 
 import awebox.tools.vector_operations as vect_op
 
@@ -111,7 +111,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     if options['induction_model'] != 'not_in_use':
-        outputs = actuator_disk_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
+        outputs = induction_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
     outputs = xddot_outputs(options, system_variables['SI'], outputs)
     outputs = anticollision_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters,architecture)
@@ -219,11 +219,14 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
         energy_dynamics = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
         dynamics_list +=  [energy_dynamics]
 
+    aero_force_resi = kite_aero.get_force_resi(options, system_variables['SI'], atmos, wind, architecture, parameters)
+    dynamics_list += [aero_force_resi]
+
     # induction constraint
     if options['induction_model'] != 'not_in_use':
 
-        induction_init = outputs['induction']['actuator_initial']
-        induction_final = outputs['induction']['actuator_final']
+        induction_init = outputs['induction']['induction_init']
+        induction_final = outputs['induction']['induction_final']
 
         induction_constraint = parameters['phi','iota'] * induction_init \
                             + (1.-parameters['phi','iota']) * induction_final
@@ -490,7 +493,7 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
     p_dec = parameters.prefix['phi']
 
     # tether_drag_coeff.plot_cd_vs_reynolds(100, options)
-    cd_tether_fun = tether_drag_coeff.get_drag_coeff_equation(options, parameters)
+    tether_cd_fun = tether_drag_coeff.get_tether_cd_fun(options, parameters)
 
     # initialize dictionary
     tether_drag_forces = {}
@@ -503,38 +506,42 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
 
         parent = architecture.parent_map[n]
 
-        outputs = tether_aero.get_forces(options, variables, atmos, wind, n, cd_tether_fun, outputs, parameters, architecture)
+        outputs = tether_aero.get_force_outputs(options, variables, atmos, wind, n, tether_cd_fun, outputs, architecture)
 
-        physical_upper = outputs['tether_aero']['physical_upper' + str(n)]
-        physical_lower = outputs['tether_aero']['physical_lower' + str(n)]
-        simple_upper = outputs['tether_aero']['simple_upper' + str(n)]
-        simple_lower = outputs['tether_aero']['simple_lower' + str(n)]
-        trivial_upper = outputs['tether_aero']['trivial_upper' + str(n)]
-        trivial_lower = outputs['tether_aero']['trivial_lower' + str(n)]
+        multi_upper = outputs['tether_aero']['multi_upper' + str(n)]
+        multi_lower = outputs['tether_aero']['multi_lower' + str(n)]
+        single_upper = outputs['tether_aero']['single_upper' + str(n)]
+        single_lower = outputs['tether_aero']['single_lower' + str(n)]
+        split_upper = outputs['tether_aero']['split_upper' + str(n)]
+        split_lower = outputs['tether_aero']['split_lower' + str(n)]
 
         tether_model = options['tether']['tether_drag']['model_type']
 
-        if tether_model == 'equivalence':
-            drag_parent = p_dec['tau'] * trivial_lower + (1. - p_dec['tau']) * physical_lower
-            drag_node = p_dec['tau'] * trivial_upper + (1. - p_dec['tau']) * physical_upper
-        elif tether_model == 'simple':
-            drag_parent = p_dec['tau'] * trivial_lower + (1. - p_dec['tau']) * simple_lower
-            drag_node = p_dec['tau'] * trivial_upper + (1. - p_dec['tau']) * simple_upper
-        elif tether_model == 'trivial':
-            drag_parent = trivial_lower
-            drag_node = trivial_upper
+        if tether_model == 'multi':
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+
+        elif tether_model == 'single':
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
+
+        elif tether_model == 'split':
+            drag_node = split_upper
+            drag_parent = split_lower
+
         elif tether_model == 'not_in_use':
             drag_parent = np.zeros((3, 1))
             drag_node = np.zeros((3, 1))
+
         else:
             raise ValueError('tether drag model not supported.')
 
-        # attribute half of segment drag to parent
+        # attribute portion of segment drag to parent
         if n > 1:
             grandparent = architecture.parent_map[parent]
             tether_drag_forces['f' + str(parent) + str(grandparent)] += drag_parent
 
-        # attribute half of segment drag to node
+        # attribute portion of segment drag to node
         tether_drag_forces['f' + str(n) + str(parent)] += drag_node
 
     # collect tether drag losses
@@ -986,13 +993,13 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
 
     return outputs
 
-def actuator_disk_equations(options, atmos, wind, variables, outputs, parameters, architecture):
+def induction_equations(options, atmos, wind, variables, outputs, parameters, architecture):
 
     if 'induction' not in list(outputs.keys()):
         outputs['induction'] = {}
 
-    outputs['induction']['actuator_initial'] = actuator_disk.get_trivial_residual(options, atmos, wind, variables, parameters, architecture)
-    outputs['induction']['actuator_final'] = actuator_disk.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    outputs['induction']['induction_init'] = induction.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    outputs['induction']['induction_final'] = induction.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
 
     return outputs
 

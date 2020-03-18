@@ -32,9 +32,14 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 
-import awebox.mdl.aero.indicators as indicators
+import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.tools.vector_operations as vect_op
 
-def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
+
+def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, parameters):
+
+    frames.test_conversions()
+
     # delta:
     # aileron left-right [right teu+, rad], ... positive delta a -> negative roll
     # elevator [ted+, rad],                 ... positive delta e -> negative pitch
@@ -55,9 +60,8 @@ def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
     # q -> pitch rate, about -ehat2
     # r -> yaw rate, about ehat3
 
-    ua_norm = cas.mtimes(ua.T, ua) ** 0.5
-
     # pqr - damping: in radians
+    ua_norm = vect_op.smooth_norm(u_app)
     omega_hat = omega / (2. * ua_norm)
 
     b_ref = parameters['theta0','geometry','b_ref']
@@ -72,7 +76,7 @@ def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
     q = omega_hat[1]
     r = omega_hat[2]
 
-    stab_deriv = consolidate_stability_derivatives(options, alpha, beta, parameters)
+    stab_deriv = consolidate_stability_derivatives(options, u_app, kite_dcm, parameters)
 
     CL0 = stab_deriv['CL0']
     CS0 = stab_deriv['CS0']
@@ -119,11 +123,11 @@ def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
     Cn_surfs = parameters['theta0','aero','Cndeltaa'] * deltaa + parameters['theta0','aero','Cndeltar'] * deltar
 
     CD_split = stab_deriv['CDalpha_deltae'] * alpha * deltae + stab_deriv['CDbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CDbeta_deltar']
+        'CDbeta_deltar'] * beta * deltar
     CS_split = stab_deriv['CSalpha_deltae'] * alpha * deltae + stab_deriv['CSbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CSbeta_deltar']
+        'CSbeta_deltar'] + beta * deltar
     CL_split = stab_deriv['CLalpha_deltae'] * alpha * deltae + stab_deriv['CLbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CLbeta_deltar']
+        'CLbeta_deltar'] + beta * deltar
 
     # sum
     CD = CD0 + CD_wind + CD_surfs + CD_surfs2 + CD_split + CD_motion
@@ -136,7 +140,7 @@ def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
 
     # correct for alternate body reference frame
     drag_cross_lift = cas.vertcat(CD, CS, CL)
-    axial_side_normal = indicators.convert_from_wind_to_body_axes(alpha, beta, drag_cross_lift)
+    axial_side_normal = frames.from_wind_to_body(u_app, kite_dcm, drag_cross_lift)
     CA = axial_side_normal[0]
     CY = axial_side_normal[1]
     CN = axial_side_normal[2]
@@ -147,7 +151,7 @@ def stability_derivatives(options, alpha, beta, ua, omega, delta, parameters):
 
     return CF, CM
 
-def consolidate_stability_derivatives(model_options, alpha, beta, parameters):
+def consolidate_stability_derivatives(model_options, u_app, kite_dcm, parameters):
 
     stab_deriv = parameters.prefix['theta0','aero']
     keys = list(model_options['params']['aero'].keys())
@@ -169,7 +173,7 @@ def consolidate_stability_derivatives(model_options, alpha, beta, parameters):
 
         if wind_deriv_exists and not body_deriv_exists:
             axial_side_normal = cas.vertcat(stab_deriv['CA' + indep], stab_deriv['CY' + indep], stab_deriv['CN' + indep])
-            drag_cross_lift = indicators.convert_from_body_to_wind_axes(alpha, beta, axial_side_normal)
+            drag_cross_lift = frames.from_body_to_wind(u_app, kite_dcm, axial_side_normal)
 
             stab_deriv['CD' + indep] = drag_cross_lift[0]
             stab_deriv['CS' + indep] = drag_cross_lift[1]

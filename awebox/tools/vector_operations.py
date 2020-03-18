@@ -115,6 +115,23 @@ def angle_between(a, b):
 
     return theta
 
+def angle_between_resi(a, b, theta):
+    resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
+    return resi
+
+def zeros_mx(shape):
+    return cas.MX.zeros(shape[0], shape[1])
+
+def zeros_sx(shape):
+    return cas.SX.zeros(shape[0], shape[1])
+
+def ones_mx(shape):
+    return cas.MX.ones(shape[0], shape[1])
+
+def ones_sx(shape):
+    return cas.SX.ones(shape[0], shape[1])
+
+
 def xhat():
     return xhat_np()
 
@@ -264,6 +281,14 @@ def lower_triangular_exclusive(matrix):
                 elements = cas.vertcat(elements, matrix[r, c])
     return elements
 
+def lower_triangular_inclusive(matrix):
+    elements = []
+    for r in range(matrix.shape[0]):
+        for c in range(matrix.shape[1]):
+            if c <= r:
+                elements = cas.vertcat(elements, matrix[r, c])
+    return elements
+
 def columnize(var):
     # only allows 2x2 matrices for variable
 
@@ -299,7 +324,7 @@ def step_in_out(number, step_in, step_out, eps=1e-4):
     return step
 
 def sum(all_array):
-    sum = cas.mtimes(all_array.T, np.ones(all_array.shape))
+    sum = cas.sum1(all_array)
     return sum
 
 def smooth_max(all_array):

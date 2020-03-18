@@ -28,8 +28,6 @@
 
 from . import default
 from . import funcs
-from awebox.logger.logger import Logger as awelogger
-import logging
 
 class Options:
     def __init__(self, internal_access=False):

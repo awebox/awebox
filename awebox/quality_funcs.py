@@ -25,10 +25,13 @@
 ######################################
 # This file stores all quality tests
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
+# edit: Rachel Leuthold, ALU-FR, 2019-20
+
 ######################################
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -142,7 +145,7 @@ def test_outputs(trial, test_param_dict, results):
         loyd_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'loyd_factor'])
     avg_loyd_factor = np.average(loyd_factor)
     if avg_loyd_factor > max_loyd_factor:
-        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
+        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name + '. Average Loyd factor is ' + str(avg_loyd_factor))
         results['loyd_factor'] = False
     else:
         results['loyd_factor'] = True
@@ -258,11 +261,74 @@ def test_power_balance(trial, test_param_dict, results):
     balance['total'] = np.linalg.norm(P_total)/max_system_power
 
     for node in list(balance.keys()):
-        if balance[node] > test_param_dict['power_balance_tresh']:
-            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_tresh']))
+        if balance[node] > test_param_dict['power_balance_thresh']:
+            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh']))
             results['energy_balance' + str(node)] = False
         else:
             results['energy_balance' + str(node)] = True
+
+    return results
+
+def test_slack_equalities(trial, test_param_dict, results):
+
+    if 'xl' in trial.model.variables.keys():
+
+        V_final = trial.optimization.V_final
+        xl_vars = trial.model.variables['xl']
+        epsilon = test_param_dict['slacks_thresh']
+
+        discretization = trial.options['nlp']['discretization']
+        if discretization == 'direct_collocation':
+
+            for idx in range(xl_vars.shape[0]):
+                var_name = str(xl_vars[idx])
+
+                if 'slack' in var_name:
+                    slack_name = var_name[3:-2]
+
+                    max_val = 0.
+
+                    for ndx in range(trial.nlp.n_k):
+                        for ddx in range(trial.nlp.d):
+
+                            data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
+                            max_val = np.max([np.max(data), max_val])
+
+                    if max_val < epsilon:
+                        # assume that slack equalities are satisfied
+                        results['slacks_' + var_name] = True
+                    else:
+                        awelogger.logger.warning('slacked equality did not find a feasible solution. ' + var_name + ' > ' + str(test_param_dict['slacks_thresh']))
+                        # slack equalities are not satisfied
+                        results['slacks_' + var_name] = False
+
+        else:
+            awelogger.logger.warning('slack test not yet implemented for multiple-shooting solution')
+
+    return results
+
+def test_tracked_vortex_periods(trial, test_param_dict, results):
+
+    plot_dict = trial.visualization.plot_dict
+    kite_nodes = trial.model.architecture.kite_nodes
+
+    if 'vortex' in plot_dict['outputs']:
+        last_vortex_ind_factor_thresh = test_param_dict['last_vortex_ind_factor_thresh']
+
+        max_last_a = -99999.
+        kite_max_last = -1
+        for kite in kite_nodes:
+            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_a' + str(kite)]))
+            local_max_last_a = np.max(last_a)
+
+            if local_max_last_a > max_last_a:
+                kite_max_last = kite
+                max_last_a = local_max_last_a
+
+        if max_last_a > last_vortex_ind_factor_thresh:
+            awelogger.logger.warning('Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) + '. We recommend increasing the number of tracked periods.')
+            # slack equalities are not satisfied
+            results['last_vortex_ind_factor'] = False
 
     return results
 
@@ -282,6 +348,8 @@ def generate_test_param_dict(options):
     test_param_dict['max_velocity'] = options['test_param']['max_velocity']
     test_param_dict['t_f_min'] = options['test_param']['t_f_min']
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
-    test_param_dict['power_balance_tresh'] = options['test_param']['power_balance_tresh']
+    test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
+    test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
+    test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
 
     return test_param_dict

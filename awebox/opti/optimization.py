@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -407,7 +407,7 @@ class Optimization(object):
     def define_warmstart_schedule(self, final_homotopy_step, warmstart_trial, nlp, model):
 
         # final homotopy step of warmstart file
-        warmstart_step = warmstart_trial['final_homotopy_step']
+        warmstart_step = final_homotopy_step
         initial_index = self.__schedule['homotopy'].index(warmstart_step)
 
         # check if schedule is still consistent

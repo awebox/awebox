@@ -19,7 +19,7 @@ def test_trial_serial():
     options['user_options']['system_model']['architecture'] = {1:0}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['lift_mode']['windings'] = 1
     options['user_options']['induction_model'] = 'not_in_use'
     options['nlp']['n_k'] = 2
@@ -40,21 +40,22 @@ def test_trial_serial():
 
     trial_test.plot('all')
 
-    # # set-up ms trial options
+    # set-up ms trial options
     options['nlp']['discretization'] = 'multiple_shooting'
     options['nlp']['n_k'] = 10
 
-    # # build multiple shooting trial
+    # build multiple shooting trial
     trialMS = awe.Trial(name = 'serial_test_MS', seed = options)
     trialMS.build()
     trialMS.optimize(final_homotopy_step='initial')
     trialMS.save('dict')
 
-    # # load and test multiple shooting trial
-    file_pi = open('serial_test_MS.dict','rb')
-    dict_testMS = pickle.load(file_pi)
+    # load and test multiple shooting trial
+    file_pi_serial = open('serial_test_MS.dict','rb')
+    dict_testMS = pickle.load(file_pi_serial)
     trial_testMS = awe.Trial(dict_testMS)
-    file_pi.close()
+
+    file_pi_serial.close()
     os.remove("serial_test_MS.dict")
 
     trial_testMS.plot('all')
@@ -66,7 +67,7 @@ def test_sweep_serial():
     options['user_options']['system_model']['architecture'] = {1:0}
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'trivial'
+    options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['lift_mode']['windings'] = 1
     options['user_options']['induction_model'] = 'not_in_use'
     options['nlp']['n_k'] = 2

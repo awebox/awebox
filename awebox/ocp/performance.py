@@ -194,3 +194,30 @@ def get_windings(nlp_options, model, V, outputs={}):
         outputs['winding']['winding' + str(n)] = winding
 
     return outputs
+
+def find_phase_fix_time_period_zeroth(nlp_numerics_options, V):
+
+    nk = nlp_numerics_options['n_k']
+    phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
+    time_period_zeroth = V['theta', 't_f', 0] * round(nk * phase_fix_reel_out) / nk
+    return time_period_zeroth
+
+def find_phase_fix_time_period_first(nlp_numerics_options, V):
+    nk = nlp_numerics_options['n_k']
+    phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
+    time_period_first = V['theta', 't_f', 1] * (nk - round(nk * phase_fix_reel_out)) / nk
+    return time_period_first
+
+def find_time_period(nlp_numerics_options, V):
+    use_phase_fix = nlp_numerics_options['phase_fix']
+    if use_phase_fix:
+        time_period_zeroth = find_phase_fix_time_period_zeroth(nlp_numerics_options, V)
+        time_period_first = find_phase_fix_time_period_first(nlp_numerics_options, V)
+
+        # average over collocation nodes
+        time_period = (time_period_zeroth + time_period_first)
+    else:
+        time_period = V['theta', 't_f']
+
+    return time_period
+
