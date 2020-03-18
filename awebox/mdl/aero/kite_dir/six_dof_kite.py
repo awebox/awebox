@@ -39,7 +39,6 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 
@@ -282,9 +281,10 @@ def get_wingtip_position(kite, model, variables, parameters, ext_int):
     elif ext_int == 'int':
         span_sign = -1.
     else:
-        pdb.set_trace()
+        awelogger.logger.error('wing side not recognized for 6dof kite.')
 
     parent = parent_map[kite]
+
     name = 'q' + str(kite) + str(parent)
     q_unscaled = xd[name]
     scale = model.scaling['xd'][name]

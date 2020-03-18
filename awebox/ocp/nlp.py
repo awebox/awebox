@@ -34,7 +34,6 @@ from . import discretization
 from . import objective
 from . import var_bounds
 import time
-import pdb
 
 class NLP(object):
 

@@ -31,7 +31,6 @@
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 def test_opti_success(trial, test_param_dict, results):
@@ -330,8 +329,6 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
             awelogger.logger.warning('Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) + '. We recommend increasing the number of tracked periods.')
             # slack equalities are not satisfied
             results['last_vortex_ind_factor'] = False
-
-        pdb.set_trace()
 
     return results
 

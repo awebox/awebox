@@ -33,7 +33,6 @@ import casadi.tools as cas
 from . import collocation
 from . import performance
 import awebox.tools.struct_operations as struct_op
-import pdb
 import time
 
 def get_general_regularization_function(variables):

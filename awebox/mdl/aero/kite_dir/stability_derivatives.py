@@ -32,10 +32,8 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 
-import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.vector_operations as vect_op
-import pdb
 
 
 def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, parameters):

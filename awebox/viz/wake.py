@@ -25,7 +25,7 @@
 import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
-import pdb
+from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
 
 
@@ -46,7 +46,7 @@ def draw_wake_nodes(ax, side, plot_dict, index):
         try:
             tools.make_side_plot(ax, points, side, wake_color)
         except:
-            pdb.set_trace()
+            awelogger.logger.error('error in side plot production')
 
     return None
 

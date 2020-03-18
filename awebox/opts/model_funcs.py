@@ -34,7 +34,6 @@ import casadi as cas
 import copy
 from awebox.logger.logger import Logger as awelogger
 import pickle
-import pdb
 import awebox.tools.struct_operations as struct_op
 
 

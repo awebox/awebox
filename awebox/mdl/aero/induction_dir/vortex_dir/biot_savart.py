@@ -36,7 +36,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
 

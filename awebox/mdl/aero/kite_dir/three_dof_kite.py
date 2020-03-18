@@ -38,7 +38,6 @@ import numpy as np
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
-import pdb
 from awebox.logger.logger import Logger as awelogger
 
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
@@ -247,7 +246,7 @@ def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
     elif ext_int == 'int':
         span_sign = -1.
     else:
-        pdb.set_trace()
+        awelogger.logger.error('wing side not recognized for 3dof kite.')
 
     parent = parent_map[kite]
 
