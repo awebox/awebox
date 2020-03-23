@@ -264,6 +264,7 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         32.0
 
     default_opts = generate_default_solver_options(options)
+    default_opts['ipopt.mu_target'] = options['mu_hippo']
     default_sol = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), default_opts)
 
     pdb.set_trace()
