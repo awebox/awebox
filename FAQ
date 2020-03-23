@@ -200,3 +200,19 @@ Killed
 What happened? 
 
 ----> You may not have enough memory to construct the desired OCP. Can you make your problem smaller somehow? 
+
+
+17. I keep getting a warning message, even though the IPOPT output says that my optimization solved.
+
+...
+INFO:	solver return status..........: Solve_Succeeded    
+...
+"WARNING:	given rotation matrix is not a member of SO(3)."
+...
+
+What's going wrong? 
+
+It's most likely that you don't have enough collocation intervals in your problem please increase this number using the options inputs: 
+
+options['nlp']['n_k'] = n_k
+
