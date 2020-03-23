@@ -188,3 +188,15 @@ what should I do?
 15. Where on earth are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
 
 Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.
+
+
+16. My awebox script gets "Killed" unexpectedly, with output like: 
+
+INFO:	Building optimization...
+INFO:	initialize callback...
+INFO:	generate solvers...
+Killed
+
+What happened? 
+
+----> You may not have enough memory to construct the desired OCP. Can you make your problem smaller somehow? 
