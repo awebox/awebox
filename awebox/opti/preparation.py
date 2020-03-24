@@ -232,22 +232,22 @@ def generate_default_solver_options(options):
     return opts
 
 def generate_solvers(awebox_callback, model, nlp, formulation, options):
-    middle_opts = generate_default_solver_options(options)
+
     initial_opts = generate_default_solver_options(options)
+    middle_opts = generate_default_solver_options(options)
     final_opts = generate_default_solver_options(options)
 
     if options['hippo_strategy']:
         initial_opts['ipopt.mu_target'] = options['mu_hippo']
         initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
+        initial_opts['ipopt.tol'] = options['tol_hippo']
 
         middle_opts['ipopt.mu_init'] = options['mu_hippo']
         middle_opts['ipopt.mu_target'] = options['mu_hippo']
         middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
+        middle_opts['ipopt.tol'] = options['tol_hippo']
 
         final_opts['ipopt.mu_init'] = options['mu_hippo']
-
-        initial_opts['ipopt.tol'] = options['tol_hippo']
-        middle_opts['ipopt.tol'] = options['tol_hippo']
 
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
@@ -267,7 +267,7 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
     default_opts['ipopt.mu_target'] = options['mu_hippo']
     default_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']
     default_opts['ipopt.tol'] = options['tol_hippo']
-    default_sol = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), default_opts)
+    default_sol = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
 
     pdb.set_trace()
 
