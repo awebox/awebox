@@ -379,7 +379,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
         ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
-        ('solver',  None,   None,   'acceptable_iter_hippo',5,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
+        ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None,   'ua_norm',               60.,       ('initial guess of apparent kite speed [m/s]', None),'x'),
         ('solver',  'initialization', None,   'incid_deg',             15.,       ('initial tether elevation angle [deg]', None),'x'),
