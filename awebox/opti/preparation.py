@@ -263,16 +263,17 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         # do whatever it is that depends on lift-mode here....
         32.0
 
-    default_opts = generate_default_solver_options(options)
-    default_opts['ipopt.mu_target'] = options['mu_hippo']
-    default_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']
-    default_opts['ipopt.tol'] = options['tol_hippo']
-    default_sol = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+    print('initial')
+    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
 
     pdb.set_trace()
 
-    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+    print('middle')
     middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+
+    pdb.set_trace()
+
+    print('final')
     final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
 
     solvers = {}
