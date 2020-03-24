@@ -40,6 +40,10 @@ import copy
 
 import casadi as cas
 
+import casadi as cas1
+import casadi as cas2
+import casadi as cas3
+
 from awebox.logger.logger import Logger as awelogger
 import pdb
 
@@ -264,30 +268,26 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         32.0
 
 
-    print('try')
-
-    default_opts = generate_default_solver_options(options)
-    default_opts['ipopt.mu_init'] = options['mu_hippo']
-    default_opts['ipopt.mu_target'] = options['mu_hippo']
-    default_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']  # 5
-    default_opts['ipopt.tol'] = options['tol_hippo']
-
-    default_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), default_opts)
-    
-    pdb.set_trace()
-
     print('initial')
-    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+    initial_solver = cas1.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
 
-    pdb.set_trace()
+    print()
+    print()
+    print()
 
     print('middle')
-    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+    middle_solver = cas2.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
 
-    pdb.set_trace()
+    print()
+    print()
+    print()
 
     print('final')
-    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    final_solver = cas3.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+
+    print()
+    print()
+    print()
 
     solvers = {}
     solvers['initial'] = initial_solver
