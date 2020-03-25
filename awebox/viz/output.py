@@ -143,7 +143,6 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
     if [node_name for node_name in y_dict.keys()]:
 
         colors = cosmetics['trajectory']['colors']
-        actuator_outputs = plot_dict['outputs']['actuator']
         layers = architecture.layer_nodes
 
         if time_or_cycle == 'time':
@@ -154,7 +153,13 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
         elif time_or_cycle == 'cycle':
             x_var_name = 'reel-out factor'
             x_var_latex = r'$f$ [-]'
-            x_vals = np.array(actuator_outputs['f1'][0])
+            if 'actuator' in plot_dict['outputs'].keys():
+                f1 = plot_dict['outputs']['actuator']['f1']
+            elif 'vortex' in plot_dict['outputs'].keys():
+                f1 = plot_dict['outputs']['vortex']['f1']
+            else:
+                awelogger.logger.error('model not yet implemented.')
+            x_vals = np.array(f1[0])
 
         else:
             awelogger.logger.error('model not yet implemented.')
@@ -707,7 +712,7 @@ def plot_actuator_thrust_coeff_in_aerotime(solution_dict, cosmetics, fig_num, re
 
     n_k = options['nlp']['n_k']
 
-    if 'actuator' in outputs['coll_outputs'].keys():
+    if 'actuator' in outputs.keys():
 
         fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
 

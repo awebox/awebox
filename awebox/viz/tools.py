@@ -1100,8 +1100,6 @@ def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
 
 
 def get_nondim_time_and_switch(plot_dict):
-    actuator_outputs = plot_dict['outputs']['actuator']
-
     time_dim = np.array(plot_dict['time_grids']['ip'])
     t_f = time_dim[-1]
     time_nondim = time_dim / t_f

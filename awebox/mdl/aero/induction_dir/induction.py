@@ -91,6 +91,7 @@ def collect_outputs(options, atmos, wind, variables, outputs, parameters, archit
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
         outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables, architecture)
 
     return outputs
 
