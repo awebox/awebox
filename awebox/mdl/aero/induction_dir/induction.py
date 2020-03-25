@@ -35,6 +35,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.general_dir.general as general
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import casadi.tools as cas
+import pdb
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
@@ -103,7 +104,9 @@ def get_kite_effective_velocity(model_options, variables, wind, kite, architectu
     u_eff_kite = u_app_kite
     if induction_model == 'actuator':
         u_eff_kite = actuator_flow.get_kite_effective_velocity(model_options, variables, wind, kite, parent)
-    if induction_model == 'vortex':
+    elif induction_model == 'vortex':
         u_eff_kite = vortex_flow.get_kite_effective_velocity(model_options, variables, wind, kite, architecture)
+
+    # pdb.set_trace()
 
     return u_eff_kite
