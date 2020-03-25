@@ -85,7 +85,7 @@ def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, 
 def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     n_filaments = segment_list.shape[1]
-    filament_map = filament_fun.map(n_filaments, 'openmp')
+    filament_map = filament_fun.map(n_filaments) #, 'openmp')
     all = filament_map(segment_list)
 
     total = cas.sum2(all)
