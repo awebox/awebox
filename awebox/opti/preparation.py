@@ -40,12 +40,7 @@ import copy
 
 import casadi as cas
 
-import casadi as cas1
-import casadi as cas2
-import casadi as cas3
-
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def initialize_arg(nlp, formulation, model, options):
 
@@ -267,27 +262,9 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         # do whatever it is that depends on lift-mode here....
         32.0
 
-
-    print('initial')
-    initial_solver = cas1.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-
-    print()
-    print()
-    print()
-
-    print('middle')
-    middle_solver = cas2.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-
-    print()
-    print()
-    print()
-
-    print('final')
-    final_solver = cas3.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
-
-    print()
-    print()
-    print()
+    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
 
     solvers = {}
     solvers['initial'] = initial_solver
