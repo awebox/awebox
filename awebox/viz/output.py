@@ -707,64 +707,66 @@ def plot_actuator_thrust_coeff_in_aerotime(solution_dict, cosmetics, fig_num, re
 
     n_k = options['nlp']['n_k']
 
-    fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
+    if 'actuator' in outputs['coll_outputs'].keys():
 
-    layer_parents = architecture.layer_nodes
+        fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
 
-    for parent in layer_parents:
-        tgrid_coll = reload_dict['tgrid_xa_aerotime' + str(parent)]
+        layer_parents = architecture.layer_nodes
 
-        thrust = []
-        thrust1_coeff = []
-        thrust2_area_coeff = []
-        thrust3_coeff = []
+        for parent in layer_parents:
+            tgrid_coll = reload_dict['tgrid_xa_aerotime' + str(parent)]
 
-        for kdx in range(n_k):
+            thrust = []
+            thrust1_coeff = []
+            thrust2_area_coeff = []
+            thrust3_coeff = []
 
-            thrust = cas.vertcat(thrust, cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust' + str(parent)]))
+            for kdx in range(n_k):
 
-            thrust1_coeff = cas.vertcat(thrust1_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust1_coeff' + str(parent)]))
-            thrust2_area_coeff = cas.vertcat(thrust2_area_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust2_area_coeff' + str(parent)]))
-            thrust3_coeff = cas.vertcat(thrust3_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust3_coeff' + str(parent)]))
+                thrust = cas.vertcat(thrust, cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust' + str(parent)]))
 
-        avg_radius = reload_dict['avg_radius' + str(parent)]
-        avg_area = np.pi * avg_radius**2.
+                thrust1_coeff = cas.vertcat(thrust1_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust1_coeff' + str(parent)]))
+                thrust2_area_coeff = cas.vertcat(thrust2_area_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust2_area_coeff' + str(parent)]))
+                thrust3_coeff = cas.vertcat(thrust3_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust3_coeff' + str(parent)]))
 
-        thrust = np.array(thrust)
+            avg_radius = reload_dict['avg_radius' + str(parent)]
+            avg_area = np.pi * avg_radius**2.
 
-        # T / (1/2 rho u_infty^2 A)
-        thrust1_coeff = np.array(thrust1_coeff)
+            thrust = np.array(thrust)
 
-        # T / (1/2 rho u_infty^2 Abar)
-        thrust2_coeff = np.array(thrust2_area_coeff) / float(avg_area)
+            # T / (1/2 rho u_infty^2 A)
+            thrust1_coeff = np.array(thrust1_coeff)
 
-        # 4 a (cos gamma - a)
-        thrust3_coeff = np.array(thrust3_coeff)
+            # T / (1/2 rho u_infty^2 Abar)
+            thrust2_coeff = np.array(thrust2_area_coeff) / float(avg_area)
 
-        axes[0].plot(tgrid_coll, thrust)
-        axes[1].plot(tgrid_coll, thrust1_coeff)
-        axes[2].plot(tgrid_coll, thrust2_coeff)
-        axes[3].plot(tgrid_coll, thrust3_coeff)
+            # 4 a (cos gamma - a)
+            thrust3_coeff = np.array(thrust3_coeff)
 
-    axes[-1].set_xlabel('t u_infty / bar R [-]')
+            axes[0].plot(tgrid_coll, thrust)
+            axes[1].plot(tgrid_coll, thrust1_coeff)
+            axes[2].plot(tgrid_coll, thrust2_coeff)
+            axes[3].plot(tgrid_coll, thrust3_coeff)
 
-    axes[0].set_ylabel('T [N]')
-    axes[1].set_ylabel('CT_1 [-]')
-    axes[2].set_ylabel('CT_2 [-]')
-    axes[3].set_ylabel('CT_3 [-]')
+        axes[-1].set_xlabel('t u_infty / bar R [-]')
 
-    axes[0].set_title('actuator thrust and thrust coefficients')
+        axes[0].set_ylabel('T [N]')
+        axes[1].set_ylabel('CT_1 [-]')
+        axes[2].set_ylabel('CT_2 [-]')
+        axes[3].set_ylabel('CT_3 [-]')
 
-    for adx in range(len(axes)):
-        axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-        axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+        axes[0].set_title('actuator thrust and thrust coefficients')
 
-    plt.tight_layout(w_pad=1.)
+        for adx in range(len(axes)):
+            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
 
-    plt.show()
+        plt.tight_layout(w_pad=1.)
+
+        plt.show()
 
 def plot_dimensionless_aero_indictors(solution_dict, cosmetics, fig_num, reload_dict):
 
