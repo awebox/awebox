@@ -85,7 +85,7 @@ def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, 
 def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     n_filaments = segment_list.shape[1]
-    filament_map = filament_fun.map(n_filaments) #, 'openmp')
+    filament_map = filament_fun.map(n_filaments, 'openmp')
     all = filament_map(segment_list)
 
     total = cas.sum2(all)
@@ -157,14 +157,18 @@ def filament_base_vals(seg_data):
     r0 = vect_op.smooth_norm(vec_0)
 
     factor = Gamma / (4. * np.pi)
-    num = (r1 + r2)
 
-    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    den_reg = (epsilon * r0) ** 2.
-    den = den_ori + den_reg
+    scale = factor
+    dir = vect_op.smooth_normed_cross(vec_1, vec_2, epsilon)
 
-    dir = vect_op.cross(vec_1, vec_2)
-    scale = factor * num / den
+    # num = (r1 + r2)
+    #
+    # den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
+    # den_reg = (epsilon * r0) ** 2.
+    # den = den_ori + den_reg
+    #
+    # dir = vect_op.cross(vec_1, vec_2)
+    # scale = factor * num / den
 
     return scale, dir
 
