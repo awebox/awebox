@@ -38,8 +38,8 @@ def get_kite_effective_velocity(options, variables, wind, kite, architecture):
     parent = architecture.parent_map[kite]
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
 
-    # filament_list = vortex_tools.get_filament_list(options, wind, variables, architecture)
-    #
+    filament_list = vortex_tools.get_filament_list(options, wind, variables, architecture)
+
     # u_ind_kite = vortex_induction.get_induced_velocity_at_kite(filament_list, options, variables, kite, parent)
     #
     # u_eff_kite = u_app_kite + u_ind_kite
