@@ -44,7 +44,5 @@ def get_kite_effective_velocity(options, variables, wind, kite, architecture):
 
     u_eff_kite = u_app_kite + u_ind_kite
 
-    u_eff_kite = u_app_kite
-
     return u_eff_kite
 
