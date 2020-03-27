@@ -141,6 +141,8 @@ def filament(seg_data):
     return sol
 
 
+
+
 def filament_base_vals(seg_data):
     point_obs = seg_data[:3]
     point_1 = seg_data[3:6]
@@ -159,7 +161,8 @@ def filament_base_vals(seg_data):
     factor = Gamma / (4. * np.pi)
 
     scale = factor
-    dir = vect_op.smooth_normed_cross(vec_1, vec_2, epsilon)
+    cross = vect_op.cross(vec_1, vec_2)
+    dir = cross / cas.mtimes(cross.T, cross)
 
     # num = (r1 + r2)
     #
