@@ -160,18 +160,14 @@ def filament_base_vals(seg_data):
 
     factor = Gamma / (4. * np.pi)
 
-    scale = factor
-    cross = vect_op.cross(vec_1, vec_2)
-    dir = cross / cas.mtimes(cross.T, cross)
+    num = (r1 + r2)
 
-    # num = (r1 + r2)
-    #
-    # den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    # den_reg = (epsilon * r0) ** 2.
-    # den = den_ori + den_reg
-    #
-    # dir = vect_op.cross(vec_1, vec_2)
-    # scale = factor * num / den
+    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
+    den_reg = (epsilon * r0) ** 2.
+    den = den_ori + den_reg
+
+    dir = vect_op.cross(vec_1, vec_2)
+    scale = factor * num / den
 
     return scale, dir
 
