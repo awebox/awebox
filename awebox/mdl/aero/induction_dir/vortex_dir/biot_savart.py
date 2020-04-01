@@ -32,66 +32,8 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 from awebox.logger.logger import Logger as awelogger
-
-def get_induced_velocity_at_kite(filament_list, options, variables, kite, parent):
-
-    include_normal_info = False
-    segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
-
-    # define the symbolic function
-    n_symbolics = segment_list.shape[0]
-    seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
-    filament_sym = filament(seg_data_sym)
-    filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
-
-    # evaluate the symbolic function
-    total_u_vec_ind = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list)
-
-    return total_u_vec_ind
-
-
-def get_induction_factor_at_kite(filament_list, options, wind, variables, kite, architecture):
-
-    parent = architecture.parent_map[kite]
-
-    include_normal_info = True
-    segment_list = get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info)
-
-    # define the symbolic function
-    n_symbolics = segment_list.shape[0]
-    seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
-    filament_sym = normal_induction(seg_data_sym)
-    filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
-
-    # evaluate the symbolic function
-    total_u_proj = evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list)
-
-    # u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
-    # u_mag = vect_op.smooth_norm(u_app_kite)
-
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
-    u_mag = vect_op.smooth_norm(u_app_act)
-
-    a_calc = -1. * total_u_proj / u_mag
-
-    return a_calc
-
-
-
-def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
-
-    n_filaments = segment_list.shape[1]
-    filament_map = filament_fun.map(n_filaments, 'openmp')
-    all = filament_map(segment_list)
-
-    total = cas.sum2(all)
-
-    return total
-
 
 
 def get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info):
@@ -122,28 +64,8 @@ def get_biot_savart_segment_list(filament_list, options, variables, kite, parent
 
 
 
-
-
-def normal_induction(seg_data):
-
-    n_hat = seg_data[10:13]
-    scale, dir = filament_base_vals(seg_data)
-    sol = scale * cas.mtimes(dir.T, n_hat)
-
-    return sol
-
-
 def filament(seg_data):
 
-    scale, dir = filament_base_vals(seg_data)
-    sol = scale * dir
-
-    return sol
-
-
-
-
-def filament_base_vals(seg_data):
     point_obs = seg_data[:3]
     point_1 = seg_data[3:6]
     point_2 = seg_data[6:9]
@@ -169,7 +91,11 @@ def filament_base_vals(seg_data):
     dir = vect_op.cross(vec_1, vec_2)
     scale = factor * num / den
 
-    return scale, dir
+    sol = dir * scale
+
+    return sol
+
+
 
 
 def test_filament():
