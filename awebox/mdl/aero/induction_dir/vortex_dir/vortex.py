@@ -32,6 +32,7 @@ import casadi.tools as cas
 
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
@@ -50,6 +51,12 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
+
+    filament_list = tools.get_filament_list(model_options, wind, variables, architecture)
+
+    dims = filament_list.shape
+    reshaped_list = cas.reshape(filament_list, (dims[0] * dims[1], 1))
+    outputs['vortex']['filament_list'] = reshaped_list
 
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:

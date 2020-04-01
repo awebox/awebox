@@ -248,6 +248,79 @@ def get_number_of_rings_per_kite(n_k, d, periods_tracked):
     n_rings = (periods_tracked * n_k * d) + 2
     return n_rings
 
+
+def get_list_of_filaments_by_kite(args):
+
+    variables_xd = args['variables_xd']
+    variables_xl = args['variables_xl']
+    u_vec_ref = args['u_vec_ref']
+    infinite_time = args['infinite_time']
+    periods_tracked = args['periods_tracked']
+    n_k = args['n_k']
+    d = args['d']
+    kite = args['kite']
+    parent = args['parent']
+
+    filaments = []
+
+    padded_strengths = get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent)
+    padded_points_int = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'int',
+                                                          u_vec_ref, infinite_time)
+    padded_points_ext = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'ext',
+                                                          u_vec_ref, infinite_time)
+
+    n_rings = padded_strengths.shape[0]
+    for rdx in range(1, n_rings):
+        ring_filaments = get_vortex_ring_filaments(padded_strengths, padded_points_ext, padded_points_int, rdx)
+        filaments = cas.vertcat(filaments, ring_filaments)
+
+    return filaments
+
+
+def get_list_of_all_filaments(variables_xd, variables_xl, architecture, u_vec_ref, periods_tracked, n_k, d):
+
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+
+    infinite_time = 1000.
+
+    args = {}
+    args['variables_xd'] = variables_xd
+    args['variables_xl'] = variables_xl
+    args['u_vec_ref'] = u_vec_ref
+    args['infinite_time'] = infinite_time
+    args['periods_tracked'] = periods_tracked
+    args['n_k'] = n_k
+    args['d'] = d
+
+    filaments = []
+
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+
+        args['kite'] = kite
+        args['parent'] = parent
+
+        new_filaments = get_list_of_filaments_by_kite(args)
+        filaments = cas.vertcat(filaments, new_filaments)
+
+    horz_filaments = filaments.T
+
+    return horz_filaments
+
+
+def get_filament_list(options, wind, variables, architecture):
+    n_k = options['aero']['vortex']['n_k']
+    d = options['aero']['vortex']['d']
+    periods_tracked = options['aero']['vortex']['periods_tracked']
+    u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
+
+    filament_list = get_list_of_all_filaments(variables['xd'], variables['xl'], architecture, u_vec_ref,
+                                                           periods_tracked, n_k, d)
+
+    return filament_list
+
+
 def get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx):
     variables_xd = variables['xd']
     variables_xl = variables['xl']
