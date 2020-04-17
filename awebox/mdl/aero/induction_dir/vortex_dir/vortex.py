@@ -36,9 +36,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 
 
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi_convect = convection.get_convection_residual(options, wind, variables, architecture)
-    resi_ind = flow.get_residuals(options, variables, wind, architecture)
-    resi = cas.vertcat(resi_convect, resi_ind)
+    resi = convection.get_convection_residual(options, wind, variables, architecture)
 
     return resi
 
@@ -61,7 +59,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
 
-        outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, variables, kite, architecture)
+        outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
         outputs['vortex']['local_a' + str(kite)] = flow.get_induction_factor_at_kite(model_options, wind, variables, kite, architecture)
         outputs['vortex']['last_a' + str(kite)] = flow.get_last_induction_factor_at_kite(model_options, wind, variables, kite, architecture)
 

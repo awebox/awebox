@@ -48,7 +48,7 @@ def get_kite_effective_velocity(options, variables, wind, kite_obs, architecture
     parent = architecture.parent_map[kite_obs]
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite_obs, parent)
 
-    u_ind_kite = get_induced_velocity_at_kite(options, variables, kite_obs, architecture)
+    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
 
     u_eff_kite = u_app_kite + u_ind_kite
 
@@ -56,7 +56,9 @@ def get_kite_effective_velocity(options, variables, wind, kite_obs, architecture
 
 
 
-def get_induced_velocity_at_kite(options, variables, kite_obs, architecture):
+def get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
+
+    parent = architecture.parent_map[kite_obs]
 
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
@@ -66,15 +68,16 @@ def get_induced_velocity_at_kite(options, variables, kite_obs, architecture):
     u_ind_kite = cas.DM.zeros((3,1))
     for kite in architecture.kite_nodes:
         for rdx in range(1, n_rings_per_kite):
-            u_ind_var = variables['xl']['w_ind_' + str(kite_obs) + '_' + str(kite) + '_' + str(rdx)]
-            u_ind_kite = u_ind_kite + u_ind_var
+            u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
+                                                                        kite, rdx)
+            u_ind_kite = u_ind_kite + u_ind_val
 
     return u_ind_kite
 
 
 def get_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
 
-    u_ind_kite = get_induced_velocity_at_kite(options, variables, kite_obs, architecture)
+    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
 
     parent = architecture.parent_map[kite_obs]
     n_hat = general_geom.get_n_hat_var(variables, parent)
@@ -87,7 +90,8 @@ def get_induction_factor_at_kite(options, wind, variables, kite_obs, architectur
     return a_calc
 
 
-def get_last_induced_velocity_at_kite(options, variables, kite_obs, architecture):
+def get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
+    parent = architecture.parent_map[kite_obs]
 
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
@@ -98,14 +102,15 @@ def get_last_induced_velocity_at_kite(options, variables, kite_obs, architecture
 
     u_ind_kite = cas.DM.zeros((3,1))
     for kite in architecture.kite_nodes:
-        u_ind_var = variables['xl']['w_ind_' + str(kite_obs) + '_' + str(kite) + '_' + str(rdx)]
-        u_ind_kite = u_ind_kite + u_ind_var
+        u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
+                                                                    kite, rdx)
+        u_ind_kite = u_ind_kite + u_ind_val
 
     return u_ind_kite
 
 
 def get_last_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
-    u_ind_kite = get_last_induced_velocity_at_kite(options, variables, kite_obs, architecture)
+    u_ind_kite = get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
 
     parent = architecture.parent_map[kite_obs]
     n_hat = general_geom.get_n_hat_var(variables, parent)
