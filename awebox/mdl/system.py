@@ -206,6 +206,7 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
         system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('ui' + str(kite), (3, 1))])
 
     for layer_node in architecture.layer_nodes:
         system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])

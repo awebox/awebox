@@ -52,7 +52,6 @@ import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
 
-
 def make_dynamics(options,atmos,wind,parameters,architecture):
 
     # system architecture (see zanon2013a)

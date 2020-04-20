@@ -172,14 +172,6 @@ def get_qzero_residual(model_options, parent, atmos, wind, variables, architectu
 
     return resi_scaled
 
-def get_qzero_trivial(model_options, parent, atmos, wind, variables, architecture):
-
-    qzero_var = get_qzero_var(atmos, wind, variables, parent)
-    qzero_ref = get_qzero_ref(atmos, wind)
-    resi_unscaled = qzero_var - qzero_ref
-    resi_scaled = resi_unscaled / qzero_ref
-
-    return resi_scaled
 
 def get_gamma_residual(model_options, wind, parent, variables, architecture):
 
@@ -208,23 +200,6 @@ def get_gamma_residual(model_options, wind, parent, variables, architecture):
 
 
 
-def get_gamma_trivial(model_options, wind, parent, variables, architecture):
-
-    gamma_var = get_gamma_var(variables, parent)
-    cosgamma_var = get_cosgamma_var(variables, parent)
-    singamma_var = get_singamma_var(variables, parent)
-
-    g_vec_length_var = get_g_vec_length_var(variables, parent)
-
-    f_cosproj = g_vec_length_var - 1.
-    f_sinproj = singamma_var
-
-    f_cos = np.cos(gamma_var) - cosgamma_var
-    f_sin = np.sin(gamma_var) - singamma_var
-
-    resi = cas.vertcat(f_cos, f_sin, f_cosproj, f_sinproj)
-
-    return resi
 
 
 
@@ -237,12 +212,6 @@ def get_chi_residual(model_options, parent, variables, label):
     return f_chi
 
 
-
-def get_chi_trivial(model_options, parent, variables, label):
-    chi_val = 0.
-    chi_var = get_chi_var(variables, parent, label)
-    f_chi = chi_var - chi_val
-    return f_chi
 
 
 def get_chi_trig_residual(model_options, parent, variables, label):
@@ -372,9 +341,6 @@ def get_corr_residual(model_options, variables, parent, label):
     return resi
 
 
-def get_corr_trivial(model_options, variables, parent, label):
-    resi = get_corr_residual_axisym(model_options, variables, parent, label)
-    return resi
 
 def get_local_a_residual(model_options, variables, kite, parent):
     a_var = get_local_a_var(variables, kite, parent)
@@ -482,12 +448,15 @@ def get_local_induced_velocity(model_options, variables, wind, kite, parent, lab
 
     return u_ind
 
+def get_kite_induced_velocity(model_options, variables, wind, kite, parent):
+    label = get_label(model_options)
+    u_ind_kite = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
+    return u_ind_kite
+
 def get_kite_effective_velocity(model_options, variables, wind, kite, parent):
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
-
-    label = get_label(model_options)
-    u_ind_kite = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
+    u_ind_kite = get_kite_induced_velocity(model_options, variables, wind, kite, parent)
 
     u_eff_kite = u_app_kite + u_ind_kite
 

@@ -33,17 +33,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
-def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = []
-    layer_nodes = architecture.layer_nodes
-
-    for layer in layer_nodes:
-        rot_matr_residual = general_geom.get_rot_matr_trivial(options, layer, variables, parameters, architecture)
-        resi = cas.vertcat(resi, rot_matr_residual)
-
-    return resi
-
-def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
     layer_nodes = architecture.layer_nodes
 

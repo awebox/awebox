@@ -35,14 +35,9 @@ import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 
 
-def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = convection.get_convection_residual(options, wind, variables, architecture)
-
-    return resi
-
-def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     # no self-induction! rigid wake convection only!
-    resi = get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    resi = convection.get_convection_residual(options, wind, variables, architecture)
     return resi
 
 def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):

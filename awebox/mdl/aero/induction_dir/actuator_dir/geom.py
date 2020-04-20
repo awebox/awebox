@@ -171,14 +171,6 @@ def get_area_residual(model_options, parent, variables, parameters):
 
     return resi_scaled
 
-def get_area_trivial(model_options, parent, variables, parameters):
-
-    area_var = get_area_var(model_options, variables, parent, parameters)
-    area_ref = get_area_ref(model_options, parameters)
-    resi_unscaled = area_var - area_ref
-    resi_scaled = resi_unscaled / area_ref
-
-    return resi_scaled
 
 def get_bar_varrho_residual(model_options, parent, variables, architecture):
 
@@ -192,14 +184,6 @@ def get_bar_varrho_residual(model_options, parent, variables, architecture):
 
     return resi
 
-def get_bar_varrho_trivial(model_options, parent, variables, architecture):
-    varrho_ref = get_varrho_ref(model_options)
-    bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
-
-    resi_unscaled = bar_varrho_var - varrho_ref
-    resi = resi_unscaled / varrho_ref
-
-    return resi
 
 def get_varrho_residual(model_options, kite, variables, parameters, architecture):
 

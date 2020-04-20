@@ -42,74 +42,8 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 
 
-def get_trivial_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
-    all_residuals = []
-
-    act_comp_labels = actuator_flow.get_actuator_comparison_labels(model_options)
-    any_asym = any('asym' in label for label in act_comp_labels)
-    any_unsteady = any(label[0] == 'u' for label in act_comp_labels)
-
-    layer_parent_map = architecture.layer_nodes
-    for parent in layer_parent_map:
-
-        for label in act_comp_labels:
-            induction_trivial = get_induction_trivial(model_options, variables, parent, label)
-            all_residuals = cas.vertcat(all_residuals, induction_trivial)
-
-            corr_resi = actuator_flow.get_corr_trivial(model_options, variables, parent, label)
-            all_residuals = cas.vertcat(all_residuals, corr_resi)
-
-            chi_resi = actuator_flow.get_chi_trivial(model_options, parent, variables, label)
-            all_residuals = cas.vertcat(all_residuals, chi_resi)
-
-            if any_asym and label in ['qasym', 'uasym']:
-                chi_trig_resi = actuator_flow.get_chi_trig_residual(model_options, parent, variables, label)
-                all_residuals = cas.vertcat(all_residuals, chi_trig_resi)
-
-                LL_resi = actuator_coeff.get_LL_residual(model_options, variables, parent, label)
-                all_residuals = cas.vertcat(all_residuals, LL_resi)
-
-                c_tilde_resi = actuator_coeff.get_c_tilde_residual(model_options, variables, parent, label)
-                all_residuals = cas.vertcat(all_residuals, c_tilde_resi)
-
-        if any_asym:
-            moments_trivial = actuator_coeff.get_moments_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-            all_residuals = cas.vertcat(all_residuals, moments_trivial)
-
-        thrust_trivial = actuator_coeff.get_thrust_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, thrust_trivial)
-
-        dt_resi = actuator_coeff.get_t_star_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, dt_resi)
-
-        uzero_matr_resi = actuator_flow.get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, uzero_matr_resi)
-
-        qzero_trivial = actuator_flow.get_qzero_trivial(model_options, parent, atmos, wind, variables, architecture)
-        all_residuals = cas.vertcat(all_residuals, qzero_trivial)
-
-        gamma_resi = actuator_flow.get_gamma_trivial(model_options, wind, parent, variables, architecture)
-        all_residuals = cas.vertcat(all_residuals, gamma_resi)
-
-        area_trivial = actuator_geom.get_area_trivial(model_options, parent, variables, parameters)
-        all_residuals = cas.vertcat(all_residuals, area_trivial)
-
-        children = architecture.kites_map[parent]
-        for kite in children:
-            local_a_resi = actuator_flow.get_local_a_residual(model_options, variables, kite, parent)
-            all_residuals = cas.vertcat(all_residuals, local_a_resi)
-
-            varrho_resi = actuator_geom.get_varrho_residual(model_options, kite, variables, parameters, architecture)
-            all_residuals = cas.vertcat(all_residuals, varrho_resi)
-
-        bar_varrho_trivial = actuator_geom.get_bar_varrho_trivial(model_options, parent, variables, architecture)
-        all_residuals = cas.vertcat(all_residuals, bar_varrho_trivial)
-
-    return all_residuals
-
-
-def get_final_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
+def get_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     all_residuals = []
 
@@ -248,28 +182,6 @@ def get_steady_asym_pitt_peters_residual(model_options, variables, parent, label
     resi = (c_tilde - c_all )
     return resi
 
-
-def get_induction_trivial(model_options, variables, parent, label):
-
-    if 'asym' in label:
-        a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-        a_all_ref_scaled = cas.vertcat(1., 0., 0.)
-        a_ref = actuator_flow.get_a_ref(model_options)
-
-        resi = (a_all / a_ref - a_all_ref_scaled)
-
-    elif 'axi' in label:
-        a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-        a_all_ref_scaled = 1.
-        a_ref = actuator_flow.get_a_ref(model_options)
-
-        resi = (a_all / a_ref - a_all_ref_scaled)
-
-    else:
-        resi = []
-        awelogger.logger.error('model not yet implemented.')
-
-    return resi
 
 
 
