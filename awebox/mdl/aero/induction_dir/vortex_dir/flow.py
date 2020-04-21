@@ -25,8 +25,7 @@
 """
 flow functions for the vortex based model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
-- edit: jochem de schutter, alu-fr 2019
+- author: rachel leuthold, alu-fr 2020
 """
 
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
@@ -39,8 +38,6 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
-
-import pdb
 
 
 def get_kite_effective_velocity(options, variables, wind, kite_obs, architecture):

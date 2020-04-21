@@ -193,8 +193,8 @@ def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
         for ddx in range(d):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
-    coll_vars, _ = struct_op.get_coll_vars_and_params(nlp_options, V, P, Xdot, model)
-    coll_refs, _ = struct_op.get_coll_vars_and_params(nlp_options, V(P['p', 'ref']), P, Xdot, model)
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return coll_vars, coll_refs, coll_weights, N_coll
 
@@ -208,8 +208,8 @@ def get_ms_parallel_info(nlp_options, V, P, Xdot, model):
     for ndx in range(n_k):
         ms_weights = cas.horzcat(ms_weights, p_weights)
 
-    ms_vars, _ = struct_op.get_ms_vars_and_params(nlp_options, V, P, Xdot, model)
-    ms_refs, _ = struct_op.get_ms_vars_and_params(nlp_options, V(P['p', 'ref']), P, Xdot, model)
+    ms_vars = struct_op.get_ms_vars(nlp_options, V, P, Xdot, model)
+    ms_refs = struct_op.get_ms_vars(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return ms_vars, ms_refs, ms_weights, N_ms
 

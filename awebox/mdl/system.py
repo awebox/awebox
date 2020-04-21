@@ -361,21 +361,38 @@ def scale_bounds(variable_bounds, scaling):
 ##
 #  @brief Method to construct a system parameter struct out of the model options.
 #  @param options The modeling options.
+#  @param architecture The system architecture
 #  @return sys_params System parameters casadi struct.
-def generate_system_parameters(options):
+def generate_system_parameters(options, architecture):
+
+    parameters_dict = {}
 
     # extract parametric options
     parametric_options = options['params']
-
-    parameters_dict = {}
-    # generate nested casadi structure for system parameters
     parameters_dict['theta0'] = struct_op.generate_nested_dict_struct(parametric_options)
+
+    # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
 
-    parameters = cas.struct_symSX([
-        cas.entry('theta0', struct= parameters_dict['theta0']),
-        cas.entry('phi', struct= parameters_dict['phi'])]
-    )
+    # define vortex induction linearization parameters
+    use_vortex_linearization = options['aero']['vortex']['use_linearization']
+    if use_vortex_linearization:
+        vortex_linearization_list, _ = generate_structure(options, architecture)
+        vortex_linearization_params, _ = struct_op.generate_variable_struct(vortex_linearization_list)
+        parameters_dict['lin'] = vortex_linearization_params
+
+    # generate nested casadi structure for system parameters
+    if use_vortex_linearization:
+        parameters = cas.struct_symSX([
+            cas.entry('theta0', struct=parameters_dict['theta0']),
+            cas.entry('phi', struct=parameters_dict['phi']),
+            cas.entry('lin', struct=parameters_dict['lin'])
+        ])
+    else:
+        parameters = cas.struct_symSX([
+            cas.entry('theta0', struct= parameters_dict['theta0']),
+            cas.entry('phi', struct= parameters_dict['phi'])
+        ])
 
     return parameters, parameters_dict
 

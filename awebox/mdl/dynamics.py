@@ -56,7 +56,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
 
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
+    # kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
     # element_lengths = params['element_lengths']
 
@@ -69,7 +69,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # generate structured SX.sym objects
     # -----------------------------------
     system_variables = {}
-    system_variables['scaled'], variables_dict = generate_variable_struct(system_variable_list)
+    system_variables['scaled'], variables_dict = struct_op.generate_variable_struct(system_variable_list)
     system_variables['SI'], scaling = generate_scaled_variables(options['scaling'], system_variables['scaled'])
 
     # --------------------------------------------
@@ -109,19 +109,22 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     # add outputs for constraints
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters,architecture)
-    if options['induction_model'] != 'not_in_use':
-        outputs = induction_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
     outputs = xddot_outputs(options, system_variables['SI'], outputs)
     outputs = anticollision_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
+    outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
+
     if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(system_variables['SI'],outputs, architecture)
-    outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
+
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
+
+    if options['induction_model'] != 'not_in_use':
+        outputs = induction_equations(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture)
 
     # ---------------------------------
     # rotation second law
@@ -1002,17 +1005,6 @@ def induction_equations(options, atmos, wind, variables, outputs, parameters, ar
 
     return outputs
 
-def generate_variable_struct(variable_list):
-
-    structs = {}
-    for name in list(variable_list.keys()):
-        structs[name] = cas.struct_symSX([cas.entry(variable_list[name][i][0], shape=variable_list[name][i][1])
-                        for i in range(len(variable_list[name]))])
-
-    variable_struct = cas.struct_symSX([cas.entry(name, struct=structs[name])
-                        for name in list(variable_list.keys())])
-
-    return variable_struct, structs
 
 def generate_scaled_variables(scaling_options, variables):
 
