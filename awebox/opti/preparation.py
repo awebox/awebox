@@ -42,7 +42,7 @@ import casadi as cas
 
 from awebox.logger.logger import Logger as awelogger
 
-def initialize_arg(nlp, formulation, model, options):
+def initialize_arg(nlp, formulation, model, options, warmstart_trial = None):
 
     # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
     if options['initialization']['initialization_type'] == 'default':
@@ -50,9 +50,18 @@ def initialize_arg(nlp, formulation, model, options):
     elif options['initialization']['initialization_type'] == 'modular':
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
+    use_warmstart = not (warmstart_trial == None)
+    if use_warmstart:
+        [V_init_proposed, _, _] = struct_op.setup_warmstart_data(nlp, warmstart_trial)
+        V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
+        if V_shape_matches:
+            V_init = V_init_proposed
+        else:
+            raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
+
     V_ref = reference.get_reference(nlp, model, V_init, options)
 
-    p_fix_num = set_p_fix_num(V_ref, nlp, model, options)
+    p_fix_num = set_p_fix_num(V_ref, nlp, model, V_init, options)
 
     [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
 
@@ -73,7 +82,7 @@ def initialize_arg(nlp, formulation, model, options):
 
     return arg
 
-def set_p_fix_num(V_ref, nlp, model, options):
+def set_p_fix_num(V_ref, nlp, model, V_init, options):
     # --------------------
     # parameter values
     # --------------------
@@ -124,6 +133,10 @@ def set_p_fix_num(V_ref, nlp, model, options):
         else:
             p_fix_num['theta0',param_type] = param_options[param_type]
 
+    use_vortex_linearization = 'lin' in P.keys()
+    if use_vortex_linearization:
+        p_fix_num['lin'] = V_init
+
     return p_fix_num
 
 def set_initial_bounds(nlp, model, formulation, options, V_init):
@@ -131,7 +144,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
-    # V_bounds = copy.deepcopy(nlp.V_bounds)
+
     g_bounds = copy.deepcopy(nlp.g_bounds)
 
     # set homotopy parameters
@@ -154,6 +167,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
     initial_si_time = V_init['theta','t_f'] # * options['homotopy']['phase_fix'] #todo: move phase fixing to nlp
     initial_scaled_time = initial_si_time / model.scaling['theta']['t_f']
+
     # set theta parameters
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time

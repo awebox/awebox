@@ -28,25 +28,30 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-
 """
 
-import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
-
-import awebox.tools.vector_operations as vect_op
-
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import casadi.tools as cas
-import pdb
 
-def get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture):
+def get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters):
 
-    pdb.set_trace()
+    lin_params = parameters['lin']
 
-    # diff = variables.cat - init.cat
+    var_sym = {}
+    var_sym_cat = []
+    var_actual_cat = []
+    for var_type in variables.keys():
+        var_sym[var_type] = variables[var_type](cas.SX.sym(var_type, (variables[var_type].cat.shape)))
+        var_sym_cat = cas.vertcat(var_sym_cat, var_sym[var_type].cat)
+        var_actual_cat = cas.vertcat(var_actual_cat, variables[var_type].cat)
 
-    # vals_at_init =
-    # deriv_at_init =
+    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, wind, var_sym, kite, architecture)
+    jac_sym = cas.jacobian(uind_sym, var_sym_cat)
 
-    return cas.DM.zeros((3, 1))
+    uind_fun = cas.Function('uind_fun', [var_sym_cat], [uind_sym])
+    jac_fun = cas.Function('jac_fun', [var_sym_cat], [jac_sym])
+
+    slope = jac_fun(lin_params)
+    const = uind_fun(lin_params)
+
+    uind_lin = cas.mtimes(slope, var_actual_cat) + const
+
+    return uind_lin

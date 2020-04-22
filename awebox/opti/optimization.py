@@ -48,6 +48,8 @@ import time
 
 import pickle
 
+import pdb
+
 class Optimization(object):
     def __init__(self):
         self.__status = 'Optimization not yet built.'
@@ -256,8 +258,6 @@ class Optimization(object):
 
         self.__solve_succeeded = True
 
-        self.modify_schedule_for_vortex_linearization_setup(model, formulation, nlp, options['cost'])
-
         # solve set-up problem with homotopy (omitting the induction steps)
         self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
 
@@ -271,6 +271,8 @@ class Optimization(object):
         awelogger.logger.info('')
 
         self.__solve_succeeded = True
+
+        pdb.set_trace()
 
         linearization_trial = self.extract_warmstart_trial(vortex_linearization_file)
         self.modify_args_for_warmstart(linearization_trial, nlp)
@@ -393,11 +395,11 @@ class Optimization(object):
 
     ### arguments
 
-    def define_standard_args(self, nlp, formulation, model, options, visualization):
+    def define_standard_args(self, nlp, formulation, model, options, visualization, warmstart_trial = None):
 
         awelogger.logger.info('define args...')
 
-        self.__arg = preparation.initialize_arg(nlp, formulation, model, options)
+        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, warmstart_trial)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
 
@@ -425,16 +427,10 @@ class Optimization(object):
         awelogger.logger.info('modify args for warmstart...')
 
         # set up warmstart
-        [V_init_proposed,
+        # note that 'x0' (aka. V_init) is initialized in "define_standard_args"
+        [_,
         lam_x_proposed,
         lam_g_proposed] = struct_op.setup_warmstart_data(nlp, warmstart_trial)
-
-        V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
-        if V_shape_matches:
-            self.__V_init = V_init_proposed
-            self.__arg['x0'] = self.__V_init.cat
-        else:
-            raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
 
         lam_x_shape_matches = (lam_x_proposed.shape == self.__V_bounds['ub'].shape)
         if lam_x_shape_matches:
@@ -499,20 +495,12 @@ class Optimization(object):
 
         return None
 
-    def modify_schedule_for_vortex_linearization_setup(self, model, formulation, nlp, cost_options):
-
-        awelogger.logger.info('modify schedule for vortex linearization set-up problem...')
-
-        force_omit_induction = True
-        self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options, force_omit_induction)
-        return None
-
     def modify_schedule_for_vortex_linearization_iterative(self, final_homotopy_step, nlp, model):
 
         awelogger.logger.info('modify schedule for vortex linearization iterative problem...')
 
         # starting homotopy step for iterative problem
-        initial_step = 'induction'
+        initial_step = 'final'
         initial_index = self.__schedule['homotopy'].index(initial_step)
 
         # check if schedule is still consistent

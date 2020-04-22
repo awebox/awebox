@@ -122,13 +122,13 @@ user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py
 Traceback (most recent call last):
   File "single_kite_lift_mode_simple.py", line 3, in <module>
     import awebox as awe
-  File "/home/rachel/awebox/awebox/__init__.py", line 26, in <module>
+  File "/home/user/awebox/awebox/__init__.py", line 26, in <module>
     from .trial import Trial
-  File "/home/rachel/awebox/awebox/trial.py", line 31, in <module>
+  File "/home/user/awebox/awebox/trial.py", line 31, in <module>
     import awebox.trial_funcs as trial_funcs
-  File "/home/rachel/awebox/awebox/trial_funcs.py", line 35, in <module>
+  File "/home/user/awebox/awebox/trial_funcs.py", line 35, in <module>
     import awebox.tools.vector_operations as vect_op
-  File "/home/rachel/awebox/awebox/tools/vector_operations.py", line 36, in <module>
+  File "/home/user/awebox/awebox/tools/vector_operations.py", line 36, in <module>
     import casadi.tools as cas
 ImportError: No module named 'casadi'
 
@@ -212,7 +212,12 @@ INFO:	solver return status..........: Solve_Succeeded
 
 What's going wrong? 
 
-It's most likely that you don't have enough collocation intervals in your problem please increase this number using the options inputs: 
+It's most likely that you don't have enough collocation intervals in your problem! Please increase this number using the options inputs:
 
-options['nlp']['n_k'] = n_k
+---> options['nlp']['n_k'] = n_k
 
+
+
+18. Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
+
+---> the 'SI' version.
