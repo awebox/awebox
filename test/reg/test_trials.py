@@ -23,6 +23,7 @@ def generate_options_dict():
     single_kite_options = options.Options(internal_access = True)
     dual_kite_options = options.Options(internal_access = True)
     dual_kite_6_dof_options = options.Options(internal_access = True)
+    actuator_options = options.Options(internal_access=True)
 
     # set options
     single_kite_options['user_options']['system_model']['architecture'] = {1:0}
@@ -46,6 +47,12 @@ def generate_options_dict():
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
     dual_kite_6_dof_options['user_options']['induction_model'] = 'not_in_use'
     dual_kite_6_dof_options['user_options']['tether_drag_model'] = 'single'
+
+    actuator_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
+    actuator_options['user_options']['trajectory']['lift_mode']['windings'] = 3
+    actuator_options['user_options']['kite_standard'] = ampyx_data.data_dict()
+    actuator_options['user_options']['system_model']['kite_dof'] = 6
+    actuator_options['user_options']['induction_model'] = 'actuator'
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
@@ -74,6 +81,7 @@ def generate_options_dict():
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
+    options_dict['actuator_trial'] = actuator_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
