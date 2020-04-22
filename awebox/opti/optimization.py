@@ -135,8 +135,7 @@ class Optimization(object):
                     self.solve_from_warmstart(nlp, model, options, warmstart_file, final_homotopy_step, visualization)
                 else:
                     if use_vortex_linearization:
-                        self.solve_with_vortex_linearization(nlp, model, options, vortex_linearization_file,
-                                                             final_homotopy_step, visualization)
+                        self.solve_with_vortex_linearization(nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization)
                     else:
                         self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
 
@@ -240,12 +239,12 @@ class Optimization(object):
 
         return None
 
-    def solve_with_vortex_linearization(self, nlp, model, options, vortex_linearization_file, final_homotopy_step, visualization):
+    def solve_with_vortex_linearization(self, nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization):
 
         if vortex_linearization_file == None:
-            self.solve_with_vortex_linearization_setup(self, nlp, model, options, final_homotopy_step, visualization)
+            self.solve_with_vortex_linearization_setup(nlp, model, formulation, options, final_homotopy_step, visualization)
         else:
-            self.solve_with_vortex_linearization_iterative(self, nlp, model, options, vortex_linearization_file,
+            self.solve_with_vortex_linearization_iterative(nlp, model, options, vortex_linearization_file,
                                                       final_homotopy_step, visualization)
 
         return None
@@ -257,7 +256,7 @@ class Optimization(object):
 
         self.__solve_succeeded = True
 
-        self.modify_schedule_for_vortex_linearization_setup(self, model, formulation, nlp, options['cost'])
+        self.modify_schedule_for_vortex_linearization_setup(model, formulation, nlp, options['cost'])
 
         # solve set-up problem with homotopy (omitting the induction steps)
         self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)

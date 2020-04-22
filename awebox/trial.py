@@ -113,7 +113,7 @@ class Trial(object):
         awelogger.logger.info('')
 
     def optimize(self, options = [], final_homotopy_step = 'final',
-                 warmstart_file = None, debug_flags = [],
+                 warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
                  debug_locations = [], save_flag = False):
 
         if not options:
@@ -130,7 +130,7 @@ class Trial(object):
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file,
+                                  final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
                                   debug_locations)
         self.__solution_dict = self.generate_solution_dict()
