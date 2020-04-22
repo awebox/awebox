@@ -32,19 +32,19 @@ python-3.5 / casadi-3.4.5
 
 import awebox.tools.struct_operations as struct_op
 
-def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options):
+def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options, force_omit_induction = False):
 
     schedule = {}
     schedule['cost'] = define_cost_update_schedule(cost_solver_options)
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
-    schedule['homotopy'] = define_homotopy_schedule(formulation)
+    schedule['homotopy'] = define_homotopy_schedule(formulation, force_omit_induction)
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
 
     return schedule
 
-def define_homotopy_schedule(formulation):
+def define_homotopy_schedule(formulation, force_omit_induction = False):
 
     initial_schedule = ('initial','fictitious',)
     induction_schedule = ('induction',)
@@ -64,16 +64,18 @@ def define_homotopy_schedule(formulation):
     homotopy_schedule = ()
     homotopy_schedule = homotopy_schedule + initial_schedule
 
-
-
-    if induction_model == 'actuator':
-        homotopy_schedule = homotopy_schedule + induction_schedule
-
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
     if traj_type == 'power_cycle':
         homotopy_schedule = homotopy_schedule + power_schedule
+
+    if tether_drag_model in set(['single', 'multi']):
+        homotopy_schedule = homotopy_schedule + tether_schedule
+
+    make_induction_step = (not induction_model == 'not_in_use') and (not force_omit_induction)
+    if make_induction_step:
+        homotopy_schedule = homotopy_schedule + induction_schedule
 
     if traj_type == 'nominal_landing':
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
@@ -84,11 +86,6 @@ def define_homotopy_schedule(formulation):
     if traj_type == 'compromised_landing':
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
-
-
-
-    if tether_drag_model in set(['single', 'multi']):
-        homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 
