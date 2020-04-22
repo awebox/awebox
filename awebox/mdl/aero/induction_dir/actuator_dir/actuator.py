@@ -58,7 +58,7 @@ def get_residual(model_options, atmos, wind, variables, parameters, outputs, arc
             induction_trivial = get_induction_residual(model_options, wind, variables, parent, architecture, label)
             all_residuals = cas.vertcat(all_residuals, induction_trivial)
 
-            corr_resi = actuator_flow.get_corr_trivial(model_options, variables, parent, label)
+            corr_resi = actuator_flow.get_corr_residual(model_options, variables, parent, label)
             all_residuals = cas.vertcat(all_residuals, corr_resi)
 
             chi_resi = actuator_flow.get_chi_residual(model_options, parent, variables, label)
