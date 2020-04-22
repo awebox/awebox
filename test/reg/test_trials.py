@@ -2,6 +2,8 @@
 """Template for trial tests
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
+
+- edit: Rachel Leuthold, ALU-FR 2020
 """
 
 import collections
