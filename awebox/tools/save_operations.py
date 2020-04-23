@@ -38,23 +38,32 @@ def save(data, file_name, file_type):
 
     return None
 
-def extract_warmstart_solution_dict(file):
+def extract_solution_dict_from_file(file):
+
+    solution_dict = None
+
     if type(file) == str:
         try:
             filehandler = open(file, 'rb')
             saved_dict = pickle.load(filehandler)
-            warmstart_solution_dict = saved_dict['solution_dict']
+            solution_dict = saved_dict['solution_dict']
         except:
-            raise ValueError('Specified warmstart file cannot be imported. Please check whether correct filename was given.')
+            raise ValueError('Specified file cannot be imported. Please check whether correct filename was given.')
+
     elif type(file) == dict:
         saved_dict = file
         if 'solution_dict' in saved_dict.keys():
-            warmstart_solution_dict = saved_dict['solution_dict']
+            solution_dict = saved_dict['solution_dict']
         elif 'options' in saved_dict.keys():
-            warmstart_solution_dict = saved_dict
+            solution_dict = saved_dict
         else:
-            raise ValueError('Specified warmstart file does not correspond to accepted trial dictionary format.')
-    else:
-        warmstart_solution_dict = file.generate_solution_dict()
+            raise ValueError('Specified file dictionary does not correspond to expected format.')
 
-    return warmstart_solution_dict
+    else:
+        # assuming that the file is already a "trial"
+        try:
+            solution_dict = file.generate_solution_dict()
+        except:
+            raise ValueError('Specified file format is not yet accepted.')
+
+    return solution_dict

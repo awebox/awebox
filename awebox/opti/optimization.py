@@ -225,7 +225,7 @@ class Optimization(object):
 
         self.__solve_succeeded = True
 
-        warmstart_solution_dict = save_op.extract_warmstart_solution_dict(warmstart_file)
+        warmstart_solution_dict = save_op.extract_solution_dict_from_file(warmstart_file)
         self.modify_args_for_warmstart(warmstart_solution_dict, nlp)
         self.modify_schedule_for_warmstart(final_homotopy_step, warmstart_solution_dict, nlp, model)
 
@@ -267,7 +267,7 @@ class Optimization(object):
 
         self.__solve_succeeded = True
 
-        warmstart_solution_dict = save_op.extract_warmstart_solution_dict(vortex_linearization_file)
+        warmstart_solution_dict = save_op.extract_solution_dict_from_file(vortex_linearization_file)
         self.modify_args_for_warmstart(warmstart_solution_dict, nlp)
         self.modify_schedule_for_vortex_linearization_iterative(final_homotopy_step, nlp, model)
 
