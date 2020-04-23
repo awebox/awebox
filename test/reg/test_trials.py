@@ -51,10 +51,11 @@ def generate_options_dict():
     dual_kite_6_dof_options['user_options']['tether_drag_model'] = 'single'
 
     actuator_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-    actuator_options['user_options']['trajectory']['lift_mode']['windings'] = 3
+    actuator_options['user_options']['trajectory']['lift_mode']['windings'] = 1
     actuator_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    actuator_options['user_options']['system_model']['kite_dof'] = 6
+    actuator_options['user_options']['system_model']['kite_dof'] = 3
     actuator_options['user_options']['induction_model'] = 'actuator'
+    actuator_options['nlp']['n_k'] = 20
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
