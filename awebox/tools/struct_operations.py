@@ -769,11 +769,11 @@ def initialize_nested_dict(d,keys):
 
     return d
 
-def setup_warmstart_data(nlp, warmstart_trial):
+def setup_warmstart_data(nlp, warmstart_solution_dict):
 
-    options_in_keys = 'options' in warmstart_trial.keys()
+    options_in_keys = 'options' in warmstart_solution_dict.keys()
     if options_in_keys:
-        nlp_discretization = warmstart_trial['options']['nlp']['discretization']
+        nlp_discretization = warmstart_solution_dict['options']['nlp']['discretization']
 
     if options_in_keys and not (nlp.discretization == nlp_discretization):
 
@@ -784,15 +784,15 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
             # initialize and extract
             V_init_proposed = nlp.V(0.0)
-            V_coll = warmstart_trial['V_opt']
-            Xdot_coll = warmstart_trial['Xdot_opt']
+            V_coll = warmstart_solution_dict['V_opt']
+            Xdot_coll = warmstart_solution_dict['Xdot_opt']
 
             lam_x_proposed  = nlp.V_bounds['ub'](0.0)
-            lam_x_coll = V_coll(warmstart_trial['opt_arg']['lam_x0'])
+            lam_x_coll = V_coll(warmstart_solution_dict['opt_arg']['lam_x0'])
 
             lam_g_proposed  = nlp.g(0.0)
-            lam_g_coll = warmstart_trial['g_opt'](warmstart_trial['opt_arg']['lam_g0'])
-            g_coll = warmstart_trial['g_opt']
+            lam_g_coll = warmstart_solution_dict['g_opt'](warmstart_solution_dict['opt_arg']['lam_g0'])
+            g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
             for var_type in set(['xd','theta','phi','xi']):
@@ -855,9 +855,9 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
     else:
 
-        V_init_proposed = warmstart_trial['solution_dict']['V_opt']
-        lam_x_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_x0']
-        lam_g_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_g0']
+        V_init_proposed = warmstart_solution_dict['V_opt']
+        lam_x_proposed  = warmstart_solution_dict['opt_arg']['lam_x0']
+        lam_g_proposed  = warmstart_solution_dict['opt_arg']['lam_g0']
 
 
     V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)

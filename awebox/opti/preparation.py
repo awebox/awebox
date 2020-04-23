@@ -42,7 +42,7 @@ import casadi as cas
 
 from awebox.logger.logger import Logger as awelogger
 
-def initialize_arg(nlp, formulation, model, options, warmstart_trial = None):
+def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
     # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
     if options['initialization']['initialization_type'] == 'default':
@@ -50,9 +50,9 @@ def initialize_arg(nlp, formulation, model, options, warmstart_trial = None):
     elif options['initialization']['initialization_type'] == 'modular':
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
-    use_warmstart = not (warmstart_trial == None)
+    use_warmstart = not (warmstart_solution_dict == None)
     if use_warmstart:
-        [V_init_proposed, _, _] = struct_op.setup_warmstart_data(nlp, warmstart_trial)
+        [V_init_proposed, _, _] = struct_op.setup_warmstart_data(nlp, warmstart_solution_dict)
         V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
         if V_shape_matches:
             V_init = V_init_proposed

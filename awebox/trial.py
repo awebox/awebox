@@ -37,7 +37,7 @@ import awebox.mdl.architecture as archi
 import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
-import awebox.tools.data_saving as data_tools
+import awebox.tools.save_operations as data_tools
 import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
@@ -223,7 +223,7 @@ class Trial(object):
             self.__visualization = visualization.Visualization()
 
         # pickle data
-        data_tools.pickle_data(self, fn, 'awe')
+        data_tools.save(self, fn, 'awe')
 
     def save_to_dict(self, fn):
 
@@ -235,7 +235,7 @@ class Trial(object):
         data_to_save['plot_dict'] = self.__visualization.plot_dict
 
         # pickle data
-        data_tools.pickle_data(data_to_save, fn, 'dict')
+        data_tools.save(data_to_save, fn, 'dict')
 
     def generate_solution_dict(self):
 

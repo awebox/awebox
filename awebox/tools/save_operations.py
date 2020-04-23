@@ -24,13 +24,37 @@
 #
 """
 Stores helper functions for saving data
-author: Thilo Bronnenmeyer, kiteswarms, 2019
+-author: Thilo Bronnenmeyer, kiteswarms, 2019
+-edit: Rachel Leuthold, ALU-FR, 2020
 """
 
 import pickle
 
-def pickle_data(data, file_name, file_type):
+def save(data, file_name, file_type):
 
     file_pi = open(file_name + '.' + file_type, 'wb')
     pickle.dump(data, file_pi)
     file_pi.close()
+
+    return None
+
+def extract_warmstart_solution_dict(file):
+    if type(file) == str:
+        try:
+            filehandler = open(file, 'rb')
+            saved_dict = pickle.load(filehandler)
+            warmstart_solution_dict = saved_dict['solution_dict']
+        except:
+            raise ValueError('Specified warmstart file cannot be imported. Please check whether correct filename was given.')
+    elif type(file) == dict:
+        saved_dict = file
+        if 'solution_dict' in saved_dict.keys():
+            warmstart_solution_dict = saved_dict['solution_dict']
+        elif 'options' in saved_dict.keys():
+            warmstart_solution_dict = saved_dict
+        else:
+            raise ValueError('Specified warmstart file does not correspond to accepted trial dictionary format.')
+    else:
+        warmstart_solution_dict = file.generate_solution_dict()
+
+    return warmstart_solution_dict

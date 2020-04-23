@@ -34,7 +34,7 @@ import awebox.sweep_funcs as sweep_funcs
 import copy
 from collections import OrderedDict
 import awebox.trial as trial
-import awebox.tools.data_saving as data_tools
+import awebox.tools.save_operations as save_op
 import matplotlib.pyplot as plt
 import awebox.viz.comparison as comparison
 import awebox.viz.tools as tools
@@ -294,10 +294,13 @@ class Sweep:
         awelogger.logger.info('Sweep (%s) saved.', self.__name)
         awelogger.logger.info('')
 
+        return None
+
     def save_to_awes(self):
 
-        # pickle data
-        data_tools.pickle_data(self, self.__name, 'awes')
+        save_op.save(self, self.__name, 'awes')
+
+        return None
 
     def save_to_dict(self):
 
@@ -312,7 +315,9 @@ class Sweep:
         data_to_save['param_dict'] = self.__param_dict
 
         # pickle data
-        data_tools.pickle_data(data_to_save, self.__name, 'dict')
+        save_op.save(data_to_save, self.__name, 'dict')
+
+        return None
 
     @property
     def name(self):
