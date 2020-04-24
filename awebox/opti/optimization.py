@@ -129,7 +129,7 @@ class Optimization(object):
             # solve the problem
             if make_steps:
                 if use_warmstart:
-                    self.solve_from_warmstart(nlp, model, options, warmstart_file, final_homotopy_step, visualization)
+                    self.solve_from_warmstart(nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization)
                 else:
                     if use_vortex_linearization:
                         self.solve_with_vortex_linearization(nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization)
@@ -218,7 +218,7 @@ class Optimization(object):
         return None
 
 
-    def solve_from_warmstart(self, nlp, model, options, warmstart_file, final_homotopy_step, visualization):
+    def solve_from_warmstart(self, nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization):
 
         awelogger.logger.info('solve from warmstart...')
         awelogger.logger.info('')
@@ -226,7 +226,7 @@ class Optimization(object):
         self.__solve_succeeded = True
 
         warmstart_solution_dict = save_op.extract_solution_dict_from_file(warmstart_file)
-        self.modify_args_for_warmstart(warmstart_solution_dict, nlp)
+        self.modify_args_for_warmstart(nlp, formulation, model, options, visualization, warmstart_solution_dict = warmstart_solution_dict)
         self.modify_schedule_for_warmstart(final_homotopy_step, warmstart_solution_dict, nlp, model)
 
         # solve homotopy with warmstart
@@ -239,14 +239,14 @@ class Optimization(object):
     def solve_with_vortex_linearization(self, nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization):
 
         if vortex_linearization_file == None:
-            self.solve_with_vortex_linearization_setup(nlp, model, formulation, options, final_homotopy_step, visualization)
+            self.solve_with_vortex_linearization_setup(nlp, model, options, final_homotopy_step, visualization)
         else:
-            self.solve_with_vortex_linearization_iterative(nlp, model, options, vortex_linearization_file,
+            self.solve_with_vortex_linearization_iterative(nlp, formulation, model, options, vortex_linearization_file,
                                                       final_homotopy_step, visualization)
 
         return None
 
-    def solve_with_vortex_linearization_setup(self, nlp, model, formulation, options, final_homotopy_step, visualization):
+    def solve_with_vortex_linearization_setup(self, nlp, model, options, final_homotopy_step, visualization):
 
         awelogger.logger.info('solve set-up problem with vortex linearization...')
         awelogger.logger.info('')
@@ -260,7 +260,7 @@ class Optimization(object):
 
         return None
 
-    def solve_with_vortex_linearization_iterative(self, nlp, model, options, vortex_linearization_file, final_homotopy_step, visualization):
+    def solve_with_vortex_linearization_iterative(self, nlp, formulation, model, options, vortex_linearization_file, final_homotopy_step, visualization):
 
         awelogger.logger.info('solve iterative problem with vortex linearization...')
         awelogger.logger.info('')
@@ -268,7 +268,7 @@ class Optimization(object):
         self.__solve_succeeded = True
 
         warmstart_solution_dict = save_op.extract_solution_dict_from_file(vortex_linearization_file)
-        self.modify_args_for_warmstart(warmstart_solution_dict, nlp)
+        self.modify_args_for_warmstart(nlp, formulation, model, options, visualization, warmstart_solution_dict=warmstart_solution_dict)
         self.modify_schedule_for_vortex_linearization_iterative(final_homotopy_step, nlp, model)
 
         # solve homotopy with warmstart
@@ -378,7 +378,7 @@ class Optimization(object):
 
         awelogger.logger.info('define args...')
 
-        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, warmstart_solution_dict)
+        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = warmstart_solution_dict)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
 
@@ -401,15 +401,27 @@ class Optimization(object):
 
         return None
 
-    def modify_args_for_warmstart(self, warmstart_solution_dict, nlp):
+    def modify_args_for_warmstart(self, nlp, formulation, model, options, visualization, warmstart_solution_dict):
 
         awelogger.logger.info('modify args for warmstart...')
 
+        use_vortex_linearization = 'lin' in nlp.P.keys()
+
         # set up warmstart
-        # note that 'x0' (aka. V_init) is initialized in "define_standard_args"
-        [_,
+        [V_init_proposed,
         lam_x_proposed,
         lam_g_proposed] = struct_op.setup_warmstart_data(nlp, warmstart_solution_dict)
+
+        V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
+        if V_shape_matches:
+            self.__V_init = V_init_proposed
+            self.__arg['x0'] = self.__V_init.cat
+
+            if use_vortex_linearization:
+                self.__p_fix_num['lin'] = V_init_proposed
+
+        else:
+            raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
 
         lam_x_shape_matches = (lam_x_proposed.shape == self.__V_bounds['ub'].shape)
         if lam_x_shape_matches:
