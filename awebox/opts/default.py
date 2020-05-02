@@ -57,7 +57,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
         ('user_options',    'system_model',None,        'architecture',          {1:0, 2:1, 3:1},    ('choose tuple (layers,siblings)', None),'t'),
         ('user_options',    'system_model',None,        'cross_tether',          False,              ('enable cross_tether', [True, False]),'t'),
-        ('user_options',    'wind',        None,        'model',                 'log_wind',         ('possible options', ['log_wind', 'uniform', 'datafile']),'x'),
+        ('user_options',    'wind',        None,        'model',                 'log_wind',         ('possible options', ['log_wind', 'power', 'uniform', 'datafile']),'x'),
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
@@ -92,8 +92,9 @@ def set_default_options(default_user_options, help_options):
         ('params',  'atmosphere', None, 'c_sutherland',   120., ('sutherland constant relating dynamic viscosity to air temperature [K]', None),'s'),
 
         ## wind mode
-        ('params', 'wind', 'log_wind', 'z_ref',     10.,  ('reference height [m]', None),'s'),
-        ('params', 'wind', 'log_wind', 'z0_air',    0.1,  ('surface roughness length of log-wind profile [m], (0.1: roughness farm land with wind breaks more than 1km apart)', None),'s'),
+        ('params', 'wind', None,        'z_ref',    10.,    ('reference height [m]', None),'s'),
+        ('params', 'wind', 'log_wind',  'z0_air',   0.1,    ('surface roughness length of log-wind profile [m], (0.1: roughness farm land with wind breaks more than 1km apart)', None),'s'),
+        ('params', 'wind', 'power_wind','exp_ref',  0.15,   ('terrain-specific exponent for power law wind-profile [-], (0.1: smooth hard ground, calm water, 0.15: tall grass on level ground, 0.2: high crops, hedges and shrubs, 0.3: small town with trees and shrubs, 0.4: large city with tall buildings. see Masters2013.', None), 's'),
 
         ## aero model
         ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',          ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),

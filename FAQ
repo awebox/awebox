@@ -248,3 +248,20 @@ In the worst case, we'd recommend contacting the HSL developers. Their contact i
 http://www.hsl.rl.ac.uk/contact.html
 
 Good luck!
+
+
+21. How do I know if the trials in my sweep, actually converged?
+
+----> Include the flag "comp_convergence" into the plot_list.
+----> A converged trial will have a "return_status_numeric" value of 1 or 2
+
+    sweep.plot('comp_stats', 'comp_convergence')
+
+
+22. How do I know if any particular trial, actually converged?
+
+----> You can check the return_status_numeric of the trial, with the knowledge that
+----> a converged trial will have a "return_status_numeric" value of 1 or 2
+
+    return_status_numeric = trial.return_status_numeric
+
