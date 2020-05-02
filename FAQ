@@ -221,3 +221,14 @@ It's most likely that you don't have enough collocation intervals in your proble
 18. Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
 
 ---> the 'SI' version.
+
+
+19. What are the units of the power output? (aka. the given 'SI' unit of power...)
+
+The power is defined according to:
+    segment tension = (lambda_multiplier) * (segment length)
+    power = (tension at bottom segment) * (tether reelout speed),
+which means that the units of power are:
+    units of tension = [N] = (units of lambda multiplier) * [m]
+            ==> units of lambda multiplier = [N/m]
+    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [Watts]
