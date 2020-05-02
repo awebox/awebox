@@ -21,10 +21,12 @@ trial.optimize(warmstart_file = warmstart_file)
 theta = trial.optimization.V_final['theta']
 
 
-3. how do I access the solved performance metric, like the power harvesting factor 'zeta'?
+3. how do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
 
-plot_dict = trial.visualization.plot_dict
-zeta = plot_dict['power_and_performance']['zeta']
+    plot_dict = trial.visualization.plot_dict
+    zeta = plot_dict['power_and_performance']['zeta']
+    avg_power = plot_dict['power_and_performance']['avg_power']
+
 
 
 4. how do I get the IPOPT verbose output to print during the optimization process?
