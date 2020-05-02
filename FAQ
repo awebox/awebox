@@ -255,7 +255,7 @@ Good luck!
 ----> Include the flag "comp_convergence" into the plot_list.
 ----> A converged trial will have a "return_status_numeric" value of 1 or 2
 
-    sweep.plot('comp_stats', 'comp_convergence')
+    sweep.plot(['comp_stats', 'comp_convergence'])
 
 
 22. How do I know if any particular trial, actually converged?

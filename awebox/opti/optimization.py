@@ -45,6 +45,8 @@ from awebox.logger.logger import Logger as awelogger
 
 import time
 
+import pdb
+
 class Optimization(object):
     def __init__(self):
         self.__status = 'Optimization not yet built.'
@@ -108,9 +110,7 @@ class Optimization(object):
             self.__final_homotopy_step = final_homotopy_step
 
             # reset timings / iteration counters
-            self.__timings['optimization'] = 0.
-            self.__iterations['optimization'] = 0
-            self.__return_status_numeric['optimization'] = 17
+            self.reset_timings_and_counters()
 
            # schedule the homotopy steps
             self.define_homotopy_update_schedule(model, formulation, nlp, options['cost'])
@@ -157,7 +157,25 @@ class Optimization(object):
 
         return None
 
+    def reset_timings_and_counters(self):
 
+        self.__timings['optimization'] = 0.
+        self.__iterations['optimization'] = 0
+        self.__return_status_numeric['optimization'] = 17
+
+        for step in self.__timings.keys():
+            if not (step == 'setup'):
+                self.__timings[step] = 0.
+
+        for step in self.__iterations.keys():
+            if not (step == 'setup'):
+                self.__iterations[step] = 0.
+
+        for step in self.__return_status_numeric.keys():
+            if not (step == 'setup'):
+                self.__return_status_numeric[step] = 17
+
+        return None
 
 
     ### interactive functions

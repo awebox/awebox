@@ -30,6 +30,8 @@ Stores helper functions for saving data
 
 import pickle
 
+import pdb
+
 def save(data, file_name, file_type):
 
     file_pi = open(file_name + '.' + file_type, 'wb')
@@ -43,6 +45,10 @@ def extract_solution_dict_from_file(file):
     solution_dict = None
 
     if type(file) == str:
+
+        if not (file[-5:] == '.dict'):
+            file = file + '.dict'
+
         try:
             filehandler = open(file, 'rb')
             saved_dict = pickle.load(filehandler)
