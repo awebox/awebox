@@ -72,7 +72,7 @@ class Model(object):
 
     def __generate_system_parameters(self, options):
 
-        self.__parameters, self.__parameters_dict = system.generate_system_parameters(options)
+        self.__parameters, self.__parameters_dict = system.generate_system_parameters(options, self.__architecture)
 
         return None
 

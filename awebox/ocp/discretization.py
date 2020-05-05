@@ -213,6 +213,7 @@ def setup_nlp_cost():
 
     return cost
 
+
 def setup_nlp_p_fix(V, model):
 
     # fixed system parameters
@@ -228,11 +229,20 @@ def setup_nlp_p(V, model):
     cost = setup_nlp_cost()
     p_fix = setup_nlp_p_fix(V, model)
 
-    P = cas.struct_symMX([
-        cas.entry('p',      struct = p_fix),
-        cas.entry('cost',   struct = cost),
-        cas.entry('theta0', struct = model.parameters_dict['theta0'])
-    ])
+    use_vortex_linearization = 'lin' in model.parameters_dict.keys()
+    if use_vortex_linearization:
+        P = cas.struct_symMX([
+            cas.entry('p', struct=p_fix),
+            cas.entry('cost', struct=cost),
+            cas.entry('theta0', struct=model.parameters_dict['theta0']),
+            cas.entry('lin', struct=V)
+        ])
+    else:
+        P = cas.struct_symMX([
+            cas.entry('p',      struct = p_fix),
+            cas.entry('cost',   struct = cost),
+            cas.entry('theta0', struct = model.parameters_dict['theta0'])
+        ])
 
     return P
 
@@ -369,9 +379,7 @@ def discretize(nlp_numerics_options, model, formulation):
     g_list = []
     g_bounds = {'lb':[], 'ub':[]}
 
-    # extract model.parameters from V
-    param_at_time = parameters(cas.vertcat(P['theta0'], V['phi']))
-    xi = V['xi']  #TODO: don't hard code!
+    xi = V['xi']
 
     # parallellize constraints on collocation nodes
     if direct_collocation:
@@ -393,9 +401,6 @@ def discretize(nlp_numerics_options, model, formulation):
 
     # Construct list of constraints (+ bounds) and outputs
     for kdx in range(nk):
-
-        # time constant of the following interval
-        tf = struct_op.calculate_tf(nlp_numerics_options, V, kdx)
 
         if kdx == 0:
 
@@ -480,6 +485,7 @@ def discretize(nlp_numerics_options, model, formulation):
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     return V, P, Xdot_struct, Xdot_fun, g_struct, g_fun, g_jacobian_fun, g_bounds, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+
 
 def get_phase_fix_theta(variables_dict):
 

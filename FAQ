@@ -1,3 +1,6 @@
+#### frequently asked questions, relating to the awebox.
+
+
 1. how do I warmstart from a previous run?
 
 ---> make sure that your previous run was saved in .dict format as "trialname.dict"
@@ -21,10 +24,12 @@ trial.optimize(warmstart_file = warmstart_file)
 theta = trial.optimization.V_final['theta']
 
 
-3. how do I access the solved performance metric, like the power harvesting factor 'zeta'?
+3. how do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
 
-plot_dict = trial.visualization.plot_dict
-zeta = plot_dict['power_and_performance']['zeta']
+    plot_dict = trial.visualization.plot_dict
+    zeta = plot_dict['power_and_performance']['zeta']
+    avg_power = plot_dict['power_and_performance']['avg_power']
+
 
 
 4. how do I get the IPOPT verbose output to print during the optimization process?
@@ -122,13 +127,13 @@ user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py
 Traceback (most recent call last):
   File "single_kite_lift_mode_simple.py", line 3, in <module>
     import awebox as awe
-  File "/home/rachel/awebox/awebox/__init__.py", line 26, in <module>
+  File "/home/user/awebox/awebox/__init__.py", line 26, in <module>
     from .trial import Trial
-  File "/home/rachel/awebox/awebox/trial.py", line 31, in <module>
+  File "/home/user/awebox/awebox/trial.py", line 31, in <module>
     import awebox.trial_funcs as trial_funcs
-  File "/home/rachel/awebox/awebox/trial_funcs.py", line 35, in <module>
+  File "/home/user/awebox/awebox/trial_funcs.py", line 35, in <module>
     import awebox.tools.vector_operations as vect_op
-  File "/home/rachel/awebox/awebox/tools/vector_operations.py", line 36, in <module>
+  File "/home/user/awebox/awebox/tools/vector_operations.py", line 36, in <module>
     import casadi.tools as cas
 ImportError: No module named 'casadi'
 
@@ -188,3 +193,75 @@ what should I do?
 15. Where on earth are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
 
 Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.
+
+
+16. My awebox script gets "Killed" unexpectedly, with output like: 
+
+INFO:	Building optimization...
+INFO:	initialize callback...
+INFO:	generate solvers...
+Killed
+
+What happened? 
+
+----> You may not have enough memory to construct the desired OCP. Can you make your problem smaller somehow? 
+
+
+17. I keep getting a warning message, even though the IPOPT output says that my optimization solved.
+
+...
+INFO:	solver return status..........: Solve_Succeeded    
+...
+"WARNING:	given rotation matrix is not a member of SO(3)."
+...
+
+What's going wrong? 
+
+It's most likely that you don't have enough collocation intervals in your problem! Please increase this number using the options inputs:
+
+---> options['nlp']['n_k'] = n_k
+
+
+
+18. Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
+
+---> the 'SI' version.
+
+
+19. What are the units of the power output? (aka. the given 'SI' unit of power...)
+
+The power is defined according to:
+    segment tension = (lambda_multiplier) * (segment length)
+    power = (tension at bottom segment) * (tether reelout speed),
+which means that the units of power are:
+    units of tension = [N] = (units of lambda multiplier) * [m]
+            ==> units of lambda multiplier = [N/m]
+    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [Watts]
+
+
+20. Is there a version of the HSL solver "xxx" binary/dynamic-link-library/etc. available for operating system "yyy"?
+
+We're not sure... But, if it exists, you will be able to find it at:
+http://www.hsl.rl.ac.uk/ipopt/
+
+In the worst case, we'd recommend contacting the HSL developers. Their contact info can be found at:
+http://www.hsl.rl.ac.uk/contact.html
+
+Good luck!
+
+
+21. How do I know if the trials in my sweep, actually converged?
+
+----> Include the flag "comp_convergence" into the plot_list.
+----> A converged trial will have a "return_status_numeric" value of 1 or 2
+
+    sweep.plot(['comp_stats', 'comp_convergence'])
+
+
+22. How do I know if any particular trial, actually converged?
+
+----> You can check the return_status_numeric of the trial, with the knowledge that
+----> a converged trial will have a "return_status_numeric" value of 1 or 2
+
+    return_status_numeric = trial.return_status_numeric
+

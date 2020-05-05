@@ -79,6 +79,7 @@ def test_sweep_serial():
 
     # build, run and save sweep
     sweep = awe.Sweep(name = 'serial_test', options = options, seed = sweep_opts)
+    sweep.build()
     sweep.run(final_homotopy_step = 'initial')
     sweep.save('dict')
 

@@ -64,11 +64,6 @@ def define_homotopy_schedule(formulation):
     homotopy_schedule = ()
     homotopy_schedule = homotopy_schedule + initial_schedule
 
-
-
-    if induction_model == 'actuator':
-        homotopy_schedule = homotopy_schedule + induction_schedule
-
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
@@ -85,7 +80,9 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-
+    make_induction_step = not (induction_model == 'not_in_use')
+    if make_induction_step:
+        homotopy_schedule = homotopy_schedule + induction_schedule
 
     if tether_drag_model in set(['single', 'multi']):
         homotopy_schedule = homotopy_schedule + tether_schedule

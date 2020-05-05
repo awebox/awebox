@@ -327,7 +327,8 @@ class Collocation(object):
         N_coll = self.__n_k*self.__d # collocation points
 
         # construct list of all collocation node variables and parameters
-        coll_vars, coll_params = struct_op.get_coll_vars_and_params(options, V, P, Xdot, model)
+        coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
+        coll_params = struct_op.get_coll_params(options, V, P, model)
 
         # evaluate dynamics and constraint functions on all intervals
         if options['parallelization']['include']:

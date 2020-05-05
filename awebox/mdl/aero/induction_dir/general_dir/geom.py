@@ -122,17 +122,6 @@ def get_rot_matr_residual(model_options, parent, variables, parameters, architec
     return f_combi
 
 
-def get_rot_matr_trivial(model_options, parent, variables, parameters, architecture):
-
-    # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    f_ortho = get_rot_matr_ortho_residual(model_options, parent, variables, parameters, architecture)
-    f_n_vec = get_rot_matr_n_along_tether_residual(model_options, parent, variables, parameters, architecture)
-    #
-    # join the constraints
-    f_combi = cas.vertcat(f_ortho, f_n_vec)
-
-    return f_combi
-
 
 def get_n_vec_val(model_options, parent, variables, parameters, architecture):
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)

@@ -35,6 +35,7 @@ import operator
 
 import copy
 from functools import reduce
+from awebox.logger.logger import Logger as awelogger
 
 def subkeys(casadi_struct, key):
 
@@ -54,11 +55,10 @@ def subkeys(casadi_struct, key):
 
     return subkey_list
 
-def get_coll_vars_and_params(nlp_options, V, P, Xdot, model):
+def get_coll_vars(nlp_options, V, P, Xdot, model):
 
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
-    N_coll = n_k * d # collocation points
 
     # construct list of all collocation node variables and parameters
     coll_vars = []
@@ -67,28 +67,59 @@ def get_coll_vars_and_params(nlp_options, V, P, Xdot, model):
             var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx)
             coll_vars = cas.horzcat(coll_vars, var_at_time)
 
-    parameters = model.parameters
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
-
-    return coll_vars, coll_params
+    return coll_vars
 
 
-def get_ms_vars_and_params(nlp_options, V, P, Xdot, model):
+def get_coll_params(nlp_options, V, P, model):
 
     n_k = nlp_options['n_k']
-    N_ms = n_k # collocation points
+    d = nlp_options['collocation']['d']
+    N_coll = n_k * d # collocation points
 
-    # construct list of all collocation node variables and parameters
+    parameters = model.parameters
+
+    use_vortex_linearization = 'lin' in parameters.keys()
+    if use_vortex_linearization:
+        Xdot = construct_Xdot_struct(nlp_options, model)(0.)
+
+        coll_params = []
+        for kdx in range(n_k):
+            for ddx in range(d):
+                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model, kdx, ddx)
+                coll_params = cas.horzcat(coll_params, loc_params)
+
+    else:
+        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+
+    return coll_params
+
+
+def get_ms_vars(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+
+    # construct list of all multiple-shooting node variables and parameters
     ms_vars = []
     for kdx in range(n_k):
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx)
         ms_vars = cas.horzcat(ms_vars, var_at_time)
 
+    return ms_vars
+
+
+def get_ms_params(nlp_options, V, P, Xdot, model):
+    n_k = nlp_options['n_k']
+    N_ms = n_k  # collocation points
+
     parameters = model.parameters
+
+    use_vortex_linearization = 'lin' in parameters.keys()
+    if use_vortex_linearization:
+        awelogger.logger.error('vortex induction model not yet supported for multiple shooting problems.')
+
     ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
 
-    return ms_vars, ms_params
-
+    return ms_params
 
 
 def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
@@ -210,7 +241,7 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, P, model):
+def get_parameters_at_time(nlp_options, P, V, Xdot, model, kdx=None, ddx=None):
     param_list = []
 
     parameters = model.parameters
@@ -220,6 +251,9 @@ def get_parameters_at_time(V, P, model):
             param_list.append(V[var_type])
         if var_type == 'theta0':
             param_list.append(P[var_type])
+        if var_type == 'lin':
+            linearized_vars = get_variables_at_time(nlp_options, V(P['lin']), Xdot, model, kdx, ddx)
+            param_list.append(linearized_vars)
 
     param_at_time = parameters(cas.vertcat(*param_list))
 
@@ -735,11 +769,11 @@ def initialize_nested_dict(d,keys):
 
     return d
 
-def setup_warmstart_data(nlp, warmstart_trial):
+def setup_warmstart_data(nlp, warmstart_solution_dict):
 
-    options_in_keys = 'options' in warmstart_trial.keys()
+    options_in_keys = 'options' in warmstart_solution_dict.keys()
     if options_in_keys:
-        nlp_discretization = warmstart_trial['options']['nlp']['discretization']
+        nlp_discretization = warmstart_solution_dict['options']['nlp']['discretization']
 
     if options_in_keys and not (nlp.discretization == nlp_discretization):
 
@@ -750,15 +784,15 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
             # initialize and extract
             V_init_proposed = nlp.V(0.0)
-            V_coll = warmstart_trial['V_opt']
-            Xdot_coll = warmstart_trial['Xdot_opt']
+            V_coll = warmstart_solution_dict['V_opt']
+            Xdot_coll = warmstart_solution_dict['Xdot_opt']
 
             lam_x_proposed  = nlp.V_bounds['ub'](0.0)
-            lam_x_coll = V_coll(warmstart_trial['opt_arg']['lam_x0'])
+            lam_x_coll = V_coll(warmstart_solution_dict['opt_arg']['lam_x0'])
 
             lam_g_proposed  = nlp.g(0.0)
-            lam_g_coll = warmstart_trial['g_opt'](warmstart_trial['opt_arg']['lam_g0'])
-            g_coll = warmstart_trial['g_opt']
+            lam_g_coll = warmstart_solution_dict['g_opt'](warmstart_solution_dict['opt_arg']['lam_g0'])
+            g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
             for var_type in set(['xd','theta','phi','xi']):
@@ -821,9 +855,9 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
     else:
 
-        V_init_proposed = warmstart_trial['solution_dict']['V_opt']
-        lam_x_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_x0']
-        lam_g_proposed  = warmstart_trial['solution_dict']['opt_arg']['lam_g0']
+        V_init_proposed = warmstart_solution_dict['V_opt']
+        lam_x_proposed  = warmstart_solution_dict['opt_arg']['lam_x0']
+        lam_g_proposed  = warmstart_solution_dict['opt_arg']['lam_g0']
 
 
     V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
@@ -889,3 +923,15 @@ def split_kite_and_parent(kiteparent, architecture):
             return kite_try, parent_try
 
     return None, None
+
+def generate_variable_struct(variable_list):
+
+    structs = {}
+    for name in list(variable_list.keys()):
+        structs[name] = cas.struct_symSX([cas.entry(variable_list[name][i][0], shape=variable_list[name][i][1])
+                        for i in range(len(variable_list[name]))])
+
+    variable_struct = cas.struct_symSX([cas.entry(name, struct=structs[name])
+                        for name in list(variable_list.keys())])
+
+    return variable_struct, structs

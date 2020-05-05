@@ -125,6 +125,9 @@ def get_stats_values_from_trial(plot_dict, stat_name):
     if stat_name == 'timings_construction':
         return plot_dict['timings']['construction']
 
+    elif stat_name == 'timings_setup':
+        return plot_dict['timings']['setup']
+
     elif stat_name == 'timings_optimization':
         return plot_dict['timings']['optimization']
 

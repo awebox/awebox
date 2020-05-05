@@ -1,4 +1,3 @@
-
 #
 #    This file is part of awebox.
 #
@@ -23,22 +22,36 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-'''
-general induction modelling
+"""
+the linearized Biot-Savart version, for iterative solution.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
-- edit: jochem de schutter, alu-fr 2019
-'''
+- author: rachel leuthold, alu-fr 2020-
+"""
 
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import casadi.tools as cas
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
-def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = []
-    layer_nodes = architecture.layer_nodes
+def get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters):
 
-    for layer in layer_nodes:
-        rot_matr_residual = general_geom.get_rot_matr_residual(options, layer, variables, parameters, architecture)
-        resi = cas.vertcat(resi, rot_matr_residual)
+    lin_params = parameters['lin']
 
-    return resi
+    var_sym = {}
+    var_sym_cat = []
+    var_actual_cat = []
+    for var_type in variables.keys():
+        var_sym[var_type] = variables[var_type](cas.SX.sym(var_type, (variables[var_type].cat.shape)))
+        var_sym_cat = cas.vertcat(var_sym_cat, var_sym[var_type].cat)
+        var_actual_cat = cas.vertcat(var_actual_cat, variables[var_type].cat)
+
+    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, wind, var_sym, kite, architecture)
+    jac_sym = cas.jacobian(uind_sym, var_sym_cat)
+
+    uind_fun = cas.Function('uind_fun', [var_sym_cat], [uind_sym])
+    jac_fun = cas.Function('jac_fun', [var_sym_cat], [jac_sym])
+
+    slope = jac_fun(lin_params)
+    const = uind_fun(lin_params)
+
+    uind_lin = cas.mtimes(slope, var_actual_cat) + const
+
+    return uind_lin

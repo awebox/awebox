@@ -32,28 +32,21 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
 import awebox.mdl.aero.induction_dir.general_dir.general as general
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import casadi.tools as cas
 
+### residuals
+
 def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
 
-    comparison_labels = options['aero']['induction']['comparison_labels']
-    if comparison_labels:
-        general_resi = general.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-        resi = cas.vertcat(resi, general_resi)
+    ind_resi = get_induction_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, ind_resi)
 
-    any_act = any(label[:3] == 'act' for label in comparison_labels)
-    if any_act:
-        actuator_resi = actuator.get_trivial_residual(options, atmos, wind, variables, parameters, outputs,
-                                                      architecture)
-        resi = cas.vertcat(resi, actuator_resi)
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        vortex_resi = vortex.get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-        resi = cas.vertcat(resi, vortex_resi)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
@@ -61,24 +54,93 @@ def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, a
 def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     resi = []
 
+    ind_resi = get_induction_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, ind_resi)
+
+    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, spec_resi)
+
+    return resi
+
+def get_induction_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+    resi = []
+
+    for kite in architecture.kite_nodes:
+        ind_val = cas.DM.zeros((3, 1))
+        ind_var = get_kite_induced_velocity_var(variables, wind, kite)
+        ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
+        resi = cas.vertcat(resi, ind_resi)
+
+    return resi
+
+def get_induction_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+    resi = []
+
+    for kite in architecture.kite_nodes:
+        ind_val = get_kite_induced_velocity_val(options, wind, variables, kite, architecture, parameters)
+        ind_var = get_kite_induced_velocity_var(variables, wind, kite)
+        ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
+        resi = cas.vertcat(resi, ind_resi)
+
+    return resi
+
+def get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture):
+    resi = []
+
     comparison_labels = options['aero']['induction']['comparison_labels']
     if comparison_labels:
-        general_resi = general.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        general_resi = general.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
         resi = cas.vertcat(resi, general_resi)
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        actuator_resi = actuator.get_final_residual(options, atmos, wind, variables, parameters, outputs,
-                                                      architecture)
+        actuator_resi = actuator.get_residual(options, atmos, wind, variables, parameters, outputs,
+                                              architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        vortex_resi = vortex.get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
         resi = cas.vertcat(resi, vortex_resi)
 
     return resi
 
+
+## velocities
+
+def get_kite_induced_velocity_var(variables, wind, kite):
+    ind_var = variables['xl']['ui' + str(kite)] * wind.get_velocity_ref()
+    return ind_var
+
+def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters):
+    induction_model = model_options['induction_model']
+    parent = architecture.parent_map[kite]
+
+    use_vortex_linearization = model_options['aero']['vortex']['use_linearization']
+
+    u_ind_kite = cas.DM.zeros((3, 1))
+    if induction_model == 'actuator':
+        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, wind, kite, parent)
+    elif induction_model == 'vortex' and not use_vortex_linearization:
+        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
+    elif induction_model == 'vortex' and use_vortex_linearization:
+        u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters)
+
+    return u_ind_kite
+
+
+def get_kite_effective_velocity(model_options, variables, wind, kite, architecture):
+
+    parent = architecture.parent_map[kite]
+
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
+    u_ind_kite = get_kite_induced_velocity_var(variables, wind, kite)
+    u_eff_kite = u_app_kite + u_ind_kite
+
+    return u_eff_kite
+
+
+#### outputs
 
 def collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
 
@@ -91,19 +153,6 @@ def collect_outputs(options, atmos, wind, variables, outputs, parameters, archit
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
         outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables, architecture)
 
     return outputs
-
-def get_kite_effective_velocity(model_options, variables, wind, kite, architecture):
-    induction_model = model_options['induction_model']
-    parent = architecture.parent_map[kite]
-
-    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
-
-    u_eff_kite = u_app_kite
-    if induction_model == 'actuator':
-        u_eff_kite = actuator_flow.get_kite_effective_velocity(model_options, variables, wind, kite, parent)
-    if induction_model == 'vortex':
-        u_eff_kite = vortex_flow.get_kite_effective_velocity(model_options, variables, wind, kite, architecture)
-
-    return u_eff_kite

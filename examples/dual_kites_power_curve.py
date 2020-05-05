@@ -48,6 +48,7 @@ sweep_opts = [(['user_options', 'wind', 'u_ref'], np.linspace(3,15,5, endpoint=T
 ##################
 
 sweep = awe.Sweep(name = 'dual_kites_power_curve', options = options, seed = sweep_opts)
+sweep.build()
 sweep.run()
 sweep.plot('comp_stats')
 plt.show()

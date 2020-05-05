@@ -188,18 +188,6 @@ def get_thrust_residual(model_options, atmos, wind, variables, parameters, outpu
     return resi_scaled
 
 
-def get_thrust_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    thrust_ref = get_thrust_ref(model_options, atmos, wind, parameters)
-    area_ref = actuator_geom.get_area_ref(model_options, parameters)
-    qzero_ref = actuator_flow.get_qzero_ref(atmos, wind)
-
-    ct_var = get_ct_var(model_options, variables, parent)
-
-    resi_unscaled = thrust_ref - ct_var * area_ref * qzero_ref
-    resi_scaled = resi_unscaled / thrust_ref
-
-    return resi_scaled
-
 def get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
 
     cmy_var = get_cmy_var(variables, parent)
@@ -222,17 +210,6 @@ def get_moments_residual(model_options, atmos, wind, variables, parameters, outp
 
     return resi_combi
 
-def get_moments_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-
-    cmy_var = get_cmy_var(variables, parent)
-    cmz_var = get_cmz_var(variables, parent)
-
-    resi_moment_y = cmy_var
-    resi_moment_z = cmz_var
-
-    resi_combi = cas.vertcat(resi_moment_y, resi_moment_z)
-
-    return resi_combi
 
 
 
@@ -351,12 +328,4 @@ def get_t_star_residual(model_options, atmos, wind, variables, parameters, outpu
 
     return resi
 
-
-def get_t_star_trivial(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    dt_var = get_t_star_var(variables, parent)
-    t_star_ref = get_t_star_ref(model_options, wind, parameters)
-
-    resi = (dt_var / t_star_ref - 1.)
-
-    return resi
 

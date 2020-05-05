@@ -57,7 +57,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
         ('user_options',    'system_model',None,        'architecture',          {1:0, 2:1, 3:1},    ('choose tuple (layers,siblings)', None),'t'),
         ('user_options',    'system_model',None,        'cross_tether',          False,              ('enable cross_tether', [True, False]),'t'),
-        ('user_options',    'wind',        None,        'model',                 'log_wind',         ('possible options', ['log_wind', 'uniform', 'datafile']),'x'),
+        ('user_options',    'wind',        None,        'model',                 'log_wind',         ('possible options', ['log_wind', 'power', 'uniform', 'datafile']),'x'),
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
@@ -92,31 +92,35 @@ def set_default_options(default_user_options, help_options):
         ('params',  'atmosphere', None, 'c_sutherland',   120., ('sutherland constant relating dynamic viscosity to air temperature [K]', None),'s'),
 
         ## wind mode
-        ('params', 'wind', 'log_wind', 'z_ref',     10.,  ('reference height [m]', None),'s'),
-        ('params', 'wind', 'log_wind', 'z0_air',    0.1,  ('surface roughness length of log-wind profile [m], (0.1: roughness farm land with wind breaks more than 1km apart)', None),'s'),
+        ('params', 'wind', None,        'z_ref',    10.,    ('reference height [m]', None),'s'),
+        ('params', 'wind', 'log_wind',  'z0_air',   0.1,    ('surface roughness length of log-wind profile [m], (0.1: roughness farm land with wind breaks more than 1km apart)', None),'s'),
+        ('params', 'wind', 'power_wind','exp_ref',  0.15,   ('terrain-specific exponent for power law wind-profile [-], (0.1: smooth hard ground, calm water, 0.15: tall grass on level ground, 0.2: high crops, hedges and shrubs, 0.3: small town with trees and shrubs, 0.4: large city with tall buildings. see Masters2013.', None), 's'),
 
         ## aero model
         ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',          ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
         ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
+
+        ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
+
         ('model', 'aero', 'actuator',   'a_ref',        1./3.,              ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
         ('model', 'aero', 'actuator',   'a_range',      [-0.5, 0.5],        ('allowed range for induction factors', None),'x'),
         ('model', 'aero', 'actuator',   'scaling',      1.,                 ('scaling factor for the actuator-disk residual', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_ref',   6.,                 ('approximation of the relative orbit radius, for normalization of the actuator disk equations', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_range', [0., cas.inf],      ('allowed range for the relative orbit radius, for normalization of the actuator disk equations', None), 'x'),
         ('model', 'aero', 'actuator',   'steadyness',   'quasi-steady',     ('selection of steady vs unsteady actuator disk model', ['quasi-steady', 'unsteady']),'x'),
-        ('model', 'aero', 'actuator',   'symmetry',     'asymmetric',       ('selection of axisymmetric vs asymmetric actuator disk model', ['axisymmetric', 'asymmetric']), 'x'),
-	    ('model', 'aero', 'actuator', 	'steadyness_comparison', [],        ('which steady models should we include for comparison', [['q', 'u']]), 'x'),
-	    ('model', 'aero', 'actuator', 	'symmetry_comparison', 	 [],        ('which symmetry models should we include for comparison', [['axi', 'asym']]), 'x'),
+        ('model', 'aero', 'actuator',   'symmetry',     'axisymmetric',     ('selection of axisymmetric vs asymmetric actuator disk model', ['axisymmetric', 'asymmetric']), 'x'),
+	    ('model', 'aero', 'actuator', 	'steadyness_comparison', [],        ('which steady models should we include for comparison', ['q', 'u']), 'x'),
+	    ('model', 'aero', 'actuator', 	'symmetry_comparison', 	 [],        ('which symmetry models should we include for comparison', ['axi', 'asym']), 'x'),
         ('model', 'aero', 'actuator',   'actuator_skew',        'simple',   ('which actuator-skew angle correction to apply', ['not_in_use', 'glauert', 'coleman', 'simple']), 'x'),
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
 
-        ('model', 'aero', None,         'induction_comparison', [],         ('which induction models should we include for comparison', [['act', 'vor']]), 'x'),
         ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -379,7 +383,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
         ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
-        ('solver',  None,   None,   'acceptable_iter_hippo',5,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
+        ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None,   'ua_norm',               60.,       ('initial guess of apparent kite speed [m/s]', None),'x'),
         ('solver',  'initialization', None,   'incid_deg',             15.,       ('initial tether elevation angle [deg]', None),'x'),

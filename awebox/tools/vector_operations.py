@@ -35,6 +35,7 @@ import scipy.sparse as sps
 
 import casadi.tools as cas
 import numpy as np
+from awebox.logger.logger import Logger as awelogger
 
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
@@ -383,18 +384,22 @@ def estimate_1d_frequency(x, sample_step=1, dt=1.0):
 
 # Checks if a matrix is a valid rotation matrix.
 def isRotationMatrix(R):
-    Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-1
 
+    diff = cas.DM.eye(3) - cas.mtimes(R.T, R)
+    diff_vert = cas.reshape(diff, (9, 1))
+    resi = norm(diff_vert)**0.5
+
+    threshold = 1.e-1
+
+    return resi < threshold
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
 # of the euler angles ( x and z are swapped ).
 def rotationMatrixToEulerAngles(R):
-    assert (isRotationMatrix(R))
+
+    if not isRotationMatrix(R):
+        awelogger.logger.warning('given rotation matrix is not a member of SO(3).')
 
     sy = np.math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
 
