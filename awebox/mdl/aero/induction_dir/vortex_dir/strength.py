@@ -67,7 +67,7 @@ def fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period):
                             g_bounds['lb'].append(np.zeros(resi.shape))
 
     elif period == 1:
-        g_list, g_bounds = fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, model)
+        g_list, g_bounds = get_residual_for_periodic_vortices(options, g_list, g_bounds, V, Outputs, model)
 
     return g_list, g_bounds
 
@@ -137,7 +137,7 @@ def get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_s
 
 
 
-def fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, model):
+def get_residual_for_periodic_vortices(options, g_list, g_bounds, V, Outputs, model):
     n_k = options['n_k']
     d = options['collocation']['d']
 
@@ -148,7 +148,7 @@ def fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, mo
             for ddx in range(d):
                 for ndx_shed in range(n_k):
                     for ddx_shed in range(d):
-                        resi = get_residual_for_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
+                        resi = get_residual_for_specific_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
 
                         g_list.append(resi)
                         g_bounds['ub'].append(np.zeros(resi.shape))
@@ -157,7 +157,7 @@ def fix_strengths_of_periodic_vortices(options, g_list, g_bounds, V, Outputs, mo
     return g_list, g_bounds
 
 
-def get_residual_for_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
+def get_residual_for_specific_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
     architecture = model.architecture
     parent = architecture.parent_map[kite]
     period = 1

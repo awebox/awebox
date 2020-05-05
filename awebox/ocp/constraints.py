@@ -256,11 +256,13 @@ def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, mo
     comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
 
+    if periods_tracked > 1:
+        periods_tracked = 1
+
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
         for period in range(periods_tracked):
-            if period < 2:
-                g_list, g_bounds = vortex_strength.fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
+            g_list, g_bounds = vortex_strength.fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
 
     return [g_list, g_bounds]
 

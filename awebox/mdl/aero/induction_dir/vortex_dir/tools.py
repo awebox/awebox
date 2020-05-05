@@ -180,8 +180,14 @@ def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked
 
     all_ordered = []
     for period in range(periods_tracked):
-        var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+
+        period_chopped = period
+        if period > 0:
+            period_chopped = 1
+
+        var_name = 'wg' + '_' + str(period_chopped) + '_' + str(kite) + str(parent)
         var = variables_xl[var_name]
+
         var_ordered = get_time_ordered_strength(n_k, d, var)
         all_ordered = cas.vertcat(all_ordered, var_ordered)
 

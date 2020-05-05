@@ -214,6 +214,9 @@ def get_vortex_strength_constraints(options, variables, architecture):
     periods_tracked = options['induction']['vortex_periods_tracked']
     kite_nodes = architecture.kite_nodes
 
+    if periods_tracked > 1:
+        periods_tracked = 1
+
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
 
