@@ -204,14 +204,7 @@ def generate_structure(options, architecture):
 def extend_general_induction(options, system_lifted, system_states, architecture):
 
     for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-        system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('ui' + str(kite), (3, 1))])
-
-    for layer_node in architecture.layer_nodes:
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
     return system_lifted, system_states
 
@@ -226,8 +219,10 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
         for period in range(periods_tracked):
-            gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-            system_lifted.extend([(gamma_name, (n_k * d, 1))])
+
+            if period < 2:
+                gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+                system_lifted.extend([(gamma_name, (n_k * d, 1))])
 
             for dim in ['x', 'y', 'z']:
                 for tip in wingtips:
@@ -251,6 +246,8 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
+
+        system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
         system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
@@ -285,6 +282,10 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         if any_asym:
             system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
             system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])

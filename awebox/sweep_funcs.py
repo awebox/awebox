@@ -111,9 +111,12 @@ def make_warmstarting_decisions(name, user_defined_warmstarting_file = None, app
     dir_path = os.getcwd()
     prev_trial_save_name = dir_path + '/' + name
 
-    warmstart_file = user_defined_warmstarting_file
-    if (warmstart_file == None) and apply_sweeping_warmstart and have_already_saved_prev_trial:
+    if not (user_defined_warmstarting_file == None):
+        warmstart_file = user_defined_warmstarting_file
+    elif apply_sweeping_warmstart and have_already_saved_prev_trial:
         warmstart_file = prev_trial_save_name
+    else:
+        warmstart_file = None
 
     return warmstart_file, prev_trial_save_name
 

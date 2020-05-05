@@ -43,7 +43,7 @@ def get_induced_velocity_at_kite(model_options, wind, variables, kite, architect
         var_sym_cat = cas.vertcat(var_sym_cat, var_sym[var_type].cat)
         var_actual_cat = cas.vertcat(var_actual_cat, variables[var_type].cat)
 
-    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, wind, var_sym, kite, architecture)
+    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, wind, var_sym, parameters, kite, architecture)
     jac_sym = cas.jacobian(uind_sym, var_sym_cat)
 
     uind_fun = cas.Function('uind_fun', [var_sym_cat], [uind_sym])

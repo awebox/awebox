@@ -78,6 +78,9 @@ def get_residual(model_options, atmos, wind, variables, parameters, outputs, arc
             moments_final = actuator_coeff.get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
             all_residuals = cas.vertcat(all_residuals, moments_final)
 
+        rot_matr_residual = general_geom.get_rot_matr_residual(model_options, parent, variables, parameters, architecture)
+        all_residuals = cas.vertcat(all_residuals, rot_matr_residual)
+
         thrust_final = actuator_coeff.get_thrust_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
         all_residuals = cas.vertcat(all_residuals, thrust_final)
 

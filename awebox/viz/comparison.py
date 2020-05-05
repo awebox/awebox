@@ -69,7 +69,7 @@ def compare_convergence(plot_dict, cosmetics, fig_name):
 
 def compare_stats(sweep_dict, cosmetics, fig_name):
 
-    interesting_stats = ['power_output', 'zeta', 'power_per_surface_area', 'loyd_factor']
+    interesting_stats = ['power_output_kw', 'zeta', 'power_per_surface_area', 'loyd_factor']
     comparison_plot(sweep_dict, cosmetics, fig_name, interesting_stats)
 
 def compare_parameters(plot_dict, cosmetics, fig_name):
@@ -145,7 +145,7 @@ def get_stats_values_from_trial(plot_dict, stat_name):
     elif stat_name == 'zeta':
         return float(plot_dict['power_and_performance']['zeta'])
 
-    elif stat_name == 'power_output':
+    elif stat_name == 'power_output_kw':
         return plot_dict['power_and_performance']['avg_power'].full()*1e-3
 
     elif stat_name == 'power_per_surface_area':

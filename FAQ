@@ -236,7 +236,9 @@ The power is defined according to:
 which means that the units of power are:
     units of tension = [N] = (units of lambda multiplier) * [m]
             ==> units of lambda multiplier = [N/m]
-    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [Watts]
+    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [W]
+
+---> However, if you use sweep.plot('comp_stats'), the plotted "power_output_kw" has units of [kW].
 
 
 20. Is there a version of the HSL solver "xxx" binary/dynamic-link-library/etc. available for operating system "yyy"?
@@ -255,7 +257,7 @@ Good luck!
 ----> Include the flag "comp_convergence" into the plot_list.
 ----> A converged trial will have a "return_status_numeric" value of 1 or 2
 
-    sweep.plot(['comp_stats', 'comp_convergence'])
+    sweep.plot(['comp_convergence'])
 
 
 22. How do I know if any particular trial, actually converged?

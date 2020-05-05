@@ -55,7 +55,6 @@ def generate_options_dict():
     actuator_options['user_options']['kite_standard'] = ampyx_data.data_dict()
     actuator_options['user_options']['system_model']['kite_dof'] = 3
     actuator_options['user_options']['induction_model'] = 'actuator'
-    actuator_options['nlp']['n_k'] = 20
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
@@ -92,6 +91,25 @@ def generate_options_dict():
 
     return options_dict
 
+def generate_options_dict_for_trials_that_we_dont_expect_to_solve():
+
+    vortex_options = options.Options(internal_access = True)
+    vortex_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
+    vortex_options['user_options']['kite_standard'] = ampyx_data.data_dict()
+    vortex_options['user_options']['system_model']['kite_dof'] = 6
+    vortex_options['user_options']['induction_model'] = 'vortex'
+    vortex_options['user_options']['tether_drag_model'] = 'single'
+    vortex_options['nlp']['n_k'] = 3
+    vortex_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    vortex_options['model']['aero']['vortex']['periods_tracked'] = 2
+    vortex_options['solver']['max_iter'] = 0
+
+    options_dict = collections.OrderedDict()
+    options_dict['vortex_options'] = vortex_options
+
+    return options_dict
+
+
 def test_trials():
     """
     Test all trials that are defined in options_dict
@@ -105,6 +123,13 @@ def test_trials():
     for trial_name in list(options_dict.keys()):
         trial_options = options_dict[trial_name]
         solve_and_check(trial_options, trial_name)
+
+    options_dict_dont_solve = generate_options_dict_for_trials_that_we_dont_expect_to_solve()
+
+    # loop over trials
+    for trial_name in list(options_dict_dont_solve.keys()):
+        trial_options = options_dict_dont_solve[trial_name]
+        solve_trial(trial_options, trial_name)
 
     return None
 

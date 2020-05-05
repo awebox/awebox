@@ -33,8 +33,8 @@ import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
-import awebox.mdl.aero.induction_dir.general_dir.general as general
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
 ### residuals
@@ -88,9 +88,6 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
     resi = []
 
     comparison_labels = options['aero']['induction']['comparison_labels']
-    if comparison_labels:
-        general_resi = general.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-        resi = cas.vertcat(resi, general_resi)
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
@@ -117,14 +114,19 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     parent = architecture.parent_map[kite]
 
     use_vortex_linearization = model_options['aero']['vortex']['use_linearization']
+    force_zero = model_options['aero']['vortex']['force_zero']
 
-    u_ind_kite = cas.DM.zeros((3, 1))
     if induction_model == 'actuator':
         u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization:
-        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
+        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, parameters, kite, architecture)
     elif induction_model == 'vortex' and use_vortex_linearization:
         u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters)
+    elif induction_model == 'vortex' and force_zero:
+        u_ind_kite = cas.DM.zeros((3, 1))
+    else:
+        awelogger.logger.warning('Specified induction model is not supported. Consider checking spelling.')
+
 
     return u_ind_kite
 
