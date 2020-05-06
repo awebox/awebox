@@ -80,12 +80,12 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
+    if tether_drag_model in set(['single', 'multi']):
+        homotopy_schedule = homotopy_schedule + tether_schedule
+
     make_induction_step = not (induction_model == 'not_in_use')
     if make_induction_step:
         homotopy_schedule = homotopy_schedule + induction_schedule
-
-    if tether_drag_model in set(['single', 'multi']):
-        homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 
