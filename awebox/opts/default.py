@@ -122,6 +122,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to LES in outputs', [True, False]), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -388,8 +389,8 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',  'initialization', None,   'ua_norm',               60.,       ('initial guess of apparent kite speed [m/s]', None),'x'),
         ('solver',  'initialization', None,   'incid_deg',             15.,       ('initial tether elevation angle [deg]', None),'x'),
-        ('solver',  'initialization', None,   'initialization_type',   'default',       ('set initialization type', None),'t'),
-        ('solver',  'initialization', None,   'winding_period',        10.,        ('initial guess of reasonable period for one winding [s]', None),'x'),
+        ('solver',  'initialization', None,   'initialization_type',   'default', ('set initialization type', None),'t'),
+        ('solver',  'initialization', None,   'winding_period',        10.,       ('initial guess of reasonable period for one winding [s]', None),'x'),
         ('solver',  'initialization', None,   'min_rel_radius',        2.,        ('minimum allowed radius to span ratio allowed in initial guess [-]', None),'x'),
         ('solver',  'initialization', None,   'max_cone_angle_multi',  80.,       ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None,   'max_cone_angle_single', 10.,       ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),

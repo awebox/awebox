@@ -171,9 +171,16 @@ def get_ehat_tether(options):
 
 def get_rotor_reference_frame(initialization_options):
     n_rot_hat = get_ehat_tether(initialization_options)
-    u_hat = vect_op.xhat_np()
-    z_rot_hat = vect_op.normed_cross(u_hat, n_rot_hat)
-    y_rot_hat = vect_op.normed_cross(z_rot_hat, n_rot_hat)
+
+    n_hat_is_x_hat = vect_op.abs(vect_op.norm(n_rot_hat - vect_op.xhat_np())) < 1.e-4
+    if n_hat_is_x_hat:
+        y_rot_hat = vect_op.yhat_np()
+        z_rot_hat = vect_op.zhat_np()
+    else:
+        u_hat = vect_op.xhat_np()
+        z_rot_hat = vect_op.normed_cross(u_hat, n_rot_hat)
+        y_rot_hat = vect_op.normed_cross(z_rot_hat, n_rot_hat)
+
     return n_rot_hat, y_rot_hat, z_rot_hat
 
 def get_ehat_radial(t, options, model, kite, ret={}):

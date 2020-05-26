@@ -35,6 +35,7 @@ import numpy as np
 
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
 
 
@@ -88,7 +89,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     return outputs
 
-def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
+def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
@@ -113,10 +114,8 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
     rho = atmos.get_density(q[2])
     gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
     gamma_cl = 0.5 * ua_norm**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(ua, ehat_span))
-    gamma_unity = cas.DM(1.)
     outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
-    outputs['aerodynamics']['gamma_unity' + str(n)] = gamma_unity
     outputs['aerodynamics']['gamma' + str(n)] = gamma_cl
 
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
@@ -131,6 +130,57 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     outputs['aerodynamics']['mach' + str(n)] = get_mach(options, atmos, ua, q)
     outputs['aerodynamics']['reynolds' + str(n)] = get_reynolds(options, atmos, ua, q, parameters)
+
+    return outputs
+
+def collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, ua):
+    verification_test = options['aero']['vortex']['verification_test']
+
+    if verification_test:
+        # things that are only used for Haas validation case = case of fixed radius
+        u_infty = wind.get_velocity(q[2])
+
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+        rho = atmos.get_density(q[2])
+
+        n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
+        kite_velocity_tangential = ua - cas.mtimes(ua.T, n_hat) * n_hat
+        tangential_speed = vect_op.norm(kite_velocity_tangential)
+
+        kite_speed_ratio = tangential_speed / u_infty
+
+        q_parent = variables['xd', 'q' + str(kite) + str(parent)]
+        tether = q - q_parent
+        radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
+        radius = vect_op.norm(radius_vec)
+        varrho = radius / b_ref
+
+        lift_betz_scale = 4. * b_ref * np.pi * radius * rho * u_infty**3. / tangential_speed
+
+        mu_center = varrho / (varrho + 0.5)
+        tip_speed_ratio = kite_speed_ratio / mu_center
+
+        a_betz = 1./3.
+
+        mu_min = (varrho - 0.5)/(varrho + 0.5)
+        n_steps = 20
+        mu_vals = np.linspace(mu_min, 1., n_steps)
+        delta_mu = mu_vals[1] - mu_vals[0]
+        mu_vals = mu_vals[:-1] + delta_mu / 2. #midpoint rule
+
+        factor = 0.
+        for mu in mu_vals:
+            a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
+            new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
+            factor += new_factor * delta_mu
+
+        lift_betz_optimal = factor * lift_betz_scale
+        outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
+
+        ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
+        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
+        outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
+        outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
     return outputs
 

@@ -93,10 +93,13 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['CY'] = CY
         aero_coefficients['CN'] = CN
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, vec_u_eff, u_eff, aero_coefficients,
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, aero_coefficients,
                                                                f_aero, f_lift, f_drag, f_side, m_aero,
                                                                ehat1, ehat2, kite_dcm, q, kite,
                                                                outputs, parameters)
+
+        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, u_eff)
+
         outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
         outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
         outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle,
