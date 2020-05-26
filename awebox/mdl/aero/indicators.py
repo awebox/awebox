@@ -155,7 +155,7 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
         radius = vect_op.norm(radius_vec)
         varrho = radius / b_ref
 
-        lift_betz_scale = 4. * b_ref * np.pi * radius * rho * u_infty**3. / tangential_speed
+        lift_betz_scale = 4. * np.pi * rho * b_ref * radius**3. / (radius + 0.5 * b_ref) * u_infty**3. / tangential_speed
 
         mu_center = varrho / (varrho + 0.5)
         tip_speed_ratio = kite_speed_ratio / mu_center

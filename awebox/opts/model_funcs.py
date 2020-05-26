@@ -725,7 +725,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     energy_scaling = 1e4
     power_cost = 1e-1
 
-    kite_poss = ['ampyx', 'boeing747', 'bubble']
+    kite_poss = ['ampyx', 'boeing747', 'bubble', 'c5a']
     induction_poss = ['not_in_use', 'actuator', 'vortex']
     kite_dof_poss = [3, 6]
     children_poss = [1, 2, 3, 4, 5, 6, 7, 8]
