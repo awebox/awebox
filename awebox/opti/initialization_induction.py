@@ -124,6 +124,7 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, options, nlp, model, V
     d = nlp.d
     dims = ['x', 'y', 'z']
     wingtips = ['ext', 'int']
+    U_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
 
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
@@ -145,7 +146,7 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, options, nlp, model, V
                         all_xd = cas.vertcat(start_xd, regular_xd)
                         V_init['xd', ndx, var_name] = all_xd
 
-                        # V_init['xd', ndx, 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                        V_init['xd', ndx, 'd' + var_name] = np.ones(all_xd.shape) * U_ref[jdx]
 
                         for ddx in range(d):
                             start_coll = dict_coll[kite][tip][dim][period][ndx][ddx]['start']
@@ -153,7 +154,7 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, options, nlp, model, V
                             all_coll = cas.vertcat(start_coll, regular_coll)
                             V_init['coll_var', ndx, ddx, 'xd', var_name] = all_coll
 
-                            # V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones((n_nodes, 1)) * U_ref[jdx]
+                            V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones(all_coll.shape) * U_ref[jdx]
     return V_init
 
 
