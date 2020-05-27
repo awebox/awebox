@@ -112,6 +112,13 @@ class Pmpc(object):
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
+        # remove state constraints at k = 0
+        self.__trial.nlp.V_bounds['lb']['xd',0] = - np.inf
+        self.__trial.nlp.V_bounds['ub']['xd',0] = np.inf
+        g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
+        g_ub['stage_constraints',0,:,'path_constraints'] = np.inf
+        self.__trial.nlp.g_bounds['ub'] = g_ub.cat
+
         return None
 
     def __construct_solver(self):
