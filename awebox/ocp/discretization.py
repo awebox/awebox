@@ -438,8 +438,10 @@ def discretize(nlp_numerics_options, model, formulation):
                                         g_list, g_bounds, coll_dynamics[:,kdx*d+ddx])
 
                 # at each (except for first node) collocation node, path constraints should be satisfied
-                [g_list, g_bounds] = constraints.append_path_constraints(
-                                        g_list, g_bounds, path_constraints, coll_constraints[:,kdx*d+ddx])
+                there_are_path_constraints = len(path_constraints.keys()) > 0
+                if there_are_path_constraints:
+                    [g_list, g_bounds] = constraints.append_path_constraints(
+                                            g_list, g_bounds, path_constraints, coll_constraints[:,kdx*d+ddx])
 
                 # compute outputs for this time interval
                 Outputs_list.append(coll_outputs[:,kdx*d+ddx])

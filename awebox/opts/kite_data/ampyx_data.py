@@ -45,10 +45,11 @@ def geometry():
     geometry = {}
     # 'aerodynamic parameter identification for an airborne wind energy pumping system', licitra, williams, gillis, ghandchi, sierbling, ruiterkamp, diehl, 2017
     # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
-    geometry['m_k'] = 36.8  # [kg]
-    geometry['s_ref'] = 3.  # [m^2]
     geometry['b_ref'] = 5.5  # [m]
-    geometry['c_ref'] = 0.55  # [m]
+    geometry['s_ref'] = 3.  # [m^2]
+    geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m]
+
+    geometry['m_k'] = 36.8  # [kg]
 
     geometry['ar'] = geometry['b_ref'] / geometry['c_ref']
     geometry['j'] = np.array([[25., 0.0, 0.47],

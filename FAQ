@@ -217,7 +217,12 @@ INFO:	solver return status..........: Solve_Succeeded
 
 What's going wrong? 
 
-It's most likely that you don't have enough collocation intervals in your problem! Please increase this number using the options inputs:
+When we generate the time-series information for plotting, we have to interpolate the discretized optimization variables.
+This includes the rotation matrix. If there are too few data points found from the optimization, then this
+interpolation may create rotation matrices that are not (even roughly) rotation matrices.
+
+If this is a problem for you, it's most likely that you don't have enough collocation intervals in your problem!
+Please increase this number using the options inputs:
 
 ---> options['nlp']['n_k'] = n_k
 
@@ -267,3 +272,18 @@ Good luck!
 
     return_status_numeric = trial.return_status_numeric
 
+
+
+23. I want to run an axi-symmetric simulation (where the wind axis is parallel to the main tether). What should I do?
+
+You will need to remove the ground constraints, remove gravity, and make the wind and atmosphere uniform. You can do this with:
+
+    options['user_options']['wind']['model'] = 'uniform'
+    options['user_options']['atmosphere'] = 'uniform'
+    options['model']['system_bounds']['xd']['q'] = [np.array([-cas.inf, -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])]
+    options['model']['system_bounds']['xd']['wz_ext'] = [-cas.inf, cas.inf]
+    options['model']['system_bounds']['xd']['wz_int'] = [-cas.inf, cas.inf]
+    options['params']['atmosphere']['g'] = 0.
+
+It's also helpful to initialize according to the axi-symmetry that you're expecting:
+    options['solver']['initialization']['incid_deg'] = 0.

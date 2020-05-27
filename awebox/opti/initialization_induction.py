@@ -56,22 +56,6 @@ def initial_guess_induction(options, nlp, formulation, model, V_init):
 
 
 def initial_guess_general(options, nlp, formulation, model, V_init):
-
-    n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(options)
-    rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
-    rot_matr_cols = cas.reshape(rot_matr, (9, 1))
-
-    dict = {}
-    dict['rot_matr'] = rot_matr_cols
-    dict['n_vec_length'] = cas.DM(1.)
-
-    var_type = 'xl'
-    for name in struct_op.subkeys(model.variables, 'xl'):
-        name_stripped = struct_op.get_node_variable_name(name)
-
-        if name_stripped in dict.keys():
-            V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
-
     return V_init
 
 
@@ -435,12 +419,18 @@ def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
     uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
     uzero_matr_cols = cas.reshape(uzero_matr, (9, 1))
 
+    n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(options)
+    rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
+    rot_matr_cols = cas.reshape(rot_matr, (9, 1))
+
     dict = {}
+    dict['rot_matr'] = rot_matr_cols
     dict['area'] = cas.DM(1.)
     dict['cmy'] = cas.DM(0.)
     dict['cmz'] = cas.DM(0.)
     dict['uzero_matr'] = uzero_matr_cols
     dict['g_vec_length'] = cas.DM(1.)
+    dict['n_vec_length'] = cas.DM(1.)
     dict['z_vec_length'] = cas.DM(1.)
     dict['u_vec_length'] = cas.DM(1.)
     dict['varrho'] = cas.DM(1.)

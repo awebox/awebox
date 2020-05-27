@@ -32,7 +32,6 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
@@ -137,8 +136,9 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
     verification_test = options['aero']['vortex']['verification_test']
 
     if verification_test:
+
         # things that are only used for Haas validation case = case of fixed radius
-        u_infty = wind.get_velocity(q[2])
+        u_infty = vect_op.norm(wind.get_velocity(q[2]))
 
         b_ref = parameters['theta0', 'geometry', 'b_ref']
         rho = atmos.get_density(q[2])
@@ -149,7 +149,12 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
 
         kite_speed_ratio = tangential_speed / u_infty
 
-        q_parent = variables['xd', 'q' + str(kite) + str(parent)]
+        if parent > 0:
+            grandparent = architecture.parent_map[parent]
+            q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+        else:
+            q_parent = cas.DM.zeros((3, 1))
+
         tether = q - q_parent
         radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
         radius = vect_op.norm(radius_vec)
@@ -164,12 +169,12 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
 
         mu_min = (varrho - 0.5)/(varrho + 0.5)
         n_steps = 20
-        mu_vals = np.linspace(mu_min, 1., n_steps)
-        delta_mu = mu_vals[1] - mu_vals[0]
-        mu_vals = mu_vals[:-1] + delta_mu / 2. #midpoint rule
+        delta_mu = (1. - mu_min) / n_steps
 
         factor = 0.
-        for mu in mu_vals:
+        for mdx in range(n_steps - 1):
+            mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
+
             a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
             new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
             factor += new_factor * delta_mu

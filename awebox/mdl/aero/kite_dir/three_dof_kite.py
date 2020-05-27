@@ -63,7 +63,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         rho = atmos.get_density(q[2])
         q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
-        f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters)
+        f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
         coeff_body = f_aero_body / q_eff / s_ref
         CA = coeff_body[0]
         CY = coeff_body[1]
@@ -98,7 +98,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
                                                                ehat1, ehat2, kite_dcm, q, kite,
                                                                outputs, parameters)
 
-        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, u_eff)
+        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, vec_u_eff)
 
         outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
         outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
@@ -121,7 +121,7 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters)
+        f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
 
         vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
         kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
@@ -137,7 +137,7 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
         f_found = f_body_frame
 
-        f_scale = tools.get_f_scale(parameters)
+        f_scale = tools.get_f_scale(parameters, options)
 
         resi_f_kite = (f_aero_var - f_found) / f_scale
 
