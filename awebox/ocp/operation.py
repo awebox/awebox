@@ -73,7 +73,7 @@ def determine_if_terminal_inequalities(options):
 def determine_if_periodic(options):
 
     enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'aero_test', 'launch','mpc']:
+    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
          enforce_periodicity = bool(False)
 
     return enforce_periodicity

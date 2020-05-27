@@ -43,9 +43,6 @@ def guess_tf(initialization_options, model, formulation, n_min = None, d_min = N
     elif initialization_options['type'] == 'transition':
         tf_guess = guess_tf_transition()
 
-    elif initialization_options['type'] == 'aero_test':
-        _, tf_guess = guess_radius_and_tf_aero_test(initialization_options)
-
     else:
         _, tf_guess = guess_radius_and_tf_standard(initialization_options, model)
 
@@ -63,16 +60,6 @@ def guess_tf_nominal_or_compromised(initialization_options, formulation, n_min, 
     return tf_guess
 
 
-
-def guess_radius_and_tf_aero_test(initialization_options):
-    radius = 999.
-
-    if initialization_options['aero_test']['omega'] > 0:
-        tf_guess = initialization_options['aero_test']['total_periods'] * (2. * np.pi / initialization_options['aero_test']['omega'])
-    else:
-        tf_guess = initialization_options['aero_test']['total_periods']
-
-    return radius, tf_guess
 
 
 def guess_radius_and_tf_standard(initialization_options, model):

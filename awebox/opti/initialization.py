@@ -183,9 +183,6 @@ def extract_time_grid(model, nlp, formulation, initialization_options, V_init, t
         elif initialization_options['type'] in ['transition']:
             guess = initial_guess_transition(t, initialization_options, model, formulation, tf_init, n_min_0, d_min_0, n_min_f, d_min_f)
 
-        elif initialization_options['type'] == 'aero_test':
-            guess = initial_guess_aero_test(t, initialization_options, model, formulation)
-
         else:
             guess = initial_guess(t, initialization_options, nlp, model, formulation)
 
@@ -202,9 +199,6 @@ def extract_time_grid(model, nlp, formulation, initialization_options, V_init, t
 
                 elif initialization_options['type'] in ['transition']:
                     guess = initial_guess_transition(t, initialization_options, model, formulation, tf_init, n_min_0, d_min_0, n_min_f, d_min_f)
-
-                elif initialization_options['type'] == 'aero_test':
-                    guess = initial_guess_aero_test(t, initialization_options, model, formulation)
 
                 else:
                     guess = initial_guess(t, initialization_options, nlp, model, formulation)
@@ -419,22 +413,6 @@ def initial_guess_landing(t, initialization_options, model, formulation, t_f, n_
     return ret
 
 
-def initial_guess_aero_test(t, initialization_options, model, formulation):
-    ret = {}
-    for name in struct_op.subkeys(model.variables, 'xd'):
-        ret[name] = 0.0
-    ret['e'] = 0.0
-
-    l_t, dl_t, _, _, _, _ = get_aero_test_values(t, initialization_options)
-
-    ret['l_t'] = l_t
-    ret['dl_t'] = dl_t
-
-    ret = initial_node_variables_for_aero_test_test(t, initialization_options, model, formulation, ret)
-
-    return ret
-
-
 def initial_guess(t, options, nlp, model, formulation):
     ret = {}
     for name in struct_op.subkeys(model.variables, 'xd'):
@@ -445,24 +423,6 @@ def initial_guess(t, options, nlp, model, formulation):
     ret['dl_t'] = 0.0
 
     ret = initial_node_variables_for_standard_path(t, options, model, formulation, ret)
-
-    return ret
-
-
-def initial_node_variables_for_aero_test_test(t, options, model, formulation, ret={}):
-
-    kite_nodes = model.architecture.kite_nodes
-
-    if len(kite_nodes) > 1:
-        awelogger.logger.error('pitch-plunge test only defined (to date) for one wing')
-
-    _, _, q10, dq10, r_dcm, omega = get_aero_test_values(t, options)
-
-    ret['q10'] = q10
-    ret['dq10'] = dq10
-
-    ret['r10'] = r_dcm
-    ret['omega10'] = omega
 
     return ret
 
@@ -541,40 +501,6 @@ def get_cross_tether_dcm(options, dcm):
 
 
 
-
-
-
-
-def get_aero_test_values(t, options):
-
-    h_0 = options['aero_test']['h_0']
-    phi_0 = options['aero_test']['phi_0']
-    omega = options['aero_test']['omega']
-
-    h = h_0 * np.sin(omega * t)
-    dh = h_0 * np.cos(omega * t) * omega
-    dh = -1. * h_0 * np.sin(omega * t) * omega**2.
-
-    phi = phi_0 * np.cos(omega * t)
-    dphi = -1. * phi_0 * np.sin(omega * t) * omega
-    ddphi = -1. * phi_0 * np.cos(omega * t) * omega**2.
-
-    l_t = h + 3.
-    dl_t = dh
-
-    q10 = l_t * vect_op.zhat_np()
-    dq10 = dl_t * vect_op.zhat_np()
-
-    ehat1 = np.cos(phi) * vect_op.xhat_np() - np.sin(phi) * vect_op.zhat_np()
-    ehat2 = vect_op.yhat_np()
-    ehat3 = np.cos(phi) * vect_op.zhat_np() + np.sin(phi) * vect_op.xhat_np()
-
-    r_dcm = cas.horzcat(ehat1, ehat2, ehat3)
-    r_dcm = cas.reshape(r_dcm, (9, 1))
-
-    omega = dphi * ehat2
-
-    return l_t, dl_t, q10, dq10, r_dcm, omega
 
 
 

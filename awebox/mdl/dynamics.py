@@ -575,19 +575,13 @@ def fictitious_embedding(options, p_dec, u, outputs, n, parent):
     fict_force = u['f_fict' + str(n) + str(parent)]
     true_force = outputs['aerodynamics']['f_aero' + str(n)]
 
-    if options['trajectory']['type'] == 'aero_test':
-        homotopy_force = fict_force
-    else:
-        homotopy_force = p_dec['gamma'] * fict_force + true_force
+    homotopy_force = p_dec['gamma'] * fict_force + true_force
 
     if int(options['kite_dof']) == 6:
         fict_moment = u['m_fict' + str(n) + str(parent)]
         true_moment = outputs['aerodynamics']['m_aero' + str(n)]
 
-        if options['trajectory']['type'] == 'aero_test':
-            homotopy_moment = fict_moment
-        else:
-            homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
+        homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
     else:
         homotopy_moment = []
 

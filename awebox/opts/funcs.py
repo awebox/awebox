@@ -113,7 +113,7 @@ def share_trajectory_type(options, options_tree=[]):
 
     trajectory_type = user_options['trajectory']['type']
     system_type = user_options['trajectory']['system_type']
-    descript = ('type of trajectory to optimize', ['power_cycle', 'transition', 'aero_test', 'mpc'])
+    descript = ('type of trajectory to optimize', ['power_cycle', 'transition', 'mpc'])
 
     options_tree.append(('nlp', None, None, 'type', trajectory_type, descript,'x'))
     options_tree.append(('formulation', 'trajectory', None, 'type', trajectory_type, descript,'x'))
@@ -142,27 +142,6 @@ def share_trajectory_type(options, options_tree=[]):
         options_tree.append(('formulation', 'trajectory', 'transition', 'initial_trajectory', user_options['trajectory']['transition']['initial_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
     if trajectory_type in ['transition','launch']:
         options_tree.append(('formulation', 'trajectory', 'transition', 'terminal_trajectory', user_options['trajectory']['transition']['terminal_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
-
-    if trajectory_type == 'aero_test':
-
-        phi0_val = user_options['trajectory']['aero_test']['phi_0']
-        phi0_descript = ('pitch angle amplitude for pitch-plunge test [rad]', None)
-        h0_val = user_options['trajectory']['aero_test']['h_0']
-        h0_descript = ('plunge amplitude for pitch-plunge test [m]', None)
-        omega_val = user_options['trajectory']['aero_test']['omega']
-        omega_descript = ('frequency of pitching/plunging motion for pitch-plunge test [rad/s]', None)
-
-        options_tree.append(('formulation', 'trajectory', 'aero_test', 'phi_0', phi0_val, phi0_descript,'x'))
-        options_tree.append(('formulation', 'trajectory', 'aero_test', 'h_0', h0_val, h0_descript,'x'))
-        options_tree.append(('formulation', 'trajectory', 'aero_test', 'omega', omega_val, omega_descript,'x'))
-
-        options_tree.append(('solver', 'initialization', 'aero_test', 'phi_0', phi0_val, phi0_descript,'x'))
-        options_tree.append(('solver', 'initialization', 'aero_test', 'h_0', h0_val, h0_descript,'x'))
-        options_tree.append(('solver', 'initialization', 'aero_test', 'omega', omega_val, omega_descript,'x'))
-
-        options_tree.append(('solver', 'initialization', 'aero_test', 'total_periods',
-                             options['formulation']['trajectory']['aero_test']['total_periods'],
-                             ('total number of oscillations of the wing', None),'x'))
 
     return options_tree
 
@@ -293,12 +272,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
 
-    if user_options['trajectory']['type'] == 'aero_test':
-        options_tree.append(('solver', None, None, 'fixed_q_r_values', True,
-                             ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
-    else:
-        options_tree.append(('solver', None, None, 'fixed_q_r_values', False,
-                             ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
+    options_tree.append(('solver', None, None, 'fixed_q_r_values', False,
+                         ('fix the positions and rotations to their initial guess values', [True, False]),'x'))
 
     if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
         options['solver']['initialization']['fix_tether_length'] = True

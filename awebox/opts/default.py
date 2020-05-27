@@ -50,9 +50,6 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'trajectory',  'compromised_landing','xi_0_initial',   0.00,             ('starting position on initial trajectory between 0 and 1', None),'s'),
         ('user_options',    'trajectory',  'tracking',  'fix_tether_length',     True,                ('fixing tether length for the trajectory', [True, False]),'s'),
         ('user_options',    'trajectory',  None,        'fixed_params',          {},                 ('give dict of fixed system parameters and their values',None),'s'),
-        ('user_options',    'trajectory',  'aero_test', 'phi_0',                 45. * np.pi / 180., ('pitch angle amplitude for pitch-plunge test [rad]', None),'x'),
-        ('user_options',    'trajectory',  'aero_test', 'h_0',                   1.,                 ('plunge amplitude for pitch-plunge test [m]', None),'x'),
-        ('user_options',    'trajectory',  'aero_test', 'omega',                 2. * np.pi,         ('frequency of pitching/plunging motion for pitch-plunge test [rad/s]', None),'x'),
         ('user_options',    'system_model',None,        'kite_dof',              6,                  ('give the number of states that designate each kites position [int]: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'t'),
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
         ('user_options',    'system_model',None,        'architecture',          {1:0, 2:1, 3:1},    ('choose tuple (layers,siblings)', None),'t'),
@@ -122,7 +119,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
-        ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to LES in outputs', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -310,9 +307,6 @@ def set_default_options(default_user_options, help_options):
         ('params', 'ground_station', None, 'r_gen',            0.25,   ('winch generator drum radius [m]',None),'x'),
         ('params', 'ground_station', None, 'm_gen',            100.,   ('effective mass of generator [kg], guessed',None),'x'),
         ('model', 'ground_station', None, 'ddl_t_max',        10.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
-
-        ## formulation
-        ('formulation',     'trajectory',   'aero_test',     'total_periods',    10.,         ('total number of oscillations of the wing', None),'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
