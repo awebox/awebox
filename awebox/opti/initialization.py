@@ -434,7 +434,6 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
     parent_map = model.architecture.parent_map
     kite_nodes = model.architecture.kite_nodes
 
-    ua_norm = options['ua_norm']
     kite_dof = model.kite_dof
 
     height_list, radius = tools_init.get_cone_height_and_radius(options, model, ret['l_t'])
@@ -458,7 +457,9 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
             else:
                 height = height_list[1]
 
-            omega_norm = ua_norm / radius
+            speed, options = tools_init.approx_speed(options, model.wind)
+
+            omega_norm = speed / radius
 
             n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(options)
 
@@ -471,7 +472,7 @@ def initial_node_variables_for_standard_path(t, options, model, formulation, ret
             tether_vector = ehat_radial * radius + ehat_normal * height
             position = parent_position + tether_vector
 
-            velocity = ua_norm * ehat_tangential
+            velocity = speed * ehat_tangential
 
             ehat1 = -1. * ehat_tangential
             ehat3 = n_rot_hat

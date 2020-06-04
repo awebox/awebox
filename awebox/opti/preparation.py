@@ -98,10 +98,18 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
             var_name = struct_op.get_node_variable_name(name)
+
+            if var_name[0] == 'w':
+                # then, this is a vortex wake variable
+                var_name = 'w'
+
+
             if var_name in list(options['weights'].keys()):  # global variable
                 p_fix_num['p', 'weights', variable_type, name] = options['weights'][var_name]
             else:
                 p_fix_num['p', 'weights', variable_type, name] = 1.0
+
+
             # set references
             if variable_type == 'u':
                 if 'u' in V_ref.keys():

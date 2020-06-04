@@ -886,10 +886,10 @@ def airspeed_inequality(options, variables, outputs, parameters, architecture):
         outputs['airspeed_min'] = {}
 
     for kite in kite_nodes:
-        airspeed = outputs['aerodynamics']['speed' + str(kite)]
+        airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
         parent = parent_map[kite]
-        outputs['airspeed_max']['n' + str(kite) + str(parent)] = airspeed - airspeed_max
-        outputs['airspeed_min']['n' + str(kite) + str(parent)] = - airspeed + airspeed_min
+        outputs['airspeed_max']['n' + str(kite) + str(parent)] = airspeed / airspeed_max - 1.
+        outputs['airspeed_min']['n' + str(kite) + str(parent)] = - airspeed /airspeed_min + 1.
 
     return outputs
 
@@ -1643,6 +1643,7 @@ def select_model_constraints(constraint_list, collection, constraint_out):
 
     for constr_type in list(constraint_out.keys()):
         if constr_type in list(collection.keys()) and collection[constr_type]['include']:
+
             for name in struct_op.subkeys(constraint_out, constr_type):
 
                 constraint_list.append(constraint_out[constr_type,name])

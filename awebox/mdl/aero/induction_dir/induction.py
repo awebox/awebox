@@ -95,10 +95,10 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
                                               architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-        resi = cas.vertcat(resi, vortex_resi)
+    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    # if any_vor:
+    #     vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    #     resi = cas.vertcat(resi, vortex_resi)
 
     return resi
 

@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -31,7 +31,7 @@ constraints are divided as initial, terminal and periodic constraints, that are 
 -- function inputs for periodic constraints are (initial variables, final variables)
 
 python-3.5 / casadi-3.4.5
-- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
+- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-20
 '''
 
 import casadi.tools as cas
@@ -39,6 +39,8 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
+import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 import awebox.tools.parameterization as parameterization
 
@@ -203,48 +205,11 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
 
 
 
-def get_vortex_strength_constraints(options, variables, architecture):
+def get_vortex_strength_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
-    eqs_dict = {}
     ineqs_dict = {}
-    constraint_list = []
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = architecture.kite_nodes
-
-    if periods_tracked > 1:
-        periods_tracked = 1
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-
-        n_k = options['n_k']
-        d = options['collocation']['d']
-
-        for kite in kite_nodes:
-            for period in range(periods_tracked):
-
-                parent_map = architecture.parent_map
-                parent = parent_map[kite]
-
-                var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-                gamma_all = variables['xl', var_name]
-
-                n_nodes = n_k * d
-                for ldx in range(n_nodes):
-                    gamma_loc = []
-
-                    for ldx_shed in range(n_nodes):
-                        gamma_loc = cas.vertcat(gamma_loc, gamma_all[ldx_shed])
-
-                    # reminder! this function is just the space-holder.
-                    resi = gamma_loc
-
-                    name = 'vortex_strength' + str(period) + '_kite' + str(kite) + '_' + str(ldx)
-                    eqs_dict[name] = resi
-                    constraint_list.append(resi)
+    eqs_dict, constraint_list = vortex_strength.get_placeholder_vortex_strength_constraints(options, variables, model)
 
     # generate initial constraints - empty struct containing both equalities and inequalitiess
     vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
@@ -256,47 +221,11 @@ def get_vortex_strength_constraints(options, variables, architecture):
     return vortex_strength_constraints, vortex_strength_constraints_fun
 
 
-def get_wake_fix_constraints(options, variables, architecture):
+def get_wake_fix_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
-    eqs_dict = {}
     ineqs_dict = {}
-    constraint_list = []
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        n_k = options['n_k']
-        d = options['collocation']['d']
-
-        for kite in kite_nodes:
-            for tip in wingtips:
-                for period in range(periods_tracked):
-
-                    parent_map = architecture.parent_map
-                    parent = parent_map[kite]
-
-                    wake_pos_dir = {}
-                    for dim in ['x', 'y', 'z']:
-                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                        wake_pos_dir[dim] = variables['xd', var_name]
-
-                    n_nodes = n_k * d + 1
-                    for ldx in range(n_nodes):
-                        wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
-
-                        # reminder! this function is just the space-holder.
-                        wing_tip_pos = 0. * vect_op.zhat()
-                        resi = wake_pos - wing_tip_pos
-
-                        name = 'wake_fix_period' + str(period) + '_kite' + str(kite) + '_' + tip + str(ldx)
-                        eqs_dict[name] = resi
-                        constraint_list.append(resi)
+    eqs_dict, constraint_list = vortex_fix.get_placeholder_fixing_constraints(options, variables, model)
 
     # generate initial constraints - empty struct containing both equalities and inequalitiess
     wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
@@ -543,11 +472,23 @@ def make_constraint_struct(eqs_dict, ineqs_dict):
 
     return constraint_struct
 
+def clear_empty_keys(dict):
+    if bool(dict):
+        for name in list(dict.keys()):
+            try:
+                dict[name].size()
+            except:
+                dict.pop(name)
+    return dict
+
 def make_entry_list(eqs_dict, ineqs_dict):
+
+    eqs_dict = clear_empty_keys(eqs_dict)
+    ineqs_dict = clear_empty_keys(ineqs_dict)
 
     # make entry list for all non-empty dicts
     entry_list = []
-    if eqs_dict: # check if not empty
+    if bool(eqs_dict): # check if not empty
 
         # equality constraint struct
         eq_struct = cas.struct_symSX([

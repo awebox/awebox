@@ -287,3 +287,15 @@ You will need to remove the ground constraints, remove gravity, and make the win
 
 It's also helpful to initialize according to the axi-symmetry that you're expecting:
     options['solver']['initialization']['incid_deg'] = 0.
+
+
+
+24. How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
+
+P_loc = trial.optimization.p_fix_num
+V_loc = trial.optimization.V_final
+component_cost_fun, component_cost_struct = trial.nlp.cost_components
+for cost in component_cost_fun.keys():
+    val = component_cost_fun[cost](V_loc, P_loc)
+    print(cost + ': ' + str(val))
+

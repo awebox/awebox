@@ -35,6 +35,7 @@ import copy
 from awebox.logger.logger import Logger as awelogger
 import pickle
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
@@ -254,9 +255,15 @@ def build_constraint_applicablity_options(options, help_options, user_options, o
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_max',np.array([5*compromised_factor,5]),('include dcoeff bound for roll control',None),'x'))
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_min',np.array([-5*compromised_factor,-5]),('include dcoeff bound for roll control',None),'x'))
 
-    ua_ref = options['solver']['initialization']['ua_norm']
-    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
-    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
+    dq_kite_norm = options['solver']['initialization']['dq_kite_norm']
+    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', dq_kite_norm ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
+    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', dq_kite_norm, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
+
+    airspeed_limits = options['params']['model_bounds']['airspeed_limits']
+    airspeed_include = options['model']['model_bounds']['airspeed']['include']
+    options_tree.append(('solver', 'initialization', None, 'airspeed_limits', airspeed_limits, ('airspeed limits [m/s]', None), 's'))
+    options_tree.append(('solver', 'initialization', None, 'airspeed_include', airspeed_include, ('apply airspeed limits [m/s]', None), 's'))
+
 
     options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
     if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
@@ -523,6 +530,20 @@ def build_tether_drag_options(options, help_options, user_options, options_tree,
 
 def build_tether_stress_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
+    fix_diam_t = None
+    fix_diam_s = None
+    if 'diam_t' in user_options['trajectory']['fixed_params']:
+        fix_diam_t = user_options['trajectory']['fixed_params']['diam_t']
+    if 'diam_s' in user_options['trajectory']['fixed_params']:
+        fix_diam_s = user_options['trajectory']['fixed_params']['diam_s']
+
+    tether_force_limits = options['params']['model_bounds']['tether_force_limits']
+    max_tether_force = tether_force_limits[1]
+
+    sigma_max = options['params']['tether']['sigma_max']
+    f_sigma = options['params']['tether']['f_sigma']
+    max_tether_stress = sigma_max / f_sigma
+
     # map single tether power interval constraint to min and max constraint
     if options['model']['model_bounds']['tether_force']['include'] == True:
         options_tree.append(('model', 'model_bounds', 'tether_force_max', 'include', True, None,'x'))
@@ -531,25 +552,34 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
     else:
         tether_force_include = False
 
+    tether_stress_include = options['model']['model_bounds']['tether_stress']['include']
+
     # check which tether force/stress constraints to enforce on which node
     tether_constraint_includes = {'force': [], 'stress': []}
-    diameter = None
-    if (options['model']['model_bounds']['tether_stress']['include'] and tether_force_include):
+
+    if tether_force_include and tether_stress_include:
 
         for node in range(1, architecture.number_of_nodes):
             if node in architecture.kite_nodes:
+
                 if node == 1:
-                    if 'diam_t' in user_options['trajectory']['fixed_params']:
-                        diameter = user_options['trajectory']['fixed_params']['diam_t']
+                    fix_diam = fix_diam_t
                 else:
-                    if 'diam_s' in user_options['trajectory']['fixed_params']:
-                        diameter = user_options['trajectory']['fixed_params']['diam_s']
-                if diameter != None:
-                    cross_section = np.pi * 2 / 4 * diameter
-                    if diameter * cross_section <= options['params']['model_bounds']['tether_force_max']:
+                    fix_diam = fix_diam_s
+
+                diameter_is_fixed = not (fix_diam == None)
+                if diameter_is_fixed:
+                    awelogger.logger.warning(
+                        'Both tether force and stress constraints are enabled, while tether diameter is restricted ' + \
+                        'for tether segment with upper node ' + str(node) + '. To avoid LICQ violations, tightest bound is selected.')
+
+                    cross_section = np.pi * 2 / 4 * fix_diam
+                    force_equivalent_to_stress = max_tether_stress * cross_section
+                    if force_equivalent_to_stress <= max_tether_force:
                         tether_constraint_includes['stress'] += [node]
                     else:
                         tether_constraint_includes['force'] += [node]
+
                 else:
                     tether_constraint_includes['stress'] += [node]
                     tether_constraint_includes['force'] += [node]
@@ -557,11 +587,12 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
             else:
                 tether_constraint_includes['stress'] += [node]
 
-    else:
-        if options['model']['model_bounds']['tether_stress']['include']:
-            tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
-        if options['model']['model_bounds']['tether_stress']['include']:
-            tether_constraint_includes['force'] = architecture.kite_nodes
+
+    elif tether_force_include:
+        tether_constraint_includes['force'] = architecture.kite_nodes
+
+    elif tether_stress_include:
+        tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
 
     options_tree.append(('model', 'model_bounds', 'tether', 'tether_constraint_includes', tether_constraint_includes, ('logic deciding which tether constraints to enforce', None), 'x'))
 

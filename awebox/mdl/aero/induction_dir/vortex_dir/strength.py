@@ -31,6 +31,166 @@ _python-3.5 / casadi-3.4.5
 
 import casadi as cas
 import numpy as np
+import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+
+
+######## the constraints : see opti.constraints
+
+def get_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+
+    if periods_tracked > 1:
+        periods_tracked = 1
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        for period in range(periods_tracked):
+            g_list, g_bounds = strength_constraints(options, g_list, g_bounds, V, Outputs, model, period)
+
+    return g_list, g_bounds
+
+
+def strength_constraints(options, g_list, g_bounds, V, Outputs, model, period):
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    if period == 0:
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for ndx_shed in range(n_k):
+                    for ddx_shed in range(d):
+                        g_list, g_bounds = strength_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx,
+                                                              ndx_shed, ddx_shed)
+
+    elif period == 1:
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for ndx_shed in range(n_k):
+                    for ddx_shed in range(d):
+                        g_list, g_bounds = strength_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed,
+                                              ddx_shed)
+
+    return g_list, g_bounds
+
+
+def strength_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed, ddx_shed):
+
+    period = 0
+    architecture = model.architecture
+    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+        variables = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx=ddx)
+
+        if is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+            gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+        else:
+            gamma_val = cas.DM(0.)
+
+        resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+
+        g_list.append(resi)
+        g_bounds = tools.append_bounds(g_bounds, resi)
+
+    return g_list, g_bounds
+
+
+def strength_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed,
+                                              ddx_shed):
+
+    period = 1
+    architecture = model.architecture
+    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+        variables = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx=ddx)
+
+        gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+
+        resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+
+        g_list.append(resi)
+        g_bounds = tools.append_bounds(g_bounds, resi)
+
+    return g_list, g_bounds
+
+
+
+######## the placeholders : see ocp.operation
+
+def get_placeholder_vortex_strength_constraints(options, variables, model):
+
+    eqs_dict = {}
+    constraint_list = []
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+
+    if periods_tracked > 1:
+        periods_tracked = 1
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        for period in range(periods_tracked):
+            eqs_dict, constraint_list = placeholder_strength_constraints(options, variables, model, period, eqs_dict, constraint_list)
+
+    return eqs_dict, constraint_list
+
+def placeholder_strength_constraints(options, variables, model, period, eqs_dict, constraint_list):
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    if (period == 0) or (period == 1):
+        for ndx in range(n_k):
+            for ddx in range(d):
+                for ndx_shed in range(n_k):
+                    for ddx_shed in range(d):
+                        eqs_dict, constraint_list = placeholder_strength_constraints_on_any_period(options, variables, model, period, eqs_dict, \
+                                                                       constraint_list, ndx_shed, ddx_shed)
+
+    return eqs_dict, constraint_list
+
+
+def placeholder_strength_constraints_on_any_period(options, variables, model, period, eqs_dict, constraint_list, ndx_shed, ddx_shed):
+    architecture = model.architecture
+
+    eq_name = 'wake_strength_period_' + str(period) + '_ndxs_' + str(ndx_shed) + '_ddxs_' + str(ddx_shed) + '_' + str(np.random.randint(0, 100000))
+    g_list = []
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+
+        resi = get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options)
+        g_list = cas.vertcat(g_list, resi)
+
+    eqs_dict[eq_name] = g_list
+    constraint_list.append(g_list)
+
+    return eqs_dict, constraint_list
+
+
+######### the helper functions
+
+def is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+    if ndx > ndx_shed:
+        return True
+    elif ndx == ndx_shed and ddx > ddx_shed:
+        return True
+    elif ndx == ndx_shed and ddx == ddx_shed:
+        return True
+    else:
+        return False
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
 
@@ -39,134 +199,27 @@ def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
 
     return var_reshape[ndx, ddx]
 
-
-def fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period):
+def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val):
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    architecture = model.architecture
-
-    if period == 0:
-        for kite in architecture.kite_nodes:
-            for ndx in range(n_k):
-                for ddx in range(d):
-                    for ndx_shed in range(n_k):
-                        for ddx_shed in range(d):
-
-                            if is_bound_vortex(ndx, ddx, ndx_shed, ddx_shed):
-                                resi = get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx)
-
-                            elif is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
-                                resi = get_residual_for_on_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
-
-                            else:
-                                resi = get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
-
-                            g_list.append(resi)
-                            g_bounds['ub'].append(np.zeros(resi.shape))
-                            g_bounds['lb'].append(np.zeros(resi.shape))
-
-    elif period == 1:
-        g_list, g_bounds = get_residual_for_periodic_vortices(options, g_list, g_bounds, V, Outputs, model)
-
-    return g_list, g_bounds
-
-
-def is_bound_vortex(ndx, ddx, ndx_shed, ddx_shed):
-    if ndx == ndx_shed and ddx == ddx_shed:
-        return True
-    else:
-        return False
-
-def is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
-    if ndx > ndx_shed:
-        return True
-    elif ndx == ndx_shed and ddx > ddx_shed:
-        return True
-    else:
-        return False
-
-
-
-def get_residual_for_bound_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx):
-    period = 0
-
-    architecture = model.architecture
-    parent = architecture.parent_map[kite]
-
-    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
-    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx)
-
-    gamma_val = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'gamma' + str(kite)]
-
-    resi = gamma_var - gamma_val
-    return resi
-
-def get_residual_for_on_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
-    period = 0
-
-    architecture = model.architecture
-    parent = architecture.parent_map[kite]
-
-    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+    var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+    # resi = gamma_var - gamma_val
+    resi = []
 
-    resi = gamma_var - gamma_val
-    return resi
-
-def get_residual_for_off_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
-    period = 0
-
-    architecture = model.architecture
-    parent = architecture.parent_map[kite]
-
-    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
-    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
-
-    gamma_val = 0.
-
-    resi = gamma_var - gamma_val
     return resi
 
 
-
-
-
-def get_residual_for_periodic_vortices(options, g_list, g_bounds, V, Outputs, model):
+def get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options):
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    architecture = model.architecture
-
-    for kite in architecture.kite_nodes:
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for ndx_shed in range(n_k):
-                    for ddx_shed in range(d):
-                        resi = get_residual_for_specific_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed)
-
-                        g_list.append(resi)
-                        g_bounds['ub'].append(np.zeros(resi.shape))
-                        g_bounds['lb'].append(np.zeros(resi.shape))
-
-    return g_list, g_bounds
-
-
-def get_residual_for_specific_periodic_vortex(V, Outputs, model, n_k, d, kite, ndx, ddx, ndx_shed, ddx_shed):
-    architecture = model.architecture
-    parent = architecture.parent_map[kite]
-    period = 1
-
-    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-    var = V['coll_var', ndx, ddx, 'xl', gamma_name]
+    var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+    # resi = gamma_var
+    resi = []
 
-    resi = gamma_var - gamma_val
     return resi

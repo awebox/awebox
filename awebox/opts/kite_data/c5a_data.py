@@ -212,10 +212,13 @@ def aero_deriv():
     aero_deriv['Cmr'] = 0.
     aero_deriv['Cnr'] = -0.045
 
-    aero_deriv['alpha_max_deg'] = 21.7724
-    aero_deriv['alpha_min_deg'] = -7.4485
-    aero_deriv['beta_max_deg'] = 15.
-    aero_deriv['beta_min_deg'] = -15.0
+    for key in aero_deriv.keys():
+        aero_deriv[key] = 0.
+
+    aero_deriv['alpha_max_deg'] = 180.
+    aero_deriv['alpha_min_deg'] = -180.
+    aero_deriv['beta_max_deg'] = 180.
+    aero_deriv['beta_min_deg'] = -180.
 
     return aero_deriv
 

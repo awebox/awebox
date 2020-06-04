@@ -302,10 +302,10 @@ def initial_guess_actuator_xd(options, nlp, formulation, model, V_init):
     tf_init = tools_init.guess_tf(options, model, formulation)
     tgrid_coll = nlp.time_grids['coll'](tf_init)
 
-    ua_norm = options['ua_norm']
     l_t_temp = options['xd']['l_t']
     _, radius = tools_init.get_cone_height_and_radius(options, model, l_t_temp)
-    omega_norm = ua_norm / radius
+    dq_norm, _ = tools_init.approx_speed(options, model.wind)
+    omega_norm = dq_norm / radius
 
     dict = {}
     dict['a'] = cas.DM(options['xd']['a'])
@@ -410,10 +410,11 @@ def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
     tf_init = tools_init.guess_tf(options, model, formulation)
     tgrid_coll = nlp.time_grids['coll'](tf_init)
 
-    ua_norm = options['ua_norm']
     l_t_temp = options['xd']['l_t']
     _, radius = tools_init.get_cone_height_and_radius(options, model, l_t_temp)
-    omega_norm = ua_norm / radius
+
+    dq_norm, _ = tools_init.approx_speed(options, model.wind)
+    omega_norm = dq_norm / radius
 
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)

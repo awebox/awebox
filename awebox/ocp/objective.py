@@ -34,6 +34,7 @@ from . import collocation
 from . import performance
 import awebox.tools.struct_operations as struct_op
 import time
+import awebox.tools.vector_operations as vect_op
 
 def get_general_regularization_function(variables):
 
@@ -41,9 +42,12 @@ def get_general_regularization_function(variables):
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
     ref_sym = cas.SX.sym('ref_sym', variables.cat.shape)
 
-    diff = var_sym - ref_sym
+    diff = (var_sym - ref_sym)
+
+    weight = cas.diag(weight_sym)
+
     diff_sq = cas.mtimes(cas.diag(diff), diff)
-    reg = cas.mtimes(cas.diag(weight_sym), diff_sq)
+    reg = cas.mtimes(weight, diff_sq)
 
     reg_fun = cas.Function('reg_fun', [var_sym, ref_sym, weight_sym], [reg])
 
@@ -55,7 +59,8 @@ def get_local_slack_penalty_function():
     ref_sym = cas.SX.sym('ref_sym', (1,1))
     weight_sym = cas.SX.sym('weight_sym', (1,1))
 
-    diff = var_sym - ref_sym
+    diff = (var_sym - ref_sym)
+
     slack = weight_sym * diff
 
     slack_fun = cas.Function('slack_fun', [var_sym, ref_sym, weight_sym], [slack])

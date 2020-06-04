@@ -97,7 +97,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, aero_co
         outputs['aerodynamics'][name + str(n)] = aero_coefficients[name]
 
     outputs['aerodynamics']['v_app' + str(n)] = ua
-    outputs['aerodynamics']['speed' + str(n)] = ua_norm
+    outputs['aerodynamics']['airspeed' + str(n)] = ua_norm
 
     outputs['aerodynamics']['f_aero' + str(n)] = f_aero
     outputs['aerodynamics']['f_lift' + str(n)] = f_lift
@@ -179,7 +179,8 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
             new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
             factor += new_factor * delta_mu
 
-        lift_betz_optimal = factor * lift_betz_scale
+        # lift_betz_optimal = factor * lift_betz_scale
+        lift_betz_optimal = cas.DM(5.0129 * 1.e6)
         outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
 
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]

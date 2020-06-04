@@ -363,3 +363,13 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     total = cas.sum2(all)
 
     return total
+
+
+def append_bounds(g_bounds, fix):
+    try:
+        g_bounds['ub'].append(cas.zeros(fix.shape))
+        g_bounds['lb'].append(cas.zeros(fix.shape))
+    except:
+        32.0
+
+    return g_bounds
