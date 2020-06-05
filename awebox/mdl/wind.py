@@ -64,7 +64,7 @@ class Wind:
             u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air) * xhat
 
         elif model == 'power':
-            u = u_ref * (zz / z_ref) ** exp_ref
+            u = u_ref * (zz / z_ref) ** exp_ref * xhat
 
         elif model == 'uniform':
             u = u_ref * xhat

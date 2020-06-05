@@ -573,7 +573,7 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
                         'Both tether force and stress constraints are enabled, while tether diameter is restricted ' + \
                         'for tether segment with upper node ' + str(node) + '. To avoid LICQ violations, tightest bound is selected.')
 
-                    cross_section = np.pi * 2 / 4 * fix_diam
+                    cross_section = np.pi * (fix_diam / 2.)**2.
                     force_equivalent_to_stress = max_tether_stress * cross_section
                     if force_equivalent_to_stress <= max_tether_force:
                         tether_constraint_includes['stress'] += [node]

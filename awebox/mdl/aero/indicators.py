@@ -88,7 +88,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     return outputs
 
-def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
+def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, q_eff, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
@@ -98,6 +98,10 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, aero_co
 
     outputs['aerodynamics']['v_app' + str(n)] = ua
     outputs['aerodynamics']['airspeed' + str(n)] = ua_norm
+
+    rho = atmos.get_density(q[2])
+    outputs['aerodynamics']['air_density' + str(n)] = rho
+    outputs['aerodynamics']['dyn_pressure' + str(n)] = 0.5 * rho * cas.mtimes(ua.T, ua)
 
     outputs['aerodynamics']['f_aero' + str(n)] = f_aero
     outputs['aerodynamics']['f_lift' + str(n)] = f_lift
@@ -110,7 +114,6 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, aero_co
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
-    rho = atmos.get_density(q[2])
     gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
     gamma_cl = 0.5 * ua_norm**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(ua, ehat_span))
     outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross

@@ -34,6 +34,7 @@ import casadi.tools as cas
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.aero.tether_dir.frames as frames
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
+import pdb
 
 def get_segment_drag_and_moment(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun):
 
@@ -118,6 +119,36 @@ def get_distributed_segment_forces(n_elements, variables, upper_node, architectu
 
     return force_upper, force_lower
 
+
+def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun):
+
+    force_lower = cas.DM.zeros((3, 1))
+    force_upper = cas.DM.zeros((3, 1))
+
+    if upper_node in architecture.kite_nodes:
+
+        kite = upper_node
+
+        ehat_1 = outputs['aerodynamics']['ehat_chord' + str(kite)]
+        ehat_3 = outputs['aerodynamics']['ehat_span' + str(kite)]
+        alpha = outputs['aerodynamics']['alpha' + str(kite)]
+        d_hat = cas.cos(alpha) * ehat_1 + cas.sin(alpha) * ehat_3
+
+        kite_dyn_pressure = outputs['aerodynamics']['dyn_pressure' + str(kite)]
+        q_upper, q_lower, dq_upper, dq_lower = element.get_upper_and_lower_pos_and_vel(variables, upper_node,
+                                                                                       architecture)
+        length = vect_op.norm(q_upper - q_lower)
+        diam = element.get_element_diameter(variables, upper_node, architecture)
+
+        ua = outputs['aerodynamics']['v_app' + str(kite)]
+        re_number = reynolds.get_reynolds_number(atmos, ua, diam, q_upper, q_lower)
+        cd_tether = cd_tether_fun(re_number)
+
+        d_mag = (1./4.) * cd_tether * kite_dyn_pressure * diam * length
+
+        force_upper = d_mag * d_hat
+
+    return force_lower, force_upper
 
 def get_segment_reynolds_number(variables, atmos, wind, upper_node, architecture):
     diam = element.get_element_diameter(variables, upper_node, architecture)

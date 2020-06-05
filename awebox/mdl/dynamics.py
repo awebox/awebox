@@ -451,8 +451,10 @@ def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, archi
         if int(options['kite_dof']) == 6:
             node_forces['m' + str(n) + str(parent)] = cas.SX.zeros((3, 1))
 
-    tether_drag_forces, outputs = generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture)
     aero_forces, outputs = generate_aerodynamic_forces(options, variables, parameters, atmos, wind, outputs, architecture)
+
+    # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
+    tether_drag_forces, outputs = generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture)
 
     if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(options, variables, parameters, outputs, architecture)
@@ -516,6 +518,8 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
         single_lower = outputs['tether_aero']['single_lower' + str(n)]
         split_upper = outputs['tether_aero']['split_upper' + str(n)]
         split_lower = outputs['tether_aero']['split_lower' + str(n)]
+        kite_only_upper = outputs['tether_aero']['kite_only_upper' + str(n)]
+        kite_only_lower = outputs['tether_aero']['kite_only_lower' + str(n)]
 
         tether_model = options['tether']['tether_drag']['model_type']
 
@@ -530,6 +534,10 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
         elif tether_model == 'split':
             drag_node = split_upper
             drag_parent = split_lower
+
+        elif tether_model == 'kite_only':
+            drag_node = kite_only_upper
+            drag_parent = kite_only_lower
 
         elif tether_model == 'not_in_use':
             drag_parent = np.zeros((3, 1))

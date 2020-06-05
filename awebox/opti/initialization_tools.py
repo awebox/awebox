@@ -144,7 +144,7 @@ def approx_speed(options, wind):
     else:
 
         adjust_count = 0
-        max_adjustments = 10
+        max_adjustments = 30
 
         increment = 1
 

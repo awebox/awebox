@@ -103,7 +103,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['Cm'] = Cm
         aero_coefficients['Cn'] = Cn
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, aero_coefficients,
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
                                                                f_aero, f_lift, f_drag, f_side, m_aero,
                                                                ehat1, ehat2, kite_dcm, q, kite,
                                                                outputs, parameters)
