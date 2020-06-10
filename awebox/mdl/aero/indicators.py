@@ -98,6 +98,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, q_eff, 
 
     outputs['aerodynamics']['v_app' + str(n)] = ua
     outputs['aerodynamics']['airspeed' + str(n)] = ua_norm
+    outputs['aerodynamics']['u_infty' + str(n)] = wind.get_velocity(q[2])
 
     rho = atmos.get_density(q[2])
     outputs['aerodynamics']['air_density' + str(n)] = rho

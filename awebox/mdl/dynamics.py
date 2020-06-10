@@ -108,6 +108,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
 
     # add outputs for constraints
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters,architecture)
+    outputs = wound_tether_length_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = xddot_outputs(options, system_variables['SI'], outputs)
     outputs = anticollision_inequality(options, system_variables['SI'], outputs, parameters,architecture)
@@ -382,6 +383,14 @@ def generate_m_nodes(options, variables, outputs, parameters, architecture):
             parent = parent_map[node]
             outputs['masses']['m' + str(node) + str(parent)] = node_masses['m' + str(node) + str(parent)]
 
+    # add the rolled-up portion of the tether mass to the mass of node 0:
+    seg_diam = theta['diam_t']
+    seg_length = theta['l_t_full'] - xd['l_t'] / 2.
+    cross_section = np.pi * seg_diam ** 2. / 4.
+    segment_mass = cross_section * parameters['theta0', 'tether', 'rho'] * seg_length
+    outputs['masses']['m00'] = segment_mass
+    node_masses['m00'] = segment_mass
+
     return node_masses, outputs
 
 def generate_m_nodes_scaling(options, parameters, architecture):
@@ -628,10 +637,9 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
         outputs['e_potential']['q' + label] = e_potential
 
     # = 1/2 i omega_gen^2, with no-slip condition
-    # theoretically, mass of first half of main tether also belongs here,
-    # but assumed to be negligible in comparison to generator mass
-    e_kinetic_groundstation = 1. / 2. * \
-        (1. / 2. * parameters['theta0','ground_station','m_gen']) * system_variables['SI']['xd']['dl_t'] ** 2.0
+    # add mass of first half of main tether, and the mass of wound tether.
+    m_groundstation = parameters['theta0','ground_station','m_gen'] + node_masses['m00']
+    e_kinetic_groundstation = 1. / 4. * m_groundstation * system_variables['SI']['xd']['dl_t'] ** 2.0
     outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
 
     # the winch is at ground level
@@ -994,6 +1002,15 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
                     stress_inequality_untightened = tension / tau_max - cross_section / cross_section_max
                     outputs['tether_stress']['n{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = stress_inequality_untightened * tightness
                     outputs['local_performance']['tether_stress{}{}'.format(kites[k],kites[(k+1)%len(kites)])] = tension / cross_section
+
+    return outputs
+
+def wound_tether_length_inequality(options, variables, outputs, parameters, architecture):
+
+    l_t_full = variables['theta']['l_t_full']
+    l_t = variables['xd']['l_t']
+    outputs['wound_tether_length'] = {}
+    outputs['wound_tether_length']['wound_tether_length'] = l_t - l_t_full
 
     return outputs
 

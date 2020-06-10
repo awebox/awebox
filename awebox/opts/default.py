@@ -256,9 +256,10 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
-        ('model',   'model_bounds', 'tether_stress', 'include',              True,       ('include tether stress inequality in constraints', [True, False]),'x'),
+        ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
+        ('model',   'model_bounds', 'tether_stress', 'include',              True,      ('include tether stress inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'tether_stress', 'scaling',              1.,        ('tightness scaling for tether stress inequality', None),'x'),
-        ('model',   'model_bounds', 'tether_force',  'include',              False,      ('include tether force inequality in constraints', [True, False]),'x'),
+        ('model',   'model_bounds', 'tether_force',  'include',              False,     ('include tether force inequality in constraints', [True, False]),'x'),
         ('params',  'model_bounds',  None,           'tether_force_limits',  np.array([1e0, 2e3]),  ('tether force limits [N]', None),'s'),
         ('model',   'model_bounds', 'airspeed',      'include',             False,      ('include airspeed inequality for kites in constraints', [True, False]),'x'),
         ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([1.,150.]),  ('airspeed limits [m/s]', None),'s'),

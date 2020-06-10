@@ -57,6 +57,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # tether
     options_tree, fixed_params = build_tether_drag_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_wound_tether_length_options(options, options_tree, fixed_params)
     options_tree, fixed_params = build_tether_stress_options(options, help_options, user_options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_tether_control_options(options, help_options, user_options, options_tree, fixed_params, architecture)
 
@@ -596,6 +597,13 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
 
     options_tree.append(('model', 'model_bounds', 'tether', 'tether_constraint_includes', tether_constraint_includes, ('logic deciding which tether constraints to enforce', None), 'x'))
 
+    return options_tree, fixed_params
+
+def build_wound_tether_length_options(options, options_tree, fixed_params):
+    l_t_bounds = options['model']['system_bounds']['xd']['l_t']
+    options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
+    l_t_scaling = options['model']['scaling']['xd']['l_t']
+    options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
     return options_tree, fixed_params
 
 

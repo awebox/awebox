@@ -38,7 +38,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_induction as induction_init
 import awebox.opti.initialization_tools as tools_init
 
-
 def get_initial_guess(nlp, model, formulation, options):
     V_init_si = build_si_initial_guess(nlp, model, formulation, options)
     if True in np.isnan(np.array(V_init_si.cat)):

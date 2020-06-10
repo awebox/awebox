@@ -232,6 +232,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     for param in list(initialization_theta.keys()):
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
+    l_t_scaling = options['model']['scaling']['xd']['l_t']
+    options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
     options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
 
     ## cross-tether
