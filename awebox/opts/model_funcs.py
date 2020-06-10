@@ -602,8 +602,10 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
 def build_wound_tether_length_options(options, options_tree, fixed_params):
     l_t_bounds = options['model']['system_bounds']['xd']['l_t']
     options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
-    l_t_scaling = options['model']['scaling']['xd']['l_t']
+    l_t_full_factor = options['model']['scaling_factor']['l_t_full_factor']
+    l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'] * l_t_full_factor, l_t_bounds[0]])
     options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
     return options_tree, fixed_params
 
 
