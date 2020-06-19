@@ -114,6 +114,7 @@ def make_dynamics(options,atmos,wind,parameters,architecture):
     outputs = anticollision_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters,architecture)
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
+    outputs = angular_velocity_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
@@ -908,6 +909,36 @@ def airspeed_inequality(options, variables, outputs, parameters, architecture):
         outputs['airspeed_min']['n' + str(kite) + str(parent)] = - airspeed /airspeed_min + 1.
 
     return outputs
+
+def angular_velocity_inequality(options, variables, outputs, parameters, architecture):
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+
+    kite_dof = options['kite_dof']
+
+    omega_norm_max_deg = parameters['theta0', 'model_bounds','angular_velocity_max']
+    omega_norm_max = omega_norm_max_deg * np.pi / 180.
+
+    if int(kite_dof) == 6:
+
+        if 'angular_velocity' not in list(outputs.keys()):
+            outputs['angular_velocity'] = {}
+
+        for kite in kite_nodes:
+            parent = parent_map[kite]
+            omega = variables['xd']['omega' + str(kite) + str(parent)]
+
+            # |omega| <= omega_norm_max
+            # omega^\top omega <= omega_norm_max^2
+            # omega^\top omega - omega_norm_max^2 <= 0
+            # (omega^\top omega)/omega_norm_max^2 - 1 <= 0
+
+            ineq = cas.mtimes(omega.T, omega)/ omega_norm_max**2. - 1.
+            outputs['angular_velocity']['n' + str(kite) + str(parent)] = ineq
+
+    return outputs
+
+
 
 def tether_stress_inequality(options, variables, outputs, parameters, architecture):
 

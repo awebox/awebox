@@ -271,6 +271,9 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'anticollision_radius', 'scaling',       1.,         ('tightness scaling for anticollision inequalities', None),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
         ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration [g]', None),'x'),
+        ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),
+        ('params',  'model_bounds', None,            'angular_velocity_max', 50.,        ('maximum magnitude of angular velocity [deg/s]', None), 's'),
+
         ('model',   'model_bounds', 'rotation',     'include',               True,      ('include constraints on roll and pitch motion', None), 't'),
         ('model',   'model_bounds', 'rotation',     'type',                 'yaw',      ('rotation constraint type', ['yaw','roll_pitch']), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
