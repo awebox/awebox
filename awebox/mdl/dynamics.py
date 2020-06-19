@@ -963,6 +963,9 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
     if 'tether_force_min' not in list(outputs.keys()):
         outputs['tether_force_min'] = {}
 
+    if 'tether_tension' not in list(outputs.keys()):
+        outputs['tether_tension'] = {}
+
     # mass vector, containing the mass of all nodes
     for n in range(1, number_of_nodes):
 
@@ -990,6 +993,8 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
         cross_section = np.pi * seg_diam ** 2. / 4.
 
         tension = xa['lambda' + str(n) + str(parent)] * seg_length
+        outputs['tether_tension']['n' + str(n) + str(parent)] = tension
+
         min_tension = parameters['theta0','model_bounds','tether_force_limits'][0]
         max_tension = parameters['theta0','model_bounds','tether_force_limits'][1]
 
