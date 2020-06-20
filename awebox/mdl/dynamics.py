@@ -389,7 +389,8 @@ def generate_m_nodes(options, variables, outputs, parameters, architecture):
     seg_diam = theta['diam_t']
     seg_length = theta['l_t_full'] - xd['l_t'] / 2.
     cross_section = np.pi * seg_diam ** 2. / 4.
-    segment_mass = cross_section * parameters['theta0', 'tether', 'rho'] * seg_length
+    # segment_mass = cross_section * parameters['theta0', 'tether', 'rho'] * seg_length
+    segment_mass = cas.DM(0.)
     outputs['masses']['m00'] = segment_mass
     node_masses['m00'] = segment_mass
 
@@ -1046,8 +1047,11 @@ def wound_tether_length_inequality(options, variables, outputs, parameters, arch
 
     l_t_full = variables['theta']['l_t_full']
     l_t = variables['xd']['l_t']
+
+    length_scaling = options['scaling']['xd']['l_t']
+
     outputs['wound_tether_length'] = {}
-    outputs['wound_tether_length']['wound_tether_length'] = l_t - l_t_full
+    outputs['wound_tether_length']['wound_tether_length'] = (l_t - l_t_full)/length_scaling
 
     return outputs
 

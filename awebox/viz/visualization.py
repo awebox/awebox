@@ -101,7 +101,7 @@ class Visualization(object):
             flags += level_2
 
         if 'level_3' in flags:
-            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables']
+            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_3')
             flags += level_3
 

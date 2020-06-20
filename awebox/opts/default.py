@@ -301,7 +301,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite', 'lambda_tree', 'include', True, ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xa',     'lambda',    None,    ('scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xd',      'e',        None,    ('scaling of the energy', None),'t'),
-        ('model',   'scaling_factor',    None,      'l_t_full_factor', 0.6, ('scaling and initialization factor between l_t and l_t_full', None), 'x'),
+        ('model',   'scaling_factor',    None,      'l_t_full_factor', 1., ('scaling and initialization factor between l_t and l_t_full', None), 'x'),
 
         ('model',  'jit_code_gen',     None, 'include',              False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',     None, 'compiler',             'clang',                ('compiler for generated code'),'t'),

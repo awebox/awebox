@@ -31,6 +31,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
+from awebox.logger.logger import Logger as awelogger
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
@@ -366,10 +367,14 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
 
 def append_bounds(g_bounds, fix):
+
+    fix_shape = (1,1)
     try:
-        g_bounds['ub'].append(cas.zeros(fix.shape))
-        g_bounds['lb'].append(cas.zeros(fix.shape))
+        fix_shape = fix.shape
     except:
-        32.0
+        awelogger.logger.error('An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.')
+
+    g_bounds['ub'].append(cas.zeros(fix_shape))
+    g_bounds['lb'].append(cas.zeros(fix_shape))
 
     return g_bounds

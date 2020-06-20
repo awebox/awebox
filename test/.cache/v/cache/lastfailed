@@ -1,3 +1,8 @@
 {
-  "reg/test_trials.py::test_trials": true
+  "int/test_serialization.py::test_sweep_serial": true,
+  "int/test_visualization.py::test_animation": true,
+  "int/test_visualization.py::test_visualization": true,
+  "reg/test_trials.py::test_trials": true,
+  "units/test_model.py::test_drag_mode_model": true,
+  "units/test_model.py::test_tether_moments": true
 }

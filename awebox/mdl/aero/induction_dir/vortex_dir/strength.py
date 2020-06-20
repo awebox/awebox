@@ -33,6 +33,7 @@ import casadi as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+from awebox.logger.logger import Logger as awelogger
 
 
 ######## the constraints : see opti.constraints
@@ -206,6 +207,8 @@ def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_
     var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
+    awelogger.logger.warning('rachel has temporarily removed this functionality, in order to improve the code flow. location: vortex.strength.get_strength_resi')
+
     # resi = gamma_var - gamma_val
     resi = []
 
@@ -218,6 +221,9 @@ def get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, opt
 
     var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
+
+    awelogger.logger.warning(
+        'rachel has temporarily removed this functionality, in order to improve the code flow. location: vortex.strength.get_placeholder_strength_resi')
 
     # resi = gamma_var
     resi = []
