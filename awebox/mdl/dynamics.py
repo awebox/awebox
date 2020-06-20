@@ -52,6 +52,9 @@ import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
+from awebox.logger.logger import Logger as awelogger
+
 
 def make_dynamics(options,atmos,wind,parameters,architecture):
 
@@ -389,8 +392,11 @@ def generate_m_nodes(options, variables, outputs, parameters, architecture):
     seg_diam = theta['diam_t']
     seg_length = theta['l_t_full'] - xd['l_t'] / 2.
     cross_section = np.pi * seg_diam ** 2. / 4.
+
+    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='mdl.dynamics.generate_m_nodes')
     # segment_mass = cross_section * parameters['theta0', 'tether', 'rho'] * seg_length
     segment_mass = cas.DM(0.)
+
     outputs['masses']['m00'] = segment_mass
     node_masses['m00'] = segment_mass
 
