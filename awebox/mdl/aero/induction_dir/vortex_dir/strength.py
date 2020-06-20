@@ -207,7 +207,7 @@ def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_
     var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_strength_resi')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_strength_resi')
     # resi = gamma_var - gamma_val
     resi = []
 
@@ -221,7 +221,7 @@ def get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, opt
     var = variables['xl', gamma_name]
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_placeholder_strength_resi')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_placeholder_strength_resi')
     # resi = gamma_var
     resi = []
 

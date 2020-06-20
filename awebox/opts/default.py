@@ -227,18 +227,19 @@ def set_default_options(default_user_options, help_options):
 
         ## kite model
         #### tether properties
-        ('params',  'tether', None, 'kappa',        10.,     ('Baumgarte stabilization constant for constraint formulation[-]', None),'s'),
-        ('params',  'tether', None, 'rho',          970.,    ('tether material density [kg/m^3]', None),'s'),
-        ('params',  'tether', None, 'cd',           1.,      ('drag coefficient [-]', None),'s'),
-        ('params',  'tether', None, 'f_max',        5.,      ('max. reel-out factor [-]', None),'s'),
-        ('params',  'tether', None, 'sigma_max',    3.6e9,   ('max. tether stress [Pa]', None),'s'),
-        ('params',  'tether', None, 'f_sigma',      10.,     ('tether stress safety factor [-]', None),'x'),
-        ('model',  'tether', None, 'control_var',  'dddl_t', ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
-        ('model',  'tether', None, 'aero_elements', 10,     ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
-        ('model',  'tether', None, 'reynolds_smoothing',    1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
-        ('model',  'tether', None, 'cd_model',              'constant',  ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
-        ('model',  'tether', None, 'attachment',    'com',  ('tether attachment mode', ['com', 'stick']),'x'),
-        ('model',  'tether', 'cross_tether', 'attachment',    'com',  ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
+        ('params',  'tether', None,         'kappa',                10.,        ('Baumgarte stabilization constant for constraint formulation[-]', None),'s'),
+        ('params',  'tether', None,         'rho',                  970.,       ('tether material density [kg/m^3]', None),'s'),
+        ('params',  'tether', None,         'cd',                   1.,         ('drag coefficient [-]', None),'s'),
+        ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
+        ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
+        ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
+        ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
+        ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
+        ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
+        ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
+        ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
+        ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
+        ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -270,7 +271,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'anticollision_radius', 'include',       False,      ('include a minimum radius anticollision inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'anticollision_radius', 'scaling',       1.,         ('tightness scaling for anticollision inequalities', None),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
-        ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration [g]', None),'x'),
+        ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration, as measured in multiples of g [-]', None),'x'),
         ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),
         ('params',  'model_bounds', None,            'angular_velocity_max', 50.,        ('maximum magnitude of angular velocity [deg/s]', None), 's'),
 
@@ -301,7 +302,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite', 'lambda_tree', 'include', True, ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xa',     'lambda',    None,    ('scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite', 'xd',      'e',        None,    ('scaling of the energy', None),'t'),
-        ('model',   'scaling_factor',    None,      'l_t_full_factor', 1., ('scaling and initialization factor between l_t and l_t_full', None), 'x'),
 
         ('model',  'jit_code_gen',     None, 'include',              False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',     None, 'compiler',             'clang',                ('compiler for generated code'),'t'),

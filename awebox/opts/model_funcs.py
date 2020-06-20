@@ -541,9 +541,9 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
     tether_force_limits = options['params']['model_bounds']['tether_force_limits']
     max_tether_force = tether_force_limits[1]
 
-    sigma_max = options['params']['tether']['sigma_max']
-    f_sigma = options['params']['tether']['f_sigma']
-    max_tether_stress = sigma_max / f_sigma
+    max_stress = options['params']['tether']['max_stress']
+    stress_safety_factor = options['params']['tether']['stress_safety_factor']
+    max_tether_stress = max_stress / stress_safety_factor
 
     # map single tether power interval constraint to min and max constraint
     if options['model']['model_bounds']['tether_force']['include'] == True:
@@ -600,11 +600,15 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
     return options_tree, fixed_params
 
 def build_wound_tether_length_options(options, options_tree, fixed_params):
-    l_t_bounds = options['model']['system_bounds']['xd']['l_t']
-    options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
-    l_t_full_factor = options['model']['scaling_factor']['l_t_full_factor']
-    l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'] * l_t_full_factor, l_t_bounds[0]])
-    options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
+    use_wound_tether = options['model']['tether']['use_wound_tether']
+    if use_wound_tether:
+        l_t_bounds = options['model']['system_bounds']['xd']['l_t']
+        l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'], l_t_bounds[0]])
+        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
+                             ('length of the main tether when unrolled [m]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
+        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
 
     return options_tree, fixed_params
 

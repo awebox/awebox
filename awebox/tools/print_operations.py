@@ -103,7 +103,7 @@ def make_beep_in_linux():
     freq = 440  # Hz
     os.system('play --no-show-progress --null --channels 1 synth %s sine %f' % (duration, freq))
 
-def add_warning_of_temporary_funcationality_removal(editor, location):
+def warn_about_temporary_funcationality_removal(editor, location):
     awelogger.logger.warning(
         editor + ' has temporarily removed this functionality, in order to improve the code. location: ' + location)
     return None

@@ -221,7 +221,7 @@ def get_zeroth_xd_fix(variables, var_name, options, wingtip_pos):
     var_column = variables['xd', var_name]
     node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_fix')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_fix')
     # fix = node_pos - wingtip_pos
     fix = []
 
@@ -235,7 +235,7 @@ def get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx):
     var_column = variables['xd', var_name]
     node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_coll_fix')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_coll_fix')
     # fix = node_pos - wingtip_pos
     fix = []
 
@@ -246,7 +246,7 @@ def get_previous_fix(variables, var_name, prev_variables, prev_name):
     var_column = variables['xd', var_name]
     prev_column = prev_variables['xd', prev_name]
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_previous_fix')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_previous_fix')
     # fix = var_column - prev_column
     fix = []
 
@@ -255,7 +255,7 @@ def get_previous_fix(variables, var_name, prev_variables, prev_name):
 def get_placeholder_previous_fix(variables, var_name):
     var_column = variables['xd', var_name]
 
-    print_op.add_warning_of_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_placeholder_previous_fix')
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_placeholder_previous_fix')
     # fix = var_column
     fix = []
 
