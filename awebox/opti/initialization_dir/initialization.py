@@ -66,6 +66,9 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
     # set lagrange multipliers different from zero to avoid singularity
     V_init = initialize_multipliers_to_nonzero(V_init)
 
+    if not init_options['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
+        init_options = standard_path.precompute_path_parameters(init_options, model)
+
     ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init)
     V_init = set_normalized_time_params(init_options, formulation, V_init)
 

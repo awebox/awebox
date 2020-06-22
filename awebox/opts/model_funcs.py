@@ -256,9 +256,9 @@ def build_constraint_applicablity_options(options, help_options, user_options, o
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_max',np.array([5*compromised_factor,5]),('include dcoeff bound for roll control',None),'x'))
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_min',np.array([-5*compromised_factor,-5]),('include dcoeff bound for roll control',None),'x'))
 
-    dq_kite_norm = options['solver']['initialization']['dq_kite_norm']
-    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', dq_kite_norm ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
-    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', dq_kite_norm, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
+    groundspeed = options['solver']['initialization']['groundspeed']
+    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
+    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', groundspeed, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
 
     airspeed_limits = options['params']['model_bounds']['airspeed_limits']
     airspeed_include = options['model']['model_bounds']['airspeed']['include']
@@ -645,6 +645,8 @@ def build_wind_options(options, help_options, user_options, options_tree, fixed_
     options_tree.append(('params', 'wind', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', user_options['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', user_options['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
+
+    options_tree.append(('solver', 'initialization', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
 
     return options_tree, fixed_params
 

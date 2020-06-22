@@ -95,7 +95,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         cone_angle = configuration['cone_angle']
         acc_max = options['acc_max']
 
-        dq_kite_norm = options['dq_kite_norm']
+        groundspeed = options['groundspeed']
 
         # check for max acceleration
              # omega = u_a / r
@@ -103,9 +103,9 @@ def __check_configuration_feasibility(configuration, options, configuration_type
              # u_a**2 / acc_max / l_t < sin(phi)
              # arcsin(...) < phi
              # define initial configuration
-        acc = angular_looping_velocity * dq_kite_norm
+        acc = angular_looping_velocity * groundspeed
         if acc > acc_max:
-            cone_angle = np.arcsin(dq_kite_norm**2 / acc_max / tether_length)
+            cone_angle = np.arcsin(groundspeed**2 / acc_max / tether_length)
             awelogger.logger.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
             configuration['cone_angle'] = cone_angle
 
@@ -157,7 +157,7 @@ def __set_primitives(options, model):
 
         # get fixed parameters
         number_of_loopings = options['windings']
-        dq_kite_norm = options['dq_kite_norm']
+        groundspeed = options['groundspeed']
         if options['model']['architecture'] == (1,1):
             cone_angle = options['max_cone_angle_single'] * np.pi/180.
         else:
@@ -171,7 +171,7 @@ def __set_primitives(options, model):
         else:
             tether_length = options['theta']['l_s']
         radius = np.sin(cone_angle) * tether_length
-        angular_looping_velocity = dq_kite_norm/radius
+        angular_looping_velocity = groundspeed/radius
 
         initial_configuration = {}
         initial_configuration['l_t'] = options['xd']['l_t']

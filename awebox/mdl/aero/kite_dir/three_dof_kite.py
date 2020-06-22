@@ -92,6 +92,7 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['CA'] = CA
         aero_coefficients['CY'] = CY
         aero_coefficients['CN'] = CN
+        aero_coefficients['LoverD'] = CL / CD
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
                                                                f_aero, f_lift, f_drag, f_side, m_aero,
