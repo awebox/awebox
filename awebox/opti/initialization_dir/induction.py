@@ -34,7 +34,7 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
-import awebox.opti.initialization_tools as tools_init
+import awebox.opti.initialization_dir.tools as tools_init
 
 
 def initial_guess_induction(options, nlp, formulation, model, V_init):
@@ -304,8 +304,8 @@ def initial_guess_actuator_xd(options, nlp, formulation, model, V_init):
 
     l_t_temp = options['xd']['l_t']
     _, radius = tools_init.get_cone_height_and_radius(options, model, l_t_temp)
-    dq_norm, _ = tools_init.approx_speed(options, model.wind)
-    omega_norm = dq_norm / radius
+    dq_kite_norm = options['dq_kite_norm']
+    omega_norm = dq_kite_norm / radius
 
     dict = {}
     dict['a'] = cas.DM(options['xd']['a'])
@@ -413,8 +413,8 @@ def initial_guess_actuator_xl(options, nlp, formulation, model, V_init):
     l_t_temp = options['xd']['l_t']
     _, radius = tools_init.get_cone_height_and_radius(options, model, l_t_temp)
 
-    dq_norm, _ = tools_init.approx_speed(options, model.wind)
-    omega_norm = dq_norm / radius
+    dq_kite_norm = options['dq_kite_norm']
+    omega_norm = dq_kite_norm / radius
 
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(options)
