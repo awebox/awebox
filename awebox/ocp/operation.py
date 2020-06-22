@@ -478,6 +478,7 @@ def clear_empty_keys(dict):
             try:
                 dict[name].size()
             except:
+                awelogger.logger.warning('removing constraint entry (' + name + ') from dictionary, because it appears to be empty')
                 dict.pop(name)
     return dict
 

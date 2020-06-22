@@ -49,7 +49,7 @@ class Atmosphere:
         elif options['model'] == 'log_wind':
             t = params['t_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            t = params['t_ref'] * cas.DM.ones((1, 1))
+            t = params['t_ref']
         elif options['model'] == 'datafile':
             t = params['t_ref'] - params['gamma_air'] * zz
         else:
@@ -67,7 +67,7 @@ class Atmosphere:
         elif options['model'] == 'log_wind':
             rho = params['rho_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            rho = params['rho_ref'] * cas.DM.ones((1, 1))
+            rho = params['rho_ref']
         elif options['model'] == 'datafile':
             rho = self.get_pressure(zz) / \
                 params['r'] / self.get_temperature(zz)
@@ -93,7 +93,7 @@ class Atmosphere:
         elif options['model'] == 'log_wind':
             p = params['p_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            p = params['p_ref'] * cas.DM.ones((1, 1))
+            p = params['p_ref']
         elif options['model'] == 'datafile':
             p = params['p_ref'] * cas.DM.ones((1, 1)) # constant value for now, could be computed with the files..
             # raise ValueError('failure: unsupported atmospheric option chosen: %s', options['model'])

@@ -999,11 +999,11 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
         maximum_allowed_stress = parameters['theta0', 'tether', 'max_stress'] / parameters['theta0', 'tether', 'stress_safety_factor']
         max_tension_from_stress = maximum_allowed_stress * max_area
 
-        # sigma_max = tau_max / A_max
-        # (tau / A) < sigma_max
-        # tau / A < tau_max / Amax
-        # tau / tau_max < A / Amax
-        # tau / tau_max - A / Amax < 0
+        # stress_max = max_tension_from_stress / A_max
+        # (tension / A) < stress_max
+        # tension / A < max_tension_from_stress / Amax
+        # tension / max_tension_from_stress < A / Amax
+        # tension / max_tension_from_stress - A / Amax < 0
         stress_inequality_untightened = tension / max_tension_from_stress - cross_section_area / max_area
         stress_inequality = stress_inequality_untightened * tightness
 

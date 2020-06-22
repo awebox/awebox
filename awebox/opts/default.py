@@ -94,7 +94,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'wind', 'power_wind','exp_ref',  0.15,   ('terrain-specific exponent for power law wind-profile [-], (0.1: smooth hard ground, calm water, 0.15: tall grass on level ground, 0.2: high crops, hedges and shrubs, 0.3: small town with trees and shrubs, 0.4: large city with tall buildings. see Masters2013.', None), 's'),
 
         ## aero model
-        ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',          ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
+        ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',           ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
         ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
 
@@ -390,11 +390,11 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', 'xd', 'l_t',                  500.0,      ('initial guess main tether length', [True, False]), 'x'),
-        ('solver',  'initialization', None, 'dq_kite_norm',         10.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
+        ('solver',  'initialization', None, 'dq_kite_norm',         60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'incid_deg',            15.,        ('initial tether elevation angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
-        ('solver',  'initialization', None, 'max_cone_angle_multi', 90.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
+        ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
 

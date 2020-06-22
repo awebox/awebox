@@ -28,7 +28,7 @@ _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
 '''
 
-import pdb
+
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
@@ -117,23 +117,22 @@ def airspeeds_at_four_quadrants_below_maximum(options, wind, dq_kite_norm):
 
 def find_airspeed(options, wind, dq_kite_norm, psi):
 
-    n_hat, y_hat, z_hat = get_rotor_reference_frame(options)
-    ehat_radial = get_ehat_radial_from_azimuth(options, psi)
-    ehat_tangential = vect_op.normed_cross(n_hat, ehat_radial)
-    vec_dq = dq_kite_norm * ehat_tangential
+    # n_hat, y_hat, z_hat = get_rotor_reference_frame(options)
+    # ehat_radial = get_ehat_radial_from_azimuth(options, psi)
+    # ehat_tangential = vect_op.normed_cross(n_hat, ehat_radial)
+    # vec_dq = dq_kite_norm * ehat_tangential
+    #
+    # # here, we approximate the windspeed as 0. we may want to "improve" this in the future
+    # # but, for the moment, this approximation leads to tests-that-solve
+    # # todo: add "more realistic" wind model into initialization airspeed calculation
+    # vec_u_infty = cas.DM.zeros((3, 1))
+    #
+    # vec_ua = vec_dq - vec_u_infty
+    # airspeed = float(vect_op.norm(vec_ua))
+    #
+    # return airspeed
 
-    vec_u_ref = options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    vec_u_infty = vec_u_ref
-
-    # l_t = options['xd']['l_t']
-    # ehat_tether = get_ehat_tether(options)
-    # q_end = l_t * ehat_tether
-    # vec_u_infty = wind.get_velocity(q_end[2])
-
-    vec_ua = vec_dq - vec_u_infty
-    airspeed = float(vect_op.norm(vec_ua))
-
-    return airspeed
+    return dq_kite_norm
 
 def approx_speed(options, wind):
     dq_kite_norm = options['dq_kite_norm']
