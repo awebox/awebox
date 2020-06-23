@@ -34,6 +34,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
@@ -95,6 +96,7 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
                                               architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='aero.induction_dir.induction.get_specific_residuals')
     # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     # if any_vor:
     #     vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)

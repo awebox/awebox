@@ -118,3 +118,52 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     # ret['ddl_t'] = ddl_t
 
     return ret
+
+
+
+######################### compromised landing
+
+def get_compromised_landing_normalized_time_param_dict(ntp_dict, formulation):
+    xi_0_init = formulation.xi_dict['xi_bounds']['xi_0'][0]
+    nk_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', :, :, 'xd'])
+    d_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', 0, :, 'xd'])
+    n_min = int(xi_0_init * nk_xi)
+    d_min = int((xi_0_init * nk_xi - int(xi_0_init * nk_xi)) * (d_xi))
+
+    ntp_dict['n_min'] = n_min
+    ntp_dict['d_min'] = d_min
+
+
+def set_compromised_landing_normalized_time_params(formulation, V_init):
+    xi_0_init = formulation.xi_dict['xi_bounds']['xi_0'][0]
+    xi_f_init = 0.0
+    V_init['xi', 'xi_0'] = xi_0_init
+    V_init['xi', 'xi_f'] = xi_f_init
+
+    return V_init
+
+######################### nominal landing
+
+def get_nominal_landing_normalized_time_param_dict(ntp_dict, formulation):
+    V_0 = formulation.xi_dict['V_pickle_initial']
+    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
+    n0 = len(V_0['coll_var', :, :, 'xd'])
+    d0 = len(V_0['coll_var', 0, :, 'xd']) - 1
+    n_min = min_dl_t_arg / (d0 + 1)
+    d_min = min_dl_t_arg - min_dl_t_arg / (d0 + 1) * (d0 + 1)
+
+    ntp_dict['n0'] = n0
+    ntp_dict['n_min'] = n_min
+    ntp_dict['d_min'] = d_min
+
+    return ntp_dict
+
+def set_nominal_landing_normalized_time_params(formulation, V_init):
+    V_0 = formulation.xi_dict['V_pickle_initial']
+    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
+    xi_0_init = min_dl_t_arg / float(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']).size)
+    xi_f_init = 0.0
+    V_init['xi', 'xi_0'] = xi_0_init
+    V_init['xi', 'xi_f'] = xi_f_init
+
+    return V_init

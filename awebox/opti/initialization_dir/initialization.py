@@ -36,10 +36,10 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 
 import awebox.opti.initialization_dir.induction as induction
-import awebox.opti.initialization_dir.compromised_landing as compromised_landing
-import awebox.opti.initialization_dir.nominal_landing as nominal_landing
-import awebox.opti.initialization_dir.standard_path as standard_path
-import awebox.opti.initialization_dir.transition as transition
+import awebox.opti.initialization_dir.landing_scenario as landing
+import awebox.opti.initialization_dir.standard_scenario as standard
+import awebox.opti.initialization_dir.transition_scenario as transition
+
 
 def get_initial_guess(nlp, model, formulation, init_options):
     V_init_si = build_si_initial_guess(nlp, model, formulation, init_options)
@@ -48,16 +48,17 @@ def get_initial_guess(nlp, model, formulation, init_options):
     V_init = struct_op.si_to_scaled(model, V_init_si)
     return V_init
 
+
 def initialize_multipliers_to_nonzero(V_init):
     if 'xa' in list(V_init.keys()):
         V_init['xa', :] = 1.
     if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var',:,:,'xa'] = 1.
+        V_init['coll_var', :, :, 'xa'] = 1.
 
     return V_init
 
-def build_si_initial_guess(nlp, model, formulation, init_options):
 
+def build_si_initial_guess(nlp, model, formulation, init_options):
     awelogger.logger.info('build si initial guess...')
 
     V = nlp.V
@@ -67,7 +68,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
     V_init = initialize_multipliers_to_nonzero(V_init)
 
     if not init_options['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        init_options = standard_path.precompute_path_parameters(init_options, model)
+        init_options = standard.precompute_path_parameters(init_options, model)
 
     ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init)
     V_init = set_normalized_time_params(init_options, formulation, V_init)
@@ -89,60 +90,54 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
 
 
 def get_normalized_time_param_dict(nlp, formulation, init_options, V_init):
-    ntp_dict = {}
-    ntp_dict['d'] = nlp.d
-    ntp_dict['n0'] = -999
-    ntp_dict['n_min'] = -999
-    ntp_dict['d_min'] = -999
-    ntp_dict['n_min_f'] = -999
-    ntp_dict['d_min_f'] = -999
-    ntp_dict['n_min_0'] = -999
-    ntp_dict['d_min_0'] = -999
+    ntp_dict = {'d': nlp.d, 'n0': -999, 'n_min': -999, 'd_min': -999, 'n_min_f': -999, 'd_min_f': -999, 'n_min_0': -999,
+                'd_min_0': -999}
 
     if init_options['type'] in ['nominal_landing']:
-        ntp_dict = nominal_landing.get_normalized_time_param_dict(ntp_dict, formulation)
+        ntp_dict = landing.get_nominal_landing_normalized_time_param_dict(ntp_dict, formulation)
 
     elif init_options['type'] in ['compromised_landing']:
-        ntp_dict = compromised_landing.get_normalized_time_param_dict(ntp_dict, formulation)
+        ntp_dict = landing.get_compromised_landing_normalized_time_param_dict(ntp_dict, formulation)
 
     elif init_options['type'] in ['transition']:
         ntp_dict = transition.get_normalized_time_param_dict(ntp_dict, formulation)
 
     else:
-        ntp_dict = standard_path.get_normalized_time_param_dict(ntp_dict, formulation)
+        ntp_dict = standard.get_normalized_time_param_dict(ntp_dict, formulation)
 
     return ntp_dict
 
+
 def set_normalized_time_params(init_options, formulation, V_init):
     if init_options['type'] in ['nominal_landing']:
-        V_init = nominal_landing.set_normalized_time_params(formulation, V_init)
+        V_init = landing.set_nominal_landing_normalized_time_params(formulation, V_init)
 
     elif init_options['type'] in ['compromised_landing']:
-        V_init = compromised_landing.set_normalized_time_params(formulation, V_init)
+        V_init = landing.set_compromised_landing_normalized_time_params(formulation, V_init)
 
     elif init_options['type'] in ['transition']:
         V_init = transition.set_normalized_time_params(formulation, V_init)
 
     else:
-        V_init = standard_path.set_normalized_time_params(formulation, V_init)
+        V_init = standard.set_normalized_time_params(formulation, V_init)
 
     return V_init
 
 
 def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     if init_options['type'] in ['nominal_landing']:
-        tf_guess = nominal_landing.guess_final_time(init_options, formulation, ntp_dict)
+        tf_guess = landing.guess_final_time(init_options, formulation, ntp_dict)
 
     elif init_options['type'] in ['compromised_landing']:
-        tf_guess = compromised_landing.guess_final_time(init_options, formulation, ntp_dict)
+        tf_guess = landing.guess_final_time(init_options, formulation, ntp_dict)
 
     elif init_options['type'] in ['transition']:
         tf_guess = transition.guess_final_time(init_options, formulation, ntp_dict)
 
     else:
-        tf_guess = standard_path.guess_final_time(init_options, model)
+        tf_guess = standard.guess_final_time(init_options, model)
 
-    use_phase_fixing = V_init['theta','t_f'].shape[0] > 1
+    use_phase_fixing = V_init['theta', 't_f'].shape[0] > 1
     if use_phase_fixing:
         tf_guess = cas.vertcat(tf_guess, tf_guess)
 
@@ -151,9 +146,7 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     return V_init
 
 
-
 def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
-
     tf_guess = V_init['theta', 't_f']
 
     # extract time grid
@@ -164,7 +157,7 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
     d = nlp.d
     n_k = nlp.n_k
 
-    for k in range(n_k+1):
+    for k in range(n_k + 1):
 
         t = tgrid_xd[k]
 
@@ -175,7 +168,7 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
 
         if nlp.discretization == 'direct_collocation' and (k < n_k):
             for j in range(d):
-                t = tgrid_coll[k,j]
+                t = tgrid_coll[k, j]
 
                 ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
@@ -187,16 +180,16 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
 
 def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict):
     if init_options['type'] in ['nominal_landing']:
-        ret = nominal_landing.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
+        ret = landing.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
     elif init_options['type'] in ['compromised_landing']:
-        ret = compromised_landing.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
+        ret = landing.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
     elif init_options['type'] in ['transition']:
         ret = transition.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
     else:
-        ret = standard_path.guess_values_at_time(t, init_options, model)
+        ret = standard.guess_values_at_time(t, init_options, model)
 
     return ret
 
@@ -219,15 +212,3 @@ def set_nontime_system_parameters(init_options, model, V_init):
             raise ValueError("please specify an initial value for variable '" + name + "' of type 'theta'")
 
     return V_init
-
-
-
-
-
-
-
-
-
-
-
-
