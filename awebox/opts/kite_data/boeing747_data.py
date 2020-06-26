@@ -31,7 +31,11 @@ def data_dict():
     data_dict['name'] = 'boeing747'
     data_dict['geometry'] = geometry()
     data_dict['aero_deriv'] = aero_deriv()
-    data_dict['battery'] = {}
+
+    # (optional: on-board battery model)
+    coeff_min = np.array([0, -80*np.pi/180.0])
+    coeff_max = np.array([2, 80*np.pi/180.0])
+    data_dict['battery'] = battery_model_parameters(coeff_max, coeff_min)
 
     return data_dict
 
@@ -67,7 +71,39 @@ def geometry():
     geometry['tail'] = True
     geometry['wing_profile'] = None
 
+    # tether attachment point
+    geometry['r_tether'] = np.zeros((3,1))
+
     return geometry
+
+def battery_model_parameters(coeff_max, coeff_min):
+
+    # copied from ampyx ap2
+
+    battery_model = {}
+
+    # guessed values for battery model
+    battery_model['flap_length'] = 0.2
+    battery_model['flap_width'] = 0.1
+    battery_model['max_flap_defl'] = 20.*(np.pi/180.)
+    battery_model['min_flap_defl'] = -20.*(np.pi/180.)
+    battery_model['c_dl'] = (battery_model['max_flap_defl'] - battery_model['min_flap_defl'])/(coeff_min[0] - coeff_max[0])
+    battery_model['c_dphi'] = (battery_model['max_flap_defl'] - battery_model['min_flap_defl'])/(coeff_min[1] - coeff_max[1])
+    battery_model['defl_lift_0'] = battery_model['min_flap_defl'] - battery_model['c_dl']*coeff_max[0]
+    battery_model['defl_roll_0'] = battery_model['min_flap_defl'] - battery_model['c_dphi']*coeff_max[1]
+    battery_model['voltage'] = 3.7
+    battery_model['mAh'] = 5000.
+    battery_model['charge'] = battery_model['mAh']*3600.*1e-3
+    battery_model['number_of_cells'] = 15.
+    battery_model['conversion_efficiency'] = 0.7
+    battery_model['power_controller'] = 50.
+    battery_model['power_electronics'] = 10.
+    battery_model['charge_fraction'] = 1.
+
+    return battery_model
+
+
+
 
 def aero_deriv():
     # data from Heffley, Robert K. and Jewell, Wayne F.
@@ -185,10 +221,5 @@ def aero_deriv():
     aero_deriv['alpha_min_deg'] = -20.
     aero_deriv['beta_max_deg'] = 15.
     aero_deriv['beta_min_deg'] = -15.0
-
-    aero_deriv['alpha_max'] = aero_deriv['alpha_max_deg'] * np.pi / 180.
-    aero_deriv['alpha_min'] = aero_deriv['alpha_min_deg'] * np.pi / 180.
-    aero_deriv['beta_max'] = aero_deriv['beta_max_deg'] * np.pi / 180.
-    aero_deriv['beta_min'] = aero_deriv['beta_min_deg'] * np.pi / 180.
 
     return aero_deriv

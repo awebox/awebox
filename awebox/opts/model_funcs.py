@@ -35,8 +35,8 @@ import copy
 from awebox.logger.logger import Logger as awelogger
 import pickle
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.performance_operations as perf_op
 import pdb
-
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -662,14 +662,14 @@ def get_u_ref(user_options):
 def build_atmosphere_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     options_tree.append(('model',  'atmosphere', None, 'model', user_options['atmosphere'], ('atmosphere model', None),'x'))
-    q_ref = get_q_ref(user_options, options)
+    q_ref = get_q_ref(options)
     options_tree.append(('params',  'atmosphere', None, 'q_ref', q_ref, ('aerodynamic pressure [bar]', None),'x'))
 
     return options_tree, fixed_params
 
-def get_q_ref(user_options, options):
+def get_q_ref(options):
 
-    u_ref = get_u_ref(user_options)
+    u_ref = get_u_ref(options['user_options'])
     q_ref = 0.5*options['params']['atmosphere']['rho_ref'] * u_ref**2
 
     return q_ref
@@ -730,8 +730,10 @@ def build_lambda_e_power_scaling(options, help_options, user_options, options_tr
 
 def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architecture):
 
+    description = ('scaling of tether tension per length', None)
+
     # set lambda_scaling
-    options_tree.append(('model', 'scaling', 'xa', 'lambda10', lambda_scaling, ('scaling of tether tension per length', None),'x'))
+    options_tree.append(('model', 'scaling', 'xa', 'lambda10', lambda_scaling, description,'x'))
 
     # extract architecure options
     layers = architecture.layers
@@ -742,16 +744,28 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     l_i_scaling = options['model']['scaling']['theta']['l_i']
 
     #  secondary tether scaling
-    lambda_s_scaling = lambda_scaling*l_t_scaling/(l_s_scaling*architecture.number_of_kites)
+    tension_main = lambda_scaling * l_t_scaling
+    tension_secondary = tension_main / architecture.number_of_kites
+    lambda_s_scaling = tension_secondary / l_s_scaling
+
+    # tension in the intermediate tethers is not constant
+    lambda_i_max = tension_main / l_i_scaling
 
     # assign scaling according to tree structure
     layer_count = 1
     for node in range(2,architecture.number_of_nodes):
+        label = 'lambda'+str(node)+str(architecture.parent_map[node])
+
         if node in architecture.kite_nodes:
-            options_tree.append(('model', 'scaling', 'xa', 'lambda'+str(node)+str(architecture.parent_map[node]), lambda_s_scaling, ('scaling of tether tension per length', None),'x'))
+            options_tree.append(('model', 'scaling', 'xa', label, lambda_s_scaling, description,'x'))
+
         else:
-            lambda_i_scaling = (layers - layer_count)/(float(layers))*lambda_scaling*l_t_scaling/l_i_scaling
-            options_tree.append(('model', 'scaling', 'xa', 'lambda'+str(node)+str(architecture.parent_map[node]), lambda_i_scaling, ('scaling of tether tension per length', None),'x'))
+            # if there are no kites here, we must be at an intermediate, layer node
+
+            # the tension should decrease as we move to higher layers, because there are fewer kites pulling on the nodes
+            linear_factor = (layers - layer_count) / (float(layers))
+            lambda_i_scaling = linear_factor * lambda_i_max
+            options_tree.append(('model', 'scaling', 'xa', label, lambda_i_scaling, description,'x'))
             layer_count += 1
 
     return options_tree
@@ -759,79 +773,110 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
 
 def get_suggested_lambda_energy_power_scaling(options, architecture):
 
-    # single out user options
-    user_options = options['user_options']
-
-    user_levels = architecture.layers
-    user_children = architecture.children[architecture.layer_nodes[0]]
-    user_kite_dof = user_options['system_model']['kite_dof']
-    user_induction = user_options['induction_model']
-    user_kite = user_options['kite_standard']['name']
-
-    lambda_scaling = 1e3
-    energy_scaling = 1e4
-    power_cost = 1e-1
-
-    kite_poss = ['ampyx', 'boeing747', 'bubble', 'c5a']
-    induction_poss = ['not_in_use', 'actuator', 'vortex']
-    kite_dof_poss = [3, 6]
-    children_poss = [1, 2, 3, 4, 5, 6, 7, 8]
-    levels_poss = [1, 2, 3]
-
-    lam_scale_dict = {}
-    for level in levels_poss:
-
-        if not level in list(lam_scale_dict.keys()):
-            lam_scale_dict[level] = {}
-
-        for children in children_poss:
-
-            if not children in list(lam_scale_dict[level].keys()):
-                lam_scale_dict[level][children] = {}
-
-            for kite_dof in kite_dof_poss:
-
-                if not kite_dof in list(lam_scale_dict[level][children].keys()):
-                    lam_scale_dict[level][children][kite_dof] = {}
-
-                for induction in induction_poss:
-
-                    if not induction in list(lam_scale_dict[level][children][kite_dof].keys()):
-                        lam_scale_dict[level][children][kite_dof][induction] = {}
-
-                    for kite in kite_poss:
-                        lam_scale_dict[level][children][kite_dof][induction][kite] = None
-
-    # layer - children - dof - induction - kite
-    # lam_scale_dict[1][1][6]['actuator']['ampyx'] = [1., 1e3, 1.]
-    lam_scale_dict[1][1][6]['actuator']['ampyx'] = [1e3, 1e3, 0.1]
-    lam_scale_dict[1][1][6]['actuator']['bubble'] = [1e3, 100., 1.]
-    # lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1., 1e3, 0.1]
-    # lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1e3, 10., 10.]
-    lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1e2, 1e2, 0.01]
-    lam_scale_dict[1][2][6]['actuator']['bubble'] = [1e3, 10., 1e-2]
-    lam_scale_dict[1][1][3]['actuator']['ampyx'] = [1e3, 1e3, 1]
-    lam_scale_dict[1][1][3]['actuator']['bubble'] = [1e3, 1e3, 1]
-    lam_scale_dict[1][2][3]['actuator']['ampyx'] = [1., 1e5, 0.1]
-    lam_scale_dict[1][2][3]['actuator']['bubble'] = [1., 1e5, 0.1]
-    lam_scale_dict[1][2][3]['not_in_use']['ampyx'] = [1.e3, 1e3, 1.e1]
-    lam_scale_dict[1][2][6]['not_in_use']['ampyx'] = [10., 1e4, 0.1]
-    lam_scale_dict[1][2][6]['not_in_use']['bubble'] = [10., 1e4, 0.1]
-
-    if user_kite in kite_poss:
-        if not lam_scale_dict[user_levels][user_children][user_kite_dof][user_induction][user_kite] == None:
-            given_scaling = lam_scale_dict[user_levels][user_children][user_kite_dof][user_induction][user_kite]
-            lambda_scaling = given_scaling[0]
-            energy_scaling = given_scaling[1]
-            power_cost = given_scaling[2]
-
-    else:
-        awelogger.logger.warning('Warning: no scalings match the chosen kite data. Default values are used.')
-
-    if user_options['trajectory']['type'] == 'nominal_landing':
+    if options['user_options']['trajectory']['type'] == 'nominal_landing':
         power_cost = 1e-4
         lambda_scaling = 1
         energy_scaling = 1e5
+    else:
+
+        # this will scale the multiplier on the main tether, from 'si'
+        lam = estimate_tether_lambda(options, architecture)
+        arbitrary_lambda_factor = 1.e0
+        lambda_scaling = arbitrary_lambda_factor * lam
+
+        # this will scale the energy 'si'. see dynamics.make_dynamics
+        energy = estimate_energy(options, architecture)
+        arbitrary_energy_factor = 1.e0
+        energy_scaling = arbitrary_energy_factor * energy
+
+        # this will be used to weight the scaled power (energy / time) cost
+        power = estimate_power(options, architecture)
+        scaled_power = power / energy_scaling # yes, this should = (1 / time_period)
+        arbitrary_power_factor = 1.e0
+        power_cost = arbitrary_power_factor * (1. / scaled_power)  # yes, this would be apf * time_period
 
     return lambda_scaling, energy_scaling, power_cost
 
+
+def estimate_power(options, architecture):
+
+    u_ref = get_u_ref(options['user_options'])
+    q_ref = get_q_ref(options)
+    power_density = u_ref * q_ref
+
+    elevation_angle = 0.
+
+    geometry = get_geometry(options)
+    s_ref = geometry['s_ref']
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv = load_stability_derivatives(kite_standard)
+    CL = aero_deriv['CL0']
+    CD = aero_deriv['CD0']
+
+    p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
+
+    induction_model = options['user_options']['induction_model']
+    if induction_model == 'not_in_use':
+        induction_efficiency = 1.
+    else:
+        induction_efficiency = 0.5
+
+    number_of_kites = architecture.number_of_kites
+    power = number_of_kites * p_loyd * induction_efficiency
+
+    power_force_positive = np.abs(power)
+
+    return power_force_positive
+
+def estimate_tether_lambda(options, architecture):
+
+    power = estimate_power(options, architecture)
+
+    u_ref = get_u_ref(options['user_options'])
+    loyd_factor = 1./3.
+    reelout_speed = loyd_factor * u_ref
+
+    length = options['model']['scaling']['xd']['l_t']
+
+    tension = power / reelout_speed
+    multiplier = tension / length
+
+    return multiplier
+
+def estimate_energy(options, architecture):
+
+    power = estimate_power(options, architecture)
+
+    time_period = estimate_time_period(options, architecture)
+    energy = power * time_period
+
+    return energy
+
+def estimate_time_period(options, architecture):
+
+    windings = options['user_options']['trajectory']['lift_mode']['windings']
+    winding_period = options['solver']['initialization']['winding_period']
+
+    estimate_1 = windings * winding_period
+
+    number_of_kites = architecture.number_of_kites
+    if number_of_kites == 1:
+        cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
+        length = options['model']['scaling']['xd']['l_t']
+    else:
+        cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
+        length = options['model']['scaling']['theta']['l_s']
+    radius = length * np.sin(cone_angle)
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
+
+    estimate_2 = (2. * np.pi * windings) / np.sqrt( acc_max / radius)
+
+    print('estimate_1:' + str(estimate_1))
+    print('estimate_2:' + str(estimate_2))
+
+    average = (estimate_1 + estimate_2) / 2.
+
+    time_period = estimate_2
+
+    return time_period

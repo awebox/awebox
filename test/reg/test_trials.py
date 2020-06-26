@@ -11,6 +11,8 @@ import copy
 import logging
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
+import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data
+import awebox.opts.kite_data.boeing747_data as boeing747_data
 import awebox.opts.options as options
 import awebox.trial as awe_trial
 
@@ -42,6 +44,12 @@ def generate_options_dict():
     dual_kite_options['user_options']['induction_model'] = 'not_in_use'
     dual_kite_options['user_options']['tether_drag_model'] = 'single'
     dual_kite_options['solver']['save_trial'] = True
+
+    small_dual_kite_options = copy.deepcopy(dual_kite_options)
+    small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
+
+    large_dual_kite_options = copy.deepcopy(dual_kite_options)
+    large_dual_kite_options['user_options']['kite_standard'] = boeing747_data.data_dict()
 
     dual_kite_6_dof_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
     dual_kite_6_dof_options['user_options']['trajectory']['lift_mode']['windings'] = 5
@@ -83,6 +91,8 @@ def generate_options_dict():
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
+    options_dict['small_dual_kite_trial'] = small_dual_kite_options
+    options_dict['large_dual_kite_trial'] = large_dual_kite_options
     options_dict['actuator_trial'] = actuator_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options

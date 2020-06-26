@@ -22,11 +22,29 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# Import main interface classes
-from .trial import Trial
-from .sweep import Sweep
-from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
+'''
+file to provide operations related to the system performance, to the awebox,
+_python-3.5 / casadi-3.4.5
+- author: rachel leuthold alu-fr 2020
+'''
 
-# Visualization classes
-from .viz.visualization import Visualization
+import matplotlib.pylab as plt
+import scipy
+import scipy.io
+import scipy.sparse as sps
+
+import casadi.tools as cas
+import numpy as np
+from awebox.logger.logger import Logger as awelogger
+
+def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
+    phf = get_loyd_phf(CL, CD, elevation_angle)
+    p_loyd = power_density * s_ref * phf
+    return p_loyd
+
+def get_loyd_phf(CL, CD, elevation_angle=0.):
+    epsilon = 1.e-8
+    CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
+
+    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
+    return phf

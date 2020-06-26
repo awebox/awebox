@@ -41,7 +41,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 import awebox.tools.vector_operations as vect_op
-
+import awebox.tools.print_operations as print_op
 
 def get_ct_var(model_options, variables, parent):
 
@@ -66,13 +66,17 @@ def get_cmz_var(variables, parent):
     return cmz_var
 
 def get_c_all_var(model_options, variables, parent, label):
-    if 'asym' in label:
-        ct_var = get_ct_var(model_options, variables, parent)
-        cmy_var = get_cmy_var(variables, parent)
-        cmz_var = get_cmz_var(variables, parent)
-        c_all = cas.vertcat(ct_var, cmy_var, cmz_var)
-    else:
-        c_all = get_ct_var(model_options, variables, parent)
+    # if 'asym' in label:
+    #     ct_var = get_ct_var(model_options, variables, parent)
+    #     cmy_var = get_cmy_var(variables, parent)
+    #     cmz_var = get_cmz_var(variables, parent)
+    #     c_all = cas.vertcat(ct_var, cmy_var, cmz_var)
+    # else:
+    #     c_all = get_ct_var(model_options, variables, parent)
+    #
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_c_all_var')
+    c_all = []
+
     return c_all
 
 def get_t_star_var(variables, parent):
@@ -140,6 +144,15 @@ def get_actuator_thrust(model_options, variables, outputs, parent, architecture)
 
     return thrust
 
+def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture):
+    thrust = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+
+    ct = thrust / area / qzero
+
+    return ct
+
 def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture):
 
     total_moment_aero = get_actuator_moment(model_options, variables, outputs, parent, architecture)
@@ -171,19 +184,22 @@ def get_moment_denom(model_options, variables, parent, atmos, wind, parameters):
     return moment
 
 def get_thrust_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+    #
+    # thrust_val = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    #
+    # area_var = actuator_geom.get_area_var(model_options, variables, parent, parameters)
+    # qzero_var = actuator_flow.get_qzero_var(atmos, wind, variables, parent)
+    #
+    # ct_var = get_ct_var(model_options, variables, parent)
+    #
+    # resi_unscaled = thrust_val - ct_var * area_var * qzero_var
+    #
+    # thrust_ref = get_thrust_ref(model_options, atmos, wind, parameters)
+    #
+    # resi_scaled = resi_unscaled / thrust_ref
 
-    thrust_val = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
-
-    area_var = actuator_geom.get_area_var(model_options, variables, parent, parameters)
-    qzero_var = actuator_flow.get_qzero_var(atmos, wind, variables, parent)
-
-    ct_var = get_ct_var(model_options, variables, parent)
-
-    resi_unscaled = thrust_val - ct_var * area_var * qzero_var
-
-    thrust_ref = get_thrust_ref(model_options, atmos, wind, parameters)
-
-    resi_scaled = resi_unscaled / thrust_ref
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_thrust_residual')
+    resi_scaled = []
 
     return resi_scaled
 

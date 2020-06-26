@@ -39,6 +39,9 @@ import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+
+
 
 ## variables
 
@@ -101,7 +104,11 @@ def get_qzero_var(atmos, wind, variables, parent):
     return qzero_val
 
 def get_corr_var(variables, parent, label):
-    corr_var = variables['xl']['corr_' + label + str(parent)]
+
+    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_thrust_residual')
+    corr_var = []
+
+    # corr_var = variables['xl']['corr_' + label + str(parent)]
     return corr_var
 
 def get_uzero_matr_var(variables, parent):
@@ -555,3 +562,54 @@ def get_label(model_options):
         awelogger.logger.error('model not yet implemented.')
 
     return label
+
+
+
+def get_corr_val_axisym(model_options, variables, parent, label):
+    a_var = get_a_var(model_options, variables, parent, label)
+    corr_val = (1. - a_var)
+    return corr_val
+
+def get_corr_val_glauert(model_options, variables, parent, label):
+    a_var = get_a_var(model_options, variables, parent, label)
+    cosgamma_var = get_cosgamma_var(variables, parent)
+
+    corr_val = cas.sqrt( (1. - a_var * (2. * cosgamma_var - a_var)) )
+    return corr_val
+
+def get_corr_val_coleman(model_options, variables, parent, label):
+    a = get_a_var(model_options, variables, parent, label)
+    singamma = get_singamma_var(variables, parent)
+    cosgamma = get_cosgamma_var(variables, parent)
+    chi_var = get_chi_var(variables, parent, label)
+
+    corr_val = cosgamma + np.tan(chi_var / 2.) * singamma - a / (np.cos(chi_var / 2.)**2.)
+    return corr_val
+
+def get_corr_val_simple(model_options, variables, parent, label):
+    a_var = get_a_var(model_options, variables, parent, label)
+    cosgamma_var = get_cosgamma_var(variables, parent)
+    corr_val = (cosgamma_var - a_var)
+    return corr_val
+
+def get_corr_val(model_options, variables, parent, label):
+
+    actuator_skew = model_options['aero']['actuator']['actuator_skew']
+
+    if actuator_skew == 'not_in_use':
+        corr_val = get_corr_val_axisym(model_options, variables, parent, label)
+
+    elif actuator_skew == 'coleman':
+        corr_val = get_corr_val_coleman(model_options, variables, parent, label)
+
+    elif actuator_skew == 'glauert':
+        corr_val = get_corr_val_glauert(model_options, variables, parent, label)
+
+    elif actuator_skew == 'simple':
+        corr_val = get_corr_val_simple(model_options, variables, parent, label)
+
+    else:
+        corr_val = get_corr_val_simple(model_options, variables, parent, label)
+
+    return corr_val
+

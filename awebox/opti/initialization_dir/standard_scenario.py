@@ -370,7 +370,7 @@ def airspeeds_at_four_quadrants_above_minimum(options, wind, groundspeed):
 
     above_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = tools.find_airspeed(options, wind, groundspeed, psi)
+        airspeed = find_airspeed(options, wind, groundspeed, psi)
 
         loc_bool = airspeed > airspeed_min
         above_at_quadrant += [loc_bool]
@@ -384,7 +384,7 @@ def airspeeds_at_four_quadrants_below_maximum(options, wind, groundspeed):
 
     below_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = tools.find_airspeed(options, wind, groundspeed, psi)
+        airspeed = find_airspeed(options, wind, groundspeed, psi)
 
         loc_bool = airspeed < airspeed_max
         below_at_quadrant += [loc_bool]

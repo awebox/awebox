@@ -260,31 +260,31 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
         for label in actuator_comp_labels:
             system_states.extend([('a_' + label + str(layer_node), (1, 1))])
-            system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
+            # system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
             system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
 
-            if any_unsteady:
-                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+            # if any_unsteady:
+            #     system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+            #
+            # if any_asym:
+            #     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+            #     system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+            #     system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
+            #     system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
+            #     system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
+            #     system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
+            #
+            #     if any_unsteady:
+            #         system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+            #         system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
 
-            if any_asym:
-                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-                system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
-                system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
-                system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
-                system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
-
-                if any_unsteady:
-                    system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-                    system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
-
-        system_states.extend([('ct' + str(layer_node), (1, 1))])
+        # system_states.extend([('ct' + str(layer_node), (1, 1))])
         system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-        system_lifted.extend([('t_star' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('t_star' + str(layer_node), (1, 1))])
 
-        if any_asym:
-            system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
-            system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
+        # if any_asym:
+        #     system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
+        #     system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
         system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
@@ -294,8 +294,8 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
         system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
 
-        system_lifted.extend([('qzero' + str(layer_node), (1, 1))])
-        system_lifted.extend([('area' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('qzero' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('area' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
         system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])

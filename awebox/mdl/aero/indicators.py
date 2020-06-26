@@ -36,7 +36,7 @@ import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geo
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
-
+import awebox.tools.performance_operations as perf_op
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -281,19 +281,18 @@ def collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, e
     if 'local_performance' not in list(outputs.keys()):
         outputs['local_performance'] = {}
 
-    [CR, f_crosswind, p_loyd, loyd_speed, loyd_phf] = get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle)
+    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle)
 
     norm_ua = cas.mtimes(ua.T, ua)**0.5
 
     outputs['local_performance']['CR' + str(n)] = CR
-    outputs['local_performance']['f_crosswind' + str(n)] = f_crosswind
     outputs['local_performance']['p_loyd' + str(n)] = p_loyd
-    outputs['local_performance']['loyd_speed' + str(n)] = loyd_speed
-    outputs['local_performance']['loyd_phf' + str(n)] = loyd_phf
+    outputs['local_performance']['speed_loyd' + str(n)] = speed_loyd
+    outputs['local_performance']['phf_loyd' + str(n)] = phf_loyd
     outputs['local_performance']['radius' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
     outputs['local_performance']['speed_ratio' + str(n)] = norm_ua / vect_op.norm(wind.get_velocity(q[2]))
-    outputs['local_performance']['speed_ratio_loyd' + str(n)] = loyd_speed / vect_op.norm(wind.get_velocity(q[2]))
+    outputs['local_performance']['speed_ratio_loyd' + str(n)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
     outputs['local_performance']['radius_of_curvature' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
@@ -313,7 +312,7 @@ def collect_environmental_outputs(atmos, wind, q, n, outputs):
     return outputs
 
 
-def get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle=0.):
+def get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle=0.):
     # for elevation angle cosine losses see Van der Lind, p. 477, AWE book
 
     q = xd['q' + str(n) + str(parent)]
@@ -324,16 +323,14 @@ def get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters,
     windspeed = vect_op.norm(wind.get_velocity(q[2]))
     power_density = get_power_density(atmos, wind, q[2])
 
-    f_crosswind = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
+    phf_loyd = perf_op.get_loyd_phf(CL, CD, elevation_angle)
 
     s_ref = parameters['theta0','geometry','s_ref']
-    p_loyd = power_density * s_ref * f_crosswind
+    p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
-    loyd_speed = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
+    speed_loyd = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
 
-    loyd_phf = f_crosswind
-
-    return [CR, f_crosswind, p_loyd, loyd_speed, loyd_phf]
+    return [CR, phf_loyd, p_loyd, speed_loyd]
 
 def get_power_harvesting_factor(options, atmos, wind, variables, parameters,architecture):
 
