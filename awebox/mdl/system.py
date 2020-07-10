@@ -26,7 +26,7 @@
 module that describes the awe system under consideration, geometry, etc.
 python-3.5 / casadi 3.0.0
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, alu-fr 2017
+- edited: rachel leuthold, alu-fr 2017-2020
           jochem de schutter, alu-fr 2017
 
 '''

@@ -36,7 +36,7 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def get_ehat_tether(init_options):
-    inclination = init_options['incid_deg'] * np.pi / 180.
+    inclination = init_options['inclination_deg'] * np.pi / 180.
     ehat_tether = np.cos(inclination) * vect_op.xhat() + np.sin(inclination) * vect_op.zhat()
     return ehat_tether
 

@@ -162,7 +162,7 @@ def __set_primitives(options, model):
             cone_angle = options['max_cone_angle_single'] * np.pi/180.
         else:
             cone_angle = options['max_cone_angle_multi'] * np.pi/180.
-        inclination = options['incid_deg'] * np.pi/180.
+        inclination = options['inclination_deg'] * np.pi/180.
 
         # set rest of parameters
         normed_times = (0, 1)

@@ -105,5 +105,5 @@ def make_beep_in_linux():
 
 def warn_about_temporary_funcationality_removal(editor, location):
     awelogger.logger.warning(
-        editor + ' has temporarily removed this functionality, in order to improve the code. location: ' + location)
+        editor + ' has temporarily removed awebox functionality, in order to improve the code. location: ' + location)
     return None
