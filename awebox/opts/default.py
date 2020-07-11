@@ -398,7 +398,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1.0,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'cost_factor',    None,   'power',                 10.,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),

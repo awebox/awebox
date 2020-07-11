@@ -322,6 +322,22 @@ def get_LL_residual(model_options, variables, parent, label):
 
     return resi
 
+def get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    t_star_num = b_ref * (bar_varrho_var + 0.5)
+    return t_star_num
+
+def get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+    uzero_mag = actuator_flow.get_uzero_vec_length_var(wind, variables, parent)
+    t_star_den = uzero_mag
+    return t_star_den
+
+def get_t_star_denominator_ref(wind):
+    t_star_den_ref = actuator_flow.get_uzero_vec_length_ref(wind)
+    return t_star_den_ref
+
 def get_t_star_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
     dt_var = get_t_star_var(variables, parent)
 

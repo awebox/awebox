@@ -33,6 +33,7 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 def generate_structure(options, architecture):
 
@@ -263,8 +264,8 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
             # system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
             system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
 
-            # if any_unsteady:
-            #     system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+            if any_unsteady:
+                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
             #
             # if any_asym:
             #     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])

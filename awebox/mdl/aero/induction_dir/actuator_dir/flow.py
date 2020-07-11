@@ -450,7 +450,7 @@ def get_local_induced_velocity(model_options, variables, wind, kite, parent, lab
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
     nhat = general_geom.get_n_hat_var(variables, parent)
 
-    a_val = get_local_a_var(variables, kite, parent)
+    a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
     u_ind = -1. * a_val * uzero_vec_length * nhat
 
     return u_ind

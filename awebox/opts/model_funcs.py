@@ -427,6 +427,8 @@ def build_actuator_options(options, options_tree, fixed_params):
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
+    if (a_ref > a_range[1]) or (a_ref < a_range[0]):
+        a_ref = a_range[1] / 2.
 
     # if actuator_symmetry == 'asymmetric':
     options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),

@@ -88,7 +88,7 @@ def generate_options_dict():
     options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
-    # options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
+    options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
