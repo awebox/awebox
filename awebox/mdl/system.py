@@ -33,6 +33,7 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import copy
 import pdb
 
 def generate_structure(options, architecture):
@@ -354,6 +355,18 @@ def define_bounds(options, variables):
                 variable_bounds[variable_type][name]['lb'] = -cas.inf
                 variable_bounds[variable_type][name]['ub'] = cas.inf
     return variable_bounds
+
+def scale_variable(variables, var_si, scaling):
+
+    var_scaled = variables(copy.deepcopy(var_si))
+
+    for variable_type in list(variables.keys()):
+        subkeys = struct_op.subkeys(variables, variable_type)
+        for name in subkeys:
+            var_scaled[variable_type, name] = var_scaled[variable_type, name]/scaling[variable_type][name]
+
+    return var_scaled
+
 
 def scale_bounds(variable_bounds, scaling):
     for variable_type in list(variable_bounds.keys()):

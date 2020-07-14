@@ -92,33 +92,13 @@ def generate_options_dict():
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
-    options_dict['actuator_qasym_trial'] = actuator_qasym_options
+    # options_dict['actuator_qasym_trial'] = actuator_qasym_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
     # options_dict['compromised_landing_trial'] = compromised_landing_options
 
     return options_dict
-
-def generate_options_dict_for_trials_that_we_dont_expect_to_solve():
-
-    vortex_options = options.Options(internal_access = True)
-    vortex_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-    vortex_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    vortex_options['user_options']['system_model']['kite_dof'] = 6
-    vortex_options['user_options']['induction_model'] = 'vortex'
-    vortex_options['user_options']['tether_drag_model'] = 'single'
-    vortex_options['nlp']['n_k'] = 3
-    vortex_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    vortex_options['model']['aero']['vortex']['periods_tracked'] = 2
-    vortex_options['solver']['max_iter'] = 0
-
-    options_dict = collections.OrderedDict()
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='test_trials.gen_dont_expect')
-    # options_dict['vortex_options'] = vortex_options
-
-    return options_dict
-
 
 def test_trials():
     """
@@ -133,14 +113,6 @@ def test_trials():
     for trial_name in list(options_dict.keys()):
         trial_options = options_dict[trial_name]
         solve_and_check(trial_options, trial_name)
-
-    # rachel
-    # options_dict_dont_solve = generate_options_dict_for_trials_that_we_dont_expect_to_solve()
-    #
-    # # loop over trials
-    # for trial_name in list(options_dict_dont_solve.keys()):
-    #     trial_options = options_dict_dont_solve[trial_name]
-    #     solve_trial(trial_options, trial_name)
 
     return None
 
