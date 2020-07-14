@@ -84,6 +84,13 @@ This software has been developed in collaboration with the company [Kiteswarms L
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
 
+## How to cite the `awebox`
+Please cite the `awebox` using the following citation: 
+
+```
+awebox: Modelling and optimal control of single- and multiple-kite systems for airborne wind energy. https://github.com/awebox/awebox
+```
+
 ## Literature
 
 ### `awebox`-based research
