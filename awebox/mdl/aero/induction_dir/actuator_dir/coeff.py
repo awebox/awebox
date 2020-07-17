@@ -281,3 +281,22 @@ def get_t_star_denominator_ref(wind):
     return t_star_den_ref
 
 
+def get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+    thrust = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    moment_y_val = get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture)
+    moment_z_val = get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture)
+
+    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    radius_bar =  bar_varrho_var * b_ref
+
+    thrust_denom = area * qzero
+    moment_denom = thrust_denom * radius_bar
+
+    thrust_radius = thrust * radius_bar
+    c_all = cas.vertcat(thrust_radius, moment_y_val, moment_z_val)
+
+    return c_all, moment_denom
