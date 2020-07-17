@@ -392,6 +392,11 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
 
+    allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
+    if not allow_azimuth_jumping:
+        dpsi_max_rate= -np.pi / 4.
+        options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+
     return options_tree, fixed_params
 
 

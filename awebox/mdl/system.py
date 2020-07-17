@@ -255,6 +255,7 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
         system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
@@ -263,19 +264,19 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         for label in actuator_comp_labels:
             system_states.extend([('a_' + label + str(layer_node), (1, 1))])
             # system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
-            system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
+            # system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
 
             if any_unsteady:
                 system_states.extend([('da_' + label + str(layer_node), (1, 1))])
-            #
-            # if any_asym:
-            #     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-            #     system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-            #     system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
-            #     system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
-            #     system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
-            #     system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
-            #
+
+            if any_asym:
+                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+                # system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
+                # system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
+                # system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
+                # system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
+
             #     if any_unsteady:
             #         system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
             #         system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])

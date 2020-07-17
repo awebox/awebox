@@ -55,16 +55,6 @@ def get_dct_var(variables, parent):
     return dct_var
 
 
-def get_cmy_var(variables, parent):
-    cm_ref = get_cm_ref()
-    cmy_var = cm_ref * variables['xl']['cmy' + str(parent)]
-    return cmy_var
-
-def get_cmz_var(variables, parent):
-    cm_ref = get_cm_ref()
-    cmz_var = cm_ref * variables['xl']['cmz' + str(parent)]
-    return cmz_var
-
 def get_c_all_var(model_options, variables, parent, label):
     # if 'asym' in label:
     #     ct_var = get_ct_var(model_options, variables, parent)
@@ -91,9 +81,32 @@ def get_LL_var(variables, parent, label):
     LL = variables['xl']['LL_' + label + str(parent)]
     return LL
 
-def get_LL_matrix(variables, parent, label):
+def get_LL_matrix_var(variables, parent, label):
     LL_var = get_LL_var(variables, parent, label)
     LL_matr = cas.reshape(LL_var, (3, 3))
+
+    return LL_matr
+
+def get_LL_matrix_val(model_options, variables, parent, label):
+    corr = actuator_flow.get_corr_val(model_options, variables, parent, label)
+    chi = actuator_flow.get_wake_angle_chi(model_options, parent, variables, label)
+    tanhalfchi = cas.tan(chi / 2.)
+    sechalfchi = 1. / cas.cos(chi / 2.)
+
+    LL11 = 0.25 / corr
+    LL12 = 0.
+    LL13 = -0.368155 * tanhalfchi
+    LL21 = 0.
+    LL22 = -1. * sechalfchi**2.
+    LL23 = 0.
+    LL31 = (0.368155 * tanhalfchi ) / corr
+    LL32 = 0.
+    LL33 = -1. + tanhalfchi**2.
+
+    LL_row1 = cas.horzcat(LL11, LL12, LL13)
+    LL_row2 = cas.horzcat(LL21, LL22, LL23)
+    LL_row3 = cas.horzcat(LL31, LL32, LL33)
+    LL_matr = cas.vertcat(LL_row1, LL_row2, LL_row3)
 
     return LL_matr
 
@@ -183,49 +196,6 @@ def get_moment_denom(model_options, variables, parent, atmos, wind, parameters):
 
     return moment
 
-def get_thrust_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    #
-    # thrust_val = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
-    #
-    # area_var = actuator_geom.get_area_var(model_options, variables, parent, parameters)
-    # qzero_var = actuator_flow.get_qzero_var(atmos, wind, variables, parent)
-    #
-    # ct_var = get_ct_var(model_options, variables, parent)
-    #
-    # resi_unscaled = thrust_val - ct_var * area_var * qzero_var
-    #
-    # thrust_ref = get_thrust_ref(model_options, atmos, wind, parameters)
-    #
-    # resi_scaled = resi_unscaled / thrust_ref
-
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_thrust_residual')
-    resi_scaled = []
-
-    return resi_scaled
-
-
-def get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-
-    cmy_var = get_cmy_var(variables, parent)
-    cmz_var = get_cmz_var(variables, parent)
-
-    # see page 122 of Burton
-    # positive yaw = normal points towards + yhat
-    # positive yaw = turning around + zhat
-
-    moment_y_val = get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture)
-    moment_z_val = get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture)
-
-    moment_denom = get_moment_denom(model_options, variables, parent, atmos, wind, parameters)
-    moment_ref = get_moment_ref(model_options, atmos, wind, parameters)
-
-    resi_moment_y = ( cmy_var * moment_denom - moment_y_val ) / moment_ref
-    resi_moment_z = ( cmz_var * moment_denom - moment_z_val ) / moment_ref
-
-    resi_combi = cas.vertcat(resi_moment_y, resi_moment_z)
-
-    return resi_combi
-
 
 
 
@@ -278,40 +248,12 @@ def get_moment_ref(model_options, atmos, wind, parameters):
 
     return moment
 
-def get_c_tilde_residual(model_options, variables, parent, label):
-
-    c_tilde = get_c_tilde_var(variables, parent, label)
-    LL_matr = get_LL_matrix(variables, parent, label)
-    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-
-    resi = a_all - cas.mtimes(LL_matr, c_tilde)
-
-    return resi
-
 def get_LL_residual(model_options, variables, parent, label):
 
-    LL_matr = get_LL_matrix(variables, parent, label)
-    corr = actuator_flow.get_corr_var(variables, parent, label)
+    LL_matr_var = get_LL_matrix_var(variables, parent, label)
+    LL_matr_val = get_LL_matrix_val(model_options, variables, parent, label)
 
-    tanhalfchi = actuator_flow.get_tanhalfchi_var(variables, parent, label)
-    sechalfchi = actuator_flow.get_sechalfchi_var(variables, parent, label)
-
-    LL11 = 0.25 / corr
-    LL12 = 0.
-    LL13 = -0.368155 * tanhalfchi
-    LL21 = 0.
-    LL22 = -1. * sechalfchi**2.
-    LL23 = 0.
-    LL31 = (0.368155 * tanhalfchi ) / corr
-    LL32 = 0.
-    LL33 = -1. + tanhalfchi**2.
-
-    LL_row1 = cas.horzcat(LL11, LL12, LL13)
-    LL_row2 = cas.horzcat(LL21, LL22, LL23)
-    LL_row3 = cas.horzcat(LL31, LL32, LL33)
-    LL_comp = cas.vertcat(LL_row1, LL_row2, LL_row3)
-
-    resi_unscaled = LL_matr - LL_comp
+    resi_unscaled = LL_matr_var - LL_matr_val
     resi_reshape = cas.reshape(resi_unscaled, (9, 1))
 
     a_ref = actuator_flow.get_a_ref(model_options)
@@ -337,27 +279,5 @@ def get_t_star_denominator_val(model_options, atmos, wind, variables, parameters
 def get_t_star_denominator_ref(wind):
     t_star_den_ref = actuator_flow.get_uzero_vec_length_ref(wind)
     return t_star_den_ref
-
-def get_t_star_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    dt_var = get_t_star_var(variables, parent)
-
-    # t_star = geom.get_tstar_ref(parameters, wind)
-    # bar_varrho_var = geom.get_bar_varrho_var(model_options, variables, parent)
-    # dt_dtimescale = t_star * (bar_varrho_var + 0.5)
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    uzero_mag = actuator_flow.get_uzero_vec_length_var(wind, variables, parent)
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
-
-    t_star_num = b_ref * (bar_varrho_var + 0.5)
-    t_star_den = uzero_mag
-
-    uinfty_ref = wind.get_velocity_ref()
-    t_star_ref = get_t_star_ref(model_options, wind, parameters)
-    scale = uinfty_ref * t_star_ref
-
-    resi = (dt_var * t_star_den - t_star_num) / scale
-
-    return resi
 
 
