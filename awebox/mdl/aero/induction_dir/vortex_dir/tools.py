@@ -31,7 +31,6 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
-from awebox.logger.logger import Logger as awelogger
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
@@ -181,14 +180,8 @@ def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked
 
     all_ordered = []
     for period in range(periods_tracked):
-
-        period_chopped = period
-        if period > 0:
-            period_chopped = 1
-
-        var_name = 'wg' + '_' + str(period_chopped) + '_' + str(kite) + str(parent)
+        var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
         var = variables_xl[var_name]
-
         var_ordered = get_time_ordered_strength(n_k, d, var)
         all_ordered = cas.vertcat(all_ordered, var_ordered)
 
@@ -364,17 +357,3 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     total = cas.sum2(all)
 
     return total
-
-
-def append_bounds(g_bounds, fix):
-
-    fix_shape = (1,1)
-    try:
-        fix_shape = fix.shape
-    except:
-        awelogger.logger.error('An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.')
-
-    g_bounds['ub'].append(cas.zeros(fix_shape))
-    g_bounds['lb'].append(cas.zeros(fix_shape))
-
-    return g_bounds

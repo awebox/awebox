@@ -34,6 +34,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
@@ -96,11 +97,14 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
                                               architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='aero.induction_dir.induction.get_specific_residuals')
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
-    #     resi = cas.vertcat(resi, vortex_resi)
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
+
+    for layer in architecture.layer_nodes:
+        rot_matr_residual = general_geom.get_rot_matr_residual(options, layer, variables, parameters, architecture)
+        resi = cas.vertcat(resi, rot_matr_residual)
 
     return resi
 
@@ -121,7 +125,7 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     if induction_model == 'actuator':
         u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, parameters, kite, architecture)
+        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
     elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
         u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters)
     elif induction_model == 'vortex' and force_zero:

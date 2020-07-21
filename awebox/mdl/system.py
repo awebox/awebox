@@ -211,6 +211,12 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     for kite in architecture.kite_nodes:
         system_lifted.extend([('ui' + str(kite), (3, 1))])
 
+    for layer_node in architecture.layer_nodes:
+        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+
+
     return system_lifted, system_states
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
@@ -276,10 +282,6 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
                 system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
 
         system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])

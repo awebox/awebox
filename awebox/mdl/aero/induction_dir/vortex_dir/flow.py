@@ -38,10 +38,22 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
 
-def get_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture):
+def get_kite_effective_velocity(options, variables, wind, kite_obs, architecture):
+
+    parent = architecture.parent_map[kite_obs]
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite_obs, parent)
+
+    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
+
+    u_eff_kite = u_app_kite + u_ind_kite
+
+    return u_eff_kite
+
+
+
+def get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
 
     parent = architecture.parent_map[kite_obs]
 
@@ -53,22 +65,19 @@ def get_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs,
     u_ind_kite = cas.DM.zeros((3,1))
     for kite in architecture.kite_nodes:
         for rdx in range(1, n_rings_per_kite):
-            u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, parameters, wind,
-                                                                        kite_obs, parent, architecture,
+            u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
                                                                         kite, rdx)
             u_ind_kite = u_ind_kite + u_ind_val
 
     return u_ind_kite
 
 
-def get_induction_factor_at_kite(options, wind, variables, parameters, kite_obs, architecture):
+def get_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
 
-    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture)
+    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
 
     parent = architecture.parent_map[kite_obs]
-
-    n_vec_val = unit_normal.get_n_vec(options, parent, variables, parameters, architecture)
-    n_hat = vect_op.normalize(n_vec_val)
+    n_hat = general_geom.get_n_hat_var(variables, parent)
 
     u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
     u_mag = vect_op.smooth_norm(u_app_act)
@@ -78,7 +87,7 @@ def get_induction_factor_at_kite(options, wind, variables, parameters, kite_obs,
     return a_calc
 
 
-def get_last_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture):
+def get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
     parent = architecture.parent_map[kite_obs]
 
     n_k = options['aero']['vortex']['n_k']
@@ -90,21 +99,18 @@ def get_last_induced_velocity_at_kite(options, wind, variables, parameters, kite
 
     u_ind_kite = cas.DM.zeros((3,1))
     for kite in architecture.kite_nodes:
-        u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, parameters, wind,
-                                                                    kite_obs, parent, architecture,
+        u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
                                                                     kite, rdx)
         u_ind_kite = u_ind_kite + u_ind_val
 
     return u_ind_kite
 
 
-def get_last_induction_factor_at_kite(options, wind, variables, parameters, kite_obs, architecture):
-    u_ind_kite = get_last_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture)
+def get_last_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
+    u_ind_kite = get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
 
     parent = architecture.parent_map[kite_obs]
-
-    n_vec_val = unit_normal.get_n_vec(options, parent, variables, parameters, architecture)
-    n_hat = vect_op.normalize(n_vec_val)
+    n_hat = general_geom.get_n_hat_var(variables, parent)
 
     u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
     u_mag = vect_op.smooth_norm(u_app_act)
@@ -114,13 +120,44 @@ def get_last_induction_factor_at_kite(options, wind, variables, parameters, kite
     return a_calc
 
 
+def get_residuals(options, variables, wind, architecture):
 
-def get_induced_velocity_at_kite_from_kite_and_ring(options, variables, parameters, wind, kite_obs, parent, architecture, kite, rdx):
+    resi = []
+    for kite_obs in architecture.kite_nodes:
+        parent = architecture.parent_map[kite_obs]
+
+        n_k = options['aero']['vortex']['n_k']
+        d = options['aero']['vortex']['d']
+        periods_tracked = options['aero']['vortex']['periods_tracked']
+        n_rings_per_kite = vortex_tools.get_number_of_rings_per_kite(n_k, d, periods_tracked)
+
+        for kite in architecture.kite_nodes:
+            for rdx in range(1, n_rings_per_kite):
+                new_resi = get_residual_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx)
+                resi = cas.vertcat(resi, new_resi)
+
+    return resi
+
+
+def get_residual_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx):
+    u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx)
+
+    u_ind_var = variables['xl']['w_ind_' + str(kite_obs) + '_' + str(kite) + '_' + str(rdx)]
+
+    resi_unscaled = u_ind_val - u_ind_var
+
+    scale = wind.get_velocity_ref()
+    resi = resi_unscaled / scale
+
+    return resi
+
+
+def get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx):
     filament_list = vortex_tools.get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx).T
 
     include_normal_info = False
-    segment_list = biot_savart.get_biot_savart_segment_list(filament_list, options, variables, parameters,
-                                                            kite_obs, parent, architecture, include_normal_info)
+    segment_list = biot_savart.get_biot_savart_segment_list(filament_list, options, variables, kite_obs, parent,
+                                                include_normal_info)
 
     # define the symbolic function
     n_symbolics = segment_list.shape[0]
