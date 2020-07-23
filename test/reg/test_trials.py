@@ -54,15 +54,18 @@ def generate_options_dict():
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
+    actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 3
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
+    actuator_qasym_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
     actuator_uasym_options = copy.deepcopy(actuator_qasym_options)
     actuator_uasym_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
+    actuator_uasym_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'

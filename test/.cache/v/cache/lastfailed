@@ -1,6 +1,3 @@
 {
-  "int/test_serialization.py::test_sweep_serial": true,
-  "int/test_serialization.py::test_trial_serial": true,
-  "int/test_visualization.py::test_visualization": true,
-  "reg/test_discretization.py::test_integrators": true
+  "reg/test_trials.py::test_trials": true
 }
