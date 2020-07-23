@@ -37,7 +37,6 @@ import pickle
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
-import pdb
 import awebox.mdl.wind as wind
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
