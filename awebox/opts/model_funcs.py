@@ -37,7 +37,6 @@ import pickle
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
-import pdb
 import awebox.mdl.wind as wind
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
@@ -391,6 +390,11 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
+
+    allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
+    if not allow_azimuth_jumping:
+        dpsi_max_rate= -np.pi / 4.
+        options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
     return options_tree, fixed_params
 

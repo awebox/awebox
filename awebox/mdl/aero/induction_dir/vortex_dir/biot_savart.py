@@ -34,10 +34,9 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 from awebox.logger.logger import Logger as awelogger
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
 
-def get_biot_savart_segment_list(filament_list, options, variables, parameters, kite, parent, architecture, include_normal_info):
+def get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info):
 
     n_filaments = filament_list.shape[1]
 
@@ -51,9 +50,7 @@ def get_biot_savart_segment_list(filament_list, options, variables, parameters, 
     eps_extended = vect_op.ones_sx((1, n_filaments)) * epsilon
 
     if include_normal_info:
-
-        n_vec_val = unit_normal.get_n_vec(options, parent, variables, parameters, architecture)
-        n_hat = vect_op.normalize(n_vec_val)
+        n_hat = general_geom.get_n_hat_var(variables, parent)
 
         n_hat_ext = []
         for jdx in range(3):

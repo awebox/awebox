@@ -33,7 +33,7 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
-import pdb
+import copy
 
 def generate_structure(options, architecture):
 
@@ -210,6 +210,12 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     for kite in architecture.kite_nodes:
         system_lifted.extend([('ui' + str(kite), (3, 1))])
 
+    for layer_node in architecture.layer_nodes:
+        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+
+
     return system_lifted, system_states
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
@@ -254,6 +260,7 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
         system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
@@ -261,42 +268,23 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
         for label in actuator_comp_labels:
             system_states.extend([('a_' + label + str(layer_node), (1, 1))])
-            # system_lifted.extend([('corr_' + label + str(layer_node), (1, 1))])
-            system_lifted.extend([('chi_' + label + str(layer_node), (1, 1))])
 
             if any_unsteady:
                 system_states.extend([('da_' + label + str(layer_node), (1, 1))])
-            #
-            # if any_asym:
-            #     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-            #     system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-            #     system_lifted.extend([('LL_' + label + str(layer_node), (9, 1))])
-            #     system_lifted.extend([('c_tilde_' + label + str(layer_node), (3, 1))])
-            #     system_lifted.extend([('tanhalfchi_' + label + str(layer_node), (1, 1))])
-            #     system_lifted.extend([('sechalfchi_' + label + str(layer_node), (1, 1))])
-            #
-            #     if any_unsteady:
-            #         system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-            #         system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
 
-        # system_states.extend([('ct' + str(layer_node), (1, 1))])
+            if any_asym:
+                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+
+            if any_asym and any_unsteady:
+                system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+
         system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('t_star' + str(layer_node), (1, 1))])
-
-        # if any_asym:
-        #     system_lifted.extend([('cmy' + str(layer_node), (1, 1))])
-        #     system_lifted.extend([('cmz' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
         system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
-
-        # system_lifted.extend([('qzero' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('area' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
         system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
@@ -354,6 +342,18 @@ def define_bounds(options, variables):
                 variable_bounds[variable_type][name]['lb'] = -cas.inf
                 variable_bounds[variable_type][name]['ub'] = cas.inf
     return variable_bounds
+
+def scale_variable(variables, var_si, scaling):
+
+    var_scaled = variables(copy.deepcopy(var_si))
+
+    for variable_type in list(variables.keys()):
+        subkeys = struct_op.subkeys(variables, variable_type)
+        for name in subkeys:
+            var_scaled[variable_type, name] = var_scaled[variable_type, name]/scaling[variable_type][name]
+
+    return var_scaled
+
 
 def scale_bounds(variable_bounds, scaling):
     for variable_type in list(variable_bounds.keys()):

@@ -103,14 +103,6 @@ def get_qzero_var(atmos, wind, variables, parent):
     qzero_val = qzero_ref * variables['xl']['qzero' + str(parent)]
     return qzero_val
 
-def get_corr_var(variables, parent, label):
-
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_thrust_residual')
-    corr_var = []
-
-    # corr_var = variables['xl']['corr_' + label + str(parent)]
-    return corr_var
-
 def get_uzero_matr_var(variables, parent):
     rot_cols = variables['xl']['uzero_matr' + str(parent)]
     rot_matr = cas.reshape(rot_cols, (3, 3))
@@ -143,18 +135,6 @@ def get_cosgamma_var(variables, parent):
 def get_singamma_var(variables, parent):
     singamma_var = variables['xl']['singamma' + str(parent)]
     return singamma_var
-
-def get_chi_var(variables, parent, label):
-    chi_var = variables['xl']['chi_' + label + str(parent)]
-    return chi_var
-
-def get_tanhalfchi_var(variables, parent, label):
-    tanhalfchi_var = variables['xl']['tanhalfchi_' + label + str(parent)]
-    return tanhalfchi_var
-
-def get_sechalfchi_var(variables, parent, label):
-    sechalfchi_var = variables['xl']['sechalfchi_' +label + str(parent)]
-    return sechalfchi_var
 
 def get_uzero_vec_length_var(wind, variables, parent):
     scale = get_uzero_vec_length_ref(wind)
@@ -210,29 +190,8 @@ def get_gamma_residual(model_options, wind, parent, variables, architecture):
 
 
 
-def get_chi_residual(model_options, parent, variables, label):
-
-    chi_val = get_wake_angle_chi(model_options, parent, variables, label)
-
-    chi_var = get_chi_var(variables, parent, label)
-    f_chi = chi_var - chi_val
-    return f_chi
 
 
-
-
-def get_chi_trig_residual(model_options, parent, variables, label):
-
-    chi_var = get_chi_var(variables, parent, label)
-
-    tanhalfchi_var = get_tanhalfchi_var(variables, parent, label)
-    f_tan = tanhalfchi_var - np.tan(chi_var / 2.)
-
-    sechalfchi_var = get_sechalfchi_var(variables, parent, label)
-    f_sec = sechalfchi_var * np.cos(chi_var / 2.) - 1.
-
-    resi = cas.vertcat(f_tan, f_sec)
-    return resi
 
 def get_uzero_matr_ortho_residual(model_options, parent, variables, parameters, architecture):
 
@@ -282,70 +241,6 @@ def get_uzero_matr_residual(model_options, wind, parent, variables, parameters, 
     f_combi = cas.vertcat(f_ortho, f_n_vec, f_w)
 
     return f_combi
-
-def get_corr_residual_axisym(model_options, variables, parent, label):
-    corr_var = get_corr_var(variables, parent, label)
-    a_var = get_a_var(model_options, variables, parent, label)
-
-    corr_val = (1. - a_var)
-
-    resi = corr_var - corr_val
-
-    return resi
-
-def get_corr_residual_glauert(model_options, variables, parent, label):
-    corr_var = get_corr_var(variables, parent, label)
-    a_var = get_a_var(model_options, variables, parent, label)
-    cosgamma_var = get_cosgamma_var(variables, parent)
-
-    resi = corr_var ** 2. - (1. - a_var * (2. * cosgamma_var - a_var))
-
-    return resi
-
-def get_corr_residual_coleman(model_options, variables, parent, label):
-    corr_var = get_corr_var(variables, parent, label)
-    a = get_a_var(model_options, variables, parent, label)
-    singamma = get_singamma_var(variables, parent)
-    cosgamma = get_cosgamma_var(variables, parent)
-    chi_var = get_chi_var(variables, parent, label)
-
-    corr_val = cosgamma + np.tan(chi_var / 2.) * singamma - a / (np.cos(chi_var / 2.)**2.)
-
-    resi = corr_var - corr_val
-
-    return resi
-
-def get_corr_residual_simple(model_options, variables, parent, label):
-    corr_var = get_corr_var(variables, parent, label)
-    a_var = get_a_var(model_options, variables, parent, label)
-    cosgamma_var = get_cosgamma_var(variables, parent)
-
-    corr_val = (cosgamma_var - a_var)
-
-    resi = corr_var - corr_val
-
-    return resi
-
-def get_corr_residual(model_options, variables, parent, label):
-
-    actuator_skew = model_options['aero']['actuator']['actuator_skew']
-
-    if actuator_skew == 'not_in_use':
-        resi = get_corr_residual_axisym(model_options, variables, parent, label)
-
-    elif actuator_skew == 'coleman':
-        resi = get_corr_residual_coleman(model_options, variables, parent, label)
-
-    elif actuator_skew == 'glauert':
-        resi = get_corr_residual_glauert(model_options, variables, parent, label)
-
-    elif actuator_skew == 'simple':
-        resi = get_corr_residual_simple(model_options, variables, parent, label)
-
-    else:
-        resi = get_corr_residual_simple(model_options, variables, parent, label)
-
-    return resi
 
 
 
@@ -581,9 +476,9 @@ def get_corr_val_coleman(model_options, variables, parent, label):
     a = get_a_var(model_options, variables, parent, label)
     singamma = get_singamma_var(variables, parent)
     cosgamma = get_cosgamma_var(variables, parent)
-    chi_var = get_chi_var(variables, parent, label)
+    chi = get_wake_angle_chi(model_options, parent, variables, label)
 
-    corr_val = cosgamma + np.tan(chi_var / 2.) * singamma - a / (np.cos(chi_var / 2.)**2.)
+    corr_val = cosgamma + np.tan(chi / 2.) * singamma - a / (np.cos(chi / 2.)**2.)
     return corr_val
 
 def get_corr_val_simple(model_options, variables, parent, label):

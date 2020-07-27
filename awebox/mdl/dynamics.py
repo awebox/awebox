@@ -52,8 +52,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import pdb
-
 from awebox.logger.logger import Logger as awelogger
 
 
@@ -494,7 +492,7 @@ def generate_drag_mode_forces(options, variables, parameters, outputs, architect
 
         # compute generator force
         kappa = variables['xd']['kappa{}{}'.format(n, parent)]
-        speed = outputs['aerodynamics']['speed{}'.format(n)]
+        speed = outputs['aerodynamics']['airspeed{}'.format(n)]
         v_app = outputs['aerodynamics']['v_app{}'.format(n)]
         gen_force = kappa * speed * v_app
 
@@ -1404,16 +1402,19 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
     # mass vector, containing the mass of all nodes
     for n in range(1, architecture.number_of_nodes):
         seg_props = get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
-        scaling = seg_props['scaling_length'] ** 2.
-        holonomic_scaling = cas.vertcat(holonomic_scaling, scaling)
+        loc_scaling = seg_props['scaling_length'] ** 2.
+        holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
-    if len(architecture.kite_nodes) > 1 and options['cross_tether']:
+    number_of_kites = len(architecture.kite_nodes)
+    if number_of_kites > 1 and options['cross_tether']:
         for l in architecture.layer_nodes:
-            kites = architecture.kites_map[l]
-            if len(kites) == 2:
+            layer_kites = architecture.kites_map[l]
+            number_of_layer_kites = len(layer_kites)
+
+            if number_of_layer_kites == 2:
                 holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
             else:
-                for k in architecture.kites_map[l]:
+                for kdx in layer_kites:
                     holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
 
     return holonomic_scaling

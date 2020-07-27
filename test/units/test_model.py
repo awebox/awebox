@@ -9,8 +9,11 @@ import logging
 import casadi as cas
 import awebox.mdl.architecture as archi
 import numpy as np
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
+import pdb
+import awebox.mdl.system as system
 
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
+#
 def test_architecture():
     """Test architecture construction routines
     """
@@ -35,12 +38,12 @@ def test_architecture():
 def generate_architecture_dict():
     """Generate dict containing tree-structured architectures with built
     attributes to be tested
-    
+
     @return test_archi_dict  dict containing the test architectures
     """
 
     test_archi_dict = {}
-    
+
     # single kites
     archi_dict = {'parent_map': {1:0},
                   'kite_nodes': [1],
@@ -106,6 +109,7 @@ def test_drag_mode_model():
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options']['trajectory']['type'] = 'power_cycle'
     options['user_options']['trajectory']['system_type'] = 'drag_mode'
+    options['model']['tether']['use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
     options['user_options']['induction_model'] = 'not_in_use'
@@ -183,6 +187,7 @@ def test_cross_tether_model():
     options['user_options']['system_model']['kite_dof'] = 3
     options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options']['system_model']['cross_tether'] = True
+    options['model']['tether']['use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
     options['user_options']['induction_model'] = 'not_in_use'
@@ -231,6 +236,7 @@ def test_tether_moments():
     options['user_options']['induction_model'] = 'not_in_use'
     options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['system_type'] = 'drag_mode'
+    options['model']['tether']['use_wound_tether'] = False
 
     # tether attachment
     r_tether = np.array([0.0, 0.0, -0.1])
@@ -243,19 +249,17 @@ def test_tether_moments():
     model = awe.mdl.model.Model()
     model.build(options['model'], architecture)
 
-    # scaled variables
-    var_sc = model.variables(0.0)
-    var_sc['xd'] = np.array([130.644, 24.5223, 74.2863, -16.3061, -27.0514, 37.5959, -0.0181481, 0.275884, 1.5743, 0.271805, 0.334641, -0.902295, 0.0595685, 0.929945, 0.362839, 0.960506, -0.15237, 0.23283, 0.0693676, 0.261684, -0.258425, -0.0146057, 0.304368, 1.45373e-14, 1.89869e-15])
-    var_sc['xa'] = 0.045024
-    var_sc['theta'] = np.array([1, 1, 1, 0.984553, 3.93805])
-    parameters = model.parameters(0.0)
-    parameters['theta0','geometry','r_tether'] = r_tether
-
     # si variables
     var_si = model.variables(0.0)
     var_si['xd'] = np.array([130.644, 24.5223, 74.2863, -16.3061, -27.0514, 37.5959, -0.0181481, 0.275884, 1.5743, 0.271805, 0.334641, -0.902295, 0.0595685, 0.929945, 0.362839, 0.960506, -0.15237, 0.23283, 0.0693676, 0.261684, -0.258425, -0.146057, 152.184, 7.26866e-12, 9.49347e-13])
     var_si['xa'] = 45.024
     var_si['theta'] = np.array([50, 100, 0.005, 0.00492276, 3.93805])
+
+    # scaled variables
+    scaling = model.scaling
+    var_sc = system.scale_variable(model.variables, var_si, scaling)
+    parameters = model.parameters(0.0)
+    parameters['theta0','geometry','r_tether'] = r_tether
 
     # numerical result
     outputs = model.outputs(model.outputs_fun(var_sc, parameters))
@@ -263,7 +267,7 @@ def test_tether_moments():
 
     # analytic expression
     dcm = cas.reshape(var_si['xd', 'r10'],(3,3))
-    tether_moment_true = var_si['xa','lambda10']*cas.cross(r_tether, cas.mtimes(dcm.T, var_si['xd','q10']))
+    tether_moment_true = var_si['xa','lambda10'] * cas.cross(r_tether, cas.mtimes(dcm.T, var_si['xd','q10']))
 
     # test implementation
     msg = 'Incorrect tether moment contribution for single kite systems'
