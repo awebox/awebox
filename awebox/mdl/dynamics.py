@@ -52,8 +52,10 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-from awebox.logger.logger import Logger as awelogger
 
+import pdb
+
+from awebox.logger.logger import Logger as awelogger
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
     # system architecture (see zanon2013a)
@@ -117,10 +119,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs = angular_velocity_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
-    outputs = tether_power_outputs(system_variables['SI'], outputs, architecture)
-
-    if options['trajectory']['system_type'] == 'drag_mode':
-        outputs = drag_mode_outputs(system_variables['SI'], outputs, architecture)
 
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
@@ -139,8 +137,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ---------------------------------
     outputs = energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates,
                              architecture)
-    outputs = conservative_power_outputs(options, parameters, outputs, node_masses, system_variables,
-                                         generalized_coordinates, architecture)
+    outputs = power_balance_outputs(options, outputs, system_variables, architecture)
 
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
@@ -169,18 +166,20 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
                                    system_variables['scaled'][
                                        struct_op.get_variable_type(variables_dict, 'ddl_t'), 'ddl_t'])
 
-    lagrangian_lhs_translation = cas.mtimes(cas.jacobian(cas.jacobian(
-        lag, generalized_coordinates['scaled']['xgcdot'].cat).T, q_translation), qdot_translation) - cas.jacobian(lag,
-                                                                                                                  generalized_coordinates[
-                                                                                                                      'scaled'][
-                                                                                                                      'xgc'].cat).T
+    lagrangian_lhs_translation = time_derivative(cas.jacobian(lag, generalized_coordinates['scaled']['xgcdot'].cat).T,
+                                                 q_translation, qdot_translation, None) \
+                                 - cas.jacobian(lag, generalized_coordinates['scaled']['xgc'].cat).T
+
     lagrangian_lhs_constraints = gddot + 2. * \
                                  parameters['theta0', 'tether', 'kappa'] * gdot + parameters[
                                      'theta0', 'tether', 'kappa'] ** 2. * g
     # lagrangian_lhs_constraints = gddot
 
     # lagrangian momentum correction
-    lagrangian_momentum_correction = momentum_correction(generalized_coordinates, system_variables, node_masses,
+    if options['tether']['use_wound_tether']:
+        lagrangian_momentum_correction = 0.
+    else:
+        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses,
                                                          outputs, architecture)
 
     # rhs of lagrange equations
@@ -218,14 +217,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     integral_scaling = {}
 
     # energy
-    if options['trajectory']['system_type'] == 'drag_mode':
-        power = cas.SX.zeros(1, 1)
-        for n in architecture.kite_nodes:
-            power += - outputs['power_balance']['P_gen{}'.format(n)]
-
-    else:
-        power = system_variables['SI']['xa']['lambda10'] * system_variables['SI']['xd']['l_t'] * \
-                system_variables['SI']['xd']['dl_t']
+    power = get_power(options, system_variables['SI'], outputs, architecture)
 
     if options['integral_outputs']:
         integral_outputs = cas.struct_SX([cas.entry('e', expr=power / options['scaling']['xd']['e'])])
@@ -609,6 +601,27 @@ def fictitious_embedding(options, p_dec, u, outputs, n, parent):
     return homotopy_force, homotopy_moment
 
 
+
+def get_drag_power_from_kite(kite, variables_si, outputs, architecture):
+    parent = architecture.parent_map[kite]
+    kite_drag_power = cas.mtimes(
+        variables_si['xd']['dq{}{}'.format(kite, parent)].T,
+        outputs['aerodynamics']['f_gen{}'.format(kite)]
+    )
+    return kite_drag_power
+
+
+def get_power(options, variables_si, outputs, architecture):
+    if options['trajectory']['system_type'] == 'drag_mode':
+        power = cas.SX.zeros(1, 1)
+        for kite in architecture.kite_nodes:
+            power += get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+    else:
+        power = variables_si['xa']['lambda10'] * variables_si['xd']['l_t'] * variables_si['xd']['dl_t']
+
+    return power
+
+
 def energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture):
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
@@ -645,7 +658,8 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
     m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
     if options['tether']['use_wound_tether']:
         m_groundstation += node_masses['m00']
-    e_kinetic_groundstation = 1. / 4. * m_groundstation * system_variables['SI']['xd']['dl_t'] ** 2.0
+    speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
+    e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
     outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
 
     # the winch is at ground level
@@ -654,32 +668,87 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
     return outputs
 
 
-def drag_mode_outputs(variables, outputs, architecture):
-    for n in architecture.kite_nodes:
-        parent = architecture.parent_map[n]
-        outputs['power_balance']['P_gen{}'.format(n)] = cas.mtimes(
-            variables['xd']['dq{}{}'.format(n, parent)].T,
-            outputs['aerodynamics']['f_gen{}'.format(n)]
-        )
+def drag_mode_outputs(variables_si, outputs, architecture):
+    for kite in architecture.kite_nodes:
+        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, outputs, architecture)
 
     return outputs
 
 
-def tether_power_outputs(variables, outputs, architecture):
+
+
+def power_balance_outputs(options, outputs, system_variables, architecture):
+    variables_si = system_variables['SI']
+
+    # all aerodynamic forces have already been added to power balance, by this point.
+    # outputs['power_balance'] is not empty!
+
+    if options['trajectory']['system_type'] == 'drag_mode':
+        outputs = drag_mode_outputs(variables_si, outputs, architecture)
+
+    outputs = tether_power_outputs(variables_si, outputs, architecture)
+    outputs = kinetic_power_outputs(options, outputs, system_variables, architecture)
+    outputs = potential_power_outputs(options, outputs, system_variables, architecture)
+
+    if options['test']['check_energy_summation']:
+        outputs = comparison_kin_and_pot_power_outputs(outputs, system_variables, architecture)
+
+    return outputs
+
+
+def comparison_kin_and_pot_power_outputs(outputs, system_variables, architecture):
+
+    outputs['power_balance_comparison'] = {}
+
+    xd = system_variables['SI']['xd']
+    xddot = system_variables['SI']['xddot']
+
+    q_sym = cas.vertcat(*[xd['q' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
+    dq_sym = cas.vertcat(
+        *[xd['dq' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
+    ddq_sym = cas.vertcat(*[xddot['ddq' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
+
+    types = ['potential', 'kinetic']
+
+    for type in types:
+        dict = outputs['e_' + type]
+        e_local = 0.
+
+        for keyname in dict.keys():
+            e_local += dict[keyname]
+
+        # rate of change in kinetic energy
+        P = time_derivative(e_local, q_sym, dq_sym, ddq_sym)
+
+        # convention: negative when kinetic energy is added to the system
+        outputs['power_balance_comparison'][type] = -1. * P
+
+    return outputs
+
+def time_derivative(expr, q_sym, dq_sym, ddq_sym=None):
+    deriv = cas.mtimes(cas.jacobian(expr, q_sym), dq_sym)
+
+    if not (ddq_sym == None):
+        deriv += cas.mtimes(cas.jacobian(expr, dq_sym), ddq_sym)
+
+    return deriv
+
+
+def tether_power_outputs(variables_si, outputs, architecture):
     # compute instantaneous power transferred by each tether
     for n in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[n]
 
         # node positions
-        q_n = variables['xd']['q' + str(n) + str(parent)]
+        q_n = variables_si['xd']['q' + str(n) + str(parent)]
         if n > 1:
             grandparent = architecture.parent_map[parent]
-            q_p = variables['xd']['q' + str(parent) + str(grandparent)]
+            q_p = variables_si['xd']['q' + str(parent) + str(grandparent)]
         else:
             q_p = cas.SX.zeros((3, 1))
 
         # node velocity
-        dq_n = variables['xd']['dq' + str(n) + str(parent)]
+        dq_n = variables_si['xd']['dq' + str(n) + str(parent)]
         # force and direction
         tether_force = outputs['local_performance']['tether_force' + str(n) + str(parent)]
         tether_direction = vect_op.normalize(q_n - q_p)
@@ -689,51 +758,84 @@ def tether_power_outputs(variables, outputs, architecture):
     return outputs
 
 
-def conservative_power_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates,
-                               architecture):
-    """Compute rate of change of kinetic and potential energy for all system nodes
+def kinetic_power_outputs(options, outputs, system_variables, architecture):
+    """Compute rate of change of kinetic energy for all system nodes
 
     @return: outputs updated outputs dict
     """
 
     # extract variables
-    xd = system_variables['scaled'].prefix['xd']
-    xddot = system_variables['scaled'].prefix['xddot']
-    xdSI = system_variables['SI']['xd']
-    xddotSI = system_variables['SI']['xddot']
+    # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
+    xd = system_variables['SI']['xd']
+    xddot = system_variables['SI']['xddot']
+
+    # xd = system_variables['scaled'].prefix['xd']
+    # xddot = system_variables['scaled'].prefix['xddot']
 
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         label = str(n) + str(architecture.parent_map[n])
 
         # input variables for kinetic energy
-        x_kin = cas.vertcat(xd['dq' + label])
-        xdot_kin = cas.vertcat(xddot['ddq' + label])
+        x_kin = cas.vertcat(xd['q' + label])
+        xdot_kin = cas.vertcat(xd['dq' + label])
+        xddot_kin = cas.vertcat(xddot['ddq' + label])
 
         if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
             x_kin = cas.vertcat(x_kin, xd['omega' + label])
             xdot_kin = cas.vertcat(xdot_kin, xddot['domega' + label])
+            xddot_kin = cas.vertcat(xddot_kin, cas.DM.zeros(xd['omega' + label].shape))
 
-        # rate of change in kinetic energy (ignore in-outflow of kinetic energy)
-        P_kinetic = cas.mtimes(cas.jacobian(outputs['e_kinetic']['q' + label], x_kin), xdot_kin)
+        categories = {'q' + label: str(n)}
+        if n == 1:
+            categories['groundstation'] = 'groundstation1'
 
-        # convention: negative when kinetic energy is added to the system
-        outputs['power_balance']['P_kin' + str(n)] = -P_kinetic
+        for cat in categories.keys():
+
+            # rate of change in kinetic energy
+            e_local = outputs['e_kinetic'][cat]
+            P = time_derivative(e_local, x_kin, xdot_kin, xddot_kin)
+
+            # convention: negative when energy is added to the system
+            outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
+
+
+    return outputs
+
+def potential_power_outputs(options, outputs, system_variables, architecture):
+    """Compute rate of change of potential energy for all system nodes
+
+    @return: outputs updated outputs dict
+    """
+
+    # extract variables
+    # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
+    xd = system_variables['SI']['xd']
+    xddot = system_variables['SI']['xddot']
+    # xd = system_variables['scaled'].prefix['xd']
+
+    # kinetic and potential energy in the system
+    for n in range(1, architecture.number_of_nodes):
+        label = str(n) + str(architecture.parent_map[n])
 
         # input variables for potential energy
         x_pot = cas.vertcat(xd['q' + label])
         xdot_pot = cas.vertcat(xd['dq' + label])
+        xddot_pot = cas.vertcat(xddot['ddq' + label])
 
         # rate of change in potential energy (ignore in-outflow of potential energy)
-        P_potential = cas.mtimes(cas.jacobian(outputs['e_potential']['q' + label], x_pot), xdot_pot)
+        e_local = outputs['e_potential']['q' + label]
+        P = time_derivative(e_local, x_pot, xdot_pot, xddot_pot)
 
         # convention: negative when potential energy is added to the system
-        outputs['power_balance']['P_pot' + str(n)] = -P_potential
+        outputs['power_balance']['P_pot' + str(n)] = -1. * P
 
     return outputs
 
 
-def momentum_correction(generalized_coordinates, system_variables, node_masses, outputs, architecture):
+
+
+def momentum_correction(options, generalized_coordinates, system_variables, node_masses, outputs, architecture):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
@@ -748,14 +850,18 @@ def momentum_correction(generalized_coordinates, system_variables, node_masses, 
     xgcdot = generalized_coordinates['scaled']['xgcdot'].cat
     lagrangian_momentum_correction = cas.DM(np.zeros(xgcdot.shape))
 
-    for n in range(1, architecture.number_of_nodes):
-        label = str(n) + str(architecture.parent_map[n])
-        mass = node_masses['m' + label]
-        velocity = system_variables['SI']['xd']['dq' + label]  # velocity of the mass particles leaving the system
-        mass_flow = cas.mtimes(cas.jacobian(mass, system_variables['scaled']['xd', 'l_t']),
-                               system_variables['scaled']['xd', 'dl_t'])
-        lagrangian_momentum_correction += mass_flow * cas.mtimes(velocity.T, cas.jacobian(velocity,
-                                                                                          xgcdot)).T  # see formula in reference
+    use_wound_tether = options['tether']['use_wound_tether']
+    if not use_wound_tether:
+
+        for n in range(1, architecture.number_of_nodes):
+            label = str(n) + str(architecture.parent_map[n])
+            mass = node_masses['m' + label]
+            velocity = system_variables['SI']['xd']['dq' + label]  # velocity of the mass particles leaving the system
+            mass_flow = time_derivative(mass, system_variables['scaled']['xd', 'l_t'],
+                                        system_variables['scaled']['xd', 'dl_t'], None)
+
+            lagrangian_momentum_correction += mass_flow * cas.mtimes(velocity.T, cas.jacobian(velocity,
+                                                                                              xgcdot)).T  # see formula in reference
 
     return lagrangian_momentum_correction
 
@@ -1208,15 +1314,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
         g.append(length_constraint)
 
         # first-order derivative
-        gdot.append(
-            cas.mtimes(
-                cas.jacobian(
-                    g[-1],
-                    cas.vertcat(xgc.cat, var['xd', 'l_t'])
-                ),
-                cas.vertcat(xgcdot.cat, var['xd', 'dl_t'])
-            )
-        )
+        gdot.append(time_derivative(g[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']), cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), None))
 
         if int(options['kite_dof']) == 6:
             for k in kite_nodes:
@@ -1227,30 +1325,22 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                 )
 
         # second-order derivative
-        gddot.append(
-            cas.mtimes(
-                cas.jacobian(
-                    gdot[-1],
-                    cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])
-                ),
-                cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)
-            )
-        )
+        gddot.append(time_derivative(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']), cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), cas.vertcat(xgcddot.cat, ddl_t_scaled)))
 
         if int(options['kite_dof']) == 6:
-            for k in kite_nodes:
-                kparent = parent_map[k]
+            for kite in kite_nodes:
+                kparent = parent_map[kite]
 
                 # add time derivative due to angular velocity
                 gddot[-1] += 2 * cas.mtimes(
-                    vect_op.jacobian_dcm(gdot[-1], xd_si, var, k, kparent),
-                    var['xd', 'omega{}{}'.format(k, kparent)]
+                    vect_op.jacobian_dcm(gdot[-1], xd_si, var, kite, kparent),
+                    var['xd', 'omega{}{}'.format(kite, kparent)]
                 )
 
                 # add time derivative due to angular acceleration
                 gddot[-1] += 2 * cas.mtimes(
-                    vect_op.jacobian_dcm(g[-1], xd_si, var, k, kparent),
-                    var['xddot', 'domega{}{}'.format(k, kparent)]
+                    vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
+                    var['xddot', 'domega{}{}'.format(kite, kparent)]
                 )
 
         outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
@@ -1327,12 +1417,9 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                 g.append(length_constraint)
 
                 # first-order derivative
-                gdot.append(
-                    cas.mtimes(
-                        cas.jacobian(g[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'])),
-                        cas.vertcat(xgcdot.cat, var['xd', 'dl_t'])
-                    )
-                )
+                gdot.append(time_derivative(g[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']),
+                                            cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), None))
+
                 if int(options['kite_dof']) == 6:
                     for kite in kite_children:
                         kparent = parent_map[kite]
@@ -1342,12 +1429,10 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                         )
 
                 # second-order derivative
-                gddot.append(
-                    cas.mtimes(
-                        cas.jacobian(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t'], xgcdot.cat, var['xd', 'dl_t'])),
-                        cas.vertcat(xgcdot.cat, var['xd', 'dl_t'], xgcddot.cat, ddl_t_scaled)
-                    )
-                )
+                gddot.append(time_derivative(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']),
+                                             cas.vertcat(xgcdot.cat, var['xd', 'dl_t']),
+                                             cas.vertcat(xgcddot.cat, ddl_t_scaled)))
+
                 if int(options['kite_dof']) == 6:
                     for kite in kite_children:
                         kparent = parent_map[kite]

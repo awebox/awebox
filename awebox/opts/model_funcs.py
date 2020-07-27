@@ -335,6 +335,9 @@ def build_integral_options(options, options_tree, fixed_params):
 
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
 
+    check_energy_summation = options['quality']['test_param']['check_energy_summation']
+    options_tree.append(('model', 'test', None, 'check_energy_summation', check_energy_summation, ('check that no kinetic or potential energy source has gotten lost', None), 'x'))
+
     return options_tree, fixed_params
 
 

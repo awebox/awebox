@@ -28,7 +28,7 @@ def generate_options_dict():
     # set options
     single_kite_options = options.Options(internal_access = True)
     single_kite_options['user_options']['system_model']['architecture'] = {1:0}
-    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 5
+    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
     single_kite_options['user_options']['kite_standard'] = ampyx_data.data_dict()
     single_kite_options['user_options']['system_model']['kite_dof'] = 3
     single_kite_options['user_options']['induction_model'] = 'not_in_use'
