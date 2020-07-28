@@ -34,6 +34,9 @@ def generate_options_dict():
     single_kite_options['user_options']['induction_model'] = 'not_in_use'
     single_kite_options['user_options']['tether_drag_model'] = 'split'
 
+    drag_mode_options = copy.deepcopy(single_kite_options)
+    drag_mode_options['user_options']['trajectory']['system_type'] = 'drag_mode'
+
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver']['save_trial'] = True
 
@@ -49,6 +52,8 @@ def generate_options_dict():
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
     small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
+    small_dual_kite_options['params']['ground_station']['r_gen'] = 0.1
+    small_dual_kite_options['params']['ground_station']['m_gen'] = 5.
 
     actuator_qaxi_options = copy.deepcopy(dual_kite_options)
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
@@ -92,6 +97,7 @@ def generate_options_dict():
     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
+    options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['small_dual_kite_trial'] = small_dual_kite_options

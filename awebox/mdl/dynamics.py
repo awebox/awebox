@@ -53,8 +53,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 
-import pdb
-
 from awebox.logger.logger import Logger as awelogger
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
@@ -604,7 +602,7 @@ def fictitious_embedding(options, p_dec, u, outputs, n, parent):
 
 def get_drag_power_from_kite(kite, variables_si, outputs, architecture):
     parent = architecture.parent_map[kite]
-    kite_drag_power = cas.mtimes(
+    kite_drag_power = -1. * cas.mtimes(
         variables_si['xd']['dq{}{}'.format(kite, parent)].T,
         outputs['aerodynamics']['f_gen{}'.format(kite)]
     )

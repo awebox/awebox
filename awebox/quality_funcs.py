@@ -31,7 +31,6 @@
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import pdb
 import casadi.tools as cas
 
 def test_opti_success(trial, test_param_dict, results):
@@ -227,7 +226,7 @@ def test_power_balance(trial, test_param_dict, results):
 
     check_energy_summation = test_param_dict['check_energy_summation']
     if check_energy_summation:
-        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['power_balance_thresh'], results)
+        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results)
 
     balance = {}
     max_abs_system_power = 1.e-15
@@ -398,5 +397,6 @@ def generate_test_param_dict(options):
     test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
     test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
+    test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
 
     return test_param_dict
