@@ -335,6 +335,9 @@ def build_integral_options(options, options_tree, fixed_params):
 
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
 
+    check_energy_summation = options['quality']['test_param']['check_energy_summation']
+    options_tree.append(('model', 'test', None, 'check_energy_summation', check_energy_summation, ('check that no kinetic or potential energy source has gotten lost', None), 'x'))
+
     return options_tree, fixed_params
 
 
@@ -618,8 +621,13 @@ def build_tether_stress_options(options, options_tree, fixed_params, architectur
     return options_tree, fixed_params
 
 def build_wound_tether_length_options(options, options_tree, fixed_params):
+    system_type = options['user_options']['trajectory']['system_type']
+    if system_type == 'drag_mode':
+        options['model']['tether']['use_wound_tether'] = False
+        options['params']['ground_station']['m_gen'] = 0.
 
     use_wound_tether = options['model']['tether']['use_wound_tether']
+
     if use_wound_tether:
         l_t_bounds = options['model']['system_bounds']['xd']['l_t']
         l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'], l_t_bounds[0]])
@@ -627,6 +635,9 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
                              ('length of the main tether when unrolled [m]', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
         options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
+    if not use_wound_tether:
+        options['model']['model_bounds']['wound_tether_length']['include'] = False
 
     return options_tree, fixed_params
 
@@ -645,6 +656,8 @@ def build_tether_control_options(options, options_tree, fixed_params):
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
         else:
             raise ValueError('invalid tether control variable chosen')
+
+
     else:
         if options['model']['tether']['control_var'] == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))

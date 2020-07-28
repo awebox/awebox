@@ -311,7 +311,7 @@ def set_default_options(default_user_options, help_options):
 
         #### ground_station
         ('params', 'ground_station', None, 'r_gen',            0.25,   ('winch generator drum radius [m]',None),'x'),
-        ('params', 'ground_station', None, 'm_gen',            100.,   ('effective mass of generator [kg], guessed',None),'x'),
+        ('params', 'ground_station', None, 'm_gen',            50.,   ('effective mass of generator [kg], guessed',None),'x'),
         ('model', 'ground_station', None, 'ddl_t_max',        10.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
 
         #### emergency landing
@@ -528,6 +528,8 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
         ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
+        ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
+        ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
     ]
 
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)

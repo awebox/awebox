@@ -55,20 +55,6 @@ def get_dct_var(variables, parent):
     return dct_var
 
 
-def get_c_all_var(model_options, variables, parent, label):
-    # if 'asym' in label:
-    #     ct_var = get_ct_var(model_options, variables, parent)
-    #     cmy_var = get_cmy_var(variables, parent)
-    #     cmz_var = get_cmz_var(variables, parent)
-    #     c_all = cas.vertcat(ct_var, cmy_var, cmz_var)
-    # else:
-    #     c_all = get_ct_var(model_options, variables, parent)
-    #
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='actuator.coeff.get_c_all_var')
-    c_all = []
-
-    return c_all
-
 def get_t_star_var(variables, parent):
     t_star = variables['xl']['t_star' + str(parent)]
     return t_star
