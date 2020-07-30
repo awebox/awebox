@@ -72,7 +72,7 @@ def set_default_user_options(internal_access = False):
 
 def set_default_options(default_user_options, help_options):
 
-    kite_colors = ['b', 'g', 'r', 'm', 'c', 'r', 'g', 'b', 'm', 'c', 'r', 'g', 'b', 'm', 'c']
+    kite_colors = ['b', 'g', 'r', 'm', 'c'] * 3
     dim_colors = ['b', 'g', 'r', 'm', 'c', 'y', 'darkorange', 'darkkhaki', 'darkviolet']
 
     default_options_tree = [
@@ -313,6 +313,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'ground_station', None, 'r_gen',            0.25,   ('winch generator drum radius [m]',None),'x'),
         ('params', 'ground_station', None, 'm_gen',            50.,   ('effective mass of generator [kg], guessed',None),'x'),
         ('model', 'ground_station', None, 'ddl_t_max',        10.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
+        ('model', 'ground_station', None, 'dddl_t_max',       100.,    ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
@@ -414,6 +415,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'n_hat_slack',           1e6,        ('optimization weight for L1 n_hat_slack constraints [-]', None), 's'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
+        ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),

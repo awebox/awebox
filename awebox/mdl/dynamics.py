@@ -1527,7 +1527,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, holonomic_constrai
 
             domega = xddot['domega' + str(n) + str(parent)]
 
-            # moment = J dot(omega) + omega x (J omega)
+            # moment = J dot(omega) + omega x (J omega) + [tether moment which is zero if holonomic constraints do not depend on omega]
             omega_derivative = cas.mtimes(j_inertia, domega) + vect_op.cross(omega,
                                                                              cas.mtimes(j_inertia, omega)) - moment
 
