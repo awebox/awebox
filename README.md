@@ -24,6 +24,32 @@ It is optional but highly recommended to use HSL linear solvers as a plugin with
 
 3.   In order to get the HSL solvers and render them visible to CasADi, follow these [instructions](https://github.com/casadi/casadi/wiki/Obtaining-HSL).
 
+##### possible variations to the HSL installation instructions, for linux installation in the /usr/ directory, using anaconda: 
+ 
+- At Instruction  6.  (to avoid Step 2 and the use of LD_LIBRARY_PATH to let IPOPT know where to find libhsl.so, which does not seem to work):
+```
+./configure --prefix=/usr LIBS="-llapack" --with-blas="-L/usr/lib -lblas" CXXFLAGS="-g -O2 -fopenmp" FCFLAGS="-g -O2 -fopenmp" CFLAGS="-g -O2 -fopenmp"
+```
+ 
+- At Instruction 7. (very important, as the metis library is not being linked otherwise) :
+```
+make LDFLAGS="-lmetis"  
+```
+ 
+- At Instruction 8. (because of /usr chosen as install directory)  :
+```
+sudo make install
+```
+ 
+
+- At Instruction 9. :
+```
+ln -s usr/lib/libcoinhsl.so (anaconda folder where CasaDI is installed)/libhsl.so
+```
+The anaconda folder may possibly be at: /home/user_name/anaconda3/lib/python3.7/site-packages/casadi
+
+
+
 ## Getting started
 
 Add awebox to the PYTHONPATH environment variable (add those lines to your .bashrc or .zshrc to set the paths permanently).
@@ -57,6 +83,13 @@ and set the according fields in the `Options`-subdicts to the desired values.
 This software has been developed in collaboration with the company [Kiteswarms Ltd](http://www.kiteswarms.com). The company has also supported the project through research funding.
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
+
+## How to cite the `awebox`
+Please cite the `awebox` using the following citation: 
+
+```
+awebox: Modelling and optimal control of single- and multiple-kite systems for airborne wind energy. https://github.com/awebox/awebox
+```
 
 ## Literature
 

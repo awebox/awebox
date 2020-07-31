@@ -1,9 +1,8 @@
-
 #
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -24,21 +23,28 @@
 #
 #
 '''
-general induction modelling
+file to provide operations related to the system performance, to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
-- edit: jochem de schutter, alu-fr 2019
+- author: rachel leuthold alu-fr 2020
 '''
 
+import matplotlib.pylab as plt
+import scipy
+import scipy.io
+import scipy.sparse as sps
+
 import casadi.tools as cas
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import numpy as np
+from awebox.logger.logger import Logger as awelogger
 
-def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
-    resi = []
-    layer_nodes = architecture.layer_nodes
+def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
+    phf = get_loyd_phf(CL, CD, elevation_angle)
+    p_loyd = power_density * s_ref * phf
+    return p_loyd
 
-    for layer in layer_nodes:
-        rot_matr_residual = general_geom.get_rot_matr_residual(options, layer, variables, parameters, architecture)
-        resi = cas.vertcat(resi, rot_matr_residual)
+def get_loyd_phf(CL, CD, elevation_angle=0.):
+    epsilon = 1.e-8
+    CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
 
-    return resi
+    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
+    return phf

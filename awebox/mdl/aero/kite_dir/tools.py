@@ -37,28 +37,29 @@ import numpy as np
 
 ##### the force and moment lifted variables
 
-def get_f_aero_var(variables, kite, parent, parameters):
+def get_f_aero_var(variables, kite, parent, parameters, options):
     unscaled = variables['xl']['f_aero' + str(kite) + str(parent)]
-    f_scale = get_f_scale(parameters)
+    f_scale = get_f_scale(parameters, options)
     rescaled = unscaled * f_scale
 
     return rescaled
 
-def get_m_aero_var(variables, kite, parent, parameters):
+def get_m_aero_var(variables, kite, parent, parameters, options):
     unscaled = variables['xl']['m_aero' + str(kite) + str(parent)]
-    m_scale = get_m_scale(parameters)
+    m_scale = get_m_scale(parameters, options)
     rescaled = unscaled * m_scale
     return rescaled
 
-def get_f_scale(parameters):
-    g = parameters['theta0', 'atmosphere', 'g']
+def get_f_scale(parameters, options):
+
+    g = options['scaling']['other']['g']
     m_k = parameters['theta0', 'geometry', 'm_k']
     scale = g * m_k * 10.
     return scale
 
-def get_m_scale(parameters):
+def get_m_scale(parameters, options):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    g = parameters['theta0', 'atmosphere', 'g']
+    g = options['scaling']['other']['g']
     m_k = parameters['theta0', 'geometry', 'm_k']
     scale = b_ref * g * m_k / 2.
     return scale
@@ -139,18 +140,18 @@ def get_u_app_alone_in_body_frame_with_induction(options, variables, atmos, wind
 
     vec_u_eff_alone_in_body_frame = vec_u_eff_mawes_in_body_frame
 
-    vec_u_ind_alone_in_body_frame = get_u_ind_alone_in_body_frame(vec_u_eff_alone_in_body_frame, rho, variables, kite, parent, parameters)
+    vec_u_ind_alone_in_body_frame = get_u_ind_alone_in_body_frame(vec_u_eff_alone_in_body_frame, rho, variables, kite, parent, parameters, options)
 
     vec_u_app_alone_in_body_frame = vec_u_eff_alone_in_body_frame - vec_u_ind_alone_in_body_frame
 
     return vec_u_app_alone_in_body_frame
 
 
-def get_u_ind_alone_in_body_frame(vec_u_eff_in_body_frame, rho, variables, kite, parent, parameters):
+def get_u_ind_alone_in_body_frame(vec_u_eff_in_body_frame, rho, variables, kite, parent, parameters, options):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
 
-    f_aero_var = get_f_aero_var(variables, kite, parent, parameters)
+    f_aero_var = get_f_aero_var(variables, kite, parent, parameters, options)
     dcm_body_frame = cas.DM.eye(3)
 
     ehat2 = dcm_body_frame[:, 1]

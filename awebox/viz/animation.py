@@ -222,7 +222,7 @@ def fill_in_dashboard(fig, plot_dict,index):
         local_string += 'beta  = ' + str(beta)  + ' deg\n'
 
     # airspeed
-    va =  plot_dict['outputs']['aerodynamics']['speed'+kite][0][index].round(1)
+    va =  plot_dict['outputs']['aerodynamics']['airspeed'+kite][0][index].round(1)
     local_string += 'va     = ' + str(va) + ' m/s\n'
 
     textbox_global = plt.gcf().text(0.55, 0.1, global_string)

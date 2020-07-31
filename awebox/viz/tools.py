@@ -1104,8 +1104,11 @@ def get_nondim_time_and_switch(plot_dict):
     t_f = time_dim[-1]
     time_nondim = time_dim / t_f
 
-    t_switch = plot_dict['time_grids']['t_switch']
-    tau = t_switch / t_f
+    if 't_switch' in plot_dict['time_grids'].keys():
+        t_switch = plot_dict['time_grids']['t_switch']
+        tau = t_switch / t_f
+    else:
+        tau = 1.
 
     return time_nondim, tau
 

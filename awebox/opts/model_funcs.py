@@ -35,44 +35,47 @@ import copy
 from awebox.logger.logger import Logger as awelogger
 import pickle
 import awebox.tools.struct_operations as struct_op
-
+import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
+import awebox.mdl.wind as wind
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite
-    options_tree, fixed_params = build_geometry_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_kite_dof_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_geometry_options(options, help_options, options_tree, fixed_params)
+    options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params)
 
     # problem specifics
-    options_tree, fixed_params = build_constraint_applicablity_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_trajectory_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_integral_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_constraint_applicablity_options(options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_trajectory_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_integral_options(options, options_tree, fixed_params)
 
     # aerodynamics
-    options_tree, fixed_params = build_stability_derivative_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_induction_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_actuator_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_vortex_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_stability_derivative_options(options, help_options, options_tree, fixed_params)
+    options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params)
 
     # tether
-    options_tree, fixed_params = build_tether_drag_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_tether_stress_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_tether_control_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_tether_drag_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_wound_tether_length_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_tether_stress_options(options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_tether_control_options(options, options_tree, fixed_params)
 
     # environment
-    options_tree, fixed_params = build_wind_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_atmosphere_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_wind_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_atmosphere_options(options, options_tree, fixed_params)
 
     # scaling
-    options_tree, fixed_params = build_fict_scaling_options(options, help_options, user_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_lambda_e_power_scaling(options, help_options, user_options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_fict_scaling_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_lambda_e_power_scaling(options, options_tree, fixed_params, architecture)
 
     return options_tree, fixed_params
 
 
 ####### geometry
 
-def build_geometry_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_geometry_options(options, help_options, options_tree, fixed_params):
 
     geometry = get_geometry(options)
     for name in list(geometry.keys()):
@@ -212,7 +215,9 @@ def get_dependent_params(geometry, geometry_data):
 
 ##### kite dof
 
-def build_kite_dof_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_kite_dof_options(options, options_tree, fixed_params):
+
+    user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
 
@@ -239,7 +244,9 @@ def get_kite_dof(user_options):
 
 ###### constraint applicability
 
-def build_constraint_applicablity_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_constraint_applicablity_options(options, options_tree, fixed_params, architecture):
+
+    user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
     if int(kite_dof) == 3:
@@ -254,9 +261,15 @@ def build_constraint_applicablity_options(options, help_options, user_options, o
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_max',np.array([5*compromised_factor,5]),('include dcoeff bound for roll control',None),'x'))
         options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_min',np.array([-5*compromised_factor,-5]),('include dcoeff bound for roll control',None),'x'))
 
-    ua_ref = options['solver']['initialization']['ua_norm']
-    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', ua_ref ** 2., ('an estimate of the square of the apparent velocity, for normalization of the anticollision inequality', None),'x'))
-    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', ua_ref, ('an estimate of the apparent velocity, for normalization of the aero_validity orientation inequality', None),'x'))
+    groundspeed = options['solver']['initialization']['groundspeed']
+    options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
+    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', groundspeed, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
+
+    airspeed_limits = options['params']['model_bounds']['airspeed_limits']
+    airspeed_include = options['model']['model_bounds']['airspeed']['include']
+    options_tree.append(('solver', 'initialization', None, 'airspeed_limits', airspeed_limits, ('airspeed limits [m/s]', None), 's'))
+    options_tree.append(('solver', 'initialization', None, 'airspeed_include', airspeed_include, ('apply airspeed limits [m/s]', None), 's'))
+
 
     options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
     if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
@@ -275,7 +288,9 @@ def build_constraint_applicablity_options(options, help_options, user_options, o
 
 ####### trajectory specifics
 
-def build_trajectory_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_trajectory_options(options, options_tree, fixed_params):
+
+    user_options = options['user_options']
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
@@ -316,9 +331,12 @@ def get_windings(user_options):
 
 ###### integral_outputs
 
-def build_integral_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_integral_options(options, options_tree, fixed_params):
 
     options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
+
+    check_energy_summation = options['quality']['test_param']['check_energy_summation']
+    options_tree.append(('model', 'test', None, 'check_energy_summation', check_energy_summation, ('check that no kinetic or potential energy source has gotten lost', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -327,7 +345,7 @@ def build_integral_options(options, help_options, user_options, options_tree, fi
 
 ####### stability derivatives
 
-def build_stability_derivative_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_stability_derivative_options(options, help_options, options_tree, fixed_params):
 
     aero = load_stability_derivatives(options['user_options']['kite_standard'])
     for name in list(aero.keys()):
@@ -354,7 +372,9 @@ def load_stability_derivatives(kite_standard):
 
 ######## general induction
 
-def build_induction_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_induction_options(options, help_options, options_tree, fixed_params, architecture):
+
+    user_options = options['user_options']
 
     options_tree.append(('model', None, None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
@@ -374,7 +394,10 @@ def build_induction_options(options, help_options, user_options, options_tree, f
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
 
-    options_tree, fixed_params = build_actuator_options(options, help_options, user_options, options_tree, fixed_params, architecture)
+    allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
+    if not allow_azimuth_jumping:
+        dpsi_max_rate= -np.pi / 4.
+        options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -382,7 +405,9 @@ def build_induction_options(options, help_options, user_options, options_tree, f
 
 ######## actuator induction
 
-def build_actuator_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_actuator_options(options, options_tree, fixed_params):
+
+    user_options = options['user_options']
 
     actuator_symmetry = options['model']['aero']['actuator']['symmetry']
     actuator_steadyness = options['model']['aero']['actuator']['steadyness']
@@ -409,6 +434,8 @@ def build_actuator_options(options, help_options, user_options, options_tree, fi
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
+    if (a_ref > a_range[1]) or (a_ref < a_range[0]):
+        a_ref = a_range[1] / 2.
 
     # if actuator_symmetry == 'asymmetric':
     options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
@@ -493,7 +520,7 @@ def get_local_actuator_label(actuator_steadyness, actuator_symmetry):
 
 ###### vortex induction
 
-def build_vortex_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_vortex_options(options, options_tree, fixed_params):
 
     n_k = options['nlp']['n_k']
     d = options['nlp']['collocation']['d']
@@ -510,18 +537,34 @@ def build_vortex_options(options, help_options, user_options, options_tree, fixe
 
 ####### tether drag
 
-def build_tether_drag_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_tether_drag_options(options, options_tree, fixed_params):
 
     tether_drag_descript =  ('model to approximate the tether drag on the tether nodes', ['split', 'single', 'multi', 'not_in_use'])
-    options_tree.append(('model', 'tether', 'tether_drag', 'model_type', user_options['tether_drag_model'], tether_drag_descript,'x'))
-    options_tree.append(('formulation', None, None, 'tether_drag_model', user_options['tether_drag_model'], tether_drag_descript,'x'))
+    options_tree.append(('model', 'tether', 'tether_drag', 'model_type', options['user_options']['tether_drag_model'], tether_drag_descript,'x'))
+    options_tree.append(('formulation', None, None, 'tether_drag_model', options['user_options']['tether_drag_model'], tether_drag_descript,'x'))
 
     return options_tree, fixed_params
 
 
 ###### tether stress
 
-def build_tether_stress_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_tether_stress_options(options, options_tree, fixed_params, architecture):
+
+    user_options = options['user_options']
+
+    fix_diam_t = None
+    fix_diam_s = None
+    if 'diam_t' in user_options['trajectory']['fixed_params']:
+        fix_diam_t = user_options['trajectory']['fixed_params']['diam_t']
+    if 'diam_s' in user_options['trajectory']['fixed_params']:
+        fix_diam_s = user_options['trajectory']['fixed_params']['diam_s']
+
+    tether_force_limits = options['params']['model_bounds']['tether_force_limits']
+    max_tether_force = tether_force_limits[1]
+
+    max_stress = options['params']['tether']['max_stress']
+    stress_safety_factor = options['params']['tether']['stress_safety_factor']
+    max_tether_stress = max_stress / stress_safety_factor
 
     # map single tether power interval constraint to min and max constraint
     if options['model']['model_bounds']['tether_force']['include'] == True:
@@ -531,25 +574,34 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
     else:
         tether_force_include = False
 
+    tether_stress_include = options['model']['model_bounds']['tether_stress']['include']
+
     # check which tether force/stress constraints to enforce on which node
     tether_constraint_includes = {'force': [], 'stress': []}
-    diameter = None
-    if (options['model']['model_bounds']['tether_stress']['include'] and tether_force_include):
+
+    if tether_force_include and tether_stress_include:
 
         for node in range(1, architecture.number_of_nodes):
             if node in architecture.kite_nodes:
+
                 if node == 1:
-                    if 'diam_t' in user_options['trajectory']['fixed_params']:
-                        diameter = user_options['trajectory']['fixed_params']['diam_t']
+                    fix_diam = fix_diam_t
                 else:
-                    if 'diam_s' in user_options['trajectory']['fixed_params']:
-                        diameter = user_options['trajectory']['fixed_params']['diam_s']
-                if diameter != None:
-                    cross_section = np.pi * 2 / 4 * diameter
-                    if diameter * cross_section <= options['params']['model_bounds']['tether_force_max']:
+                    fix_diam = fix_diam_s
+
+                diameter_is_fixed = not (fix_diam == None)
+                if diameter_is_fixed:
+                    awelogger.logger.warning(
+                        'Both tether force and stress constraints are enabled, while tether diameter is restricted ' + \
+                        'for tether segment with upper node ' + str(node) + '. To avoid LICQ violations, tightest bound is selected.')
+
+                    cross_section = np.pi * (fix_diam / 2.)**2.
+                    force_equivalent_to_stress = max_tether_stress * cross_section
+                    if force_equivalent_to_stress <= max_tether_force:
                         tether_constraint_includes['stress'] += [node]
                     else:
                         tether_constraint_includes['force'] += [node]
+
                 else:
                     tether_constraint_includes['stress'] += [node]
                     tether_constraint_includes['force'] += [node]
@@ -557,22 +609,47 @@ def build_tether_stress_options(options, help_options, user_options, options_tre
             else:
                 tether_constraint_includes['stress'] += [node]
 
-    else:
-        if options['model']['model_bounds']['tether_stress']['include']:
-            tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
-        if options['model']['model_bounds']['tether_stress']['include']:
-            tether_constraint_includes['force'] = architecture.kite_nodes
+
+    elif tether_force_include:
+        tether_constraint_includes['force'] = architecture.kite_nodes
+
+    elif tether_stress_include:
+        tether_constraint_includes['stress'] = range(1, architecture.number_of_nodes)
 
     options_tree.append(('model', 'model_bounds', 'tether', 'tether_constraint_includes', tether_constraint_includes, ('logic deciding which tether constraints to enforce', None), 'x'))
+
+    return options_tree, fixed_params
+
+def build_wound_tether_length_options(options, options_tree, fixed_params):
+    system_type = options['user_options']['trajectory']['system_type']
+    if system_type == 'drag_mode':
+        options['model']['tether']['use_wound_tether'] = False
+        options['params']['ground_station']['m_gen'] = 0.
+
+    use_wound_tether = options['model']['tether']['use_wound_tether']
+
+    if use_wound_tether:
+        l_t_bounds = options['model']['system_bounds']['xd']['l_t']
+        l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'], l_t_bounds[0]])
+        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
+                             ('length of the main tether when unrolled [m]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
+        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
+    if not use_wound_tether:
+        options['model']['model_bounds']['wound_tether_length']['include'] = False
 
     return options_tree, fixed_params
 
 
 ######## tether control
 
-def build_tether_control_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_tether_control_options(options, options_tree, fixed_params):
+
+    user_options = options['user_options']
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
+    dddl_t_max = options['model']['ground_station']['dddl_t_max']
     if user_options['trajectory']['system_type'] == 'drag_mode':
         if options['model']['tether']['control_var'] == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
@@ -580,12 +657,14 @@ def build_tether_control_options(options, help_options, user_options, options_tr
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
         else:
             raise ValueError('invalid tether control variable chosen')
+
+
     else:
         if options['model']['tether']['control_var'] == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
         elif options['model']['tether']['control_var'] == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-10. * ddl_t_max, 10. * ddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-1. * dddl_t_max, dddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
         else:
             raise ValueError('invalid tether control variable chosen')
 
@@ -593,13 +672,15 @@ def build_tether_control_options(options, help_options, user_options, options_tr
 
 ######## wind
 
-def build_wind_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_wind_options(options, options_tree, fixed_params):
 
-    u_ref = get_u_ref(user_options)
-    options_tree.append(('model', 'wind', None, 'model', user_options['wind']['model'],('wind model', None),'x'))
+    u_ref = get_u_ref(options['user_options'])
+    options_tree.append(('model', 'wind', None, 'model', options['user_options']['wind']['model'],('wind model', None),'x'))
     options_tree.append(('params', 'wind', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
-    options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', user_options['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
-    options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', user_options['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
+    options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', options['user_options']['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
+    options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', options['user_options']['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
+
+    options_tree.append(('solver', 'initialization', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
 
     return options_tree, fixed_params
 
@@ -609,27 +690,44 @@ def get_u_ref(user_options):
 
     return u_ref
 
+def get_u_at_altitude(options, zz):
+
+    model = options['user_options']['wind']['model']
+    u_ref = get_u_ref(options['user_options'])
+    z_ref = options['params']['wind']['z_ref']
+    z0_air = options['params']['wind']['log_wind']['z0_air']
+    exp_ref = options['params']['wind']['power_wind']['exp_ref']
+    u = wind.get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
+    return u
 
 ######## atmosphere
 
-def build_atmosphere_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_atmosphere_options(options, options_tree, fixed_params):
 
-    options_tree.append(('model',  'atmosphere', None, 'model', user_options['atmosphere'], ('atmosphere model', None),'x'))
-    q_ref = get_q_ref(user_options, options)
-    options_tree.append(('params',  'atmosphere', None, 'q_ref', q_ref, ('aerodynamic pressure [bar]', None),'x'))
+    options_tree.append(('model',  'atmosphere', None, 'model', options['user_options']['atmosphere'], ('atmosphere model', None),'x'))
+    q_ref = get_q_ref(options)
+    options_tree.append(('params',  'atmosphere', None, 'q_ref', q_ref, ('aerodynamic dynamic pressure [Pa]', None),'x'))
 
     return options_tree, fixed_params
 
-def get_q_ref(user_options, options):
+def get_q_ref(options):
 
-    u_ref = get_u_ref(user_options)
+    u_ref = get_u_ref(options['user_options'])
     q_ref = 0.5*options['params']['atmosphere']['rho_ref'] * u_ref**2
 
     return q_ref
 
+def get_q_at_altitude(options, zz):
+
+    u = get_u_at_altitude(options, zz)
+    q = 0.5 * options['params']['atmosphere']['rho_ref'] * u ** 2
+
+    return q
+
+
 ####### scaling
 
-def build_fict_scaling_options(options, help_options, user_options, options_tree, fixed_params, architecture):
+def build_fict_scaling_options(options, options_tree, fixed_params):
 
     gravity = get_gravity_ref(options)
     geometry = get_geometry(options)
@@ -653,22 +751,9 @@ def get_gravity_ref(options):
 
 ####### lambda, energy, power scaling
 
-def build_lambda_e_power_scaling(options, help_options, user_options, options_tree, fixed_params, architecture):
-
-    lambda_scaling_overwrite = options['model']['scaling_overwrite']['xa']['lambda']
-    e_scaling_overwrite = options['model']['scaling_overwrite']['xd']['e']
-    power_cost_overwrite = options['solver']['cost_overwrite']['power'][1]
+def build_lambda_e_power_scaling(options, options_tree, fixed_params, architecture):
 
     lambda_scaling, energy_scaling, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
-
-    if not lambda_scaling_overwrite == None:
-        lambda_scaling = lambda_scaling_overwrite
-
-    if not e_scaling_overwrite == None:
-        energy_scaling = e_scaling_overwrite
-
-    if not power_cost_overwrite == None:
-        power_cost = power_cost_overwrite
 
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
@@ -683,8 +768,10 @@ def build_lambda_e_power_scaling(options, help_options, user_options, options_tr
 
 def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architecture):
 
+    description = ('scaling of tether tension per length', None)
+
     # set lambda_scaling
-    options_tree.append(('model', 'scaling', 'xa', 'lambda10', lambda_scaling, ('scaling of tether tension per length', None),'x'))
+    options_tree.append(('model', 'scaling', 'xa', 'lambda10', lambda_scaling, description,'x'))
 
     # extract architecure options
     layers = architecture.layers
@@ -695,16 +782,28 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     l_i_scaling = options['model']['scaling']['theta']['l_i']
 
     #  secondary tether scaling
-    lambda_s_scaling = lambda_scaling*l_t_scaling/(l_s_scaling*architecture.number_of_kites)
+    tension_main = lambda_scaling * l_t_scaling
+    tension_secondary = tension_main / architecture.number_of_kites
+    lambda_s_scaling = tension_secondary / l_s_scaling
+
+    # tension in the intermediate tethers is not constant
+    lambda_i_max = tension_main / l_i_scaling
 
     # assign scaling according to tree structure
     layer_count = 1
     for node in range(2,architecture.number_of_nodes):
+        label = 'lambda'+str(node)+str(architecture.parent_map[node])
+
         if node in architecture.kite_nodes:
-            options_tree.append(('model', 'scaling', 'xa', 'lambda'+str(node)+str(architecture.parent_map[node]), lambda_s_scaling, ('scaling of tether tension per length', None),'x'))
+            options_tree.append(('model', 'scaling', 'xa', label, lambda_s_scaling, description,'x'))
+
         else:
-            lambda_i_scaling = (layers - layer_count)/(float(layers))*lambda_scaling*l_t_scaling/l_i_scaling
-            options_tree.append(('model', 'scaling', 'xa', 'lambda'+str(node)+str(architecture.parent_map[node]), lambda_i_scaling, ('scaling of tether tension per length', None),'x'))
+            # if there are no kites here, we must be at an intermediate, layer node
+
+            # the tension should decrease as we move to higher layers, because there are fewer kites pulling on the nodes
+            linear_factor = (layers - layer_count) / (float(layers))
+            lambda_i_scaling = linear_factor * lambda_i_max
+            options_tree.append(('model', 'scaling', 'xa', label, lambda_i_scaling, description,'x'))
             layer_count += 1
 
     return options_tree
@@ -712,79 +811,140 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
 
 def get_suggested_lambda_energy_power_scaling(options, architecture):
 
-    # single out user options
-    user_options = options['user_options']
-
-    user_levels = architecture.layers
-    user_children = architecture.children[architecture.layer_nodes[0]]
-    user_kite_dof = user_options['system_model']['kite_dof']
-    user_induction = user_options['induction_model']
-    user_kite = user_options['kite_standard']['name']
-
-    lambda_scaling = 1e3
-    energy_scaling = 1e4
-    power_cost = 1e-1
-
-    kite_poss = ['ampyx', 'boeing747', 'bubble']
-    induction_poss = ['not_in_use', 'actuator', 'vortex']
-    kite_dof_poss = [3, 6]
-    children_poss = [1, 2, 3, 4, 5, 6, 7, 8]
-    levels_poss = [1, 2, 3]
-
-    lam_scale_dict = {}
-    for level in levels_poss:
-
-        if not level in list(lam_scale_dict.keys()):
-            lam_scale_dict[level] = {}
-
-        for children in children_poss:
-
-            if not children in list(lam_scale_dict[level].keys()):
-                lam_scale_dict[level][children] = {}
-
-            for kite_dof in kite_dof_poss:
-
-                if not kite_dof in list(lam_scale_dict[level][children].keys()):
-                    lam_scale_dict[level][children][kite_dof] = {}
-
-                for induction in induction_poss:
-
-                    if not induction in list(lam_scale_dict[level][children][kite_dof].keys()):
-                        lam_scale_dict[level][children][kite_dof][induction] = {}
-
-                    for kite in kite_poss:
-                        lam_scale_dict[level][children][kite_dof][induction][kite] = None
-
-    # layer - children - dof - induction - kite
-    # lam_scale_dict[1][1][6]['actuator']['ampyx'] = [1., 1e3, 1.]
-    lam_scale_dict[1][1][6]['actuator']['ampyx'] = [1e3, 1e3, 0.1]
-    lam_scale_dict[1][1][6]['actuator']['bubble'] = [1e3, 100., 1.]
-    # lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1., 1e3, 0.1]
-    # lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1e3, 10., 10.]
-    lam_scale_dict[1][2][6]['actuator']['ampyx'] = [1e2, 1e2, 0.01]
-    lam_scale_dict[1][2][6]['actuator']['bubble'] = [1e3, 10., 1e-2]
-    lam_scale_dict[1][1][3]['actuator']['ampyx'] = [1e3, 1e3, 1]
-    lam_scale_dict[1][1][3]['actuator']['bubble'] = [1e3, 1e3, 1]
-    lam_scale_dict[1][2][3]['actuator']['ampyx'] = [1., 1e5, 0.1]
-    lam_scale_dict[1][2][3]['actuator']['bubble'] = [1., 1e5, 0.1]
-    lam_scale_dict[1][2][3]['not_in_use']['ampyx'] = [1.e3, 1e3, 1.e1]
-    lam_scale_dict[1][2][6]['not_in_use']['ampyx'] = [10., 1e4, 0.1]
-    lam_scale_dict[1][2][6]['not_in_use']['bubble'] = [10., 1e4, 0.1]
-
-    if user_kite in kite_poss:
-        if not lam_scale_dict[user_levels][user_children][user_kite_dof][user_induction][user_kite] == None:
-            given_scaling = lam_scale_dict[user_levels][user_children][user_kite_dof][user_induction][user_kite]
-            lambda_scaling = given_scaling[0]
-            energy_scaling = given_scaling[1]
-            power_cost = given_scaling[2]
-
-    else:
-        awelogger.logger.warning('Warning: no scalings match the chosen kite data. Default values are used.')
-
-    if user_options['trajectory']['type'] == 'nominal_landing':
+    if options['user_options']['trajectory']['type'] == 'nominal_landing':
         power_cost = 1e-4
         lambda_scaling = 1
         energy_scaling = 1e5
+    else:
+
+        # this will scale the multiplier on the main tether, from 'si'
+        lam = estimate_tether_lambda(options, architecture)
+        lambda_factor = options['model']['scaling_overwrite']['lambda_factor']
+        lambda_scaling = lambda_factor * lam
+
+        # this will scale the energy 'si'. see dynamics.make_dynamics
+        energy = estimate_energy(options, architecture)
+        energy_factor = options['model']['scaling_overwrite']['energy_factor']
+        energy_scaling = energy_factor * energy
+
+        # this will be used to weight the scaled power (energy / time) cost
+        # so: for clarity of what is physically happening, I've written this in terms of the
+        # power and energy scaling values.
+        # but, what's actually happening depends ONLY on the tuning factor and on the estimated time period.
+        # so, if this scaling leads to bad convergence in final solution step of homotopy, then check the
+        # estimate time period function (below) FIRST.
+        power = estimate_power(options, architecture)
+        scaled_power = power / energy_scaling # yes, this = (1 / time_period_estimate)
+        power_cost_factor = options['solver']['cost_factor']['power']
+        power_cost = power_cost_factor * (1. / scaled_power)  # yes, this = pcf * time_period_estimate
 
     return lambda_scaling, energy_scaling, power_cost
 
+
+def estimate_power(options, architecture):
+
+    zz = estimate_alitude(options)
+    uu = get_u_at_altitude(options, zz)
+    qq = get_q_at_altitude(options, zz)
+    power_density = uu * qq
+
+    geometry = get_geometry(options)
+    s_ref = geometry['s_ref']
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv = load_stability_derivatives(kite_standard)
+    CL = aero_deriv['CL0'] + aero_deriv['CLalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
+    CD = aero_deriv['CD0'] + aero_deriv['CDalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
+
+    elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
+
+    p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
+
+    induction_model = options['user_options']['induction_model']
+    if induction_model == 'not_in_use':
+        induction_efficiency = 1.
+    else:
+        induction_efficiency = 0.5
+
+    number_of_kites = architecture.number_of_kites
+
+    estimate_1 = number_of_kites * p_loyd * induction_efficiency
+    #
+    # max_stress = options['params']['tether']['max_stress']
+    # stress_safety_factor = options['params']['tether']['stress_safety_factor']
+    # allowed_stress = max_stress / stress_safety_factor
+    # diam = options['model']['scaling']['theta']['diam_t']
+    # area = np.pi * (diam / 2.)**2.
+    # tension = area * allowed_stress
+    #
+    # reelout_speed = estimate_reelout_speed(options)
+    #
+    # estimate_2 = tension * reelout_speed
+    #
+    # power = np.min([estimate_1, estimate_2])
+
+    power = estimate_1
+
+    return power
+
+def estimate_reelout_speed(options):
+    zz = estimate_alitude(options)
+    uu = get_u_at_altitude(options, zz)
+    loyd_factor = 1. / 3.
+    reelout_speed = loyd_factor * uu
+
+    return reelout_speed
+
+def estimate_alitude(options):
+    elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
+    length = options['model']['scaling']['xd']['l_t']
+    zz = length * np.sin(elevation_angle)
+
+    return zz
+
+def estimate_tether_lambda(options, architecture):
+
+    power = estimate_power(options, architecture)
+
+    reelout_speed = estimate_reelout_speed(options)
+
+    length = options['model']['scaling']['xd']['l_t']
+
+    tension = power / reelout_speed
+    multiplier = tension / length
+
+    return multiplier
+
+def estimate_energy(options, architecture):
+
+    power = estimate_power(options, architecture)
+
+    time_period = estimate_time_period(options, architecture)
+    energy = power * time_period
+
+    energy = energy
+
+    return energy
+
+def estimate_time_period(options, architecture):
+
+    windings = float(options['user_options']['trajectory']['lift_mode']['windings'])
+    winding_period = float(options['solver']['initialization']['winding_period'])
+
+    estimate_1 = windings * winding_period
+
+    number_of_kites = architecture.number_of_kites
+    if number_of_kites == 1:
+        cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
+        length = options['model']['scaling']['xd']['l_t']
+    else:
+        cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
+        length = options['model']['scaling']['theta']['l_s']
+    radius = length * np.sin(cone_angle)
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
+
+    estimate_2 = (2. * np.pi * windings) / np.sqrt( acc_max / radius)
+
+    time_period = (estimate_1 + estimate_2) / 2.
+
+    return time_period

@@ -23,36 +23,42 @@
 #
 #
 import numpy as np
-from casadi.tools import vertcat
+
 
 def data_dict():
 
     data_dict = {}
-    data_dict['name'] = 'bubble'
+    data_dict['name'] = 'bubbledancer'
     data_dict['geometry'] = geometry()
     data_dict['aero_deriv'] = aero_deriv()
-    data_dict['battery'] = {}
+
+    # (optional: on-board battery model)
+    coeff_min = np.array([0, -80 * np.pi / 180.0])
+    coeff_max = np.array([2, 80 * np.pi / 180.0])
+    data_dict['battery'] = battery_model_parameters(coeff_max, coeff_min)
 
     return data_dict
 
 def geometry():
 
     # values from AVL sample files
+    # and, plan: http://www.charlesriverrc.org/articles/bubbledancer/PDFs/bd_V3.pdf
 
     geometry = {}
 
-    geometry['m_k'] = 0.9195  # [kg]
     geometry['s_ref'] = 0.6541922  # [m^2]
     geometry['b_ref'] = 2.9718  # [m]
     geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m]
+
+    geometry['m_k'] = 0.9195  # [kg]
 
     geometry['ar'] = geometry['b_ref'] / geometry['c_ref']
     geometry['j'] = np.array([[0.2052, 0.0, 0.1702e-2],
                               [0.0, 0.7758e-1, 0.0],
                               [0.1702e-2, 0.0, 0.2790]])
 
-    geometry['length'] = geometry['b_ref']  # only for plotting
-    geometry['height'] = geometry['b_ref'] / 5.  # only for plotting
+    geometry['length'] = 1.534 #[m]  # only for plotting
+    geometry['height'] = 0.26416  #[m] only for plotting
     geometry['delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
     geometry['ddelta_max'] = np.array([2., 2., 2.])
 
@@ -64,7 +70,39 @@ def geometry():
     geometry['tail'] = True
     geometry['wing_profile'] = None
 
+    # tether attachment point
+    geometry['r_tether'] = np.zeros((3,1))
+
     return geometry
+
+def battery_model_parameters(coeff_max, coeff_min):
+
+    # values copied from ampyx ap2
+
+    battery_model = {}
+
+    # guessed values for battery model
+    battery_model['flap_length'] = 0.2
+    battery_model['flap_width'] = 0.1
+    battery_model['max_flap_defl'] = 20.*(np.pi/180.)
+    battery_model['min_flap_defl'] = -20.*(np.pi/180.)
+    battery_model['c_dl'] = (battery_model['max_flap_defl'] - battery_model['min_flap_defl'])/(coeff_min[0] - coeff_max[0])
+    battery_model['c_dphi'] = (battery_model['max_flap_defl'] - battery_model['min_flap_defl'])/(coeff_min[1] - coeff_max[1])
+    battery_model['defl_lift_0'] = battery_model['min_flap_defl'] - battery_model['c_dl']*coeff_max[0]
+    battery_model['defl_roll_0'] = battery_model['min_flap_defl'] - battery_model['c_dphi']*coeff_max[1]
+    battery_model['voltage'] = 3.7
+    battery_model['mAh'] = 5000.
+    battery_model['charge'] = battery_model['mAh']*3600.*1e-3
+    battery_model['number_of_cells'] = 15.
+    battery_model['conversion_efficiency'] = 0.7
+    battery_model['power_controller'] = 50.
+    battery_model['power_electronics'] = 10.
+    battery_model['charge_fraction'] = 1.
+
+    return battery_model
+
+
+
 
 def aero_deriv():
 
@@ -78,11 +116,11 @@ def aero_deriv():
 
     aero_deriv['CLalpha'] = 5.675616
     aero_deriv['CSalpha'] = -0.000003
-    aero_deriv['CDalpha'] = 0.1 #arbitrary
+    aero_deriv['CDalpha'] = 0.1 #arbitrary, based on ampyx ap2
 
     aero_deriv['CLalpha2'] = 0
     aero_deriv['CSalpha2'] = 0.
-    aero_deriv['CDalpha2'] = 1.3 #arbitrary
+    aero_deriv['CDalpha2'] = 1.3 #arbitrary, based on ampyx ap2
     
     aero_deriv['CLbeta'] = 0.
     aero_deriv['CSbeta'] = -0.404699
@@ -145,7 +183,7 @@ def aero_deriv():
     aero_deriv['Cn0'] = 0.
 
     aero_deriv['Cldeltae'] = 0.
-    aero_deriv['Cldeltaa'] = 0.3 # arbitrary
+    aero_deriv['Cldeltaa'] = 0.3 # arbitrary, assumed similar to ampyx ap2
     aero_deriv['Cldeltar'] = -0.000076
 
     aero_deriv['Cmdeltae'] = -0.027418
@@ -180,10 +218,5 @@ def aero_deriv():
     aero_deriv['alpha_min_deg'] = -20.
     aero_deriv['beta_max_deg'] = 15.
     aero_deriv['beta_min_deg'] = -15.0
-
-    aero_deriv['alpha_max'] = aero_deriv['alpha_max_deg'] * np.pi / 180.
-    aero_deriv['alpha_min'] = aero_deriv['alpha_min_deg'] * np.pi / 180.
-    aero_deriv['beta_max'] = aero_deriv['beta_max_deg'] * np.pi / 180.
-    aero_deriv['beta_min'] = aero_deriv['beta_min_deg'] * np.pi / 180.
 
     return aero_deriv

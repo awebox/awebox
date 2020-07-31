@@ -66,6 +66,9 @@ def get_tether_model_types(options):
     if selected_model == 'not_in_use':
         tether_models = []
 
+    elif selected_model == 'kite_only':
+        tether_models = ['kite_only']
+
     elif selected_model == 'split':
         tether_models = ['split', 'single', 'multi']
 
@@ -128,6 +131,8 @@ def get_force_outputs(model_options, variables, atmos, wind, upper_node, tether_
 
     element_drag_fun, element_moment_fun = element.get_element_drag_and_moment_fun(wind, atmos, tether_cd_fun)
 
+    kite_only_lower, kite_only_upper = segment.get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, tether_cd_fun)
+
     split_lower, split_upper = segment.get_distributed_segment_forces(1, variables, upper_node, architecture, element_drag_fun,
                                    element_moment_fun, split_distribution_fun)
 
@@ -149,6 +154,9 @@ def get_force_outputs(model_options, variables, atmos, wind, upper_node, tether_
     outputs['tether_aero']['single_lower' + str(upper_node)] = single_lower
     outputs['tether_aero']['split_upper' + str(upper_node)] = split_upper
     outputs['tether_aero']['split_lower' + str(upper_node)] = split_lower
+    outputs['tether_aero']['kite_only_upper' + str(upper_node)] = kite_only_upper
+    outputs['tether_aero']['kite_only_lower' + str(upper_node)] = kite_only_lower
+
     outputs['tether_aero']['reynolds' + str(upper_node)] = re_number
 
     return outputs

@@ -96,12 +96,12 @@ class Visualization(object):
             flags += level_1
 
         if 'level_2' in flags:
-            level_2 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz']
+            level_2 = ['states', 'controls', 'isometric', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_2')
             flags += level_2
 
         if 'level_3' in flags:
-            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables']
+            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_3')
             flags += level_3
 
@@ -145,10 +145,10 @@ class Visualization(object):
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_forces'] = output.plot_aero_forces(plot_dict, cosmetics, fig_num)
+        # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
         # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_dimensionless'] = output.plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_num)
+        # plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})

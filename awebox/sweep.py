@@ -359,6 +359,15 @@ class Sweep:
     def sweep_labels(self, value):
         print('Cannot set sweep_labels object.')
 
+
+    @property
+    def plot_dict(self):
+        return self.__plot_dict
+
+    @plot_dict.setter
+    def plot_dict(self, value):
+        print('Cannot set plot_dict object.')
+
     @property
     def plot_logic_dict(self):
         return self.__plot_logic_dict

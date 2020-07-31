@@ -32,11 +32,11 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
-
+import awebox.tools.performance_operations as perf_op
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -88,7 +88,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     return outputs
 
-def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
+def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, q_eff, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
@@ -97,7 +97,12 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
         outputs['aerodynamics'][name + str(n)] = aero_coefficients[name]
 
     outputs['aerodynamics']['v_app' + str(n)] = ua
-    outputs['aerodynamics']['speed' + str(n)] = ua_norm
+    outputs['aerodynamics']['airspeed' + str(n)] = ua_norm
+    outputs['aerodynamics']['u_infty' + str(n)] = wind.get_velocity(q[2])
+
+    rho = atmos.get_density(q[2])
+    outputs['aerodynamics']['air_density' + str(n)] = rho
+    outputs['aerodynamics']['dyn_pressure' + str(n)] = 0.5 * rho * cas.mtimes(ua.T, ua)
 
     outputs['aerodynamics']['f_aero' + str(n)] = f_aero
     outputs['aerodynamics']['f_lift' + str(n)] = f_lift
@@ -110,13 +115,10 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
-    rho = atmos.get_density(q[2])
     gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
     gamma_cl = 0.5 * ua_norm**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(ua, ehat_span))
-    gamma_unity = cas.DM(1.)
     outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
-    outputs['aerodynamics']['gamma_unity' + str(n)] = gamma_unity
     outputs['aerodynamics']['gamma' + str(n)] = gamma_cl
 
     outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
@@ -131,6 +133,64 @@ def collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coeffici
 
     outputs['aerodynamics']['mach' + str(n)] = get_mach(options, atmos, ua, q)
     outputs['aerodynamics']['reynolds' + str(n)] = get_reynolds(options, atmos, ua, q, parameters)
+
+    return outputs
+
+def collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, ua):
+    verification_test = options['aero']['vortex']['verification_test']
+
+    if verification_test:
+
+        # things that are only used for Haas validation case = case of fixed radius
+        u_infty = vect_op.norm(wind.get_velocity(q[2]))
+
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+        rho = atmos.get_density(q[2])
+
+        n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
+        kite_velocity_tangential = ua - cas.mtimes(ua.T, n_hat) * n_hat
+        tangential_speed = vect_op.norm(kite_velocity_tangential)
+
+        kite_speed_ratio = tangential_speed / u_infty
+
+        if parent > 0:
+            grandparent = architecture.parent_map[parent]
+            q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+        else:
+            q_parent = cas.DM.zeros((3, 1))
+
+        tether = q - q_parent
+        radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
+        radius = vect_op.norm(radius_vec)
+        varrho = radius / b_ref
+
+        lift_betz_scale = 4. * np.pi * rho * b_ref * radius**3. / (radius + 0.5 * b_ref) * u_infty**3. / tangential_speed
+
+        mu_center = varrho / (varrho + 0.5)
+        tip_speed_ratio = kite_speed_ratio / mu_center
+
+        a_betz = 1./3.
+
+        mu_min = (varrho - 0.5)/(varrho + 0.5)
+        n_steps = 20
+        delta_mu = (1. - mu_min) / n_steps
+
+        factor = 0.
+        for mdx in range(n_steps - 1):
+            mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
+
+            a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
+            new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
+            factor += new_factor * delta_mu
+
+        # lift_betz_optimal = factor * lift_betz_scale
+        lift_betz_optimal = cas.DM(5.0129 * 1.e6)
+        outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
+
+        ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
+        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
+        outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
+        outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
     return outputs
 
@@ -221,19 +281,18 @@ def collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, e
     if 'local_performance' not in list(outputs.keys()):
         outputs['local_performance'] = {}
 
-    [CR, f_crosswind, p_loyd, loyd_speed, loyd_phf] = get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle)
+    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle)
 
     norm_ua = cas.mtimes(ua.T, ua)**0.5
 
     outputs['local_performance']['CR' + str(n)] = CR
-    outputs['local_performance']['f_crosswind' + str(n)] = f_crosswind
     outputs['local_performance']['p_loyd' + str(n)] = p_loyd
-    outputs['local_performance']['loyd_speed' + str(n)] = loyd_speed
-    outputs['local_performance']['loyd_phf' + str(n)] = loyd_phf
+    outputs['local_performance']['speed_loyd' + str(n)] = speed_loyd
+    outputs['local_performance']['phf_loyd' + str(n)] = phf_loyd
     outputs['local_performance']['radius' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
     outputs['local_performance']['speed_ratio' + str(n)] = norm_ua / vect_op.norm(wind.get_velocity(q[2]))
-    outputs['local_performance']['speed_ratio_loyd' + str(n)] = loyd_speed / vect_op.norm(wind.get_velocity(q[2]))
+    outputs['local_performance']['speed_ratio_loyd' + str(n)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
     outputs['local_performance']['radius_of_curvature' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
 
@@ -253,7 +312,7 @@ def collect_environmental_outputs(atmos, wind, q, n, outputs):
     return outputs
 
 
-def get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle=0.):
+def get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle=0.):
     # for elevation angle cosine losses see Van der Lind, p. 477, AWE book
 
     q = xd['q' + str(n) + str(parent)]
@@ -264,16 +323,14 @@ def get_loyd_comparison(options, atmos, wind, xd, n, parent, CL, CD, parameters,
     windspeed = vect_op.norm(wind.get_velocity(q[2]))
     power_density = get_power_density(atmos, wind, q[2])
 
-    f_crosswind = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
+    phf_loyd = perf_op.get_loyd_phf(CL, CD, elevation_angle)
 
     s_ref = parameters['theta0','geometry','s_ref']
-    p_loyd = power_density * s_ref * f_crosswind
+    p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
-    loyd_speed = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
+    speed_loyd = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
 
-    loyd_phf = f_crosswind
-
-    return [CR, f_crosswind, p_loyd, loyd_speed, loyd_phf]
+    return [CR, phf_loyd, p_loyd, speed_loyd]
 
 def get_power_harvesting_factor(options, atmos, wind, variables, parameters,architecture):
 

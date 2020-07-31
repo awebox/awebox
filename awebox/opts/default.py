@@ -50,9 +50,6 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'trajectory',  'compromised_landing','xi_0_initial',   0.00,             ('starting position on initial trajectory between 0 and 1', None),'s'),
         ('user_options',    'trajectory',  'tracking',  'fix_tether_length',     True,                ('fixing tether length for the trajectory', [True, False]),'s'),
         ('user_options',    'trajectory',  None,        'fixed_params',          {},                 ('give dict of fixed system parameters and their values',None),'s'),
-        ('user_options',    'trajectory',  'aero_test', 'phi_0',                 45. * np.pi / 180., ('pitch angle amplitude for pitch-plunge test [rad]', None),'x'),
-        ('user_options',    'trajectory',  'aero_test', 'h_0',                   1.,                 ('plunge amplitude for pitch-plunge test [m]', None),'x'),
-        ('user_options',    'trajectory',  'aero_test', 'omega',                 2. * np.pi,         ('frequency of pitching/plunging motion for pitch-plunge test [rad/s]', None),'x'),
         ('user_options',    'system_model',None,        'kite_dof',              6,                  ('give the number of states that designate each kites position [int]: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'t'),
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
         ('user_options',    'system_model',None,        'architecture',          {1:0, 2:1, 3:1},    ('choose tuple (layers,siblings)', None),'t'),
@@ -65,7 +62,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
-        ('user_options',    None,          None,        'tether_drag_model',     'split',            ('possible options: split drag equally between nodes, get equivalent forces from only one element, get equivalent forces from multiple elements', ['split', 'single', 'multi', 'not_in_use']),'t'),
+        ('user_options',    None,          None,        'tether_drag_model',     'split',            ('possible options: split drag equally between nodes, get equivalent forces from only one element, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'single', 'multi', 'kite_only', 'not_in_use']),'t'),
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
@@ -75,7 +72,7 @@ def set_default_user_options(internal_access = False):
 
 def set_default_options(default_user_options, help_options):
 
-    kite_colors = ['b', 'g', 'r', 'm', 'c', 'r', 'g', 'b', 'm', 'c', 'r', 'g', 'b', 'm', 'c']
+    kite_colors = ['b', 'g', 'r', 'm', 'c'] * 3
     dim_colors = ['b', 'g', 'r', 'm', 'c', 'y', 'darkorange', 'darkkhaki', 'darkviolet']
 
     default_options_tree = [
@@ -97,7 +94,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'wind', 'power_wind','exp_ref',  0.15,   ('terrain-specific exponent for power law wind-profile [-], (0.1: smooth hard ground, calm water, 0.15: tall grass on level ground, 0.2: high crops, hedges and shrubs, 0.3: small town with trees and shrubs, 0.4: large city with tall buildings. see Masters2013.', None), 's'),
 
         ## aero model
-        ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',          ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
+        ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',           ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
         ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
 
@@ -117,10 +114,13 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
+        ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
         ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -228,18 +228,19 @@ def set_default_options(default_user_options, help_options):
 
         ## kite model
         #### tether properties
-        ('params',  'tether', None, 'kappa',        10.,     ('Baumgarte stabilization constant for constraint formulation[-]', None),'s'),
-        ('params',  'tether', None, 'rho',          970.,    ('tether material density [kg/m^3]', None),'s'),
-        ('params',  'tether', None, 'cd',           1.,      ('drag coefficient [-]', None),'s'),
-        ('params',  'tether', None, 'f_max',        5.,      ('max. reel-out factor [-]', None),'s'),
-        ('params',  'tether', None, 'sigma_max',    3.6e9,   ('max. tether stress [Pa]', None),'s'),
-        ('params',  'tether', None, 'f_sigma',      10.,     ('tether stress safety factor [-]', None),'x'),
-        ('model',  'tether', None, 'control_var',  'dddl_t', ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
-        ('model',  'tether', None, 'aero_elements', 10,     ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
-        ('model',  'tether', None, 'reynolds_smoothing',    1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
-        ('model',  'tether', None, 'cd_model',              'constant',  ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
-        ('model',  'tether', None, 'attachment',    'com',  ('tether attachment mode', ['com', 'stick']),'x'),
-        ('model',  'tether', 'cross_tether', 'attachment',    'com',  ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
+        ('params',  'tether', None,         'kappa',                10.,        ('Baumgarte stabilization constant for constraint formulation[-]', None),'s'),
+        ('params',  'tether', None,         'rho',                  970.,       ('tether material density [kg/m^3]', None),'s'),
+        ('params',  'tether', None,         'cd',                   1.,         ('drag coefficient [-]', None),'s'),
+        ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
+        ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
+        ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
+        ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
+        ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
+        ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
+        ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
+        ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
+        ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
+        ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -257,12 +258,13 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
-        ('model',   'model_bounds', 'tether_stress', 'include',              True,       ('include tether stress inequality in constraints', [True, False]),'x'),
+        ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
+        ('model',   'model_bounds', 'tether_stress', 'include',              True,      ('include tether stress inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'tether_stress', 'scaling',              1.,        ('tightness scaling for tether stress inequality', None),'x'),
-        ('model',   'model_bounds', 'tether_force',  'include',              False,      ('include tether force inequality in constraints', [True, False]),'x'),
-        ('params',  'model_bounds',  None,           'tether_force_limits',  np.array([1e0, 2e3]),  ('tether force limits', None),'s'),
+        ('model',   'model_bounds', 'tether_force',  'include',              False,     ('include tether force inequality in constraints', [True, False]),'x'),
+        ('params',  'model_bounds',  None,           'tether_force_limits',  np.array([1e0, 2e3]),  ('tether force limits [N]', None),'s'),
         ('model',   'model_bounds', 'airspeed',      'include',             False,      ('include airspeed inequality for kites in constraints', [True, False]),'x'),
-        ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([1.,150.]),  ('airspeed limits', None),'s'),
+        ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([1.,150.]),  ('airspeed limits [m/s]', None),'s'),
         ('model',   'model_bounds', 'aero_validity', 'include',              True,       ('include orientation bounds on alpha and beta (not possible in 3dof mode)', [True, False]),'x'),
         ('model',   'model_bounds', 'aero_validity', 'scaling',              1.,         ('tightness scaling for aero_validity inequalities', None),'x'),
         ('model',   'model_bounds', 'anticollision', 'safety_factor',        5.,         ('safety margin for anticollision constraint [m]', None),'x'),
@@ -270,13 +272,16 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'anticollision_radius', 'include',       False,      ('include a minimum radius anticollision inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'anticollision_radius', 'scaling',       1.,         ('tightness scaling for anticollision inequalities', None),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
-        ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration [g]', None),'x'),
-        ('model',   'model_bounds', 'rotation',     'include',               True,     ('include constraints on roll and pitch motion', None), 't'),
-        ('model',   'model_bounds', 'rotation',     'type',               'yaw',     ('rotation constraint type', ['yaw','roll_pitch']), 't'),
+        ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration, as measured in multiples of g [-]', None),'x'),
+        ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),
+        ('params',  'model_bounds', None,            'angular_velocity_max', 50.,        ('maximum magnitude of angular velocity [deg/s]', None), 's'),
+
+        ('model',   'model_bounds', 'rotation',     'include',               True,      ('include constraints on roll and pitch motion', None), 't'),
+        ('model',   'model_bounds', 'rotation',     'type',                 'yaw',      ('rotation constraint type', ['yaw','roll_pitch']), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
         ('model',   'model_bounds', 'dcoeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', 'coeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
+        ('model',   'model_bounds', 'coeff_actuation', 'include',      False,       ('include a bound on coeff', None), 'x'),
         ('model',   'model_bounds', None, 'dcoeff_max',      [5.,80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
         ('model',   'model_bounds', None, 'dcoeff_min',      [-5.,-80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
         ('params',   'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
@@ -295,9 +300,9 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
 
-        ('model',   'scaling_overwrite', 'lambda_tree', 'include', True, ('specific scaling of tether tension per length', None),'t'),
-        ('model',   'scaling_overwrite', 'xa',     'lambda',    None,    ('scaling of tether tension per length', None),'t'),
-        ('model',   'scaling_overwrite', 'xd',      'e',        None,    ('scaling of the energy', None),'t'),
+        ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
+        ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
+        ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
 
         ('model',  'jit_code_gen',     None, 'include',              False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',     None, 'compiler',             'clang',                ('compiler for generated code'),'t'),
@@ -306,11 +311,9 @@ def set_default_options(default_user_options, help_options):
 
         #### ground_station
         ('params', 'ground_station', None, 'r_gen',            0.25,   ('winch generator drum radius [m]',None),'x'),
-        ('params', 'ground_station', None, 'm_gen',            100.,   ('effective mass of generator [kg], guessed',None),'x'),
+        ('params', 'ground_station', None, 'm_gen',            50.,   ('effective mass of generator [kg], guessed',None),'x'),
         ('model', 'ground_station', None, 'ddl_t_max',        10.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
-
-        ## formulation
-        ('formulation',     'trajectory',   'aero_test',     'total_periods',    10.,         ('total number of oscillations of the wing', None),'x'),
+        ('model', 'ground_station', None, 'dddl_t_max',       100.,    ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
@@ -385,22 +388,23 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
-        ('solver',  'initialization', None,   'ua_norm',               60.,       ('initial guess of apparent kite speed [m/s]', None),'x'),
-        ('solver',  'initialization', None,   'incid_deg',             15.,       ('initial tether elevation angle [deg]', None),'x'),
-        ('solver',  'initialization', None,   'initialization_type',   'default',       ('set initialization type', None),'t'),
-        ('solver',  'initialization', None,   'winding_period',        10.,        ('initial guess of reasonable period for one winding [s]', None),'x'),
-        ('solver',  'initialization', None,   'min_rel_radius',        2.,        ('minimum allowed radius to span ratio allowed in initial guess [-]', None),'x'),
-        ('solver',  'initialization', None,   'max_cone_angle_multi',  80.,       ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
-        ('solver',  'initialization', None,   'max_cone_angle_single', 10.,       ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
-        ('solver',  'initialization', None,   'landing_velocity',      22.,       ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
-        ('solver',  'initialization', None,   'interpolation_scheme',  's_curve',       ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']),'x'),
-        ('solver',  'initialization', None,   'fix_tether_length',     False,       ('fix tether length for trajectory', [True, False]),'x'),
-        ('solver',  'initialization', 'xd',   'l_t',                   500.0,       ('initial main tether length', [True, False]),'x'),
+        ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', None), 't'),
+        ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
+        ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
+        ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
+        ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
+        ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
+        ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
+        ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
+        ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
+        ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
+        ('solver',   'cost_factor',    None,   'power',                 10.,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),
+        ('solver',   'weights',        None,   'w',                     1e-10,      ('optimization weight for all vortex variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'omega',                 1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
         ('solver',   'weights',        None,   'r',                     1e1,        ('optimization weight for all r variables [-]', None),'x'),
         ('solver',   'weights',        None,   'delta',                 1e-10,      ('optimization weight for all delta variables [-]', None),'x'),
@@ -411,6 +415,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'n_hat_slack',           1e6,        ('optimization weight for L1 n_hat_slack constraints [-]', None), 's'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
+        ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
@@ -450,7 +455,6 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'x'),
         ('solver',  'cost',             'tracking',             2,  0,          ('second update cost for tracking', None),'x'),
 
-        ('solver',  'cost_overwrite',   'power',            1,      None,       ('update cost for power', None),'t'),
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
 
@@ -526,6 +530,8 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
         ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
+        ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
+        ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
     ]
 
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)

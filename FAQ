@@ -217,7 +217,12 @@ INFO:	solver return status..........: Solve_Succeeded
 
 What's going wrong? 
 
-It's most likely that you don't have enough collocation intervals in your problem! Please increase this number using the options inputs:
+When we generate the time-series information for plotting, we have to interpolate the discretized optimization variables.
+This includes the rotation matrix. If there are too few data points found from the optimization, then this
+interpolation may create rotation matrices that are not (even roughly) rotation matrices.
+
+If this is a problem for you, it's most likely that you don't have enough collocation intervals in your problem!
+Please increase this number using the options inputs:
 
 ---> options['nlp']['n_k'] = n_k
 
@@ -236,7 +241,9 @@ The power is defined according to:
 which means that the units of power are:
     units of tension = [N] = (units of lambda multiplier) * [m]
             ==> units of lambda multiplier = [N/m]
-    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [Watts]
+    units of power = (units of lambda multiplier) * [m] * [m/s] = [Nm / s] = [W]
+
+---> However, if you use sweep.plot('comp_stats'), the plotted "power_output_kw" has units of [kW].
 
 
 20. Is there a version of the HSL solver "xxx" binary/dynamic-link-library/etc. available for operating system "yyy"?
@@ -255,7 +262,7 @@ Good luck!
 ----> Include the flag "comp_convergence" into the plot_list.
 ----> A converged trial will have a "return_status_numeric" value of 1 or 2
 
-    sweep.plot(['comp_stats', 'comp_convergence'])
+    sweep.plot(['comp_convergence'])
 
 
 22. How do I know if any particular trial, actually converged?
@@ -264,4 +271,31 @@ Good luck!
 ----> a converged trial will have a "return_status_numeric" value of 1 or 2
 
     return_status_numeric = trial.return_status_numeric
+
+
+
+23. I want to run an axi-symmetric simulation (where the wind axis is parallel to the main tether). What should I do?
+
+You will need to remove the ground constraints, remove gravity, and make the wind and atmosphere uniform. You can do this with:
+
+    options['user_options']['wind']['model'] = 'uniform'
+    options['user_options']['atmosphere'] = 'uniform'
+    options['model']['system_bounds']['xd']['q'] = [np.array([-cas.inf, -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])]
+    options['model']['system_bounds']['xd']['wz_ext'] = [-cas.inf, cas.inf]
+    options['model']['system_bounds']['xd']['wz_int'] = [-cas.inf, cas.inf]
+    options['params']['atmosphere']['g'] = 0.
+
+It's also helpful to initialize according to the axi-symmetry that you're expecting:
+    options['solver']['initialization']['incid_deg'] = 0.
+
+
+
+24. How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
+
+P_loc = trial.optimization.p_fix_num
+V_loc = trial.optimization.V_final
+component_cost_fun, component_cost_struct = trial.nlp.cost_components
+for cost in component_cost_fun.keys():
+    val = component_cost_fun[cost](V_loc, P_loc)
+    print(cost + ': ' + str(val))
 

@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -31,7 +31,7 @@ constraints are divided as initial, terminal and periodic constraints, that are 
 -- function inputs for periodic constraints are (initial variables, final variables)
 
 python-3.5 / casadi-3.4.5
-- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
+- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-20
 '''
 
 import casadi.tools as cas
@@ -73,7 +73,7 @@ def determine_if_terminal_inequalities(options):
 def determine_if_periodic(options):
 
     enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'aero_test', 'launch','mpc']:
+    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
          enforce_periodicity = bool(False)
 
     return enforce_periodicity
@@ -203,7 +203,7 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
 
 
 
-def get_vortex_strength_constraints(options, variables, architecture):
+def get_vortex_strength_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     eqs_dict = {}
@@ -212,7 +212,7 @@ def get_vortex_strength_constraints(options, variables, architecture):
 
     comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = architecture.kite_nodes
+    kite_nodes = model.architecture.kite_nodes
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
@@ -223,7 +223,7 @@ def get_vortex_strength_constraints(options, variables, architecture):
         for kite in kite_nodes:
             for period in range(periods_tracked):
 
-                parent_map = architecture.parent_map
+                parent_map = model.architecture.parent_map
                 parent = parent_map[kite]
 
                 var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
@@ -253,7 +253,7 @@ def get_vortex_strength_constraints(options, variables, architecture):
     return vortex_strength_constraints, vortex_strength_constraints_fun
 
 
-def get_wake_fix_constraints(options, variables, architecture):
+def get_wake_fix_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     eqs_dict = {}
@@ -262,7 +262,7 @@ def get_wake_fix_constraints(options, variables, architecture):
 
     comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = architecture.kite_nodes
+    kite_nodes = model.architecture.kite_nodes
     wingtips = ['ext', 'int']
 
 
@@ -275,7 +275,7 @@ def get_wake_fix_constraints(options, variables, architecture):
             for tip in wingtips:
                 for period in range(periods_tracked):
 
-                    parent_map = architecture.parent_map
+                    parent_map = model.architecture.parent_map
                     parent = parent_map[kite]
 
                     wake_pos_dir = {}
@@ -540,11 +540,24 @@ def make_constraint_struct(eqs_dict, ineqs_dict):
 
     return constraint_struct
 
+def clear_empty_keys(dict):
+    if bool(dict):
+        for name in list(dict.keys()):
+            try:
+                dict[name].size()
+            except:
+                awelogger.logger.warning('removing constraint entry (' + name + ') from dictionary, because it appears to be empty')
+                dict.pop(name)
+    return dict
+
 def make_entry_list(eqs_dict, ineqs_dict):
+
+    eqs_dict = clear_empty_keys(eqs_dict)
+    ineqs_dict = clear_empty_keys(ineqs_dict)
 
     # make entry list for all non-empty dicts
     entry_list = []
-    if eqs_dict: # check if not empty
+    if bool(eqs_dict): # check if not empty
 
         # equality constraint struct
         eq_struct = cas.struct_symSX([

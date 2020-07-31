@@ -235,7 +235,7 @@ def compute_power_and_performance(plot_dict):
 
     power_and_performance = compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict)
 
-    power_and_performance =compute_tether_tension_indicators(power_and_performance, plot_dict)
+    power_and_performance = compute_tether_tension_indicators(power_and_performance, plot_dict)
 
     power_and_performance = compute_efficiency_measures(power_and_performance, plot_dict)
 

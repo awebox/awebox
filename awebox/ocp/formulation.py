@@ -229,8 +229,8 @@ class Formulation(object):
 
         integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(options, variables, parameters, model)
 
-        wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables, model.architecture)
-        vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(options, variables, model.architecture)
+        wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables, model)
+        vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(options, variables, model)
 
         self.__constraints = {'initial': initial_constraints,
                               'terminal': terminal_constraints,

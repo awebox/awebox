@@ -40,7 +40,7 @@ import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
-
+import awebox.tools.print_operations as print_op
 
 
 def get_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
@@ -55,46 +55,14 @@ def get_residual(model_options, atmos, wind, variables, parameters, outputs, arc
     for parent in layer_parent_map:
 
         for label in act_comp_labels:
-            induction_trivial = get_induction_residual(model_options, wind, variables, parent, architecture, label)
+            induction_trivial = get_induction_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
             all_residuals = cas.vertcat(all_residuals, induction_trivial)
-
-            corr_resi = actuator_flow.get_corr_residual(model_options, variables, parent, label)
-            all_residuals = cas.vertcat(all_residuals, corr_resi)
-
-            chi_resi = actuator_flow.get_chi_residual(model_options, parent, variables, label)
-            all_residuals = cas.vertcat(all_residuals, chi_resi)
-
-            if any_asym and label in ['qasym', 'uasym']:
-                chi_trig_resi = actuator_flow.get_chi_trig_residual(model_options, parent, variables, label)
-                all_residuals = cas.vertcat(all_residuals, chi_trig_resi)
-
-                LL_resi = actuator_coeff.get_LL_residual(model_options, variables, parent, label)
-                all_residuals = cas.vertcat(all_residuals, LL_resi)
-
-                c_tilde_resi = actuator_coeff.get_c_tilde_residual(model_options, variables, parent, label)
-                all_residuals = cas.vertcat(all_residuals, c_tilde_resi)
-
-        if any_asym:
-            moments_final = actuator_coeff.get_moments_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-            all_residuals = cas.vertcat(all_residuals, moments_final)
-
-        thrust_final = actuator_coeff.get_thrust_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, thrust_final)
-
-        dt_resi = actuator_coeff.get_t_star_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-        all_residuals = cas.vertcat(all_residuals, dt_resi)
 
         uzero_matr_resi = actuator_flow.get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture)
         all_residuals = cas.vertcat(all_residuals, uzero_matr_resi)
 
-        qzero_resi = actuator_flow.get_qzero_residual(model_options, parent, atmos, wind, variables, architecture)
-        all_residuals = cas.vertcat(all_residuals, qzero_resi)
-
         gamma_resi = actuator_flow.get_gamma_residual(model_options, wind, parent, variables, architecture)
         all_residuals = cas.vertcat(all_residuals, gamma_resi)
-
-        area_resi = actuator_geom.get_area_residual(model_options, parent, variables, parameters)
-        all_residuals = cas.vertcat(all_residuals, area_resi)
 
         children = architecture.kites_map[parent]
         for kite in children:
@@ -111,19 +79,20 @@ def get_residual(model_options, atmos, wind, variables, parameters, outputs, arc
 
 
 
-def get_induction_residual(model_options, wind, variables, parent, architecture, label):
+def get_induction_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
 
     if label == 'qaxi':
-        induction_final = get_momentum_theory_residual(model_options, variables, parent, label)
+        induction_final = get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     elif label == 'qasym':
-        induction_final = get_steady_asym_pitt_peters_residual(model_options, variables, parent, label)
+        induction_final = get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label)
 
     elif label == 'uaxi':
-        induction_final = get_unsteady_axi_pitt_peters_residual(model_options, variables, parent, label)
+        induction_final = get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     elif label == 'uasym':
-        induction_final = get_unsteady_asym_pitt_peters_residual(model_options, variables, parent, label)
+        induction_final = get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent,
+                                               architecture, label)
 
     else:
         induction_final = []
@@ -131,57 +100,91 @@ def get_induction_residual(model_options, wind, variables, parent, architecture,
 
     return induction_final
 
-def get_momentum_theory_residual(model_options, variables, parent, label):
-    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-    c_all = actuator_coeff.get_c_all_var(model_options, variables, parent, label)
-    corr = actuator_flow.get_corr_var(variables, parent, label)
+def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
+    a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
 
-    LLinv11 = 4. * corr
+    thrust = actuator_coeff.get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-    f_a0 = ( LLinv11 * a_all - c_all )
-    f_induction = cas.vertcat(f_a0)
-    return f_induction
+    corr_val = actuator_flow.get_corr_val(model_options, variables, parent, label)
 
-def get_unsteady_axi_pitt_peters_residual(model_options, variables, parent, label):
+    resi_unscaled = 4. * a_var * corr_val * area * qzero - thrust
 
-    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-    da_all = actuator_flow.get_da_all_var(model_options, variables, parent, label)
-    c_all = actuator_coeff.get_c_all_var(model_options, variables, parent, label)
+    thrust_ref = actuator_coeff.get_thrust_ref(model_options, atmos, wind, parameters)
+    resi = resi_unscaled / thrust_ref
 
-    corr = actuator_flow.get_corr_var(variables, parent, label)
-    LLinv11 = 4. * corr
+    return resi
+
+def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
+
+    a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
+    da_var = actuator_flow.get_da_var(model_options, variables, parent, label)
+
+    thrust = actuator_coeff.get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+
+    corr_val = actuator_flow.get_corr_val(model_options, variables, parent, label)
+    LLinv11 = 4. * corr_val
 
     MM = actuator_coeff.get_MM_matrix()
     MM11 = MM[0, 0]
 
-    t_star = actuator_coeff.get_t_star_var(variables, parent)
+    t_star_num = actuator_coeff.get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+    t_star_den = actuator_coeff.get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
 
-    f_a0 = (MM11 * da_all * t_star + LLinv11 * a_all - c_all)
-    f_induction = cas.vertcat(f_a0)
-    return f_induction
+    resi_unscaled = (MM11 * da_var * t_star_num * area * qzero + LLinv11 * a_var * area * qzero * t_star_den - thrust * t_star_den)
 
-def get_unsteady_asym_pitt_peters_residual(model_options, variables, parent, label):
+    thrust_ref = actuator_coeff.get_thrust_ref(model_options, atmos, wind, parameters)
+    t_star_den_ref = actuator_coeff.get_t_star_denominator_ref(wind)
+    resi = resi_unscaled / thrust_ref / t_star_den_ref
+
+    return resi
+
+
+def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label):
 
     a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
     da_all = actuator_flow.get_da_all_var(model_options, variables, parent, label)
-    c_all = actuator_coeff.get_c_all_var(model_options, variables, parent, label)
 
-    c_tilde = actuator_coeff.get_c_tilde_var(variables, parent, label)
+    c_all, moment_den = actuator_coeff.get_c_all_components(model_options, atmos, wind, variables, parameters,
+                                                              outputs, parent, architecture)
+
+    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, variables, parent, label)
     MM = actuator_coeff.get_MM_matrix()
 
-    t_star = actuator_coeff.get_t_star_var(variables, parent)
+    t_star_num = actuator_coeff.get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+    t_star_den = actuator_coeff.get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
 
-    resi = ( cas.mtimes(MM, da_all) * t_star + c_tilde - c_all )
+    term_1 = cas.mtimes(LL_matr, cas.mtimes(MM, da_all)) * t_star_num * moment_den
+    term_2 = a_all * t_star_den * moment_den
+    term_3 = -1. * cas.mtimes(LL_matr, c_all) * t_star_den
+
+    resi_unscaled = term_1 + term_2 + term_3
+
+    t_star_den_ref = actuator_coeff.get_t_star_denominator_ref(wind)
+    moment_ref = actuator_coeff.get_moment_ref(model_options, atmos, wind, parameters)
+
+    resi = resi_unscaled / t_star_den_ref / moment_ref
+
     return resi
 
-def get_steady_asym_pitt_peters_residual(model_options, variables, parent, label):
+def get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label):
 
-    c_all = actuator_coeff.get_c_all_var(model_options, variables, parent, label)
-    c_tilde = actuator_coeff.get_c_tilde_var(variables, parent, label)
+    c_all, moment_denom = actuator_coeff.get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
 
-    resi = (c_tilde - c_all )
+    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, variables, parent, label)
+
+    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
+
+    resi_unscaled = a_all * moment_denom - cas.mtimes(LL_matr, c_all)
+
+    moment_ref = actuator_coeff.get_moment_ref(model_options, atmos, wind, parameters)
+
+    resi = resi_unscaled / moment_ref
+
     return resi
-
 
 
 
@@ -238,11 +241,9 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['df' + str(parent)] = actuator_flow.get_df_val(model_options, wind, parent, variables, architecture)
 
         thrust = actuator_coeff.get_actuator_thrust(model_options, variables, outputs, parent, architecture)
-        thrust_coeff = actuator_coeff.get_ct_var(model_options, variables, parent)
+        ct = actuator_coeff.get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture)
         outputs['actuator']['thrust' + str(parent)] = thrust
-        outputs['actuator']['thrust1_coeff' + str(parent)] = thrust / q_app / area
-        outputs['actuator']['thrust2_area_coeff' + str(parent)] = thrust / q_app
-        outputs['actuator']['thrust3_coeff' + str(parent)] = thrust_coeff
+        outputs['actuator']['ct' + str(parent)] = ct
 
         outputs['actuator']['w_z_check' + str(parent)] = actuator_flow.get_wzero_parallel_z_rotor_check(variables, parent)
         outputs['actuator']['gamma_check' + str(parent)] = actuator_flow.get_gamma_check(model_options, wind, parent, variables,
