@@ -52,7 +52,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-
 from awebox.logger.logger import Logger as awelogger
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
@@ -583,8 +582,11 @@ def generate_aerodynamic_forces(options, variables, parameters, atmos, wind, out
 
 
 def fictitious_embedding(options, p_dec, u, outputs, n, parent):
+
+    # remember: generalized coordinates are in earth-fixed cartesian coordinates for translational dynamics
+
     fict_force = u['f_fict' + str(n) + str(parent)]
-    true_force = outputs['aerodynamics']['f_aero' + str(n)]
+    true_force = outputs['aerodynamics']['f_aero_earth' + str(n)]
 
     homotopy_force = p_dec['gamma'] * fict_force + true_force
 

@@ -72,6 +72,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         CY = coeff_body[1]
         CN = coeff_body[2]
 
+        f_aero_control = frames.from_body_to_control(f_aero_body)
+
         f_aero_wind = frames.from_body_to_wind(vec_u_eff, kite_dcm, f_aero_body)
         wind_dcm = frames.get_wind_dcm(vec_u_eff, kite_dcm)
         f_drag = f_aero_wind[0] * wind_dcm[:, 0]
@@ -84,10 +86,9 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         CL = coeff_wind[2]
 
         f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
-        f_aero = f_aero_earth
 
-        m_aero = tools.get_m_aero_var(variables, kite, parent, parameters, options)
-        CM = cas.mtimes(cas.inv(reference_lengths), m_aero) / q_eff / s_ref
+        m_aero_body = tools.get_m_aero_var(variables, kite, parent, parameters, options)
+        CM = cas.mtimes(cas.inv(reference_lengths), m_aero_body) / q_eff / s_ref
         Cl = CM[0]
         Cm = CM[1]
         Cn = CM[2]
@@ -104,18 +105,34 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['Cn'] = Cn
         aero_coefficients['LoverD'] = CL/CD
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
-                                                               f_aero, f_lift, f_drag, f_side, m_aero,
-                                                               ehat1, ehat2, kite_dcm, q, kite,
-                                                               outputs, parameters)
+        intermediates = {}
+        intermediates['kite'] = kite
+        intermediates['air_velocity'] = vec_u_eff
+        intermediates['airspeed'] = u_eff
+        intermediates['aero_coefficients'] = aero_coefficients
+        intermediates['f_aero_earth'] = f_aero_earth
+        intermediates['f_aero_body'] = f_aero_body
+        intermediates['f_aero_control'] = f_aero_control
+        intermediates['f_lift'] = f_lift
+        intermediates['f_drag'] = f_drag
+        intermediates['f_side'] = f_side
+        intermediates['m_aero_body'] = m_aero_body
+        intermediates['kite_dcm'] = kite_dcm
+        intermediates['q'] = q
 
-        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, vec_u_eff)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
 
-        outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle,
-                                                               vec_u_eff, kite, parent, outputs, parameters)
-        outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
+        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
+                                                                 parameters, intermediates, outputs)
+
+        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
+
+        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
+
+        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
+                                                               intermediates, outputs)
+
+        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
 
     return outputs
 

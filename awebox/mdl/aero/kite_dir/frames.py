@@ -58,6 +58,14 @@ def from_body_to_earth(kite_dcm, vector):
     transformed = cas.mtimes(kite_dcm, vector)
     return transformed
 
+def from_body_to_control(vector):
+    transformed = cas.vertcat(-1. * vector[0], vector[1], -1. * vector[2])
+    return transformed
+
+def from_control_to_body(vector):
+    transformed = cas.vertcat(-1. * vector[0], vector[1], -1. * vector[2])
+    return transformed
+
 def from_wind_to_earth(vec_u, kite_dcm, vector):
     wind_dcm = get_wind_dcm(vec_u, kite_dcm)
     transformed = cas.mtimes(wind_dcm, vector)
