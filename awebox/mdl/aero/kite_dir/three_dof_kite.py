@@ -70,9 +70,9 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
 
         f_aero_wind = frames.from_body_to_wind(vec_u_eff, kite_dcm, f_aero_body)
         wind_dcm = frames.get_wind_dcm(vec_u_eff, kite_dcm)
-        f_drag = f_aero_wind[0] * wind_dcm[:, 0]
-        f_side = f_aero_wind[1] * wind_dcm[:, 1]
-        f_lift = f_aero_wind[2] * wind_dcm[:, 2]
+        f_drag_earth = f_aero_wind[0] * wind_dcm[:, 0]
+        f_side_earth = f_aero_wind[1] * wind_dcm[:, 1]
+        f_lift_earth = f_aero_wind[2] * wind_dcm[:, 2]
 
         coeff_wind = f_aero_wind / q_eff / s_ref
         CD = coeff_wind[0]
@@ -100,12 +100,14 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         intermediates['f_aero_earth'] = f_aero_earth
         intermediates['f_aero_body'] = f_aero_body
         intermediates['f_aero_control'] = f_aero_control
-        intermediates['f_lift'] = f_lift
-        intermediates['f_drag'] = f_drag
-        intermediates['f_side'] = f_side
+        intermediates['f_aero_wind'] = f_aero_wind
+        intermediates['f_lift_earth'] = f_lift_earth
+        intermediates['f_drag_earth'] = f_drag_earth
+        intermediates['f_side_earth'] = f_side_earth
         intermediates['m_aero_body'] = m_aero_body
         intermediates['kite_dcm'] = kite_dcm
         intermediates['q'] = q
+
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
 
@@ -149,6 +151,7 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         f_body_frame = frames.from_earth_to_body(kite_dcm, f_earth_frame)
 
         f_found = f_body_frame
+        # f_found = f_earth_frame
 
         f_scale = tools.get_f_scale(parameters, options)
 

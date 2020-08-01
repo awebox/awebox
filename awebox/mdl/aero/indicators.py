@@ -102,9 +102,10 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     f_aero_earth = intermediates['f_aero_earth']
     f_aero_body = intermediates['f_aero_body']
     f_aero_control = intermediates['f_aero_control']
-    f_lift = intermediates['f_lift']
-    f_drag = intermediates['f_drag']
-    f_side = intermediates['f_side']
+    f_aero_wind = intermediates['f_aero_wind']
+    f_lift_earth = intermediates['f_lift_earth']
+    f_drag_earth = intermediates['f_drag_earth']
+    f_side_earth = intermediates['f_side_earth']
     m_aero_body = intermediates['m_aero_body']
     kite_dcm = intermediates['kite_dcm']
     q = intermediates['q']
@@ -130,27 +131,35 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     outputs['aerodynamics']['ehat_span' + str(kite)] = ehat_span
     outputs['aerodynamics']['ehat_up' + str(kite)] = ehat_up
 
-    f_aero_wind = cas.vertcat(vect_op.norm(f_drag), vect_op.norm(f_side), vect_op.norm(f_lift))
-
     outputs['aerodynamics']['f_aero_body' + str(kite)] = f_aero_body
     outputs['aerodynamics']['f_aero_control' + str(kite)] = f_aero_control
     outputs['aerodynamics']['f_aero_earth' + str(kite)] = f_aero_earth
     outputs['aerodynamics']['f_aero_wind' + str(kite)] = f_aero_wind
 
-    conversion_check = cas.vertcat(
-        vect_op.norm(f_aero_body) - vect_op.norm(f_aero_control),
-        vect_op.norm(f_aero_body) - vect_op.norm(f_aero_earth),
-        vect_op.norm(f_aero_body) - vect_op.norm(f_aero_wind)
-    )
-    outputs['aerodynamics']['check_conversion' + str(kite)] = conversion_check
+    ortho = cas.reshape(cas.mtimes(kite_dcm.T, kite_dcm) - np.eye(3), (9, 1))
+    ortho_resi = cas.mtimes(ortho.T, ortho)
+    outputs['aerodynamics']['ortho_resi' + str(kite)] = ortho_resi
 
-    outputs['aerodynamics']['f_lift' + str(kite)] = f_lift
-    outputs['aerodynamics']['f_drag' + str(kite)] = f_drag
-    outputs['aerodynamics']['f_side' + str(kite)] = f_side
+
+
+    conversion_resis = []
+    conversion_targets = {'control': f_aero_control, 'earth': f_aero_earth, 'wind': f_aero_wind}
+    for target in conversion_targets.keys():
+        resi = 1. - vect_op.norm(conversion_targets[target]) / vect_op.norm(f_aero_body)
+        conversion_resis = cas.vertcat(conversion_resis, resi)
+
+    resi = vect_op.norm(f_aero_earth - f_lift_earth - f_drag_earth - f_side_earth) / vect_op.norm(f_aero_body)
+    conversion_resis = cas.vertcat(conversion_resis, resi)
+
+    outputs['aerodynamics']['check_conversion' + str(kite)] = conversion_resis
+
+    outputs['aerodynamics']['f_lift_earth' + str(kite)] = f_lift_earth
+    outputs['aerodynamics']['f_drag_earth' + str(kite)] = f_drag_earth
+    outputs['aerodynamics']['f_side_earth' + str(kite)] = f_side_earth
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
-    gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
     gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
@@ -248,15 +257,21 @@ def collect_power_balance_outputs(options, architecture, variables, intermediate
     parent = architecture.parent_map[kite]
     dq = variables['xd']['dq'+str(kite)+str(parent)]
 
+    f_lift_earth = outputs['aerodynamics']['f_lift_earth' + str(kite)]
+    f_drag_earth = outputs['aerodynamics']['f_drag_earth' + str(kite)]
+    f_side_earth = outputs['aerodynamics']['f_side_earth' + str(kite)]
+    f_aero_earth = outputs['aerodynamics']['f_aero_earth' + str(kite)]
+
     # get lift, drag and aero-moment power
-    outputs['power_balance']['P_lift'+str(kite)] = cas.mtimes(outputs['aerodynamics']['f_lift'+str(kite)].T, dq)
-    outputs['power_balance']['P_drag'+str(kite)] = cas.mtimes(outputs['aerodynamics']['f_drag'+str(kite)].T, dq)
+    # outputs['power_balance']['P_lift' + str(kite)] = cas.mtimes(f_lift_earth.T, dq)
+    # outputs['power_balance']['P_drag' + str(kite)] = cas.mtimes(f_drag_earth.T, dq)
+    # outputs['power_balance']['P_side' + str(kite)] = cas.mtimes(f_side_earth.T, dq)
+    outputs['power_balance']['P_aero' + str(kite)] = cas.mtimes(f_aero_earth.T, dq)
 
     if int(options['kite_dof']) == 6:
-        outputs['power_balance']['P_side'+str(kite)] = cas.mtimes(outputs['aerodynamics']['f_side'+str(kite)].T, dq)
-
         omega = variables['xd']['omega'+str(kite)+str(parent)]
-        outputs['power_balance']['P_moment'+str(kite)] = cas.mtimes(outputs['aerodynamics']['m_aero_body'+str(kite)].T, omega)
+        m_aero_body = outputs['aerodynamics']['m_aero_body'+str(kite)]
+        outputs['power_balance']['P_moment'+str(kite)] = cas.mtimes(m_aero_body.T, omega)
 
     return outputs
 
@@ -269,8 +284,9 @@ def collect_tether_drag_losses(variables, tether_drag_forces, outputs, architect
     # get dissipation power from tether drag
     for n in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[n]
-        dq_n   = variables['xd']['dq'+str(n)+str(parent)] # node velocity
-        outputs['power_balance']['P_tetherdrag'+str(n)] = cas.mtimes(tether_drag_forces['f'+str(n)+(str(parent))].T,dq_n)
+        dq_n = variables['xd']['dq' + str(n) + str(parent)]  # node velocity
+        force = tether_drag_forces['f' + str(n) + str(parent)]
+        outputs['power_balance']['P_tetherdrag' + str(n)] = cas.mtimes(force.T, dq_n)
 
     return outputs
 

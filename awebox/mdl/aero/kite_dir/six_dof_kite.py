@@ -39,107 +39,14 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 
 
 
-def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
-
-    xd = variables['xd']
-    elevation_angle = indicators.get_elevation_angle(xd)
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    c_ref = parameters['theta0', 'geometry', 'c_ref']
-    s_ref = parameters['theta0', 'geometry', 's_ref']
-    reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
-
-    kite_nodes = architecture.kite_nodes
-    for kite in kite_nodes:
-        parent = architecture.parent_map[kite]
-
-        q = xd['q' + str(kite) + str(parent)]
-        kite_dcm = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
-        ehat1 = kite_dcm[:, 0]
-        ehat2 = kite_dcm[:, 1]
-
-        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-        u_eff = vect_op.smooth_norm(vec_u_eff)
-        rho = atmos.get_density(q[2])
-        q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
-
-        f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-        coeff_body = f_aero_body / q_eff / s_ref
-        CA = coeff_body[0]
-        CY = coeff_body[1]
-        CN = coeff_body[2]
-
-        f_aero_control = frames.from_body_to_control(f_aero_body)
-
-        f_aero_wind = frames.from_body_to_wind(vec_u_eff, kite_dcm, f_aero_body)
-        wind_dcm = frames.get_wind_dcm(vec_u_eff, kite_dcm)
-        f_drag = f_aero_wind[0] * wind_dcm[:, 0]
-        f_side = f_aero_wind[1] * wind_dcm[:, 1]
-        f_lift = f_aero_wind[2] * wind_dcm[:, 2]
-
-        coeff_wind = f_aero_wind / q_eff / s_ref
-        CD = coeff_wind[0]
-        CS = coeff_wind[1]
-        CL = coeff_wind[2]
-
-        f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
-
-        m_aero_body = tools.get_m_aero_var(variables, kite, parent, parameters, options)
-        CM = cas.mtimes(cas.inv(reference_lengths), m_aero_body) / q_eff / s_ref
-        Cl = CM[0]
-        Cm = CM[1]
-        Cn = CM[2]
-
-        aero_coefficients = {}
-        aero_coefficients['CD'] = CD
-        aero_coefficients['CS'] = CS
-        aero_coefficients['CL'] = CL
-        aero_coefficients['CA'] = CA
-        aero_coefficients['CY'] = CY
-        aero_coefficients['CN'] = CN
-        aero_coefficients['Cl'] = Cl
-        aero_coefficients['Cm'] = Cm
-        aero_coefficients['Cn'] = Cn
-        aero_coefficients['LoverD'] = CL/CD
-
-        intermediates = {}
-        intermediates['kite'] = kite
-        intermediates['air_velocity'] = vec_u_eff
-        intermediates['airspeed'] = u_eff
-        intermediates['aero_coefficients'] = aero_coefficients
-        intermediates['f_aero_earth'] = f_aero_earth
-        intermediates['f_aero_body'] = f_aero_body
-        intermediates['f_aero_control'] = f_aero_control
-        intermediates['f_lift'] = f_lift
-        intermediates['f_drag'] = f_drag
-        intermediates['f_side'] = f_side
-        intermediates['m_aero_body'] = m_aero_body
-        intermediates['kite_dcm'] = kite_dcm
-        intermediates['q'] = q
-
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
-
-        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
-                                                                 parameters, intermediates, outputs)
-
-        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
-
-        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
-
-        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
-                                                               intermediates, outputs)
-
-        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
-
-    return outputs
-
-
-
-
-
+def get_kite_dcm(kite, variables, architecture):
+    parent = architecture.parent_map[kite]
+    kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+    return kite_dcm
 
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
@@ -180,8 +87,9 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         f_body_found = force_and_moment_in_body_frame[:3]
         m_found = force_and_moment_in_body_frame[3:]
 
-        # f_found = frames.from_body_to_earth(kite_dcm, f_body_found)
-        f_found = f_body_found
+        f_earth_found = frames.from_body_to_earth(kite_dcm, f_body_found)
+
+        f_found = f_earth_found
 
         f_scale = tools.get_f_scale(parameters, options)
         m_scale = tools.get_m_scale(parameters, options)

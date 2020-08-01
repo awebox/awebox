@@ -32,7 +32,7 @@
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
-import pdb
+
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -247,7 +247,7 @@ def test_power_balance(trial, test_param_dict, results):
                 node_power_timeseries += timeseries
                 max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        # how much power is just being transfered from the node's children
+        # how much power is just being transferred from the node's children
         node_has_children = node in list(trial.model.architecture.children_map.keys())
         if node_has_children:
             children = trial.model.architecture.children_map[node]
@@ -256,7 +256,7 @@ def test_power_balance(trial, test_param_dict, results):
                 nodes_childrens_power_timeseries += timeseries
                 max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        # avoid double-counting power that is just being transfered; only count power at point-of-origin
+        # avoid double-counting power that is just being transferred; only count power at point-of-origin
         net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
 
         scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
@@ -271,7 +271,9 @@ def test_power_balance(trial, test_param_dict, results):
 
     for node in list(balance.keys()):
         if balance[node] > test_param_dict['power_balance_thresh']:
-            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh']))
+            message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
+                      + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
+            awelogger.logger.warning(message)
             results['energy_balance' + str(node)] = False
         else:
             results['energy_balance' + str(node)] = True
@@ -394,7 +396,7 @@ def test_aero_force_frame_conversion(trial, test_param_dict, results):
 
     aero_conversion_thresh = test_param_dict['aero_conversion_thresh']
 
-    conversions = ["body and control", "body and earth", "body and wind"]
+    conversions = ['body and control frame', 'body and earth frame', 'body and wind frame', 'wind component sums']
 
     for kite in kite_nodes:
         vals = outputs['aerodynamics']['check_conversion' + str(kite)]
@@ -403,11 +405,12 @@ def test_aero_force_frame_conversion(trial, test_param_dict, results):
             max_val = np.max(np.abs(np.array(vals[cdx])))
 
             if max_val > aero_conversion_thresh:
+
                 message = 'Too much deviation in norms of aerodynamic force after frame conversion, '\
-                          + 'for conversion between ' + conversions[cdx] + ' frames, ' \
+                          + 'for ' + conversions[cdx] + ' test, ' \
                           + 'at kite ' + str(kite) + ': ' \
                           + str(max_val) + ' > ' + str(aero_conversion_thresh) \
-                          + '.'
+                          + '. We recommend increasing the number of collocation intervals n_k.'
                 awelogger.logger.warning(message)
                 # slack equalities are not satisfied
                 results['aero_conversion'] = False

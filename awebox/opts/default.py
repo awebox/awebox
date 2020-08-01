@@ -532,7 +532,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
-        ('quality', 'test_param', None, 'aero_conversion_thresh', 1.e-10,   ('maximum difference in force norm during aero frame conversion', None), 'x'),
+        ('quality', 'test_param', None, 'aero_conversion_thresh', 1.e-2,   ('maximum difference in force norm during aero frame conversion', None), 'x'),
     ]
 
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)
