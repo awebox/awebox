@@ -44,14 +44,13 @@ import casadi.tools as cas
 import numpy as np
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
-
-    if int(options['kite_dof']) == 3:
-        outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    elif int(options['kite_dof']) == 6:
-        outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    else:
-        message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        awelogger.logger.error(message)
+    # if int(options['kite_dof']) == 3:
+    #     outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+    # elif int(options['kite_dof']) == 6:
+    outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+    # else:
+    #     message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+    #     awelogger.logger.error(message)
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
@@ -63,8 +62,8 @@ def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters,
 
 def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
 
-
     xd = variables['xd']
+    elevation_angle = indicators.get_elevation_angle(xd)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
@@ -89,6 +88,8 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         else:
             message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
             awelogger.logger.error(message)
+        ehat1 = kite_dcm[:, 0]
+        ehat2 = kite_dcm[:, 1]
 
         f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
         f_aero_control = frames.from_body_to_control(f_aero_body)
@@ -154,17 +155,31 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         intermediates['kite_dcm'] = kite_dcm
         intermediates['q'] = q
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
+                                                               f_aero_earth, f_lift_earth, f_drag_earth, f_side_earth, m_aero_body,
+                                                               ehat1, ehat2, kite_dcm, q, kite,
+                                                               outputs, parameters)
 
-        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
-                                                                 parameters, intermediates, outputs)
+        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, vec_u_eff)
 
-        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
-        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
-                                                               intermediates, outputs)
+        outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
+        outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
+        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle,
+                                                               vec_u_eff, kite, parent, outputs, parameters)
+        outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
 
-        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
+
+        # outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+        #
+        # outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
+        #                                                          parameters, intermediates, outputs)
+        #
+        # outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
+        # outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
+        # outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
+        #                                                        intermediates, outputs)
+        #
+        # outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
 
     return outputs
 

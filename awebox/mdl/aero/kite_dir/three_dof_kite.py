@@ -43,6 +43,7 @@ from awebox.logger.logger import Logger as awelogger
 def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
 
     xd = variables['xd']
+    elevation_angle = indicators.get_elevation_angle(xd)
 
     s_ref = parameters['theta0', 'geometry', 's_ref']
 
@@ -56,6 +57,8 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         u_eff = vect_op.smooth_norm(vec_u_eff)
 
         kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
+        ehat1 = kite_dcm[:, 0]
+        ehat2 = kite_dcm[:, 1]
 
         rho = atmos.get_density(q[2])
         q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
@@ -92,34 +95,20 @@ def get_outputs(options, atmos, wind, variables, outputs, parameters, architectu
         aero_coefficients['CN'] = CN
         aero_coefficients['LoverD'] = CL / CD
 
-        intermediates = {}
-        intermediates['kite'] = kite
-        intermediates['air_velocity'] = vec_u_eff
-        intermediates['airspeed'] = u_eff
-        intermediates['aero_coefficients'] = aero_coefficients
-        intermediates['f_aero_earth'] = f_aero_earth
-        intermediates['f_aero_body'] = f_aero_body
-        intermediates['f_aero_control'] = f_aero_control
-        intermediates['f_aero_wind'] = f_aero_wind
-        intermediates['f_lift_earth'] = f_lift_earth
-        intermediates['f_drag_earth'] = f_drag_earth
-        intermediates['f_side_earth'] = f_side_earth
-        intermediates['m_aero_body'] = m_aero_body
-        intermediates['kite_dcm'] = kite_dcm
-        intermediates['q'] = q
 
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
+                                                               f_aero_earth, f_lift_earth, f_drag_earth, f_side_earth, m_aero_body,
+                                                               ehat1, ehat2, kite_dcm, q, kite,
+                                                               outputs, parameters)
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, vec_u_eff)
 
-        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
-                                                                 parameters, intermediates, outputs)
+        outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
+        outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
+        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle,
+                                                               vec_u_eff, kite, parent, outputs, parameters)
+        outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
 
-        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
-        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
-                                                               intermediates, outputs)
-
-        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
 
     return outputs
 
