@@ -148,7 +148,7 @@ class Visualization(object):
         # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
         # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
+        plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})

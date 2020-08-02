@@ -33,7 +33,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
-
 def test_opti_success(trial, test_param_dict, results):
     """
     Test whether optimization was successful

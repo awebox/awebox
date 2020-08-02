@@ -40,81 +40,22 @@ import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
 
-def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
-
-    xd = variables['xd']
-    elevation_angle = indicators.get_elevation_angle(xd)
-
-    s_ref = parameters['theta0', 'geometry', 's_ref']
-
-    kite_nodes = architecture.kite_nodes
-    for kite in kite_nodes:
-        parent = architecture.parent_map[kite]
-
-        q = xd['q' + str(kite) + str(parent)]
-
-        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-        u_eff = vect_op.smooth_norm(vec_u_eff)
-
-        kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
-        ehat1 = kite_dcm[:, 0]
-        ehat2 = kite_dcm[:, 1]
-
-        rho = atmos.get_density(q[2])
-        q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
-
-        f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-        coeff_body = f_aero_body / q_eff / s_ref
-        CA = coeff_body[0]
-        CY = coeff_body[1]
-        CN = coeff_body[2]
-
-        f_aero_control = frames.from_body_to_control(f_aero_body)
-
-        f_aero_wind = frames.from_body_to_wind(vec_u_eff, kite_dcm, f_aero_body)
-        wind_dcm = frames.get_wind_dcm(vec_u_eff, kite_dcm)
-        f_drag_earth = f_aero_wind[0] * wind_dcm[:, 0]
-        f_side_earth = f_aero_wind[1] * wind_dcm[:, 1]
-        f_lift_earth = f_aero_wind[2] * wind_dcm[:, 2]
-
-        coeff_wind = f_aero_wind / q_eff / s_ref
-        CD = coeff_wind[0]
-        CS = coeff_wind[1]
-        CL = coeff_wind[2]
-
-        f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
-
-        m_aero_body = cas.DM(np.zeros((3, 1)))
-
-        aero_coefficients = {}
-        aero_coefficients['CD'] = CD
-        aero_coefficients['CS'] = CS
-        aero_coefficients['CL'] = CL
-        aero_coefficients['CA'] = CA
-        aero_coefficients['CY'] = CY
-        aero_coefficients['CN'] = CN
-        aero_coefficients['LoverD'] = CL / CD
 
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, vec_u_eff, u_eff, q_eff, aero_coefficients,
-                                                               f_aero_earth, f_lift_earth, f_drag_earth, f_side_earth, m_aero_body,
-                                                               ehat1, ehat2, kite_dcm, q, kite,
-                                                               outputs, parameters)
+def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
 
-        outputs = indicators.collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, vec_u_eff)
+    kite_dcm = get_kite_dcm(vec_u, kite, variables, architecture)
 
-        outputs = indicators.collect_environmental_outputs(atmos, wind, q, kite, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, vec_u_eff, kite, parent, outputs, parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle,
-                                                               vec_u_eff, kite, parent, outputs, parameters)
-        outputs = indicators.collect_power_balance_outputs(variables, kite, outputs, architecture)
+    parent = architecture.parent_map[kite]
 
+    f_aero_earth = tools.get_f_aero_var(variables, kite, parent, parameters, options)
+    f_aero_body = frames.from_earth_to_body(kite_dcm, f_aero_earth)
+    f_aero_control = frames.from_body_to_control(f_aero_body)
+    f_aero_wind = frames.from_earth_to_wind(vec_u, kite_dcm, f_aero_earth)
 
-    return outputs
+    dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
 
-
-
-
+    return dict
 
 
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
@@ -136,15 +77,11 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         elif aero_coeff_ref_velocity == 'eff':
             vec_u = vec_u_eff
 
-        f_earth_frame = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
-        f_body_frame = frames.from_earth_to_body(kite_dcm, f_earth_frame)
-
-        f_found = f_body_frame
-        # f_found = f_earth_frame
+        f_aero_earth_val = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
 
         f_scale = tools.get_f_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_found) / f_scale
+        resi_f_kite = (f_aero_var - f_aero_earth_val) / f_scale
 
         resi = cas.vertcat(resi, resi_f_kite)
 

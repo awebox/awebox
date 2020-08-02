@@ -263,7 +263,10 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
 
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
-    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', groundspeed, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
+
+    u_ref = get_u_ref(options['user_options'])
+    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+    options_tree.append(('model', 'model_bounds', 'aero_validity', 'airspeed_ref', airspeed_ref, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
 
     airspeed_limits = options['params']['model_bounds']['airspeed_limits']
     airspeed_include = options['model']['model_bounds']['airspeed']['include']
@@ -680,7 +683,14 @@ def build_wind_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', options['user_options']['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', options['user_options']['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
 
-    options_tree.append(('solver', 'initialization', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_model', options['user_options']['wind']['model'], ('???', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_z_ref', options['params']['wind']['z_ref'],
+         ('?????', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_z0_air', options['params']['wind']['log_wind']['z0_air'],
+                         ('?????', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_exp_ref', options['params']['wind']['power_wind']['exp_ref'],
+                         ('?????', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -698,6 +708,7 @@ def get_u_at_altitude(options, zz):
     z0_air = options['params']['wind']['log_wind']['z0_air']
     exp_ref = options['params']['wind']['power_wind']['exp_ref']
     u = wind.get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
+
     return u
 
 ######## atmosphere

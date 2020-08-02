@@ -37,6 +37,8 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
+import pdb
+import awebox.mdl.wind as wind
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -165,14 +167,13 @@ def precompute_path_parameters(init_options, model):
 
     # clipping and adjusting
     for step in range(adjustment_steps):
-        init_options = clip_groundspeed(init_options,
-                                        model.wind)  # clipping depends on arguments of airspeed calculation
+        init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
         init_options = set_precomputed_radius(init_options)  # depends on groundspeed and winding_period
 
         init_options = clip_radius(init_options)  # clipping depends on hypotenuse and max cone angle
         init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
 
-        init_options = clip_winding_period(init_options, model.wind)  # clipping depends on groundspeed
+        init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
         init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
 
     init_options = set_dependent_time_final(init_options)  # depends on winding_period
@@ -263,7 +264,7 @@ def set_precomputed_groundspeed(init_options):
 
 ###### clipping functions to increase feasibility
 
-def clip_winding_period(init_options, wind):
+def clip_winding_period(init_options):
     winding_period = init_options['precompute']['winding_period']
     groundspeed = init_options['precompute']['groundspeed']
 
@@ -311,7 +312,7 @@ def clip_radius(init_options):
     return init_options
 
 
-def clip_groundspeed(init_options, wind):
+def clip_groundspeed(init_options):
     groundspeed = init_options['precompute']['groundspeed']
     airspeed_include = init_options['airspeed_include']
 
@@ -324,8 +325,8 @@ def clip_groundspeed(init_options, wind):
 
         while adjust_count < max_adjustments:
 
-            above_min = airspeeds_at_four_quadrants_above_minimum(init_options, wind, groundspeed)
-            below_max = airspeeds_at_four_quadrants_below_maximum(init_options, wind, groundspeed)
+            above_min = airspeeds_at_four_quadrants_above_minimum(init_options, groundspeed)
+            below_max = airspeeds_at_four_quadrants_below_maximum(init_options, groundspeed)
 
             if groundspeed <= 0.:
                 adjust_count = 10 + max_adjustments
@@ -365,13 +366,13 @@ def clip_groundspeed(init_options, wind):
 
 ####### helpful booleans
 
-def airspeeds_at_four_quadrants_above_minimum(options, wind, groundspeed):
+def airspeeds_at_four_quadrants_above_minimum(options, groundspeed):
     airspeed_limits = options['airspeed_limits']
     airspeed_min = airspeed_limits[0]
 
     above_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, wind, groundspeed, psi)
+        airspeed = find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed > airspeed_min
         above_at_quadrant += [loc_bool]
@@ -379,20 +380,20 @@ def airspeeds_at_four_quadrants_above_minimum(options, wind, groundspeed):
     return all(above_at_quadrant)
 
 
-def airspeeds_at_four_quadrants_below_maximum(options, wind, groundspeed):
+def airspeeds_at_four_quadrants_below_maximum(options, groundspeed):
     airspeed_limits = options['airspeed_limits']
     airspeed_max = airspeed_limits[1]
 
     below_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, wind, groundspeed, psi)
+        airspeed = find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed < airspeed_max
         below_at_quadrant += [loc_bool]
 
     return all(below_at_quadrant)
 
-def find_airspeed(init_options, wind, groundspeed, psi):
+def find_airspeed(init_options, groundspeed, psi):
 
     n_rot_hat, _, _ = tools.get_rotor_reference_frame(init_options)
     ehat_normal = n_rot_hat
@@ -400,9 +401,19 @@ def find_airspeed(init_options, wind, groundspeed, psi):
     ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
     dq_kite = groundspeed * ehat_tangential
 
-    u_infty = init_options['u_ref'] * vect_op.xhat_np()
+    l_t = init_options['xd']['l_t']
+    ehat_tether = tools.get_ehat_tether(init_options)
+    zz = l_t * ehat_tether[2]
 
-    u_app = dq_kite - u_infty
+    wind_model = init_options['model']['wind_model']
+    u_ref = init_options['model']['wind_u_ref']
+    z_ref = init_options['model']['wind_z_ref']
+    z0_air = init_options['model']['wind_z0_air']
+    exp_ref = init_options['model']['wind_exp_ref']
+
+    uu = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, zz) * vect_op.xhat_np()
+
+    u_app = dq_kite - uu
     airspeed = float(vect_op.norm(u_app))
 
     # find better approximation

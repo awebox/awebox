@@ -184,6 +184,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         *[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)]) + \
                                  lagrangian_momentum_correction
     lagrangian_rhs_constraints = np.zeros(g.shape)
+
     # trivial kinematics
     trivial_dynamics_states = cas.vertcat(
         *[system_variables['scaled']['xddot', name] - system_variables['scaled']['xd', name] for name in
@@ -443,11 +444,11 @@ def generate_m_nodes_scaling(options, variables, outputs, parameters, architectu
 def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, architecture):
     # initialize dictionary
     node_forces = {}
-    for n in range(1, architecture.number_of_nodes):
-        parent = architecture.parent_map[n]
-        node_forces['f' + str(n) + str(parent)] = cas.SX.zeros((3, 1))
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        node_forces['f' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
         if int(options['kite_dof']) == 6:
-            node_forces['m' + str(n) + str(parent)] = cas.SX.zeros((3, 1))
+            node_forces['m' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
     aero_forces, outputs = generate_aerodynamic_forces(options, variables, parameters, atmos, wind, outputs,
                                                        architecture)
@@ -482,7 +483,7 @@ def generate_drag_mode_forces(options, variables, parameters, outputs, architect
         # compute generator force
         kappa = variables['xd']['kappa{}{}'.format(n, parent)]
         speed = outputs['aerodynamics']['airspeed{}'.format(n)]
-        v_app = outputs['aerodynamics']['v_app{}'.format(n)]
+        v_app = outputs['aerodynamics']['air_velocity{}'.format(n)]
         gen_force = kappa * speed * v_app
 
         # store generator force
@@ -631,39 +632,78 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
         if type not in list(outputs.keys()):
             outputs[type] = {}
 
-    # kinetic and potential energy in the system
-    for n in range(1, number_of_nodes):
-        label = str(n) + str(parent_map[n])
+    print_op.warn_about_temporary_funcationality_removal(location='energy_definitions')
+    licitra_test = True
 
-        # translational kinetic energy
-        e_kinetic = 0.5 * node_masses['m' + label] * \
-                    cas.mtimes(generalized_coordinates['SI']['xgcdot']['dq' + label].T,
-                               generalized_coordinates['SI']['xgcdot']['dq' + label])
+    if licitra_test:
 
-        # add rotational kinetic energy
-        if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
-            e_kinetic += 0.5 * cas.mtimes(cas.mtimes(system_variables['SI']['xd']['omega' + label].T,
-                                                     parameters['theta0', 'geometry', 'j']),
-                                          system_variables['SI']['xd']['omega' + label])
+        label = '10'
+        q10 = generalized_coordinates['SI']['xgc']['q' + label]
+        dq10 = generalized_coordinates['SI']['xgcdot']['dq' + label]
+        diam_t = system_variables['SI']['theta']['diam_t']
 
-        outputs['e_kinetic']['q' + label] = e_kinetic
+        gravity = parameters['theta0', 'atmosphere', 'g']
+        m_k = parameters['theta0', 'geometry', 'm_k']
+        tether_density = parameters['theta0', 'tether', 'rho']
 
-        e_potential = parameters['theta0', 'atmosphere', 'g'] * \
-                      node_masses['m' + label] * \
-                      generalized_coordinates['SI']['xgc']['q' + label][2]
-        outputs['e_potential']['q' + label] = e_potential
+        cross_section = np.pi * (diam_t / 2.)**2.
+        length = cas.mtimes(q10.T, q10)**0.5
 
-    # = 1/2 i omega_gen^2, with no-slip condition
-    # add mass of first half of main tether, and the mass of wound tether.
-    m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
-    if options['tether']['use_wound_tether']:
-        m_groundstation += node_masses['m00']
-    speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
-    e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
-    outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
+        m_tether = tether_density * cross_section * length
+        mass = m_k + m_tether
+        outputs['e_potential']['q10'] = mass * gravity * q10[2]
 
-    # the winch is at ground level
-    outputs['e_potential']['groundstation'] = cas.DM(0.)
+        outputs['e_kinetic']['q10'] = 0.5 * mass * cas.mtimes(dq10.T, dq10)
+
+        if int(options['kite_dof']) == 6:
+            omega10 = system_variables['SI']['xd']['omega10']
+            j_kite = parameters['theta0', 'geometry', 'j']
+            outputs['e_kinetic']['q10'] += 0.5 * cas.mtimes(cas.mtimes(omega10.T, j_kite), omega10)
+
+        outputs['e_kinetic']['groundstation'] = cas.DM.zeros((1, 1))
+
+
+    else:
+        print_op.warn_about_temporary_funcationality_removal(location='licitra_test')
+        #
+        #
+        #
+        #
+        # # kinetic and potential energy in the system
+        # for n in range(1, number_of_nodes):
+        #     label = str(n) + str(parent_map[n])
+        #
+        #     # translational kinetic energy
+        #     e_kinetic = 0.5 * node_masses['m' + label] * \
+        #                 cas.mtimes(generalized_coordinates['SI']['xgcdot']['dq' + label].T,
+        #                            generalized_coordinates['SI']['xgcdot']['dq' + label])
+        #
+        #     # add rotational kinetic energy
+        #     if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
+        #         e_kinetic += 0.5 * cas.mtimes(cas.mtimes(system_variables['SI']['xd']['omega' + label].T,
+        #                                                  parameters['theta0', 'geometry', 'j']),
+        #                                       system_variables['SI']['xd']['omega' + label])
+        #
+        #     outputs['e_kinetic']['q' + label] = e_kinetic
+        #
+        #     e_potential = parameters['theta0', 'atmosphere', 'g'] * \
+        #                   node_masses['m' + label] * \
+        #                   generalized_coordinates['SI']['xgc']['q' + label][2]
+        #     outputs['e_potential']['q' + label] = e_potential
+        #
+        # # = 1/2 i omega_gen^2, with no-slip condition
+        # # add mass of first half of main tether, and the mass of wound tether.
+        # m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
+        # if options['tether']['use_wound_tether']:
+        #     m_groundstation += node_masses['m00']
+        # speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
+        # e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
+        # outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
+        #
+        # # the winch is at ground level
+        # outputs['e_potential']['groundstation'] = cas.DM(0.)
+
+
 
     return outputs
 
@@ -787,6 +827,8 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
             xddot_kin = cas.vertcat(xddot_kin, cas.DM.zeros(xd['omega' + label].shape))
 
         categories = {'q' + label: str(n)}
+
+
         if n == 1:
             categories['groundstation'] = 'groundstation1'
 
@@ -1062,37 +1104,30 @@ def angular_velocity_inequality(options, variables, outputs, parameters, archite
     return outputs
 
 
-def tether_stress_inequality(options, variables, outputs, parameters, architecture):
+def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
     # system (scaled) variables
-    xd = variables['xd']
-    xa = variables['xa']
-    theta = variables['theta']
+    xd = variables_si['xd']
+    xa = variables_si['xa']
+    theta = variables_si['theta']
 
     tightness = options['model_bounds']['tether_stress']['scaling']
 
-    if 'tether_stress' not in list(outputs.keys()):
-        outputs['tether_stress'] = {}
-
-    if 'tether_force_max' not in list(outputs.keys()):
-        outputs['tether_force_max'] = {}
-
-    if 'tether_force_min' not in list(outputs.keys()):
-        outputs['tether_force_min'] = {}
-
-    if 'tether_tension' not in list(outputs.keys()):
-        outputs['tether_tension'] = {}
+    tether_constraints = ['tether_stress', 'tether_force_max', 'tether_force_min', 'tether_tension']
+    for name in tether_constraints:
+        if name not in list(outputs.keys()):
+            outputs[name] = {}
 
     # mass vector, containing the mass of all nodes
     for n in range(1, number_of_nodes):
 
         parent = parent_map[n]
 
-        seg_props = get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
+        seg_props = get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
@@ -1118,8 +1153,8 @@ def tether_stress_inequality(options, variables, outputs, parameters, architectu
         if n in tether_constraint_includes['stress']:
             outputs['tether_stress']['n' + str(n) + str(parent)] = stress_inequality
         if n in tether_constraint_includes['force']:
-            outputs['tether_force_max']['n' + str(n) + str(parent)] = (tension - max_tension) / max_tension
-            outputs['tether_force_min']['n' + str(n) + str(parent)] = -(tension - min_tension) / min_tension
+            outputs['tether_force_max']['n' + str(n) + str(parent)] = (tension - max_tension) / vect_op.smooth_abs(max_tension)
+            outputs['tether_force_min']['n' + str(n) + str(parent)] = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
 
         # outputs so that the user can find the stress and tension
         outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section_area

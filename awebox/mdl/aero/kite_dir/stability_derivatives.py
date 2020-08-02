@@ -34,7 +34,7 @@ import casadi.tools as cas
 
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.vector_operations as vect_op
-
+from awebox.logger.logger import Logger as awelogger
 
 def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, parameters):
 
@@ -140,6 +140,7 @@ def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, p
 
     # correct for alternate body reference frame
     drag_cross_lift = cas.vertcat(CD, CS, CL)
+
     axial_side_normal = frames.from_wind_to_body(u_app, kite_dcm, drag_cross_lift)
     CA = axial_side_normal[0]
     CY = axial_side_normal[1]
@@ -149,7 +150,9 @@ def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, p
     CF = cas.vertcat(CA, CY, CN)  # in body frame
     CM = cas.vertcat(Cl, Cm, Cn)  # in body frame
 
-    return CF, CM
+    frame = 'body'
+
+    return CF, CM, frame
 
 def consolidate_stability_derivatives(model_options, u_app, kite_dcm, parameters):
 
@@ -180,3 +183,146 @@ def consolidate_stability_derivatives(model_options, u_app, kite_dcm, parameters
             stab_deriv['CL' + indep] = drag_cross_lift[2]
 
     return stab_deriv
+
+
+
+
+
+def temp_licitra_stab_derivs(alpha, beta, airspeed, omega, delta, parameters):
+
+    frames.test_conversions()
+
+    stab_derivs = {}
+    stab_derivs['frame'] = 'control'
+
+    stab_derivs['CX'] = {}
+    stab_derivs['CX']['alpha'] = [0., 8.320]
+    stab_derivs['CX']['q'] = [-0.603, 4.412]
+    stab_derivs['CX']['deltae'] = [-0.011, 0.112]
+    stab_derivs['CX']['0'] = [0.456]
+
+    stab_derivs['CY'] = {}
+    stab_derivs['CY']['beta'] = [-0.186]
+    stab_derivs['CY']['p'] = [-0.102]
+    stab_derivs['CY']['r'] = [0.169, 0.137]
+    stab_derivs['CY']['deltaa'] = [-0.05]
+    stab_derivs['CY']['deltar'] = [0.103]
+
+    stab_derivs['CZ'] = {}
+    stab_derivs['CZ']['alpha'] = [0., 1.226, 10.203]
+    stab_derivs['CZ']['q'] = [-7.556, 0.125, 6.149]
+    stab_derivs['CZ']['deltae'] = [-0.315, -0.001, 0.292]
+    stab_derivs['CZ']['0'] = [-5.4]
+
+    stab_derivs['Cl'] = {}
+    stab_derivs['Cl']['beta'] = [-0.062]
+    stab_derivs['Cl']['p'] = [-0.559]
+    stab_derivs['Cl']['r'] = [0.181, 0.645]
+    stab_derivs['Cl']['deltaa'] = [-0.248, 0.041]
+    stab_derivs['Cl']['deltar'] = [0.004]
+
+    stab_derivs['Cm'] = {}
+    stab_derivs['Cm']['alpha'] = [0., 0.205, 0.]
+    stab_derivs['Cm']['q'] = [-11.302, -0.003, 5.289]
+    stab_derivs['Cm']['deltae'] = [-1.019]
+    stab_derivs['Cm']['0'] = [-0.315]
+
+    stab_derivs['Cn'] = {}
+    stab_derivs['Cn']['beta'] = [0.058, -0.085]
+    stab_derivs['Cn']['p'] = [-0.057, -0.913]
+    stab_derivs['Cn']['r'] = [-0.052]
+    stab_derivs['Cn']['deltaa'] = [0.019, -0.115]
+    stab_derivs['Cn']['deltar'] = [-0.041]
+
+    inputs = collect_inputs(alpha, beta, airspeed, omega, delta, parameters)
+    coeffs = collect_contributions(stab_derivs, inputs)
+
+    # concatenate
+    CF = cas.vertcat(coeffs['CX'], coeffs['CY'], coeffs['CZ'])  # in control frame
+    CM = cas.vertcat(coeffs['Cl'], coeffs['Cm'], coeffs['Cn'])  # in control frame
+    frame = stab_derivs['frame']
+
+    return CF, CM, frame
+
+
+def collect_inputs(alpha, beta, airspeed, omega, delta, parameters):
+
+    # delta:
+    # aileron left-right [right teu+, rad], ... positive delta a -> negative roll
+    # elevator [ted+, rad],                 ... positive delta e -> negative pitch
+    # rudder [tel+, rad])                   ... positive delta r -> positive yaw
+    deltaa = delta[0]
+    deltae = delta[1]
+    deltar = delta[2]
+
+    p, q, r = get_p_q_r(airspeed, omega, parameters)
+
+    inputs = {}
+    inputs['0'] = cas.DM(1.)
+    inputs['alpha'] = alpha
+    inputs['beta'] = beta
+    inputs['p'] = p
+    inputs['q'] = q
+    inputs['r'] = r
+    inputs['deltaa'] = deltaa
+    inputs['deltae'] = deltae
+    inputs['deltar'] = deltar
+
+    for combi_1 in ['alpha', 'beta']:
+        for combi_2 in ['deltaa', 'deltae', 'deltar']:
+            inputs[combi_1 + '_' + combi_2] = inputs[combi_1] * inputs[combi_2]
+
+    return inputs
+
+
+
+def collect_contributions(stab_derivs, inputs):
+
+    coeffs = {}
+    for deriv_name in stab_derivs.keys():
+
+        if not deriv_name == 'frame':
+            coeffs[deriv_name] = 0.
+
+            for input_name in stab_derivs[deriv_name].keys():
+
+                deriv_stack = cas.DM(stab_derivs[deriv_name][input_name])
+                deriv_length = deriv_stack.shape[0]
+
+                if not input_name in inputs.keys():
+                    message = 'desired stability derivative input ' + input_name + ' is not recognized. ' \
+                        + 'The following inputs are defined: ' + repr(inputs.keys())
+                    awelogger.logger.error(message)
+
+                input_val = inputs[input_name]
+                input_stack = []
+                for ldx in range(deriv_length):
+                    input_stack = cas.vertcat(input_stack, input_val**(ldx + 1))
+
+                contrib_from_input = cas.mtimes(deriv_stack.T, input_stack)
+                coeffs[deriv_name] += contrib_from_input
+
+    return coeffs
+
+def get_p_q_r(airspeed, omega, parameters):
+    # p -> roll rate, about -ehat1
+    # q -> pitch rate, about -ehat2
+    # r -> yaw rate, about ehat3
+
+    # pqr - damping: in radians
+    # notice that the norm is independent of frame, iff frames are orthonormal
+    omega_hat = omega / (2. * airspeed)
+
+    b_ref = parameters['theta0','geometry','b_ref']
+    c_ref = parameters['theta0','geometry','c_ref']
+
+    omega_hat[0] *= b_ref  # pb/2|ua|
+    omega_hat[1] *= c_ref  # qc/2|ua|
+    omega_hat[2] *= b_ref  # rb/2|ua|
+
+    # roll, pitch, yaw
+    p = omega_hat[0]
+    q = omega_hat[1]
+    r = omega_hat[2]
+
+    return p, q, r

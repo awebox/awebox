@@ -48,15 +48,24 @@ def get_kite_dcm(kite, variables, architecture):
     kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
     return kite_dcm
 
+def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
+
+    kite_dcm = get_kite_dcm(kite, variables, architecture)
+
+    parent = architecture.parent_map[kite]
+
+    f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
+    f_aero_wind = frames.from_body_to_wind(vec_u, kite_dcm, f_aero_body)
+    f_aero_control = frames.from_body_to_control(f_aero_body)
+    f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
+
+    dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
+
+    return dict
+
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
-    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
-    if aero_coeff_ref_velocity == 'app':
-        force_and_moment_fun = get_force_and_moment_fun_from_u_app_alone_in_kite_frame(options, parameters)
-    elif aero_coeff_ref_velocity == 'eff':
-        force_and_moment_fun = get_force_and_moment_fun_from_u_eff_in_kite_frame(options, parameters)
-    else:
-        awelogger.logger.error('unrecognized velocity field associated with stability derivative computation')
+
 
     surface_control = options['surface_control']
 
@@ -78,123 +87,50 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         q = variables['xd']['q' + str(kite) + str(parent)]
         rho = atmos.get_density(q[2])
 
-        if aero_coeff_ref_velocity == 'app':
-            vec_u = tools.get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
-        elif aero_coeff_ref_velocity == 'eff':
-            vec_u = tools.get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture)
+        vec_u_body = tools.get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
 
-        force_and_moment_in_body_frame = force_and_moment_fun(vec_u, omega, delta, rho)
-        f_body_found = force_and_moment_in_body_frame[:3]
-        m_found = force_and_moment_in_body_frame[3:]
-
-        f_earth_found = frames.from_body_to_earth(kite_dcm, f_body_found)
-
-        f_found = f_earth_found
+        f_aero_body_val, m_aero_body_val = get_force_and_moment_in_body(options, parameters, vec_u_body, omega, delta, rho)
 
         f_scale = tools.get_f_scale(parameters, options)
         m_scale = tools.get_m_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_found) / f_scale
-        resi_m_kite = (m_aero_var - m_found) / m_scale
+        resi_f_kite = (f_aero_var - f_aero_body_val) / f_scale
+        resi_m_kite = (m_aero_var - m_aero_body_val) / m_scale
 
         resi = cas.vertcat(resi, resi_f_kite, resi_m_kite)
 
     return resi
 
 
+def get_force_and_moment_in_body(options, parameters, vec_u, omega, delta, rho):
 
+    kite_dcm = cas.DM.eye(3)
 
+    alpha = indicators.get_alpha(vec_u, kite_dcm)
+    beta = indicators.get_beta(vec_u, kite_dcm)
 
+    print_op.warn_about_temporary_funcationality_removal(location='6dof_stab_derivs')
+    # CF, CM = stability_derivatives.stability_derivatives(options, alpha, beta, vec_u, kite_dcm, omega, delta, parameters)
 
+    airspeed = vect_op.norm(vec_u)
+    CF_in_frame, CM_in_frame, frame_name = stability_derivatives.temp_licitra_stab_derivs(alpha, beta, airspeed, omega, delta, parameters)
+    # in control
 
-def get_force_and_moment_fun_from_u_eff_in_kite_frame(options, parameters):
+    CF_in_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, CF_in_frame)
+    CM_in_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, CM_in_frame)
 
-    # creates a casadi function that finds the force and moment, all calculations in kite-body reference frame.
-
-    delta_sym = cas.SX.sym('delta_sym', 3)
-    vec_u_eff_sym = cas.SX.sym('vec_u_eff_sym', 3)
-    omega_sym = cas.SX.sym('omega_sym', 3)
-    rho_sym = cas.SX.sym('rho_sym')
-
-    force_and_moment = get_force_and_moment_from_u_eff_in_kite_frame(options, parameters, vec_u_eff_sym, omega_sym, delta_sym,
-                                                        rho_sym)
-
-    force_and_moment_fun = cas.Function('force_and_moment_fun', [vec_u_eff_sym, omega_sym, delta_sym, rho_sym], [force_and_moment])
-
-    return force_and_moment_fun
-
-
-def get_force_and_moment_from_u_eff_in_kite_frame(options, parameters, vec_u_eff_sym, omega_sym, delta_sym, rho_sym):
-
-    dcm_body_frame = cas.DM.eye(3)
-    alpha_eff = indicators.get_alpha(vec_u_eff_sym, dcm_body_frame)
-    beta_eff = indicators.get_beta(vec_u_eff_sym, dcm_body_frame)
-
-    CF, CM = stability_derivatives.stability_derivatives(options, alpha_eff, beta_eff, vec_u_eff_sym, dcm_body_frame, omega_sym, delta_sym, parameters)
-
-    u_eff_sq = cas.mtimes(vec_u_eff_sym.T, vec_u_eff_sym)
-    dynamic_pressure = 1. / 2. * rho_sym * u_eff_sq
+    dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u.T, vec_u)
     planform_area = parameters['theta0', 'geometry', 's_ref']
 
-    force = CF * dynamic_pressure * planform_area
+    force_body = CF_in_body * dynamic_pressure * planform_area
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
 
-    moment = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM)
+    moment_body = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM_in_body)
 
-    force_and_moment = cas.vertcat(force, moment)
-
-    return force_and_moment
-
-
-
-
-
-
-
-
-def get_force_and_moment_fun_from_u_app_alone_in_kite_frame(options, parameters):
-
-    # creates a casadi function that finds the force and moment, all calculations in kite-body reference frame.
-
-    delta_sym = cas.SX.sym('delta_sym', 3)
-    vec_u_app_alone_sym = cas.SX.sym('vec_u_app_alone_sym', 3)
-    omega_sym = cas.SX.sym('omega_sym', 3)
-    rho_sym = cas.SX.sym('rho_sym')
-
-    force_and_moment = get_force_and_moment_from_u_app_alone_in_kite_frame(options, parameters, vec_u_app_alone_sym, omega_sym, delta_sym,
-                                                        rho_sym)
-
-    force_and_moment_fun = cas.Function('force_and_moment_fun', [vec_u_app_alone_sym, omega_sym, delta_sym, rho_sym], [force_and_moment])
-
-    return force_and_moment_fun
-
-
-def get_force_and_moment_from_u_app_alone_in_kite_frame(options, parameters, vec_u_app_alone_sym, omega_sym, delta_sym, rho_sym):
-
-    dcm_body_frame = cas.DM.eye(3)
-    alpha_app_alone = indicators.get_alpha(vec_u_app_alone_sym, dcm_body_frame)
-    beta_app_alone = indicators.get_beta(vec_u_app_alone_sym, dcm_body_frame)
-
-    CF, CM = stability_derivatives.stability_derivatives(options, alpha_app_alone, beta_app_alone, vec_u_app_alone_sym, dcm_body_frame, omega_sym, delta_sym, parameters)
-
-    u_app_sq = cas.mtimes(vec_u_app_alone_sym.T, vec_u_app_alone_sym)
-    dynamic_pressure = 1. / 2. * rho_sym * u_app_sq
-    planform_area = parameters['theta0', 'geometry', 's_ref']
-
-    force = CF * dynamic_pressure * planform_area
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    c_ref = parameters['theta0', 'geometry', 'c_ref']
-    reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
-
-    moment = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM)
-
-    force_and_moment = cas.vertcat(force, moment)
-
-    return force_and_moment
+    return force_body, moment_body
 
 
 
