@@ -31,7 +31,10 @@ def data_dict():
     data_dict['name'] = 'ampyx'
 
     data_dict['geometry'] = geometry() # kite geometry
-    data_dict['aero_deriv'] = aero_deriv() # stability derivatives
+
+    stab_derivs, aero_validity = aero()
+    data_dict['aero_deriv'] = stab_derivs # stability derivatives
+    data_dict['aero_validity'] = aero_validity
 
     # (optional: on-board battery model)
     coeff_min = np.array([0, -80*np.pi/180.0])
@@ -98,118 +101,61 @@ def battery_model_parameters(coeff_max, coeff_min):
 
     return battery_model
 
-def aero_deriv():
-    # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
+def aero():
+    # info from Licitra2019:
+    # Licitra, G., Koenemann, J., Bürger, A., Williams, P., Ruiterkamp, R., & Diehl, M. (2019).
+    # Performance assessment of a rigid wing Airborne Wind Energy pumping system.Energy, 173, 569–585.
+    # https://doi.org/10.1016/j.energy.2019.02.064
 
-    aero_deriv = {}
-    
-    aero_deriv['CL0'] = 0.5284
-    aero_deriv['CS0'] = 0.
-    aero_deriv['CD0'] = 0.0273
+    stab_derivs = {}
 
-    aero_deriv['CLalpha'] = 4.6306
-    aero_deriv['CSalpha'] = 0.
-    aero_deriv['CDalpha'] = 0.0965
+    stab_derivs['frame'] = {}
+    stab_derivs['frame']['force'] = 'control'
+    stab_derivs['frame']['moment'] = 'control'
 
-    aero_deriv['CLalpha2'] = 0
-    aero_deriv['CSalpha2'] = 0.
-    aero_deriv['CDalpha2'] = 1.2697
-    
-    aero_deriv['CLbeta'] = 0.
-    aero_deriv['CSbeta'] = -0.217
-    aero_deriv['CDbeta'] = 0.
+    stab_derivs['CX'] = {}
+    stab_derivs['CX']['alpha'] = [0., 8.320]
+    stab_derivs['CX']['q'] = [-0.603, 4.412]
+    stab_derivs['CX']['deltae'] = [-0.011, 0.112]
+    stab_derivs['CX']['0'] = [0.456]
 
-    aero_deriv['CLbeta2'] = 0.
-    aero_deriv['CSbeta2'] = 0.
-    aero_deriv['CDbeta2'] = -0.16247
-    
-    aero_deriv['CLdeltae'] = 0. #?
-    aero_deriv['CLdeltaa'] = 0.
-    aero_deriv['CLdeltar'] = 0.
+    stab_derivs['CY'] = {}
+    stab_derivs['CY']['beta'] = [-0.186]
+    stab_derivs['CY']['p'] = [-0.102]
+    stab_derivs['CY']['r'] = [0.169, 0.137]
+    stab_derivs['CY']['deltaa'] = [-0.05]
+    stab_derivs['CY']['deltar'] = [0.103]
 
-    aero_deriv['CSdeltae'] = 0.
-    aero_deriv['CSdeltaa'] = 0.
-    aero_deriv['CSdeltar'] = 0.113
+    stab_derivs['CZ'] = {}
+    stab_derivs['CZ']['alpha'] = [0., 1.226, 10.203]
+    stab_derivs['CZ']['q'] = [-7.556, 0.125, 6.149]
+    stab_derivs['CZ']['deltae'] = [-0.315, -0.001, 0.292]
+    stab_derivs['CZ']['0'] = [-5.4]
 
-    aero_deriv['CDdeltae'] = 4.52856e-5
-    aero_deriv['CDdeltaa'] = 0.
-    aero_deriv['CDdeltar'] = 0.
+    stab_derivs['Cl'] = {}
+    stab_derivs['Cl']['beta'] = [-0.062]
+    stab_derivs['Cl']['p'] = [-0.559]
+    stab_derivs['Cl']['r'] = [0.181, 0.645]
+    stab_derivs['Cl']['deltaa'] = [-0.248, 0.041]
+    stab_derivs['Cl']['deltar'] = [0.004]
 
-    aero_deriv['CLdeltaa2'] = 0.
-    aero_deriv['CSdeltaa2'] = 0.
-    aero_deriv['CDdeltaa2'] = 5.60583e-5
+    stab_derivs['Cm'] = {}
+    stab_derivs['Cm']['alpha'] = [0., 0.205, 0.]
+    stab_derivs['Cm']['q'] = [-11.302, -0.003, 5.289]
+    stab_derivs['Cm']['deltae'] = [-1.019]
+    stab_derivs['Cm']['0'] = [-0.315]
 
-    aero_deriv['CLdeltae2'] = 0.
-    aero_deriv['CSdeltae2'] = 0.
-    aero_deriv['CDdeltae2'] = 4.19816e-5
+    stab_derivs['Cn'] = {}
+    stab_derivs['Cn']['beta'] = [0.058, -0.085]
+    stab_derivs['Cn']['p'] = [-0.057, -0.913]
+    stab_derivs['Cn']['r'] = [-0.052]
+    stab_derivs['Cn']['deltaa'] = [0.019, -0.115]
+    stab_derivs['Cn']['deltar'] = [-0.041]
 
-    aero_deriv['CLdeltar2'] = 0.
-    aero_deriv['CSdeltar2'] = 0.
-    aero_deriv['CDdeltar2'] = 2.03105e-5
+    aero_validity = {}
+    aero_validity['alpha_max_deg'] = 21.7724
+    aero_validity['alpha_min_deg'] = -7.4485
+    aero_validity['beta_max_deg'] = 15.
+    aero_validity['beta_min_deg'] = -15.0
 
-    aero_deriv['CLalpha_deltae'] = 0.
-    aero_deriv['CSalpha_deltae'] = 0.
-    aero_deriv['CDalpha_deltae'] = -9.79647e-5
-
-    aero_deriv['CLbeta_deltaa'] = 0.
-    aero_deriv['CSbeta_deltaa'] = 0.
-    aero_deriv['CDbeta_deltaa'] = -6.73139e-6
-
-    aero_deriv['CLbeta_deltar'] = 0.
-    aero_deriv['CSbeta_deltar'] = 0.
-    aero_deriv['CDbeta_deltar'] = 5.55453e-5
-
-    aero_deriv['CLp'] = 0.
-    aero_deriv['CSp'] = 0.
-    aero_deriv['CDp'] = 0.
-
-    aero_deriv['CLq'] = 0.
-    aero_deriv['CSq'] = 0.
-    aero_deriv['CDq'] = 0.
-
-    aero_deriv['CLr'] = 0.
-    aero_deriv['CSr'] = 0.
-    aero_deriv['CDr'] = 0.
-
-    aero_deriv['Cl0'] = 0.
-    aero_deriv['Cm0'] = 0.
-    aero_deriv['Cn0'] = 0.
-
-    aero_deriv['Cldeltae'] = 0.
-    aero_deriv['Cldeltaa'] = 0.29
-    aero_deriv['Cldeltar'] = 0.
-
-    aero_deriv['Cmdeltae'] = 0.81
-    aero_deriv['Cmdeltaa'] = 0.
-    aero_deriv['Cmdeltar'] = 0.
-
-    aero_deriv['Cndeltae'] = 0.
-    aero_deriv['Cndeltaa'] = 0.
-    aero_deriv['Cndeltar'] = 0.04
-
-    aero_deriv['Clalpha'] = 0.
-    aero_deriv['Cmalpha'] = -0.75
-    aero_deriv['Cnalpha'] = 0.
-    
-    aero_deriv['Clbeta'] = -0.058
-    aero_deriv['Cmbeta'] = 0.
-    aero_deriv['Cnbeta'] = 0.059
-
-    aero_deriv['Clp'] = -0.55
-    aero_deriv['Cmp'] = 0.
-    aero_deriv['Cnp'] = -0.013
-
-    aero_deriv['Clq'] = 0.
-    aero_deriv['Cmq'] = -14.4
-    aero_deriv['Cnq'] = 0.
-    
-    aero_deriv['Clr'] = 0.06
-    aero_deriv['Cmr'] = 0.
-    aero_deriv['Cnr'] = -0.045
-
-    aero_deriv['alpha_max_deg'] = 21.7724
-    aero_deriv['alpha_min_deg'] = -7.4485
-    aero_deriv['beta_max_deg'] = 15.
-    aero_deriv['beta_min_deg'] = -15.0
-
-    return aero_deriv
+    return stab_derivs, aero_validity

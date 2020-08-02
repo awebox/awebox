@@ -142,87 +142,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 'wing_profile',None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'r_tether',    None,     ('geometrical parameter', None),'s'),
 
-        # stability derivatives
-        ('model',  'aero', 'overwrite', 'CL0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CS0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CD0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cl0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cm0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cn0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'alpha_max_deg', None,     ('aerodynamic parameter', None),'t'),
-        ('model',  'aero', 'overwrite', 'alpha_min_deg', None,     ('aerodynamic parameter', None),'t'),
+        ('model',  'aero', 'overwrite', 'alpha_max_deg', None,    ('aerodynamic parameter', None),'t'),
+        ('model',  'aero', 'overwrite', 'alpha_min_deg', None,    ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_max_deg', None,     ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_min_deg', None,     ('aerodynamic parameter', None),'t'),
 
@@ -535,6 +456,37 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'aero_conversion_thresh', 1.e-2,   ('maximum difference in force norm during aero frame conversion', None), 'x'),
     ]
 
+    default_options_tree = add_available_aerodynamic_stability_derivative_overwrites(default_options_tree)
+
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)
 
     return default_options, help_options
+
+
+def add_available_aerodynamic_stability_derivative_overwrites(default_options_tree):
+
+    associated_force_coeffs = {
+        'control': ['CX', 'CY', 'CZ'],
+        'earth': ['Cx', 'Cy', 'Cz'],
+        'body': ['CA', 'CY', 'CN'],
+        'wind': ['CD', 'CS', 'CL']
+    }
+    associated_moment_coeffs = {
+        'control': ['Cl', 'Cm', 'Cn']
+    }
+    available_coeffs = []
+    for coeffs in [associated_force_coeffs, associated_moment_coeffs]:
+        for frame_name in coeffs.keys():
+            available_coeffs += coeffs[frame_name]
+
+    available_inputs = ['0', 'alpha', 'beta', 'p', 'q', 'r', 'deltaa', 'deltae', 'deltar']
+    for combi_1 in ['alpha', 'beta']:
+        for combi_2 in ['deltaa', 'deltae', 'deltar']:
+            available_inputs += [combi_1 + '_' + combi_2]
+
+    for coeff in available_coeffs:
+        for input in available_inputs:
+            coeff_and_input = coeff + input
+            default_options_tree.append(('model', 'aero', 'overwrite', coeff_and_input, None, ('aerodynamic parameter', None), 's'))
+
+    return default_options_tree

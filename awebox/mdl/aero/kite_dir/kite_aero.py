@@ -90,11 +90,13 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
 
         if int(options['kite_dof']) == 3:
             framed_forces = three_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture, parameters)
-            m_aero_body = cas.DM(np.zeros((3, 1)))
+            m_aero_body = cas.DM.zeros((3, 1))
         elif int(options['kite_dof']) == 6:
             framed_forces = six_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture,
+                                                           parameters)
+            framed_moments = six_dof_kite.get_framed_moments(vec_u_eff, options, variables, kite, architecture,
                                                              parameters)
-            m_aero_body = tools.get_m_aero_var(variables, kite, parent, parameters, options)
+            m_aero_body = framed_moments['body']
         else:
             message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
             awelogger.logger.error(message)

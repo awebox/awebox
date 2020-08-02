@@ -54,18 +54,35 @@ def get_framed_forces(vec_u, options, variables, kite, architecture, parameters)
 
     parent = architecture.parent_map[kite]
 
-    f_aero_body = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-    f_aero_wind = frames.from_body_to_wind(vec_u, kite_dcm, f_aero_body)
-    f_aero_control = frames.from_body_to_control(f_aero_body)
-    f_aero_earth = frames.from_body_to_earth(kite_dcm, f_aero_body)
+    frame_name = options['aero']['stab_derivs']['force_frame']
+    f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
+
+    f_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, f_aero_var)
+    f_aero_wind = frames.from_named_frame_to_wind(frame_name, vec_u, kite_dcm, f_aero_var)
+    f_aero_control = frames.from_named_frame_to_control(frame_name, vec_u, kite_dcm, f_aero_var)
+    f_aero_earth = frames.from_named_frame_to_earth(frame_name, vec_u, kite_dcm, f_aero_var)
 
     dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
 
     return dict
 
+def get_framed_moments(vec_u, options, variables, kite, architecture, parameters):
+
+    kite_dcm = get_kite_dcm(kite, variables, architecture)
+
+    parent = architecture.parent_map[kite]
+
+    frame_name = options['aero']['stab_derivs']['moment_frame']
+    m_aero_var = tools.get_m_aero_var(variables, kite, parent, parameters, options)
+
+    m_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, m_aero_var)
+
+    dict = {'body':m_aero_body}
+
+    return dict
+
+
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
-
-
 
     surface_control = options['surface_control']
 
@@ -88,49 +105,57 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         rho = atmos.get_density(q[2])
 
         vec_u_body = tools.get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
+        kite_dcm_body = cas.DM.eye(3)
 
-        f_aero_body_val, m_aero_body_val = get_force_and_moment_in_body(options, parameters, vec_u_body, omega, delta, rho)
+        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_body, kite_dcm_body, omega, delta, rho)
 
         f_scale = tools.get_f_scale(parameters, options)
         m_scale = tools.get_m_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_aero_body_val) / f_scale
-        resi_m_kite = (m_aero_var - m_aero_body_val) / m_scale
+        f_aero_val = force_info['vector']
+        m_aero_val = moment_info['vector']
+
+        resi_f_kite = (f_aero_var - f_aero_val) / f_scale
+        resi_m_kite = (m_aero_var - m_aero_val) / m_scale
 
         resi = cas.vertcat(resi, resi_f_kite, resi_m_kite)
 
     return resi
 
 
-def get_force_and_moment_in_body(options, parameters, vec_u, omega, delta, rho):
-
-    kite_dcm = cas.DM.eye(3)
+def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho):
 
     alpha = indicators.get_alpha(vec_u, kite_dcm)
     beta = indicators.get_beta(vec_u, kite_dcm)
 
-    print_op.warn_about_temporary_funcationality_removal(location='6dof_stab_derivs')
-    # CF, CM = stability_derivatives.stability_derivatives(options, alpha, beta, vec_u, kite_dcm, omega, delta, parameters)
-
     airspeed = vect_op.norm(vec_u)
-    CF_in_frame, CM_in_frame, frame_name = stability_derivatives.temp_licitra_stab_derivs(alpha, beta, airspeed, omega, delta, parameters)
-    # in control
+    force_coeff_info, moment_coeff_info = stability_derivatives.stability_derivatives(options, alpha, beta,
+                                                                                      airspeed, omega,
+                                                                                      delta, parameters)
 
-    CF_in_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, CF_in_frame)
-    CM_in_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, CM_in_frame)
+    force_info = {}
+    moment_info = {}
+
+    force_info['frame'] = force_coeff_info['frame']
+    moment_info['frame'] = moment_coeff_info['frame']
+
+    CF = force_coeff_info['coeffs']
+    CM = moment_coeff_info['coeffs']
 
     dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u.T, vec_u)
     planform_area = parameters['theta0', 'geometry', 's_ref']
 
-    force_body = CF_in_body * dynamic_pressure * planform_area
+    force = CF * dynamic_pressure * planform_area
+    force_info['vector'] = force
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
 
-    moment_body = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM_in_body)
+    moment = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM)
+    moment_info['vector'] = moment
 
-    return force_body, moment_body
+    return force_info, moment_info
 
 
 

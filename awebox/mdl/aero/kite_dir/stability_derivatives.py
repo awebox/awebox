@@ -36,213 +36,102 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 
-def stability_derivatives(options, alpha, beta, u_app, kite_dcm, omega, delta, parameters):
+def stability_derivatives(options, alpha, beta, airspeed, omega, delta, parameters):
 
     frames.test_conversions()
-
-    # delta:
-    # aileron left-right [right teu+, rad], ... positive delta a -> negative roll
-    # elevator [ted+, rad],                 ... positive delta e -> negative pitch
-    # rudder [tel+, rad])                   ... positive delta r -> positive yaw
-    deltaa = delta[0]
-    deltae = delta[1]
-    deltar = delta[2]
-
-    # CA -> axial force, along ehat1
-    # CY -> side force, along ehat2
-    # CN -> normal force, along ehat3
-
-    # Cl -> roll moment, about -ehat1
-    # Cm -> pitch moment, about -ehat2
-    # Cn -> yaw moment, about ehat3
-
-    # p -> roll rate, about -ehat1
-    # q -> pitch rate, about -ehat2
-    # r -> yaw rate, about ehat3
-
-    # pqr - damping: in radians
-    ua_norm = vect_op.smooth_norm(u_app)
-    omega_hat = omega / (2. * ua_norm)
-
-    b_ref = parameters['theta0','geometry','b_ref']
-    c_ref = parameters['theta0','geometry','c_ref']
-
-    omega_hat[0] *= b_ref  # pb/2|ua|
-    omega_hat[1] *= c_ref  # qc/2|ua|
-    omega_hat[2] *= b_ref  # rb/2|ua|
-
-    # roll, pitch, yaw
-    p = omega_hat[0]
-    q = omega_hat[1]
-    r = omega_hat[2]
-
-    stab_deriv = consolidate_stability_derivatives(options, u_app, kite_dcm, parameters)
-
-    CL0 = stab_deriv['CL0']
-    CS0 = stab_deriv['CS0']
-    CD0 = stab_deriv['CD0']
-
-    Cl0 = stab_deriv['Cl0']
-    Cm0 = stab_deriv['Cm0']
-    Cn0 = stab_deriv['Cn0']
-
-    # contribution from motion
-    CD_wind = stab_deriv['CDalpha'] * alpha + stab_deriv['CDalpha2'] * alpha ** 2. + stab_deriv['CDbeta'] * beta + \
-              stab_deriv['CDbeta2'] * beta ** 2.
-    CL_wind = stab_deriv['CLalpha'] * alpha + stab_deriv['CLalpha2'] * alpha ** 2. + stab_deriv['CLbeta'] * beta + \
-              stab_deriv['CLbeta2'] * beta ** 2.
-    CS_wind = stab_deriv['CSalpha'] * alpha + stab_deriv['CSalpha2'] * alpha ** 2. + stab_deriv['CSbeta'] * beta + \
-              stab_deriv['CSbeta2'] * beta ** 2.
-
-    Cl_wind = stab_deriv['Clalpha'] * alpha + stab_deriv['Clbeta'] * beta
-    Cm_wind = stab_deriv['Cmalpha'] * alpha + stab_deriv['Cmbeta'] * beta
-    Cn_wind = stab_deriv['Cnalpha'] * alpha + stab_deriv['Cnbeta'] * beta
-
-    CD_motion = stab_deriv['CDp'] * p + stab_deriv['CDq'] * q + stab_deriv['CDr'] * r
-    CL_motion = stab_deriv['CLp'] * p + stab_deriv['CLq'] * q + stab_deriv['CLr'] * r
-    CS_motion = stab_deriv['CSp'] * p + stab_deriv['CSq'] * q + stab_deriv['CSr'] * r
-
-    Cl_motion = stab_deriv['Clp'] * p + stab_deriv['Clq'] * q + stab_deriv['Clr'] * r
-    Cm_motion = stab_deriv['Cmp'] * p + stab_deriv['Cmq'] * q + stab_deriv['Cmr'] * r
-    Cn_motion = stab_deriv['Cnp'] * p + stab_deriv['Cnq'] * q + stab_deriv['Cnr'] * r
-
-    # contribution from control surfaces
-    CD_surfs = stab_deriv['CDdeltaa'] * deltaa + stab_deriv['CDdeltae'] * deltae + stab_deriv['CDdeltar'] * deltar
-    CL_surfs = stab_deriv['CLdeltaa'] * deltaa + stab_deriv['CLdeltae'] * deltae + stab_deriv['CLdeltar'] * deltar
-    CS_surfs = stab_deriv['CSdeltaa'] * deltaa + stab_deriv['CSdeltae'] * deltae + stab_deriv['CSdeltar'] * deltar
-
-    CD_surfs2 = stab_deriv['CDdeltaa2'] * deltaa ** 2. + stab_deriv['CDdeltae2'] * deltae ** 2. + stab_deriv[
-                                                                                                      'CDdeltar2'] * deltar ** 2.
-    CL_surfs2 = stab_deriv['CLdeltaa2'] * deltaa ** 2. + stab_deriv['CLdeltae2'] * deltae ** 2. + stab_deriv[
-                                                                                                      'CLdeltar2'] * deltar ** 2.
-    CS_surfs2 = stab_deriv['CSdeltaa2'] * deltaa ** 2. + stab_deriv['CSdeltae2'] * deltae ** 2. + stab_deriv[
-                                                                                                      'CSdeltar2'] * deltar ** 2.
-
-    Cl_surfs = parameters['theta0','aero','Cldeltaa'] * deltaa + parameters['theta0','aero','Cldeltar'] * deltar
-    Cm_surfs = parameters['theta0','aero','Cmdeltae'] * deltae
-    Cn_surfs = parameters['theta0','aero','Cndeltaa'] * deltaa + parameters['theta0','aero','Cndeltar'] * deltar
-
-    CD_split = stab_deriv['CDalpha_deltae'] * alpha * deltae + stab_deriv['CDbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CDbeta_deltar'] * beta * deltar
-    CS_split = stab_deriv['CSalpha_deltae'] * alpha * deltae + stab_deriv['CSbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CSbeta_deltar'] + beta * deltar
-    CL_split = stab_deriv['CLalpha_deltae'] * alpha * deltae + stab_deriv['CLbeta_deltaa'] * beta * deltaa + stab_deriv[
-        'CLbeta_deltar'] + beta * deltar
-
-    # sum
-    CD = CD0 + CD_wind + CD_surfs + CD_surfs2 + CD_split + CD_motion
-    CL = CL0 + CL_wind + CL_surfs + CL_surfs2 + CL_split + CL_motion
-    CS = CS0 + CS_wind + CS_surfs + CS_surfs2 + CS_split + CS_motion
-
-    Cl = Cl0 + Cl_wind + Cl_motion + Cl_surfs
-    Cm = Cm0 + Cm_wind + Cm_motion + Cm_surfs
-    Cn = Cn0 + Cn_wind + Cn_motion + Cn_surfs
-
-    # correct for alternate body reference frame
-    drag_cross_lift = cas.vertcat(CD, CS, CL)
-
-    axial_side_normal = frames.from_wind_to_body(u_app, kite_dcm, drag_cross_lift)
-    CA = axial_side_normal[0]
-    CY = axial_side_normal[1]
-    CN = axial_side_normal[2]
-
-    # concatenate
-    CF = cas.vertcat(CA, CY, CN)  # in body frame
-    CM = cas.vertcat(Cl, Cm, Cn)  # in body frame
-
-    frame = 'body'
-
-    return CF, CM, frame
-
-def consolidate_stability_derivatives(model_options, u_app, kite_dcm, parameters):
-
-    stab_deriv = parameters.prefix['theta0','aero']
-    keys = list(model_options['params']['aero'].keys())
-
-    derivative = ['alpha', 'alpha2', 'beta', 'beta2', 'deltaa', 'deltae', 'deltar', 'deltaa2', 'deltae2', 'deltar2',
-                  'alpha_deltae', 'beta_deltaa', 'beta_deltar']
-    for indep in derivative:
-
-        side_deriv_exists = ('CS' + indep) in keys
-        lift_deriv_exists = ('CL' + indep) in keys
-        drag_deriv_exists = ('CD' + indep) in keys
-
-        span_deriv_exists = ('CY' + indep) in keys
-        axial_deriv_exists = ('CA' + indep) in keys
-        normal_deriv_exists = ('CN' + indep) in keys
-
-        body_deriv_exists = side_deriv_exists and lift_deriv_exists and drag_deriv_exists
-        wind_deriv_exists = span_deriv_exists and axial_deriv_exists and normal_deriv_exists
-
-        if wind_deriv_exists and not body_deriv_exists:
-            axial_side_normal = cas.vertcat(stab_deriv['CA' + indep], stab_deriv['CY' + indep], stab_deriv['CN' + indep])
-            drag_cross_lift = frames.from_body_to_wind(u_app, kite_dcm, axial_side_normal)
-
-            stab_deriv['CD' + indep] = drag_cross_lift[0]
-            stab_deriv['CS' + indep] = drag_cross_lift[1]
-            stab_deriv['CL' + indep] = drag_cross_lift[2]
-
-    return stab_deriv
-
-
-
-
-
-def temp_licitra_stab_derivs(alpha, beta, airspeed, omega, delta, parameters):
-
-    frames.test_conversions()
-
-    stab_derivs = {}
-    stab_derivs['frame'] = 'control'
-
-    stab_derivs['CX'] = {}
-    stab_derivs['CX']['alpha'] = [0., 8.320]
-    stab_derivs['CX']['q'] = [-0.603, 4.412]
-    stab_derivs['CX']['deltae'] = [-0.011, 0.112]
-    stab_derivs['CX']['0'] = [0.456]
-
-    stab_derivs['CY'] = {}
-    stab_derivs['CY']['beta'] = [-0.186]
-    stab_derivs['CY']['p'] = [-0.102]
-    stab_derivs['CY']['r'] = [0.169, 0.137]
-    stab_derivs['CY']['deltaa'] = [-0.05]
-    stab_derivs['CY']['deltar'] = [0.103]
-
-    stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['alpha'] = [0., 1.226, 10.203]
-    stab_derivs['CZ']['q'] = [-7.556, 0.125, 6.149]
-    stab_derivs['CZ']['deltae'] = [-0.315, -0.001, 0.292]
-    stab_derivs['CZ']['0'] = [-5.4]
-
-    stab_derivs['Cl'] = {}
-    stab_derivs['Cl']['beta'] = [-0.062]
-    stab_derivs['Cl']['p'] = [-0.559]
-    stab_derivs['Cl']['r'] = [0.181, 0.645]
-    stab_derivs['Cl']['deltaa'] = [-0.248, 0.041]
-    stab_derivs['Cl']['deltar'] = [0.004]
-
-    stab_derivs['Cm'] = {}
-    stab_derivs['Cm']['alpha'] = [0., 0.205, 0.]
-    stab_derivs['Cm']['q'] = [-11.302, -0.003, 5.289]
-    stab_derivs['Cm']['deltae'] = [-1.019]
-    stab_derivs['Cm']['0'] = [-0.315]
-
-    stab_derivs['Cn'] = {}
-    stab_derivs['Cn']['beta'] = [0.058, -0.085]
-    stab_derivs['Cn']['p'] = [-0.057, -0.913]
-    stab_derivs['Cn']['r'] = [-0.052]
-    stab_derivs['Cn']['deltaa'] = [0.019, -0.115]
-    stab_derivs['Cn']['deltar'] = [-0.041]
 
     inputs = collect_inputs(alpha, beta, airspeed, omega, delta, parameters)
-    coeffs = collect_contributions(stab_derivs, inputs)
+    coeffs = collect_contributions(parameters, inputs)
 
     # concatenate
-    CF = cas.vertcat(coeffs['CX'], coeffs['CY'], coeffs['CZ'])  # in control frame
-    CM = cas.vertcat(coeffs['Cl'], coeffs['Cm'], coeffs['Cn'])  # in control frame
-    frame = stab_derivs['frame']
+    force_frame = options['aero']['stab_derivs']['force_frame']
+    CF = distribute_force_coeffs(coeffs, force_frame)
+    moment_frame = options['aero']['stab_derivs']['moment_frame']
+    CM = distribute_moment_coeffs(coeffs, moment_frame)
 
-    return CF, CM, frame
+    force_coeff_info = {'coeffs': CF, 'frame':force_frame}
+    moment_coeff_info = {'coeffs': CM, 'frame':moment_frame}
+
+    return force_coeff_info, moment_coeff_info
+
+
+def check_associated_coeffs_defined_for_frame(associated_coeffs, frame, type=''):
+    if not frame in associated_coeffs.keys():
+        message = 'desired ' + type + ' frame ' + frame + ' is not in the list of ' \
+            + 'expected frames: ' + repr(associated_coeffs.keys())
+        awelogger.logger.error(message)
+
+    return None
+
+def check_associated_coeffs_exist_in_coeff_data(coeffs, associated_coeffs, frame):
+
+    coeffs_associated_to_frame = associated_coeffs[frame]
+    expected_in_coeffs = []
+    for dim in range(3):
+        coeffs_data_contains_expected_dimension_coefficient = coeffs_associated_to_frame[dim] in coeffs.keys()
+        expected_in_coeffs += [coeffs_data_contains_expected_dimension_coefficient]
+
+    if not all(expected_in_coeffs):
+        message = 'the associated coefficients (' + repr(coeffs_associated_to_frame) + ') for the reference frame ' \
+            + frame + ' do not all exist in the computed stability derivative data.'
+        awelogger.logger.error(message)
+
+    return None
+
+def distribute_arbitrary_coeffs(coeffs, associated_coeffs, frame):
+
+    coeffs_associated_to_frame = associated_coeffs[frame]
+    check_associated_coeffs_exist_in_coeff_data(coeffs, associated_coeffs, frame)
+
+    distributed = []
+    for dim in range(3):
+        distributed = cas.vertcat(distributed, coeffs[coeffs_associated_to_frame[dim]])
+
+    return distributed
+
+
+def distribute_force_coeffs(coeffs, frame):
+    associated_coeffs = get_associated_force_coeffs()
+    check_associated_coeffs_defined_for_frame(associated_coeffs, frame, type='force')
+    distributed = distribute_arbitrary_coeffs(coeffs, associated_coeffs, frame)
+    return distributed
+
+def distribute_moment_coeffs(coeffs, frame):
+    associated_coeffs = get_associated_moment_coeffs()
+    check_associated_coeffs_defined_for_frame(associated_coeffs, frame, type='moment')
+    distributed = distribute_arbitrary_coeffs(coeffs, associated_coeffs, frame)
+    return distributed
+
+def get_associated_moment_coeffs():
+    associated_coeffs = {
+        'control': ['Cl', 'Cm', 'Cn']
+    }
+    return associated_coeffs
+
+def get_associated_force_coeffs():
+    associated_coeffs = {
+        'control': ['CX', 'CY', 'CZ'],
+        'earth': ['Cx', 'Cy', 'Cz'],
+        'body': ['CA', 'CY', 'CN'],
+        'wind': ['CD', 'CS', 'CL']
+    }
+    return associated_coeffs
+
+def list_all_possible_coeffs():
+
+    list = []
+    for associated_coeffs in [get_associated_force_coeffs(), get_associated_moment_coeffs()]:
+        for frame in associated_coeffs.keys():
+            list += associated_coeffs[frame]
+
+    return list
+
+def list_all_possible_inputs():
+    list = ['0', 'alpha', 'beta', 'p', 'q', 'r', 'deltaa', 'deltae', 'deltar']
+    for combi_1 in ['alpha', 'beta']:
+        for combi_2 in ['deltaa', 'deltae', 'deltar']:
+            list += [combi_1 + '_' + combi_2]
+    return list
 
 
 def collect_inputs(alpha, beta, airspeed, omega, delta, parameters):
@@ -275,8 +164,9 @@ def collect_inputs(alpha, beta, airspeed, omega, delta, parameters):
     return inputs
 
 
+def collect_contributions(parameters, inputs):
 
-def collect_contributions(stab_derivs, inputs):
+    stab_derivs = extract_derivs_from_parameters(parameters)
 
     coeffs = {}
     for deriv_name in stab_derivs.keys():
@@ -286,7 +176,7 @@ def collect_contributions(stab_derivs, inputs):
 
             for input_name in stab_derivs[deriv_name].keys():
 
-                deriv_stack = cas.DM(stab_derivs[deriv_name][input_name])
+                deriv_stack = stab_derivs[deriv_name][input_name]
                 deriv_length = deriv_stack.shape[0]
 
                 if not input_name in inputs.keys():
@@ -326,3 +216,26 @@ def get_p_q_r(airspeed, omega, parameters):
     r = omega_hat[2]
 
     return p, q, r
+
+def extract_derivs_from_parameters(parameters):
+
+    stab_derivs = {}
+
+    all_possible_coeffs = list_all_possible_coeffs()
+    all_possible_inputs = list_all_possible_inputs()
+
+    for coeff_name in all_possible_coeffs:
+
+        for input_name in all_possible_inputs:
+            try:
+                vals = parameters['theta0', 'aero', coeff_name, input_name]
+            except:
+                vals = {}
+
+            if not vals == {}:
+                if not coeff_name in stab_derivs.keys():
+                    stab_derivs[coeff_name] = {}
+
+                stab_derivs[coeff_name][input_name] = vals
+
+    return stab_derivs

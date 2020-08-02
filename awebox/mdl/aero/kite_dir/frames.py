@@ -77,6 +77,27 @@ def from_earth_to_wind(vec_u, kite_dcm, vector):
     transformed = cas.mtimes(wind_dcm_inv, vector)
     return transformed
 
+def from_earth_to_control(kite_dcm, vector):
+    vector_body = from_earth_to_body(kite_dcm, vector)
+    transformed = from_body_to_control(vector_body)
+    return transformed
+
+def from_control_to_earth(kite_dcm, vector):
+    vector_body = from_control_to_body(vector)
+    transformed = from_body_to_earth(kite_dcm, vector_body)
+    return transformed
+
+def from_wind_to_control(vec_u, kite_dcm, vector):
+    vector_body = from_wind_to_body(vec_u, kite_dcm, vector)
+    transformed = from_body_to_control(vector_body)
+    return transformed
+
+def from_control_to_wind(vec_u, kite_dcm, vector):
+    vector_body = from_control_to_body(vector)
+    transformed = from_body_to_wind(vec_u, kite_dcm, vector_body)
+    return transformed
+
+
 def from_body_to_wind(vec_u, kite_dcm, vector):
     in_earth = from_body_to_earth(kite_dcm, vector)
     in_wind = from_earth_to_wind(vec_u, kite_dcm, in_earth)
@@ -97,6 +118,57 @@ def from_named_frame_to_body(name, vec_u, kite_dcm, vector):
         return from_earth_to_body(kite_dcm, vector)
     elif name == 'wind':
         return from_wind_to_body(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_control(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_control(vector)
+    elif name == 'control':
+        return vector
+    elif name == 'earth':
+        return from_earth_to_control(kite_dcm, vector)
+    elif name == 'wind':
+        return from_wind_to_control(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_earth(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_earth(kite_dcm, vector)
+    elif name == 'control':
+        return from_control_to_earth(kite_dcm, vector)
+    elif name == 'earth':
+        return vector
+    elif name == 'wind':
+        return from_wind_to_earth(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_wind(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'control':
+        return from_control_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'earth':
+        return from_earth_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'wind':
+        return vector
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'

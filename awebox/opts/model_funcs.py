@@ -38,6 +38,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+import awebox.tools.vector_operations as vect_op
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -350,16 +351,43 @@ def build_integral_options(options, options_tree, fixed_params):
 
 def build_stability_derivative_options(options, help_options, options_tree, fixed_params):
 
-    aero = load_stability_derivatives(options['user_options']['kite_standard'])
-    for name in list(aero.keys()):
-        if help_options['model']['aero']['overwrite'][name][1] == 's':
-            dict_type = 'params'
+    stab_derivs, aero_validity = load_stability_derivatives(options['user_options']['kite_standard'])
+    for deriv_name in list(stab_derivs.keys()):
+
+        if deriv_name == 'frame':
+            for frame_type in stab_derivs[deriv_name].keys():
+
+                specified_frame = stab_derivs[deriv_name][frame_type]
+                options_tree.append(('model', 'aero', 'stab_derivs', frame_type + '_frame', specified_frame, ('???', None), 't'))
+
         else:
-            dict_type = 'model'
-        if options['model']['aero']['overwrite'][name]:
-            options_tree.append((dict_type, 'aero', None, name,options['model']['aero']['overwrite'][name], ('???', None),'x'))
-        else:
-            options_tree.append((dict_type, 'aero', None, name,aero[name], ('???', None),'t'))
+            for input_name in stab_derivs[deriv_name].keys():
+                local_vals = stab_derivs[deriv_name][input_name]
+
+                combi_name = deriv_name + input_name
+
+                if help_options['model']['aero']['overwrite'][combi_name][1] == 's':
+                    dict_type = 'params'
+                else:
+                    dict_type = 'model'
+
+                overwrite_vals = options['model']['aero']['overwrite'][combi_name]
+                if not overwrite_vals == None:
+                    local_vals = overwrite_vals
+
+                local_vals = cas.DM(local_vals)
+
+                options_tree.append((dict_type, 'aero', deriv_name, input_name, local_vals, ('???', None),'x'))
+
+    for bound_name in aero_validity.keys():
+        local_vals = aero_validity[bound_name]
+
+        overwrite_vals = options['model']['aero']['overwrite'][bound_name]
+        if not overwrite_vals == None:
+            local_vals = overwrite_vals
+
+        options_tree.append(
+            ('model', 'aero', None, bound_name, local_vals, ('???', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -369,8 +397,9 @@ def load_stability_derivatives(kite_standard):
         raise ValueError("No kite data provided")
     else:
         aero_deriv = kite_standard['aero_deriv']
+        aero_validity = kite_standard['aero_validity']
 
-    return aero_deriv
+    return aero_deriv, aero_validity
 
 
 ######## general induction
@@ -863,9 +892,27 @@ def estimate_power(options, architecture):
     s_ref = geometry['s_ref']
 
     kite_standard = options['user_options']['kite_standard']
-    aero_deriv = load_stability_derivatives(kite_standard)
-    CL = aero_deriv['CL0'] + aero_deriv['CLalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
-    CD = aero_deriv['CD0'] + aero_deriv['CDalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
+    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
+
+    ranked_lift_approximations = ['Cx', 'CN', 'CZ', 'CL']
+    for rla in ranked_lift_approximations:
+        if rla in aero_deriv.keys():
+            CLapprox = rla
+
+    ranked_drag_approximations = ['Cy', 'CA', 'CX', 'CD']
+    for rda in ranked_drag_approximations:
+        if rda in aero_deriv.keys():
+            CDapprox = rda
+
+    CL0_approx_val = vect_op.abs(aero_deriv[CLapprox]['0'][0])
+    CLalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
+    CD0_approx_val = vect_op.abs(aero_deriv[CDapprox]['0'][0])
+    CDalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
+
+    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+
+    CL = CL0_approx_val + CLalpha_approx_val * alpha
+    CD = CD0_approx_val + CDalpha_approx_val * alpha
 
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
 
