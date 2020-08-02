@@ -107,7 +107,16 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
     # lift and drag coefficients
     CL = coeff[0]
-    CD = parameters['theta0', 'aero', 'CD0'] + CL ** 2 / (np.pi * parameters['theta0', 'geometry', 'ar'])
+
+    drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA','CD']
+    CD0 = 0.
+    for cd_equiv in drag_coefficient_at_zero_alpha_equivs:
+        try:
+            CD0 = parameters['theta0', 'aero', cd_equiv, '0']
+        except:
+            32.0
+
+    CD = CD0 + CL ** 2 / (np.pi * parameters['theta0', 'geometry', 'ar'])
 
     s_ref = parameters['theta0', 'geometry', 's_ref']
 
