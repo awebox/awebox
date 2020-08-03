@@ -37,7 +37,6 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
-import pdb
 import awebox.mdl.wind as wind
 
 def get_normalized_time_param_dict(ntp_dict, formulation):

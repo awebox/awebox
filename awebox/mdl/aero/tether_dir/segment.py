@@ -34,7 +34,6 @@ import casadi.tools as cas
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.aero.tether_dir.frames as frames
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
-import pdb
 
 def get_segment_drag_and_moment(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun):
 

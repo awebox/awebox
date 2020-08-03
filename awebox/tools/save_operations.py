@@ -30,8 +30,6 @@ Stores helper functions for saving data
 
 import pickle
 
-import pdb
-
 def save(data, file_name, file_type):
 
     file_pi = open(file_name + '.' + file_type, 'wb')
