@@ -102,7 +102,10 @@ def battery_model_parameters(coeff_max, coeff_min):
     return battery_model
 
 def aero():
-    # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
+    # A reference model for airborne wind energy systems for optimization and control
+    # Article
+    # March 2019 Renewable Energy
+    # Elena Malz Jonas Koenemann S. Sieberling Sebastien Gros
 
     stab_derivs = {}
 
@@ -149,45 +152,6 @@ def aero():
     stab_derivs['Cn']['r'] = [-0.0553, 0.0290, 0.0257]
     stab_derivs['Cn']['deltaa'] = [0.01903, -0.1147]
     stab_derivs['Cn']['deltar'] = [-0.0404, -0.0117, 0.04089]
-
-
-
-    stab_derivs['CL'] = {}
-    stab_derivs['CL']['0'] = [0.5284]
-    stab_derivs['CL']['alpha'] = [4.6306]
-    stab_derivs['CL']['deltae'] = [0.338]  # value missing in source document, value copied from boeing 747 data.
-
-    stab_derivs['CS'] = {}
-    stab_derivs['CS']['beta'] = [-0.217]
-    stab_derivs['CS']['deltar'] = [0.113]
-
-    stab_derivs['CD'] = {}
-    stab_derivs['CD']['0'] = [0.0273]
-    stab_derivs['CD']['alpha'] = [0.0965, 1.2697]
-    stab_derivs['CD']['beta'] = [0., -0.16247]
-    stab_derivs['CD']['deltae'] = [4.52856e-5, 4.19816e-5]
-    stab_derivs['CD']['deltaa'] = [0., 5.60583e-5]
-    stab_derivs['CD']['deltar'] = [0., 2.03105e-5]
-    stab_derivs['CD']['alpha_deltae'] = [-9.79647e-5]
-    stab_derivs['CD']['beta_deltaa'] = [-6.73139e-6]
-    stab_derivs['CD']['beta_deltar'] = [5.55453e-5]
-
-    stab_derivs['Cl'] = {}
-    stab_derivs['Cl']['deltaa'] = [0.29]
-    stab_derivs['Cl']['beta'] = [-0.058]
-    stab_derivs['Cl']['p'] = [-0.55]
-    stab_derivs['Cl']['r'] = [0.06]
-
-    stab_derivs['Cm'] = {}
-    stab_derivs['Cm']['deltae'] = [0.81]
-    stab_derivs['Cm']['alpha'] = [-0.75]
-    stab_derivs['Cm']['q'] = [-14.4]
-
-    stab_derivs['Cn'] = {}
-    stab_derivs['Cn']['deltar'] = [0.04]
-    stab_derivs['Cn']['beta'] = [0.059]
-    stab_derivs['Cn']['p'] = [-0.013]
-    stab_derivs['Cn']['r'] = [-0.045]
 
     aero_validity = {}
     aero_validity['alpha_max_deg'] = 21.7724

@@ -47,6 +47,9 @@ import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
+import awebox.mdl.dyn_comp_dir.mass as mass_comp
+import awebox.mdl.dyn_comp_dir.tether as tether_comp
+import awebox.mdl.dyn_comp_dir.energy as energy_comp
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -95,8 +98,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # -------------------------------
     # mass distribution in the system
     # -------------------------------
-    node_masses, outputs = generate_m_nodes(options, system_variables['SI'], outputs, parameters, architecture)
-    node_masses_scaling = generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
+    node_masses, outputs = mass_comp.generate_m_nodes(options, system_variables['SI'], outputs, parameters, architecture)
+    node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
 
     # --------------------------------
     # generalized forces in the system
@@ -132,20 +135,19 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ---------------------------------
     # lagrangian function of the system
     # ---------------------------------
-    outputs = energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates,
-                             architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses, system_variables, architecture)
     outputs = power_balance_outputs(options, outputs, system_variables, architecture)
+
+    # system output function
+    [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
+    [constraint_out, constraint_out_fun] = make_output_constraint_structure(options, outputs, system_variables,
+                                                                            parameters)
 
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
     # lagrangian function
     lag = e_kinetic - e_potential - holonomic_constraints
-
-    # system output function
-    [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
-    [constraint_out, constraint_out_fun] = make_output_constraint_structure(options, outputs, system_variables,
-                                                                            parameters)
 
     # ----------------------------------------
     #  dynamics of the system in implicit form
@@ -173,10 +175,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # lagrangian_lhs_constraints = gddot
 
     # lagrangian momentum correction
-    if options['tether']['use_wound_tether']:
-        lagrangian_momentum_correction = 0.
-    else:
-        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses,
+    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses,
                                                          outputs, architecture)
 
     # rhs of lagrange equations
@@ -333,112 +332,6 @@ def make_output_constraint_structure(options, outputs, system_variables, paramet
     return [constraint_struct, constraint_fun]
 
 
-def generate_m_nodes(options, variables, outputs, parameters, architecture):
-    # system architecture (see zanon2013a)
-    number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
-    parent_map = architecture.parent_map
-
-    node_masses = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, 'vals')
-
-    # save some space in the outputs for the node masses
-    if 'masses' not in list(outputs.keys()):
-        outputs['masses'] = {}
-
-    # save the each node's responsible mass into the outputs
-    for node in range(1, number_of_nodes):
-        parent = parent_map[node]
-        outputs['masses']['m' + str(node) + str(parent)] = node_masses['m' + str(node) + str(parent)]
-
-    if options['tether']['use_wound_tether']:
-        outputs['masses']['m00'] = node_masses['m00']
-
-    return node_masses, outputs
-
-
-def generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, vals_or_scaling):
-    number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
-    parent_map = architecture.parent_map
-
-    use_wound_tether = options['tether']['use_wound_tether']
-
-    # initialize dictionary
-    node_masses = {}
-    for n in range(1, number_of_nodes):
-        parent = parent_map[n]
-        node_masses['m' + str(n) + str(parent)] = 0.
-
-    if use_wound_tether:
-        node_masses['m00'] = 0.  # mass added to the ground-station
-
-    # sum the masses of each segment, to determine the mass for which each node is responsible
-    for n in range(1, number_of_nodes):
-
-        parent = parent_map[n]
-
-        seg_props = get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
-        if vals_or_scaling == 'vals':
-            seg_mass = seg_props['seg_mass']
-        elif vals_or_scaling == 'scaling':
-            seg_mass = seg_props['scaling_mass']
-        else:
-            awelogger.logger.error('unknown option in mass dictionary generation')
-
-        # attribute half of segment mass to node (at top of segment)
-        node_masses['m' + str(n) + str(parent)] += seg_mass / 2.
-
-        # attribute half of segment mass to parent (node at bottom of segment)
-        # for non-ground-station parents
-        if n > 1:
-            grandparent = parent_map[parent]
-            node_masses['m' + str(parent) + str(grandparent)] += seg_mass / 2.
-
-        if n == 1 and use_wound_tether:
-            # this adds to the ground-station entry 'm00'
-            node_masses['m00'] += seg_mass / 2.
-
-        # attribute kite mass to kite node
-        if n in kite_nodes:
-            node_masses['m' + str(n) + str(parent)] += parameters['theta0', 'geometry', 'm_k']
-
-    # attribute wound-up tether mass to the ground-station
-    if use_wound_tether:
-        main_props = get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
-        if vals_or_scaling == 'vals':
-            wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
-            wound_cross_section = main_props['cross_section_area']
-        elif vals_or_scaling == 'scaling':
-            wound_length = options['scaling']['theta']['l_t_full'] - main_props['scaling_length']
-            wound_cross_section = main_props['scaling_area']
-        else:
-            awelogger.logger.error('unknown option in mass dictionary generation')
-
-        wound_mass = wound_cross_section * parameters['theta0', 'tether', 'rho'] * wound_length
-        node_masses['m00'] += wound_mass
-
-    return node_masses
-
-
-def generate_m_nodes_scaling(options, variables, outputs, parameters, architecture):
-    # system architecture (see zanon2013a)
-    number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
-
-    node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture,
-                                                                 'scaling')
-
-    # this will be used to scale the forces,
-    # so we need to repeat the scaling forces 3x, once per dimension for force.
-    # and, only on those nodes for which we will construct dynamics equations via. Lagrangian mechanics
-
-    node_masses_scaling_stacked = []
-    for node in range(1, number_of_nodes):
-        parent = parent_map[node]
-        mass = node_masses_scaling['m' + str(node) + str(parent)]
-        node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, mass, mass, mass)
-
-    return node_masses_scaling_stacked
 
 
 def generate_f_nodes(options, atmos, wind, variables, parameters, outputs, architecture):
@@ -623,51 +516,6 @@ def get_power(options, variables_si, outputs, architecture):
     return power
 
 
-def energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture):
-    number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
-
-    energy_types = ['e_kinetic', 'e_potential']
-    for type in energy_types:
-        if type not in list(outputs.keys()):
-            outputs[type] = {}
-
-    # kinetic and potential energy in the system
-    for n in range(1, number_of_nodes):
-        label = str(n) + str(parent_map[n])
-
-        # translational kinetic energy
-        e_kinetic = 0.5 * node_masses['m' + label] * \
-                    cas.mtimes(generalized_coordinates['SI']['xgcdot']['dq' + label].T,
-                               generalized_coordinates['SI']['xgcdot']['dq' + label])
-
-        # add rotational kinetic energy
-        if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
-            e_kinetic += 0.5 * cas.mtimes(cas.mtimes(system_variables['SI']['xd']['omega' + label].T,
-                                                     parameters['theta0', 'geometry', 'j']),
-                                          system_variables['SI']['xd']['omega' + label])
-
-        outputs['e_kinetic']['q' + label] = e_kinetic
-
-        e_potential = parameters['theta0', 'atmosphere', 'g'] * \
-                      node_masses['m' + label] * \
-                      generalized_coordinates['SI']['xgc']['q' + label][2]
-        outputs['e_potential']['q' + label] = e_potential
-
-    # = 1/2 i omega_gen^2, with no-slip condition
-    # add mass of first half of main tether, and the mass of wound tether.
-    m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
-    if options['tether']['use_wound_tether']:
-        m_groundstation += node_masses['m00']
-    speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
-    e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
-    outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
-
-    # the winch is at ground level
-    outputs['e_potential']['groundstation'] = cas.DM(0.)
-
-    return outputs
-
 
 def drag_mode_outputs(variables_si, outputs, architecture):
     for kite in architecture.kite_nodes:
@@ -788,7 +636,6 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
             xddot_kin = cas.vertcat(xddot_kin, cas.DM.zeros(xd['omega' + label].shape))
 
         categories = {'q' + label: str(n)}
-
 
         if n == 1:
             categories['groundstation'] = 'groundstation1'
@@ -1088,7 +935,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
         parent = parent_map[n]
 
-        seg_props = get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
+        seg_props = tether_comp.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
@@ -1482,7 +1329,7 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
 
     # mass vector, containing the mass of all nodes
     for n in range(1, architecture.number_of_nodes):
-        seg_props = get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
+        seg_props = tether_comp.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
         loc_scaling = seg_props['scaling_length'] ** 2.
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
@@ -1821,60 +1668,3 @@ def select_model_constraints(constraint_list, collection, constraint_out):
     return constraint_struct, constraint_list
 
 
-def get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node):
-    kite_nodes = architecture.kite_nodes
-
-    xd = variables_si['xd']
-    theta = variables_si['theta']
-    scaling = options['scaling']
-
-    if upper_node == 1:
-        vars_containing_length = xd
-        vars_sym = 'xd'
-        length_sym = 'l_t'
-        diam_sym = 'diam_t'
-
-    elif upper_node in kite_nodes:
-        vars_containing_length = theta
-        vars_sym = 'theta'
-        length_sym = 'l_s'
-        diam_sym = 'diam_s'
-
-    else:
-        vars_containing_length = theta
-        vars_sym = 'theta'
-        length_sym = 'l_i'
-        diam_sym = 'diam_t'
-
-    seg_length = vars_containing_length[length_sym]
-    scaling_length = scaling[vars_sym][length_sym]
-
-    seg_diam = theta[diam_sym]
-    max_diam = options['system_bounds']['theta'][diam_sym][1]
-    length_scaling = scaling[vars_sym][length_sym]
-    scaling_diam = scaling['theta'][diam_sym]
-
-    cross_section_area = np.pi * (seg_diam / 2.) ** 2.
-    max_area = np.pi * (max_diam / 2.) ** 2.
-    scaling_area = np.pi * (scaling_diam / 2.) ** 2.
-
-    density = parameters['theta0', 'tether', 'rho']
-    seg_mass = cross_section_area * density * seg_length
-    scaling_mass = scaling_area * parameters['theta0', 'tether', 'rho'] * length_scaling
-
-    props = {}
-    props['seg_length'] = seg_length
-    props['scaling_length'] = scaling_length
-
-    props['seg_diam'] = seg_diam
-    props['max_diam'] = max_diam
-    props['scaling_diam'] = scaling_diam
-
-    props['cross_section_area'] = cross_section_area
-    props['max_area'] = max_area
-    props['scaling_area'] = scaling_area
-
-    props['seg_mass'] = seg_mass
-    props['scaling_mass'] = scaling_mass
-
-    return props

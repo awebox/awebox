@@ -41,7 +41,11 @@ import awebox.mdl.aero.kite_dir.tools as tools
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
+import copy
 
+
+def arbitrarily_desired_force_frame():
+    return 'earth'
 
 def get_kite_dcm(kite, variables, architecture):
     parent = architecture.parent_map[kite]
@@ -54,7 +58,9 @@ def get_framed_forces(vec_u, options, variables, kite, architecture, parameters)
 
     parent = architecture.parent_map[kite]
 
-    frame_name = options['aero']['stab_derivs']['force_frame']
+    # frame_name = options['aero']['stab_derivs']['force_frame']
+    frame_name = arbitrarily_desired_force_frame()
+
     f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
 
     f_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, f_aero_var)
@@ -86,6 +92,9 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
     surface_control = options['surface_control']
 
+    f_scale = tools.get_f_scale(parameters, options)
+    m_scale = tools.get_m_scale(parameters, options)
+
     resi = []
     for kite in architecture.kite_nodes:
 
@@ -106,13 +115,15 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
         vec_u_body = tools.get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
         kite_dcm_body = cas.DM.eye(3)
-
         force_info, moment_info = get_force_and_moment(options, parameters, vec_u_body, kite_dcm_body, omega, delta, rho)
 
-        f_scale = tools.get_f_scale(parameters, options)
-        m_scale = tools.get_m_scale(parameters, options)
+        vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_body)
+        arb_force_frame = arbitrarily_desired_force_frame()
+        force_arb_info = copy.deepcopy(force_info)
+        force_arb_info['vector'] = frames.from_named_frame_to_named_frame(force_info['frame'], arb_force_frame, vec_u_earth, kite_dcm, force_info['vector'])
+        force_arb_info['frame'] = arb_force_frame
 
-        f_aero_val = force_info['vector']
+        f_aero_val = force_arb_info['vector']
         m_aero_val = moment_info['vector']
 
         resi_f_kite = (f_aero_var - f_aero_val) / f_scale

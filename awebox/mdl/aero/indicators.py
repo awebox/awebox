@@ -83,9 +83,8 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     outputs['performance']['p_current'] = current_power
 
     epsilon = 1.
-
-    p_loyd_total = outputs['performance']['p_loyd_total']
-    outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
+    p_loyd_total = vect_op.smooth_abs(outputs['performance']['p_loyd_total'], epsilon)
+    outputs['performance']['loyd_factor'] = current_power / p_loyd_total
 
     outputs['performance']['power_density'] = current_power / len(kite_nodes) / parameters['theta0','geometry','s_ref']
 
