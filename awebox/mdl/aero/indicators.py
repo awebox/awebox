@@ -37,6 +37,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.performance_operations as perf_op
+import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.tools.print_operations as print_op
+
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -80,7 +83,6 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     outputs['performance']['p_current'] = current_power
 
     epsilon = 1.0e-8
-
     p_loyd_total = outputs['performance']['p_loyd_total']
     outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
 
@@ -88,55 +90,105 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     return outputs
 
-def collect_kite_aerodynamics_outputs(options, atmos, wind, ua, ua_norm, q_eff, aero_coefficients, f_aero, f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs, parameters):
+
+def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
 
-    for name in set(aero_coefficients.keys()):
-        outputs['aerodynamics'][name + str(n)] = aero_coefficients[name]
+    # unpack
+    kite = intermediates['kite']
+    air_velocity = intermediates['air_velocity']
+    aero_coefficients = intermediates['aero_coefficients']
+    f_aero_earth = intermediates['f_aero_earth']
+    f_aero_body = intermediates['f_aero_body']
+    f_aero_control = intermediates['f_aero_control']
+    f_aero_wind = intermediates['f_aero_wind']
+    f_lift_earth = intermediates['f_lift_earth']
+    f_drag_earth = intermediates['f_drag_earth']
+    f_side_earth = intermediates['f_side_earth']
+    m_aero_body = intermediates['m_aero_body']
+    kite_dcm = intermediates['kite_dcm']
+    q = intermediates['q']
 
-    outputs['aerodynamics']['v_app' + str(n)] = ua
-    outputs['aerodynamics']['airspeed' + str(n)] = ua_norm
-    outputs['aerodynamics']['u_infty' + str(n)] = wind.get_velocity(q[2])
+
+    for name in set(intermediates['aero_coefficients'].keys()):
+        outputs['aerodynamics'][name + str(kite)] = intermediates['aero_coefficients'][name]
+
+    outputs['aerodynamics']['air_velocity' + str(kite)] = air_velocity
+    airspeed = vect_op.norm(air_velocity)
+    outputs['aerodynamics']['airspeed' + str(kite)] = airspeed
+    outputs['aerodynamics']['u_infty' + str(kite)] = wind.get_velocity(q[2])
 
     rho = atmos.get_density(q[2])
-    outputs['aerodynamics']['air_density' + str(n)] = rho
-    outputs['aerodynamics']['dyn_pressure' + str(n)] = 0.5 * rho * cas.mtimes(ua.T, ua)
+    outputs['aerodynamics']['air_density' + str(kite)] = rho
+    outputs['aerodynamics']['dyn_pressure' + str(kite)] = 0.5 * rho * cas.mtimes(air_velocity.T, air_velocity)
 
-    outputs['aerodynamics']['f_aero' + str(n)] = f_aero
-    outputs['aerodynamics']['f_lift' + str(n)] = f_lift
-    outputs['aerodynamics']['f_drag' + str(n)] = f_drag
-    outputs['aerodynamics']['f_side' + str(n)] = f_side
+    ehat_chord = kite_dcm[:, 0]
+    ehat_span = kite_dcm[:, 1]
+    ehat_up = kite_dcm[:, 2]
 
-    outputs['aerodynamics']['ehat_chord' + str(n)] = ehat_chord
-    outputs['aerodynamics']['ehat_span' + str(n)] = ehat_span
-    outputs['aerodynamics']['ehat_up' + str(n)] = vect_op.normed_cross(ehat_chord, ehat_span)
+    outputs['aerodynamics']['ehat_chord' + str(kite)] = ehat_chord
+    outputs['aerodynamics']['ehat_span' + str(kite)] = ehat_span
+    outputs['aerodynamics']['ehat_up' + str(kite)] = ehat_up
+
+    outputs['aerodynamics']['f_aero_body' + str(kite)] = f_aero_body
+    outputs['aerodynamics']['f_aero_control' + str(kite)] = f_aero_control
+    outputs['aerodynamics']['f_aero_earth' + str(kite)] = f_aero_earth
+    outputs['aerodynamics']['f_aero_wind' + str(kite)] = f_aero_wind
+
+    ortho = cas.reshape(cas.mtimes(kite_dcm.T, kite_dcm) - np.eye(3), (9, 1))
+    ortho_resi = cas.mtimes(ortho.T, ortho)
+    outputs['aerodynamics']['ortho_resi' + str(kite)] = ortho_resi
+
+
+
+    conversion_resis = []
+    conversion_targets = {'control': f_aero_control, 'earth': f_aero_earth, 'wind': f_aero_wind}
+    for target in conversion_targets.keys():
+        resi = 1. - vect_op.norm(conversion_targets[target]) / vect_op.norm(f_aero_body)
+        conversion_resis = cas.vertcat(conversion_resis, resi)
+
+    resi = vect_op.norm(f_aero_earth - f_lift_earth - f_drag_earth - f_side_earth) / vect_op.norm(f_aero_body)
+    conversion_resis = cas.vertcat(conversion_resis, resi)
+
+    outputs['aerodynamics']['check_conversion' + str(kite)] = conversion_resis
+
+    outputs['aerodynamics']['f_lift_earth' + str(kite)] = f_lift_earth
+    outputs['aerodynamics']['f_drag_earth' + str(kite)] = f_drag_earth
+    outputs['aerodynamics']['f_side_earth' + str(kite)] = f_side_earth
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
-    gamma_cross = vect_op.norm(f_lift) / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
-    gamma_cl = 0.5 * ua_norm**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(ua, ehat_span))
-    outputs['aerodynamics']['gamma_cross' + str(n)] = gamma_cross
-    outputs['aerodynamics']['gamma_cl' + str(n)] = gamma_cl
-    outputs['aerodynamics']['gamma' + str(n)] = gamma_cl
+    gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+    outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
+    outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
 
-    outputs['aerodynamics']['wingtip_ext' + str(n)] = q + ehat_span * b_ref / 2.
-    outputs['aerodynamics']['wingtip_int' + str(n)] = q - ehat_span * b_ref / 2.
+    outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
+    outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
 
-    outputs['aerodynamics']['fstar_aero' + str(n)] = cas.mtimes(ua.T, ehat_chord) / c_ref
+    outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
 
-    outputs['aerodynamics']['r'+str(n)] = r.reshape((9,1))
+    outputs['aerodynamics']['r' + str(kite)] = kite_dcm.reshape((9, 1))
 
     if int(options['kite_dof']) == 6:
-        outputs['aerodynamics']['m_aero' + str(n)] = m_aero
+        outputs['aerodynamics']['m_aero_body' + str(kite)] = m_aero_body
 
-    outputs['aerodynamics']['mach' + str(n)] = get_mach(options, atmos, ua, q)
-    outputs['aerodynamics']['reynolds' + str(n)] = get_reynolds(options, atmos, ua, q, parameters)
+    outputs['aerodynamics']['mach' + str(kite)] = get_mach(options, atmos, air_velocity, q)
+    outputs['aerodynamics']['reynolds' + str(kite)] = get_reynolds(options, atmos, air_velocity, q, parameters)
 
     return outputs
 
-def collect_vortex_verification_outputs(outputs, options, kite, parent, variables, parameters, architecture, wind, atmos, q, ua):
+def collect_vortex_verification_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
+
+    kite = intermediates['kite']
+    q = intermediates['q']
+    air_velocity = intermediates['air_velocity']
+
+    parent = architecture.parent_map[kite]
+
     verification_test = options['aero']['vortex']['verification_test']
 
     if verification_test:
@@ -148,7 +200,7 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
         rho = atmos.get_density(q[2])
 
         n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
-        kite_velocity_tangential = ua - cas.mtimes(ua.T, n_hat) * n_hat
+        kite_velocity_tangential = air_velocity - cas.mtimes(air_velocity.T, n_hat) * n_hat
         tangential_speed = vect_op.norm(kite_velocity_tangential)
 
         kite_speed_ratio = tangential_speed / u_infty
@@ -188,30 +240,37 @@ def collect_vortex_verification_outputs(outputs, options, kite, parent, variable
         outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
 
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
-        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(ua, ehat_span))
+        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
         outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
         outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
     return outputs
 
-def collect_power_balance_outputs(variables, n, outputs, architecture):
+def collect_power_balance_outputs(options, architecture, variables, intermediates, outputs):
+
+    kite = intermediates['kite']
 
     if 'power_balance' not in list(outputs.keys()):
         # initialize
         outputs['power_balance'] = {}
 
     # kite velocity
-    dq_n = variables['xd']['dq'+str(n)+str(architecture.parent_map[n])]
+    parent = architecture.parent_map[kite]
+    dq = variables['xd']['dq'+str(kite)+str(parent)]
+
+    f_lift_earth = outputs['aerodynamics']['f_lift_earth' + str(kite)]
+    f_drag_earth = outputs['aerodynamics']['f_drag_earth' + str(kite)]
+    f_side_earth = outputs['aerodynamics']['f_side_earth' + str(kite)]
 
     # get lift, drag and aero-moment power
-    outputs['power_balance']['P_lift'+str(n)] = cas.mtimes(outputs['aerodynamics']['f_lift'+str(n)].T, dq_n)
-    outputs['power_balance']['P_drag'+str(n)] = cas.mtimes(outputs['aerodynamics']['f_drag'+str(n)].T, dq_n)
-    if 'r'+str(n)+str(architecture.parent_map[n]) in list(variables['xd'].keys()):
-        outputs['power_balance']['P_side'+str(n)] = cas.mtimes(outputs['aerodynamics']['f_side'+str(n)].T, dq_n)
+    outputs['power_balance']['P_lift' + str(kite)] = cas.mtimes(f_lift_earth.T, dq)
+    outputs['power_balance']['P_drag' + str(kite)] = cas.mtimes(f_drag_earth.T, dq)
+    outputs['power_balance']['P_side' + str(kite)] = cas.mtimes(f_side_earth.T, dq)
 
-    if 'm_aero'+str(n) in list(outputs['aerodynamics'].keys()):
-        omega_n = variables['xd']['omega'+str(n)+str(architecture.parent_map[n])]
-        outputs['power_balance']['P_moment'+str(n)] = cas.mtimes(outputs['aerodynamics']['m_aero'+str(n)].T, omega_n)
+    if int(options['kite_dof']) == 6:
+        omega = variables['xd']['omega'+str(kite)+str(parent)]
+        m_aero_body = outputs['aerodynamics']['m_aero_body'+str(kite)]
+        outputs['power_balance']['P_moment'+str(kite)] = cas.mtimes(m_aero_body.T, omega)
 
     return outputs
 
@@ -224,90 +283,104 @@ def collect_tether_drag_losses(variables, tether_drag_forces, outputs, architect
     # get dissipation power from tether drag
     for n in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[n]
-        dq_n   = variables['xd']['dq'+str(n)+str(parent)] # node velocity
-        outputs['power_balance']['P_tetherdrag'+str(n)] = cas.mtimes(tether_drag_forces['f'+str(n)+(str(parent))].T,dq_n)
+        dq_n = variables['xd']['dq' + str(n) + str(parent)]  # node velocity
+        force = tether_drag_forces['f' + str(n) + str(parent)]
+        outputs['power_balance']['P_tetherdrag' + str(n)] = cas.mtimes(force.T, dq_n)
 
     return outputs
 
-def collect_aero_validity_outputs(options, xd, ua, n, parent, outputs, parameters):
+def collect_aero_validity_outputs(options, intermediates, outputs):
+
+    kite = intermediates['kite']
+    ua = intermediates['air_velocity']
+    kite_dcm = intermediates['kite_dcm']
 
     if 'aero_validity' not in list(outputs.keys()):
         outputs['aero_validity'] = {}
     tightness = options['model_bounds']['aero_validity']['scaling']
-    num_ref = options['model_bounds']['aero_validity']['num_ref']
+    airspeed_ref = options['model_bounds']['aero_validity']['airspeed_ref']
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
 
-    alpha = cas.DM(0.)
-    beta = cas.DM(0.)
-    if int(options['kite_dof']) == 6:
+    ehat1 = kite_dcm[:, 0]  # chordwise, from leading edge to trailing edge
+    ehat2 = kite_dcm[:, 1]  # spanwise, from positive edge to negative edge
+    ehat3 = kite_dcm[:, 2]  # up
 
-        r = cas.reshape(xd['r' + str(n) + str(parent)], (3, 3))
-        ehat1 = r[:, 0]  # chordwise, froml_e tot_e
-        ehat2 = r[:, 1]  # spanwise, fromp_e ton_e
-        ehat3 = r[:, 2]  # up
+    alpha = get_alpha(ua, kite_dcm)
+    beta = get_beta(ua, kite_dcm)
 
-        alpha = get_alpha(ua, r)
-        beta = get_beta(ua, r)
+    alpha_min = options['aero']['alpha_min_deg'] * np.pi / 180.0
+    alpha_max = options['aero']['alpha_max_deg'] * np.pi / 180.0
+    beta_min = options['aero']['beta_min_deg'] * np.pi / 180.0
+    beta_max = options['aero']['beta_max_deg'] * np.pi / 180.0
 
-        alpha_min = options['aero']['alpha_min_deg']*np.pi/180.0
-        alpha_max = options['aero']['alpha_max_deg']*np.pi/180.0
-        beta_min = options['aero']['beta_min_deg']*np.pi/180.0
-        beta_max = options['aero']['beta_max_deg']*np.pi/180.0
+    alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
+    alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
+    beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
+    beta_lb_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min)
 
-        alpha_ub = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max) * tightness / num_ref
-        alpha_lb = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min) * tightness / num_ref
-        beta_ub = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max) * tightness / num_ref
-        beta_lb = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min) * tightness / num_ref
+    alpha_ub = alpha_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_max)
+    alpha_lb = alpha_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_min)
+    beta_ub = beta_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_max)
+    beta_lb = beta_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_min)
 
-        outputs['aero_validity']['alpha_ub' + str(n)] = alpha_ub
-        outputs['aero_validity']['alpha_lb' + str(n)] = alpha_lb
-        outputs['aero_validity']['beta_ub' + str(n)] = beta_ub
-        outputs['aero_validity']['beta_lb' + str(n)] = beta_lb
+    outputs['aero_validity']['alpha_ub' + str(kite)] = alpha_ub
+    outputs['aero_validity']['alpha_lb' + str(kite)] = alpha_lb
+    outputs['aero_validity']['beta_ub' + str(kite)] = beta_ub
+    outputs['aero_validity']['beta_lb' + str(kite)] = beta_lb
 
-    outputs['aerodynamics']['alpha' + str(n)] = alpha
-    outputs['aerodynamics']['beta' + str(n)] = beta
-    outputs['aerodynamics']['alpha_deg' + str(n)] = alpha * 180. / np.pi
-    outputs['aerodynamics']['beta_deg' + str(n)] = beta * 180. / np.pi
+    outputs['aerodynamics']['alpha' + str(kite)] = alpha
+    outputs['aerodynamics']['beta' + str(kite)] = beta
+    outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
+    outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
     return outputs
 
-def collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, n, parent, outputs,parameters):
+def collect_local_performance_outputs(architecture, atmos, wind, variables, parameters, intermediates, outputs):
+
+    kite = intermediates['kite']
+    q = intermediates['q']
+    airspeed = intermediates['airspeed']
+    CL = intermediates['aero_coefficients']['CL']
+    CD = intermediates['aero_coefficients']['CD']
 
     xd = variables['xd']
-    q = xd['q' + str(n) + str(parent)]
+    elevation_angle = get_elevation_angle(xd)
+
+    parent = architecture.parent_map[kite]
 
     if 'local_performance' not in list(outputs.keys()):
         outputs['local_performance'] = {}
 
-    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle)
+    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, xd, kite, parent, CL, CD, parameters, elevation_angle)
 
-    norm_ua = cas.mtimes(ua.T, ua)**0.5
+    outputs['local_performance']['CR' + str(kite)] = CR
+    outputs['local_performance']['p_loyd' + str(kite)] = p_loyd
+    outputs['local_performance']['speed_loyd' + str(kite)] = speed_loyd
+    outputs['local_performance']['phf_loyd' + str(kite)] = phf_loyd
+    outputs['local_performance']['radius' + str(kite)] = path_based_geom.get_radius_of_curvature(variables, kite, parent)
 
-    outputs['local_performance']['CR' + str(n)] = CR
-    outputs['local_performance']['p_loyd' + str(n)] = p_loyd
-    outputs['local_performance']['speed_loyd' + str(n)] = speed_loyd
-    outputs['local_performance']['phf_loyd' + str(n)] = phf_loyd
-    outputs['local_performance']['radius' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['speed_ratio' + str(kite)] = airspeed / vect_op.norm(wind.get_velocity(q[2]))
+    outputs['local_performance']['speed_ratio_loyd' + str(kite)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
-    outputs['local_performance']['speed_ratio' + str(n)] = norm_ua / vect_op.norm(wind.get_velocity(q[2]))
-    outputs['local_performance']['speed_ratio_loyd' + str(n)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
-
-    outputs['local_performance']['radius_of_curvature' + str(n)] = path_based_geom.get_radius_of_curvature(variables, n, parent)
+    outputs['local_performance']['radius_of_curvature' + str(kite)] = path_based_geom.get_radius_of_curvature(variables, kite, parent)
 
 
     return outputs
 
-def collect_environmental_outputs(atmos, wind, q, n, outputs):
+def collect_environmental_outputs(atmos, wind, intermediates, outputs):
+
+    kite = intermediates['kite']
+    q = intermediates['q']
 
     if 'environment' not in list(outputs.keys()):
         outputs['environment'] = {}
 
-    outputs['environment']['windspeed' + str(n)] = vect_op.norm(wind.get_velocity(q[2]))
-    outputs['environment']['pressure' + str(n)] = atmos.get_pressure(q[2])
-    outputs['environment']['temperature' + str(n)] = atmos.get_temperature(q[2])
-    outputs['environment']['density' + str(n)] = atmos.get_density(q[2])
+    outputs['environment']['windspeed' + str(kite)] = vect_op.norm(wind.get_velocity(q[2]))
+    outputs['environment']['pressure' + str(kite)] = atmos.get_pressure(q[2])
+    outputs['environment']['temperature' + str(kite)] = atmos.get_temperature(q[2])
+    outputs['environment']['density' + str(kite)] = atmos.get_density(q[2])
 
     return outputs
 
@@ -376,6 +449,7 @@ def get_alpha(ua, r):
     x_component = vect_op.smooth_abs(cas.mtimes(ua.T, ehat1))
     # x component had better be positive
 
+    # alpha = cas.arctan(z_component / x_component)
     alpha = z_component / x_component
 
     return alpha
@@ -389,6 +463,7 @@ def get_beta(ua, r):
     x_component = vect_op.smooth_abs(cas.mtimes(ua.T, ehat1))
     # x component had better be positive
 
+    # beta = cas.arctan(y_component / x_component)
     beta = y_component / x_component
 
     return beta

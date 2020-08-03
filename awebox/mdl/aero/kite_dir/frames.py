@@ -58,6 +58,16 @@ def from_body_to_earth(kite_dcm, vector):
     transformed = cas.mtimes(kite_dcm, vector)
     return transformed
 
+def from_body_to_control(vector):
+    rot = cas.diag(cas.DM([-1., 1., -1.]))
+    transformed = cas.mtimes(rot, vector)
+    return transformed
+
+def from_control_to_body(vector):
+    rot = cas.diag(cas.DM([-1., 1., -1.]))
+    transformed = cas.mtimes(rot, vector)
+    return transformed
+
 def from_wind_to_earth(vec_u, kite_dcm, vector):
     wind_dcm = get_wind_dcm(vec_u, kite_dcm)
     transformed = cas.mtimes(wind_dcm, vector)
@@ -69,6 +79,27 @@ def from_earth_to_wind(vec_u, kite_dcm, vector):
     transformed = cas.mtimes(wind_dcm_inv, vector)
     return transformed
 
+def from_earth_to_control(kite_dcm, vector):
+    vector_body = from_earth_to_body(kite_dcm, vector)
+    transformed = from_body_to_control(vector_body)
+    return transformed
+
+def from_control_to_earth(kite_dcm, vector):
+    vector_body = from_control_to_body(vector)
+    transformed = from_body_to_earth(kite_dcm, vector_body)
+    return transformed
+
+def from_wind_to_control(vec_u, kite_dcm, vector):
+    vector_body = from_wind_to_body(vec_u, kite_dcm, vector)
+    transformed = from_body_to_control(vector_body)
+    return transformed
+
+def from_control_to_wind(vec_u, kite_dcm, vector):
+    vector_body = from_control_to_body(vector)
+    transformed = from_body_to_wind(vec_u, kite_dcm, vector_body)
+    return transformed
+
+
 def from_body_to_wind(vec_u, kite_dcm, vector):
     in_earth = from_body_to_earth(kite_dcm, vector)
     in_wind = from_earth_to_wind(vec_u, kite_dcm, in_earth)
@@ -78,6 +109,93 @@ def from_wind_to_body(vec_u, kite_dcm, vector):
     in_earth = from_wind_to_earth(vec_u, kite_dcm, vector)
     in_body = from_earth_to_body(kite_dcm, in_earth)
     return in_body
+
+def from_named_frame_to_body(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return vector
+    elif name == 'control':
+        return from_control_to_body(vector)
+    elif name == 'earth':
+        return from_earth_to_body(kite_dcm, vector)
+    elif name == 'wind':
+        return from_wind_to_body(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_control(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_control(vector)
+    elif name == 'control':
+        return vector
+    elif name == 'earth':
+        return from_earth_to_control(kite_dcm, vector)
+    elif name == 'wind':
+        return from_wind_to_control(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_earth(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_earth(kite_dcm, vector)
+    elif name == 'control':
+        return from_control_to_earth(kite_dcm, vector)
+    elif name == 'earth':
+        return vector
+    elif name == 'wind':
+        return from_wind_to_earth(vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_wind(name, vec_u, kite_dcm, vector):
+
+    if name == 'body':
+        return from_body_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'control':
+        return from_control_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'earth':
+        return from_earth_to_wind(vec_u, kite_dcm, vector)
+    elif name == 'wind':
+        return vector
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+def from_named_frame_to_named_frame(from_name, to_name, vec_u, kite_dcm, vector):
+
+    if to_name == 'body':
+        return from_named_frame_to_body(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'control':
+        return from_named_frame_to_control(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'earth':
+        return from_named_frame_to_earth(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'wind':
+        return from_named_frame_to_wind(from_name, vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(to_name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+
 
 def test_conversions(epsilon=1.e-10):
 
@@ -111,8 +229,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     dir = 'span body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat2_k)
@@ -120,8 +238,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     dir = 'up body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat3_k)
@@ -129,8 +247,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     dir = 'chord earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_chord)
@@ -138,8 +256,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     dir = 'span earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_span)
@@ -147,8 +265,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     dir = 'up earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_up)
@@ -156,8 +274,8 @@ def test_horizontal_body_earth(epsilon):
     diff = transformed - reference
     resi = cas.mtimes(diff.T, diff)
     if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
 
     return None
 

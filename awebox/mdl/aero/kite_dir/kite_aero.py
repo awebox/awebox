@@ -36,16 +36,21 @@ import awebox.mdl.aero.induction_dir.induction as induction
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
 import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
-
+import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.mdl.aero.kite_dir.tools as tools
+from awebox.logger.logger import Logger as awelogger
+import awebox.tools.vector_operations as vect_op
+import casadi.tools as cas
+import numpy as np
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
-
-    if int(options['kite_dof']) == 3:
-        outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    elif int(options['kite_dof']) == 6:
-        outputs = six_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    else:
-        raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
+    # if int(options['kite_dof']) == 3:
+    #     outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+    # elif int(options['kite_dof']) == 6:
+    outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+    # else:
+    #     message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+    #     awelogger.logger.error(message)
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
@@ -53,6 +58,119 @@ def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters,
         outputs = induction.collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
     return outputs
+
+
+def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
+
+    xd = variables['xd']
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
+    s_ref = parameters['theta0', 'geometry', 's_ref']
+    reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
+
+    kite_nodes = architecture.kite_nodes
+    for kite in kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        q = xd['q' + str(kite) + str(parent)]
+
+        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+        u_eff = vect_op.smooth_norm(vec_u_eff)
+        rho = atmos.get_density(q[2])
+        q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
+
+        if int(options['kite_dof']) == 3:
+            kite_dcm = three_dof_kite.get_kite_dcm(vec_u_eff, kite, variables, architecture)
+        elif int(options['kite_dof']) == 6:
+            kite_dcm = six_dof_kite.get_kite_dcm(kite, variables, architecture)
+        else:
+            message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+            awelogger.logger.error(message)
+
+        if int(options['kite_dof']) == 3:
+            framed_forces = three_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture, parameters)
+            m_aero_body = cas.DM.zeros((3, 1))
+        elif int(options['kite_dof']) == 6:
+            framed_forces = six_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture,
+                                                           parameters)
+            framed_moments = six_dof_kite.get_framed_moments(vec_u_eff, options, variables, kite, architecture,
+                                                             parameters)
+            m_aero_body = framed_moments['body']
+        else:
+            message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+            awelogger.logger.error(message)
+
+        f_aero_body = framed_forces['body']
+        f_aero_wind = framed_forces['wind']
+        f_aero_control = framed_forces['control']
+        f_aero_earth = framed_forces['earth']
+
+        coeff_body = f_aero_body / q_eff / s_ref
+        CA = coeff_body[0]
+        CY = coeff_body[1]
+        CN = coeff_body[2]
+
+        f_drag_wind = f_aero_wind[0] * vect_op.xhat()
+        f_side_wind = f_aero_wind[1] * vect_op.yhat()
+        f_lift_wind = f_aero_wind[2] * vect_op.zhat()
+
+        f_drag_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_drag_wind)
+        f_side_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_side_wind)
+        f_lift_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_lift_wind)
+
+        coeff_wind = f_aero_wind / q_eff / s_ref
+        CD = coeff_wind[0]
+        CS = coeff_wind[1]
+        CL = coeff_wind[2]
+
+        CM = cas.mtimes(cas.inv(reference_lengths), m_aero_body) / q_eff / s_ref
+        Cl = CM[0]
+        Cm = CM[1]
+        Cn = CM[2]
+
+        aero_coefficients = {}
+        aero_coefficients['CD'] = CD
+        aero_coefficients['CS'] = CS
+        aero_coefficients['CL'] = CL
+        aero_coefficients['CA'] = CA
+        aero_coefficients['CY'] = CY
+        aero_coefficients['CN'] = CN
+        aero_coefficients['Cl'] = Cl
+        aero_coefficients['Cm'] = Cm
+        aero_coefficients['Cn'] = Cn
+        aero_coefficients['LoverD'] = CL/CD
+
+        intermediates = {}
+        intermediates['kite'] = kite
+        intermediates['air_velocity'] = vec_u_eff
+        intermediates['airspeed'] = u_eff
+        intermediates['aero_coefficients'] = aero_coefficients
+        intermediates['f_aero_earth'] = f_aero_earth
+        intermediates['f_aero_body'] = f_aero_body
+        intermediates['f_aero_control'] = f_aero_control
+        intermediates['f_aero_wind'] = f_aero_wind
+        intermediates['f_lift_earth'] = f_lift_earth
+        intermediates['f_drag_earth'] = f_drag_earth
+        intermediates['f_side_earth'] = f_side_earth
+        intermediates['m_aero_body'] = m_aero_body
+        intermediates['kite_dcm'] = kite_dcm
+        intermediates['q'] = q
+
+
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+
+        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
+                                                                 parameters, intermediates, outputs)
+        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
+        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
+        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
+                                                               intermediates, outputs)
+        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
+
+
+    return outputs
+
 
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
