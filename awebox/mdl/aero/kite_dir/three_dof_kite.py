@@ -40,8 +40,6 @@ import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
 
-
-
 def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
 
     kite_dcm = get_kite_dcm(vec_u, kite, variables, architecture)

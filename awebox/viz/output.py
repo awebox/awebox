@@ -30,7 +30,6 @@ import awebox.viz.tools as tools
 from awebox.logger.logger import Logger as awelogger
 
 import casadi.tools as cas
-import pdb
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_path, fig_num = None):
 
@@ -483,60 +482,13 @@ def plot_energy_over_time(solution_dict, cosmetics, fig_num, reload_dict):
 
     plt.show()
 
-def plot_loyd_comparison(solution_dict, cosmetics, fig_num, reload_dict):
+def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    # read in inputs
-    outputs = solution_dict['outputs']
-    options = solution_dict['options']
-    tgrid_coll = reload_dict['tgrid_coll']
-
-    fig = plt.figure(fig_num)
-
-    plt.ion()
-
-    number_of_rows = 3 + len(options['model']['architecture'].kite_nodes)
-
-    phf_loyd_total = np.array(outputs['coll_outputs',:,:,'performance','phf_loyd_total'])
-    phf = np.array(outputs['coll_outputs',:,:,'performance','phf'])
-
-    loyd_factor = np.array(outputs['coll_outputs',:,:,'performance','loyd_factor'])
-    loyd_factor_comparison = np.ones(loyd_factor.shape)
-
-    freelout = np.array(outputs['coll_outputs',:,:,'performance','freelout'])
-    freelout_loyd = 1./3. * np.ones(freelout.shape)
-
-    ax1 = plt.subplot(number_of_rows, 1, 1)
-    ax1.plot(tgrid_coll, cas.vertcat(*phf_loyd_total), 'b--')
-    ax1.plot(tgrid_coll, cas.vertcat(*phf), 'b')
-    ax1.grid('on')
-    ax1.set_ylabel('zeta')
-    ax1.yaxis.set_major_locator(MaxNLocator(4))
-
-    ax2 = plt.subplot(number_of_rows, 1, 2)
-    ax2.plot(tgrid_coll, cas.vertcat(*loyd_factor_comparison), 'b--')
-    ax2.plot(tgrid_coll, cas.vertcat(*loyd_factor), 'b')
-    ax2.grid('on')
-    ax2.set_ylabel('eta')
-    ax2.yaxis.set_major_locator(MaxNLocator(4))
-
-    ax3 = plt.subplot(number_of_rows, 1, 3)
-    ax3.plot(tgrid_coll, cas.vertcat(*freelout_loyd), 'b--')
-    ax3.plot(tgrid_coll, cas.vertcat(*freelout), 'b')
-    ax3.grid('on')
-    ax3.set_ylabel('f')
-    ax3.yaxis.set_major_locator(MaxNLocator(4))
-
-    for n in options['model']['architecture'].kite_nodes:
-
-        speed_ratio = np.array(outputs['coll_outputs',:,:,'local_performance','speed_ratio' + str(n)])
-        speed_ratio_loyd = np.array(outputs['coll_outputs',:,:,'local_performance','speed_ratio_loyd' + str(n)])
-
-        axn = plt.subplot(number_of_rows, 1, 4 + options['model']['architecture'].kite_nodes.index(n))
-        axn.plot(tgrid_coll, cas.vertcat(*speed_ratio_loyd), 'b--')
-        axn.plot(tgrid_coll, cas.vertcat(*speed_ratio), 'b')
-        axn.grid('on')
-        axn.set_ylabel('upsilon ' + str(n))
-        axn.yaxis.set_major_locator(MaxNLocator(4))
+    interesting_outputs = [('performance', 'phf_loyd_total'),
+                           ('performance', 'loyd_factor'),
+                           ('performance', 'p_loyd_total'),
+                           ('performance', 'freelout')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -566,36 +518,51 @@ def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
     fig.canvas.draw()
 
 # def plot_output(solution_dict, cosmetics, fig_num, reload_dict): #todo: fix output plot!
-def plot_output(plot_dict, cosmetics, fig_name, fig_num = None, interesting_outputs=[]):
+def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num = None):
 
     outputs = plot_dict['outputs']
     architecture = plot_dict['architecture']
     tgrid_ip = plot_dict['time_grids']['ip']
 
-    options_are_not_empty = interesting_outputs == []
+    options_are_not_empty = not (interesting_outputs == [])
 
     if options_are_not_empty:
         number_of_opts = len(interesting_outputs)
 
-        fig = plt.figure()
-        fig.clf()
-        fig, axes = plt.subplots(nrows=number_of_opts, ncols=1, sharex='all', num=fig_num)
+        # create new figure if desired
+        if fig_num is not None:
+            fig = plt.figure(num=fig_num)
+            axes = fig.axes
+            if len(axes) == 0:  # if figure does not exist yet
+                fig, axes = plt.subplots(num=fig_num, nrows=number_of_opts, ncols=1)
+
+        else:
+            fig, axes = plt.subplots(nrows=number_of_opts, ncols=1)
 
         axes[-1].set_xlabel('t [s]')
 
         kite_nodes = architecture.kite_nodes
 
-        for kite in kite_nodes:
-            for odx in range(len(interesting_outputs)):
+        for odx in range(len(interesting_outputs)):
+            opt = interesting_outputs[odx]
 
-                opt = interesting_outputs[odx]
+            category = opt[0]
+            base_name = opt[1]
 
-                data = np.array(outputs[opt[0]][opt[1] + str(kite)][0])
-                local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+            output_is_systemwide = base_name in outputs[category].keys()
 
+            if output_is_systemwide:
+                data = np.array(outputs[opt[0]][base_name][0])
+                local_color = cosmetics['trajectory']['colors'][0]
                 axes[odx].plot(tgrid_ip, data, color=local_color)
 
-        for odx in range(len(interesting_outputs)):
+            else:
+                for kite in kite_nodes:
+
+                    data = np.array(outputs[opt[0]][base_name + str(kite)][0])
+                    local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+                    axes[odx].plot(tgrid_ip, data, color=local_color)
+
             axes[odx].set_ylabel(opt[1])
 
         for adx in range(len(axes)):
@@ -795,60 +762,13 @@ def plot_actuator_thrust_coeff_in_aerotime(solution_dict, cosmetics, fig_num, re
         plt.show()
 
 def plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_name, fig_num = None):
+
     interesting_outputs = [('aerodynamics', 'alpha_deg'),
                            ('aerodynamics', 'beta_deg'),
                            ('aerodynamics', 'airspeed'),
                            ('aerodynamics', 'reynolds'),
                            ('aerodynamics', 'mach')]
-    plot_output(plot_dict, cosmetics, fig_name, fig_num, interesting_outputs)
-
-    # outputs = plot_dict['outputs']
-    # architecture = plot_dict['architecture']
-    # options = plot_dict['options']
-    # tgrid_ip = plot_dict['time_grids']['ip']
-    #
-    # n_k = options['nlp']['n_k']
-    #
-    # # create new figure if desired
-    # if fig_num is not None:
-    #     fig = plt.figure(num = fig_num)
-    # else:
-    #     fig, axes = plt.subplots(nrows=5, ncols=1, sharex='all')
-    #
-    # kite_nodes = architecture.kite_nodes
-    #
-    # for kite in kite_nodes:
-    #
-    #     alpha_deg = np.array(outputs['aerodynamics']['alpha_deg' + str(kite)][0])
-    #     beta_deg = np.array(outputs['aerodynamics']['beta_deg' + str(kite)][0])
-    #     airspeed = np.array(outputs['aerodynamics']['airspeed' + str(kite)][0])
-    #     reynolds = np.array(outputs['aerodynamics']['reynolds' + str(kite)][0])
-    #     mach = np.array(outputs['aerodynamics']['mach' + str(kite)][0])
-    #
-    #     local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-    #
-    #     axes[0].plot(tgrid_ip, alpha_deg, color=local_color)
-    #     axes[1].plot(tgrid_ip, beta_deg, color=local_color)
-    #     axes[2].plot(tgrid_ip, reynolds, color=local_color)
-    #     axes[3].plot(tgrid_ip, mach, color=local_color)
-    #     axes[4].plot(tgrid_ip, airspeed, color=local_color)
-    #
-    # axes[-1].set_xlabel('t [s]')
-    #
-    # axes[0].set_ylabel('alpha [deg]')
-    # axes[1].set_ylabel('beta [deg]')
-    # axes[2].set_ylabel('reynolds [-]')
-    # axes[3].set_ylabel('mach [-]')
-    # axes[4].set_ylabel('airspeed [m/s]')
-    #
-    # for adx in range(len(axes)):
-    #     axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-    #     axes[adx].yaxis.set_major_locator(MaxNLocator(3))
-    #
-    # # plt.tight_layout(w_pad=1.)
-    #
-    # axes[0].set_title('kite flight parameters')
-
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 
 def plot_constraints(plot_dict, cosmetics, fig_num, constr_type):

@@ -33,7 +33,7 @@ def data_dict():
     data_dict['geometry'] = geometry() # kite geometry
 
     stab_derivs, aero_validity = aero()
-    data_dict['aero_deriv'] = stab_derivs # stability derivatives
+    data_dict['stab_derivs'] = stab_derivs # stability derivatives
     data_dict['aero_validity'] = aero_validity
 
     # (optional: on-board battery model)
@@ -102,10 +102,7 @@ def battery_model_parameters(coeff_max, coeff_min):
     return battery_model
 
 def aero():
-    # info from Licitra2019:
-    # Licitra, G., Koenemann, J., Bürger, A., Williams, P., Ruiterkamp, R., & Diehl, M. (2019).
-    # Performance assessment of a rigid wing Airborne Wind Energy pumping system.Energy, 173, 569–585.
-    # https://doi.org/10.1016/j.energy.2019.02.064
+    # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
 
     stab_derivs = {}
 
@@ -114,43 +111,83 @@ def aero():
     stab_derivs['frame']['moment'] = 'control'
 
     stab_derivs['CX'] = {}
-    stab_derivs['CX']['alpha'] = [0., 8.320]
-    stab_derivs['CX']['q'] = [-0.603, 4.412]
-    stab_derivs['CX']['deltae'] = [-0.011, 0.112]
-    stab_derivs['CX']['0'] = [0.456]
+    stab_derivs['CX']['0'] = [-0.0293]
+    stab_derivs['CX']['alpha'] = [0.4784, 2.5549]
+    stab_derivs['CX']['q'] = [-0.6029, 4.4124]
+    stab_derivs['CX']['deltae'] = [-0.0106, 0.1115]
 
     stab_derivs['CY'] = {}
-    stab_derivs['CY']['beta'] = [-0.186]
-    stab_derivs['CY']['p'] = [-0.102]
-    stab_derivs['CY']['r'] = [0.169, 0.137]
-    stab_derivs['CY']['deltaa'] = [-0.05]
-    stab_derivs['CY']['deltar'] = [0.103]
+    stab_derivs['CY']['beta'] = [-0.1855, -0.0299, 0.0936]
+    stab_derivs['CY']['p'] = [-0.1022, -0.0140, 0.0496]
+    stab_derivs['CY']['r'] = [0.1694, 0.1368]
+    stab_derivs['CY']['deltaa'] = [-0.0514, -0.0024, 0.0579]
+    stab_derivs['CY']['deltar'] = [0.10325, 0.0268, -0.1036]
 
     stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['alpha'] = [0., 1.226, 10.203]
-    stab_derivs['CZ']['q'] = [-7.556, 0.125, 6.149]
-    stab_derivs['CZ']['deltae'] = [-0.315, -0.001, 0.292]
-    stab_derivs['CZ']['0'] = [-5.4]
+    stab_derivs['CZ']['0'] = [-0.5526]
+    stab_derivs['CZ']['alpha'] = [-5.0676, 5.7736]
+    stab_derivs['CZ']['q'] = [-7.5560, 0.1251, 6.1486]
+    stab_derivs['CZ']['deltae'] = [-0.315, -0.0013, 0.2923]
 
     stab_derivs['Cl'] = {}
-    stab_derivs['Cl']['beta'] = [-0.062]
-    stab_derivs['Cl']['p'] = [-0.559]
-    stab_derivs['Cl']['r'] = [0.181, 0.645]
-    stab_derivs['Cl']['deltaa'] = [-0.248, 0.041]
-    stab_derivs['Cl']['deltar'] = [0.004]
+    stab_derivs['Cl']['beta'] = [-0.0630, -0.0003, 0.0312]
+    stab_derivs['Cl']['p'] = [-0.5632, -0.0247, 0.2813]
+    stab_derivs['Cl']['r'] = [0.1811, 0.6448]
+    stab_derivs['Cl']['deltaa'] = [-0.2489, -0.0087, 0.2383]
+    stab_derivs['Cl']['deltar'] = [0.00436, -0.0013]
 
     stab_derivs['Cm'] = {}
-    stab_derivs['Cm']['alpha'] = [0., 0.205, 0.]
-    stab_derivs['Cm']['q'] = [-11.302, -0.003, 5.289]
-    stab_derivs['Cm']['deltae'] = [-1.019]
-    stab_derivs['Cm']['0'] = [-0.315]
+    stab_derivs['Cm']['0'] = [-0.0307]
+    stab_derivs['Cm']['alpha'] = [-0.6027]
+    stab_derivs['Cm']['q'] = [-11.3022, -0.0026, 5.2885]
+    stab_derivs['Cm']['deltae'] = [-1.0427, -0.0061, 0.9974]
+    stab_derivs['Cm']['deltar'] = [-0.0015]
 
     stab_derivs['Cn'] = {}
-    stab_derivs['Cn']['beta'] = [0.058, -0.085]
-    stab_derivs['Cn']['p'] = [-0.057, -0.913]
-    stab_derivs['Cn']['r'] = [-0.052]
-    stab_derivs['Cn']['deltaa'] = [0.019, -0.115]
-    stab_derivs['Cn']['deltar'] = [-0.041]
+    stab_derivs['Cn']['beta'] = [0.0577, -0.0849]
+    stab_derivs['Cn']['p'] = [-0.0565, -0.9137]
+    stab_derivs['Cn']['r'] = [-0.0553, 0.0290, 0.0257]
+    stab_derivs['Cn']['deltaa'] = [0.01903, -0.1147]
+    stab_derivs['Cn']['deltar'] = [-0.0404, -0.0117, 0.04089]
+
+
+
+    stab_derivs['CL'] = {}
+    stab_derivs['CL']['0'] = [0.5284]
+    stab_derivs['CL']['alpha'] = [4.6306]
+    stab_derivs['CL']['deltae'] = [0.338]  # value missing in source document, value copied from boeing 747 data.
+
+    stab_derivs['CS'] = {}
+    stab_derivs['CS']['beta'] = [-0.217]
+    stab_derivs['CS']['deltar'] = [0.113]
+
+    stab_derivs['CD'] = {}
+    stab_derivs['CD']['0'] = [0.0273]
+    stab_derivs['CD']['alpha'] = [0.0965, 1.2697]
+    stab_derivs['CD']['beta'] = [0., -0.16247]
+    stab_derivs['CD']['deltae'] = [4.52856e-5, 4.19816e-5]
+    stab_derivs['CD']['deltaa'] = [0., 5.60583e-5]
+    stab_derivs['CD']['deltar'] = [0., 2.03105e-5]
+    stab_derivs['CD']['alpha_deltae'] = [-9.79647e-5]
+    stab_derivs['CD']['beta_deltaa'] = [-6.73139e-6]
+    stab_derivs['CD']['beta_deltar'] = [5.55453e-5]
+
+    stab_derivs['Cl'] = {}
+    stab_derivs['Cl']['deltaa'] = [0.29]
+    stab_derivs['Cl']['beta'] = [-0.058]
+    stab_derivs['Cl']['p'] = [-0.55]
+    stab_derivs['Cl']['r'] = [0.06]
+
+    stab_derivs['Cm'] = {}
+    stab_derivs['Cm']['deltae'] = [0.81]
+    stab_derivs['Cm']['alpha'] = [-0.75]
+    stab_derivs['Cm']['q'] = [-14.4]
+
+    stab_derivs['Cn'] = {}
+    stab_derivs['Cn']['deltar'] = [0.04]
+    stab_derivs['Cn']['beta'] = [0.059]
+    stab_derivs['Cn']['p'] = [-0.013]
+    stab_derivs['Cn']['r'] = [-0.045]
 
     aero_validity = {}
     aero_validity['alpha_max_deg'] = 21.7724

@@ -32,7 +32,7 @@ def data_dict():
     data_dict['geometry'] = geometry()
 
     stab_derivs, aero_validity = aero()
-    data_dict['aero_deriv'] = stab_derivs # stability derivatives
+    data_dict['stab_derivs'] = stab_derivs # stability derivatives
     data_dict['aero_validity'] = aero_validity
 
     # (optional: on-board battery model)

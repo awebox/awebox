@@ -82,7 +82,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     outputs['performance']['p_current'] = current_power
 
-    epsilon = 1.0e-8
+    epsilon = 1.
 
     p_loyd_total = outputs['performance']['p_loyd_total']
     outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
@@ -304,36 +304,32 @@ def collect_aero_validity_outputs(options, intermediates, outputs):
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
 
-    alpha = cas.DM(0.)
-    beta = cas.DM(0.)
-    if int(options['kite_dof']) == 6:
+    ehat1 = kite_dcm[:, 0]  # chordwise, from leading edge to trailing edge
+    ehat2 = kite_dcm[:, 1]  # spanwise, from positive edge to negative edge
+    ehat3 = kite_dcm[:, 2]  # up
 
-        ehat1 = kite_dcm[:, 0]  # chordwise, from leading edge to trailing edge
-        ehat2 = kite_dcm[:, 1]  # spanwise, from positive edge to negative edge
-        ehat3 = kite_dcm[:, 2]  # up
+    alpha = get_alpha(ua, kite_dcm)
+    beta = get_beta(ua, kite_dcm)
 
-        alpha = get_alpha(ua, kite_dcm)
-        beta = get_beta(ua, kite_dcm)
+    alpha_min = options['aero']['alpha_min_deg'] * np.pi / 180.0
+    alpha_max = options['aero']['alpha_max_deg'] * np.pi / 180.0
+    beta_min = options['aero']['beta_min_deg'] * np.pi / 180.0
+    beta_max = options['aero']['beta_max_deg'] * np.pi / 180.0
 
-        alpha_min = options['aero']['alpha_min_deg'] * np.pi / 180.0
-        alpha_max = options['aero']['alpha_max_deg'] * np.pi / 180.0
-        beta_min = options['aero']['beta_min_deg'] * np.pi / 180.0
-        beta_max = options['aero']['beta_max_deg'] * np.pi / 180.0
+    alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
+    alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
+    beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
+    beta_lb_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min)
 
-        alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
-        alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
-        beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
-        beta_lb_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min)
+    alpha_ub = alpha_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_max)
+    alpha_lb = alpha_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_min)
+    beta_ub = beta_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_max)
+    beta_lb = beta_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_min)
 
-        alpha_ub = alpha_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_max)
-        alpha_lb = alpha_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_min)
-        beta_ub = beta_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_max)
-        beta_lb = beta_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_min)
-
-        outputs['aero_validity']['alpha_ub' + str(kite)] = alpha_ub
-        outputs['aero_validity']['alpha_lb' + str(kite)] = alpha_lb
-        outputs['aero_validity']['beta_ub' + str(kite)] = beta_ub
-        outputs['aero_validity']['beta_lb' + str(kite)] = beta_lb
+    outputs['aero_validity']['alpha_ub' + str(kite)] = alpha_ub
+    outputs['aero_validity']['alpha_lb' + str(kite)] = alpha_lb
+    outputs['aero_validity']['beta_ub' + str(kite)] = beta_ub
+    outputs['aero_validity']['beta_lb' + str(kite)] = beta_lb
 
     outputs['aerodynamics']['alpha' + str(kite)] = alpha
     outputs['aerodynamics']['beta' + str(kite)] = beta

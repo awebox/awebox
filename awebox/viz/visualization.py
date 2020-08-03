@@ -144,7 +144,7 @@ class Visualization(object):
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
         # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)

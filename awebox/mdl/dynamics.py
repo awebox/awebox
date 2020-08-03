@@ -632,78 +632,39 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
         if type not in list(outputs.keys()):
             outputs[type] = {}
 
-    print_op.warn_about_temporary_funcationality_removal(location='energy_definitions')
-    licitra_test = True
+    # kinetic and potential energy in the system
+    for n in range(1, number_of_nodes):
+        label = str(n) + str(parent_map[n])
 
-    if licitra_test:
+        # translational kinetic energy
+        e_kinetic = 0.5 * node_masses['m' + label] * \
+                    cas.mtimes(generalized_coordinates['SI']['xgcdot']['dq' + label].T,
+                               generalized_coordinates['SI']['xgcdot']['dq' + label])
 
-        label = '10'
-        q10 = generalized_coordinates['SI']['xgc']['q' + label]
-        dq10 = generalized_coordinates['SI']['xgcdot']['dq' + label]
-        diam_t = system_variables['SI']['theta']['diam_t']
+        # add rotational kinetic energy
+        if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
+            e_kinetic += 0.5 * cas.mtimes(cas.mtimes(system_variables['SI']['xd']['omega' + label].T,
+                                                     parameters['theta0', 'geometry', 'j']),
+                                          system_variables['SI']['xd']['omega' + label])
 
-        gravity = parameters['theta0', 'atmosphere', 'g']
-        m_k = parameters['theta0', 'geometry', 'm_k']
-        tether_density = parameters['theta0', 'tether', 'rho']
+        outputs['e_kinetic']['q' + label] = e_kinetic
 
-        cross_section = np.pi * (diam_t / 2.)**2.
-        length = cas.mtimes(q10.T, q10)**0.5
+        e_potential = parameters['theta0', 'atmosphere', 'g'] * \
+                      node_masses['m' + label] * \
+                      generalized_coordinates['SI']['xgc']['q' + label][2]
+        outputs['e_potential']['q' + label] = e_potential
 
-        m_tether = tether_density * cross_section * length
-        mass = m_k + m_tether
-        outputs['e_potential']['q10'] = mass * gravity * q10[2]
+    # = 1/2 i omega_gen^2, with no-slip condition
+    # add mass of first half of main tether, and the mass of wound tether.
+    m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
+    if options['tether']['use_wound_tether']:
+        m_groundstation += node_masses['m00']
+    speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
+    e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
+    outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
 
-        outputs['e_kinetic']['q10'] = 0.5 * mass * cas.mtimes(dq10.T, dq10)
-
-        if int(options['kite_dof']) == 6:
-            omega10 = system_variables['SI']['xd']['omega10']
-            j_kite = parameters['theta0', 'geometry', 'j']
-            outputs['e_kinetic']['q10'] += 0.5 * cas.mtimes(cas.mtimes(omega10.T, j_kite), omega10)
-
-        outputs['e_kinetic']['groundstation'] = cas.DM.zeros((1, 1))
-
-
-    else:
-        print_op.warn_about_temporary_funcationality_removal(location='licitra_test')
-        #
-        #
-        #
-        #
-        # # kinetic and potential energy in the system
-        # for n in range(1, number_of_nodes):
-        #     label = str(n) + str(parent_map[n])
-        #
-        #     # translational kinetic energy
-        #     e_kinetic = 0.5 * node_masses['m' + label] * \
-        #                 cas.mtimes(generalized_coordinates['SI']['xgcdot']['dq' + label].T,
-        #                            generalized_coordinates['SI']['xgcdot']['dq' + label])
-        #
-        #     # add rotational kinetic energy
-        #     if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
-        #         e_kinetic += 0.5 * cas.mtimes(cas.mtimes(system_variables['SI']['xd']['omega' + label].T,
-        #                                                  parameters['theta0', 'geometry', 'j']),
-        #                                       system_variables['SI']['xd']['omega' + label])
-        #
-        #     outputs['e_kinetic']['q' + label] = e_kinetic
-        #
-        #     e_potential = parameters['theta0', 'atmosphere', 'g'] * \
-        #                   node_masses['m' + label] * \
-        #                   generalized_coordinates['SI']['xgc']['q' + label][2]
-        #     outputs['e_potential']['q' + label] = e_potential
-        #
-        # # = 1/2 i omega_gen^2, with no-slip condition
-        # # add mass of first half of main tether, and the mass of wound tether.
-        # m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
-        # if options['tether']['use_wound_tether']:
-        #     m_groundstation += node_masses['m00']
-        # speed_groundstation = cas.mtimes(system_variables['SI']['xd']['dq10'].T, system_variables['SI']['xd']['q10']) / system_variables['SI']['xd']['l_t']
-        # e_kinetic_groundstation = 1. / 4. * m_groundstation * speed_groundstation**2.
-        # outputs['e_kinetic']['groundstation'] = e_kinetic_groundstation
-        #
-        # # the winch is at ground level
-        # outputs['e_potential']['groundstation'] = cas.DM(0.)
-
-
+    # the winch is at ground level
+    outputs['e_potential']['groundstation'] = cas.DM(0.)
 
     return outputs
 

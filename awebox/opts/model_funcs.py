@@ -397,7 +397,7 @@ def load_stability_derivatives(kite_standard):
     if kite_standard is None:
         raise ValueError("No kite data provided")
     else:
-        aero_deriv = kite_standard['aero_deriv']
+        aero_deriv = kite_standard['stab_derivs']
         aero_validity = kite_standard['aero_validity']
 
     return aero_deriv, aero_validity
@@ -892,31 +892,10 @@ def estimate_power(options, architecture):
     geometry = get_geometry(options)
     s_ref = geometry['s_ref']
 
-    kite_standard = options['user_options']['kite_standard']
-    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
-
-    ranked_lift_approximations = ['Cx', 'CN', 'CZ', 'CL']
-    for rla in ranked_lift_approximations:
-        if rla in aero_deriv.keys():
-            CLapprox = rla
-
-    ranked_drag_approximations = ['Cy', 'CA', 'CX', 'CD']
-    for rda in ranked_drag_approximations:
-        if rda in aero_deriv.keys():
-            CDapprox = rda
-
-    CL0_approx_val = vect_op.abs(aero_deriv[CLapprox]['0'][0])
-    CLalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
-    CD0_approx_val = vect_op.abs(aero_deriv[CDapprox]['0'][0])
-    CDalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
-
-    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
-
-    CL = CL0_approx_val + CLalpha_approx_val * alpha
-    CD = CD0_approx_val + CDalpha_approx_val * alpha
-
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
 
+    CL = estimate_CL(options)
+    CD = estimate_CD(options)
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
     induction_model = options['user_options']['induction_model']
@@ -928,19 +907,6 @@ def estimate_power(options, architecture):
     number_of_kites = architecture.number_of_kites
 
     estimate_1 = number_of_kites * p_loyd * induction_efficiency
-    #
-    # max_stress = options['params']['tether']['max_stress']
-    # stress_safety_factor = options['params']['tether']['stress_safety_factor']
-    # allowed_stress = max_stress / stress_safety_factor
-    # diam = options['model']['scaling']['theta']['diam_t']
-    # area = np.pi * (diam / 2.)**2.
-    # tension = area * allowed_stress
-    #
-    # reelout_speed = estimate_reelout_speed(options)
-    #
-    # estimate_2 = tension * reelout_speed
-    #
-    # power = np.min([estimate_1, estimate_2])
 
     power = estimate_1
 
@@ -953,6 +919,45 @@ def estimate_reelout_speed(options):
     reelout_speed = loyd_factor * uu
 
     return reelout_speed
+
+def estimate_CL(options):
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
+
+    ranked_lift_approximations = ['Cx', 'CN', 'CZ', 'CL']
+    for rla in ranked_lift_approximations:
+        if rla in aero_deriv.keys():
+            CLapprox = rla
+
+    CL0_approx_val = vect_op.abs(aero_deriv[CLapprox]['0'][0])
+    CLalpha_approx_val = vect_op.abs(aero_deriv[CLapprox]['alpha'][0])
+
+    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+
+    CL = CL0_approx_val + CLalpha_approx_val * alpha
+
+    return CL
+
+def estimate_CD(options):
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
+
+    ranked_drag_approximations = ['Cy', 'CA', 'CX', 'CD']
+    for rda in ranked_drag_approximations:
+        if rda in aero_deriv.keys():
+            CDapprox = rda
+
+    CD0_approx_val = vect_op.abs(aero_deriv[CDapprox]['0'][0])
+    CDalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
+
+    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+
+    CD = CD0_approx_val + CDalpha_approx_val * alpha
+
+    return CD
+
 
 def estimate_alitude(options):
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.

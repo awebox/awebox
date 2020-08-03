@@ -176,6 +176,25 @@ def from_named_frame_to_wind(name, vec_u, kite_dcm, vector):
 
         return vector
 
+def from_named_frame_to_named_frame(from_name, to_name, vec_u, kite_dcm, vector):
+
+    if to_name == 'body':
+        return from_named_frame_to_body(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'control':
+        return from_named_frame_to_control(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'earth':
+        return from_named_frame_to_earth(from_name, vec_u, kite_dcm, vector)
+    elif to_name == 'wind':
+        return from_named_frame_to_wind(from_name, vec_u, kite_dcm, vector)
+    else:
+        message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(to_name) +'. Proceding ' + \
+                    'without frame conversion.'
+        awelogger.logger.error(message)
+
+        return vector
+
+
+
 def test_conversions(epsilon=1.e-10):
 
     test_horizontal_body_earth(epsilon)
