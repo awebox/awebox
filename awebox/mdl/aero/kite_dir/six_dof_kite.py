@@ -113,11 +113,11 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         q = variables['xd']['q' + str(kite) + str(parent)]
         rho = atmos.get_density(q[2])
 
-        vec_u_body = tools.get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
-        kite_dcm_body = cas.DM.eye(3)
-        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_body, kite_dcm_body, omega, delta, rho)
+        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters)
 
-        vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_body)
+        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
+
         arb_force_frame = arbitrarily_desired_force_frame()
         force_arb_info = copy.deepcopy(force_info)
         force_arb_info['vector'] = frames.from_named_frame_to_named_frame(force_info['frame'], arb_force_frame, vec_u_earth, kite_dcm, force_info['vector'])

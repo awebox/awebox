@@ -47,9 +47,9 @@ import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
-import awebox.mdl.dyn_comp_dir.mass as mass_comp
-import awebox.mdl.dyn_comp_dir.tether as tether_comp
-import awebox.mdl.dyn_comp_dir.energy as energy_comp
+import awebox.mdl.dynamics_components_dir.mass as mass_comp
+import awebox.mdl.dynamics_components_dir.tether as tether_comp
+import awebox.mdl.dynamics_components_dir.energy as energy_comp
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -135,7 +135,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ---------------------------------
     # lagrangian function of the system
     # ---------------------------------
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses, system_variables, architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture)
     outputs = power_balance_outputs(options, outputs, system_variables, architecture)
 
     # system output function
@@ -175,7 +175,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # lagrangian_lhs_constraints = gddot
 
     # lagrangian momentum correction
-    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses,
+    if options['tether']['use_wound_tether']:
+        lagrangian_momentum_correction = 0.
+    else:
+        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses,
                                                          outputs, architecture)
 
     # rhs of lagrange equations

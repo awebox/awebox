@@ -115,7 +115,7 @@ def get_actuator_force(outputs, parent, architecture):
 
     total_force_aero = np.zeros((3, 1))
     for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero' + str(kite)]
+        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
 
         total_force_aero = total_force_aero + aero_force
 
@@ -127,7 +127,7 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
 
     total_moment_aero = np.zeros((3, 1))
     for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero' + str(kite)]
+        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
         kite_radius = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
         aero_moment = vect_op.cross(kite_radius, aero_force)
 

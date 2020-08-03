@@ -69,11 +69,8 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
         kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
 
-        if aero_coeff_ref_velocity == 'app':
-            vec_u_app_body = tools.get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters)
-            vec_u = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
-        elif aero_coeff_ref_velocity == 'eff':
-            vec_u = vec_u_eff
+        vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters)
 
         f_aero_earth_val = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
 
@@ -106,11 +103,11 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     # lift and drag coefficients
     CL = coeff[0]
 
-    drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA','CD']
+    drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA', 'CD']
     CD0 = 0.
     for cd_equiv in drag_coefficient_at_zero_alpha_equivs:
         try:
-            CD0 = parameters['theta0', 'aero', cd_equiv, '0']
+            CD0 = vect_op.abs(parameters['theta0', 'aero', cd_equiv, '0'][0])
         except:
             32.0
 

@@ -34,7 +34,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dyn_comp_dir.tether as tether
+import awebox.mdl.dynamics_components_dir.tether as tether
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -78,7 +78,13 @@ def generate_m_nodes_scaling(options, variables, outputs, parameters, architectu
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
         mass = node_masses_scaling['m' + str(node) + str(parent)]
+
+        # if node == 1:
+        #     mass += node_masses_scaling['groundstation']
+        #
+
         node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, mass, mass, mass)
+
 
     return node_masses_scaling_stacked
 
@@ -180,11 +186,13 @@ def add_above_ground_tether_segment_mass(upper_node, node_masses, options, archi
     else:
         awelogger.logger.error('unknown option in mass dictionary generation')
 
-    # attribute half of segment mass to upper node
-    node_masses['m' + str(upper_node) + str(parent)] += seg_mass / 2.
+    top_mass_alloc_frac = options['tether']['top_mass_alloc_frac']
 
-    # attribute half of segment mass to lower node
-    node_masses['m' + str(parent) + str(grandparent)] += seg_mass / 2.
+    # attribute (the fraction of the segment mass that belong to the top node) to the top node
+    node_masses['m' + str(upper_node) + str(parent)] += top_mass_alloc_frac * seg_mass
+
+    # attribute (the fraction of the segment mass that doesn't belong to the top node) to the bottom node
+    node_masses['m' + str(parent) + str(grandparent)] += (1. - top_mass_alloc_frac) * seg_mass
 
     return node_masses
 

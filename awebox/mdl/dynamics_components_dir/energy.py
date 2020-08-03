@@ -34,11 +34,11 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dyn_comp_dir.tether as tether
+import awebox.mdl.dynamics_components_dir.tether as tether
 
 from awebox.logger.logger import Logger as awelogger
 
-def energy_outputs(options, parameters, outputs, node_masses, system_variables, architecture):
+def energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']

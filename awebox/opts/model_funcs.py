@@ -40,7 +40,6 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
 
-
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite
@@ -925,17 +924,26 @@ def estimate_CL(options):
     kite_standard = options['user_options']['kite_standard']
     aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
 
-    ranked_lift_approximations = ['Cx', 'CN', 'CZ', 'CL']
-    for rla in ranked_lift_approximations:
-        if rla in aero_deriv.keys():
-            CLapprox = rla
-
-    CL0_approx_val = vect_op.abs(aero_deriv[CLapprox]['0'][0])
-    CLalpha_approx_val = vect_op.abs(aero_deriv[CLapprox]['alpha'][0])
-
     alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+    cos = cas.cos(alpha)
+    sin = cas.sin(alpha)
 
-    CL = CL0_approx_val + CLalpha_approx_val * alpha
+    if 'CL' in aero_deriv.keys():
+        CL = aero_deriv['CL']['0'][0] + aero_deriv['CL']['alpha'][0] * alpha
+    elif 'CZ' in aero_deriv.keys():
+        CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
+        CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
+        xhat = cas.vertcat(-1. * cos, sin)
+        zhat = cas.vertcat(-1. * sin, -1. * cos)
+        rot = CX * xhat + CZ * zhat
+        CL = rot[1]
+    elif 'CN' in aero_deriv.keys():
+        CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
+        CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
+        ahat = cas.vertcat(cos, -1. * sin)
+        nhat = cas.vertcat(sin, cos)
+        rot = CA * ahat + CN * nhat
+        CL = rot[1]
 
     return CL
 
@@ -944,18 +952,26 @@ def estimate_CD(options):
     kite_standard = options['user_options']['kite_standard']
     aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
 
-    ranked_drag_approximations = ['Cy', 'CA', 'CX', 'CD']
-    for rda in ranked_drag_approximations:
-        if rda in aero_deriv.keys():
-            CDapprox = rda
-
-    CD0_approx_val = vect_op.abs(aero_deriv[CDapprox]['0'][0])
-    CDalpha_approx_val = vect_op.abs(aero_deriv[CDapprox]['alpha'][0])
-
     alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+    cos = cas.cos(alpha)
+    sin = cas.sin(alpha)
 
-    CD = CD0_approx_val + CDalpha_approx_val * alpha
-
+    if 'CD' in aero_deriv.keys():
+        CD = aero_deriv['CD']['0'][0] + aero_deriv['CD']['alpha'][0] * alpha
+    elif 'CZ' in aero_deriv.keys():
+        CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
+        CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
+        xhat = cas.vertcat(-1. * cos, sin)
+        zhat = cas.vertcat(-1. * sin, -1. * cos)
+        rot = CX * xhat + CZ * zhat
+        CD = rot[0]
+    elif 'CN' in aero_deriv.keys():
+        CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
+        CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
+        ahat = cas.vertcat(cos, -1. * sin)
+        nhat = cas.vertcat(sin, cos)
+        rot = CA * ahat + CN * nhat
+        CD = rot[0]
     return CD
 
 

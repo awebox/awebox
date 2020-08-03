@@ -199,8 +199,6 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
     if 'actuator' not in list(outputs.keys()):
         outputs['actuator'] = {}
 
-    outputs['actuator']['f1'] = actuator_flow.get_f_val(model_options, wind, 1, variables, architecture)
-
     for kite in kite_nodes:
 
         parent = architecture.parent_map[kite]
@@ -216,6 +214,8 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
 
         for label in act_comp_labels:
             outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(model_options, variables, parent, label)
+
+        outputs['actuator']['f' + str(parent)] = actuator_flow.get_f_val(model_options, wind, parent, variables, architecture)
 
         center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
         velocity = actuator_geom.get_center_velocity(model_options, parent, variables, architecture)
