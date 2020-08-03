@@ -43,6 +43,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
+import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 def get_operation_conditions(options):
 
@@ -205,104 +207,14 @@ def generate_terminal_constraints(options, terminal_variables, ref_variables, mo
 
 def get_vortex_strength_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
-
-    eqs_dict = {}
-    ineqs_dict = {}
-    constraint_list = []
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = model.architecture.kite_nodes
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-
-        n_k = options['n_k']
-        d = options['collocation']['d']
-
-        for kite in kite_nodes:
-            for period in range(periods_tracked):
-
-                parent_map = model.architecture.parent_map
-                parent = parent_map[kite]
-
-                var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-                gamma_all = variables['xl', var_name]
-
-                n_nodes = n_k * d
-                for ldx in range(n_nodes):
-                    gamma_loc = []
-
-                    for ldx_shed in range(n_nodes):
-                        gamma_loc = cas.vertcat(gamma_loc, gamma_all[ldx_shed])
-
-                    # reminder! this function is just the space-holder.
-                    resi = gamma_loc
-
-                    name = 'vortex_strength' + str(period) + '_kite' + str(kite) + '_' + str(ldx)
-                    eqs_dict[name] = resi
-                    constraint_list.append(resi)
-
-    # generate initial constraints - empty struct containing both equalities and inequalitiess
-    vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-
-    # fill in struct and create function
-    vortex_strength_constraints = vortex_strength_constraints_struct(cas.vertcat(*constraint_list))
-    vortex_strength_constraints_fun = cas.Function('vortex_strength_constraints_fun', [variables], [vortex_strength_constraints.cat])
-
-    return vortex_strength_constraints, vortex_strength_constraints_fun
+    cstr, cstr_fun = vortex_strength.get_vortex_strength_constraints(options, variables, model)
+    return cstr, cstr_fun
 
 
 def get_wake_fix_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
-
-    eqs_dict = {}
-    ineqs_dict = {}
-    constraint_list = []
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        n_k = options['n_k']
-        d = options['collocation']['d']
-
-        for kite in kite_nodes:
-            for tip in wingtips:
-                for period in range(periods_tracked):
-
-                    parent_map = model.architecture.parent_map
-                    parent = parent_map[kite]
-
-                    wake_pos_dir = {}
-                    for dim in ['x', 'y', 'z']:
-                        var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                        wake_pos_dir[dim] = variables['xd', var_name]
-
-                    n_nodes = n_k * d + 1
-                    for ldx in range(n_nodes):
-                        wake_pos = cas.vertcat(wake_pos_dir['x'][ldx], wake_pos_dir['y'][ldx], wake_pos_dir['z'][ldx])
-
-                        # reminder! this function is just the space-holder.
-                        wing_tip_pos = 0. * vect_op.zhat()
-                        resi = wake_pos - wing_tip_pos
-
-                        name = 'wake_fix_period' + str(period) + '_kite' + str(kite) + '_' + tip + str(ldx)
-                        eqs_dict[name] = resi
-                        constraint_list.append(resi)
-
-    # generate initial constraints - empty struct containing both equalities and inequalitiess
-    wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-
-    # fill in struct and create function
-    wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
-    wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
-
-    return wake_fix_constraints, wake_fix_constraints_fun
+    cstr, cstr_fun = vortex_fix.get_wake_fix_constraints(options, variables, model)
+    return cstr, cstr_fun
 
 
 def generate_periodic_constraints(options, initial_model_variables, terminal_model_variables):

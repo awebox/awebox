@@ -415,8 +415,6 @@ def find_airspeed(init_options, groundspeed, psi):
     u_app = dq_kite - uu
     airspeed = float(vect_op.norm(u_app))
 
-    # find better approximation
-
     return airspeed
 
 

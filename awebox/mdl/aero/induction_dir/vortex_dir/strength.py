@@ -31,6 +31,89 @@ _python-3.5 / casadi-3.4.5
 
 import casadi as cas
 import numpy as np
+import awebox.tools.print_operations as print_op
+
+def get_vortex_strength_constraints(options, variables, model):
+    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
+
+    #
+    # eqs_dict = {}
+    # ineqs_dict = {}
+    # constraint_list = []
+    #
+    # comparison_labels = options['induction']['comparison_labels']
+    # periods_tracked = options['induction']['vortex_periods_tracked']
+    # kite_nodes = model.architecture.kite_nodes
+    #
+    # if periods_tracked > 1:
+    #     periods_tracked = 1
+    #
+    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    # if any_vor:
+    #
+    #     n_k = options['n_k']
+    #     d = options['collocation']['d']
+    #
+    #     for kite in kite_nodes:
+    #         for period in range(periods_tracked):
+    #
+    #             parent_map = model.architecture.parent_map
+    #             parent = parent_map[kite]
+    #
+    #             var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+    #             gamma_all = variables['xl', var_name]
+    #
+    #             n_nodes = n_k * d
+    #             for ldx in range(n_nodes):
+    #                 gamma_loc = []
+    #
+    #                 for ldx_shed in range(n_nodes):
+    #                     gamma_loc = cas.vertcat(gamma_loc, gamma_all[ldx_shed])
+    #
+    #                 # reminder! this function is just the space-holder.
+    #                 resi = gamma_loc
+    #
+    #                 name = 'vortex_strength' + str(period) + '_kite' + str(kite) + '_' + str(ldx)
+    #                 eqs_dict[name] = resi
+    #                 constraint_list.append(resi)
+    #
+    # # generate initial constraints - empty struct containing both equalities and inequalitiess
+    # vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+    #
+    # # fill in struct and create function
+    # vortex_strength_constraints = vortex_strength_constraints_struct(cas.vertcat(*constraint_list))
+    # vortex_strength_constraints_fun = cas.Function('vortex_strength_constraints_fun', [variables], [vortex_strength_constraints.cat])
+
+
+    cstr = []
+    cstr_fun = cas.Function('vortex_strength_constraints_fun', [variables], [cstr.cat])
+
+    print_op.warn_about_temporary_funcationality_removal(location='strength')
+
+    return cstr, cstr_fun
+
+
+
+def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
+
+    print_op.warn_about_temporary_funcationality_removal(location='strength2')
+
+    # comparison_labels = options['induction']['comparison_labels']
+    # periods_tracked = options['induction']['vortex_periods_tracked']
+    #
+    # if periods_tracked > 1:
+    #     periods_tracked = 1
+    #
+    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    # if any_vor:
+    #     for period in range(periods_tracked):
+    #         g_list, g_bounds = fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
+
+    return [g_list, g_bounds]
+
+
+
+
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
 

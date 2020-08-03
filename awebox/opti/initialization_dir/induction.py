@@ -470,7 +470,13 @@ def get_chi_angle(init_options, var_type):
 
 def get_local_wind_reference_frame(init_options):
     u_hat = vect_op.xhat_np()
-    n_rot_hat = tools_init.get_ehat_tether(init_options)
-    w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
-    v_hat = vect_op.normed_cross(w_hat, u_hat)
+    n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(init_options)
+
+    if vect_op.norm(u_hat - n_rot_hat) < 1.e-5:
+        v_hat = y_rot_hat
+        w_hat = z_rot_hat
+
+    else:
+        w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
+        v_hat = vect_op.normed_cross(w_hat, u_hat)
     return u_hat, v_hat, w_hat
