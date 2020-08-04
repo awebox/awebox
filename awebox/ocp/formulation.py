@@ -35,6 +35,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 import awebox.tools.struct_operations as struct_op
+from . import var_struct
 
 import awebox as awe
 
@@ -151,7 +152,7 @@ class Formulation(object):
 
         [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
 
-        xi = cas.struct_symMX([(cas.entry('xi_0'), cas.entry('xi_f'))])
+        xi = var_struct.get_xi_struct()
         xi_bounds = {}
 
         xi_bounds['xi_0'] = [0.0, 0.0]

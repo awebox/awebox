@@ -209,7 +209,7 @@ def get_vortex_strength_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     ineqs_dict = {}
-    eqs_dict, constraint_list = vortex_strength.get_placeholder_vortex_strength_constraints(options, variables, model)
+    eqs_dict, constraint_list = vortex_strength.get_cstr_in_operation_format(options, variables, model)
 
     # generate initial constraints - empty struct containing both equalities and inequalitiess
     vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
@@ -225,7 +225,7 @@ def get_wake_fix_constraints(options, variables, model):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     ineqs_dict = {}
-    eqs_dict, constraint_list = vortex_fix.get_placeholder_fixing_constraints(options, variables, model)
+    eqs_dict, constraint_list = vortex_fix.get_cstr_in_operation_format(options, variables, model)
 
     # generate initial constraints - empty struct containing both equalities and inequalitiess
     wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)

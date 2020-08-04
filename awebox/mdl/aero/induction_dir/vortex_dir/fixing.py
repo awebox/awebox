@@ -35,29 +35,78 @@ import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.ocp.collocation as collocation
+import awebox.ocp.var_struct as var_struct
 
+import pdb
 
 ######## the constraints : see opti.constraints
 
-def get_fixing_constraints(options, g_list, g_bounds, V, Outputs, model):
-    #
-    # comparison_labels = options['induction']['comparison_labels']
-    # periods_tracked = options['induction']['vortex_periods_tracked']
-    #
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     g_list, g_bounds = fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model)
-    #
-    #     for period in range(1, periods_tracked):
-    #         g_list, g_bounds = fixing_constraints_on_previous_period(options, g_list, g_bounds, V, model, period)
+def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model):
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_fixing_constraints')
+    resi = get_fixing_constraint_all(options, V, Outputs, model)
 
+    g_list.append(resi)
+    g_bounds = tools.append_bounds(g_bounds, resi)
 
     return g_list, g_bounds
 
+######## the placeholders : see ocp.operation
 
-def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model):
+def get_cstr_in_operation_format(options, variables, model):
+    eqs_dict = {}
+    constraint_list = []
+
+    if 'collocation' not in options.keys():
+        message = 'vortex model is not yet set up for any discretization ' \
+                  'other than direct collocation'
+        awelogger.logger.error(message)
+
+    n_k = options['n_k']
+    d = options['collocation']['d']
+    scheme = options['collocation']['scheme']
+    Collocation = collocation.Collocation(n_k, d, scheme)
+
+    model_outputs = model.outputs
+    V_mock = var_struct.setup_nlp_v(options, model, Collocation)
+
+    entry_tuple = (cas.entry('coll_outputs', repeat = [n_k,d], struct = model_outputs))
+    Outputs_mock = cas.struct_symMX([entry_tuple])
+
+    resi_mock = get_fixing_constraint_all(options, V_mock, Outputs_mock, model)
+    resi = cas.DM.ones(resi_mock.shape)
+
+    eq_name = 'vortex_fixing'
+    eqs_dict[eq_name] = resi
+    constraint_list.append(resi)
+
+    return eqs_dict, constraint_list
+
+################# define the actual constraint
+
+def get_fixing_constraint_all(options, V, Outputs, model):
+
+    resi = []
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        local_resi = fixing_constraints_on_zeroth_period(options, V, Outputs, model)
+        resi = cas.vertcat(resi, local_resi)
+
+        for period in range(1, periods_tracked):
+            local_resi = fixing_constraints_on_previous_period(options, V, model, period)
+            resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+
+
+def fixing_constraints_on_zeroth_period(options, V, Outputs, model):
+
+    local_resi = []
 
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
@@ -83,10 +132,10 @@ def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, m
                 # remember: periodicity! wingtip positions at end, must be equal to positions at start
                 variables = struct_op.get_variables_at_time(options, V, Xdot, model, 0, ddx=None)
                 wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
+
                 fix = get_zeroth_xd_fix(variables, var_name, options, wingtip_pos)
 
-                g_list.append(fix)
-                g_bounds = tools.append_bounds(g_bounds, fix)
+                local_resi = cas.vertcat(local_resi, fix)
 
                 for ndx in range(n_k):
                     for ddx in range(d):
@@ -95,13 +144,15 @@ def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, m
                         wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
                         fix = get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx)
 
-                        g_list.append(fix)
-                        g_bounds = tools.append_bounds(g_bounds, fix)
+                        local_resi = cas.vertcat(local_resi, fix)
 
-    return g_list, g_bounds
+    return local_resi
 
 
-def fixing_constraints_on_previous_period(options, g_list, g_bounds, V, model, period):
+def fixing_constraints_on_previous_period(options, V, model, period):
+
+    local_resi = []
+
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
     wingtips = ['ext', 'int']
@@ -123,97 +174,12 @@ def fixing_constraints_on_previous_period(options, g_list, g_bounds, V, model, p
 
                 fix = get_previous_fix(variables, var_name, prev_variables, prev_name)
 
-                g_list.append(fix)
-                g_bounds = tools.append_bounds(g_bounds, fix)
+                local_resi = cas.vertcat(local_resi, fix)
 
-    return g_list, g_bounds
-
-
-######## the placeholders : see ocp.operation
-
-
-def get_placeholder_fixing_constraints(options, variables, model):
-    eqs_dict = {}
-    constraint_list = []
-
-    # comparison_labels = options['induction']['comparison_labels']
-    # periods_tracked = options['induction']['vortex_periods_tracked']
-    #
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     eqs_dict, constraint_list = placeholder_fixing_constraints_on_zeroth_period(options, variables, model, eqs_dict, constraint_list)
-    #
-    #     for period in range(1, periods_tracked):
-    #         eqs_dict, constraint_list = placeholder_fixing_constraints_on_previous_period(variables, model, period, eqs_dict, constraint_list)
-
-    print_op.warn_about_temporary_funcationality_removal(location='fixing_sdfsdflk')
-
-    return eqs_dict, constraint_list
+    return local_resi
 
 
 
-def placeholder_fixing_constraints_on_zeroth_period(options, variables, model, eqs_dict, constraint_list):
-
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
-
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    wingtip_pos = cas.DM(0.)
-
-    period = 0
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for tip in wingtips:
-            for jdx in range(len(dims)):
-
-                # this is the variable that we're fixing
-                dim = dims[jdx]
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                eq_name = 'wake_fix_dim_' + dim + '_tip_' + tip + '_period_' + str(period) + '_kite_' + str(kite)
-                g_list = []
-
-                fix = get_zeroth_xd_fix(variables, var_name, options, wingtip_pos)
-                g_list = cas.vertcat(g_list, fix)
-
-                for ndx in range(n_k):
-                    for ddx in range(d):
-
-                        fix = get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx)
-                        g_list = cas.vertcat(g_list, fix)
-
-                eqs_dict[eq_name] = g_list
-                constraint_list.append(g_list)
-
-    return eqs_dict, constraint_list
-
-
-def placeholder_fixing_constraints_on_previous_period(variables, model, period, eqs_dict, constraint_list):
-
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-
-        for tip in wingtips:
-            for dim in dims:
-
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                eq_name = 'wake_fix_dim_' + dim + '_tip_' + tip + '_period_' + str(period) + '_kite_' + str(kite)
-
-                g_list = get_placeholder_previous_fix(variables, var_name)
-
-                eqs_dict[eq_name] = g_list
-                constraint_list.append(g_list)
-
-    return eqs_dict, constraint_list
 
 
 
@@ -226,10 +192,7 @@ def get_zeroth_xd_fix(variables, var_name, options, wingtip_pos):
     var_column = variables['xd', var_name]
     node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_fix')
-    # fix = node_pos - wingtip_pos
-    # fix = node_pos
-    fix = []
+    fix = node_pos - wingtip_pos
 
     return fix
 
@@ -241,10 +204,7 @@ def get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx):
     var_column = variables['xd', var_name]
     node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_zeroth_xd_coll_fix')
-    # fix = node_pos - wingtip_pos
-    # fix = node_pos
-    fix = []
+    fix = node_pos - wingtip_pos
 
     return fix
 
@@ -253,19 +213,6 @@ def get_previous_fix(variables, var_name, prev_variables, prev_name):
     var_column = variables['xd', var_name]
     prev_column = prev_variables['xd', prev_name]
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_previous_fix')
-    # fix = var_column
-    # fix = var_column - prev_column
-    fix = []
+    fix = var_column - prev_column
 
     return fix
-
-def get_placeholder_previous_fix(variables, var_name):
-    var_column = variables['xd', var_name]
-
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.fixing.get_placeholder_previous_fix')
-    # fix = var_column
-    fix = []
-
-    return fix
-

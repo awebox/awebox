@@ -150,6 +150,7 @@ class Visualization(object):
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
         plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
+        plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})
         plot_logic_dict['controls'] = (variables.plot_controls, None)
@@ -157,6 +158,7 @@ class Visualization(object):
             plot_logic_dict['controls:' + control] = (variables.plot_controls, {'individual_control':control})
         plot_logic_dict['invariants'] = (variables.plot_invariants, None)
         plot_logic_dict['algebraic_variables'] = (variables.plot_algebraic_variables, None)
+        plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, {'constr_type':'inequality'})
         for output_top in list(outputs.keys()):

@@ -371,7 +371,7 @@ def airspeeds_at_four_quadrants_above_minimum(options, groundspeed):
 
     above_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed > airspeed_min
         above_at_quadrant += [loc_bool]
@@ -385,37 +385,12 @@ def airspeeds_at_four_quadrants_below_maximum(options, groundspeed):
 
     below_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed < airspeed_max
         below_at_quadrant += [loc_bool]
 
     return all(below_at_quadrant)
-
-def find_airspeed(init_options, groundspeed, psi):
-
-    n_rot_hat, _, _ = tools.get_rotor_reference_frame(init_options)
-    ehat_normal = n_rot_hat
-    ehat_radial = tools.get_ehat_radial_from_azimuth(init_options, psi)
-    ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-    dq_kite = groundspeed * ehat_tangential
-
-    l_t = init_options['xd']['l_t']
-    ehat_tether = tools.get_ehat_tether(init_options)
-    zz = l_t * ehat_tether[2]
-
-    wind_model = init_options['model']['wind_model']
-    u_ref = init_options['model']['wind_u_ref']
-    z_ref = init_options['model']['wind_z_ref']
-    z0_air = init_options['model']['wind_z0_air']
-    exp_ref = init_options['model']['wind_exp_ref']
-
-    uu = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, zz) * vect_op.xhat_np()
-
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
-
-    return airspeed
 
 
 ################ dependent values

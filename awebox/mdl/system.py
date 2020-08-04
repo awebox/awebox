@@ -35,6 +35,7 @@ import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import copy
 import pdb
+import awebox.tools.print_operations as print_op
 
 def generate_structure(options, architecture):
 
@@ -211,16 +212,17 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     for kite in architecture.kite_nodes:
         system_lifted.extend([('ui' + str(kite), (3, 1))])
 
-    for layer_node in architecture.layer_nodes:
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+    print_op.warn_about_temporary_funcationality_removal(location='system_extend_rot')
+    # for layer_node in architecture.layer_nodes:
+    #     system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+    #     system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+    #     system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
 
     return system_lifted, system_states
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
-    
+
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
     full_length = (n_k * d) + 1

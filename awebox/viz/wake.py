@@ -31,25 +31,33 @@ import awebox.viz.tools as tools
 
 def draw_wake_nodes(ax, side, plot_dict, index):
 
-    filament_list = reconstruct_filament_list(plot_dict, index)
+    vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
+    if vortex_info_exists:
 
-    n_filaments = filament_list.shape[1]
+        filament_list = reconstruct_filament_list(plot_dict, index)
 
-    for fdx in range(n_filaments):
-        seg_data = filament_list[:, fdx]
-        start_point = seg_data[:3].T
-        end_point = seg_data[3:6].T
-        gamma = seg_data[6]
+        n_filaments = filament_list.shape[1]
 
-        points = cas.vertcat(start_point, end_point)
-        wake_color = convert_gamma_to_color(gamma, plot_dict)
-        try:
-            tools.make_side_plot(ax, points, side, wake_color)
-        except:
-            awelogger.logger.error('error in side plot production')
+        for fdx in range(n_filaments):
+            seg_data = filament_list[:, fdx]
+            start_point = seg_data[:3].T
+            end_point = seg_data[3:6].T
+            gamma = seg_data[6]
+
+            points = cas.vertcat(start_point, end_point)
+            wake_color = convert_gamma_to_color(gamma, plot_dict)
+            try:
+                tools.make_side_plot(ax, points, side, wake_color)
+            except:
+                awelogger.logger.error('error in side plot production')
 
     return None
 
+def determine_if_vortex_info_exists(plot_dict):
+    vortex_exists = 'vortex' in plot_dict['outputs'].keys()
+    filament_list_exists = vortex_exists and ('filament_list' in plot_dict['outputs']['vortex'].keys())
+
+    return filament_list_exists
 
 def reconstruct_filament_list(plot_dict, index):
 
@@ -79,6 +87,9 @@ def get_gamma_extrema(plot_dict):
     for kite in kite_nodes:
         parent = parent_map[kite]
         for period in range(periods_tracked):
+
+            if period > 1:
+                period = 1
 
             for ndx in range(n_k):
                 for ddx in range(d):

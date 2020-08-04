@@ -238,11 +238,11 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
     return [g_list, g_bounds]
 
 def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_fix.get_fixing_constraints(options, g_list, g_bounds, V, Outputs, model)
+    g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
     return g_list, g_bounds
 
 def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_strength.get_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model)
+    g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
     return g_list, g_bounds
 
 

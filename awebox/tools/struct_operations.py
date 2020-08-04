@@ -115,7 +115,8 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     use_vortex_linearization = 'lin' in parameters.keys()
     if use_vortex_linearization:
-        awelogger.logger.error('vortex induction model not yet supported for multiple shooting problems.')
+        message = 'vortex induction model not yet supported for multiple shooting problems.'
+        awelogger.logger.error(message)
 
     ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
 
@@ -373,9 +374,9 @@ def get_var_ref_at_final_time(nlp_options, P, Xdot, model):
 
     return var_at_time
 
-def get_V_theta(V, params, k):
+def get_V_theta(V, nlp_numerics_options, k):
 
-    nk = params['n_k']
+    nk = nlp_numerics_options['n_k']
     k = list(range(nk+1))[k]
 
     if V['theta','t_f'].shape[0] == 1:
@@ -385,9 +386,9 @@ def get_V_theta(V, params, k):
         tf_index = V.f['theta','t_f']
         theta_index = V.f['theta']
         for idx in theta_index:
-            if idx == tf_index[0] and k < round(nk * params['phase_fix_reelout']):
+            if idx == tf_index[0] and k < round(nk * nlp_numerics_options['phase_fix_reelout']):
                 theta.append(V.cat[idx])
-            elif idx == tf_index[1] and k >= round(nk * params['phase_fix_reelout']) :
+            elif idx == tf_index[1] and k >= round(nk * nlp_numerics_options['phase_fix_reelout']) :
                 theta.append(V.cat[idx])
             elif idx not in tf_index:
                 theta.append(V.cat[idx])

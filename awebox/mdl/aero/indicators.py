@@ -162,9 +162,13 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
     gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_test = cas.DM(1.234) * 1000.
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
-    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
+
+    print_op.warn_about_temporary_funcationality_removal(location='indicators_gamma_val')
+    # outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_test
 
     outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
@@ -242,6 +246,7 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
         gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
         outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
+
         outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
         n_points = 2

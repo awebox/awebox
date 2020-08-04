@@ -35,7 +35,8 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_dir.tools as tools_init
-
+import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
@@ -61,19 +62,28 @@ def initial_guess_general(init_options, nlp, formulation, model, V_init):
 
 def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
     if not nlp.discretization == 'direct_collocation':
-        awelogger.logger.error('vortex induction model is only defined for direct-collocation model, at this point')
+        message = 'vortex induction model is only defined for direct-collocation model, at this point'
+        awelogger.logger.error(message)
 
-    # create the dictionaries
-    dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+    try:
+        # create the dictionaries
+        dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
 
-    # save values into dictionaries
-    dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init)
-    dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init)
-    dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
-                                                                    model, V_init)
+        # save values into dictionaries
+        dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init)
+        dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init)
+        dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
+                                                                        model, V_init)
 
-    # set dictionary values into V_init
-    V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+        # set dictionary values into V_init
+        V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+
+        V_init = set_wake_strengths(init_options, nlp, model, V_init)
+
+    except:
+        message = 'something has gone wrong while creating the vortex-related initial guess entries.'
+        awelogger.logger.error(message)
+
 
     return V_init
 
@@ -117,6 +127,34 @@ def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
                             dict_coll[kite][tip][dim][period][ndx][ddx]['reg'] = np.zeros((n_k, d))
 
     return dict_xd, dict_coll
+
+
+def set_wake_strengths(init_options, nlp, model, V_init):
+    n_k = nlp.n_k
+    d = nlp.d
+
+    wake_gamma = guess_wake_gamma_val(init_options)
+
+    kite_nodes = model.architecture.kite_nodes
+    parent_map = model.architecture.parent_map
+    periods_tracked = init_options['model']['vortex_periods_tracked']
+
+    if periods_tracked > 1:
+        periods_tracked = 1
+
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+
+        for period in range(periods_tracked):
+            var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+
+            for ndx in range(n_k):
+                for ddx in range(d):
+                    regular_coll = cas.DM.ones((n_k * d, 1)) * wake_gamma
+                    V_init['coll_var', ndx, ddx, 'xl', var_name] = regular_coll
+
+    return V_init
+
 
 
 def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init):
@@ -287,6 +325,49 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
     q_convected = q_tip + U_ref * time_convected
 
     return q_convected
+
+def guess_wake_gamma_val(init_options):
+
+    radius = init_options['precompute']['radius']
+    u_infty = init_options['sys_params_num']['wind']['u_ref']
+    rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+    b_ref = init_options['sys_params_num']['geometry']['b_ref']
+
+    groundspeed = init_options['precompute']['groundspeed']
+    kite_speed_ratio = groundspeed / u_infty
+
+    varrho = radius / b_ref
+
+    lift_betz_scale = 4. * np.pi * rho * b_ref * radius ** 3. / (
+                radius + 0.5 * b_ref) * u_infty ** 3. / groundspeed
+
+    mu_center = varrho / (varrho + 0.5)
+    tip_speed_ratio = kite_speed_ratio / mu_center
+
+    a_betz = 1. / 3.
+
+    mu_min = (varrho - 0.5) / (varrho + 0.5)
+    n_steps = 20
+    delta_mu = (1. - mu_min) / n_steps
+
+    factor = 0.
+    for mdx in range(n_steps - 1):
+        mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
+
+        a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu ** 2.
+        new_factor = np.sqrt((1. - a_betz) ** 2. + (tip_speed_ratio * mu * (1 + a_prime_betz)) ** 2.)
+        factor += new_factor * delta_mu
+
+    lift_betz_optimal = factor * lift_betz_scale
+
+    airspeed = tools_init.find_airspeed(init_options, groundspeed, 0)
+
+    gamma_betz = lift_betz_optimal / b_ref / rho / airspeed
+
+    scale = vortex_tools.get_strength_scale()
+    gamma = gamma_betz / scale
+
+    return gamma
 
 
 def initial_guess_actuator(init_options, nlp, formulation, model, V_init):

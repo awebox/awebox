@@ -32,7 +32,11 @@ import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
+
+import numpy as np
+
 import pdb
+
 
 def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
     if start:
@@ -44,17 +48,6 @@ def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
         var_reshape = cas.reshape(var_regular, dimensions)
 
         return var_reshape[ndx, ddx]
-
-def get_strength_at_ndx_ddx(variables_xl, n_k, d, period, kite, parent, ndx, ddx):
-
-    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-
-    var_regular = variables_xl[gamma_name]
-
-    dimensions = (n_k, d)
-    var_reshape = cas.reshape(var_regular, dimensions)
-
-    return var_reshape[ndx, ddx]
 
 def get_vector_var(options, variables, pos_vel, tip, period, kite, architecture, start=bool(False), ndx=0, ddx=0):
     n_k = options['aero']['vortex']['n_k']
@@ -178,6 +171,24 @@ def get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kit
     return padded
 
 
+def get_strength_var_column(variables_xl_or_variables, gamma_name):
+    try:
+        var_unscaled = variables_xl_or_variables[gamma_name]
+    except:
+        try:
+            var_unscaled = variables_xl_or_variables['xl', gamma_name]
+        except:
+            message = 'gamma variable is incorrect format to pull from given variables (xl)'
+            awelogger.logger.error(message)
+
+    var = get_strength_scale() * var_unscaled
+
+    return var
+
+def get_strength_scale():
+    return 1000.
+
+
 def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent):
 
     all_ordered = []
@@ -187,8 +198,8 @@ def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked
         if period > 0:
             period_chopped = 1
 
-        var_name = 'wg' + '_' + str(period_chopped) + '_' + str(kite) + str(parent)
-        var = variables_xl[var_name]
+        gamma_name = 'wg' + '_' + str(period_chopped) + '_' + str(kite) + str(parent)
+        var = get_strength_var_column(variables_xl, gamma_name)
 
         var_ordered = get_time_ordered_strength(n_k, d, var)
         all_ordered = cas.vertcat(all_ordered, var_ordered)
@@ -378,7 +389,8 @@ def append_bounds(g_bounds, fix):
         try:
             fix_shape = fix.shape
         except:
-            awelogger.logger.error('An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.')
+            message = 'An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.'
+            awelogger.logger.error(message)
 
         g_bounds['ub'].append(cas.DM.zeros(fix_shape))
         g_bounds['lb'].append(cas.DM.zeros(fix_shape))

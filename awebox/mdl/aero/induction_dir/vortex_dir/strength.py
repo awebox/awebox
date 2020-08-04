@@ -29,61 +29,114 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
 
-import casadi as cas
+import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.ocp.collocation as collocation
+import awebox.ocp.var_struct as var_struct
+
 
 ######## the constraints : see opti.constraints
 
-def get_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
-    #
-    # comparison_labels = options['induction']['comparison_labels']
-    # periods_tracked = options['induction']['vortex_periods_tracked']
-    #
-    # if periods_tracked > 1:
-    #     periods_tracked = 1
-    #
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     for period in range(periods_tracked):
-    #         g_list, g_bounds = strength_constraints(options, g_list, g_bounds, V, Outputs, model, period)
+def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model):
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.cstr')
+    resi = get_strength_constraint_all(options, V, Outputs, model)
+
+    g_list.append(resi)
+    g_bounds = tools.append_bounds(g_bounds, resi)
 
     return g_list, g_bounds
 
 
-def strength_constraints(options, g_list, g_bounds, V, Outputs, model, period):
+######## the placeholders : see ocp.operation
+
+def get_cstr_in_operation_format(options, variables, model):
+    eqs_dict = {}
+    constraint_list = []
+
+    if 'collocation' not in options.keys():
+        message = 'vortex model is not yet set up for any discretization ' \
+                  'other than direct collocation'
+        awelogger.logger.error(message)
+
     n_k = options['n_k']
     d = options['collocation']['d']
+    scheme = options['collocation']['scheme']
+    Collocation = collocation.Collocation(n_k, d, scheme)
+
+    model_outputs = model.outputs
+    V_mock = var_struct.setup_nlp_v(options, model, Collocation)
+
+    entry_tuple = (cas.entry('coll_outputs', repeat=[n_k, d], struct=model_outputs))
+    Outputs_mock = cas.struct_symMX([entry_tuple])
+
+    resi_mock = get_strength_constraint_all(options, V_mock, Outputs_mock, model)
+    resi = cas.DM.ones(resi_mock.shape)
+
+    eq_name = 'vortex_strength'
+    eqs_dict[eq_name] = resi
+    constraint_list.append(resi)
+
+    return eqs_dict, constraint_list
+
+
+################ actually define the constriants
+
+def get_strength_constraint_all(options, V, Outputs, model):
+
+    resi = []
+
+    comparison_labels = options['induction']['comparison_labels']
+    periods_tracked = options['induction']['vortex_periods_tracked']
+
+    if periods_tracked > 1:
+        periods_tracked = 1
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        for period in range(periods_tracked):
+            local_resi = strength_constraints(options, V, Outputs, model, period)
+            resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+def strength_constraints(options, V, Outputs, model, period):
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    resi = []
 
     if period == 0:
         for ndx in range(n_k):
             for ddx in range(d):
                 for ndx_shed in range(n_k):
                     for ddx_shed in range(d):
-                        g_list, g_bounds = strength_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx,
+                        local_resi = strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx,
                                                               ndx_shed, ddx_shed)
+                        resi = cas.vertcat(resi, local_resi)
 
     elif period == 1:
         for ndx in range(n_k):
             for ddx in range(d):
                 for ndx_shed in range(n_k):
                     for ddx_shed in range(d):
-                        g_list, g_bounds = strength_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed,
+                        local_resi = strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
                                               ddx_shed)
+                        resi = cas.vertcat(resi, local_resi)
 
-    return g_list, g_bounds
+    return resi
 
 
-def strength_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed, ddx_shed):
+def strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx, ndx_shed, ddx_shed):
 
     period = 0
     architecture = model.architecture
     Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+
+    resi = []
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
@@ -96,20 +149,20 @@ def strength_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs,
         else:
             gamma_val = cas.DM(0.)
 
-        resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+        local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+        resi = cas.vertcat(resi, local_resi)
 
-        g_list.append(resi)
-        g_bounds = tools.append_bounds(g_bounds, resi)
-
-    return g_list, g_bounds
+    return resi
 
 
-def strength_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, ndx, ddx, ndx_shed,
+def strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
                                               ddx_shed):
 
     period = 1
     architecture = model.architecture
     Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+
+    resi = []
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
@@ -119,70 +172,10 @@ def strength_constraints_on_previous_period(options, g_list, g_bounds, V, Output
 
         gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
 
-        resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+        local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+        resi = cas.vertcat(resi, local_resi)
 
-        g_list.append(resi)
-        g_bounds = tools.append_bounds(g_bounds, resi)
-
-    return g_list, g_bounds
-
-
-
-######## the placeholders : see ocp.operation
-
-def get_placeholder_vortex_strength_constraints(options, variables, model):
-
-    eqs_dict = {}
-    constraint_list = []
-    #
-    # comparison_labels = options['induction']['comparison_labels']
-    # periods_tracked = options['induction']['vortex_periods_tracked']
-    #
-    # if periods_tracked > 1:
-    #     periods_tracked = 1
-    #
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     for period in range(periods_tracked):
-    #         eqs_dict, constraint_list = placeholder_strength_constraints(options, variables, model, period, eqs_dict, constraint_list)
-
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.placeh')
-
-    return eqs_dict, constraint_list
-
-def placeholder_strength_constraints(options, variables, model, period, eqs_dict, constraint_list):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    if (period == 0) or (period == 1):
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for ndx_shed in range(n_k):
-                    for ddx_shed in range(d):
-                        eqs_dict, constraint_list = placeholder_strength_constraints_on_any_period(options, variables, model, period, eqs_dict, \
-                                                                       constraint_list, ndx_shed, ddx_shed)
-
-    return eqs_dict, constraint_list
-
-
-def placeholder_strength_constraints_on_any_period(options, variables, model, period, eqs_dict, constraint_list, ndx_shed, ddx_shed):
-    architecture = model.architecture
-
-    eq_name = 'wake_strength_period_' + str(period) + '_ndxs_' + str(ndx_shed) + '_ddxs_' + str(ddx_shed) + '_' + str(np.random.randint(0, 100000))
-    g_list = []
-
-    for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-
-        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-
-        resi = get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options)
-        g_list = cas.vertcat(g_list, resi)
-
-    eqs_dict[eq_name] = g_list
-    constraint_list.append(g_list)
-
-    return eqs_dict, constraint_list
+    return resi
 
 
 ######### the helper functions
@@ -208,26 +201,13 @@ def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    var = variables['xl', gamma_name]
+    var = tools.get_strength_var_column(variables, gamma_name)
+
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_strength_resi')
-    # resi = gamma_var - gamma_val
-    resi = []
-    # resi = gamma_var
+    resi_unscaled = gamma_var - gamma_val
+    scale = tools.get_strength_scale()
+    resi = resi_unscaled / scale
 
     return resi
 
-
-def get_placeholder_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    var = variables['xl', gamma_name]
-    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
-
-    print_op.warn_about_temporary_funcationality_removal(editor='rachel', location='vortex.strength.get_placeholder_strength_resi')
-    # resi = gamma_var
-    resi = []
-
-    return resi
