@@ -244,6 +244,16 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
         outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
         outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
+        n_points = 2
+        grid_points = np.linspace(-1.6, 1.6, n_points)
+
+        for x in grid_points:
+            for y in grid_points:
+                for z in grid_points:
+
+                    point = cas.vertcat(x, y, z)
+
+
     return outputs
 
 def collect_power_balance_outputs(options, architecture, variables, intermediates, outputs):

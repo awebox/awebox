@@ -54,9 +54,9 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
 
-        outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
-        outputs['vortex']['local_a' + str(kite)] = flow.get_induction_factor_at_kite(model_options, wind, variables, kite, architecture)
-        outputs['vortex']['last_a' + str(kite)] = flow.get_last_induction_factor_at_kite(model_options, wind, variables, kite, architecture)
+        outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, wind, variables, parameters, kite, architecture)
+        outputs['vortex']['local_a' + str(kite)] = flow.get_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
+        outputs['vortex']['last_a' + str(kite)] = flow.get_last_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
 
     return outputs
 
