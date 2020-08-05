@@ -221,4 +221,6 @@ def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):
     xs[1, :] = xs[1, ::-1]
     ys[1, :] = ys[1, ::-1]
 
-    ax.fill(np.ravel(xs), np.ravel(ys), mcolors.CSS4_COLORS['lightgray'])
+    color = (0.83,0.83,0.83)
+
+    ax.fill(np.ravel(xs), np.ravel(ys), color)
