@@ -39,7 +39,10 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.performance_operations as perf_op
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 
+import pdb
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -162,13 +165,12 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
     gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
-    gamma_test = cas.DM(1.234) * 1000.
+
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
 
-    print_op.warn_about_temporary_funcationality_removal(location='indicators_gamma_val')
-    # outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
-    outputs['aerodynamics']['gamma' + str(kite)] = gamma_test
+    # outputs['aerodynamics']['gamma' + str(kite)] = gamma_test
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
 
     outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
@@ -249,14 +251,37 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
         outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
-        n_points = 2
-        grid_points = np.linspace(-1.6, 1.6, n_points)
+        n_points = options['aero']['vortex']['verification_points']
 
-        for x in grid_points:
-            for y in grid_points:
-                for z in grid_points:
 
-                    point = cas.vertcat(x, y, z)
+        mu_grid_min = 0.4
+        mu_grid_max = 1.6
+        psi_grid_min = 0.
+        psi_grid_max = 2. * np.pi / float(architecture.number_of_kites)
+
+        # define mu with respect to kite mid-span radius
+        mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)
+        psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
+
+        outputs['haas_grid'] = {}
+        center = actuator_geom.get_center_point(options, parent, variables, architecture)
+        counter = 0
+        for mu_val in mu_grid_points:
+            for psi_val in psi_grid_points:
+                r_val = mu_val * radius
+
+                ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
+                added = r_val * ehat_radial
+                point_obs = center + added
+
+                unscaled = mu_val * ehat_radial
+
+                a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, options, wind, variables, parameters, parent, architecture)
+
+                local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
+                outputs['haas_grid']['p' + str(counter)] = local_info
+
+                counter += 1
 
 
     return outputs

@@ -92,8 +92,8 @@ def get_strength_constraint_all(options, V, Outputs, model):
     comparison_labels = options['induction']['comparison_labels']
     periods_tracked = options['induction']['vortex_periods_tracked']
 
-    if periods_tracked > 1:
-        periods_tracked = 1
+    if periods_tracked > 2:
+        periods_tracked = 2
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:

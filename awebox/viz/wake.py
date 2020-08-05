@@ -27,7 +27,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
+import awebox.tools.vector_operations as vect_op
 
+import pdb
 
 def draw_wake_nodes(ax, side, plot_dict, index):
 
@@ -99,8 +101,9 @@ def get_gamma_extrema(plot_dict):
                     gamma_max = np.max(np.array(cas.vertcat(gamma_max, var)))
                     gamma_min = np.min(np.array(cas.vertcat(gamma_min, var)))
 
+    # so that gamma = 0 vortex filaments will be drawn in white...
     gamma_max = np.max(np.array([gamma_max, -1. * gamma_min]))
-    gamma_min = np.min(np.array([gamma_min, -1. * gamma_max]))
+    gamma_min = -1. * gamma_max
 
     return gamma_min, gamma_max
 
@@ -114,3 +117,89 @@ def convert_gamma_to_color(gamma_val, plot_dict):
     color = cmap(gamma_scaled)
     return color
 
+def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
+
+    if 'haas_grid' in plot_dict['outputs'].keys():
+        haas_grid = plot_dict['outputs']['haas_grid']
+
+        number_entries = len(haas_grid.keys())
+        verification_points = np.sqrt(float(number_entries))
+
+        slice_index = -1
+
+        y_matr = []
+        z_matr = []
+        a_matr = []
+        idx = 0
+
+        y_row = []
+        z_row = []
+        a_row = []
+
+        for ndx in range(number_entries):
+
+            idx += 1
+
+            local_y = haas_grid['p' + str(ndx)][0][slice_index]
+            local_z = haas_grid['p' + str(ndx)][1][slice_index]
+            local_a = haas_grid['p' + str(ndx)][2][slice_index]
+
+            y_row = cas.horzcat(y_row, local_y)
+            z_row = cas.horzcat(z_row, local_z)
+            a_row = cas.horzcat(a_row, local_a)
+
+            if float(idx) == (verification_points):
+                y_matr = cas.vertcat(y_matr, y_row)
+                z_matr = cas.vertcat(z_matr, z_row)
+                a_matr = cas.vertcat(a_matr, a_row)
+
+                y_row = []
+                z_row = []
+                a_row = []
+                idx = 0
+
+        y_matr = np.array(y_matr)
+        z_matr = np.array(z_matr)
+        a_matr = np.array(a_matr)
+
+        fig_points, ax_points = plt.subplots(1, 1)
+        y_matr_list = np.array(cas.vertcat(y_matr))
+        z_matr_list = np.array(cas.vertcat(z_matr))
+        ax_points.scatter(y_matr_list, z_matr_list)
+
+        plt.grid(True)
+        plt.title('induction factors over the kite plane')
+        plt.xlabel("y/(r + 0.5 b) [-]")
+        plt.ylabel("z/(r + 0.5 b) [-]")
+
+        max_y = np.max(y_matr_list)
+        min_y = np.min(y_matr_list)
+        max_z = np.max(z_matr_list)
+        min_z = np.min(z_matr_list)
+
+        max_axes = np.max(np.array([max_y, -1. * min_y, max_z, -1. * min_z]))
+
+        ax_points.set_xlim([-1. * max_axes, max_axes])
+        ax_points.set_ylim([-1. * max_axes, max_axes])
+
+        fig_contour, ax_contour = plt.subplots(1, 1)
+        levels = [-0.05, 0., 0.2, 0.4]
+        ax_contour.contour(y_matr, z_matr, a_matr, levels)
+
+        plt.grid(True)
+        plt.title('induction factors over the kite plane')
+        plt.xlabel("y/(r + 0.5 b) [-]")
+        plt.ylabel("z/(r + 0.5 b) [-]")
+
+        fig_points, ax_points = plt.subplots(1, 1)
+        y_matr_list = np.array(cas.vertcat(y_matr))
+        z_matr_list = np.array(cas.vertcat(z_matr))
+        ax_points.scatter(y_matr_list, z_matr_list)
+
+        plt.grid(True)
+        plt.title('induction factors over the kite plane')
+        plt.xlabel("y/(r + 0.5 b) [-]")
+        plt.ylabel("z/(r + 0.5 b) [-]")
+
+        ax_contour.set_xlim([-1. * max_axes, max_axes])
+        ax_contour.set_ylim([-1. * max_axes, max_axes])

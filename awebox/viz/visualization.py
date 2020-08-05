@@ -32,6 +32,7 @@ from . import trajectory
 from . import variables
 from . import animation
 from . import output
+from . import wake
 
 import matplotlib.pyplot as plt
 
@@ -137,6 +138,7 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
+        plot_logic_dict['vortex_verification'] = (wake.plot_vortex_verification, None)
         # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)

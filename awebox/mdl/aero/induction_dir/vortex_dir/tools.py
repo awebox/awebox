@@ -186,7 +186,7 @@ def get_strength_var_column(variables_xl_or_variables, gamma_name):
     return var
 
 def get_strength_scale():
-    return 1000.
+    return 10.
 
 
 def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent):
