@@ -327,46 +327,8 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
     return q_convected
 
 def guess_wake_gamma_val(init_options):
-
-    radius = init_options['precompute']['radius']
-    u_infty = init_options['sys_params_num']['wind']['u_ref']
-    rho = init_options['sys_params_num']['atmosphere']['rho_ref']
-    b_ref = init_options['sys_params_num']['geometry']['b_ref']
-
-    groundspeed = init_options['precompute']['groundspeed']
-    kite_speed_ratio = groundspeed / u_infty
-
-    varrho = radius / b_ref
-
-    lift_betz_scale = 4. * np.pi * rho * b_ref * radius ** 3. / (
-                radius + 0.5 * b_ref) * u_infty ** 3. / groundspeed
-
-    mu_center = varrho / (varrho + 0.5)
-    tip_speed_ratio = kite_speed_ratio / mu_center
-
-    a_betz = 1. / 3.
-
-    mu_min = (varrho - 0.5) / (varrho + 0.5)
-    n_steps = 20
-    delta_mu = (1. - mu_min) / n_steps
-
-    factor = 0.
-    for mdx in range(n_steps - 1):
-        mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
-
-        a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu ** 2.
-        new_factor = np.sqrt((1. - a_betz) ** 2. + (tip_speed_ratio * mu * (1 + a_prime_betz)) ** 2.)
-        factor += new_factor * delta_mu
-
-    lift_betz_optimal = factor * lift_betz_scale
-
-    airspeed = tools_init.find_airspeed(init_options, groundspeed, 0)
-
-    gamma_betz = lift_betz_optimal / b_ref / rho / airspeed
-
-    scale = vortex_tools.get_strength_scale()
-    gamma = gamma_betz / scale
-
+    # already scaled!
+    gamma = cas.DM(1.)
     return gamma
 
 

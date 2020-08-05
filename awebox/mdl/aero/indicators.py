@@ -94,7 +94,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     return outputs
 
 
-def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs):
+def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
@@ -114,6 +114,9 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     kite_dcm = intermediates['kite_dcm']
     q = intermediates['q']
 
+    verification_test = options['aero']['vortex']['verification_test']
+    if verification_test:
+        f_lift_earth = get_vortex_verification_f_lift_earth(options, architecture, atmos, wind, variables, parameters, intermediates, outputs)
 
     for name in set(intermediates['aero_coefficients'].keys()):
         outputs['aerodynamics'][name + str(kite)] = intermediates['aero_coefficients'][name]
@@ -163,6 +166,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
+
     gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
     gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
 
@@ -170,7 +174,7 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
 
     # outputs['aerodynamics']['gamma' + str(kite)] = gamma_test
-    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cross
 
     outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
@@ -187,11 +191,94 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
 
     return outputs
 
+def get_mu_min_and_center(options, architecture, variables, parameters, intermediates):
+
+    kite = intermediates['kite']
+    q = intermediates['q']
+
+    parent = architecture.parent_map[kite]
+    if parent > 0:
+        grandparent = architecture.parent_map[parent]
+        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+    else:
+        q_parent = cas.DM.zeros((3, 1))
+
+    tether = q - q_parent
+
+    n_hat = vect_op.xhat_np()
+    radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
+    radius = vect_op.norm(radius_vec)
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    varrho = radius / b_ref
+
+    mu_center = varrho / (varrho + 0.5)
+    mu_min = (varrho - 0.5)/(varrho + 0.5)
+
+    mu_min_by_path = (varrho - 0.5)/varrho
+    mu_max_by_path = (varrho + 0.5)/varrho
+
+    return mu_min, mu_center, mu_min_by_path, mu_max_by_path
+
+def get_vortex_verification_f_lift_earth(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
+
+    kite = intermediates['kite']
+    q = intermediates['q']
+
+    parent = architecture.parent_map[kite]
+
+    # things that are only used for Haas validation case = case of fixed radius
+    u_infty = vect_op.norm(wind.get_velocity(q[2]))
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    rho = atmos.get_density(q[2])
+
+    n_hat = vect_op.xhat_np()
+    dq = variables['xd']['dq' + str(kite) + str(parent)]
+    tangential_speed = vect_op.norm(dq)
+
+    kite_speed_ratio = tangential_speed / u_infty
+
+    if parent > 0:
+        grandparent = architecture.parent_map[parent]
+        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+    else:
+        q_parent = cas.DM.zeros((3, 1))
+
+    tether = q - q_parent
+    radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
+    radius = vect_op.norm(radius_vec)
+
+    mu_min, mu_center, _, _ = get_mu_min_and_center(options, architecture, variables, parameters, intermediates)
+
+    tip_speed_ratio = kite_speed_ratio / mu_center
+
+    lift_betz_scale = b_ref * rho * 4. * np.pi * radius * u_infty**2. / tip_speed_ratio
+
+    a_betz = 1./3.
+
+    n_steps = 20
+    delta_mu = (1. - mu_min) / n_steps
+    factor = 0.
+    for mdx in range(n_steps - 1):
+        mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
+
+        a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
+        new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
+        factor += new_factor * delta_mu
+
+    lift_betz_optimal = factor * lift_betz_scale
+
+    f_lift_earth = lift_betz_optimal * vect_op.xhat_np()
+
+    return f_lift_earth
+
+
+
 def collect_vortex_verification_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
 
     kite = intermediates['kite']
     q = intermediates['q']
-    air_velocity = intermediates['air_velocity']
 
     parent = architecture.parent_map[kite]
 
@@ -199,17 +286,7 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
     if verification_test:
 
-        # things that are only used for Haas validation case = case of fixed radius
-        u_infty = vect_op.norm(wind.get_velocity(q[2]))
-
-        b_ref = parameters['theta0', 'geometry', 'b_ref']
-        rho = atmos.get_density(q[2])
-
         n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
-        kite_velocity_tangential = air_velocity - cas.mtimes(air_velocity.T, n_hat) * n_hat
-        tangential_speed = vect_op.norm(kite_velocity_tangential)
-
-        kite_speed_ratio = tangential_speed / u_infty
 
         if parent > 0:
             grandparent = architecture.parent_map[parent]
@@ -220,39 +297,8 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
         tether = q - q_parent
         radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
         radius = vect_op.norm(radius_vec)
-        varrho = radius / b_ref
-
-        lift_betz_scale = 4. * np.pi * rho * b_ref * radius**3. / (radius + 0.5 * b_ref) * u_infty**3. / tangential_speed
-
-        mu_center = varrho / (varrho + 0.5)
-        tip_speed_ratio = kite_speed_ratio / mu_center
-
-        a_betz = 1./3.
-
-        mu_min = (varrho - 0.5)/(varrho + 0.5)
-        n_steps = 20
-        delta_mu = (1. - mu_min) / n_steps
-
-        factor = 0.
-        for mdx in range(n_steps - 1):
-            mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
-
-            a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
-            new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
-            factor += new_factor * delta_mu
-
-        # lift_betz_optimal = factor * lift_betz_scale
-        lift_betz_optimal = cas.DM(5.0129 * 1.e6)
-        outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
-
-        ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
-        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
-        outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
-
-        outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
         n_points = options['aero']['vortex']['verification_points']
-
 
         mu_grid_min = 0.4
         mu_grid_max = 1.6
@@ -283,6 +329,10 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
                 counter += 1
 
+    _, _, mu_min_by_path, mu_max_by_path = get_mu_min_and_center(options, architecture, variables, parameters, intermediates)
+    outputs['haas_mu'] = {}
+    outputs['haas_mu']['mu_min_by_path'] = mu_min_by_path
+    outputs['haas_mu']['mu_max_by_path'] = mu_max_by_path
 
     return outputs
 

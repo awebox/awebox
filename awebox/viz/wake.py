@@ -28,6 +28,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
 import awebox.tools.vector_operations as vect_op
+import matplotlib.colors as mcolors
 
 import pdb
 
@@ -162,44 +163,62 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         z_matr = np.array(z_matr)
         a_matr = np.array(a_matr)
 
-        fig_points, ax_points = plt.subplots(1, 1)
         y_matr_list = np.array(cas.vertcat(y_matr))
         z_matr_list = np.array(cas.vertcat(z_matr))
-        ax_points.scatter(y_matr_list, z_matr_list)
-
-        plt.grid(True)
-        plt.title('induction factors over the kite plane')
-        plt.xlabel("y/(r + 0.5 b) [-]")
-        plt.ylabel("z/(r + 0.5 b) [-]")
 
         max_y = np.max(y_matr_list)
         min_y = np.min(y_matr_list)
         max_z = np.max(z_matr_list)
         min_z = np.min(z_matr_list)
-
         max_axes = np.max(np.array([max_y, -1. * min_y, max_z, -1. * min_z]))
 
+        mu_min_by_path = float(plot_dict['outputs']['haas_mu']['mu_min_by_path'][0][0])
+        mu_max_by_path = float(plot_dict['outputs']['haas_mu']['mu_max_by_path'][0][0])
+
+        ### points plot
+
+        fig_points, ax_points = plt.subplots(1, 1)
+        ax_points.scatter(y_matr_list, z_matr_list)
+        plt.grid(True)
+        plt.title('induction factors over the kite plane')
+        plt.xlabel("y/r [-]")
+        plt.ylabel("z/r [-]")
+        add_annulus_background(ax_points, mu_min_by_path, mu_max_by_path)
         ax_points.set_xlim([-1. * max_axes, max_axes])
         ax_points.set_ylim([-1. * max_axes, max_axes])
+        fig_points.savefig('points.pdf')
+
+        #### contour plot
 
         fig_contour, ax_contour = plt.subplots(1, 1)
         levels = [-0.05, 0., 0.2, 0.4]
-        ax_contour.contour(y_matr, z_matr, a_matr, levels)
+        colors = ['red', 'black', 'green', 'blue']
+
+        cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
+        plt.clabel(cs, inline=1, fontsize=10)
+        for i in range(len(levels)):
+            cs.collections[i].set_label(levels[i])
+        plt.legend(loc='lower right')
 
         plt.grid(True)
         plt.title('induction factors over the kite plane')
-        plt.xlabel("y/(r + 0.5 b) [-]")
-        plt.ylabel("z/(r + 0.5 b) [-]")
-
-        fig_points, ax_points = plt.subplots(1, 1)
-        y_matr_list = np.array(cas.vertcat(y_matr))
-        z_matr_list = np.array(cas.vertcat(z_matr))
-        ax_points.scatter(y_matr_list, z_matr_list)
-
-        plt.grid(True)
-        plt.title('induction factors over the kite plane')
-        plt.xlabel("y/(r + 0.5 b) [-]")
-        plt.ylabel("z/(r + 0.5 b) [-]")
-
+        plt.xlabel("y/r [-]")
+        plt.ylabel("z/r [-]")
+        add_annulus_background(ax_contour, mu_min_by_path, mu_max_by_path)
         ax_contour.set_xlim([-1. * max_axes, max_axes])
         ax_contour.set_ylim([-1. * max_axes, max_axes])
+        fig_contour.savefig('contour.pdf')
+
+
+def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):
+    n, radii = 50, [mu_min_by_path, mu_max_by_path]
+    theta = np.linspace(0, 2 * np.pi, n, endpoint=True)
+    xs = np.outer(radii, np.cos(theta))
+    ys = np.outer(radii, np.sin(theta))
+
+    # in order to have a closed area, the circles
+    # should be traversed in opposite directions
+    xs[1, :] = xs[1, ::-1]
+    ys[1, :] = ys[1, ::-1]
+
+    ax.fill(np.ravel(xs), np.ravel(ys), mcolors.CSS4_COLORS['lightgray'])

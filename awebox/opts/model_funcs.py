@@ -564,6 +564,20 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
 
+    CL = estimate_CL(options)
+    geometry = get_geometry(options)
+    c_ref = geometry['c_ref']
+
+    groundspeed = options['solver']['initialization']['groundspeed']
+    u_ref = get_u_ref(options['user_options'])
+    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+
+    gamma_scale = 0.5 * CL * airspeed_ref * c_ref
+    options_tree.append(('model', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
+
+
     return options_tree, fixed_params
 
 

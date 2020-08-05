@@ -201,12 +201,12 @@ def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    var = tools.get_strength_var_column(variables, gamma_name)
+    var = tools.get_strength_var_column(variables, gamma_name, options)
 
     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
 
     resi_unscaled = gamma_var - gamma_val
-    scale = tools.get_strength_scale()
+    scale = tools.get_strength_scale(options)
     resi = resi_unscaled / scale
 
     return resi

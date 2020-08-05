@@ -158,7 +158,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         intermediates['q'] = q
 
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs)
 
         outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
                                                                  parameters, intermediates, outputs)
