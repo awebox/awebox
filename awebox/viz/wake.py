@@ -28,7 +28,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
 import awebox.tools.vector_operations as vect_op
-import matplotlib.colors as mcolors
 
 import pdb
 
@@ -223,4 +222,4 @@ def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):
 
     color = (0.83,0.83,0.83)
 
-    ax.fill(np.ravel(xs), np.ravel(ys), color)
+    ax.fill(np.ravel(xs), np.ravel(ys), color=color)
