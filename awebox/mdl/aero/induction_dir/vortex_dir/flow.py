@@ -116,7 +116,7 @@ def get_induction_factor_at_kite(options, wind, variables, parameters, kite_obs,
 
     parent = architecture.parent_map[kite_obs]
 
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
+    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, parameters, architecture)
     u_mag = vect_op.smooth_norm(u_app_act)
 
     a_calc = -1. * u_ind_kite_projected / u_mag
@@ -131,7 +131,7 @@ def get_induction_factor_at_observer(point_obs, options, wind, variables, parame
 
     u_ind_kite_projected = get_induced_velocity_at_observer(point_obs, options, wind, variables, architecture, n_hat=n_hat)
 
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent_obs, variables, architecture)
+    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent_obs, variables, parameters, architecture)
     u_mag = vect_op.smooth_norm(u_app_act)
 
     a_calc = -1. * u_ind_kite_projected / u_mag
@@ -166,7 +166,7 @@ def get_last_induction_factor_at_kite(options, wind, variables, parameters, kite
     n_vec_val = unit_normal.get_n_vec(options, parent, variables, parameters, architecture)
     n_hat = vect_op.normalize(n_vec_val)
 
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
+    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, parameters, architecture)
     u_mag = vect_op.smooth_norm(u_app_act)
 
     a_calc = -1. * cas.mtimes(u_ind_kite.T, n_hat) / u_mag

@@ -174,12 +174,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
 
-
-    gamma_test = vortex_tools.get_strength_scale(options)
-    print_op.warn_about_temporary_funcationality_removal(location='indic')
-    outputs['aerodynamics']['gamma' + str(kite)] = gamma_test
-
-    # outputs['aerodynamics']['gamma' + str(kite)] = gamma_cross
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cross
 
     outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.

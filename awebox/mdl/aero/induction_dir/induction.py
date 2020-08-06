@@ -102,10 +102,6 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
         vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
         resi = cas.vertcat(resi, vortex_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(location='induction.spec_resis_rot_matr')
-    # for layer in architecture.layer_nodes:
-    #     rot_matr_residual = general_geom.get_rot_matr_residual(options, layer, variables, parameters, architecture)
-    #     resi = cas.vertcat(resi, rot_matr_residual)
 
     return resi
 
@@ -124,7 +120,7 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     force_zero = model_options['aero']['vortex']['force_zero']
 
     if induction_model == 'actuator':
-        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, wind, kite, parent)
+        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
         u_ind_kite = cas.DM.zeros((3, 1))
         print_op.warn_about_temporary_funcationality_removal(location='aero.induction.u_ind')

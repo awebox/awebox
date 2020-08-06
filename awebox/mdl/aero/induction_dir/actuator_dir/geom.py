@@ -55,7 +55,7 @@ def get_center_point(model_options, parent, variables, architecture):
 
     return center
 
-def get_center_velocity(model_options, parent, variables, architecture):
+def get_center_velocity(model_options, parent, variables, parameters, architecture):
 
     children = architecture.kites_map[parent]
     number_children = float(len(children))
@@ -65,9 +65,11 @@ def get_center_velocity(model_options, parent, variables, architecture):
     else:
         # dcenter = path_based.approx_center_velocity(model_options, children, variables, architecture)
 
-        n_hat_var = general_geom.get_n_hat_var(variables, parent)
+        n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
+        nhat = vect_op.smooth_normalize(n_vec)
+
         dq = variables['xd']['dq' + str(children[0]) + str(parent)]
-        dcenter = cas.mtimes(dq.T, n_hat_var) * n_hat_var
+        dcenter = cas.mtimes(dq.T, nhat) * nhat
 
     return dcenter
 
