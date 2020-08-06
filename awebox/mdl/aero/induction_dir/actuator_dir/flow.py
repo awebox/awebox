@@ -165,11 +165,9 @@ def get_gamma_residual(model_options, wind, parent, variables, parameters, archi
     uzero_hat_var = get_uzero_hat_var(variables, parent)
     vzero_hat_var = get_vzero_hat_var(variables, parent)
 
-    n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    n_hat = vect_op.smooth_normalize(n_vec)
-
-    u_comp = cas.mtimes(n_hat.T, uzero_hat_var)
-    v_comp = cas.mtimes(n_hat.T, vzero_hat_var)
+    n_hat_var = general_geom.get_n_hat_var(variables, parent)
+    u_comp = cas.mtimes(n_hat_var.T, uzero_hat_var)
+    v_comp = cas.mtimes(n_hat_var.T, vzero_hat_var)
 
     gamma_var = get_gamma_var(variables, parent)
     cosgamma_var = get_cosgamma_var(variables, parent)
@@ -345,9 +343,7 @@ def get_actuator_freestream_velocity(model_options, wind, parent, variables, arc
 def get_local_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent, label):
 
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
-
-    n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    nhat = vect_op.smooth_normalize(n_vec)
+    nhat = general_geom.get_n_hat_var(variables, parent)
 
     a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
     u_ind = -1. * a_val * uzero_vec_length * nhat

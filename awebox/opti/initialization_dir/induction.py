@@ -29,6 +29,7 @@ _python _version 2.7 / casadi-3.4.5
 '''
 
 
+
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
@@ -37,6 +38,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_dir.tools as tools_init
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
+import pdb
 
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 

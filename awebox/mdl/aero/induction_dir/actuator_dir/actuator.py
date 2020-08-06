@@ -225,8 +225,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         velocity = actuator_geom.get_center_velocity(model_options, parent, variables, parameters, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
         avg_radius = actuator_geom.get_average_radius(model_options, variables, parent, architecture, parameters)
-        n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-        nhat = vect_op.smooth_normalize(n_vec)
+        nhat = general_geom.get_n_hat_var(variables, parent)
 
         outputs['actuator']['center' + str(parent)] = center
         outputs['actuator']['velocity' + str(parent)] = velocity

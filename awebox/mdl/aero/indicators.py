@@ -320,8 +320,8 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
         mu_grid_min = 0.4
         mu_grid_max = 1.6
-        psi_grid_min = 0.
-        psi_grid_max = 2. * np.pi / float(architecture.number_of_kites)
+        psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
+        psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
 
         # define mu with respect to kite mid-span radius
         mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)

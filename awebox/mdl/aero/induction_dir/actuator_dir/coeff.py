@@ -138,8 +138,7 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
 def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
 
     total_force_aero = get_actuator_force(outputs, parent, architecture)
-    n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    nhat = vect_op.smooth_normalize(n_vec)
+    nhat = general_geom.get_n_hat_var(variables, parent)
     thrust = cas.mtimes(total_force_aero.T, nhat)
 
     return thrust
