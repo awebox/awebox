@@ -321,6 +321,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
+        ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 10.,       ('factor used in generating the power cost [-]', None), 'x'),

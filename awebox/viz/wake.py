@@ -185,6 +185,9 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         plt.ylabel("z/r [-]")
         ax_points.set_xlim([-1. * max_axes, max_axes])
         ax_points.set_ylim([-1. * max_axes, max_axes])
+
+        # ax_points.invert_xaxis() # to get view along u_infty
+
         fig_points.savefig('points.pdf')
 
         #### contour plot
@@ -207,6 +210,9 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         plt.ylabel("z/r [-]")
         ax_contour.set_xlim([-1. * max_axes, max_axes])
         ax_contour.set_ylim([-1. * max_axes, max_axes])
+
+        # ax_contour.invert_xaxis()  # to get view along u_infty
+
         fig_contour.savefig('contour.pdf')
 
 

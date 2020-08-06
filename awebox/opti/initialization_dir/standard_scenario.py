@@ -96,34 +96,23 @@ def guess_values_at_time(t, init_options, model):
         else:
             height = init_options['precompute']['height']
             radius = init_options['precompute']['radius']
-            groundspeed = init_options['precompute']['groundspeed']
-            omega_norm = init_options['precompute']['angular_speed']
 
-            n_rot_hat, y_rot_hat, z_rot_hat = tools.get_rotor_reference_frame(init_options)
-
-            ehat_normal = n_rot_hat
-            ehat_radial = tools.get_ehat_radial(t, init_options, model, node, ret)
-            ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-
-            omega_vector = ehat_normal * omega_norm
+            ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
 
             tether_vector = ehat_radial * radius + ehat_normal * height
+
             position = parent_position + tether_vector
+            velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+            ret['q' + str(node) + str(parent)] = position
+            ret['dq' + str(node) + str(parent)] = velocity
 
-            velocity = groundspeed * ehat_tangential
-
-            ehat1 = -1. * ehat_tangential
-            ehat3 = n_rot_hat
-            ehat2 = vect_op.normed_cross(ehat3, ehat1)
-
-            dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
-            ret['q' + str(node) + str(parent)] = position
-            ret['dq' + str(node) + str(parent)] = velocity
+            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
             if int(kite_dof) == 6:
                 ret['omega' + str(node) + str(parent)] = omega_vector
