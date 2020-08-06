@@ -74,7 +74,10 @@ def get_cstr_in_operation_format(options, variables, model):
     Outputs_mock = cas.struct_symMX([entry_tuple])
 
     resi_mock = get_fixing_constraint_all(options, V_mock, Outputs_mock, model)
-    resi = cas.DM.ones(resi_mock.shape)
+    try:
+        resi = cas.DM.ones(resi_mock.shape)
+    except:
+        resi = []
 
     eq_name = 'vortex_fixing'
     eqs_dict[eq_name] = resi
