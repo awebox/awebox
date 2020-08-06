@@ -168,8 +168,8 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
 
-    gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
-    gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_cross = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
 
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl

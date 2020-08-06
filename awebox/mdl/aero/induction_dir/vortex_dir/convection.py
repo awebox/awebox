@@ -62,7 +62,6 @@ def get_convection_residual_local(options, variables, tip, period, kite, archite
 
     z_var = cas.mtimes(pos_var.T, vect_op.zhat())
     vel_comp = wind.get_velocity(z_var)
-
     vel_resi = vel_var - vel_comp
 
     return vel_resi

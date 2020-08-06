@@ -177,11 +177,11 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
                     var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
                     for ndx in range(n_k + 1):
-                            start_xd = dict_xd[kite][tip][dim][period][ndx]['start']
-                            regular_xd = cas.reshape(dict_xd[kite][tip][dim][period][ndx]['reg'], (n_k * d, 1))
-                            all_xd = cas.vertcat(start_xd, regular_xd)
-                            V_init['xd', ndx, var_name] = all_xd
-                            V_init['xd', ndx, 'd' + var_name] = np.ones(all_xd.shape) * U_ref[jdx]
+                        start_xd = dict_xd[kite][tip][dim][period][ndx]['start']
+                        regular_xd = cas.reshape(dict_xd[kite][tip][dim][period][ndx]['reg'], (n_k * d, 1))
+                        all_xd = cas.vertcat(start_xd, regular_xd)
+                        V_init['xd', ndx, var_name] = all_xd
+                        V_init['xd', ndx, 'd' + var_name] = np.ones(all_xd.shape) * U_ref[jdx]
 
                     for ndx in range(n_k):
                         for ddx in range(d):
@@ -189,7 +189,6 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
                             regular_coll = cas.reshape(dict_coll[kite][tip][dim][period][ndx][ddx]['reg'], (n_k * d, 1))
                             all_coll = cas.vertcat(start_coll, regular_coll)
                             V_init['coll_var', ndx, ddx, 'xd', var_name] = all_coll
-
                             V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones(all_coll.shape) * U_ref[jdx]
 
     return V_init
