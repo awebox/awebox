@@ -317,6 +317,8 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
         radius = 155.77
 
         n_points = options['aero']['vortex']['verification_points']
+        half_points = int(n_points/2.) + 1
+
 
         mu_grid_min = 0.4
         mu_grid_max = 1.6
@@ -325,7 +327,17 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
         # define mu with respect to kite mid-span radius
         mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)
-        psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
+        # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
+
+        beta = np.linspace(0., np.pi/2, half_points)
+        cos_front = 0.5 * (1. - np.cos(beta))
+        cos_back = -1. * cos_front[::-1]
+        psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front)+0.5
+        psi_grid_points_cas =psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
+
+        psi_grid_points = []
+        for idx in range(psi_grid_points_cas.shape[0]):
+            psi_grid_points += [float(psi_grid_points_cas[idx])]
 
         outputs['haas_grid'] = {}
         center = actuator_geom.get_center_point(options, parent, variables, architecture)
