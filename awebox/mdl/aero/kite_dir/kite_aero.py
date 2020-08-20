@@ -44,13 +44,7 @@ import casadi.tools as cas
 import numpy as np
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
-    # if int(options['kite_dof']) == 3:
-    #     outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    # elif int(options['kite_dof']) == 6:
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    # else:
-    #     message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-    #     awelogger.logger.error(message)
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 

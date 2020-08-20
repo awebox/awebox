@@ -299,73 +299,7 @@ def collect_vortex_verification_outputs(options, architecture, atmos, wind, vari
 
     parent = architecture.parent_map[kite]
 
-    verification_test = options['aero']['vortex']['verification_test']
 
-    if verification_test:
-
-        # if parent > 0:
-        #     grandparent = architecture.parent_map[parent]
-        #     q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
-        # else:
-        #     q_parent = cas.DM.zeros((3, 1))
-        # #
-        # tether = q - q_parent
-        # n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
-        # radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
-        # radius = vect_op.norm(radius_vec)
-
-        radius = 155.77
-
-        n_points = options['aero']['vortex']['verification_points']
-        half_points = int(n_points/2.) + 1
-
-
-        mu_grid_min = 0.4
-        mu_grid_max = 1.6
-        psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
-        psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
-
-        # define mu with respect to kite mid-span radius
-        mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)
-        # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
-
-        beta = np.linspace(0., np.pi/2, half_points)
-        cos_front = 0.5 * (1. - np.cos(beta))
-        cos_back = -1. * cos_front[::-1]
-        psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front)+0.5
-        psi_grid_points_cas =psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
-
-        psi_grid_points = []
-        for idx in range(psi_grid_points_cas.shape[0]):
-            psi_grid_points += [float(psi_grid_points_cas[idx])]
-
-        outputs['haas_grid'] = {}
-        center = actuator_geom.get_center_point(options, parent, variables, architecture)
-        counter = 0
-        for mu_val in mu_grid_points:
-            for psi_val in psi_grid_points:
-                r_val = mu_val * radius
-
-                ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
-                added = r_val * ehat_radial
-                point_obs = center + added
-
-                unscaled = mu_val * ehat_radial
-
-                a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, options, wind, variables, parameters, parent, architecture)
-
-                local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
-                outputs['haas_grid']['p' + str(counter)] = local_info
-
-                counter += 1
-
-    mu_vals = get_vortex_verification_mu_vals(options, architecture, variables, parameters, intermediates)
-    mu_min_by_path = mu_vals['mu_min_by_path']
-    mu_max_by_path = mu_vals['mu_max_by_path']
-
-    outputs['haas_mu'] = {}
-    outputs['haas_mu']['mu_min_by_path'] = mu_min_by_path
-    outputs['haas_mu']['mu_max_by_path'] = mu_max_by_path
 
     return outputs
 
@@ -537,22 +471,22 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
     s_ref = parameters['theta0', 'geometry', 's_ref']
 
-    power_availability = 0.
+    available_power_at_kites = 0.
     for n in architecture.kite_nodes:
         parent = architecture.parent_map[n]
         height = xd['q' + str(n) + str(parent)][2]
 
-        power_availability += get_power_density(atmos, wind, height) * s_ref
+        available_power_at_kites += get_power_density(atmos, wind, height) * s_ref
 
     current_power = xa['lambda10'] * xd['l_t'] * xd['dl_t']
 
-    hubheight = xd['q10'][2]
-    hubheight_power_availability = get_power_density(atmos, wind, hubheight) * s_ref * number_of_kites
+    node_1_height = xd['q10'][2]
+    available_power_at_node_1_height = get_power_density(atmos, wind, node_1_height) * s_ref * number_of_kites
 
-    phf = current_power / power_availability
-    phf_hubheight = current_power / hubheight_power_availability
+    phf = current_power / available_power_at_kites
+    phf_hubheight = current_power / available_power_at_node_1_height
 
-    return [current_power, phf, phf_hubheight, hubheight_power_availability]
+    return [current_power, phf, phf_hubheight, available_power_at_node_1_height]
 
 def get_elevation_angle(xd):
     length_along_ground = (xd['q10'][0] ** 2. + xd['q10'][1] ** 2.) ** 0.5

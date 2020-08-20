@@ -119,11 +119,62 @@ def convert_gamma_to_color(gamma_val, plot_dict):
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    if 'haas_grid' in plot_dict['outputs'].keys():
-        haas_grid = plot_dict['outputs']['haas_grid']
+    architecture = plot_dict['architecture']
+
+    vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
+    if vortex_structure_modelled:
+
+        parent = 1
+        radius = 155.77
+
+        n_points = options['aero']['vortex']['verification_points']
+        half_points = int(n_points/2.) + 1
+
+        mu_grid_min = 0.4
+        mu_grid_max = 1.6
+        psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
+        psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
+
+        # define mu with respect to kite mid-span radius
+        mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)
+        # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
+
+        beta = np.linspace(0., np.pi/2, half_points)
+        cos_front = 0.5 * (1. - np.cos(beta))
+        cos_back = -1. * cos_front[::-1]
+        psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front)+0.5
+        psi_grid_points_cas =psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
+
+        psi_grid_points = []
+        for idx in range(psi_grid_points_cas.shape[0]):
+            psi_grid_points += [float(psi_grid_points_cas[idx])]
+
+        haas_grid = {}
+        center = actuator_geom.get_center_point(options, parent, variables, architecture)
+        counter = 0
+        for mu_val in mu_grid_points:
+            for psi_val in psi_grid_points:
+                r_val = mu_val * radius
+
+                ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
+                added = r_val * ehat_radial
+                point_obs = center + added
+
+                unscaled = mu_val * ehat_radial
+
+                a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, options, wind, variables, parameters, parent, architecture)
+
+                local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
+                haas_grid['p' + str(counter)] = local_info
+
+                counter += 1
+
+        mu_vals = get_vortex_verification_mu_vals(options, architecture, variables, parameters, intermediates)
+        mu_min_by_path = mu_vals['mu_min_by_path']
+        mu_max_by_path = mu_vals['mu_max_by_path']
 
         number_entries = len(haas_grid.keys())
-        verification_points = np.sqrt(float(number_entries))
+        verification_points = len(psi_grid_points)
 
         slice_index = -1
 
@@ -171,9 +222,6 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         min_z = np.min(z_matr_list)
         max_axes = np.max(np.array([max_y, -1. * min_y, max_z, -1. * min_z]))
 
-        mu_min_by_path = float(plot_dict['outputs']['haas_mu']['mu_min_by_path'][0][0])
-        mu_max_by_path = float(plot_dict['outputs']['haas_mu']['mu_max_by_path'][0][0])
-
         ### points plot
 
         fig_points, ax_points = plt.subplots(1, 1)
@@ -185,8 +233,6 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         plt.ylabel("z/r [-]")
         ax_points.set_xlim([-1. * max_axes, max_axes])
         ax_points.set_ylim([-1. * max_axes, max_axes])
-
-        # ax_points.invert_xaxis() # to get view along u_infty
 
         fig_points.savefig('points.pdf')
 
@@ -210,8 +256,6 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         plt.ylabel("z/r [-]")
         ax_contour.set_xlim([-1. * max_axes, max_axes])
         ax_contour.set_ylim([-1. * max_axes, max_axes])
-
-        # ax_contour.invert_xaxis()  # to get view along u_infty
 
         fig_contour.savefig('contour.pdf')
 

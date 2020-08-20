@@ -41,13 +41,14 @@ def stability_derivatives(options, alpha, beta, airspeed, omega, delta, paramete
 
     frames.test_conversions()
 
-    inputs = collect_inputs(alpha, beta, airspeed, omega, delta, parameters)
+    force_frame = options['aero']['stab_derivs']['force_frame']
+    moment_frame = options['aero']['stab_derivs']['moment_frame']
+
+    inputs = collect_inputs(alpha, beta, airspeed, omega, delta, parameters, force_frame)
     coeffs = collect_contributions(parameters, inputs)
 
     # concatenate
-    force_frame = options['aero']['stab_derivs']['force_frame']
     CF = distribute_force_coeffs(coeffs, force_frame)
-    moment_frame = options['aero']['stab_derivs']['moment_frame']
     CM = distribute_moment_coeffs(coeffs, moment_frame)
 
     force_coeff_info = {'coeffs': CF, 'frame':force_frame}
@@ -135,7 +136,7 @@ def list_all_possible_inputs():
     return list
 
 
-def collect_inputs(alpha, beta, airspeed, omega, delta, parameters):
+def collect_inputs(alpha, beta, airspeed, omega, delta, parameters, named_frame):
 
     # delta:
     # aileron left-right [right teu+, rad], ... positive delta a -> negative roll
@@ -145,7 +146,7 @@ def collect_inputs(alpha, beta, airspeed, omega, delta, parameters):
     deltae = delta[1]
     deltar = delta[2]
 
-    p, q, r = get_p_q_r(airspeed, omega, parameters)
+    p, q, r = get_p_q_r(airspeed, omega, parameters, named_frame)
 
     inputs = {}
     inputs['0'] = cas.DM(1.)
@@ -195,9 +196,14 @@ def collect_contributions(parameters, inputs):
 
     return coeffs
 
-def get_p_q_r(airspeed, omega, parameters):
-    # p -> roll rate, about -ehat1
-    # q -> pitch rate, about -ehat2
+def get_p_q_r(airspeed, omega, parameters, named_frame):
+
+    # omega is defined in "body" reference frame.
+    if named_frame == 'control':
+        omega = frames.from_body_to_control(omega)
+
+    # p -> roll rate, about ehat1
+    # q -> pitch rate, about ehat2
     # r -> yaw rate, about ehat3
 
     # pqr - damping: in radians
