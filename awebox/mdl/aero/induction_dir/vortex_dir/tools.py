@@ -181,6 +181,8 @@ def get_strength_var_column(variables_xl_or_variables, gamma_name, options):
             message = 'gamma variable is incorrect format to pull from given variables (xl)'
             awelogger.logger.error(message)
 
+            pdb.set_trace()
+
     var = get_strength_scale(options) * var_unscaled
 
     return var
@@ -207,8 +209,8 @@ def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked
 
     return all_ordered
 
-def get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent, options):
-    regular = get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent, options)
+def get_padded_strengths_by_kite(variables, n_k, d, periods_tracked, kite, parent, options):
+    regular = get_all_time_ordered_strengths_by_kite(variables, n_k, d, periods_tracked, kite, parent, options)
 
     trailing = regular[-1]
 
@@ -271,8 +273,7 @@ def get_number_of_rings_per_kite(n_k, d, periods_tracked):
 
 def get_list_of_filaments_by_kite(args, options):
 
-    variables_xd = args['variables_xd']
-    variables_xl = args['variables_xl']
+    variables = args['variables']
     u_vec_ref = args['u_vec_ref']
     infinite_time = args['infinite_time']
     periods_tracked = args['periods_tracked']
@@ -283,10 +284,10 @@ def get_list_of_filaments_by_kite(args, options):
 
     filaments = []
 
-    padded_strengths = get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent, options)
-    padded_points_int = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'int',
+    padded_strengths = get_padded_strengths_by_kite(variables, n_k, d, periods_tracked, kite, parent, options)
+    padded_points_int = get_padded_points_by_kite_and_tip(variables, n_k, d, periods_tracked, kite, parent, 'int',
                                                           u_vec_ref, infinite_time)
-    padded_points_ext = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent, 'ext',
+    padded_points_ext = get_padded_points_by_kite_and_tip(variables, n_k, d, periods_tracked, kite, parent, 'ext',
                                                           u_vec_ref, infinite_time)
 
     n_rings = padded_strengths.shape[0]
@@ -297,7 +298,7 @@ def get_list_of_filaments_by_kite(args, options):
     return filaments
 
 
-def get_list_of_all_filaments(variables_xd, variables_xl, architecture, u_vec_ref, periods_tracked, n_k, d, options):
+def get_list_of_all_filaments(variables, architecture, u_vec_ref, periods_tracked, n_k, d, options):
 
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
@@ -305,8 +306,7 @@ def get_list_of_all_filaments(variables_xd, variables_xl, architecture, u_vec_re
     infinite_time = 1000.
 
     args = {}
-    args['variables_xd'] = variables_xd
-    args['variables_xl'] = variables_xl
+    args['variables'] = variables
     args['u_vec_ref'] = u_vec_ref
     args['infinite_time'] = infinite_time
     args['periods_tracked'] = periods_tracked
@@ -335,15 +335,13 @@ def get_filament_list(options, wind, variables, architecture):
     periods_tracked = options['aero']['vortex']['periods_tracked']
     u_vec_ref = wind.get_velocity_ref() * vect_op.xhat()
 
-    filament_list = get_list_of_all_filaments(variables['xd'], variables['xl'], architecture, u_vec_ref,
+    filament_list = get_list_of_all_filaments(variables, architecture, u_vec_ref,
                                                            periods_tracked, n_k, d, options)
 
     return filament_list
 
 
 def get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx):
-    variables_xd = variables['xd']
-    variables_xl = variables['xl']
 
     n_k = options['aero']['vortex']['n_k']
     d = options['aero']['vortex']['d']
@@ -352,11 +350,11 @@ def get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, paren
 
     infinite_time = 1000.
 
-    padded_strengths = get_padded_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent, options)
-    padded_points_int = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent,
+    padded_strengths = get_padded_strengths_by_kite(variables, n_k, d, periods_tracked, kite, parent, options)
+    padded_points_int = get_padded_points_by_kite_and_tip(variables, n_k, d, periods_tracked, kite, parent,
                                                                 'int',
                                                                 u_vec_ref, infinite_time)
-    padded_points_ext = get_padded_points_by_kite_and_tip(variables_xd, n_k, d, periods_tracked, kite, parent,
+    padded_points_ext = get_padded_points_by_kite_and_tip(variables, n_k, d, periods_tracked, kite, parent,
                                                                 'ext',
                                                                 u_vec_ref, infinite_time)
 
@@ -397,3 +395,28 @@ def append_bounds(g_bounds, fix):
         g_bounds['lb'].append(cas.DM.zeros(fix_shape))
 
         return g_bounds
+
+def get_vortex_verification_mu_vals():
+
+    radius = 155.77
+    b_ref = 68.
+
+    varrho = radius / b_ref
+
+    mu_center_by_exterior = varrho / (varrho + 0.5)
+    mu_min_by_exterior = (varrho - 0.5) / (varrho + 0.5)
+    mu_max_by_exterior = 1.
+
+    mu_min_by_path = (varrho - 0.5) / varrho
+    mu_max_by_path = (varrho + 0.5) / varrho
+    mu_center_by_path = 1.
+
+    mu_vals = {}
+    mu_vals['mu_center_by_exterior'] = mu_center_by_exterior
+    mu_vals['mu_min_by_exterior'] = mu_min_by_exterior
+    mu_vals['mu_max_by_exterior'] = mu_max_by_exterior
+    mu_vals['mu_min_by_path'] = mu_min_by_path
+    mu_vals['mu_max_by_path'] = mu_max_by_path
+    mu_vals['mu_center_by_path'] = mu_center_by_path
+
+    return mu_vals

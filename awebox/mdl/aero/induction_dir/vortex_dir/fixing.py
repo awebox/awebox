@@ -119,7 +119,7 @@ def fixing_constraints_on_zeroth_period(options, V, Outputs, model):
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
     period = 0
 
@@ -133,7 +133,7 @@ def fixing_constraints_on_zeroth_period(options, V, Outputs, model):
                 var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
 
                 # remember: periodicity! wingtip positions at end, must be equal to positions at start
-                variables = struct_op.get_variables_at_time(options, V, Xdot, model, 0, ddx=None)
+                variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0, ddx=None)
                 wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
 
                 fix = get_zeroth_xd_fix(variables, var_name, options, wingtip_pos)
@@ -143,7 +143,7 @@ def fixing_constraints_on_zeroth_period(options, V, Outputs, model):
                 for ndx in range(n_k):
                     for ddx in range(d):
 
-                        variables = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx=ddx)
+                        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
                         wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
                         fix = get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx)
 
@@ -161,7 +161,7 @@ def fixing_constraints_on_previous_period(options, V, model, period):
     wingtips = ['ext', 'int']
     dims = ['x', 'y', 'z']
 
-    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
     for kite in kite_nodes:
         parent = parent_map[kite]
@@ -172,8 +172,8 @@ def fixing_constraints_on_previous_period(options, V, model, period):
                 var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
                 prev_name = 'w' + dim + '_' + tip + '_' + str(period - 1) + '_' + str(kite) + str(parent)
 
-                variables = struct_op.get_variables_at_time(options, V, Xdot, model, 0, ddx=None)
-                prev_variables = struct_op.get_variables_at_time(options, V, Xdot, model, -1, ddx=-1)
+                variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0, ddx=None)
+                prev_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, ddx=-1)
 
                 fix = get_previous_fix(variables, var_name, prev_variables, prev_name)
 

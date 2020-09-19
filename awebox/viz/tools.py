@@ -711,15 +711,19 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['constraints_dict'] = struct_op.strip_of_contents(model.constraints_dict)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
+    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
+    plot_dict['parameters_dict'] = struct_op.strip_of_contents(model.parameters_dict)
     plot_dict['scaling'] = model.scaling
+    plot_dict['model'] = model
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
+    plot_dict['wind'] = model.wind
     plot_dict['u_ref'] = float(u_ref)
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, iterations=None, return_status_numeric=None, timings=None, N=None, ):
+def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, p_fix_num, iterations=None, return_status_numeric=None, timings=None, N=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -747,6 +751,8 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['V_ref'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_ref)
     # get new name
     plot_dict['name'] = name
+
+    plot_dict['p_fix_num'] = p_fix_num
 
     # get new outputs
     plot_dict['output_vals'] = output_vals

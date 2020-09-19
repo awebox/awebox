@@ -67,14 +67,16 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     kite_nodes = architecture.kite_nodes
     xd = variables['xd']
 
-    outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(
-        wind.get_velocity(xd['q10'][2]))
-
+    outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(wind.get_velocity(xd['q10'][2]))
     outputs['performance']['elevation'] = get_elevation_angle(variables['xd'])
 
+    layer_nodes = architecture.layer_nodes
+    for parent in layer_nodes:
+        outputs['performance']['actuator_center' + str(parent)] = actuator_geom.get_center_point(options, parent, variables, architecture)
+
     outputs['performance']['p_loyd_total'] = 0.
-    for n in kite_nodes:
-        outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(n)]
+    for kite in kite_nodes:
+        outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(kite)]
 
     [current_power, phf, phf_hubheight, hubheight_power_availability] = get_power_harvesting_factor(options, atmos,
                                                                                                     wind, variables, parameters,architecture)
@@ -191,46 +193,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
     return outputs
 
-def get_vortex_verification_mu_vals(options, architecture, variables, parameters, intermediates):
-
-    # kite = intermediates['kite']
-    # q = intermediates['q']
-    #
-    # parent = architecture.parent_map[kite]
-    # if parent > 0:
-    #     grandparent = architecture.parent_map[parent]
-    #     q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
-    # else:
-    #     q_parent = cas.DM.zeros((3, 1))
-    #
-    # tether = q - q_parent
-    #
-    # n_hat = vect_op.xhat_np()
-    # radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
-    # radius = vect_op.norm(radius_vec)
-
-    radius = 155.77
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    varrho = radius / b_ref
-
-    mu_center_by_exterior = varrho / (varrho + 0.5)
-    mu_min_by_exterior = (varrho - 0.5)/(varrho + 0.5)
-    mu_max_by_exterior = 1.
-
-    mu_min_by_path = (varrho - 0.5)/varrho
-    mu_max_by_path = (varrho + 0.5)/varrho
-    mu_center_by_path = 1.
-
-    mu_vals = {}
-    mu_vals['mu_center_by_exterior'] = mu_center_by_exterior
-    mu_vals['mu_min_by_exterior'] = mu_min_by_exterior
-    mu_vals['mu_max_by_exterior'] = mu_max_by_exterior
-    mu_vals['mu_min_by_path'] = mu_min_by_path
-    mu_vals['mu_max_by_path'] = mu_max_by_path
-    mu_vals['mu_center_by_path'] = mu_center_by_path
-
-    return mu_vals
 
 def get_vortex_verification_f_lift_earth(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
 
@@ -249,7 +211,7 @@ def get_vortex_verification_f_lift_earth(options, architecture, atmos, wind, var
     # dq = variables['xd']['dq' + str(kite) + str(parent)]
     # tangential_speed = vect_op.norm(dq)
 
-    mu_vals = get_vortex_verification_mu_vals(options, architecture, variables, parameters, intermediates)
+    mu_vals = vortex_tools.get_vortex_verification_mu_vals()
     mu_min = mu_vals['mu_min_by_exterior']
     mu_max = mu_vals['mu_max_by_exterior']
     # mu_center = mu_vals['mu_center_by_exterior']
@@ -293,13 +255,6 @@ def get_vortex_verification_f_lift_earth(options, architecture, atmos, wind, var
 
 
 def collect_vortex_verification_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
-
-    kite = intermediates['kite']
-    # q = intermediates['q']
-
-    parent = architecture.parent_map[kite]
-
-
 
     return outputs
 

@@ -333,7 +333,7 @@ def discretize(nlp_numerics_options, model, formulation):
         if kdx == 0:
 
             # extract initial (reference) variables
-            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model, 0)
+            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model.variables, 0)
             var_ref_initial = struct_op.get_var_ref_at_time(nlp_numerics_options, P, V, Xdot, model, 0)
 
             # add initial constraints
@@ -411,7 +411,7 @@ def discretize(nlp_numerics_options, model, formulation):
     # Create g struct and functions and g_bounds vectors
     [g, g_fun, g_jacobian_fun, g_bounds] = constraints.create_constraint_outputs(g_list, g_bounds, g_struct, V, P)
 
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_numerics_options, model)
+    Xdot_struct = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     return V, P, Xdot_struct, Xdot_fun, g_struct, g_fun, g_jacobian_fun, g_bounds, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting

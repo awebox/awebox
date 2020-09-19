@@ -141,7 +141,7 @@ def strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx, 
 
     period = 0
     architecture = model.architecture
-    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
     resi = []
 
@@ -149,7 +149,7 @@ def strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx, 
         parent = architecture.parent_map[kite]
 
         gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-        variables = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx=ddx)
+        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
 
         if is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
             gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
@@ -167,7 +167,7 @@ def strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx
 
     period = 1
     architecture = model.architecture
-    Xdot = struct_op.construct_Xdot_struct(options, model)(0.)
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
     resi = []
 
@@ -175,7 +175,7 @@ def strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx
         parent = architecture.parent_map[kite]
 
         gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-        variables = struct_op.get_variables_at_time(options, V, Xdot, model, ndx, ddx=ddx)
+        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
 
         gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
 

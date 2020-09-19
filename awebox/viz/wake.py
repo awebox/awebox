@@ -28,6 +28,9 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 import pdb
 
@@ -117,64 +120,95 @@ def convert_gamma_to_color(gamma_val, plot_dict):
     color = cmap(gamma_scaled)
     return color
 
-def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
+def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
     architecture = plot_dict['architecture']
+    architecture = plot_dict['architecture']
+    wind = plot_dict['wind']
+
+    V_plot = plot_dict['V_plot']
+
+    Xdot = struct_op.construct_Xdot_struct(plot_dict['options']['nlp'], plot_dict['variables_dict'])(0.)
+    variables = plot_dict['variables'](struct_op.get_variables_at_time(plot_dict['options']['nlp'], V_plot, Xdot, plot_dict['variables'], idx_at_eval))
+    parameters = plot_dict['parameters'](struct_op.get_parameters_at_time(plot_dict['options']['nlp'], plot_dict['p_fix_num'], V_plot, Xdot, plot_dict['variables'], plot_dict['parameters']))
+
+    parent = 1
+    radius = 155.77
+
+    verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
+    half_points = int(verification_points / 2.) + 1
+
+    mu_grid_min = 0.4
+    mu_grid_max = 1.6
+    psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
+    psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
+
+    # define mu with respect to kite mid-span radius
+    mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
+    # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
+
+    beta = np.linspace(0., np.pi / 2, half_points)
+    cos_front = 0.5 * (1. - np.cos(beta))
+    cos_back = -1. * cos_front[::-1]
+    psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front) + 0.5
+    psi_grid_points_cas = psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
+
+    psi_grid_points = []
+    for idx in range(psi_grid_points_cas.shape[0]):
+        psi_grid_points += [float(psi_grid_points_cas[idx])]
+
+    haas_grid = {}
+    center = plot_dict['outputs']['performance']['actuator_center1']
+    counter = 0
+    for mu_val in mu_grid_points:
+        for psi_val in psi_grid_points:
+            r_val = mu_val * radius
+
+            ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
+            added = r_val * ehat_radial
+            point_obs = center + added
+
+            unscaled = mu_val * ehat_radial
+
+            # a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, plot_dict['options']['model'], wind,
+            #                                                      variables, parameters, parent, architecture)
+
+            pdb.set_trace()
+
+            a_ind = vortex_flow.get_induction_factor_at_observer(point_obs,
+                                                                 plot_dict['options']['model'],
+                                                                 wind,
+                                                                 plot_dict['variables'],
+                                                                 plot_dict['parameters'],
+                                                                 parent, architecture)
+
+            pdb.set_trace()
+
+
+            a_ind = 0.
+
+            local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
+            haas_grid['p' + str(counter)] = local_info
+
+            counter += 1
+
+
+def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
+
+    idx_at_eval = 0
+
+    verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
+    mu_vals = vortex_tools.get_vortex_verification_mu_vals()
 
     vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
     if vortex_structure_modelled:
 
-        parent = 1
-        radius = 155.77
+        haas_grid = compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval)
 
-        n_points = options['aero']['vortex']['verification_points']
-        half_points = int(n_points/2.) + 1
-
-        mu_grid_min = 0.4
-        mu_grid_max = 1.6
-        psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
-        psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
-
-        # define mu with respect to kite mid-span radius
-        mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, n_points, endpoint=True)
-        # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
-
-        beta = np.linspace(0., np.pi/2, half_points)
-        cos_front = 0.5 * (1. - np.cos(beta))
-        cos_back = -1. * cos_front[::-1]
-        psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front)+0.5
-        psi_grid_points_cas =psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
-
-        psi_grid_points = []
-        for idx in range(psi_grid_points_cas.shape[0]):
-            psi_grid_points += [float(psi_grid_points_cas[idx])]
-
-        haas_grid = {}
-        center = actuator_geom.get_center_point(options, parent, variables, architecture)
-        counter = 0
-        for mu_val in mu_grid_points:
-            for psi_val in psi_grid_points:
-                r_val = mu_val * radius
-
-                ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
-                added = r_val * ehat_radial
-                point_obs = center + added
-
-                unscaled = mu_val * ehat_radial
-
-                a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, options, wind, variables, parameters, parent, architecture)
-
-                local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
-                haas_grid['p' + str(counter)] = local_info
-
-                counter += 1
-
-        mu_vals = get_vortex_verification_mu_vals(options, architecture, variables, parameters, intermediates)
         mu_min_by_path = mu_vals['mu_min_by_path']
         mu_max_by_path = mu_vals['mu_max_by_path']
 
         number_entries = len(haas_grid.keys())
-        verification_points = len(psi_grid_points)
 
         slice_index = -1
 

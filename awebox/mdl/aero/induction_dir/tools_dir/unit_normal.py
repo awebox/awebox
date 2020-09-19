@@ -165,7 +165,10 @@ def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
     grandparent = architecture.parent_map[parent]
 
     if grandparent == 0:
-        n_vec = variables['xd']['q' + str(parent) + str(grandparent)]
+        try:
+            n_vec = variables['xd']['q' + str(parent) + str(grandparent)]
+        except:
+            n_vec = variables['xd', 'q' + str(parent) + str(grandparent)]
 
         n_vec = n_vec * 1.e-3
     else:

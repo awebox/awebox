@@ -130,7 +130,7 @@ class Multiple_shooting(object):
         Integral_constraints_list = None
 
         # construct state derivative struct
-        Xdot = struct_op.construct_Xdot_struct(options, model)
+        Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)
         Xdot = self.__fill_in_Xdot(Xdot)
 
         return ms_xf, ms_z0, Xdot, ms_constraints, ms_outputs, Integral_outputs_list, Integral_constraints_list
@@ -163,7 +163,7 @@ class Multiple_shooting(object):
         ms_vars0 = []
         for kdx in range(self.__n_k):
             # get vars at time
-            var_at_time = struct_op.get_variables_at_time(options, V, None, model, kdx)
+            var_at_time = struct_op.get_variables_at_time(options, V, None, model.variables, kdx)
             ms_vars0 += [var_at_time]
             # get dae vars at time
             x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
