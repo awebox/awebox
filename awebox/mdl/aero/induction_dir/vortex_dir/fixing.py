@@ -35,6 +35,7 @@ import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
 
@@ -90,6 +91,7 @@ def get_cstr_in_operation_format(options, variables, model):
 def get_fixing_constraint_all(options, V, Outputs, model):
 
     n_k = options['n_k']
+    d = options['collocation']['d']
     control_intervals = n_k
 
     comparison_labels = options['induction']['comparison_labels']
@@ -109,29 +111,23 @@ def get_fixing_constraint_all(options, V, Outputs, model):
                 for wake_node in range(wake_nodes + 1):
                     if wake_node < n_k:
 
-                        index = (control_intervals - 1) - wake_node
-                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables, index)
+                        index = (control_intervals) - wake_node
+                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables, index-1, d-1)
 
                         wx_local = tools.get_wake_node_position(variables_at_shed, kite, tip, wake_node)
 
-                        # wingtip_pos = Outputs['coll_outputs', index, 0, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-                        print_op.warn_about_temporary_funcationality_removal(location='fixing2')
-                        wingtip_pos = cas.DM.zeros((3, 1))
+                        wingtip_pos = Outputs['coll_outputs', index-1, d-1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                         local_resi = wx_local - wingtip_pos
                         resi = cas.vertcat(resi, local_resi)
 
                     else:
-
                         variables_at_initial = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0)
-                        variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1)
+                        variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)
 
                         upstream_node = wake_node - control_intervals
                         wx_local = tools.get_wake_node_position(variables_at_initial, kite, tip, wake_node)
-                        # wx_upstream = tools.get_wake_node_position(variables_at_final, kite, tip, upstream_node)
-
-                        print_op.warn_about_temporary_funcationality_removal(location='fixing2')
-                        wx_upstream = cas.DM.zeros((3, 1))
+                        wx_upstream = tools.get_wake_node_position(variables_at_final, kite, tip, upstream_node)
 
                         local_resi = wx_local - wx_upstream
                         resi = cas.vertcat(resi, local_resi)

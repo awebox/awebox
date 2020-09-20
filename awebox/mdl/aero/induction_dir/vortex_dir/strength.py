@@ -94,7 +94,38 @@ def get_cstr_in_operation_format(options, variables, model):
 
 def get_strength_constraint_all(options, V, Outputs, model):
 
+    n_k = options['n_k']
+    d = options['collocation']['d']
+    control_intervals = n_k
+
+    comparison_labels = options['induction']['comparison_labels']
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    rings = wake_nodes - 1
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+
     resi = []
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+
+        for kite in kite_nodes:
+            for tip in wingtips:
+                for ring in range(rings):
+                    for ndx in range(n_k):
+                        for ddx in range(d):
+
+                            variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
+                            wg_local = tools.get_ring_strength(variables, kite, ring)
+
+                            wg_ref = 3.
+                            print_op.warn_about_temporary_funcationality_removal(location='strength')
+
+                            resi_local = wg_local - wg_ref
+                            resi = cas.vertcat(resi, resi_local)
+
 
     # comparison_labels = options['induction']['comparison_labels']
     # periods_tracked = options['induction']['vortex_periods_tracked']

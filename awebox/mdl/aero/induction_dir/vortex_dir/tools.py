@@ -37,6 +37,9 @@ import numpy as np
 
 import pdb
 
+def get_wake_position_ref():
+    wx_ref = cas.diag(cas.vertcat(500., 0., 50.))
+    return wx_ref
 
 def get_wake_node_position(variables, kite, tip, wake_node):
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
@@ -51,7 +54,10 @@ def get_wake_node_position(variables, kite, tip, wake_node):
             message = 'wake node position is not in expected position wrt variables.'
             awelogger.logger.error(message)
 
-    return wx_local
+    wx_ref = get_wake_position_ref()
+    wx_scaled = cas.mtimes(wx_ref, wx_local)
+
+    return wx_scaled
 
 def get_wake_node_velocity(variables, kite, tip, wake_node):
     coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
@@ -66,7 +72,10 @@ def get_wake_node_velocity(variables, kite, tip, wake_node):
             message = 'wake node velocity is not in expected position wrt variables.'
             awelogger.logger.error(message)
 
-    return dwx_local
+    wx_ref = get_wake_position_ref()
+    dwx_scaled = cas.mtimes(wx_ref, dwx_local)
+
+    return dwx_scaled
 
 def get_ring_strength(variables, kite, ring):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
