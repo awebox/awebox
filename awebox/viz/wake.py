@@ -83,22 +83,19 @@ def get_gamma_extrema(plot_dict):
     n_k = plot_dict['n_k']
     d = plot_dict['d']
     kite_nodes = plot_dict['architecture'].kite_nodes
-    parent_map = plot_dict['architecture'].parent_map
-    periods_tracked = plot_dict['options']['model']['aero']['vortex']['periods_tracked']
+    wake_nodes = plot_dict['options']['model']['aero']['vortex']['wake_nodes']
+
+    rings = wake_nodes - 1
 
     gamma_max = -1.e5
     gamma_min = 1.e5
 
     for kite in kite_nodes:
-        parent = parent_map[kite]
-        for period in range(periods_tracked):
-
-            if period > 1:
-                period = 1
-
+        for ring in range(rings):
             for ndx in range(n_k):
                 for ddx in range(d):
-                    gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+
+                    gamma_name = 'wg' + '_' + str(kite) + '_' + str(ring)
                     var = plot_dict['V_plot']['coll_var', ndx, ddx, 'xl', gamma_name]
 
                     gamma_max = np.max(np.array(cas.vertcat(gamma_max, var)))
@@ -123,17 +120,14 @@ def convert_gamma_to_color(gamma_val, plot_dict):
 def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
     architecture = plot_dict['architecture']
-    architecture = plot_dict['architecture']
-    wind = plot_dict['wind']
 
     V_plot = plot_dict['V_plot']
 
-    Xdot = struct_op.construct_Xdot_struct(plot_dict['options']['nlp'], plot_dict['variables_dict'])(0.)
-    variables = plot_dict['variables'](struct_op.get_variables_at_time(plot_dict['options']['nlp'], V_plot, Xdot, plot_dict['variables'], idx_at_eval))
-    parameters = plot_dict['parameters'](struct_op.get_parameters_at_time(plot_dict['options']['nlp'], plot_dict['p_fix_num'], V_plot, Xdot, plot_dict['variables'], plot_dict['parameters']))
+    filament_list = reconstruct_filament_list(plot_dict, idx_at_eval)
 
-    parent = 1
     radius = 155.77
+    u_infty = cas.DM(10.)
+    u_zero = u_infty
 
     verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
     half_points = int(verification_points / 2.) + 1
@@ -158,7 +152,9 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
         psi_grid_points += [float(psi_grid_points_cas[idx])]
 
     haas_grid = {}
-    center = plot_dict['outputs']['performance']['actuator_center1']
+    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][0],
+                         plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][1],
+                         plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][2])
     counter = 0
     for mu_val in mu_grid_points:
         for psi_val in psi_grid_points:
@@ -166,32 +162,21 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
             ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
             added = r_val * ehat_radial
-            point_obs = center + added
+            x_obs = center + added
 
             unscaled = mu_val * ehat_radial
 
-            # a_ind = vortex_flow.get_induction_factor_at_observer(point_obs, plot_dict['options']['model'], wind,
-            #                                                      variables, parameters, parent, architecture)
-
-            pdb.set_trace()
-
-            a_ind = vortex_flow.get_induction_factor_at_observer(point_obs,
-                                                                 plot_dict['options']['model'],
-                                                                 wind,
-                                                                 plot_dict['variables'],
-                                                                 plot_dict['parameters'],
-                                                                 parent, architecture)
-
-            pdb.set_trace()
-
-
-            a_ind = 0.
+            try:
+                a_ind = vortex_flow.get_induction_factor_at_observer(plot_dict['options']['model'], filament_list, x_obs, u_zero, n_hat=vect_op.xhat())
+            except:
+                pdb.set_trace()
 
             local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
             haas_grid['p' + str(counter)] = local_info
 
             counter += 1
 
+    return haas_grid
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
@@ -280,8 +265,8 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
         cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
         plt.clabel(cs, inline=1, fontsize=10)
-        for i in range(len(levels)):
-            cs.collections[i].set_label(levels[i])
+        for ldx in range(len(levels)):
+            cs.collections[ldx].set_label(levels[ldx])
         plt.legend(loc='lower right')
 
         plt.grid(True)

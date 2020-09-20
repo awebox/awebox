@@ -33,7 +33,8 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-
+import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 
 def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     # no self-induction! rigid wake convection only!
@@ -45,7 +46,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
 
-    filament_list = tools.get_filament_list(model_options, wind, variables, architecture)
+    filament_list = vortex_filament_list.get_list(model_options, variables, architecture)
 
     dims = filament_list.shape
     reshaped_list = cas.reshape(filament_list, (dims[0] * dims[1], 1))
@@ -53,10 +54,12 @@ def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, param
 
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
-
-        outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, wind, variables, parameters, kite, architecture)
-        outputs['vortex']['local_a' + str(kite)] = flow.get_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
-        outputs['vortex']['last_a' + str(kite)] = flow.get_last_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
+    #
+    #     outputs['vortex']['u_ind_vortex' + str(kite)] = flow.get_induced_velocity_at_kite(model_options, wind, variables, parameters, kite, architecture)
+    #     outputs['vortex']['local_a' + str(kite)] = flow.get_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
+    #     outputs['vortex']['last_a' + str(kite)] = flow.get_last_induction_factor_at_kite(model_options, wind, variables, parameters, kite, architecture)
+        outputs['vortex']['last_a' + str(kite)] = cas.DM(32.)
+        print_op.warn_about_temporary_funcationality_removal(location='vortex.outputs')
 
     return outputs
 

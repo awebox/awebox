@@ -96,125 +96,125 @@ def get_strength_constraint_all(options, V, Outputs, model):
 
     resi = []
 
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-
-    if periods_tracked > 2:
-        periods_tracked = 2
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        for period in range(periods_tracked):
-            local_resi = strength_constraints(options, V, Outputs, model, period)
-            resi = cas.vertcat(resi, local_resi)
-
-    return resi
-
-def strength_constraints(options, V, Outputs, model, period):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    resi = []
-
-    if period == 0:
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for ndx_shed in range(n_k):
-                    for ddx_shed in range(d):
-                        local_resi = strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx,
-                                                              ndx_shed, ddx_shed)
-                        resi = cas.vertcat(resi, local_resi)
-
-    elif period == 1:
-        for ndx in range(n_k):
-            for ddx in range(d):
-                for ndx_shed in range(n_k):
-                    for ddx_shed in range(d):
-                        local_resi = strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
-                                              ddx_shed)
-                        resi = cas.vertcat(resi, local_resi)
+    # comparison_labels = options['induction']['comparison_labels']
+    # periods_tracked = options['induction']['vortex_periods_tracked']
+    #
+    # if periods_tracked > 2:
+    #     periods_tracked = 2
+    #
+    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    # if any_vor:
+    #     for period in range(periods_tracked):
+    #         local_resi = strength_constraints(options, V, Outputs, model, period)
+    #         resi = cas.vertcat(resi, local_resi)
 
     return resi
-
-
-def strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx, ndx_shed, ddx_shed):
-
-    period = 0
-    architecture = model.architecture
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
-    resi = []
-
-    for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-
-        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
-
-        if is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
-            gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
-        else:
-            gamma_val = cas.DM(0.)
-
-        local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
-        resi = cas.vertcat(resi, local_resi)
-
-    return resi
-
-
-def strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
-                                              ddx_shed):
-
-    period = 1
-    architecture = model.architecture
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
-    resi = []
-
-    for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-
-        gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
-
-        gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
-
-        local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
-        resi = cas.vertcat(resi, local_resi)
-
-    return resi
-
-
-######### the helper functions
-
-def is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
-    if ndx > ndx_shed:
-        return True
-    elif ndx == ndx_shed and ddx > ddx_shed:
-        return True
-    elif ndx == ndx_shed and ddx == ddx_shed:
-        return True
-    else:
-        return False
-
-def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
-
-    dimensions = (n_k, d)
-    var_reshape = cas.reshape(var, dimensions)
-
-    return var_reshape[ndx, ddx]
-
-def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    var = tools.get_strength_var_column(variables, gamma_name, options)
-
-    gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
-
-    resi_unscaled = gamma_var - gamma_val
-    scale = tools.get_strength_scale(options)
-    resi = resi_unscaled / scale
-
-    return resi
-
+#
+# def strength_constraints(options, V, Outputs, model, period):
+#     n_k = options['n_k']
+#     d = options['collocation']['d']
+#
+#     resi = []
+#
+#     if period == 0:
+#         for ndx in range(n_k):
+#             for ddx in range(d):
+#                 for ndx_shed in range(n_k):
+#                     for ddx_shed in range(d):
+#                         local_resi = strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx,
+#                                                               ndx_shed, ddx_shed)
+#                         resi = cas.vertcat(resi, local_resi)
+#
+#     elif period == 1:
+#         for ndx in range(n_k):
+#             for ddx in range(d):
+#                 for ndx_shed in range(n_k):
+#                     for ddx_shed in range(d):
+#                         local_resi = strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
+#                                               ddx_shed)
+#                         resi = cas.vertcat(resi, local_resi)
+#
+#     return resi
+#
+#
+# def strength_constraints_on_zeroth_period(options, V, Outputs, model, ndx, ddx, ndx_shed, ddx_shed):
+#
+#     period = 0
+#     architecture = model.architecture
+#     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+#
+#     resi = []
+#
+#     for kite in architecture.kite_nodes:
+#         parent = architecture.parent_map[kite]
+#
+#         gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+#         variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
+#
+#         if is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+#             gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+#         else:
+#             gamma_val = cas.DM(0.)
+#
+#         local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+#         resi = cas.vertcat(resi, local_resi)
+#
+#     return resi
+#
+#
+# def strength_constraints_on_previous_period(options, V, Outputs, model, ndx, ddx, ndx_shed,
+#                                               ddx_shed):
+#
+#     period = 1
+#     architecture = model.architecture
+#     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+#
+#     resi = []
+#
+#     for kite in architecture.kite_nodes:
+#         parent = architecture.parent_map[kite]
+#
+#         gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+#         variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
+#
+#         gamma_val = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+#
+#         local_resi = get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val)
+#         resi = cas.vertcat(resi, local_resi)
+#
+#     return resi
+#
+#
+# ######### the helper functions
+#
+# def is_on_vortex(ndx, ddx, ndx_shed, ddx_shed):
+#     if ndx > ndx_shed:
+#         return True
+#     elif ndx == ndx_shed and ddx > ddx_shed:
+#         return True
+#     elif ndx == ndx_shed and ddx == ddx_shed:
+#         return True
+#     else:
+#         return False
+#
+# def get_wake_var_at_ndx_ddx(n_k, d, var, ndx, ddx):
+#
+#     dimensions = (n_k, d)
+#     var_reshape = cas.reshape(var, dimensions)
+#
+#     return var_reshape[ndx, ddx]
+#
+# def get_strength_resi(variables, gamma_name, ndx_shed, ddx_shed, options, gamma_val):
+#     n_k = options['n_k']
+#     d = options['collocation']['d']
+#
+#     var = tools.get_strength_var_column(variables, gamma_name, options)
+#
+#     gamma_var = get_wake_var_at_ndx_ddx(n_k, d, var, ndx_shed, ddx_shed)
+#
+#     resi_unscaled = gamma_var - gamma_val
+#     scale = tools.get_strength_scale(options)
+#     resi = resi_unscaled / scale
+#
+#     return resi
+#

@@ -89,133 +89,53 @@ def get_cstr_in_operation_format(options, variables, model):
 
 def get_fixing_constraint_all(options, V, Outputs, model):
 
-    resi = []
+    n_k = options['n_k']
+    control_intervals = n_k
 
     comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+
+    resi = []
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        local_resi = fixing_constraints_on_zeroth_period(options, V, Outputs, model)
-        resi = cas.vertcat(resi, local_resi)
 
-        for period in range(1, periods_tracked):
-            local_resi = fixing_constraints_on_previous_period(options, V, model, period)
-            resi = cas.vertcat(resi, local_resi)
+        for kite in kite_nodes:
+            for tip in wingtips:
+                for wake_node in range(wake_nodes + 1):
+                    if wake_node < n_k:
+
+                        index = (control_intervals - 1) - wake_node
+                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables, index)
+
+                        wx_local = tools.get_wake_node_position(variables_at_shed, kite, tip, wake_node)
+
+                        # wingtip_pos = Outputs['coll_outputs', index, 0, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                        print_op.warn_about_temporary_funcationality_removal(location='fixing2')
+                        wingtip_pos = cas.DM.zeros((3, 1))
+
+                        local_resi = wx_local - wingtip_pos
+                        resi = cas.vertcat(resi, local_resi)
+
+                    else:
+
+                        variables_at_initial = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0)
+                        variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1)
+
+                        upstream_node = wake_node - control_intervals
+                        wx_local = tools.get_wake_node_position(variables_at_initial, kite, tip, wake_node)
+                        # wx_upstream = tools.get_wake_node_position(variables_at_final, kite, tip, upstream_node)
+
+                        print_op.warn_about_temporary_funcationality_removal(location='fixing2')
+                        wx_upstream = cas.DM.zeros((3, 1))
+
+                        local_resi = wx_local - wx_upstream
+                        resi = cas.vertcat(resi, local_resi)
 
     return resi
 
 
-
-def fixing_constraints_on_zeroth_period(options, V, Outputs, model):
-
-    local_resi = []
-
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
-
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
-    period = 0
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for tip in wingtips:
-            for jdx in range(len(dims)):
-
-                # this is the variable that we're fixing
-                dim = dims[jdx]
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-
-                # remember: periodicity! wingtip positions at end, must be equal to positions at start
-                variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0, ddx=None)
-                wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
-
-                fix = get_zeroth_xd_fix(variables, var_name, options, wingtip_pos)
-
-                local_resi = cas.vertcat(local_resi, fix)
-
-                for ndx in range(n_k):
-                    for ddx in range(d):
-
-                        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
-                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
-                        fix = get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx)
-
-                        local_resi = cas.vertcat(local_resi, fix)
-
-    return local_resi
-
-
-def fixing_constraints_on_previous_period(options, V, model, period):
-
-    local_resi = []
-
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
-
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-
-        for tip in wingtips:
-            for dim in dims:
-
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                prev_name = 'w' + dim + '_' + tip + '_' + str(period - 1) + '_' + str(kite) + str(parent)
-
-                variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0, ddx=None)
-                prev_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, ddx=-1)
-
-                fix = get_previous_fix(variables, var_name, prev_variables, prev_name)
-
-                local_resi = cas.vertcat(local_resi, fix)
-
-    return local_resi
-
-
-
-
-
-
-######### the helper functions
-
-def get_zeroth_xd_fix(variables, var_name, options, wingtip_pos):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    var_column = variables['xd', var_name]
-    node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
-
-    fix = node_pos - wingtip_pos
-
-    return fix
-
-
-def get_zeroth_xd_coll_fix(variables, var_name, options, wingtip_pos, ndx, ddx):
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    var_column = variables['xd', var_name]
-    node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
-
-    fix = node_pos - wingtip_pos
-
-    return fix
-
-
-def get_previous_fix(variables, var_name, prev_variables, prev_name):
-    var_column = variables['xd', var_name]
-    prev_column = prev_variables['xd', prev_name]
-
-    fix = var_column - prev_column
-
-    return fix

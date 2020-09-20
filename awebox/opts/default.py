@@ -116,12 +116,15 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
         ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
-        ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
+        ('model', 'aero', 'vortex',     'wake_nodes',           5,         ('number of wake nodes per kite', None), 'x'),
+        ('model', 'aero', 'vortex',     'far_convection_time', 120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',  20,         ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
+
+
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),

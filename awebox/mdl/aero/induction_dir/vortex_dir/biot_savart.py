@@ -86,17 +86,16 @@ def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, pa
     return seg_list
 
 
-def filament_normal(seg_data):
+def filament_normal(seg_data, epsilon=1.e-2):
     n_hat = seg_data[-3:]
     return cas.mtimes(filament(seg_data).T, n_hat)
 
-def filament(seg_data):
+def filament(seg_data, epsilon=1.e-2):
 
     point_obs = seg_data[:3]
     point_1 = seg_data[3:6]
     point_2 = seg_data[6:9]
     Gamma = seg_data[9]
-    epsilon = seg_data[10]
 
     vec_1 = point_obs - point_1
     vec_2 = point_obs - point_2

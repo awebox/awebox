@@ -64,24 +64,25 @@ def initial_guess_general(init_options, nlp, formulation, model, V_init):
 
 
 def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
-    if not nlp.discretization == 'direct_collocation':
-        message = 'vortex induction model is only defined for direct-collocation model, at this point'
-        awelogger.logger.error(message)
-
-    # create the dictionaries
-    dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
-
-    # save values into dictionaries
-    dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init)
-
-    dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init)
-
-    dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
-                                                                        model, V_init)
-    # set dictionary values into V_init
-    V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
-
-    V_init = set_wake_strengths(init_options, nlp, model, V_init)
+    print_op.warn_about_temporary_funcationality_removal(location='initialization.induction.vortex')
+    # if not nlp.discretization == 'direct_collocation':
+    #     message = 'vortex induction model is only defined for direct-collocation model, at this point'
+    #     awelogger.logger.error(message)
+    #
+    # # create the dictionaries
+    # dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+    #
+    # # save values into dictionaries
+    # dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init)
+    #
+    # dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init)
+    #
+    # dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
+    #                                                                     model, V_init)
+    # # set dictionary values into V_init
+    # V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+    #
+    # V_init = set_wake_strengths(init_options, nlp, model, V_init)
 
     return V_init
 
@@ -92,7 +93,7 @@ def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
     dims = ['x', 'y', 'z']
     wingtips = ['ext', 'int']
     kite_nodes = model.architecture.kite_nodes
-    periods_tracked = init_options['model']['vortex_periods_tracked']
+    periods_tracked = init_options['model']['vortex_wake_nodes']
 
     # create space for vortex nodes
     dict_coll = {}
