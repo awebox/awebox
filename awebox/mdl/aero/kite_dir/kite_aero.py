@@ -68,6 +68,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         parent = architecture.parent_map[kite]
 
         q = xd['q' + str(kite) + str(parent)]
+        dq = xd['dq' + str(kite) + str(parent)]
 
         vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
         u_eff = vect_op.smooth_norm(vec_u_eff)
@@ -150,6 +151,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         intermediates['m_aero_body'] = m_aero_body
         intermediates['kite_dcm'] = kite_dcm
         intermediates['q'] = q
+        intermediates['dq'] = dq
 
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs)

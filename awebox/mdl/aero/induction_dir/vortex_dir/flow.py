@@ -48,13 +48,14 @@ def get_induced_velocity_at_kite(options, filament_list, variables, architecture
     u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
     return u_ind
 
+
 def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
     filament_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
 
     include_normal_info = False
     try:
-        temp = n_hat.shape
+        this_will_fail_if_n_hat_is_None = n_hat.shape
         include_normal_info = True
         filament_list = vortex_filament_list.append_normal_to_list(filament_list, n_hat)
     except:
@@ -62,6 +63,7 @@ def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
     u_ind = make_symbolic_filament_and_sum(options, filament_list, include_normal_info)
     return u_ind
+
 
 def get_induction_factor_at_kite(options, filament_list, wind, variables, parameters, architecture, kite_obs, n_hat=vect_op.xhat()):
 
@@ -75,65 +77,11 @@ def get_induction_factor_at_kite(options, filament_list, wind, variables, parame
 
     return a_calc
 
+
 def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=vect_op.xhat()):
     u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
     a_calc = -1. * u_ind / u_zero
     return a_calc
-
-#
-# def get_last_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture):
-#
-#     n_k = options['aero']['vortex']['n_k']
-#     d = options['aero']['vortex']['d']
-#     periods_tracked = options['aero']['vortex']['periods_tracked']
-#     n_rings_per_kite = vortex_tools.get_number_of_rings_per_kite(n_k, d, periods_tracked)
-#
-#     rdx = n_rings_per_kite - 1
-#
-#     u_ind_kite = cas.DM.zeros((3,1))
-#     for kite in architecture.kite_nodes:
-#         u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, parameters, wind,
-#                                                                     kite_obs, architecture,
-#                                                                     kite, rdx)
-#         u_ind_kite = u_ind_kite + u_ind_val
-#
-#     return u_ind_kite
-#
-#
-# def get_last_induction_factor_at_kite(options, wind, variables, parameters, kite_obs, architecture):
-#     u_ind_kite = get_last_induced_velocity_at_kite(options, wind, variables, parameters, kite_obs, architecture)
-#
-#     parent = architecture.parent_map[kite_obs]
-#
-#     n_vec_val = unit_normal.get_n_vec(options, parent, variables, parameters, architecture)
-#     n_hat = vect_op.normalize(n_vec_val)
-#
-#     u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, parameters, architecture)
-#     u_mag = vect_op.smooth_norm(u_app_act)
-#
-#     a_calc = -1. * cas.mtimes(u_ind_kite.T, n_hat) / u_mag
-#
-#     return a_calc
-#
-#
-#
-# def get_induced_velocity_at_kite_from_kite_and_ring(options, variables, parameters, wind, kite_obs, architecture, kite, rdx):
-#     parent = architecture.parent_map[kite]
-#     filament_list = vortex_tools.get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx).T
-#
-#     include_normal_info = False
-#     segment_list = biot_savart.list_filaments_kiteobs_and_normal_info(filament_list, options, variables, parameters,
-#                                                                       kite_obs, architecture, include_normal_info)
-#
-#     u_ind = make_symbolic_filament_and_sum(segment_list)
-#     return u_ind
-#
-#
-# def get_induced_velocity_at_observer_from_kite_and_ring(point_obs, options, variables, wind, parent, kite, rdx):
-#     filament_list = vortex_tools.get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx).T
-#     segment_list = biot_savart.list_filament_observer_and_normal_info(point_obs, filament_list, options)
-#     u_ind = make_symbolic_filament_and_sum(segment_list)
-#     return u_ind
 
 
 def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=False):

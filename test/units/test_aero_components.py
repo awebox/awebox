@@ -3,7 +3,7 @@ import awebox.mdl.aero.tether_dir.frames as frames
 
 def test_aero_comp():
 
-    biot_savart.test_filament()
+    biot_savart.test()
 
     frames.test_transforms()
 

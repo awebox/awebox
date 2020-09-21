@@ -69,7 +69,16 @@ def get_wake_node_velocity(variables, kite, tip, wake_node):
 
     return dwx_local
 
-def get_ring_strength(options, variables, kite, ring):
+def get_ring_strength_si(options, variables, kite, ring):
+
+    wg_local = get_ring_strength(variables, kite, ring)
+
+    wg_scale = get_strength_scale(options)
+    wg_rescaled = wg_local * wg_scale
+
+    return wg_rescaled
+
+def get_ring_strength(variables, kite, ring):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
 
     wg_local = cas.DM_inf((1, 1))
@@ -83,10 +92,7 @@ def get_ring_strength(options, variables, kite, ring):
             awelogger.logger.error(message)
             raise Exception(message)
 
-    wg_scale = get_strength_scale(options)
-    wg_rescaled = wg_local * wg_scale
-
-    return wg_rescaled
+    return wg_local
 
 #
 # def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):

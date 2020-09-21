@@ -123,7 +123,7 @@ def filament(seg_data, epsilon=1.e-2):
 
 
 
-def test_filament():
+def test():
 
     point_obs = vect_op.yhat()
     point_1 = 1000. * vect_op.zhat()
@@ -139,8 +139,8 @@ def test_filament():
     difference = vec_norm - vect_op.xhat()
     resi = cas.mtimes(difference.T, difference)
 
-    epsilon = 1.e-8
-    if resi > epsilon:
+    thresh = 1.e-6
+    if resi > thresh:
         awelogger.logger.error('biot-savart filament induction test gives error of size: ' + str(resi))
 
     return None

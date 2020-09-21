@@ -269,17 +269,17 @@ def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
 def set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
 
     if 'cos' in name:
-        V_init = set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
     elif 'sin' in name:
-        V_init = set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
     elif 'dpsi' in name:
         V_init = set_dpsi_variables(V_init, name, init_options)
     else:
-        V_init = set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
 
     return V_init
 
-def set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
     kite_parent = name[3:]
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
@@ -289,7 +289,7 @@ def set_psi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omeg
 
             t = tgrid_coll[nn, dd]
             psi_scale = get_psi_scale()
-            psi = tools_init.get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+            psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
             init_val = psi / psi_scale
             V_init['coll_var', nn, dd, 'xd', name] = init_val
@@ -314,7 +314,7 @@ def set_dpsi_variables(V_init, name, init_options):
     return V_init
 
 
-def set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
     kite_parent = name[6:]
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
@@ -322,7 +322,7 @@ def set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, o
     for nn in range(nlp.n_k):
         for dd in range(nlp.d):
             t = tgrid_coll[nn, dd]
-            psi = tools_init.get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+            psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
             init_val = np.sin(psi)
             V_init['coll_var', nn, dd, 'xl', name] = init_val
@@ -331,7 +331,7 @@ def set_sinpsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, o
 
     return V_init
 
-def set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
     kite_parent = name[6:]
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
@@ -339,7 +339,7 @@ def set_cospsi_variables(V_init, name, model, nlp, tgrid_coll, level_siblings, o
     for nn in range(nlp.n_k):
         for dd in range(nlp.d):
             t = tgrid_coll[nn, dd]
-            psi = tools_init.get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+            psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
             init_val = np.cos(psi)
             V_init['coll_var', nn, dd, 'xl', name] = init_val

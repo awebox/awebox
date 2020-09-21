@@ -31,6 +31,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 
 import pdb
 
@@ -68,14 +69,13 @@ def reconstruct_filament_list(plot_dict, index):
 
     all_time = plot_dict['outputs']['vortex']['filament_list']
     n_entries = len(all_time)
-    n_filaments = int(n_entries / 7)
 
-    filament_list = []
+    columnized_list = []
     for edx in range(n_entries):
         new_entry = all_time[edx][index]
-        filament_list = cas.vertcat(filament_list, new_entry)
+        columnized_list = cas.vertcat(columnized_list, new_entry)
 
-    filament_list = cas.reshape(filament_list, (7, n_filaments))
+    filament_list = vortex_filament_list.decolumnize(plot_dict['options']['model'], plot_dict['architecture'], columnized_list)
 
     return filament_list
 
@@ -120,9 +120,6 @@ def convert_gamma_to_color(gamma_val, plot_dict):
 def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
     architecture = plot_dict['architecture']
-
-    V_plot = plot_dict['V_plot']
-
     filament_list = reconstruct_filament_list(plot_dict, idx_at_eval)
 
     radius = 155.77
@@ -132,10 +129,12 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
     verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
     half_points = int(verification_points / 2.) + 1
 
+    psi0_base = plot_dict['options']['solver']['initialization']['psi0_rad']
+
     mu_grid_min = 0.4
     mu_grid_max = 1.6
-    psi_grid_min = 1. * np.pi / float(architecture.number_of_kites)
-    psi_grid_max = 3. * np.pi / float(architecture.number_of_kites)
+    psi_grid_min = psi0_base - np.pi / float(architecture.number_of_kites)
+    psi_grid_max = psi0_base + np.pi / float(architecture.number_of_kites)
 
     # define mu with respect to kite mid-span radius
     mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
@@ -172,7 +171,7 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
                 pdb.set_trace()
 
             local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
-            haas_grid['p' + str(counter)] = local_info
+            haas_grid['p' + str(counter)] = np.array(local_info)
 
             counter += 1
 
@@ -180,7 +179,7 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    idx_at_eval = 0
+    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
 
     verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
     mu_vals = vortex_tools.get_vortex_verification_mu_vals()
@@ -263,20 +262,35 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         levels = [-0.05, 0., 0.2]
         colors = ['red', 'green', 'blue']
 
-        cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
-        plt.clabel(cs, inline=1, fontsize=10)
-        for ldx in range(len(levels)):
-            cs.collections[ldx].set_label(levels[ldx])
-        plt.legend(loc='lower right')
+        try:
+            cs = ax_contour.contour(y_matr, z_matr, a_matr)
+            plt.clabel(cs, inline=1, fontsize=10)
+            plt.legend(loc='lower right')
 
-        plt.grid(True)
-        plt.title('induction factors over the kite plane')
-        plt.xlabel("y/r [-]")
-        plt.ylabel("z/r [-]")
-        ax_contour.set_xlim([-1. * max_axes, max_axes])
-        ax_contour.set_ylim([-1. * max_axes, max_axes])
+            plt.grid(True)
+            plt.title('induction factors over the kite plane')
+            plt.xlabel("y/r [-]")
+            plt.ylabel("z/r [-]")
+            ax_contour.set_xlim([-1. * max_axes, max_axes])
+            ax_contour.set_ylim([-1. * max_axes, max_axes])
 
-        fig_contour.savefig('contour.pdf')
+        except:
+            pdb.set_trace()
+
+        # cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
+        # plt.clabel(cs, inline=1, fontsize=10)
+        # for ldx in range(len(levels)):
+        #     cs.collections[ldx].set_label(levels[ldx])
+        # plt.legend(loc='lower right')
+        #
+        # plt.grid(True)
+        # plt.title('induction factors over the kite plane')
+        # plt.xlabel("y/r [-]")
+        # plt.ylabel("z/r [-]")
+        # ax_contour.set_xlim([-1. * max_axes, max_axes])
+        # ax_contour.set_ylim([-1. * max_axes, max_axes])
+        #
+        # fig_contour.savefig('contour.pdf')
 
 
 def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):

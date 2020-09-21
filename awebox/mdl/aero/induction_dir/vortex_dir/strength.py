@@ -38,6 +38,8 @@ import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
 
+import pdb
+
 
 ######## the constraints : see opti.constraints
 
@@ -97,12 +99,12 @@ def get_strength_constraint_all(options, V, Outputs, model):
     n_k = options['n_k']
     d = options['collocation']['d']
 
-    control_intervals = n_k + 1
-
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
     rings = wake_nodes - 1
     kite_nodes = model.architecture.kite_nodes
+
+    strength_scale = tools.get_strength_scale(options)
 
     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
@@ -119,19 +121,57 @@ def get_strength_constraint_all(options, V, Outputs, model):
                     for ddx in range(d):
 
                         variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
-                        wg_local = tools.get_ring_strength(options, variables, kite, ring)
+                        wg_local = tools.get_ring_strength(variables, kite, ring)
 
-                        index = control_intervals - wake_node
-                        # wake_node = n_k - index
+                        ndx_shed = n_k - 1 - wake_node
+                        ddx_shed = d - 1
 
-                        strength_scale = tools.get_strength_scale(options)
+                        # working out:
+                        # n_k = 3
+                        # if ndx = 0 and ddx = 0 -> shed: wn >= n_k
+                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,    period = 0
+                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,    period = 0
+                        #     wn: 2 sheds at ndx = 0, ddx = -1 : unshed,    period = 0
+                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED      period = 1
+                        #     wn: 4 sheds at ndx = -2,                      period = 1
+                        #     wn: 5 sheds at ndx = -3                       period = 1
+                        #     wn: 6 sheds at ndx = -4                       period = 2
+                        # if ndx = 1 and ddx = 0 -> shed: wn >= n_k - ndx
+                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
+                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
+                        #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
+                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
+                        # if ndx = 0 and ddx = -1 -> shed:
+                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
+                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
+                        #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
+                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
 
-                        wg_ref = 1. * strength_scale
-                        # if index >= ndx:
-                        #     wg_ref = 0. * strength_scale
-                        print_op.warn_about_temporary_funcationality_removal(location='v.strength')
+                        already_shed = False
+                        if (ndx > ndx_shed):
+                            already_shed = True
+                        elif ((ndx == ndx_shed) and (ddx == ddx_shed)):
+                            already_shed = True
 
-                        resi_local = (wg_local - wg_ref)/strength_scale
+                        if already_shed:
+
+                            # working out:
+                            # n_k = 3
+                            # period_0 -> wn 0, wn 1, wn 2 -> floor(ndx_shed / n_k)
+                            # period_1 -> wn 3, wn 4, wn 5
+
+                            period_number = int(np.floor(float(ndx_shed)/float(n_k)))
+                            ndx_shed_w_periodicity = ndx_shed - period_number * n_k
+
+                            try:
+                                gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+                            except:
+                                pdb.set_trace()
+                            wg_ref = 1. * gamma_val / strength_scale
+                        else:
+                            wg_ref = 0.
+
+                        resi_local = (wg_local - wg_ref)
                         resi = cas.vertcat(resi, resi_local)
 
     return resi

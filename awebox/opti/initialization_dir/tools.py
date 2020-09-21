@@ -73,7 +73,7 @@ def get_ehat_radial(t, init_options, model, kite, ret={}):
     parent = parent_map[kite]
 
     omega_norm = init_options['precompute']['angular_speed']
-    psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+    psi = get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
     ehat_radial = get_ehat_radial_from_azimuth(init_options, psi)
 
@@ -127,13 +127,16 @@ def get_dpsi(init_options):
     dpsi = omega_norm
     return dpsi
 
-def get_azimuthal_angle(t, level_siblings, node, parent, omega_norm):
+def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_norm):
     number_of_siblings = len(level_siblings[parent])
+
+    psi0_base = init_options['psi0_rad']
+
     if number_of_siblings == 1:
-        psi0 = 0.
+        psi0 = psi0_base + 0.
     else:
         idx = level_siblings[parent].index(node)
-        psi0 = np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
+        psi0 = psi0_base + np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
 
     psi = psi0 + omega_norm * t
 

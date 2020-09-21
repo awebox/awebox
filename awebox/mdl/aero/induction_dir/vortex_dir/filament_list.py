@@ -84,12 +84,12 @@ def get_list_by_ring(options, variables, kite, ring):
     LEPE = tools.get_wake_node_position(variables, kite, 'ext', wake_node)
     TEPE = tools.get_wake_node_position(variables, kite, 'ext', wake_node + 1)
 
-    strength = tools.get_ring_strength(options, variables, kite, ring)
+    strength = tools.get_ring_strength_si(options, variables, kite, ring)
 
     if ring == 0:
         strength_prev = cas.DM.zeros((1, 1))
     else:
-        strength_prev = tools.get_ring_strength(options, variables, kite, ring-1)
+        strength_prev = tools.get_ring_strength_si(options, variables, kite, ring - 1)
 
     PE_filament = cas.vertcat(LEPE, TEPE, strength)
     LE_filament = cas.vertcat(LENE, LEPE, strength - strength_prev)
@@ -120,7 +120,7 @@ def get_list_from_last_ring(options, variables, architecture, kite):
     TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
     TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
 
-    strength_prev = tools.get_ring_strength(options, variables, kite, ring-1)
+    strength_prev = tools.get_ring_strength_si(options, variables, kite, ring - 1)
     strength = strength_prev
 
     PE_filament = cas.vertcat(LEPE, TEPE, strength)
@@ -154,3 +154,25 @@ def append_observer_to_list(filament_list, x_obs):
     )
 
     return appended_list
+
+def columnize(filament_list):
+    dims = filament_list.shape
+    columnized_list = cas.reshape(filament_list, (dims[0] * dims[1], 1))
+    return columnized_list
+
+def decolumnize(options, architecture, columnized_list):
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    number_kites = architecture.number_of_kites
+    rings = wake_nodes - 1
+
+    entries = columnized_list.shape[0]
+    filaments = 3 * (rings + 1) * number_kites
+    arguments = int(float(entries) / float(filaments))
+
+    filament_list = cas.reshape(columnized_list, (arguments, filaments))
+
+    return filament_list
+
+def test():
+    print_op.warn_about_temporary_funcationality_removal(location='filament_list.test')
+    return None
