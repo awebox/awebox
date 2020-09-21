@@ -92,7 +92,7 @@ def get_fixing_constraint_all(options, V, Outputs, model):
 
     n_k = options['n_k']
     d = options['collocation']['d']
-    control_intervals = n_k
+    control_intervals = n_k + 1
 
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
@@ -108,24 +108,43 @@ def get_fixing_constraint_all(options, V, Outputs, model):
 
         for kite in kite_nodes:
             for tip in wingtips:
-                for wake_node in range(wake_nodes + 1):
+                for wake_node in range(wake_nodes):
+
                     if wake_node < n_k:
 
-                        index = (control_intervals) - wake_node
-                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables, index-1, d-1)
+                        # working out:
+                        # n_k = 3
+                        # wn:0, n_k-1=2
+                        # wn:1, n_k-2=1
+                        # wn:2=n_k-1, n_k-3=0
+                        # ... switch to periodic fixing
+
+                        reverse_index = n_k - 1 - wake_node
+                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables,
+                                                                            reverse_index, -1)
 
                         wx_local = tools.get_wake_node_position(variables_at_shed, kite, tip, wake_node)
-
-                        wingtip_pos = Outputs['coll_outputs', index-1, d-1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                        wingtip_pos = Outputs[
+                            'coll_outputs', reverse_index, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                         local_resi = wx_local - wingtip_pos
                         resi = cas.vertcat(resi, local_resi)
 
                     else:
+
+                        # working out:
+                        # n_k = 3
+                        # wn:0, n_k-1=2
+                        # wn:1, n_k-2=1
+                        # wn:2=n_k-1, n_k-3=0
+                        # ... switch to periodic fixing
+                        # wn:3 at ndx = 0 must be equal to -> wn:0 at ndx = -1, ddx = -1
+                        # wn:4 at ndx = 0 must be equal to -> wn:1 at ndx = -1, ddx = -1
+
                         variables_at_initial = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0)
                         variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)
 
-                        upstream_node = wake_node - control_intervals
+                        upstream_node = wake_node - n_k
                         wx_local = tools.get_wake_node_position(variables_at_initial, kite, tip, wake_node)
                         wx_upstream = tools.get_wake_node_position(variables_at_final, kite, tip, upstream_node)
 

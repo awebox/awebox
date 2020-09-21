@@ -37,10 +37,6 @@ import numpy as np
 
 import pdb
 
-def get_wake_position_ref():
-    wx_ref = cas.diag(cas.vertcat(500., 0., 50.))
-    return wx_ref
-
 def get_wake_node_position(variables, kite, tip, wake_node):
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
@@ -53,11 +49,9 @@ def get_wake_node_position(variables, kite, tip, wake_node):
         except:
             message = 'wake node position is not in expected position wrt variables.'
             awelogger.logger.error(message)
+            raise Exception(message)
 
-    wx_ref = get_wake_position_ref()
-    wx_scaled = cas.mtimes(wx_ref, wx_local)
-
-    return wx_scaled
+    return wx_local
 
 def get_wake_node_velocity(variables, kite, tip, wake_node):
     coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
@@ -71,13 +65,11 @@ def get_wake_node_velocity(variables, kite, tip, wake_node):
         except:
             message = 'wake node velocity is not in expected position wrt variables.'
             awelogger.logger.error(message)
+            raise Exception(message)
 
-    wx_ref = get_wake_position_ref()
-    dwx_scaled = cas.mtimes(wx_ref, dwx_local)
+    return dwx_local
 
-    return dwx_scaled
-
-def get_ring_strength(variables, kite, ring):
+def get_ring_strength(options, variables, kite, ring):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
 
     wg_local = cas.DM_inf((1, 1))
@@ -89,8 +81,12 @@ def get_ring_strength(variables, kite, ring):
         except:
             message = 'vortex ring strength is not in expected position wrt variables.'
             awelogger.logger.error(message)
+            raise Exception(message)
 
-    return wg_local
+    wg_scale = get_strength_scale(options)
+    wg_rescaled = wg_local * wg_scale
+
+    return wg_rescaled
 
 #
 # def get_wake_var_at_ndx_ddx(n_k, d, var, start=bool(False), ndx=0, ddx=0):
@@ -242,11 +238,7 @@ def get_ring_strength(variables, kite, ring):
 #
 #     return var
 #
-# def get_strength_scale(options):
-#     gamma_scale = options['aero']['vortex']['gamma_scale']
-#     return gamma_scale
-#
-#
+
 # def get_all_time_ordered_strengths_by_kite(variables_xl, n_k, d, periods_tracked, kite, parent, options):
 #
 #     all_ordered = []
@@ -430,6 +422,11 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     total = cas.sum2(all)
 
     return total
+
+def get_strength_scale(options):
+    gamma_scale = options['aero']['vortex']['gamma_scale']
+    return gamma_scale
+
 
 
 def append_bounds(g_bounds, fix):

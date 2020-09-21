@@ -218,13 +218,15 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
+    rings = wake_nodes - 1
 
     for kite in architecture.kite_nodes:
-        for wake_node in range(wake_nodes + 1):
 
-            gamma_name = 'wg_' + str(kite) + '_' + str(wake_node)
+        for ring in range(rings):
+            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
             system_lifted.extend([(gamma_name, (1, 1))])
 
+        for wake_node in range(wake_nodes):
             for tip in wingtips:
                 coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
                 system_states.extend([(coord_name, (3, 1))])

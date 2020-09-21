@@ -56,7 +56,7 @@ def get_list_by_kite(options, variables, architecture, kite):
 
     filament_list = []
     for ring in range(tracked_rings):
-        ring_fil_list = get_list_by_ring(variables, kite, ring)
+        ring_fil_list = get_list_by_ring(options, variables, kite, ring)
         filament_list = cas.horzcat(filament_list, ring_fil_list)
 
     last_ring_fil_list = get_list_from_last_ring(options, variables, architecture, kite)
@@ -75,7 +75,7 @@ def get_last_list(options, variables, architecture):
 
     return filament_list
 
-def get_list_by_ring(variables, kite, ring):
+def get_list_by_ring(options, variables, kite, ring):
 
     wake_node = ring
 
@@ -84,8 +84,12 @@ def get_list_by_ring(variables, kite, ring):
     LEPE = tools.get_wake_node_position(variables, kite, 'ext', wake_node)
     TEPE = tools.get_wake_node_position(variables, kite, 'ext', wake_node + 1)
 
-    strength = tools.get_ring_strength(variables, kite, ring)
-    strength_prev = tools.get_ring_strength(variables, kite, ring-1)
+    strength = tools.get_ring_strength(options, variables, kite, ring)
+
+    if ring == 0:
+        strength_prev = cas.DM.zeros((1, 1))
+    else:
+        strength_prev = tools.get_ring_strength(options, variables, kite, ring-1)
 
     PE_filament = cas.vertcat(LEPE, TEPE, strength)
     LE_filament = cas.vertcat(LENE, LEPE, strength - strength_prev)
@@ -97,8 +101,15 @@ def get_list_by_ring(variables, kite, ring):
 def get_list_from_last_ring(options, variables, architecture, kite):
 
     wake_nodes = options['induction']['vortex_wake_nodes']
+    rings = wake_nodes - 1
+
+    if rings < 1:
+        message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
+        awelogger.logger.error(message)
+        return []
+
     last_tracked_wake_node = wake_nodes - 1
-    ring = last_tracked_wake_node
+    ring = rings
 
     far_convection_time = options['induction']['vortex_far_convection_time']
     u_ref = options['induction']['vortex_u_ref']
@@ -109,7 +120,7 @@ def get_list_from_last_ring(options, variables, architecture, kite):
     TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
     TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
 
-    strength_prev = tools.get_ring_strength(variables, kite, ring-1)
+    strength_prev = tools.get_ring_strength(options, variables, kite, ring-1)
     strength = strength_prev
 
     PE_filament = cas.vertcat(LEPE, TEPE, strength)

@@ -64,25 +64,21 @@ def initial_guess_general(init_options, nlp, formulation, model, V_init):
 
 
 def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
-    print_op.warn_about_temporary_funcationality_removal(location='initialization.induction.vortex')
-    # if not nlp.discretization == 'direct_collocation':
-    #     message = 'vortex induction model is only defined for direct-collocation model, at this point'
-    #     awelogger.logger.error(message)
-    #
-    # # create the dictionaries
-    # dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
-    #
-    # # save values into dictionaries
-    # dict_xd = save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init)
-    #
-    # dict_coll = save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init)
-    #
-    # dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
-    #                                                                     model, V_init)
-    # # set dictionary values into V_init
-    # V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
-    #
-    # V_init = set_wake_strengths(init_options, nlp, model, V_init)
+
+    if not nlp.discretization == 'direct_collocation':
+        message = 'vortex induction model is only defined for direct-collocation model, at this point'
+        awelogger.logger.error(message)
+
+    # create the dictionaries
+    dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+
+    # save values into dictionaries
+    dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
+                                                                        model, V_init)
+    # set dictionary values into V_init
+    V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+
+    V_init = set_wake_strengths(init_options, nlp, model, V_init)
 
     return V_init
 
@@ -90,10 +86,9 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
 def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
     n_k = nlp.n_k
     d = nlp.d
-    dims = ['x', 'y', 'z']
     wingtips = ['ext', 'int']
     kite_nodes = model.architecture.kite_nodes
-    periods_tracked = init_options['model']['vortex_wake_nodes']
+    wake_nodes = init_options['model']['vortex_wake_nodes']
 
     # create space for vortex nodes
     dict_coll = {}
@@ -104,27 +99,17 @@ def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
         for tip in wingtips:
             dict_coll[kite][tip] = {}
             dict_xd[kite][tip] = {}
-            for dim in dims:
-                dict_coll[kite][tip][dim] = {}
-                dict_xd[kite][tip][dim] = {}
 
-                for period in range(periods_tracked):
-                    dict_coll[kite][tip][dim][period] = {}
-                    dict_xd[kite][tip][dim][period] = {}
+            for wake_node in range(wake_nodes):
+                dict_coll[kite][tip][wake_node] = {}
+                dict_xd[kite][tip][wake_node] = {}
 
-                    for ndx in range(n_k+1):
-                        dict_coll[kite][tip][dim][period][ndx] = {}
-                        dict_xd[kite][tip][dim][period][ndx] = {}
+                for ndx in range(n_k+1):
+                    dict_xd[kite][tip][wake_node][ndx] = np.zeros((3, 1))
 
-                        dict_xd[kite][tip][dim][period][ndx]['start'] = 0.
-                        dict_xd[kite][tip][dim][period][ndx]['reg'] = np.zeros((n_k, d))
-
-                    for ndx in range(n_k):
-                        for ddx in range(d):
-                            dict_coll[kite][tip][dim][period][ndx][ddx] = {}
-
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['start'] = np.zeros((n_k, d))
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['reg'] = np.zeros((n_k, d))
+                    dict_coll[kite][tip][wake_node][ndx] = {}
+                    for ddx in range(d):
+                        dict_coll[kite][tip][wake_node][ndx][ddx] = np.zeros((3, 1))
 
     return dict_xd, dict_coll
 
@@ -136,22 +121,16 @@ def set_wake_strengths(init_options, nlp, model, V_init):
     wake_gamma = guess_wake_gamma_val(init_options)
 
     kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = init_options['model']['vortex_periods_tracked']
-
-    if periods_tracked > 1:
-        periods_tracked = 1
+    wake_nodes = init_options['model']['vortex_wake_nodes']
+    rings = wake_nodes - 1
 
     for kite in kite_nodes:
-        parent = parent_map[kite]
-
-        for period in range(periods_tracked):
-            var_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
+        for ring in range(rings):
+            var_name = 'wg' + '_' + str(kite) + '_' + str(ring)
 
             for ndx in range(n_k):
                 for ddx in range(d):
-                    regular_coll = cas.DM.ones((n_k * d, 1)) * wake_gamma
-                    V_init['coll_var', ndx, ddx, 'xl', var_name] = regular_coll
+                    V_init['coll_var', ndx, ddx, 'xl', var_name] = wake_gamma
 
     return V_init
 
@@ -160,114 +139,29 @@ def set_wake_strengths(init_options, nlp, model, V_init):
 def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init):
     n_k = nlp.n_k
     d = nlp.d
-    dims = ['x', 'y', 'z']
     wingtips = ['ext', 'int']
     U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
 
     kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = init_options['model']['vortex_periods_tracked']
+    wake_nodes = init_options['model']['vortex_wake_nodes']
 
     for kite in kite_nodes:
-        parent = parent_map[kite]
         for tip in wingtips:
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
+            for wake_node in range(wake_nodes):
+                var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
-                for period in range(periods_tracked):
-                    var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+                for ndx in range(n_k + 1):
+                    wx_local = dict_xd[kite][tip][wake_node][ndx]
+                    V_init['xd', ndx, var_name] = wx_local
+                    V_init['xd', ndx, 'd' + var_name] = U_ref
 
-                    for ndx in range(n_k + 1):
-                        start_xd = dict_xd[kite][tip][dim][period][ndx]['start']
-                        regular_xd = cas.reshape(dict_xd[kite][tip][dim][period][ndx]['reg'], (n_k * d, 1))
-                        all_xd = cas.vertcat(start_xd, regular_xd)
-                        V_init['xd', ndx, var_name] = all_xd
-                        V_init['xd', ndx, 'd' + var_name] = np.ones(all_xd.shape) * U_ref[jdx]
-
-                    for ndx in range(n_k):
-                        for ddx in range(d):
-                            start_coll = dict_coll[kite][tip][dim][period][ndx][ddx]['start']
-                            regular_coll = cas.reshape(dict_coll[kite][tip][dim][period][ndx][ddx]['reg'], (n_k * d, 1))
-                            all_coll = cas.vertcat(start_coll, regular_coll)
-                            V_init['coll_var', ndx, ddx, 'xd', var_name] = all_coll
-                            V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = np.ones(all_coll.shape) * U_ref[jdx]
+                for ndx in range(n_k):
+                    for ddx in range(d):
+                        wx_local = dict_coll[kite][tip][wake_node][ndx][ddx]
+                        V_init['coll_var', ndx, ddx, 'xd', var_name] = wx_local
+                        V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = U_ref
 
     return V_init
-
-
-def save_starting_wake_node_position_into_xd_dict(dict_xd, init_options, nlp, formulation, model, V_init):
-    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    b_ref = init_options['sys_params_num']['geometry']['b_ref']
-    n_k = nlp.n_k
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    signs = [+1., -1.]
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = init_options['model']['vortex_periods_tracked']
-
-    time_final = init_options['precompute']['time_final']
-    tgrid_xd = nlp.time_grids['x'](time_final)
-
-    # fix values
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for sdx in range(len(wingtips)):
-            sign = signs[sdx]
-            tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-                for period in range(periods_tracked):
-
-                    q_kite = V_init['xd', 0, 'q' + str(kite) + str(parent)]
-                    t_shed = period * time_final
-
-                    for ndx in range(n_k + 1):
-                        t_local = tgrid_xd[ndx]
-
-                        q_convected = guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kite, b_ref,
-                                                                 sign, U_ref)
-                        dict_xd[kite][tip][dim][period][ndx]['start'] = q_convected[jdx]
-
-    return dict_xd
-
-
-def save_starting_wake_node_position_into_coll_dict(dict_coll, init_options, nlp, formulation, model, V_init):
-    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-    b_ref = init_options['sys_params_num']['geometry']['b_ref']
-    n_k = nlp.n_k
-    d = nlp.d
-    dims = ['x', 'y', 'z']
-    wingtips = ['ext', 'int']
-    signs = [+1., -1.]
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    periods_tracked = init_options['model']['vortex_periods_tracked']
-
-    time_final = init_options['precompute']['time_final']
-    tgrid_coll = nlp.time_grids['coll'](time_final)
-
-    # fix values
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for sdx in range(len(wingtips)):
-            sign = signs[sdx]
-            tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-                for period in range(periods_tracked):
-
-                    q_kite = V_init['xd', 0, 'q' + str(kite) + str(parent)]
-                    t_shed = period * time_final
-
-                    for ndx in range(n_k):
-                        for ddx in range(d):
-                            t_local = tgrid_coll[ndx, ddx]
-
-                            q_convected = guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kite,
-                                                                     b_ref, sign, U_ref)
-                            dict_coll[kite][tip][dim][period][ndx][ddx]['start'] = q_convected[jdx]
-    return dict_coll
 
 
 def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation, model, V_init):
@@ -275,12 +169,16 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
     n_k = nlp.n_k
     d = nlp.d
-    dims = ['x', 'y', 'z']
+
+    control_intervals = n_k + 1
+
     wingtips = ['ext', 'int']
     signs = [+1., -1.]
     kite_nodes = model.architecture.kite_nodes
     parent_map = model.architecture.parent_map
-    periods_tracked = init_options['model']['vortex_periods_tracked']
+    wake_nodes = init_options['model']['vortex_wake_nodes']
+
+
 
     time_final = init_options['precompute']['time_final']
     tgrid_xd = nlp.time_grids['x'](time_final)
@@ -291,27 +189,30 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
         for sdx in range(len(wingtips)):
             sign = signs[sdx]
             tip = wingtips[sdx]
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
 
-                for period in range(periods_tracked):
-                    for ndx_shed in range(n_k):
-                        for ddx_shed in range(d):
-                            q_kite = V_init['coll_var', ndx_shed, ddx_shed, 'xd', 'q' + str(kite) + str(parent)]
-                            t_shed = period * time_final + tgrid_coll[ndx_shed, ddx_shed]
+            for wake_node in range(wake_nodes):
 
-                            for ndx in range(n_k + 1):
-                                t_local_xd = tgrid_xd[ndx]
-                                q_convected_xd = guess_vortex_node_position(t_shed, t_local_xd, q_kite, init_options, model,
-                                                                            kite, b_ref, sign, U_ref)
-                                dict_xd[kite][tip][dim][period][ndx]['reg'][ndx_shed][ddx_shed] = q_convected_xd[jdx]
+                index = control_intervals - wake_node
 
-                            for ndx in range(n_k):
-                                for ddx in range(d):
-                                    t_local_coll = tgrid_coll[ndx, ddx]
-                                    q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, init_options,
-                                                                                  model, kite, b_ref, sign, U_ref)
-                                    dict_coll[kite][tip][dim][period][ndx][ddx]['reg'][ndx_shed][ddx_shed] = q_convected_coll[jdx]
+                period = int(np.floor(index / (n_k)))
+                leftover = np.mod(index, (n_k))
+
+                q_kite = V_init['coll_var', leftover-1, -1, 'xd', 'q' + str(kite) + str(parent)]
+
+                t_shed = period * time_final + tgrid_xd[leftover]
+
+                for ndx in range(n_k + 1):
+                    t_local_xd = tgrid_xd[ndx]
+                    q_convected_xd = guess_vortex_node_position(t_shed, t_local_xd, q_kite, init_options, model,
+                                                                kite, b_ref, sign, U_ref)
+                    dict_xd[kite][tip][wake_node][ndx] = q_convected_xd
+
+                for ndx in range(n_k):
+                    for ddx in range(d):
+                        t_local_coll = tgrid_coll[ndx, ddx]
+                        q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, init_options,
+                                                                      model, kite, b_ref, sign, U_ref)
+                        dict_coll[kite][tip][wake_node][ndx][ddx] = q_convected_coll
 
     return dict_xd, dict_coll
 
