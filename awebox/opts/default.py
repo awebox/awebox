@@ -118,7 +118,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', 'vortex',     'wake_nodes',           5,         ('number of wake nodes per kite', None), 'x'),
         ('model', 'aero', 'vortex',     'far_convection_time', 120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
-        ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('the (dimensional!) biot-savart cut-off-radius, [m]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),

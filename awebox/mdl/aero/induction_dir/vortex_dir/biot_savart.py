@@ -141,6 +141,8 @@ def test():
 
     thresh = 1.e-6
     if resi > thresh:
-        awelogger.logger.error('biot-savart filament induction test gives error of size: ' + str(resi))
+        message = 'biot-savart filament induction test gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return None

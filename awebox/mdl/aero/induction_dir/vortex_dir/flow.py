@@ -31,7 +31,7 @@ _python-3.5 / casadi-3.4.5
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
+from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
@@ -103,3 +103,47 @@ def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=F
     u_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, filament_list)
 
     return u_ind
+
+def test(test_list):
+
+    options = {}
+    options['induction'] = {}
+    options['induction']['vortex_epsilon'] = 0.
+
+    x_obs = 0.5 * vect_op.xhat_np()
+
+    u_ind = get_induced_velocity_at_observer(options, test_list, x_obs)
+
+    xhat_component = cas.mtimes(u_ind.T, vect_op.xhat())
+    if not (xhat_component == 0):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'test u_ind component in plane of QSVR (along xhat) is ' + str(xhat_component)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    yhat_component = cas.mtimes(u_ind.T, vect_op.yhat())
+    if not (yhat_component == 0):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'test u_ind component in plane of QSVR (along yhat) is ' + str(yhat_component)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    zhat_component = cas.mtimes(u_ind.T, vect_op.zhat())
+    sign_along_zhat = vect_op.sign(zhat_component)
+    sign_comparison = (sign_along_zhat - (-1))**2.
+    if not (sign_comparison < 1.e-8):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'sign of test u_ind component out-of-plane of QSVR (projected on zhat) is ' + str(sign_along_zhat)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    calculated_norm = vect_op.norm(u_ind)
+    expected_norm = 0.752133
+    norm_comparison = (calculated_norm - expected_norm)**2.
+    if not (norm_comparison < 1.e-8):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'squared difference of norm of test u_ind vector is ' + str(norm_comparison)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None

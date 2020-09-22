@@ -582,6 +582,7 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('formulation', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
 
+
     CL = estimate_CL(options)
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
@@ -593,7 +594,7 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
     options_tree.append(('formulation', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
     options_tree.append(('nlp', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
-
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
     return options_tree, fixed_params
 

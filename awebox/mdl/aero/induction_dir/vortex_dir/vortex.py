@@ -47,7 +47,8 @@ def get_residual(options, atmos, wind, variables, parameters, outputs, architect
 def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):
 
     biot_savart.test()
-    vortex_filament_list.test()
+    test_list = vortex_filament_list.test(gamma_scale=5.)
+    flow.test(test_list)
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}

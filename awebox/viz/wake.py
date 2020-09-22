@@ -151,9 +151,18 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
         psi_grid_points += [float(psi_grid_points_cas[idx])]
 
     haas_grid = {}
-    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][0],
-                         plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][1],
-                         plot_dict['outputs']['performance']['actuator_center1'][idx_at_eval][2])
+    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][0][idx_at_eval],
+                         plot_dict['outputs']['performance']['actuator_center1'][1][idx_at_eval],
+                         plot_dict['outputs']['performance']['actuator_center1'][2][idx_at_eval])
+
+    expected_lt = plot_dict['options']['model']['scaling']['xd']['l_t']
+    expected_height = 400. * np.cos(0.4)
+    expected_center = (expected_lt + expected_height) * vect_op.xhat_np()
+    center_diff = vect_op.norm(center-expected_center)
+    if center_diff > 1:
+        print('center_difference in vortex verification test:' + str(center_diff))
+        pdb.set_trace()
+
     counter = 0
     for mu_val in mu_grid_points:
         for psi_val in psi_grid_points:

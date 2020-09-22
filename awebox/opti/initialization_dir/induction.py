@@ -229,6 +229,7 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
 def guess_wake_gamma_val(init_options):
     # already scaled!
     gamma = cas.DM(1.)
+
     return gamma
 
 
