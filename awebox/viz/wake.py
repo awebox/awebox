@@ -32,6 +32,9 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+from scipy.interpolate import griddata
+from scipy.interpolate import Rbf
+import scipy.interpolate as interpolate
 
 import pdb
 
@@ -117,10 +120,11 @@ def convert_gamma_to_color(gamma_val, plot_dict):
     color = cmap(gamma_scaled)
     return color
 
-def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
+def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
 
     architecture = plot_dict['architecture']
     filament_list = reconstruct_filament_list(plot_dict, idx_at_eval)
+    number_of_kites = architecture.number_of_kites
 
     radius = 155.77
     u_infty = cas.DM(10.)
@@ -131,41 +135,49 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
     psi0_base = plot_dict['options']['solver']['initialization']['psi0_rad']
 
-    mu_grid_min = 0.4
+    mu_grid_min = 0.1
     mu_grid_max = 1.6
-    psi_grid_min = psi0_base - np.pi / float(architecture.number_of_kites)
-    psi_grid_max = psi0_base + np.pi / float(architecture.number_of_kites)
+    psi_grid_min = psi0_base - np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
+    psi_grid_max = psi0_base + np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
 
     # define mu with respect to kite mid-span radius
     mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
+    length_mu = mu_grid_points.shape[0]
     # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
 
     beta = np.linspace(0., np.pi / 2, half_points)
     cos_front = 0.5 * (1. - np.cos(beta))
     cos_back = -1. * cos_front[::-1]
-    psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front) + 0.5
+    # psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front) + 0.5
+    psi_grid_unscaled = cas.vertcat(cos_back, cos_front) + 0.5
     psi_grid_points_cas = psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
 
-    psi_grid_points = []
-    for idx in range(psi_grid_points_cas.shape[0]):
-        psi_grid_points += [float(psi_grid_points_cas[idx])]
+    # for kite in range(1, number_of_kites):
+    #     psi_grid_points_local = psi_grid_points_cas + float(kite) * 2. * np.pi / float(number_of_kites)
+    #     psi_grid_points_cas = cas.vertcat(psi_grid_points_cas, psi_grid_points_local)
+
+    psi_grid_points_np = np.array(psi_grid_points_cas)
+    psi_grid_points_recenter = np.deg2rad(np.rad2deg(psi_grid_points_np))
+    psi_grid_points = np.unique(psi_grid_points_recenter)
+
+    length_psi = psi_grid_points.shape[0]
+
+    # reserve mesh space
+    y_matr = np.ones((length_psi, length_mu))
+    z_matr = np.ones((length_psi, length_mu))
+    a_matr = np.ones((length_psi, length_mu))
 
     haas_grid = {}
     center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][0][idx_at_eval],
                          plot_dict['outputs']['performance']['actuator_center1'][1][idx_at_eval],
                          plot_dict['outputs']['performance']['actuator_center1'][2][idx_at_eval])
 
-    expected_lt = plot_dict['options']['model']['scaling']['xd']['l_t']
-    expected_height = 400. * np.cos(0.4)
-    expected_center = (expected_lt + expected_height) * vect_op.xhat_np()
-    center_diff = vect_op.norm(center-expected_center)
-    if center_diff > 1:
-        print('center_difference in vortex verification test:' + str(center_diff))
-        pdb.set_trace()
+    for mdx in range(length_mu):
+        mu_val = mu_grid_points[mdx]
 
-    counter = 0
-    for mu_val in mu_grid_points:
-        for psi_val in psi_grid_points:
+        for pdx in range(length_psi):
+            psi_val = psi_grid_points[pdx]
+
             r_val = mu_val * radius
 
             ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
@@ -174,132 +186,87 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval):
 
             unscaled = mu_val * ehat_radial
 
-            try:
-                a_ind = vortex_flow.get_induction_factor_at_observer(plot_dict['options']['model'], filament_list, x_obs, u_zero, n_hat=vect_op.xhat())
-            except:
-                pdb.set_trace()
+            a_ind = float(vortex_flow.get_induction_factor_at_observer(plot_dict['options']['model'], filament_list, x_obs, u_zero, n_hat=vect_op.xhat()))
 
-            local_info = cas.vertcat(unscaled[1], unscaled[2], a_ind)
-            haas_grid['p' + str(counter)] = np.array(local_info)
+            unscaled_y_val = float(cas.mtimes(unscaled.T, vect_op.yhat_np()))
+            unscaled_z_val = float(cas.mtimes(unscaled.T, vect_op.zhat_np()))
 
-            counter += 1
+            y_matr[pdx, mdx] = unscaled_y_val
+            z_matr[pdx, mdx] = unscaled_z_val
+            a_matr[pdx, mdx] = a_ind
 
-    return haas_grid
+    y_list = np.array(cas.reshape(y_matr, (length_psi * length_mu, 1)))
+    z_list = np.array(cas.reshape(z_matr, (length_psi * length_mu, 1)))
+    # a_list = np.array(cas.reshape(a_matr, (length_psi * length_mu, 1)))
+    #
+    # interpf = interpolate.interp2d(y_list, z_list, a_list)
+    #
+    # new_grid_points = np.linspace(-1. * mu_grid_max, mu_grid_max, 100)
+    # grid_y, grid_z = np.meshgrid(new_grid_points, new_grid_points)
+    # grid_a = interpf(new_grid_points, new_grid_points)
+
+    return y_matr, z_matr, a_matr, y_list, z_list
+
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
     idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-
-    verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
+    number_of_kites = plot_dict['architecture'].number_of_kites
     mu_vals = vortex_tools.get_vortex_verification_mu_vals()
+    max_axes = -100.
 
     vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
     if vortex_structure_modelled:
 
-        haas_grid = compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval)
-
         mu_min_by_path = mu_vals['mu_min_by_path']
         mu_max_by_path = mu_vals['mu_max_by_path']
 
-        number_entries = len(haas_grid.keys())
-
-        slice_index = -1
-
-        y_matr = []
-        z_matr = []
-        a_matr = []
-        idx = 0
-
-        y_row = []
-        z_row = []
-        a_row = []
-
-        for ndx in range(number_entries):
-
-            idx += 1
-
-            local_y = haas_grid['p' + str(ndx)][0][slice_index]
-            local_z = haas_grid['p' + str(ndx)][1][slice_index]
-            local_a = haas_grid['p' + str(ndx)][2][slice_index]
-
-            y_row = cas.horzcat(y_row, local_y)
-            z_row = cas.horzcat(z_row, local_z)
-            a_row = cas.horzcat(a_row, local_a)
-
-            if float(idx) == (verification_points):
-                y_matr = cas.vertcat(y_matr, y_row)
-                z_matr = cas.vertcat(z_matr, z_row)
-                a_matr = cas.vertcat(a_matr, a_row)
-
-                y_row = []
-                z_row = []
-                a_row = []
-                idx = 0
-
-        y_matr = np.array(y_matr)
-        z_matr = np.array(z_matr)
-        a_matr = np.array(a_matr)
-
-        y_matr_list = np.array(cas.vertcat(y_matr))
-        z_matr_list = np.array(cas.vertcat(z_matr))
-
-        max_y = np.max(y_matr_list)
-        min_y = np.min(y_matr_list)
-        max_z = np.max(z_matr_list)
-        min_z = np.min(z_matr_list)
-        max_axes = np.max(np.array([max_y, -1. * min_y, max_z, -1. * min_z]))
-
         ### points plot
-
         fig_points, ax_points = plt.subplots(1, 1)
         add_annulus_background(ax_points, mu_min_by_path, mu_max_by_path)
-        ax_points.scatter(y_matr_list, z_matr_list)
         plt.grid(True)
         plt.title('induction factors over the kite plane')
         plt.xlabel("y/r [-]")
         plt.ylabel("z/r [-]")
-        ax_points.set_xlim([-1. * max_axes, max_axes])
-        ax_points.set_ylim([-1. * max_axes, max_axes])
-
-        fig_points.savefig('points.pdf')
+        ax_points.set_aspect(1.)
 
         #### contour plot
-
         fig_contour, ax_contour = plt.subplots(1, 1)
         add_annulus_background(ax_contour, mu_min_by_path, mu_max_by_path)
-
         levels = [-0.05, 0., 0.2]
         colors = ['red', 'green', 'blue']
+        plt.grid(True)
+        plt.title('induction factors over the kite plane')
+        plt.xlabel("y/r [-]")
+        plt.ylabel("z/r [-]")
+        ax_contour.set_aspect(1.)
 
-        try:
-            cs = ax_contour.contour(y_matr, z_matr, a_matr)
+        for kdx in range(number_of_kites):
+            y_matr, z_matr, a_matr, y_list, z_list = compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx)
+
+            max_y = np.min(y_list)
+            min_y = np.min(y_list)
+            max_z = np.max(z_list)
+            min_z = np.min(z_list)
+            max_axes = np.max(np.array([max_axes, max_y, -1. * min_y, max_z, -1. * min_z]))
+
+            ### points plot
+            ax_points.scatter(y_list, z_list, c='k')
+
+            #### contour plot
+            cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
             plt.clabel(cs, inline=1, fontsize=10)
-            plt.legend(loc='lower right')
+            for ldx in range(len(levels)):
+                cs.collections[ldx].set_label(levels[ldx])
+            # plt.legend(loc='lower right')
 
-            plt.grid(True)
-            plt.title('induction factors over the kite plane')
-            plt.xlabel("y/r [-]")
-            plt.ylabel("z/r [-]")
-            ax_contour.set_xlim([-1. * max_axes, max_axes])
-            ax_contour.set_ylim([-1. * max_axes, max_axes])
+        ax_points.set_xlim([-1. * max_axes, max_axes])
+        ax_points.set_ylim([-1. * max_axes, max_axes])
+        fig_points.savefig('points.pdf')
 
-        except:
-            pdb.set_trace()
-
-        # cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
-        # plt.clabel(cs, inline=1, fontsize=10)
-        # for ldx in range(len(levels)):
-        #     cs.collections[ldx].set_label(levels[ldx])
-        # plt.legend(loc='lower right')
-        #
-        # plt.grid(True)
-        # plt.title('induction factors over the kite plane')
-        # plt.xlabel("y/r [-]")
-        # plt.ylabel("z/r [-]")
-        # ax_contour.set_xlim([-1. * max_axes, max_axes])
-        # ax_contour.set_ylim([-1. * max_axes, max_axes])
-        #
-        # fig_contour.savefig('contour.pdf')
+        ax_contour.set_xlim([-1. * max_axes, max_axes])
+        ax_contour.set_ylim([-1. * max_axes, max_axes])
+        fig_contour.savefig('contour.pdf')
 
 
 def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):
