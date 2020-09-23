@@ -40,6 +40,7 @@ from . import var_struct
 import awebox as awe
 
 from . import operation
+import pdb
 
 class Formulation(object):
     def __init__(self):
@@ -230,22 +231,28 @@ class Formulation(object):
 
         integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(options, variables, parameters, model)
 
-        wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables, model)
-        vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(options, variables, model)
-
         self.__constraints = {'initial': initial_constraints,
                               'terminal': terminal_constraints,
                               'periodic': periodic_constraints,
-                              'integral': integral_constraints,
-                              'wake_fix': wake_fix_constraints,
-                              'vortex_strength': vortex_strength_constraints}
+                              'integral': integral_constraints
+                              }
 
         self.__constraints_fun = {'initial': initial_constraints_fun,
                                   'terminal': terminal_constraints_fun,
                                   'periodic': periodic_constraints_fun,
-                                  'integral': integral_constraint_fun,
-                                  'wake_fix': wake_fix_constraints_fun,
-                                  'vortex_strength': vortex_strength_constraints_fun}
+                                  'integral': integral_constraint_fun}
+
+        induction_comparison_labels = options['induction']['comparison_labels']
+        if 'vor' in induction_comparison_labels:
+            wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables,
+                                                                                                model)
+            vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(
+                options, variables, model)
+
+            self.__constraints['wake_fix'] = wake_fix_constraints
+            self.__constraints['vortex_strength'] = vortex_strength_constraints
+            self.__constraints_fun['wake_fix'] = wake_fix_constraints_fun
+            self.__constraints_fun['vortex_strength'] = vortex_strength_constraints_fun
 
         self.__integral_constants = integral_constants
 

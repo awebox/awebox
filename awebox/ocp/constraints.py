@@ -120,14 +120,14 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
     if list(constraints['periodic'].keys()):
         constraints_entry_list.append(cas.entry('periodic', struct = constraints['periodic']))
 
-    if list(constraints['wake_fix'].keys()):
-        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
-
-    if list(constraints['vortex_strength'].keys()):
-        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
-
     if list(constraints['integral'].keys()):
         constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
+
+    if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
+        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+
+    if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
+        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
 
     return constraints_entry_list
 
