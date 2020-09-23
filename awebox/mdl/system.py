@@ -34,7 +34,6 @@ python-3.5 / casadi 3.0.0
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import copy
-import pdb
 import awebox.tools.print_operations as print_op
 
 def generate_structure(options, architecture):

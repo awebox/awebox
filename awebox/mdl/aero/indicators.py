@@ -43,8 +43,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
-import pdb
-
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
     a = atmos.get_speed_of_sound( q[2])

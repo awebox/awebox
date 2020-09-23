@@ -39,8 +39,6 @@ import awebox.opti.initialization_dir.tools as tools_init
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
-import pdb
-
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
     comparison_labels = init_options['model']['comparison_labels']
@@ -140,7 +138,7 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
     n_k = nlp.n_k
     d = nlp.d
     wingtips = ['ext', 'int']
-    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
+    U_ref = guess_vortex_node_velocity(init_options)
 
     kite_nodes = model.architecture.kite_nodes
     wake_nodes = init_options['model']['vortex_wake_nodes']
@@ -224,7 +222,20 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
     time_convected = t_local - t_shed
     q_convected = q_tip + U_ref * time_convected
 
-    return q_convected
+    wx_scale = init_options['induction']['vortex_position_scale']
+    q_rescaled = q_convected / wx_scale
+
+    return q_rescaled
+
+def guess_vortex_node_velocity(init_options):
+    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
+
+    dwx_scale = init_options['induction']['vortex_velocity_scale']
+    U_rescaled = U_ref / dwx_scale
+
+    return U_rescaled
+
+
 
 def guess_wake_gamma_val(init_options):
     # already scaled!

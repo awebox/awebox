@@ -92,31 +92,36 @@ def filament_normal(seg_data, epsilon=1.e-2):
 
 def filament(seg_data, epsilon=1.e-2):
 
-    point_obs = seg_data[:3]
-    point_1 = seg_data[3:6]
-    point_2 = seg_data[6:9]
-    Gamma = seg_data[9]
+    try:
+        point_obs = seg_data[:3]
+        point_1 = seg_data[3:6]
+        point_2 = seg_data[6:9]
+        Gamma = seg_data[9]
 
-    vec_1 = point_obs - point_1
-    vec_2 = point_obs - point_2
-    vec_0 = point_2 - point_1
+        vec_1 = point_obs - point_1
+        vec_2 = point_obs - point_2
+        vec_0 = point_2 - point_1
 
-    r1 = vect_op.smooth_norm(vec_1)
-    r2 = vect_op.smooth_norm(vec_2)
-    r0 = vect_op.smooth_norm(vec_0)
+        r1 = vect_op.smooth_norm(vec_1)
+        r2 = vect_op.smooth_norm(vec_2)
+        r0 = vect_op.smooth_norm(vec_0)
 
-    factor = Gamma / (4. * np.pi)
+        factor = Gamma / (4. * np.pi)
 
-    num = (r1 + r2)
+        num = (r1 + r2)
 
-    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    den_reg = (epsilon * r0) ** 2.
-    den = den_ori + den_reg
+        den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
+        den_reg = (epsilon * r0) ** 2.
+        den = den_ori + den_reg
 
-    dir = vect_op.cross(vec_1, vec_2)
-    scale = factor * num / den
+        dir = vect_op.cross(vec_1, vec_2)
+        scale = factor * num / den
 
-    sol = dir * scale
+        sol = dir * scale
+    except:
+        message = 'something went wrong while computing the filament biot-savart induction. proceed with zero induced velocity from this filament.'
+        awelogger.logger.error(message)
+        sol = cas.DM.zeros((3, 1))
 
     return sol
 

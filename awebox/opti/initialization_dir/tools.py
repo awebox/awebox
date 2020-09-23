@@ -35,7 +35,6 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.wind as wind
 
-import pdb
 
 def get_ehat_tether(init_options):
     inclination = init_options['inclination_deg'] * np.pi / 180.

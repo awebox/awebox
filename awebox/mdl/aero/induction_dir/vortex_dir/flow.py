@@ -40,8 +40,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
-import pdb
+
+
 #
 def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
     x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
@@ -90,17 +90,20 @@ def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=F
 
     # define the symbolic function
     n_symbolics = filament_list.shape[0]
-    seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
 
-    if include_normal_info:
-        filament_sym = biot_savart.filament_normal(seg_data_sym, epsilon=epsilon)
-    else:
-        filament_sym = biot_savart.filament(seg_data_sym, epsilon=epsilon)
+    u_ind = cas.DM.zeros((3, 1))
+    if n_symbolics > 0:
+        seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
 
-    filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
+        if include_normal_info:
+            filament_sym = biot_savart.filament_normal(seg_data_sym, epsilon=epsilon)
+        else:
+            filament_sym = biot_savart.filament(seg_data_sym, epsilon=epsilon)
 
-    # evaluate the symbolic function
-    u_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, filament_list)
+        filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
+
+        # evaluate the symbolic function
+        u_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, filament_list)
 
     return u_ind
 

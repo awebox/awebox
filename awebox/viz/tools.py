@@ -32,6 +32,7 @@ import matplotlib.cm as cmx
 import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 
 def get_naca_airfoil_coordinates(s, m, p, t):
@@ -595,7 +596,7 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
             temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
+            vals = np.array(cas.vertcat(*plot_dict['xd'][name])) * vortex_tools.get_position_scale(plot_dict['options']['model'])
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 

@@ -38,8 +38,6 @@ import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
 
-import pdb
-
 
 ######## the constraints : see opti.constraints
 
@@ -163,10 +161,7 @@ def get_strength_constraint_all(options, V, Outputs, model):
                             period_number = int(np.floor(float(ndx_shed)/float(n_k)))
                             ndx_shed_w_periodicity = ndx_shed - period_number * n_k
 
-                            try:
-                                gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
-                            except:
-                                pdb.set_trace()
+                            gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
                             wg_ref = 1. * gamma_val / strength_scale
                         else:
                             wg_ref = 0.

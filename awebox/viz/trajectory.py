@@ -32,9 +32,7 @@ import awebox.viz.tools as tools
 import awebox.viz.wake as wake
 import casadi.tools as cas
 
-
 import matplotlib.animation as manimation
-
 
 def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, label = []):
 

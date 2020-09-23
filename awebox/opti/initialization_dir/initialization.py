@@ -40,8 +40,6 @@ import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
 
-import pdb
-
 def get_initial_guess(nlp, model, formulation, init_options):
     V_init_si = build_si_initial_guess(nlp, model, formulation, init_options)
 

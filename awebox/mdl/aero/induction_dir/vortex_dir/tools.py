@@ -34,9 +34,13 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
-import numpy as np
+def get_wake_node_position_si(options, variables, kite, tip, wake_node):
 
-import pdb
+    wx_local = get_wake_node_position(variables, kite, tip, wake_node)
+    wx_scale = get_position_scale(options)
+    wx_rescaled = wx_local * wx_scale
+
+    return wx_rescaled
 
 def get_wake_node_position(variables, kite, tip, wake_node):
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
@@ -53,6 +57,13 @@ def get_wake_node_position(variables, kite, tip, wake_node):
             raise Exception(message)
 
     return wx_local
+
+def get_wake_node_velocity_si(options, variables, kite, tip, wake_node):
+    dwx_local = get_wake_node_velocity(variables, kite, tip, wake_node)
+    dwx_scale = get_position_scale(options)
+    dwx_rescaled = dwx_local * dwx_scale
+
+    return dwx_rescaled
 
 def get_wake_node_velocity(variables, kite, tip, wake_node):
     coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
@@ -105,9 +116,18 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     return total
 
+def get_position_scale(options):
+
+    wx_scale = options['induction']['vortex_position_scale']
+    return wx_scale
+
+def get_velocity_scale(options):
+    dwx_scale = options['induction']['vortex_u_ref']
+    return dwx_scale
+
 def get_strength_scale(options):
-    gamma_scale = options['aero']['vortex']['gamma_scale']
-    return gamma_scale
+    wg_scale = options['induction']['vortex_gamma_scale']
+    return wg_scale
 
 def append_bounds(g_bounds, fix):
 

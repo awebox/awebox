@@ -566,10 +566,11 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('nlp', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
 
     u_ref = get_u_ref(options['user_options'])
-    options_tree.append(('solver', 'initialization', 'model', 'vortex_u_ref', u_ref, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_u_ref', u_ref, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', u_ref, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', u_ref, ('????', None), 'x')),
+    vortex_u_ref = u_ref
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
 
     far_convection_time = options['model']['aero']['vortex']['far_convection_time']
     # options_tree.append(('solver', 'initialization', 'model', 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
@@ -586,15 +587,36 @@ def build_vortex_options(options, options_tree, fixed_params):
     CL = estimate_CL(options)
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
+    b_ref = geometry['b_ref']
 
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
 
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
-    options_tree.append(('model', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('formulation', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('nlp', 'aero', 'vortex', 'gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+
+    vortex_position_scale = b_ref
+    options_tree.append(('model', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+
+    vortex_velocity_scale = get_u_ref(options['user_options'])
+    options_tree.append(('model', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_velocity_scale', vortex_position_scale, ('????', None), 'x')),
+
+
+    gravity = get_gravity_ref(options)
+    geometry = get_geometry(options)
+    m_k = geometry['m_k']
+
 
     return options_tree, fixed_params
 
