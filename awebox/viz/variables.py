@@ -47,7 +47,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     counter = 0
     for name in variables_to_plot:
-        if not name[0] == 'w':
+        if not is_wake_variable(name):
             counter += 1
     counter += len(integral_variables)
 
@@ -76,7 +76,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     counter = 0
     for name in variables_to_plot:
-        if not name[0] == 'w':
+        if not is_wake_variable(name):
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xd'][name].shape[0]):
@@ -101,6 +101,87 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     plt.subplots_adjust(wspace=0.3, hspace=2.0)
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
     plt.suptitle(fig_name)
+
+
+def is_wake_variable(name):
+    is_wake_variable = (name[0] == 'w') or (name[:2] == 'dw')
+    return is_wake_variable
+
+def plot_wake_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
+
+    # read in inputs
+    variables_dict = plot_dict['variables_dict']
+    integral_variables = plot_dict['integral_variables']
+    tgrid_ip = plot_dict['time_grids']['ip']
+
+    if individual_state == None:
+        variables_to_plot = list(variables_dict['xd'].keys())
+        integral_variables_to_plot = integral_variables
+    else:
+        if individual_state in list(variables_dict['xd'].keys()):
+            variables_to_plot = [individual_state]
+            integral_variables_to_plot = []
+        elif individual_state in integral_variables:
+            variables_to_plot = []
+            integral_variables_to_plot = [individual_state]
+
+    counter = 0
+    for name in variables_to_plot:
+        if is_wake_variable(name):
+            counter += 1
+    counter += len(integral_variables)
+
+    if individual_state == None:
+        plot_table_r = 4
+        plot_table_c = int(np.ceil(np.float(counter) / np.float(plot_table_r)))
+    else:
+        plot_table_r = len(variables_to_plot + integral_variables_to_plot)
+        plot_table_c = 1
+
+    # create new figure if desired
+    if fig_num is not None:
+        fig = plt.figure(num = fig_num)
+        axes = fig.axes
+        if len(axes) == 0: # if figure does not exist yet
+            fig, axes = plt.subplots(num = fig_num, nrows = plot_table_r, ncols = plot_table_c)
+
+    else:
+        fig, axes = plt.subplots(nrows = plot_table_r, ncols = plot_table_c)
+
+    # make vertical column array or list of all axes
+    if type(axes) == np.ndarray:
+        axes = axes.reshape(plot_table_r*plot_table_c,)
+    elif type(axes) is not list:
+        axes = [axes]
+
+    counter = 0
+    for name in variables_to_plot:
+        if is_wake_variable(name):
+            counter += 1
+            ax = plt.axes(axes[counter-1])
+            for jdx in range(variables_dict['xd'][name].shape[0]):
+                p = plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xd'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
+
+                plt.title(name)
+
+    for name in integral_variables_to_plot:
+        counter += 1
+        ax = plt.axes(axes[counter-1])
+        if plot_dict['discretization'] == 'multiple_shooting':
+            out_values, tgrid_out = tools.merge_integral_output_values(plot_dict['integral_outputs_final'],name, plot_dict, cosmetics)
+            p = plt.plot(tgrid_out, out_values)
+        else:
+            p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][name][0])
+        plt.title(name)
+
+    ax.tick_params(axis='both', which='major')
+    plt.subplots_adjust(wspace=0.3, hspace=2.0)
+    plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
+    plt.suptitle(fig_name)
+
 
 
 def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
@@ -129,7 +210,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     counter = 0
     for name in variables_to_plot:
-        if not name[0] == 'w':
+        if not is_wake_variable(name):
             counter += 1
     counter += len(list(integral_outputs.keys()))
 
@@ -158,7 +239,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     counter = 0
     for name in variables_to_plot:
-        if not name[0] == 'w':
+        if not is_wake_variable(name):
             counter += 1
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xl'][name].shape[0]):
@@ -180,6 +261,85 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
     plt.suptitle(fig_name)
 
+
+
+
+def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
+
+    # read in inputs
+    integral_outputs = plot_dict['integral_outputs_final']
+    variables_dict = plot_dict['variables_dict']
+    integral_variables = plot_dict['integral_variables']
+    tgrid_ip = plot_dict['time_grids']['ip']
+
+    # check if lifted variables exist
+    if 'xl' not in variables_dict.keys():
+        awelogger.logger.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
+        return None
+
+    if individual_state == None:
+        variables_to_plot = list(variables_dict['xl'].keys())
+        integral_variables_to_plot = integral_variables
+    else:
+        if individual_state in list(variables_dict['xl'].keys()):
+            variables_to_plot = [individual_state]
+            integral_variables_to_plot = []
+        elif individual_state in integral_variables:
+            variables_to_plot = []
+            integral_variables_to_plot = [individual_state]
+
+    counter = 0
+    for name in variables_to_plot:
+        if is_wake_variable(name):
+            counter += 1
+    counter += len(list(integral_outputs.keys()))
+
+    if individual_state == None:
+        plot_table_r = 4
+        plot_table_c = int(np.ceil(np.float(counter) / np.float(plot_table_r)))
+    else:
+        plot_table_r = len(variables_to_plot + integral_variables_to_plot)
+        plot_table_c = 1
+
+    # create new figure if desired
+    if fig_num is not None:
+        fig = plt.figure(num = fig_num)
+        axes = fig.axes
+        if len(axes) == 0: # if figure does not exist yet
+            fig, axes = plt.subplots(num = fig_num, nrows = plot_table_r, ncols = plot_table_c)
+
+    else:
+        fig, axes = plt.subplots(nrows = plot_table_r, ncols = plot_table_c)
+
+    # make vertical column array or list of all axes
+    if type(axes) == np.ndarray:
+        axes = axes.reshape(plot_table_r*plot_table_c,)
+    elif type(axes) is not list:
+        axes = [axes]
+
+    counter = 0
+    for name in variables_to_plot:
+        if is_wake_variable(name):
+            counter += 1
+            ax = plt.axes(axes[counter-1])
+            for jdx in range(variables_dict['xl'][name].shape[0]):
+                p = plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                if cosmetics['plot_ref']:
+                    plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xl'][name][jdx],
+                        linestyle= '--', color = p[-1].get_color() )
+                plt.title(name)
+
+    for name in integral_variables_to_plot:
+        counter += 1
+        ax = plt.axes(axes[counter-1])
+        out_values, tgrid_out = tools.merge_integral_output_values(integral_outputs,name, plot_dict, cosmetics)
+        plt.plot(tgrid_out, out_values)
+        plt.title(name)
+
+    ax.tick_params(axis='both', which='major')
+    plt.subplots_adjust(wspace=0.3, hspace=2.0)
+    plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
+    plt.suptitle(fig_name)
 
 
 

@@ -160,7 +160,7 @@ def get_qzero_residual(model_options, parent, atmos, wind, variables, architectu
     return resi_scaled
 
 
-def get_gamma_residual(model_options, wind, parent, variables, architecture):
+def get_gamma_residual(model_options, wind, parent, variables, parameters, architecture):
 
     uzero_hat_var = get_uzero_hat_var(variables, parent)
     vzero_hat_var = get_vzero_hat_var(variables, parent)
@@ -204,7 +204,7 @@ def get_uzero_matr_ortho_residual(model_options, parent, variables, parameters, 
 
 def get_uzero_matr_u_along_uzero_residual(model_options, wind, parent, variables, parameters, architecture):
 
-    u_vec_val = get_uzero_vec(model_options, wind, parent, variables, architecture)
+    u_vec_val = get_uzero_vec(model_options, wind, parent, variables, parameters, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
 
     u_vec_length_var = get_uzero_vec_length_var(wind, variables, parent)
@@ -270,7 +270,7 @@ def get_df_val(model_options, wind, parent, variables, architecture):
 
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
 
-    uzero = get_uzero_vec(model_options, wind, parent, variables, architecture)
+    uzero = get_uzero_vec(model_options, wind, parent, variables, parameters, architecture)
     n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
     gamma = vect_op.angle_between(n_vec, uzero)
     return gamma
@@ -324,10 +324,10 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
     return a_local
 
 
-def get_uzero_vec(model_options, wind, parent, variables, architecture):
+def get_uzero_vec(model_options, wind, parent, variables, parameters, architecture):
 
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    u_actuator = actuator_geom.get_center_velocity(model_options, parent, variables, architecture)
+    u_actuator = actuator_geom.get_center_velocity(model_options, parent, variables, parameters, architecture)
 
     u_apparent = u_infty - u_actuator
 
@@ -340,7 +340,7 @@ def get_actuator_freestream_velocity(model_options, wind, parent, variables, arc
 
     return u_infty
 
-def get_local_induced_velocity(model_options, variables, wind, kite, parent, label):
+def get_local_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent, label):
 
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
     nhat = general_geom.get_n_hat_var(variables, parent)
@@ -350,15 +350,15 @@ def get_local_induced_velocity(model_options, variables, wind, kite, parent, lab
 
     return u_ind
 
-def get_kite_induced_velocity(model_options, variables, wind, kite, parent):
+def get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
     label = get_label(model_options)
-    u_ind_kite = get_local_induced_velocity(model_options, variables, wind, kite, parent, label)
+    u_ind_kite = get_local_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent, label)
     return u_ind_kite
 
-def get_kite_effective_velocity(model_options, variables, wind, kite, parent):
+def get_kite_effective_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
-    u_ind_kite = get_kite_induced_velocity(model_options, variables, wind, kite, parent)
+    u_ind_kite = get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
 
     u_eff_kite = u_app_kite + u_ind_kite
 

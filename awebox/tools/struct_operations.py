@@ -64,7 +64,7 @@ def get_coll_vars(nlp_options, V, P, Xdot, model):
     coll_vars = []
     for kdx in range(n_k):
         for ddx in range(d):
-            var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx)
+            var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx, ddx)
             coll_vars = cas.horzcat(coll_vars, var_at_time)
 
     return coll_vars
@@ -80,12 +80,12 @@ def get_coll_params(nlp_options, V, P, model):
 
     use_vortex_linearization = 'lin' in parameters.keys()
     if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model)(0.)
+        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
 
         coll_params = []
         for kdx in range(n_k):
             for ddx in range(d):
-                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model, kdx, ddx)
+                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx, ddx)
                 coll_params = cas.horzcat(coll_params, loc_params)
 
     else:
@@ -101,7 +101,7 @@ def get_ms_vars(nlp_options, V, P, Xdot, model):
     # construct list of all multiple-shooting node variables and parameters
     ms_vars = []
     for kdx in range(n_k):
-        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model, kdx)
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx)
         ms_vars = cas.horzcat(ms_vars, var_at_time)
 
     return ms_vars
@@ -115,14 +115,15 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     use_vortex_linearization = 'lin' in parameters.keys()
     if use_vortex_linearization:
-        awelogger.logger.error('vortex induction model not yet supported for multiple shooting problems.')
+        message = 'vortex induction model not yet supported for multiple shooting problems.'
+        awelogger.logger.error(message)
 
     ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
 
     return ms_params
 
 
-def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
+def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     var_list = []
 
@@ -135,7 +136,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
         direct_collocation = False
 
     # extract variables
-    variables = model.variables
+    variables = model_variables
 
     # make list of variables at specific time
     for var_type in list(variables.keys()):
@@ -241,10 +242,10 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(nlp_options, P, V, Xdot, model, kdx=None, ddx=None):
+def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=None, ddx=None):
     param_list = []
 
-    parameters = model.parameters
+    parameters = model_parameters
 
     for var_type in list(parameters.keys()):
         if var_type == 'phi':
@@ -252,7 +253,7 @@ def get_parameters_at_time(nlp_options, P, V, Xdot, model, kdx=None, ddx=None):
         if var_type == 'theta0':
             param_list.append(P[var_type])
         if var_type == 'lin':
-            linearized_vars = get_variables_at_time(nlp_options, V(P['lin']), Xdot, model, kdx, ddx)
+            linearized_vars = get_variables_at_time(nlp_options, V(P['lin']), Xdot, model_variables, kdx, ddx)
             param_list.append(linearized_vars)
 
     param_at_time = parameters(cas.vertcat(*param_list))
@@ -373,9 +374,9 @@ def get_var_ref_at_final_time(nlp_options, P, Xdot, model):
 
     return var_at_time
 
-def get_V_theta(V, params, k):
+def get_V_theta(V, nlp_numerics_options, k):
 
-    nk = params['n_k']
+    nk = nlp_numerics_options['n_k']
     k = list(range(nk+1))[k]
 
     if V['theta','t_f'].shape[0] == 1:
@@ -385,9 +386,9 @@ def get_V_theta(V, params, k):
         tf_index = V.f['theta','t_f']
         theta_index = V.f['theta']
         for idx in theta_index:
-            if idx == tf_index[0] and k < round(nk * params['phase_fix_reelout']):
+            if idx == tf_index[0] and k < round(nk * nlp_numerics_options['phase_fix_reelout']):
                 theta.append(V.cat[idx])
-            elif idx == tf_index[1] and k >= round(nk * params['phase_fix_reelout']) :
+            elif idx == tf_index[1] and k >= round(nk * nlp_numerics_options['phase_fix_reelout']) :
                 theta.append(V.cat[idx])
             elif idx not in tf_index:
                 theta.append(V.cat[idx])
@@ -679,7 +680,7 @@ def get_V_index(canonical):
 
     return [coll_flag, var_type, kdx, ddx, name, dim]
 
-def construct_Xdot_struct(nlp_options, model):
+def construct_Xdot_struct(nlp_options, variables_dict):
     ''' Construct a symbolic structure for the
         discretized state derivatives.
 
@@ -690,7 +691,7 @@ def construct_Xdot_struct(nlp_options, model):
 
     # extract information
     nk = nlp_options['n_k']
-    xd = model.variables_dict['xd']
+    xd = variables_dict['xd']
 
     # derivatives at interval nodes
     entry_tuple = (cas.entry('xd', repeat=[nk], struct=xd),)

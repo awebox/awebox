@@ -32,6 +32,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
@@ -79,7 +80,7 @@ def get_induction_final_residual(options, atmos, wind, variables, parameters, ou
     resi = []
 
     for kite in architecture.kite_nodes:
-        ind_val = get_kite_induced_velocity_val(options, wind, variables, kite, architecture, parameters)
+        ind_val = get_kite_induced_velocity_val(options, wind, variables, kite, architecture, parameters, outputs)
         ind_var = get_kite_induced_velocity_var(variables, wind, kite)
         ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
         resi = cas.vertcat(resi, ind_resi)
@@ -102,9 +103,6 @@ def get_specific_residuals(options, atmos, wind, variables, parameters, outputs,
         vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
         resi = cas.vertcat(resi, vortex_resi)
 
-    for layer in architecture.layer_nodes:
-        rot_matr_residual = general_geom.get_rot_matr_residual(options, layer, variables, parameters, architecture)
-        resi = cas.vertcat(resi, rot_matr_residual)
 
     return resi
 
@@ -115,7 +113,7 @@ def get_kite_induced_velocity_var(variables, wind, kite):
     ind_var = variables['xl']['ui' + str(kite)] * wind.get_velocity_ref()
     return ind_var
 
-def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters):
+def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters, outputs):
     induction_model = model_options['induction_model']
     parent = architecture.parent_map[kite]
 
@@ -123,11 +121,13 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     force_zero = model_options['aero']['vortex']['force_zero']
 
     if induction_model == 'actuator':
-        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, wind, kite, parent)
+        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture)
+        columnized_list = outputs['vortex']['filament_list']
+        filament_list = vortex_filament_list.decolumnize(model_options, architecture, columnized_list)
+        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, filament_list, variables, architecture, kite)
     elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
-        u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters)
+        u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
     elif induction_model == 'vortex' and force_zero:
         u_ind_kite = cas.DM.zeros((3, 1))
     elif induction_model == 'not_in_use':

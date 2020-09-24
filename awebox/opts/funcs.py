@@ -289,7 +289,16 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
+    options_tree.append(('formulation', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
     options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
+    options_tree.append(('formulation', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('formulation', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        ('formulation', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+
+    options_tree.append(
+        ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
         coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
         coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])

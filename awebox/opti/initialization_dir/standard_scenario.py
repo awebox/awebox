@@ -96,34 +96,23 @@ def guess_values_at_time(t, init_options, model):
         else:
             height = init_options['precompute']['height']
             radius = init_options['precompute']['radius']
-            groundspeed = init_options['precompute']['groundspeed']
-            omega_norm = init_options['precompute']['angular_speed']
 
-            n_rot_hat, y_rot_hat, z_rot_hat = tools.get_rotor_reference_frame(init_options)
-
-            ehat_normal = n_rot_hat
-            ehat_radial = tools.get_ehat_radial(t, init_options, model, node, ret)
-            ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-
-            omega_vector = ehat_normal * omega_norm
+            ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
 
             tether_vector = ehat_radial * radius + ehat_normal * height
+
             position = parent_position + tether_vector
+            velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+            ret['q' + str(node) + str(parent)] = position
+            ret['dq' + str(node) + str(parent)] = velocity
 
-            velocity = groundspeed * ehat_tangential
-
-            ehat1 = -1. * ehat_tangential
-            ehat3 = n_rot_hat
-            ehat2 = vect_op.normed_cross(ehat3, ehat1)
-
-            dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
-            ret['q' + str(node) + str(parent)] = position
-            ret['dq' + str(node) + str(parent)] = velocity
+            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
             if int(kite_dof) == 6:
                 ret['omega' + str(node) + str(parent)] = omega_vector
@@ -371,7 +360,7 @@ def airspeeds_at_four_quadrants_above_minimum(options, groundspeed):
 
     above_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed > airspeed_min
         above_at_quadrant += [loc_bool]
@@ -385,39 +374,12 @@ def airspeeds_at_four_quadrants_below_maximum(options, groundspeed):
 
     below_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed < airspeed_max
         below_at_quadrant += [loc_bool]
 
     return all(below_at_quadrant)
-
-def find_airspeed(init_options, groundspeed, psi):
-
-    n_rot_hat, _, _ = tools.get_rotor_reference_frame(init_options)
-    ehat_normal = n_rot_hat
-    ehat_radial = tools.get_ehat_radial_from_azimuth(init_options, psi)
-    ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-    dq_kite = groundspeed * ehat_tangential
-
-    l_t = init_options['xd']['l_t']
-    ehat_tether = tools.get_ehat_tether(init_options)
-    zz = l_t * ehat_tether[2]
-
-    wind_model = init_options['model']['wind_model']
-    u_ref = init_options['model']['wind_u_ref']
-    z_ref = init_options['model']['wind_z_ref']
-    z0_air = init_options['model']['wind_z0_air']
-    exp_ref = init_options['model']['wind_exp_ref']
-
-    uu = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, zz) * vect_op.xhat_np()
-
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
-
-    # find better approximation
-
-    return airspeed
 
 
 ################ dependent values

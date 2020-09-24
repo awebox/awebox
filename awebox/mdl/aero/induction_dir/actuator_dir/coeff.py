@@ -135,16 +135,16 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
 
     return total_moment_aero
 
-def get_actuator_thrust(model_options, variables, outputs, parent, architecture):
+def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
 
     total_force_aero = get_actuator_force(outputs, parent, architecture)
-    normal = general_geom.get_n_hat_var(variables, parent)
-    thrust = cas.mtimes(total_force_aero.T, normal)
+    nhat = general_geom.get_n_hat_var(variables, parent)
+    thrust = cas.mtimes(total_force_aero.T, nhat)
 
     return thrust
 
 def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture):
-    thrust = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    thrust = get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
@@ -268,7 +268,7 @@ def get_t_star_denominator_ref(wind):
 
 
 def get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    thrust = get_actuator_thrust(model_options, variables, outputs, parent, architecture)
+    thrust = get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     moment_y_val = get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture)
     moment_z_val = get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture)
 

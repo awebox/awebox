@@ -559,10 +559,64 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'aero', 'vortex', 'n_k', n_k, ('how many nodes to track over one period: n_k', None), 'x')),
     options_tree.append(('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
 
-    periods_tracked = options['model']['aero']['vortex']['periods_tracked']
-    options_tree.append(('solver', 'initialization', 'model', 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
+    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+
+    u_ref = get_u_ref(options['user_options'])
+    vortex_u_ref = u_ref
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+
+    far_convection_time = options['model']['aero']['vortex']['far_convection_time']
+    # options_tree.append(('solver', 'initialization', 'model', 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+
+    vortex_epsilon = options['model']['aero']['vortex']['epsilon']
+    options_tree.append(('model', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+
+
+    CL = estimate_CL(options)
+    geometry = get_geometry(options)
+    c_ref = geometry['c_ref']
+    b_ref = geometry['b_ref']
+
+    groundspeed = options['solver']['initialization']['groundspeed']
+    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+
+    gamma_scale = 0.5 * CL * airspeed_ref * c_ref
+    options_tree.append(('model', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+
+    vortex_position_scale = b_ref
+    options_tree.append(('model', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+
+    vortex_velocity_scale = get_u_ref(options['user_options'])
+    options_tree.append(('model', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_velocity_scale', vortex_position_scale, ('????', None), 'x')),
+
+
+    gravity = get_gravity_ref(options)
+    geometry = get_geometry(options)
+    m_k = geometry['m_k']
+
 
     return options_tree, fixed_params
 

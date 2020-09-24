@@ -285,7 +285,7 @@ You will need to remove the ground constraints, remove gravity, and make the win
     options['params']['atmosphere']['g'] = 0.
 
 It's also helpful to initialize according to the axi-symmetry that you're expecting:
-    options['solver']['initialization']['incid_deg'] = 0.
+    options['solver']['initialization']['inclination_deg'] = 0.
 
 
 

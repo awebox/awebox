@@ -125,7 +125,7 @@ def aero():
     stab_derivs['CL']['0'] = [1.11]
     stab_derivs['CL']['alpha'] = [5.70]
     stab_derivs['CL']['deltae'] = [0.338]
-    stab_derivs['CLq'] = [5.4]
+    stab_derivs['CL']['q'] = [5.4]
 
     stab_derivs['CS'] = {}
     stab_derivs['CS']['beta'] = [-1.08]

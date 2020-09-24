@@ -32,6 +32,7 @@ import matplotlib.cm as cmx
 import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 
 def get_naca_airfoil_coordinates(s, m, p, t):
@@ -114,11 +115,11 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
 
     return None
 
-def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, num_per_meter, naca="0012"):
+def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
-    num_spanwise = np.ceil(b_ref * num_per_meter / 2.)
+    num_spanwise = np.ceil(b_ref * body_cross_sections_per_meter / 2.)
 
     ypos = np.arange(-1. * num_spanwise, num_spanwise + 1.) / num_spanwise / 2.
 
@@ -161,39 +162,47 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
 
     return None
 
-def draw_kite_fuselage(ax, q, r, length, kite_color, side, num_per_meter, naca="0006"):
+def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_per_meter, naca="0006"):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
     total_width = np.float(naca[2:]) / 100. * length
 
-    num_spanwise = np.ceil(total_width * num_per_meter / 2.)
+    num_spanwise = np.ceil(total_width * body_cross_sections_per_meter / 2.)
 
     ypos = np.arange(-1. * num_spanwise, num_spanwise + 1.) / num_spanwise / 2.
 
     for y in ypos:
 
         yloc = cas.mtimes(r_dcm, vect_op.yhat_np()) * y * total_width
+        zloc = cas.mtimes(r_dcm, vect_op.zhat_np()) * y * total_width
 
         basic_shell = get_naca_shell(length, naca) * (1 - (2. * y)**2.)
 
-        horizontal_shell = []
+        span_direction_shell = []
+        up_direction_shell = []
         for idx in range(basic_shell[:, 0].shape[0]):
 
-            new_point = q + yloc + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
+            new_point_spanwise = q + yloc + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
+            span_direction_shell = cas.vertcat(span_direction_shell, new_point_spanwise.T)
 
-            horizontal_shell = cas.vertcat(horizontal_shell, new_point.T)
-        horizontal_shell = np.array(horizontal_shell)
+            new_point_upwise = q + zloc + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
+            up_direction_shell = cas.vertcat(up_direction_shell, new_point_upwise.T)
 
-        make_side_plot(ax, horizontal_shell, side, kite_color)
+        span_direction_shell = np.array(span_direction_shell)
+        make_side_plot(ax, span_direction_shell, side, kite_color)
+
+        up_direction_shell = np.array(up_direction_shell)
+        make_side_plot(ax, up_direction_shell, side, kite_color)
+
 
     return None
 
-def draw_kite_wing(ax, q, r, b_ref, c_root, c_tip, kite_color, side, num_per_meter, naca="0012"):
+def draw_kite_wing(ax, q, r, b_ref, c_root, c_tip, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
-    draw_lifting_surface(ax, q, r, b_ref, c_tip, c_root, c_tip, kite_color, side, num_per_meter, naca)
+    draw_lifting_surface(ax, q, r, b_ref, c_tip, c_root, c_tip, kite_color, side, body_cross_sections_per_meter, naca)
 
-def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, side, num_per_meter, naca="0012"):
+def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
     ehat_1 = np.reshape(r_dcm[:, 0], (3,1))
@@ -202,11 +211,10 @@ def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, sid
     horizontal_space = (3. * length / 4. - c_ref / 3.) * ehat_1
     pos = q + horizontal_space + ehat_3 * height
 
-    draw_lifting_surface(ax, pos, r_dcm, b_ref / 3., c_ref / 3., c_ref / 2., c_ref / 3., kite_color, side, num_per_meter, naca)
+    draw_lifting_surface(ax, pos, r_dcm, b_ref / 3., c_ref / 3., c_ref / 2., c_ref / 3., kite_color, side, body_cross_sections_per_meter, naca)
 
-def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side, num_per_meter, naca="0012"):
+def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
-    r_dcm = np.array(cas.reshape(r, (3, 3)))
     r_dcm = np.array(cas.reshape(r, (3, 3)))
     ehat_1 = np.reshape(r_dcm[:, 0], (3, 1))
     ehat_3 = np.reshape(r_dcm[:, 2], (3, 1))
@@ -219,27 +227,27 @@ def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side,
     horizontal_space = (3. * length / 4. - c_ref / 3.) * ehat_1
     pos = q + horizontal_space + ehat_3 * height / 2.
 
-    draw_lifting_surface(ax, pos, r_new, height, c_ref, c_ref / 2., c_ref / 4., kite_color, side, num_per_meter, naca)
+    draw_lifting_surface(ax, pos, r_new, height, c_ref, c_ref / 2., c_ref / 4., kite_color, side, body_cross_sections_per_meter, naca)
 
-def draw_kite(ax, q, r, model_options, kite_color, side, num_per_meter):
+def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per_meter):
     # read in inputs
     geometry = model_options['geometry']
     geometry_params = model_options['params']['geometry']
 
     if geometry['fuselage']:
-        draw_kite_fuselage(ax, q, r, geometry['length'], kite_color, side, num_per_meter)
+        draw_kite_fuselage(ax, q, r, geometry['length'], kite_color, side, body_cross_sections_per_meter)
 
     if geometry['wing']:
 
         if not geometry['wing_profile'] == None:
             draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side,
-                           num_per_meter, geometry['wing_profile'])
+                           body_cross_sections_per_meter, geometry['wing_profile'])
         else:
-            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, num_per_meter)
+            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, body_cross_sections_per_meter)
 
     if geometry['tail']:
-        draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, num_per_meter)
-        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, num_per_meter)
+        draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
+        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
 
 
 
@@ -464,98 +472,82 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
     # read in inputs
     model_options = plot_dict['options']['model']
-    nlp_options = plot_dict['options']['nlp']
     kite_nodes = plot_dict['architecture'].kite_nodes
     parent_map = plot_dict['architecture'].parent_map
-    kite_dof = model_options['kite_dof']
 
-    num_per_meter = cosmetics['trajectory']['kite_num_per_meter']
+    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
     # get kite locations
     kite_locations = []
     kite_ref_locations = []
     kite_rotations = []
-    skipping_kite_locations = []
-    skipping_kite_rotations = []
 
-    for n in kite_nodes:
+
+    for kite in kite_nodes:
 
         traj = []
         traj_ref = []
         rot = []
 
-        parent = parent_map[n]
+        parent = parent_map[kite]
 
-        for j in range(3):
+        for dim in range(3):
             traj.append(
-                cas.vertcat(plot_dict['xd']['q' + str(n) + str(parent)][j])#,
-                # plot_dict['xd']['q' + str(n) + str(parent)][j][0])
+                cas.vertcat(plot_dict['xd']['q' + str(kite) + str(parent)][dim])#,
             )
             if cosmetics['plot_ref']:
-                traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(n) + str(parent)][j]))
-            # traj.append(merge_xd_values(V_plot,'q' + str(n) + str(parent),j, plot_dict, cosmetics)[0])
+                traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(kite) + str(parent)][dim]))
 
-        if int(kite_dof) == 6:
-            for j in range(9):
-                rot.append(plot_dict['xd']['r' + str(n) + str(parent)][j])
-                # rot.append(merge_xd_values(V_plot,'r' + str(n) + str(parent),j, plot_dict, cosmetics)[0])
-        elif int(kite_dof) == 3:
-            for j in range(9):
-                rot.append(plot_dict['outputs']['aerodynamics']['r' + str(n)][j])
-                # rot.append(merge_output_values(outputs,'aerodynamics', 'r'+ str(n),j, plot_dict, cosmetics)[0])
+            for dim in range(9):
+                rot.append(plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim])
 
         kite_locations.append(traj)
         kite_ref_locations.append(traj_ref)
         kite_rotations.append(rot)
 
-    skip_value = nlp_options['collocation']['d'] + 1
-
-    for i in range(len(kite_nodes)):
-        if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
-
-            for jdx in range(3):
-                skipping_kite_locations = np.array(
-                    cas.horzcat(skipping_kite_locations, kite_locations[i][jdx][::skip_value]))
-
-            for jdx in range(9):
-                skipping_kite_rotations = np.array(
-                    cas.horzcat(skipping_kite_rotations, kite_rotations[i][jdx][::skip_value]))
-
     old_label = None
-    for i in range(len(kite_nodes)):
+    for kdx in range(len(kite_nodes)):
+
+
         if init_colors == True:
             local_color = 'k'
         elif init_colors == False:
-            local_color = cosmetics['trajectory']['colors'][i]
+            local_color = cosmetics['trajectory']['colors'][kdx]
         else:
             local_color = init_colors
 
-        vertically_stacked_kite_locations = cas.horzcat(kite_locations[i][0],
-                                                    kite_locations[i][1],
-                                                    kite_locations[i][2])
+        vertically_stacked_kite_locations = cas.horzcat(kite_locations[kdx][0],
+                                                    kite_locations[kdx][1],
+                                                    kite_locations[kdx][2])
+
+
+        if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
+
+            pdx = 0
+
+            q_local = []
+            for dim in range(3):
+                q_local = cas.vertcat(q_local, kite_locations[kdx][dim][pdx])
+
+            r_local = []
+            for dim in range(9):
+                r_local = cas.vertcat(r_local, kite_rotations[kdx][dim][pdx])
+
+            draw_kite(ax, q_local, r_local, model_options, local_color, side, body_cross_sections_per_meter)
+
 
         if old_label == label:
             label = None
         make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
 
         if cosmetics['plot_ref']:
-            vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[i][0],
-                                                        kite_ref_locations[i][1],
-                                                        kite_ref_locations[i][2])
+            vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[kdx][0],
+                                                        kite_ref_locations[kdx][1],
+                                                        kite_ref_locations[kdx][2])
             make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
 
         old_label = label
 
-        if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
-            # for pdx in [0]:
-            for pdx in range(skipping_kite_locations.shape[0]):
-                q_all_kites = np.reshape(skipping_kite_locations[pdx, :], (3 * len(kite_nodes), 1))
-                r_all_kites = np.reshape(skipping_kite_rotations[pdx, :], (9 * len(kite_nodes), 1))
-
-                q = q_all_kites[i * 3 : (i + 1) * 3]
-                r = r_all_kites[i * 9 : (i + 1) * 9]
-
-                draw_kite(ax, q, r, model_options, local_color, side, num_per_meter)
 
 def get_q_limits(plot_dict, cosmetics):
     dims = ['x', 'y', 'z']
@@ -604,7 +596,7 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
             temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
+            vals = np.array(cas.vertcat(*plot_dict['xd'][name])) * vortex_tools.get_position_scale(plot_dict['options']['model'])
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 

@@ -40,12 +40,13 @@ import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
 
-
 def get_initial_guess(nlp, model, formulation, init_options):
     V_init_si = build_si_initial_guess(nlp, model, formulation, init_options)
+
     if True in np.isnan(np.array(V_init_si.cat)):
         raise ValueError('NaN detected in V_init_si')
     V_init = struct_op.si_to_scaled(model, V_init_si)
+
     return V_init
 
 

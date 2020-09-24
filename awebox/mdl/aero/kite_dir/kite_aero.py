@@ -44,13 +44,7 @@ import casadi.tools as cas
 import numpy as np
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
-    # if int(options['kite_dof']) == 3:
-    #     outputs = three_dof_kite.get_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    # elif int(options['kite_dof']) == 6:
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-    # else:
-    #     message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-    #     awelogger.logger.error(message)
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
 
@@ -74,6 +68,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         parent = architecture.parent_map[kite]
 
         q = xd['q' + str(kite) + str(parent)]
+        dq = xd['dq' + str(kite) + str(parent)]
 
         vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
         u_eff = vect_op.smooth_norm(vec_u_eff)
@@ -156,9 +151,10 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         intermediates['m_aero_body'] = m_aero_body
         intermediates['kite_dcm'] = kite_dcm
         intermediates['q'] = q
+        intermediates['dq'] = dq
 
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs)
 
         outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
                                                                  parameters, intermediates, outputs)

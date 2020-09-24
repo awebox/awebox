@@ -39,7 +39,9 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.performance_operations as perf_op
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.print_operations as print_op
-
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -63,14 +65,16 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     kite_nodes = architecture.kite_nodes
     xd = variables['xd']
 
-    outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(
-        wind.get_velocity(xd['q10'][2]))
-
+    outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(wind.get_velocity(xd['q10'][2]))
     outputs['performance']['elevation'] = get_elevation_angle(variables['xd'])
 
+    layer_nodes = architecture.layer_nodes
+    for parent in layer_nodes:
+        outputs['performance']['actuator_center' + str(parent)] = actuator_geom.get_center_point(options, parent, variables, architecture)
+
     outputs['performance']['p_loyd_total'] = 0.
-    for n in kite_nodes:
-        outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(n)]
+    for kite in kite_nodes:
+        outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(kite)]
 
     [current_power, phf, phf_hubheight, hubheight_power_availability] = get_power_harvesting_factor(options, atmos,
                                                                                                     wind, variables, parameters,architecture)
@@ -91,7 +95,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     return outputs
 
 
-def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermediates, outputs):
+def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
 
     if 'aerodynamics' not in list(outputs.keys()):
         outputs['aerodynamics'] = {}
@@ -111,6 +115,9 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
     kite_dcm = intermediates['kite_dcm']
     q = intermediates['q']
 
+    verification_test = options['aero']['vortex']['verification_test']
+    if verification_test:
+        f_lift_earth, air_velocity = get_vortex_verification_f_lift_earth(intermediates['dq'])
 
     for name in set(intermediates['aero_coefficients'].keys()):
         outputs['aerodynamics'][name + str(kite)] = intermediates['aero_coefficients'][name]
@@ -160,11 +167,13 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
-    gamma_cross = vect_op.norm(f_lift_earth) / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
-    gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
+
+    gamma_cross = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+    gamma_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+
     outputs['aerodynamics']['gamma_cross' + str(kite)] = gamma_cross
     outputs['aerodynamics']['gamma_cl' + str(kite)] = gamma_cl
-    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cl
+    outputs['aerodynamics']['gamma' + str(kite)] = gamma_cross
 
     outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
     outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
@@ -181,68 +190,18 @@ def collect_kite_aerodynamics_outputs(options, atmos, wind, parameters, intermed
 
     return outputs
 
+
+def get_vortex_verification_f_lift_earth(dq_kite):
+    f_lift_earth = cas.DM(4.86123e6) * vect_op.xhat()
+    ehat_theta = vect_op.normalize(dq_kite)
+    u_downstream = 6.6666;
+    u_tangential = 47.4918;
+    air_velocity = u_downstream * vect_op.xhat() + u_tangential * ehat_theta;
+    return f_lift_earth, air_velocity
+
+
+
 def collect_vortex_verification_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs):
-
-    kite = intermediates['kite']
-    q = intermediates['q']
-    air_velocity = intermediates['air_velocity']
-
-    parent = architecture.parent_map[kite]
-
-    verification_test = options['aero']['vortex']['verification_test']
-
-    if verification_test:
-
-        # things that are only used for Haas validation case = case of fixed radius
-        u_infty = vect_op.norm(wind.get_velocity(q[2]))
-
-        b_ref = parameters['theta0', 'geometry', 'b_ref']
-        rho = atmos.get_density(q[2])
-
-        n_hat = unit_normal.get_n_hat(options, parent, variables, parameters, architecture)
-        kite_velocity_tangential = air_velocity - cas.mtimes(air_velocity.T, n_hat) * n_hat
-        tangential_speed = vect_op.norm(kite_velocity_tangential)
-
-        kite_speed_ratio = tangential_speed / u_infty
-
-        if parent > 0:
-            grandparent = architecture.parent_map[parent]
-            q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
-        else:
-            q_parent = cas.DM.zeros((3, 1))
-
-        tether = q - q_parent
-        radius_vec = tether - cas.mtimes(tether.T, n_hat) * n_hat
-        radius = vect_op.norm(radius_vec)
-        varrho = radius / b_ref
-
-        lift_betz_scale = 4. * np.pi * rho * b_ref * radius**3. / (radius + 0.5 * b_ref) * u_infty**3. / tangential_speed
-
-        mu_center = varrho / (varrho + 0.5)
-        tip_speed_ratio = kite_speed_ratio / mu_center
-
-        a_betz = 1./3.
-
-        mu_min = (varrho - 0.5)/(varrho + 0.5)
-        n_steps = 20
-        delta_mu = (1. - mu_min) / n_steps
-
-        factor = 0.
-        for mdx in range(n_steps - 1):
-            mu = mu_min + (delta_mu / 2.) + np.float(mdx) * delta_mu
-
-            a_prime_betz = a_betz * (1. - a_betz) / tip_speed_ratio ** 2. / mu**2.
-            new_factor = np.sqrt((1. - a_betz)**2. + (tip_speed_ratio * mu * ( 1 + a_prime_betz))**2. )
-            factor += new_factor * delta_mu
-
-        # lift_betz_optimal = factor * lift_betz_scale
-        lift_betz_optimal = cas.DM(5.0129 * 1.e6)
-        outputs['aerodynamics']['f_lift_verification' + str(kite)] = lift_betz_optimal
-
-        ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
-        gamma_verification = lift_betz_optimal / b_ref / rho / vect_op.norm(vect_op.cross(air_velocity, ehat_span))
-        outputs['aerodynamics']['gamma_verification' + str(kite)] = gamma_verification
-        outputs['aerodynamics']['gamma' + str(kite)] = gamma_verification
 
     return outputs
 
@@ -414,22 +373,22 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
     s_ref = parameters['theta0', 'geometry', 's_ref']
 
-    power_availability = 0.
+    available_power_at_kites = 0.
     for n in architecture.kite_nodes:
         parent = architecture.parent_map[n]
         height = xd['q' + str(n) + str(parent)][2]
 
-        power_availability += get_power_density(atmos, wind, height) * s_ref
+        available_power_at_kites += get_power_density(atmos, wind, height) * s_ref
 
     current_power = xa['lambda10'] * xd['l_t'] * xd['dl_t']
 
-    hubheight = xd['q10'][2]
-    hubheight_power_availability = get_power_density(atmos, wind, hubheight) * s_ref * number_of_kites
+    node_1_height = xd['q10'][2]
+    available_power_at_node_1_height = get_power_density(atmos, wind, node_1_height) * s_ref * number_of_kites
 
-    phf = current_power / power_availability
-    phf_hubheight = current_power / hubheight_power_availability
+    phf = current_power / available_power_at_kites
+    phf_hubheight = current_power / available_power_at_node_1_height
 
-    return [current_power, phf, phf_hubheight, hubheight_power_availability]
+    return [current_power, phf, phf_hubheight, available_power_at_node_1_height]
 
 def get_elevation_angle(xd):
     length_along_ground = (xd['q10'][0] ** 2. + xd['q10'][1] ** 2.) ** 0.5
