@@ -135,6 +135,6 @@ def recalibrate_visualization(single_trial):
     cost_fun = single_trial.nlp.cost_components[0]
     cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
     V_ref = single_trial.optimization.V_ref
-    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, p_fix_num, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
 
     return recalibrated_plot_dict
