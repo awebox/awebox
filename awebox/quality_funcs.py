@@ -409,7 +409,7 @@ def test_aero_force_frame_conversion(trial, test_param_dict, results):
                           + 'for ' + conversions[cdx] + ' test, ' \
                           + 'at kite ' + str(kite) + ': ' \
                           + str(max_val) + ' > ' + str(aero_conversion_thresh) \
-                          + '. We recommend increasing the number of collocation intervals n_k.'
+                          + '. We recommend increasing the number of control intervals n_k.'
                 awelogger.logger.warning(message)
                 # slack equalities are not satisfied
                 results['aero_conversion'] = False
