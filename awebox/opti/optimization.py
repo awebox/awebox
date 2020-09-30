@@ -372,7 +372,7 @@ class Optimization(object):
 
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
-            diagnostics.health_check(nlp, self.__solution, self.__arg, options, self.__solve_succeeded)
+            diagnostics.health_check(nlp, self.__solution, self.__arg, options, self.__solve_succeeded, self.__stats, self.__iterations)
 
             if step_name in self.__debug_locations or self.__debug_locations == 'all':
                 V_plot = nlp.V(self.__solution['x'])

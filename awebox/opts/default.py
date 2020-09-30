@@ -387,13 +387,14 @@ def set_default_options(default_user_options, help_options):
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
 
         ### problem health diagnostics options
-        ('solver',  'health',   'singular_values',      'ratio_min_tol',                1e5,    ('ill-conditioning test threshold - largest ratio between max/min singular values', None),'x'),
-        ('solver',  'health',   'singular_values',      'min_tol',                      1e-8,   ('tolerance of smallest accepted singular value', None),'x'),
-        ('solver',  'health',   None,                   'active_threshold',             1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None),'x'),
-        ('solver',  'health',   None,                   'autorun_check',                False,  ('run a health-check after every homotopy step', [True, False]),'x'),
-        ('solver',  'health',   None,                   'after_failure_check',          False,   ('run a health-check when a homotopy step fails', [True, False]),'x'),
-        ('solver',  'health',   'sosc',                 'reduced_hessian_null_tol',     1e-3,   ('tolerance of null-space test in reduced hessian', None),'x'),
-        ('solver',  'health',   None,                   'matrix_entry_zero_tol',        1e-6,   ('tolerance for a matrix entry to be considered zero', None),'x'),
+        ('solver',  'health_check',   'when',     'autorun',                  False,  ('run a health-check after every homotopy step', [True, False]),'x'),
+        ('solver',  'health_check',   'when',     'after_failure',            False,  ('run a health-check when a homotopy step fails', [True, False]),'x'),
+        ('solver',  'health_check',   'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
+        ('solver',  'health_check',   'thresh',   'reduced_hessian_eig',      1e-6,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
+        ('solver',  'health_check',   'thresh',   'condition_number',         1e5,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
+        ('solver',  'health_check',   'tol',      'reduced_hessian_null',     1e-3,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
+        ('solver',  'health_check',   'tol',      'constraint_jacobian_rank', 1e-3,   ('tolerance of rank compution for constraint jacobian', None), 'x'),
+        ('solver',  'health_check',   None,       'spy_kkt_matrix',           False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
 
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),

@@ -68,12 +68,12 @@ def print_runtime_values(stats):
 
     return None
 
-def health_check(nlp, solution, arg, options, solve_succeeded):
-    check_after_failure = (not solve_succeeded) and options['health']['after_failure_check']
-    check_in_general = options['health']['autorun_check']
+def health_check(nlp, solution, arg, options, solve_succeeded, stats, iterations):
+    check_after_failure = (not solve_succeeded) and options['health_check']['when']['after_failure']
+    check_in_general = options['health_check']['when']['autorun']
 
     if check_after_failure or check_in_general:
-        debug_op.health_check(options['health'], nlp, solution, arg)
+        debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
 
     return None
 

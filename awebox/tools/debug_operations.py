@@ -26,6 +26,7 @@
 file to provide debugging operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
+- edit, rachel leuthold 2020
 '''
 
 import casadi.tools as cas
@@ -36,209 +37,199 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
-def check_display(check_condition, check_name, label_pass, label_warning):
 
-    awelogger.logger.debug('')
-    awelogger.logger.debug(print_op.hline('*'))
 
-    if check_condition:
-        awelogger.logger.debug('{0:>15}:'.format(check_name + ' PASSED') + ' ' + label_pass)
-    else:
-        awelogger.logger.debug('{0:>15}:'.format(check_name + ' WARNING') + ' ' + label_warning)
+def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
+    awelogger.logger.info('Checking health...')
+
+    cstr_fun, lam_fun, cstr_labels = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
+    cstr_jacobian_eval = get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
+
+    lagr_fun, lagr_jacobian_fun, lagr_hessian_fun = generate_lagrangian(health_solver_options, nlp, arg, solution)
+    lagr_hessian_eval = get_lagr_hessian_eval(nlp, solution, arg, lagr_hessian_fun)
+
+    kkt_matrix = get_kkt_matrix_eval(cstr_jacobian_eval, lagr_hessian_eval)
+
+    reduced_hessian = get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval)
+
+    tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
+
+    problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
+    if problem_is_ill_conditioned:
+        message = 'problem appears to be ill-conditioned'
+        awelogger.logger.info(message)
+
+    licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options)
+    if not licq_holds:
+        message = 'linear independent constraint qualification is not met at solution'
+        awelogger.logger.info(message)
+
+    sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
+    if not sosc_holds:
+        message = 'second order sufficient conditions are not met at solution'
+        awelogger.logger.info(message)
+
+    if health_solver_options['spy_kkt_matrix']:
+        spy_kkt_matrix(kkt_matrix)
+
+    problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
+
+    awelogger.logger.info('Health checked.')
+
+    return problem_is_healthy
+
+def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian):
+
+    awelogger.logger.info('collect tractability indicators...')
+    tractability = {}
+    tractability['local_iterations'] = get_local_iterations(stats)
+    tractability['total_iterations'] = get_total_iterations(iterations)
+    tractability['diagonality'] = get_pearson_diagonality(kkt_matrix)
+    tractability['size'] = kkt_matrix.shape[0]
+    tractability['condition'] = get_condition_number(kkt_matrix)
+    tractability['min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
+
+    awelogger.logger.info('tractability indicator report')
+    for item in tractability.keys():
+        message = '{:>15}: {:.2e}'.format(item, tractability[item])
+        awelogger.logger.info(message)
+
+    return tractability
+
+def get_local_iterations(stats):
+    awelogger.logger.info('get local iterations...')
+    return stats['iter_count']
+
+def get_total_iterations(iterations):
+    awelogger.logger.info('get total iterations...')
+    total_iterations = 0.
+    for step in iterations.keys():
+        total_iterations += iterations[step]
+    return total_iterations
+
+def get_pearson_diagonality(kkt_matrix):
+
+    awelogger.logger.info('compute Pearson diagonality...')
+
+    matrA = np.absolute(np.array(kkt_matrix))
+
+    shape_dglt = (1, matrA.shape[0])
+
+    j_dglt = np.ones(shape_dglt)
+    r_dglt = np.reshape(np.array(range(1, matrA.shape[0] + 1)), shape_dglt)
+    r2_dglt = r_dglt ** 2.
+
+    n_dglt = cas.mtimes(j_dglt, cas.mtimes(matrA, j_dglt.T))
+    sum_x_dglt = cas.mtimes(r_dglt, cas.mtimes(matrA, j_dglt.T))
+    sum_y_dglt = cas.mtimes(j_dglt, cas.mtimes(matrA, r_dglt.T))
+    sum_x2_dglt = cas.mtimes(r2_dglt, cas.mtimes(matrA, j_dglt.T))
+    sum_y2_dglt = cas.mtimes(j_dglt, cas.mtimes(matrA, r2_dglt.T))
+    sum_xy_dglt = cas.mtimes(r_dglt, cas.mtimes(matrA, r_dglt.T))
+    dglt_num = n_dglt * sum_xy_dglt - sum_x_dglt * sum_y_dglt
+    dglt_den_x = cas.sqrt(n_dglt * sum_x2_dglt - sum_x_dglt ** 2.)
+    dglt_den_y = cas.sqrt(n_dglt * sum_y2_dglt - sum_y_dglt ** 2.)
+    dglt = float(dglt_num / dglt_den_x / dglt_den_y)
+
+    return dglt
+
+def get_condition_number(kkt_matrix):
+    awelogger.logger.info('compute kkt matrix condition number...')
+
+    cond_number = np.linalg.cond(np.array(kkt_matrix))
+    return cond_number
+
+def get_min_reduced_hessian_eigenvalue(reduced_hessian):
+    awelogger.logger.info('get minimum reduced hessian eigenvalue...')
+
+    eigenvalues, _ = np.linalg.eig(np.array(reduced_hessian))
+    min_eigenvalue = np.min(eigenvalues)
+    return min_eigenvalue
+
+
+
+
+
+####### boolean tests
+
+def is_reduced_hessian_positive_definite(min_reduced_hessian_eigenvalue, health_solver_options):
+    reduced_hessian_eig_thesh = health_solver_options['thresh']['reduced_hessian_eig']
+    return min_reduced_hessian_eigenvalue > reduced_hessian_eig_thesh
+
+def is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options):
+
+    rank_tolerance = health_solver_options['tol']['constraint_jacobian_rank']
+
+    matrix_rank = np.linalg.matrix_rank(cstr_jacobian_eval, rank_tolerance)
+    required_rank = np.shape(cstr_jacobian_eval)[0]
+
+    return (required_rank == matrix_rank)
+
+
+def is_problem_ill_conditioned(condition_number, health_solver_options):
+    tol = health_solver_options['thresh']['condition_number']
+    is_ill_conditioned = condition_number > tol
+    return is_ill_conditioned
+
+
+
+
+######## spy
+
+def spy_kkt_matrix(kkt_matrix):
+    vect_op.spy(np.array(kkt_matrix), tol=0.1, color=False)
     return None
 
-def addon_disply(label, value):
-    awelogger.logger.debug('{0:>40} = {1:5}'.format(label, value))
-
-def sosc_check(health_solver_options, nlp, solution, arg):
-
-    awelogger.logger.debug('sosc check...')
-
-    V = nlp.V
-    P = nlp.P
-
-    V_vals = V(solution['x'])
-    lambda_g_vals = solution['lam_g']
-    lambda_x_vals = solution['lam_x']
-    p_fix_num = nlp.P(arg['p'])
-
-    awelogger.logger.debug('get constraints...')
-
-    [stacked_cstr_fun, stacked_lam_fun, stacked_labels] = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
-    relevant_constraints = stacked_cstr_fun(V, P, arg['lbx'], arg['ubx'])
-
-    awelogger.logger.debug('get jacobian...')
-
-    linearization = cas.jacobian(relevant_constraints, V)
-    linearization_fun = cas.Function('linearization_fun', [V, P], [linearization])
-    linearization_eval = np.array(linearization_fun(V_vals, p_fix_num))
-
-    awelogger.logger.debug('find the null space...')
 
 
-    null = vect_op.null(linearization_eval, health_solver_options['sosc']['reduced_hessian_null_tol'])
+##### compute base elements
 
-    awelogger.logger.debug('make lagrangian')
+def get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval):
+    awelogger.logger.info('compute reduced hessian...')
 
-    [lagr_fun, lagr_jacobian_fun, lagr_hessian_fun] = generate_lagrangian(health_solver_options, nlp, arg, solution)
-    lagr_hessian = lagr_hessian_fun(V_vals, p_fix_num, lambda_g_vals, lambda_x_vals)
+    null_tolerance = health_solver_options['tol']['reduced_hessian_null']
+    null = vect_op.null(cstr_jacobian_eval, null_tolerance)
 
-    awelogger.logger.debug('get reduced hessian')
+    reduced_hessian = cas.mtimes(cas.mtimes(null.T, lagr_hessian_eval), null)
 
-    reduced_hessian = cas.mtimes(cas.mtimes(null.T, lagr_hessian), null)
-
-    awelogger.logger.debug('rank check on reduced hessian')
-
-    full_rank_check(health_solver_options, reduced_hessian, 'reduced hessian', 'SOSC')
-
-def spy_hessian(health_solver_options, nlp, solution, arg):
-    [lagr_fun, lagr_jacobian_fun, lagr_hessian_fun] = generate_lagrangian(health_solver_options, nlp, arg, solution)
-
-    ahess = np.array(lagr_hessian_fun(solution['x'], arg['p'], solution['lam_g'], solution['lam_x']))
-
-    # vect_op.spy(ahess, tol=1., color=False)
-    vect_op.spy(ahess, tol=0.1, color=False)
+    return reduced_hessian
 
 
-def full_rank_check(health_solver_options, matrix, matrix_name, check_name):
-
-    rank_tolerance = health_solver_options['singular_values']['min_tol']
-
-    matrix_rank = np.linalg.matrix_rank(matrix, rank_tolerance)
-    required_rank = np.shape(matrix)[0]
-
-    condition = (required_rank == matrix_rank)
-
-    check_display(condition,
-                  check_name,
-                  matrix_name + ' has full row rank',
-                  matrix_name + ' DOES NOT have full row rank')
-
-    addon_disply(matrix_name + ' matrix rank', str(matrix_rank))
-    addon_disply(matrix_name + ' row number', str(required_rank))
-
-    return condition
-
-def licq_check_on_equality_constraints(health_solver_options, nlp, solution, p_fix_num):
-
-    V = nlp.V
-    P = nlp.P
-
-    [equality_constraints, eq_labels, eq_fun] = collect_equality_constraints(nlp)
-
-    cstr_block = cas.jacobian(equality_constraints, V)
-    cstr_block_fun = cas.Function('cstr_block_fun', [V, P], [cstr_block])
-
-    cstr_block_eval = np.array(cstr_block_fun(V(solution['x']), p_fix_num))
-
-    vect_op.spy(cstr_block_eval)
-    poss_trouble_var = np.argmax(np.max(cstr_block_eval, axis=0))
-    print(poss_trouble_var)
-    print((nlp.V.getCanonicalIndex(poss_trouble_var)))
-    print((np.max(cstr_block_eval[:, poss_trouble_var])))
-
-    full_rank_check(health_solver_options, cstr_block_eval, 'equality constraint block', 'LICQ')
-
-def licq_check(health_solver_options, nlp, solution, arg):
+def get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun):
+    awelogger.logger.info('compute jacobian of equality and active inequality constraints...')
 
     V = nlp.V
     P = nlp.P
 
     p_fix_num = nlp.P(arg['p'])
 
-    [stacked_cstr_fun, stacked_lam_fun, stacked_labels] = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
+    relevant_constraints = cstr_fun(V, P, arg['lbx'], arg['ubx'])
 
-    relevant_constraints = stacked_cstr_fun(V, P, arg['lbx'], arg['ubx'])
+    cstr_jacobian = cas.jacobian(relevant_constraints, V)
+    cstr_jacobian_fun = cas.Function('cstr_jacobian_fun', [V, P], [cstr_jacobian])
 
-    cstr_block = cas.jacobian(relevant_constraints, V)
-    cstr_block_fun = cas.Function('cstr_block_fun', [V, P], [cstr_block])
+    cstr_jacobian_eval = np.array(cstr_jacobian_fun(V(solution['x']), p_fix_num))
 
-    cstr_block_eval = np.array(cstr_block_fun(V(solution['x']), p_fix_num))
+    return cstr_jacobian_eval
 
-    full_rank_check(health_solver_options, cstr_block_eval, 'constraint block', 'LICQ')
 
-def health_check(health_solver_options, nlp, solution, arg):
+def get_lagr_hessian_eval(nlp, solution, arg, lagr_hessian_fun):
+    awelogger.logger.info('evaluate hessian of the lagrangian...')
 
-    eval_kkt = get_solution_kkt_matrix(health_solver_options, nlp, solution, arg)
-
-    empty_cols_passes = empty_cols_check(health_solver_options, nlp, solution, arg, eval_kkt, 'kkt matrix')
-
-    kkt_rank_passes = full_rank_check(health_solver_options, eval_kkt, 'kkt matrix', 'KKT')
-
-    [uu, ss, vv] = np.linalg.svd(eval_kkt)
-
-    ss_max = np.max(ss)
-    ss_min = np.min(ss)
-
-    singular_value_ratio_passes = singular_value_ratio_check(health_solver_options, ss_min, ss_max, 'KKT', 'kkt matrix')
-    smallest_singular_value_passes = smallest_singular_value_check(health_solver_options, ss_min, 'KKT', 'kkt matrix')
-
-    health_passes = kkt_rank_passes and singular_value_ratio_passes and smallest_singular_value_passes and empty_cols_passes
-
-    spy_hessian(health_solver_options, nlp, solution, arg)
-
-    return health_passes
-
-def smallest_singular_value_check(health_solver_options, ss_min, check_name, matrix_name):
-
-    tol = health_solver_options['singular_values']['min_tol']
-    condition = ss_min > tol
-
-    check_display(condition,
-                  check_name,
-                  'smallest singular values do not indicate ill-conditioned ' + matrix_name,
-                  'smallest singular values indicate ill-conditioned ' + matrix_name)
-
-    addon_disply('s_min', ss_min)
-
-    return condition
-
-def singular_value_ratio_check(health_solver_options, ss_min, ss_max, check_name, matrix_name):
-
-    tol = health_solver_options['singular_values']['ratio_min_tol']
-    ss_ratio = ss_max / ss_min
-
-    condition = ss_ratio < tol
-
-    check_display(condition,
-                  check_name,
-                  'singular value ratio does not indicate ill-conditioned ' + matrix_name,
-                  'singular value ratio indicates ill-conditioned ' + matrix_name)
-
-    addon_disply('s_max / s_min', ss_ratio)
-
-    return condition
-
-def get_solution_kkt_matrix(health_solver_options, nlp, solution, arg):
-    V_opt = solution['x']
+    V_opt = nlp.V(solution['x'])
     lambda_g = solution['lam_g']
     lambda_x = solution['lam_x']
-
     p_fix_num = nlp.P(arg['p'])
+    lagr_hessian_eval = lagr_hessian_fun(V_opt, p_fix_num, lambda_g, lambda_x)
+    return lagr_hessian_eval
 
-    kkt_matrix_fun = make_kkt_matrix_function(health_solver_options, nlp, solution, arg)
+def get_kkt_matrix_eval(cstr_jacobian_eval, lagr_hessian_eval):
+    awelogger.logger.info('evaluate the kkt matrix...')
 
-    solution_kkt = np.array(kkt_matrix_fun(V_opt, p_fix_num, lambda_g, lambda_x))
-
-    return np.array(solution_kkt)
-
-def make_kkt_matrix_function(health_solver_options, nlp, solution, arg):
-
-    V = nlp.V
-    P = nlp.P
-
-    lam_x_sym = cas.MX.sym('lam_x_sym', nlp.V.shape)
-    lam_g_sym = cas.MX.sym('lam_g_sym', nlp.g.shape)
-
-    [stacked_cstr_fun, stacked_lam_fun, stacked_labels] = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
-    relevant_constraints = stacked_cstr_fun(V, P, arg['lbx'], arg['ubx'])
-
-    [lagr_fun, lagr_jacobian_fun, lagr_hessian_fun] = generate_lagrangian(health_solver_options, nlp, arg, solution)
-
-    lagr_block = lagr_hessian_fun(V, P, lam_g_sym, lam_x_sym)
-    constraint_block = cas.jacobian(relevant_constraints, V)
+    lagr_block = lagr_hessian_eval
+    constraint_block = cstr_jacobian_eval
 
     zeros_block = np.zeros((constraint_block.shape[0], constraint_block.shape[0]))
 
@@ -247,14 +238,14 @@ def make_kkt_matrix_function(health_solver_options, nlp, solution, arg):
     # nabla g           0               0
     # nabla hA          0               0
 
-    kkt_matrix = cas.horzcat(lagr_block, constraint_block.T)
-    kkt_matrix = cas.vertcat(kkt_matrix, cas.horzcat(constraint_block, zeros_block))
+    top_row = cas.horzcat(lagr_block, constraint_block.T)
+    bottom_row = cas.horzcat(constraint_block, zeros_block)
+    kkt_matrix = cas.vertcat(top_row, bottom_row)
 
-    kkt_matrix_fun = cas.Function('kkt_matrix_fun', [V, P, lam_g_sym, lam_x_sym], [kkt_matrix])
-
-    return kkt_matrix_fun
+    return kkt_matrix
 
 def generate_lagrangian(health_solver_options, nlp, arg, solution):
+    awelogger.logger.info('compute the lagrangian...')
 
     vars_sym = cas.SX.sym('vars_sym', nlp.V.shape)
     p_sym = cas.SX.sym('p_sym', nlp.P.shape)
@@ -285,6 +276,7 @@ def generate_lagrangian(health_solver_options, nlp, arg, solution):
     return lagr_fun, lagr_jacobian_fun, lagr_hessian_fun
 
 def collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg):
+    awelogger.logger.info('collect the equality and active inequality constraints...')
 
     var_sym = cas.SX.sym('var_sym', nlp.V.shape)
     p_sym = cas.SX.sym('p_sym', nlp.P.shape)
@@ -297,8 +289,8 @@ def collect_equality_and_active_inequality_constraints(health_solver_options, nl
     p_fix_num = nlp.P(arg['p'])
     var_constraint_functions = collect_var_constraints(health_solver_options, nlp, arg, solution)
 
-    [equality_constraints, eq_labels, eq_fun] = collect_equality_constraints(nlp)
-    [active_inequality_constraints, active_ineq_labels, active_fun] = collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
+    _, eq_labels, eq_fun = collect_equality_constraints(nlp)
+    _, active_ineq_labels, active_fun = collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
 
     equality_constraints = eq_fun(nlp.g_fun(var_sym, p_sym))
     active_inequality_constraints = active_fun(nlp.g_fun(var_sym, p_sym))
@@ -358,7 +350,7 @@ def collect_inequality_constraints(nlp):
 
 def collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num):
 
-    active_threshold = health_solver_options['active_threshold']
+    active_threshold = health_solver_options['thresh']['active']
     v_vals = solution['x']
 
     active_constraints = []
@@ -404,7 +396,7 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
 
 def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
-    active_threshold = health_solver_options['active_threshold']
+    active_threshold = health_solver_options['thresh']['active']
 
     lam = solution['lam_x']
     lbx = arg['lbx']
@@ -539,65 +531,3 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     var_constraint_functions['rel_labels'] = relevant_labels
 
     return var_constraint_functions
-
-def empty_cols_check(health_solver_options, nlp, solution, arg, matrix, matrix_name):
-
-    tol = health_solver_options['matrix_entry_zero_tol']
-
-    zero_cols = vect_op.find_zero_cols(matrix, tol)
-    test = zero_test_display(health_solver_options, nlp, solution, arg, zero_cols, matrix_name, 'col')
-
-    return test
-
-def empty_rows_check(health_solver_options, nlp, solution, arg, matrix, matrix_name):
-
-    tol = health_solver_options['matrix_entry_zero_tol']
-
-    zero_rows = vect_op.find_zero_rows(matrix, tol)
-    test = zero_test_display(health_solver_options, nlp, solution, arg, zero_rows, matrix_name, 'row')
-
-    return test
-
-def zero_test_display(health_solver_options, nlp, solution, arg, zero_axis, matrix_name, axis):
-
-    if (axis == 0) or ('row' in axis):
-        hunt_name = 'empty rows'
-    if (axis == 1) or ('col' in axis):
-        hunt_name = 'empty columns'
-
-    condition = (zero_axis.shape[0] == 0)
-
-    check_display(condition,
-                  'ZERO',
-                  matrix_name + ' does not contain ' + hunt_name,
-                  matrix_name + ' contains ' + hunt_name)
-
-    if not condition:
-        addon_disply('locations of ' + hunt_name, repr(zero_axis))
-
-        for idx in range(zero_axis.shape[0]):
-            interpret_kkt_index(health_solver_options, zero_axis[idx], nlp, solution, arg)
-
-    return condition
-
-def interpret_kkt_index(health_solver_options, idx, nlp, solution, arg):
-
-    V = nlp.V
-    numel_V = V.shape[0]
-
-    [stacked_cstr_fun, stacked_lam_fun, stacked_labels] = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
-    numel_constraints = stacked_labels.shape[0]
-
-    if idx < numel_V:
-        addon_disply('index ' + str(idx), V.getCanonicalIndex(idx))
-
-    else:
-        idx_remainder = numel_V - idx - 1
-
-        if idx_remainder < numel_constraints:
-            addon_disply('index ' + str(idx), stacked_labels[idx_remainder])
-
-        else:
-            awelogger.logger.error('index error in interpretation')
-
-    return None
