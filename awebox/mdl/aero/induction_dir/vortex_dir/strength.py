@@ -37,7 +37,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
-
+import pdb
 
 ######## the constraints : see opti.constraints
 
@@ -74,10 +74,7 @@ def get_cstr_in_operation_format(options, variables, model):
     Outputs_mock = cas.struct_symMX([entry_tuple])
 
     resi_mock = get_strength_constraint_all(options, V_mock, Outputs_mock, model)
-    try:
-        resi = cas.DM.ones(resi_mock.shape)
-    except:
-        resi = []
+    resi = cas.DM.ones(resi_mock.shape)
 
     eq_name = 'vortex_strength'
     eqs_dict[eq_name] = resi
@@ -161,7 +158,7 @@ def get_strength_constraint_all(options, V, Outputs, model):
                             period_number = int(np.floor(float(ndx_shed)/float(n_k)))
                             ndx_shed_w_periodicity = ndx_shed - period_number * n_k
 
-                            gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'gamma' + str(kite)]
+                            gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'circulation' + str(kite)]
                             wg_ref = 1. * gamma_val / strength_scale
                         else:
                             wg_ref = 0.

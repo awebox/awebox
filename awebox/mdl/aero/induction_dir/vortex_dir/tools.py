@@ -33,6 +33,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 def get_wake_node_position_si(options, variables, kite, tip, wake_node):
 
@@ -44,18 +45,7 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node):
 
 def get_wake_node_position(variables, kite, tip, wake_node):
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-    wx_local = cas.DM_inf((3, 1))
-    try:
-        wx_local = variables['xd', coord_name]
-    except:
-        try:
-            wx_local = variables['xd'][coord_name]
-        except:
-            message = 'wake node position is not in expected position wrt variables.'
-            awelogger.logger.error(message)
-            raise Exception(message)
-
+    wx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
     return wx_local
 
 def get_wake_node_velocity_si(options, variables, kite, tip, wake_node):
@@ -67,18 +57,7 @@ def get_wake_node_velocity_si(options, variables, kite, tip, wake_node):
 
 def get_wake_node_velocity(variables, kite, tip, wake_node):
     coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-    dwx_local = cas.DM_inf((3, 1))
-    try:
-        dwx_local = variables['xd', coord_name]
-    except:
-        try:
-            dwx_local = variables['xd'][coord_name]
-        except:
-            message = 'wake node velocity is not in expected position wrt variables.'
-            awelogger.logger.error(message)
-            raise Exception(message)
-
+    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
     return dwx_local
 
 def get_ring_strength_si(options, variables, kite, ring):
@@ -92,17 +71,7 @@ def get_ring_strength_si(options, variables, kite, ring):
 
 def get_ring_strength(variables, kite, ring):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
-
-    wg_local = cas.DM_inf((1, 1))
-    try:
-        wg_local = variables['xl', coord_name]
-    except:
-        try:
-            wg_local = variables['xl'][coord_name]
-        except:
-            message = 'vortex ring strength is not in expected position wrt variables.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+    wg_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xl', coord_name)
 
     return wg_local
 
@@ -135,40 +104,15 @@ def append_bounds(g_bounds, fix):
         return g_bounds
 
     else:
-
-        fix_shape = (1,1)
         try:
             fix_shape = fix.shape
         except:
             message = 'An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.'
             awelogger.logger.error(message)
+            raise Exception(message)
 
         g_bounds['ub'].append(cas.DM.zeros(fix_shape))
         g_bounds['lb'].append(cas.DM.zeros(fix_shape))
 
         return g_bounds
 
-def get_vortex_verification_mu_vals():
-
-    radius = 155.77
-    b_ref = 68.
-
-    varrho = radius / b_ref
-
-    mu_center_by_exterior = varrho / (varrho + 0.5)
-    mu_min_by_exterior = (varrho - 0.5) / (varrho + 0.5)
-    mu_max_by_exterior = 1.
-
-    mu_min_by_path = (varrho - 0.5) / varrho
-    mu_max_by_path = (varrho + 0.5) / varrho
-    mu_center_by_path = 1.
-
-    mu_vals = {}
-    mu_vals['mu_center_by_exterior'] = mu_center_by_exterior
-    mu_vals['mu_min_by_exterior'] = mu_min_by_exterior
-    mu_vals['mu_max_by_exterior'] = mu_max_by_exterior
-    mu_vals['mu_min_by_path'] = mu_min_by_path
-    mu_vals['mu_max_by_path'] = mu_max_by_path
-    mu_vals['mu_center_by_path'] = mu_center_by_path
-
-    return mu_vals

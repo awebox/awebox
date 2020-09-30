@@ -51,8 +51,7 @@ def list_filament_observer_and_normal_info(point_obs, filament_list, options, n_
 
     seg_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
 
-    if not (n_hat == None):
-
+    if n_hat is not None:
         n_hat_ext = []
         for jdx in range(3):
             n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
@@ -88,7 +87,7 @@ def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, pa
 
 def filament_normal(seg_data, epsilon=1.e-2):
     n_hat = seg_data[-3:]
-    return cas.mtimes(filament(seg_data).T, n_hat)
+    return cas.mtimes(filament(seg_data, epsilon).T, n_hat)
 
 def filament(seg_data, epsilon=1.e-2):
 
@@ -121,7 +120,7 @@ def filament(seg_data, epsilon=1.e-2):
     except:
         message = 'something went wrong while computing the filament biot-savart induction. proceed with zero induced velocity from this filament.'
         awelogger.logger.error(message)
-        sol = cas.DM.zeros((3, 1))
+        raise Exception(message)
 
     return sol
 

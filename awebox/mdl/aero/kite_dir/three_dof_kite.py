@@ -104,6 +104,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     CL = coeff[0]
 
     drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA', 'CD']
+
     CD0 = 0.
     for cd_equiv in drag_coefficient_at_zero_alpha_equivs:
         try:

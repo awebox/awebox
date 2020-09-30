@@ -40,7 +40,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
-
+import pdb
 
 #
 def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
@@ -53,13 +53,9 @@ def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
     filament_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
 
-    include_normal_info = False
-    try:
-        this_will_fail_if_n_hat_is_None = n_hat.shape
-        include_normal_info = True
+    include_normal_info = (n_hat is not None)
+    if include_normal_info:
         filament_list = vortex_filament_list.append_normal_to_list(filament_list, n_hat)
-    except:
-        32.0
 
     u_ind = make_symbolic_filament_and_sum(options, filament_list, include_normal_info)
     return u_ind

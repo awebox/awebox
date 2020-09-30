@@ -136,33 +136,29 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         aero_coefficients['Cn'] = Cn
         aero_coefficients['LoverD'] = CL/CD
 
-        intermediates = {}
-        intermediates['kite'] = kite
-        intermediates['air_velocity'] = vec_u_eff
-        intermediates['airspeed'] = u_eff
-        intermediates['aero_coefficients'] = aero_coefficients
-        intermediates['f_aero_earth'] = f_aero_earth
-        intermediates['f_aero_body'] = f_aero_body
-        intermediates['f_aero_control'] = f_aero_control
-        intermediates['f_aero_wind'] = f_aero_wind
-        intermediates['f_lift_earth'] = f_lift_earth
-        intermediates['f_drag_earth'] = f_drag_earth
-        intermediates['f_side_earth'] = f_side_earth
-        intermediates['m_aero_body'] = m_aero_body
-        intermediates['kite_dcm'] = kite_dcm
-        intermediates['q'] = q
-        intermediates['dq'] = dq
+        base_aerodynamic_quantities = {}
+        base_aerodynamic_quantities['kite'] = kite
+        base_aerodynamic_quantities['air_velocity'] = vec_u_eff
+        base_aerodynamic_quantities['airspeed'] = u_eff
+        base_aerodynamic_quantities['aero_coefficients'] = aero_coefficients
+        base_aerodynamic_quantities['f_aero_earth'] = f_aero_earth
+        base_aerodynamic_quantities['f_aero_body'] = f_aero_body
+        base_aerodynamic_quantities['f_aero_control'] = f_aero_control
+        base_aerodynamic_quantities['f_aero_wind'] = f_aero_wind
+        base_aerodynamic_quantities['f_lift_earth'] = f_lift_earth
+        base_aerodynamic_quantities['f_drag_earth'] = f_drag_earth
+        base_aerodynamic_quantities['f_side_earth'] = f_side_earth
+        base_aerodynamic_quantities['m_aero_body'] = m_aero_body
+        base_aerodynamic_quantities['kite_dcm'] = kite_dcm
+        base_aerodynamic_quantities['q'] = q
+        base_aerodynamic_quantities['dq'] = dq
 
-
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, intermediates, outputs)
-
-        outputs = indicators.collect_vortex_verification_outputs(options, architecture, atmos, wind, variables,
-                                                                 parameters, intermediates, outputs)
-        outputs = indicators.collect_environmental_outputs(atmos, wind, intermediates, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, intermediates, outputs)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, base_aerodynamic_quantities, outputs)
+        outputs = indicators.collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outputs)
+        outputs = indicators.collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
-                                                               intermediates, outputs)
-        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, intermediates, outputs)
+                                                               base_aerodynamic_quantities, outputs)
+        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, base_aerodynamic_quantities, outputs)
 
 
     return outputs

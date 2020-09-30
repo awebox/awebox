@@ -36,6 +36,7 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
 
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):
@@ -165,21 +166,18 @@ def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
     grandparent = architecture.parent_map[parent]
 
     if grandparent == 0:
-        try:
-            n_vec = variables['xd']['q' + str(parent) + str(grandparent)]
-        except:
-            n_vec = variables['xd', 'q' + str(parent) + str(grandparent)]
-
-        n_vec = n_vec * 1.e-3
+        name = 'q' + str(parent) + str(grandparent)
+        n_vec_unscaled = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', name)
+        n_vec_scaled = n_vec_unscaled * 1.e-3
     else:
         great_grandparent = architecture.parent_map[grandparent]
         q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
         q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
-        n_vec = q_parent - q_grandparent
+        n_vec_unscaled = q_parent - q_grandparent
 
-        n_vec = n_vec * 1.e-1
+        n_vec_scaled = n_vec_unscaled * 1.e-1
 
-    return n_vec
+    return n_vec_scaled
 
 def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture):
 

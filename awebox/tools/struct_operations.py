@@ -36,6 +36,7 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def subkeys(casadi_struct, key):
 
@@ -936,3 +937,25 @@ def generate_variable_struct(variable_list):
                         for name in list(variable_list.keys())])
 
     return variable_struct, structs
+
+def get_variable_from_model_or_reconstruction(variables, var_type, name):
+
+    if var_type in variables.keys():
+        sub_variables = variables[var_type]
+
+    try:
+        if isinstance(sub_variables, cas.DM):
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.MX):
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.structure3.SXStruct):
+            local_var = variables[var_type][name]
+        else:
+            local_var = variables[var_type, name]
+    except:
+
+        message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return local_var

@@ -208,11 +208,37 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
     return y_matr, z_matr, a_matr, y_list, z_list
 
 
+def get_vortex_verification_mu_vals():
+
+    radius = 155.77
+    b_ref = 68.
+
+    varrho = radius / b_ref
+
+    mu_center_by_exterior = varrho / (varrho + 0.5)
+    mu_min_by_exterior = (varrho - 0.5) / (varrho + 0.5)
+    mu_max_by_exterior = 1.
+
+    mu_min_by_path = (varrho - 0.5) / varrho
+    mu_max_by_path = (varrho + 0.5) / varrho
+    mu_center_by_path = 1.
+
+    mu_vals = {}
+    mu_vals['mu_center_by_exterior'] = mu_center_by_exterior
+    mu_vals['mu_min_by_exterior'] = mu_min_by_exterior
+    mu_vals['mu_max_by_exterior'] = mu_max_by_exterior
+    mu_vals['mu_min_by_path'] = mu_min_by_path
+    mu_vals['mu_max_by_path'] = mu_max_by_path
+    mu_vals['mu_center_by_path'] = mu_center_by_path
+
+    return mu_vals
+
+
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
     idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
     number_of_kites = plot_dict['architecture'].number_of_kites
-    mu_vals = vortex_tools.get_vortex_verification_mu_vals()
+    mu_vals = get_vortex_verification_mu_vals()
     max_axes = -100.
 
     vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
