@@ -32,12 +32,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
-from scipy.interpolate import griddata
-from scipy.interpolate import Rbf
-import scipy.interpolate as interpolate
 import awebox.mdl.wind as wind
 
-import pdb
 
 def draw_wake_nodes(ax, side, plot_dict, index):
 
@@ -220,10 +216,8 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
     kite_plane_induction_params['u_infty'] = u_infty
 
-    pdb.set_trace()
-
     varrho = average_radius / b_ref
-    kite_plane_induction_params['varrho']
+    kite_plane_induction_params['varrho'] = varrho
 
     mu_center_by_exterior = varrho / (varrho + 0.5)
     mu_min_by_exterior = (varrho - 0.5) / (varrho + 0.5)

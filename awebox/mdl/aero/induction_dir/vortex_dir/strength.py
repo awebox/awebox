@@ -37,7 +37,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
-import pdb
 
 ######## the constraints : see opti.constraints
 

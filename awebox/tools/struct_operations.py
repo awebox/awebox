@@ -36,7 +36,6 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def subkeys(casadi_struct, key):
 

@@ -40,7 +40,7 @@ from . import var_struct
 import awebox as awe
 
 from . import operation
-import pdb
+
 
 class Formulation(object):
     def __init__(self):

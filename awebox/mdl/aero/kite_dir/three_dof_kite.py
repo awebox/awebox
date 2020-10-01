@@ -39,7 +39,6 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
 
