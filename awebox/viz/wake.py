@@ -203,9 +203,11 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     average_radius = plot_dict['outputs']['performance']['average_radius' + str(layer)][0][idx_at_eval]
     kite_plane_induction_params['average_radius'] = average_radius
 
-    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][0][idx_at_eval],
-                         plot_dict['outputs']['performance']['actuator_center1'][1][idx_at_eval],
-                         plot_dict['outputs']['performance']['actuator_center1'][2][idx_at_eval])
+    center_x = plot_dict['outputs']['performance']['actuator_center' + str(layer)][0][idx_at_eval]
+    center_y = plot_dict['outputs']['performance']['actuator_center' + str(layer)][1][idx_at_eval]
+    center_z = plot_dict['outputs']['performance']['actuator_center' + str(layer)][2][idx_at_eval]
+
+    center = cas.vertcat(center_x, center_y, center_z)
     kite_plane_induction_params['center'] = center
 
     wind_model = plot_dict['options']['model']['wind']['model']
@@ -244,13 +246,13 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-    number_of_kites = plot_dict['architecture'].number_of_kites
-    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-    max_axes = -100.
+    vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
+    if vortex_info_exists:
 
-    vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
-    if vortex_structure_modelled:
+        idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
+        number_of_kites = plot_dict['architecture'].number_of_kites
+        kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+        max_axes = -100.
 
         mu_min_by_path = kite_plane_induction_params['mu_min_by_path']
         mu_max_by_path = kite_plane_induction_params['mu_max_by_path']

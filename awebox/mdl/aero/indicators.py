@@ -73,9 +73,18 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
         outputs['performance']['actuator_center' + str(parent)] = actuator_geom.get_center_point(options, parent, variables, architecture)
 
         average_radius = 0.
+
         number_children = len(architecture.children_map[parent])
         for kite in architecture.children_map[parent]:
-            average_radius += outputs['local_performance']['radius_of_curvature' + str(kite)] / float(number_children)
+
+            rad_curv_name = 'radius_of_curvature' + str(kite)
+            if rad_curv_name in outputs['local_performance'].keys():
+                local_radius = outputs['local_performance'][rad_curv_name]
+            else:
+                qkite = variables['xd']['q' + str(kite) + str(parent)]
+                local_radius = vect_op.norm(qkite - outputs['performance']['actuator_center' + str(parent)])
+
+            average_radius += local_radius / float(number_children)
 
         outputs['performance']['average_radius' + str(parent)] = average_radius
 
