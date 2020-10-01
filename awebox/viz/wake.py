@@ -35,6 +35,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament
 from scipy.interpolate import griddata
 from scipy.interpolate import Rbf
 import scipy.interpolate as interpolate
+import awebox.mdl.wind as wind
 
 import pdb
 
@@ -121,13 +122,17 @@ def convert_gamma_to_color(gamma_val, plot_dict):
     return color
 
 def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
+    
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     architecture = plot_dict['architecture']
     filament_list = reconstruct_filament_list(plot_dict, idx_at_eval)
     number_of_kites = architecture.number_of_kites
 
-    radius = 155.77
-    u_infty = cas.DM(10.)
+    radius = kite_plane_induction_params['average_radius']
+    center = kite_plane_induction_params['center']
+    u_infty = kite_plane_induction_params['u_infty']
+
     u_zero = u_infty
 
     verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
@@ -135,26 +140,20 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
 
     psi0_base = plot_dict['options']['solver']['initialization']['psi0_rad']
 
-    mu_grid_min = 0.1
-    mu_grid_max = 1.6
+    mu_grid_min = kite_plane_induction_params['mu_start_by_path']
+    mu_grid_max = kite_plane_induction_params['mu_end_by_path']
     psi_grid_min = psi0_base - np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
     psi_grid_max = psi0_base + np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
 
     # define mu with respect to kite mid-span radius
     mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
     length_mu = mu_grid_points.shape[0]
-    # psi_grid_points = np.linspace(psi_grid_min, psi_grid_max, n_points, endpoint=True)
 
     beta = np.linspace(0., np.pi / 2, half_points)
     cos_front = 0.5 * (1. - np.cos(beta))
     cos_back = -1. * cos_front[::-1]
-    # psi_grid_unscaled = cas.vertcat(cos_back[:-1], cos_front) + 0.5
     psi_grid_unscaled = cas.vertcat(cos_back, cos_front) + 0.5
     psi_grid_points_cas = psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
-
-    # for kite in range(1, number_of_kites):
-    #     psi_grid_points_local = psi_grid_points_cas + float(kite) * 2. * np.pi / float(number_of_kites)
-    #     psi_grid_points_cas = cas.vertcat(psi_grid_points_cas, psi_grid_points_local)
 
     psi_grid_points_np = np.array(psi_grid_points_cas)
     psi_grid_points_recenter = np.deg2rad(np.rad2deg(psi_grid_points_np))
@@ -166,11 +165,6 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
     y_matr = np.ones((length_psi, length_mu))
     z_matr = np.ones((length_psi, length_mu))
     a_matr = np.ones((length_psi, length_mu))
-
-    haas_grid = {}
-    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][0][idx_at_eval],
-                         plot_dict['outputs']['performance']['actuator_center1'][1][idx_at_eval],
-                         plot_dict['outputs']['performance']['actuator_center1'][2][idx_at_eval])
 
     for mdx in range(length_mu):
         mu_val = mu_grid_points[mdx]
@@ -197,23 +191,39 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
 
     y_list = np.array(cas.reshape(y_matr, (length_psi * length_mu, 1)))
     z_list = np.array(cas.reshape(z_matr, (length_psi * length_mu, 1)))
-    # a_list = np.array(cas.reshape(a_matr, (length_psi * length_mu, 1)))
-    #
-    # interpf = interpolate.interp2d(y_list, z_list, a_list)
-    #
-    # new_grid_points = np.linspace(-1. * mu_grid_max, mu_grid_max, 100)
-    # grid_y, grid_z = np.meshgrid(new_grid_points, new_grid_points)
-    # grid_a = interpf(new_grid_points, new_grid_points)
-
+    
     return y_matr, z_matr, a_matr, y_list, z_list
 
 
-def get_vortex_verification_mu_vals():
+def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
-    radius = 155.77
-    b_ref = 68.
+    kite_plane_induction_params = {}
+    
+    layer_nodes = plot_dict['architecture'].layer_nodes
+    layer = int( np.min(np.array(layer_nodes)) )
+    kite_plane_induction_params['layer'] = layer
+    
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    average_radius = plot_dict['outputs']['performance']['average_radius' + str(layer)][0][idx_at_eval]
+    kite_plane_induction_params['average_radius'] = average_radius
 
-    varrho = radius / b_ref
+    center = cas.vertcat(plot_dict['outputs']['performance']['actuator_center1'][0][idx_at_eval],
+                         plot_dict['outputs']['performance']['actuator_center1'][1][idx_at_eval],
+                         plot_dict['outputs']['performance']['actuator_center1'][2][idx_at_eval])
+    kite_plane_induction_params['center'] = center
+
+    wind_model = plot_dict['options']['model']['wind']['model']
+    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
+    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
+    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
+    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
+    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
+    kite_plane_induction_params['u_infty'] = u_infty
+
+    pdb.set_trace()
+
+    varrho = average_radius / b_ref
+    kite_plane_induction_params['varrho']
 
     mu_center_by_exterior = varrho / (varrho + 0.5)
     mu_min_by_exterior = (varrho - 0.5) / (varrho + 0.5)
@@ -223,29 +233,33 @@ def get_vortex_verification_mu_vals():
     mu_max_by_path = (varrho + 0.5) / varrho
     mu_center_by_path = 1.
 
-    mu_vals = {}
-    mu_vals['mu_center_by_exterior'] = mu_center_by_exterior
-    mu_vals['mu_min_by_exterior'] = mu_min_by_exterior
-    mu_vals['mu_max_by_exterior'] = mu_max_by_exterior
-    mu_vals['mu_min_by_path'] = mu_min_by_path
-    mu_vals['mu_max_by_path'] = mu_max_by_path
-    mu_vals['mu_center_by_path'] = mu_center_by_path
+    mu_start_by_path = 0.1
+    mu_end_by_path = 1.6
 
-    return mu_vals
+    kite_plane_induction_params['mu_center_by_exterior'] = mu_center_by_exterior
+    kite_plane_induction_params['mu_min_by_exterior'] = mu_min_by_exterior
+    kite_plane_induction_params['mu_max_by_exterior'] = mu_max_by_exterior
+    kite_plane_induction_params['mu_min_by_path'] = mu_min_by_path
+    kite_plane_induction_params['mu_max_by_path'] = mu_max_by_path
+    kite_plane_induction_params['mu_center_by_path'] = mu_center_by_path
+    kite_plane_induction_params['mu_start_by_path'] = mu_start_by_path
+    kite_plane_induction_params['mu_end_by_path'] = mu_end_by_path
+
+    return kite_plane_induction_params
 
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
     idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
     number_of_kites = plot_dict['architecture'].number_of_kites
-    mu_vals = get_vortex_verification_mu_vals()
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
     max_axes = -100.
 
     vortex_structure_modelled = 'vortex' in plot_dict['outputs'].keys()
     if vortex_structure_modelled:
 
-        mu_min_by_path = mu_vals['mu_min_by_path']
-        mu_max_by_path = mu_vals['mu_max_by_path']
+        mu_min_by_path = kite_plane_induction_params['mu_min_by_path']
+        mu_max_by_path = kite_plane_induction_params['mu_max_by_path']
 
         ### points plot
         fig_points, ax_points = plt.subplots(1, 1)

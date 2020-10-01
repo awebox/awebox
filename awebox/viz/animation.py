@@ -114,8 +114,6 @@ def animate_snapshot(plot_dict, cosmetics, fig_name, init_colors=bool(False), pl
     # make text plot
     txt_glb, txt_loc = fill_in_dashboard(fig, plot_dict, index)
 
-    fig.savefig('snapshot.pdf')
-
     return None
 
 

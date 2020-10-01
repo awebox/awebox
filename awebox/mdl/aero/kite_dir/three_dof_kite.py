@@ -39,6 +39,7 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
 
@@ -103,14 +104,12 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     # lift and drag coefficients
     CL = coeff[0]
 
-    drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA', 'CD']
-
     CD0 = 0.
-    for cd_equiv in drag_coefficient_at_zero_alpha_equivs:
-        try:
-            CD0 = vect_op.abs(parameters['theta0', 'aero', cd_equiv, '0'][0])
-        except:
-            32.0
+    poss_drag_labels_in_order_of_increasing_preference = ['CX', 'CA', 'CD']
+    for poss_drag_label in poss_drag_labels_in_order_of_increasing_preference:
+        local_parameter_label = '[theta0,aero,' + poss_drag_label + ',0,0]'
+        if local_parameter_label in parameters.labels():
+            CD0 = vect_op.abs(parameters['theta0', 'aero', poss_drag_label, '0'][0])
 
     CD = CD0 + CL ** 2 / (np.pi * parameters['theta0', 'geometry', 'ar'])
 

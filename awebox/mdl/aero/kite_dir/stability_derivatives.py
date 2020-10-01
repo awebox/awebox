@@ -234,12 +234,11 @@ def extract_derivs_from_parameters(parameters):
     for coeff_name in all_possible_coeffs:
 
         for input_name in all_possible_inputs:
-            try:
-                vals = parameters['theta0', 'aero', coeff_name, input_name]
-            except:
-                vals = {}
 
-            if not vals == {}:
+            local_parameter_label = '[theta0,aero,' + coeff_name + ',' + input_name + ',0]'
+            if local_parameter_label in parameters.labels():
+                vals = parameters['theta0', 'aero', coeff_name, input_name]
+
                 if not coeff_name in stab_derivs.keys():
                     stab_derivs[coeff_name] = {}
 

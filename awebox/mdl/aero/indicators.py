@@ -72,6 +72,14 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     for parent in layer_nodes:
         outputs['performance']['actuator_center' + str(parent)] = actuator_geom.get_center_point(options, parent, variables, architecture)
 
+        average_radius = 0.
+        number_children = len(architecture.children_map[parent])
+        for kite in architecture.children_map[parent]:
+            average_radius += outputs['local_performance']['radius_of_curvature' + str(kite)] / float(number_children)
+
+        outputs['performance']['average_radius' + str(parent)] = average_radius
+
+
     outputs['performance']['p_loyd_total'] = 0.
     for kite in kite_nodes:
         outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(kite)]
@@ -91,6 +99,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
 
     outputs['performance']['power_density'] = current_power / len(kite_nodes) / parameters['theta0','geometry','s_ref']
+
 
     return outputs
 

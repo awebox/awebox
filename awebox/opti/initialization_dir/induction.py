@@ -66,6 +66,7 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
     if not nlp.discretization == 'direct_collocation':
         message = 'vortex induction model is only defined for direct-collocation model, at this point'
         awelogger.logger.error(message)
+        raise Exception(message)
 
     # create the dictionaries
     dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)

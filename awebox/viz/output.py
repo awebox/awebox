@@ -517,7 +517,6 @@ def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 
     fig.canvas.draw()
 
-# def plot_output(solution_dict, cosmetics, fig_num, reload_dict): #todo: fix output plot!
 def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num = None):
 
     outputs = plot_dict['outputs']

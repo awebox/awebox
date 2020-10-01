@@ -158,11 +158,7 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
     ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
     sign = get_rotation_direction_sign(init_options)
     velocity = sign * groundspeed * ehat_tangential
-
     return velocity
-
-
-
 
 def get_kite_dcm(t, init_options, model, node, ret):
 

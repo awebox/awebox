@@ -918,11 +918,8 @@ def angular_velocity_inequality(options, variables, outputs, parameters, archite
 def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    # system (scaled) variables
-    xd = variables_si['xd']
     xa = variables_si['xa']
     theta = variables_si['theta']
 

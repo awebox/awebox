@@ -79,10 +79,6 @@ def generate_m_nodes_scaling(options, variables, outputs, parameters, architectu
         parent = parent_map[node]
         mass = node_masses_scaling['m' + str(node) + str(parent)]
 
-        # if node == 1:
-        #     mass += node_masses_scaling['groundstation']
-        #
-
         node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, mass, mass, mass)
 
 
