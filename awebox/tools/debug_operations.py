@@ -31,13 +31,13 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
+import pdb
 
 import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 
 
@@ -64,20 +64,25 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options)
     if not licq_holds:
-        message = 'linear independent constraint qualification is not met at solution'
+        message = 'linear independent constraint qualification appears not to be met at solution'
         awelogger.logger.info(message)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
-        message = 'second order sufficient conditions are not met at solution'
+        message = 'second order sufficient conditions appear not to be met at solution'
         awelogger.logger.info(message)
 
     if health_solver_options['spy_kkt_matrix']:
-        spy_kkt_matrix(kkt_matrix)
+        spy_kkt(kkt_matrix)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
+    if not problem_is_healthy:
+        identify_largest_kkt_element(kkt_matrix, nlp, solution, arg, stats)
+
     awelogger.logger.info('Health checked.')
+
+    pdb.set_trace()
 
     return problem_is_healthy
 
@@ -94,7 +99,7 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
 
     awelogger.logger.info('tractability indicator report')
     for item in tractability.keys():
-        message = '{:>15}: {:.2e}'.format(item, tractability[item])
+        message = '{:>30}: {:.2e}'.format(item, tractability[item])
         awelogger.logger.info(message)
 
     return tractability
@@ -114,14 +119,14 @@ def get_pearson_diagonality(kkt_matrix):
 
     awelogger.logger.info('compute Pearson diagonality...')
 
-    matrA = np.absolute(np.array(kkt_matrix))
+    matrA = cas.fabs(kkt_matrix)
 
     shape_dglt = (1, matrA.shape[0])
-
     j_dglt = np.ones(shape_dglt)
-    r_dglt = np.reshape(np.array(range(1, matrA.shape[0] + 1)), shape_dglt)
-    r2_dglt = r_dglt ** 2.
+    r_dglt = np.reshape(np.arange(1., matrA.shape[0] + 1), shape_dglt)
+    r2_dglt = np.square(r_dglt)
 
+    # do this with casadi, not numpy, so that sparse zeros simplify memory use
     n_dglt = cas.mtimes(j_dglt, cas.mtimes(matrA, j_dglt.T))
     sum_x_dglt = cas.mtimes(r_dglt, cas.mtimes(matrA, j_dglt.T))
     sum_y_dglt = cas.mtimes(j_dglt, cas.mtimes(matrA, r_dglt.T))
@@ -178,10 +183,34 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
 
 ######## spy
 
-def spy_kkt_matrix(kkt_matrix):
-    vect_op.spy(np.array(kkt_matrix), tol=0.1, color=False)
+def spy_kkt(kkt_matrix, tol=0.1):
+    vect_op.spy(np.array(kkt_matrix), tol=tol, color=False)
     return None
 
+def identify_largest_kkt_element(kkt_matrix, nlp, solution, arg, stats):
+    matrA = np.absolute(np.array(kkt_matrix))
+    ind = np.unravel_index(np.argmax(matrA, axis=None), matrA.shape)
+
+    associated_row = ind[0]
+    associated_column = ind[1]
+
+    number_variables = nlp.V.cat.shape[0]
+
+    if associated_column < number_variables:
+        relevant_variable_index = associated_column
+        relevant_variable = nlp.V.getCanonicalIndex(relevant_variable_index)
+    else:
+        relevant_multiplier_index = associated_column - number_variables
+
+    if associated_row < number_variables:
+        associated_variable_index = associated_row
+        associated_variable = nlp.V.getCanonicalIndex(associated_variable_index)
+    else:
+        associated_constraint_index = associated_row - number_variables
+
+    pdb.set_trace()
+
+    return None
 
 
 ##### compute base elements

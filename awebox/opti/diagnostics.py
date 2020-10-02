@@ -68,11 +68,14 @@ def print_runtime_values(stats):
 
     return None
 
-def health_check(nlp, solution, arg, options, solve_succeeded, stats, iterations):
-    check_after_failure = (not solve_succeeded) and options['health_check']['when']['after_failure']
-    check_in_general = options['health_check']['when']['autorun']
+def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, solve_succeeded, stats, iterations):
+    should_make_autorun_check = (options['health_check']['when']['autorun'])
+    should_make_failure_check = (not solve_succeeded) and (options['health_check']['when']['failure'])
+    should_make_final_check = (options['health_check']['when']['final']) and (step_name == final_homotopy_step)
 
-    if check_after_failure or check_in_general:
+    should_make_check = should_make_autorun_check or should_make_failure_check or should_make_final_check
+
+    if should_make_check:
         debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
 
     return None

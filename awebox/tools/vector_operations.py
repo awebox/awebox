@@ -219,12 +219,15 @@ def spy(matrix, tol=0.1, color=True):
 
     matrix = sps.csr_matrix(matrix)
 
+    elements = matrix.shape[0]
+    markersize = (1./float(elements)) * 500.
+
     if color:
         matrix_dense = np.abs(matrix.todense())
         plt.imshow(matrix_dense, interpolation='none', cmap='binary')
         plt.colorbar()
     else:
-        plt.spy(matrix, precision=tol)
+        plt.spy(matrix, precision=tol, markersize=markersize)
 
     plt.show()
 

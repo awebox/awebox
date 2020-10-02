@@ -97,11 +97,12 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation):
                 entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
 
     # add global entries
-    entry_list = [entry_tuple]
-    entry_list += [
+    # when the global variables are before the discretized variables, it leads to prettier kkt matrix spy plots
+    entry_list = [
         cas.entry('theta', struct = theta),
         cas.entry('phi',   struct = model.parameters_dict['phi']),
-        cas.entry('xi',    struct = get_xi_struct())
+        cas.entry('xi',    struct = get_xi_struct()),
+        entry_tuple
     ]
 
     # generate structure
