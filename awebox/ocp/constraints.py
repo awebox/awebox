@@ -120,14 +120,14 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
     if list(constraints['periodic'].keys()):
         constraints_entry_list.append(cas.entry('periodic', struct = constraints['periodic']))
 
-    if list(constraints['wake_fix'].keys()):
-        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
-
-    if list(constraints['vortex_strength'].keys()):
-        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
-
     if list(constraints['integral'].keys()):
         constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
+
+    if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
+        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+
+    if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
+        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
 
     return constraints_entry_list
 
@@ -238,30 +238,12 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
     return [g_list, g_bounds]
 
 def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        g_list, g_bounds = vortex_fix.fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model)
-
-        for period in range(1, periods_tracked):
-            g_list, g_bounds = vortex_fix.fixing_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, period)
-
-    return [g_list, g_bounds]
+    g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+    return g_list, g_bounds
 
 def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
-
-    comparison_labels = options['induction']['comparison_labels']
-    periods_tracked = options['induction']['vortex_periods_tracked']
-
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
-        for period in range(periods_tracked):
-            g_list, g_bounds = vortex_strength.fix_vortex_strengths(options, g_list, g_bounds, V, Outputs, model, period)
-
-    return [g_list, g_bounds]
+    g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+    return g_list, g_bounds
 
 
 def append_periodic_constraints(g_list, g_bounds, constraints, constraints_fun, var_init, var_terminal):

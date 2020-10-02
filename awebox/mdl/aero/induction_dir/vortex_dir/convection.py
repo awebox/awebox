@@ -31,38 +31,26 @@ _python-3.5 / casadi-3.4.5
 import casadi as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-
+import awebox.tools.print_operations as print_op
 
 def get_convection_residual(options, wind, variables, architecture):
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
+
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
+    wake_nodes = options['aero']['vortex']['wake_nodes']
 
     resi = []
     for kite in kite_nodes:
         for tip in wingtips:
-            for period in range(periods_tracked):
+            for wake_node in range(wake_nodes):
 
-                vel_resi = get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, start=True)
-                resi = cas.vertcat(resi, vel_resi)
+                wx_local = tools.get_wake_node_position_si(options, variables, kite, tip, wake_node)
+                dwx_local = tools.get_wake_node_velocity_si(options, variables, kite, tip, wake_node)
 
-                for ndx in range(n_k):
-                    for ddx in range(d):
-                        vel_resi = get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, ndx=ndx, ddx=ddx)
-                        resi = cas.vertcat(resi, vel_resi)
+                altitude = cas.mtimes(wx_local.T, vect_op.zhat())
+                u_infty = wind.get_velocity(altitude)
+
+                resi_local = dwx_local - u_infty
+                resi = cas.vertcat(resi, resi_local)
 
     return resi
-
-def get_convection_residual_local(options, variables, tip, period, kite, architecture, wind, start=bool(False), ndx=0, ddx=0):
-
-    vel_var = tools.get_vel_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
-    pos_var = tools.get_pos_wake_var(options, variables, tip, period, kite, architecture, start=start, ndx=ndx, ddx=ddx)
-
-    z_var = cas.mtimes(pos_var.T, vect_op.zhat())
-    vel_comp = wind.get_velocity(z_var)
-
-    vel_resi = vel_var - vel_comp
-
-    return vel_resi

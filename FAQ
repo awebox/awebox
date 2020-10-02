@@ -189,7 +189,6 @@ what should I do?
 
 ----> you probably don't have the HSL/COIN solvers installed correctly on your computer. In particular, you should return to the steps of "make"ing the hsl solvers, paying special attention to the flags.
 
-
 15. Where on earth are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
 
 Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.
@@ -286,7 +285,7 @@ You will need to remove the ground constraints, remove gravity, and make the win
     options['params']['atmosphere']['g'] = 0.
 
 It's also helpful to initialize according to the axi-symmetry that you're expecting:
-    options['solver']['initialization']['incid_deg'] = 0.
+    options['solver']['initialization']['inclination_deg'] = 0.
 
 
 
@@ -299,3 +298,22 @@ for cost in component_cost_fun.keys():
     val = component_cost_fun[cost](V_loc, P_loc)
     print(cost + ': ' + str(val))
 
+25. How do I test if I've installed the COIN/HSL linear solvers correctly?
+
+----> We suggest running the following tests:
+--------> Does the casadi example NLP rocket solve in its given form ('mumps' linear solver)?
+https://github.com/casadi/casadi/blob/master/docs/examples/python/rocket.py
+
+(If this fails, the problem is with your casadi installation.)
+
+--------> Does the casadi example NLP rocket solve with the linear solver "ma57"?
+modify the line
+opts = {"ipopt.tol":1e-10, "expand":True}
+to read:
+opts = {"ipopt.tol":1e-10, "expand":True, "ipopt.linear_solver":"ma57"}
+
+(If this fails, the problem is with the COIN/HSL solver installation.)
+
+-------> Does the awebox example file single_kite_lift_mode_simple.py run?
+
+(If this fails, the problem is with the awebox. Please report the bug, so that we can fix it! Thanks in advance!)

@@ -55,7 +55,7 @@ def get_center_point(model_options, parent, variables, architecture):
 
     return center
 
-def get_center_velocity(model_options, parent, variables, architecture):
+def get_center_velocity(model_options, parent, variables, parameters, architecture):
 
     children = architecture.kites_map[parent]
     number_children = float(len(children))

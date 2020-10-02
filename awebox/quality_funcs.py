@@ -246,7 +246,7 @@ def test_power_balance(trial, test_param_dict, results):
                 node_power_timeseries += timeseries
                 max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        # how much power is just being transfered from the node's children
+        # how much power is just being transferred from the node's children
         node_has_children = node in list(trial.model.architecture.children_map.keys())
         if node_has_children:
             children = trial.model.architecture.children_map[node]
@@ -255,7 +255,7 @@ def test_power_balance(trial, test_param_dict, results):
                 nodes_childrens_power_timeseries += timeseries
                 max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        # avoid double-counting power that is just being transfered; only count power at point-of-origin
+        # avoid double-counting power that is just being transferred; only count power at point-of-origin
         net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
 
         scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
@@ -270,7 +270,9 @@ def test_power_balance(trial, test_param_dict, results):
 
     for node in list(balance.keys()):
         if balance[node] > test_param_dict['power_balance_thresh']:
-            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh']))
+            message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
+                      + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
+            awelogger.logger.warning(message)
             results['energy_balance' + str(node)] = False
         else:
             results['energy_balance' + str(node)] = True
@@ -371,9 +373,47 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
                 max_last_a = local_max_last_a
 
         if max_last_a > last_vortex_ind_factor_thresh:
-            awelogger.logger.warning('Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) + '. We recommend increasing the number of tracked periods.')
+            message = 'Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' \
+                      + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) \
+                      + '. We recommend increasing the number of tracked periods.'
+            awelogger.logger.warning(message)
             # slack equalities are not satisfied
             results['last_vortex_ind_factor'] = False
+
+    return results
+
+
+
+def test_aero_force_frame_conversion(trial, test_param_dict, results):
+    """Test whether the aerodynamic force has the same magnitude when projected into the 4 orthonormal axes: body, control, earth, wind
+    :return: test results
+    """
+
+    plot_dict = trial.visualization.plot_dict
+    outputs = plot_dict['outputs']
+    kite_nodes = trial.model.architecture.kite_nodes
+
+    aero_conversion_thresh = test_param_dict['aero_conversion_thresh']
+
+    conversions = ['body and control frame', 'body and earth frame', 'body and wind frame', 'wind component sums']
+
+    for kite in kite_nodes:
+        vals = outputs['aerodynamics']['check_conversion' + str(kite)]
+
+        for cdx in range(len(vals)):
+            max_val = np.max(np.abs(np.array(vals[cdx])))
+
+            if max_val > aero_conversion_thresh:
+
+                message = 'Too much deviation in norms of aerodynamic force after frame conversion, '\
+                          + 'for ' + conversions[cdx] + ' test, ' \
+                          + 'at kite ' + str(kite) + ': ' \
+                          + str(max_val) + ' > ' + str(aero_conversion_thresh) \
+                          + '. We recommend increasing the number of control intervals n_k.'
+                awelogger.logger.warning(message)
+                # slack equalities are not satisfied
+                results['aero_conversion'] = False
+
 
     return results
 
@@ -398,5 +438,6 @@ def generate_test_param_dict(options):
     test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
+    test_param_dict['aero_conversion_thresh'] = options['test_param']['aero_conversion_thresh']
 
     return test_param_dict

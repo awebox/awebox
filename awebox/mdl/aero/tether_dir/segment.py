@@ -34,7 +34,6 @@ import casadi.tools as cas
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.aero.tether_dir.frames as frames
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
-import pdb
 
 def get_segment_drag_and_moment(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun):
 
@@ -70,7 +69,7 @@ def get_segment_equiv_fun():
     drag_body = frames.from_earth_to_body(drag_earthfixed, q_upper, q_lower)
     moment_body = frames.from_earth_to_body(moment_earthfixed, q_upper, q_lower)
 
-    moment_body[2] = 0.
+    moment_body[2] = 0. # no spin on tether segment
 
     total_vect = cas.vertcat(drag_body, moment_body)
 
@@ -140,8 +139,8 @@ def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architec
         length = vect_op.norm(q_upper - q_lower)
         diam = element.get_element_diameter(variables, upper_node, architecture)
 
-        ua = outputs['aerodynamics']['v_app' + str(kite)]
-        re_number = reynolds.get_reynolds_number(atmos, ua, diam, q_upper, q_lower)
+        air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
+        re_number = reynolds.get_reynolds_number(atmos, air_velocity, diam, q_upper, q_lower)
         cd_tether = cd_tether_fun(re_number)
 
         d_mag = (1./4.) * cd_tether * kite_dyn_pressure * diam * length

@@ -33,6 +33,7 @@ import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.wind as wind
 
 
 def get_ehat_tether(init_options):
@@ -54,6 +55,16 @@ def get_rotor_reference_frame(init_options):
 
     return n_rot_hat, y_rot_hat, z_rot_hat
 
+def get_rotating_reference_frame(t, init_options, model, node, ret):
+
+    n_rot_hat = get_ehat_tether(init_options)
+
+    ehat_normal = n_rot_hat
+    ehat_radial = get_ehat_radial(t, init_options, model, node, ret)
+    ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
+
+    return ehat_normal, ehat_radial, ehat_tangential
+
 def get_ehat_radial(t, init_options, model, kite, ret={}):
     parent_map = model.architecture.parent_map
     level_siblings = model.architecture.get_all_level_siblings()
@@ -61,11 +72,21 @@ def get_ehat_radial(t, init_options, model, kite, ret={}):
     parent = parent_map[kite]
 
     omega_norm = init_options['precompute']['angular_speed']
-    psi = get_azimuthal_angle(t, level_siblings, kite, parent, omega_norm)
+    psi = get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
     ehat_radial = get_ehat_radial_from_azimuth(init_options, psi)
 
     return ehat_radial
+
+def get_rotation_direction_sign(init_options):
+    # rotation with right hand rule about + (positive) nhat
+    clockwise_rotation_about_xhat = init_options['clockwise_rotation_about_xhat']
+    if clockwise_rotation_about_xhat:
+        sign = +1
+    else:
+        sign = -1.
+
+    return sign
 
 def get_ehat_radial_from_azimuth(init_options, psi):
     _, y_rot_hat, z_rot_hat = get_rotor_reference_frame(init_options)
@@ -73,27 +94,109 @@ def get_ehat_radial_from_azimuth(init_options, psi):
     cospsi_var = np.cos(psi)
     sinpsi_var = np.sin(psi)
 
+    sign = get_rotation_direction_sign(init_options)
+
     # for positive yaw(turns around +zhat, normal towards +yhat):
     #     rhat = zhat * cos(psi) - yhat * sin(psi)
-    ehat_radial = z_rot_hat * cospsi_var - y_rot_hat * sinpsi_var
+    ehat_radial = z_rot_hat * cospsi_var - sign * y_rot_hat * sinpsi_var
 
     return ehat_radial
 
+def get_dependent_rotation_direction_sign(t, init_options, model, node, ret):
+    velocity = get_velocity_vector(t, init_options, model, node, ret)
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    forwards_speed = cas.mtimes(velocity.T, ehat_tangential)
+    forwards_sign = forwards_speed / vect_op.norm(forwards_speed)
 
-def get_azimuthal_angle(t, level_siblings, node, parent, omega_norm):
+    return forwards_sign
 
+
+def get_omega_vector(t, init_options, model, node, ret):
+
+    forwards_sign = get_dependent_rotation_direction_sign(t, init_options, model, node, ret)
+    omega_norm = init_options['precompute']['angular_speed']
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+
+    omega_vector = forwards_sign * ehat_normal * omega_norm
+
+    return omega_vector
+
+def get_dpsi(init_options):
+    omega_norm = init_options['precompute']['angular_speed']
+    dpsi = omega_norm
+    return dpsi
+
+def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_norm):
     number_of_siblings = len(level_siblings[parent])
+
+    psi0_base = init_options['psi0_rad']
+
     if number_of_siblings == 1:
-        psi0 = 0.
+        psi0 = psi0_base + 0.
     else:
         idx = level_siblings[parent].index(node)
-        psi0 = np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
+        psi0 = psi0_base + np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
 
     psi = psi0 + omega_norm * t
 
     return psi
 
+def get_velocity_vector(t, init_options, model, node, ret):
 
+    groundspeed = init_options['precompute']['groundspeed']
+    sign = get_rotation_direction_sign(init_options)
+
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    velocity = sign * groundspeed * ehat_tangential
+    return velocity
+
+def get_velocity_vector_from_psi(init_options, groundspeed, psi):
+
+    n_rot_hat, _, _ = get_rotor_reference_frame(init_options)
+    ehat_normal = n_rot_hat
+    ehat_radial = get_ehat_radial_from_azimuth(init_options, psi)
+    ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
+    sign = get_rotation_direction_sign(init_options)
+    velocity = sign * groundspeed * ehat_tangential
+    return velocity
+
+def get_kite_dcm(t, init_options, model, node, ret):
+
+    velocity = get_velocity_vector(t, init_options, model, node, ret)
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+
+    forwards_speed = cas.mtimes(velocity.T, ehat_tangential)
+    forwards_sign = forwards_speed / vect_op.norm(forwards_speed)
+    ehat_forwards = forwards_sign * ehat_tangential
+
+    ehat1 = -1. * ehat_forwards
+    ehat3 = ehat_normal
+    ehat2 = vect_op.normed_cross(ehat3, ehat1)
+
+    kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
+
+    return kite_dcm
+
+def find_airspeed(init_options, groundspeed, psi):
+
+    dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
+
+    l_t = init_options['xd']['l_t']
+    ehat_tether = get_ehat_tether(init_options)
+    zz = l_t * ehat_tether[2]
+
+    wind_model = init_options['model']['wind_model']
+    u_ref = init_options['model']['wind_u_ref']
+    z_ref = init_options['model']['wind_z_ref']
+    z0_air = init_options['model']['wind_z0_air']
+    exp_ref = init_options['model']['wind_exp_ref']
+
+    uu = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, zz) * vect_op.xhat_np()
+
+    u_app = dq_kite - uu
+    airspeed = float(vect_op.norm(u_app))
+
+    return airspeed
 
 
 

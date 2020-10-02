@@ -37,6 +37,7 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
+import awebox.mdl.wind as wind
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -95,34 +96,23 @@ def guess_values_at_time(t, init_options, model):
         else:
             height = init_options['precompute']['height']
             radius = init_options['precompute']['radius']
-            groundspeed = init_options['precompute']['groundspeed']
-            omega_norm = init_options['precompute']['angular_speed']
 
-            n_rot_hat, y_rot_hat, z_rot_hat = tools.get_rotor_reference_frame(init_options)
-
-            ehat_normal = n_rot_hat
-            ehat_radial = tools.get_ehat_radial(t, init_options, model, node, ret)
-            ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-
-            omega_vector = ehat_normal * omega_norm
+            ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
 
             tether_vector = ehat_radial * radius + ehat_normal * height
+
             position = parent_position + tether_vector
+            velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+            ret['q' + str(node) + str(parent)] = position
+            ret['dq' + str(node) + str(parent)] = velocity
 
-            velocity = groundspeed * ehat_tangential
-
-            ehat1 = -1. * ehat_tangential
-            ehat3 = n_rot_hat
-            ehat2 = vect_op.normed_cross(ehat3, ehat1)
-
-            dcm = cas.horzcat(ehat1, ehat2, ehat3)
+            dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
-            ret['q' + str(node) + str(parent)] = position
-            ret['dq' + str(node) + str(parent)] = velocity
+            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
             if int(kite_dof) == 6:
                 ret['omega' + str(node) + str(parent)] = omega_vector
@@ -165,14 +155,13 @@ def precompute_path_parameters(init_options, model):
 
     # clipping and adjusting
     for step in range(adjustment_steps):
-        init_options = clip_groundspeed(init_options,
-                                        model.wind)  # clipping depends on arguments of airspeed calculation
+        init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
         init_options = set_precomputed_radius(init_options)  # depends on groundspeed and winding_period
 
         init_options = clip_radius(init_options)  # clipping depends on hypotenuse and max cone angle
         init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
 
-        init_options = clip_winding_period(init_options, model.wind)  # clipping depends on groundspeed
+        init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
         init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
 
     init_options = set_dependent_time_final(init_options)  # depends on winding_period
@@ -263,7 +252,7 @@ def set_precomputed_groundspeed(init_options):
 
 ###### clipping functions to increase feasibility
 
-def clip_winding_period(init_options, wind):
+def clip_winding_period(init_options):
     winding_period = init_options['precompute']['winding_period']
     groundspeed = init_options['precompute']['groundspeed']
 
@@ -311,7 +300,7 @@ def clip_radius(init_options):
     return init_options
 
 
-def clip_groundspeed(init_options, wind):
+def clip_groundspeed(init_options):
     groundspeed = init_options['precompute']['groundspeed']
     airspeed_include = init_options['airspeed_include']
 
@@ -324,8 +313,8 @@ def clip_groundspeed(init_options, wind):
 
         while adjust_count < max_adjustments:
 
-            above_min = airspeeds_at_four_quadrants_above_minimum(init_options, wind, groundspeed)
-            below_max = airspeeds_at_four_quadrants_below_maximum(init_options, wind, groundspeed)
+            above_min = airspeeds_at_four_quadrants_above_minimum(init_options, groundspeed)
+            below_max = airspeeds_at_four_quadrants_below_maximum(init_options, groundspeed)
 
             if groundspeed <= 0.:
                 adjust_count = 10 + max_adjustments
@@ -365,13 +354,13 @@ def clip_groundspeed(init_options, wind):
 
 ####### helpful booleans
 
-def airspeeds_at_four_quadrants_above_minimum(options, wind, groundspeed):
+def airspeeds_at_four_quadrants_above_minimum(options, groundspeed):
     airspeed_limits = options['airspeed_limits']
     airspeed_min = airspeed_limits[0]
 
     above_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, wind, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed > airspeed_min
         above_at_quadrant += [loc_bool]
@@ -379,35 +368,18 @@ def airspeeds_at_four_quadrants_above_minimum(options, wind, groundspeed):
     return all(above_at_quadrant)
 
 
-def airspeeds_at_four_quadrants_below_maximum(options, wind, groundspeed):
+def airspeeds_at_four_quadrants_below_maximum(options, groundspeed):
     airspeed_limits = options['airspeed_limits']
     airspeed_max = airspeed_limits[1]
 
     below_at_quadrant = []
     for psi in [np.pi / 2., np.pi, 3. * np.pi / 2, 2. * np.pi]:
-        airspeed = find_airspeed(options, wind, groundspeed, psi)
+        airspeed = tools.find_airspeed(options, groundspeed, psi)
 
         loc_bool = airspeed < airspeed_max
         below_at_quadrant += [loc_bool]
 
     return all(below_at_quadrant)
-
-def find_airspeed(init_options, wind, groundspeed, psi):
-
-    n_rot_hat, _, _ = tools.get_rotor_reference_frame(init_options)
-    ehat_normal = n_rot_hat
-    ehat_radial = tools.get_ehat_radial_from_azimuth(init_options, psi)
-    ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-    dq_kite = groundspeed * ehat_tangential
-
-    u_infty = init_options['u_ref'] * vect_op.xhat_np()
-
-    u_app = dq_kite - u_infty
-    airspeed = float(vect_op.norm(u_app))
-
-    # find better approximation
-
-    return airspeed
 
 
 ################ dependent values

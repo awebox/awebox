@@ -32,9 +32,7 @@ import awebox.viz.tools as tools
 import awebox.viz.wake as wake
 import casadi.tools as cas
 
-
 import matplotlib.animation as manimation
-
 
 def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, label = []):
 
@@ -266,7 +264,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
     number_of_nodes = architecture.number_of_nodes
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
-    num_per_meter = cosmetics['trajectory']['kite_num_per_meter']
+    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
     for node in range(1, number_of_nodes):
 
@@ -319,7 +317,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
                 r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
 
             # draw kite body
-            tools.draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, num_per_meter)
+            tools.draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
 
     if cosmetics['trajectory']['wake_nodes']:
         wake.draw_wake_nodes(ax, side, plot_dict, index)

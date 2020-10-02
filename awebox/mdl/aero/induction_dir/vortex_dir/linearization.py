@@ -29,9 +29,10 @@ _python-3.5 / casadi-3.4.5
 """
 
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import casadi.tools as cas
 
-def get_induced_velocity_at_kite(model_options, wind, variables, kite, architecture, parameters):
+def get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs):
 
     lin_params = parameters['lin']
 
@@ -43,7 +44,9 @@ def get_induced_velocity_at_kite(model_options, wind, variables, kite, architect
         var_sym_cat = cas.vertcat(var_sym_cat, var_sym[var_type].cat)
         var_actual_cat = cas.vertcat(var_actual_cat, variables[var_type].cat)
 
-    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, wind, var_sym, parameters, kite, architecture)
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(model_options, architecture, columnized_list)
+    uind_sym = vortex_flow.get_induced_velocity_at_kite(model_options, filament_list, variables, architecture, kite)
     jac_sym = cas.jacobian(uind_sym, var_sym_cat)
 
     uind_fun = cas.Function('uind_fun', [var_sym_cat], [uind_sym])

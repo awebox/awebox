@@ -186,7 +186,7 @@ class Collocation(object):
 
         scheme = nlp_numerics_options['collocation']['scheme']
 
-        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model)
+        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
 
         # size of the finite elements
         h = 1. / self.__n_k

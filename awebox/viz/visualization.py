@@ -32,6 +32,7 @@ from . import trajectory
 from . import variables
 from . import animation
 from . import output
+from . import wake
 
 import matplotlib.pyplot as plt
 
@@ -137,6 +138,7 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
+        plot_logic_dict['vortex_verification'] = (wake.plot_vortex_verification, None)
         # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)
@@ -144,12 +146,13 @@ class Visualization(object):
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
         # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
+        plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
+        plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})
         plot_logic_dict['controls'] = (variables.plot_controls, None)
@@ -157,6 +160,7 @@ class Visualization(object):
             plot_logic_dict['controls:' + control] = (variables.plot_controls, {'individual_control':control})
         plot_logic_dict['invariants'] = (variables.plot_invariants, None)
         plot_logic_dict['algebraic_variables'] = (variables.plot_algebraic_variables, None)
+        plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, {'constr_type':'inequality'})
         for output_top in list(outputs.keys()):

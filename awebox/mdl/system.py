@@ -34,6 +34,7 @@ python-3.5 / casadi 3.0.0
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import copy
+import awebox.tools.print_operations as print_op
 
 def generate_structure(options, architecture):
 
@@ -210,35 +211,25 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     for kite in architecture.kite_nodes:
         system_lifted.extend([('ui' + str(kite), (3, 1))])
 
-    for layer_node in architecture.layer_nodes:
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
-
-
     return system_lifted, system_states
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
-    
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    full_length = (n_k * d) + 1
+
     wingtips = ['ext', 'int']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
+    wake_nodes = options['aero']['vortex']['wake_nodes']
+    rings = wake_nodes - 1
 
     for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-        for period in range(periods_tracked):
 
-            if period < 2:
-                gamma_name = 'wg' + '_' + str(period) + '_' + str(kite) + str(parent)
-                system_lifted.extend([(gamma_name, (n_k * d, 1))])
+        for ring in range(rings):
+            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
+            system_lifted.extend([(gamma_name, (1, 1))])
 
-            for dim in ['x', 'y', 'z']:
-                for tip in wingtips:
-                    name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                    system_states.extend([(name, (full_length, 1))])
-                    system_states.extend([('d' + name, (full_length, 1))])
+        for wake_node in range(wake_nodes):
+            for tip in wingtips:
+                coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+                system_states.extend([(coord_name, (3, 1))])
+                system_states.extend([('d' + coord_name, (3, 1))])
 
     return system_lifted, system_states
 
@@ -281,6 +272,10 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
                 system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
 
         system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])

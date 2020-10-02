@@ -9,7 +9,6 @@ import logging
 import casadi as cas
 import awebox.mdl.architecture as archi
 import numpy as np
-import pdb
 import awebox.mdl.system as system
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)

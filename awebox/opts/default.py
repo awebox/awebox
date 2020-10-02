@@ -116,11 +116,15 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
         ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
-        ('model', 'aero', 'vortex',     'periods_tracked',      4,          ('number of periods of the pumping cycle tracked by wake nodes', None), 'x'),
-        ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('biot-savart cut-off-radius factor, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'wake_nodes',           5,         ('number of wake nodes per kite', None), 'x'),
+        ('model', 'aero', 'vortex',     'far_convection_time', 120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
+        ('model', 'aero', 'vortex',     'epsilon',              1.e-2,      ('the (dimensional!) biot-savart cut-off-radius, [m]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_points',  20,         ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
+
+        ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -142,87 +146,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 'wing_profile',None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'r_tether',    None,     ('geometrical parameter', None),'s'),
 
-        # stability derivatives
-        ('model',  'aero', 'overwrite', 'CL0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CS0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CD0',         None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha2',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta',      None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta2',     None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltae',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltaa',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltar',    None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltaa2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltae2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDdeltar2',   None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDalpha_deltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta_deltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDbeta_deltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CLr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CSr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'CDr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cl0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cm0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cn0', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cldeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmdeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltae', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltaa', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cndeltar', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnalpha', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnbeta', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnp', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnq', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Clr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cmr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'Cnr', None,     ('aerodynamic parameter', None),'s'),
-        ('model',  'aero', 'overwrite', 'alpha_max_deg', None,     ('aerodynamic parameter', None),'t'),
-        ('model',  'aero', 'overwrite', 'alpha_min_deg', None,     ('aerodynamic parameter', None),'t'),
+        ('model',  'aero', 'overwrite', 'alpha_max_deg', None,    ('aerodynamic parameter', None),'t'),
+        ('model',  'aero', 'overwrite', 'alpha_min_deg', None,    ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_max_deg', None,     ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_min_deg', None,     ('aerodynamic parameter', None),'t'),
 
@@ -241,6 +166,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
         ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
+        ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -395,9 +321,11 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
+        ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
+        ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 10.,       ('factor used in generating the power cost [-]', None), 'x'),
@@ -489,7 +417,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'axisfont',    {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'ylabelsize',  15,             ('???', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_bodies', False,          ('choose whether kite bodies should be plotted or not', [True, False]), 'x'),
-        ('visualization', 'cosmetics', 'trajectory', 'kite_num_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'body_cross_sections_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'wake_nodes',  False,          ('draw wake nodes into instantaneous plots', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'alpha',       0.3,            ('transparency of trajectories in animation', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'margin',      0.05,           ('trajectory figure margins', None), 'x'),
@@ -526,14 +454,46 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'max_tension', 1e6,                 ('maximum max main tether tension test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_velocity', 100.,               ('maximum kite velocity test parameter', None), 'x'),
         ('quality', 'test_param', None, 't_f_min', 5.,                      ('minimum final time test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'power_balance_thresh', 2e-2,       ('power balance threshold test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'power_balance_thresh', 5e-2,       ('power balance threshold test parameter', None), 'x'),
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
         ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
+        ('quality', 'test_param', None, 'aero_conversion_thresh', 1.e-2,   ('maximum difference in force norm during aero frame conversion', None), 'x'),
     ]
+
+    default_options_tree = add_available_aerodynamic_stability_derivative_overwrites(default_options_tree)
 
     default_options, help_options = funcs.assemble_options_tree(default_options_tree, default_user_options, help_options)
 
     return default_options, help_options
+
+
+def add_available_aerodynamic_stability_derivative_overwrites(default_options_tree):
+
+    associated_force_coeffs = {
+        'control': ['CX', 'CY', 'CZ'],
+        'earth': ['Cx', 'Cy', 'Cz'],
+        'body': ['CA', 'CY', 'CN'],
+        'wind': ['CD', 'CS', 'CL']
+    }
+    associated_moment_coeffs = {
+        'control': ['Cl', 'Cm', 'Cn']
+    }
+    available_coeffs = []
+    for coeffs in [associated_force_coeffs, associated_moment_coeffs]:
+        for frame_name in coeffs.keys():
+            available_coeffs += coeffs[frame_name]
+
+    available_inputs = ['0', 'alpha', 'beta', 'p', 'q', 'r', 'deltaa', 'deltae', 'deltar']
+    for combi_1 in ['alpha', 'beta']:
+        for combi_2 in ['deltaa', 'deltae', 'deltar']:
+            available_inputs += [combi_1 + '_' + combi_2]
+
+    for coeff in available_coeffs:
+        for input in available_inputs:
+            coeff_and_input = coeff + input
+            default_options_tree.append(('model', 'aero', 'overwrite', coeff_and_input, None, ('aerodynamic parameter', None), 's'))
+
+    return default_options_tree

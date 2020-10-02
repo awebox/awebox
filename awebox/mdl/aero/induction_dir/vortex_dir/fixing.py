@@ -31,74 +31,121 @@ _python-3.5 / casadi-3.4.5
 
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+import awebox.tools.struct_operations as struct_op
+import casadi.tools as cas
+from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+import awebox.ocp.collocation as collocation
+import awebox.ocp.var_struct as var_struct
 
-def fixing_constraints_on_zeroth_period(options, g_list, g_bounds, V, Outputs, model):
+######## the constraints : see opti.constraints
 
-    kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
-    wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
+def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model):
+
+    resi = get_fixing_constraint_all(options, V, Outputs, model)
+
+    g_list.append(resi)
+    g_bounds = tools.append_bounds(g_bounds, resi)
+
+    return g_list, g_bounds
+
+######## the placeholders : see ocp.operation
+
+def get_cstr_in_operation_format(options, variables, model):
+    eqs_dict = {}
+    constraint_list = []
+
+    if 'collocation' not in options.keys():
+        message = 'vortex model is not yet set up for any discretization ' \
+                  'other than direct collocation'
+        awelogger.logger.error(message)
 
     n_k = options['n_k']
     d = options['collocation']['d']
+    scheme = options['collocation']['scheme']
+    Collocation = collocation.Collocation(n_k, d, scheme)
 
-    period = 0
+    model_outputs = model.outputs
+    V_mock = var_struct.setup_nlp_v(options, model, Collocation)
 
-    for kite in kite_nodes:
-        parent = parent_map[kite]
-        for tip in wingtips:
-            for jdx in range(len(dims)):
-                dim = dims[jdx]
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
+    entry_tuple = (cas.entry('coll_outputs', repeat = [n_k,d], struct = model_outputs))
+    Outputs_mock = cas.struct_symMX([entry_tuple])
 
-                var_column = V['xd', 0, var_name]
-                node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, start=True)
+    resi_mock = get_fixing_constraint_all(options, V_mock, Outputs_mock, model)
+    resi = cas.DM.ones(resi_mock.shape)
 
-                # remember: periodicity! wingtip positions at end, must be equal to positions at start
-                wingtip_pos = Outputs['coll_outputs', -1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
+    eq_name = 'vortex_fixing'
+    eqs_dict[eq_name] = resi
+    constraint_list.append(resi)
 
-                fix = node_pos - wingtip_pos
-                g_list.append(fix)
-                g_bounds['ub'].append(np.zeros(fix.shape))
-                g_bounds['lb'].append(np.zeros(fix.shape))
+    return eqs_dict, constraint_list
 
-                for ndx in range(n_k):
-                    for ddx in range(d):
+################# define the actual constraint
 
-                        var_column = V['coll_var', ndx, ddx, 'xd', var_name]
-                        node_pos = tools.get_wake_var_at_ndx_ddx(n_k, d, var_column, ndx=ndx, ddx=ddx)
-                        wingtip_pos = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)][jdx]
+def get_fixing_constraint_all(options, V, Outputs, model):
 
-                        fix = node_pos - wingtip_pos
-                        g_list.append(fix)
-                        g_bounds['ub'].append(np.zeros(fix.shape))
-                        g_bounds['lb'].append(np.zeros(fix.shape))
+    n_k = options['n_k']
+    d = options['collocation']['d']
+    control_intervals = n_k + 1
 
-    return [g_list, g_bounds]
-
-
-def fixing_constraints_on_previous_period(options, g_list, g_bounds, V, Outputs, model, period):
+    comparison_labels = options['induction']['comparison_labels']
+    wake_nodes = options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
-    parent_map = model.architecture.parent_map
     wingtips = ['ext', 'int']
-    dims = ['x', 'y', 'z']
 
-    for kite in kite_nodes:
-        parent = parent_map[kite]
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
-        for tip in wingtips:
-            for dim in dims:
+    resi = []
 
-                var_name = 'w' + dim + '_' + tip + '_' + str(period) + '_' + str(kite) + str(parent)
-                prev_name = 'w' + dim + '_' + tip + '_' + str(period - 1) + '_' + str(kite) + str(parent)
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
 
-                node_column = V['xd', 0, var_name]
+        for kite in kite_nodes:
+            for tip in wingtips:
+                for wake_node in range(wake_nodes):
 
-                prev_column = V['coll_var', -1, -1, 'xd', prev_name]
+                    if wake_node < n_k:
 
-                fix = node_column - prev_column
-                g_list.append(fix)
-                g_bounds['ub'].append(np.zeros(fix.shape))
-                g_bounds['lb'].append(np.zeros(fix.shape))
+                        # working out:
+                        # n_k = 3
+                        # wn:0, n_k-1=2
+                        # wn:1, n_k-2=1
+                        # wn:2=n_k-1, n_k-3=0
+                        # ... switch to periodic fixing
 
-    return [g_list, g_bounds]
+                        reverse_index = n_k - 1 - wake_node
+                        variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables,
+                                                                            reverse_index, -1)
+
+                        wx_local = tools.get_wake_node_position_si(options, variables_at_shed, kite, tip, wake_node)
+                        wingtip_pos = Outputs[
+                            'coll_outputs', reverse_index, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+
+                        local_resi = wx_local - wingtip_pos
+                        resi = cas.vertcat(resi, local_resi)
+
+                    else:
+
+                        # working out:
+                        # n_k = 3
+                        # wn:0, n_k-1=2
+                        # wn:1, n_k-2=1
+                        # wn:2=n_k-1, n_k-3=0
+                        # ... switch to periodic fixing
+                        # wn:3 at ndx = 0 must be equal to -> wn:0 at ndx = -1, ddx = -1
+                        # wn:4 at ndx = 0 must be equal to -> wn:1 at ndx = -1, ddx = -1
+
+                        variables_at_initial = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0)
+                        variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)
+
+                        upstream_node = wake_node - n_k
+                        wx_local = tools.get_wake_node_position_si(options, variables_at_initial, kite, tip, wake_node)
+                        wx_upstream = tools.get_wake_node_position_si(options, variables_at_final, kite, tip, upstream_node)
+
+                        local_resi = wx_local - wx_upstream
+                        resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+

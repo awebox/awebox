@@ -38,6 +38,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+import awebox.tools.vector_operations as vect_op
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -263,7 +264,10 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
 
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
-    options_tree.append(('model', 'model_bounds', 'aero_validity', 'num_ref', groundspeed, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
+
+    u_ref = get_u_ref(options['user_options'])
+    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+    options_tree.append(('model', 'model_bounds', 'aero_validity', 'airspeed_ref', airspeed_ref, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
 
     airspeed_limits = options['params']['model_bounds']['airspeed_limits']
     airspeed_include = options['model']['model_bounds']['airspeed']['include']
@@ -347,16 +351,43 @@ def build_integral_options(options, options_tree, fixed_params):
 
 def build_stability_derivative_options(options, help_options, options_tree, fixed_params):
 
-    aero = load_stability_derivatives(options['user_options']['kite_standard'])
-    for name in list(aero.keys()):
-        if help_options['model']['aero']['overwrite'][name][1] == 's':
-            dict_type = 'params'
+    stab_derivs, aero_validity = load_stability_derivatives(options['user_options']['kite_standard'])
+    for deriv_name in list(stab_derivs.keys()):
+
+        if deriv_name == 'frame':
+            for frame_type in stab_derivs[deriv_name].keys():
+
+                specified_frame = stab_derivs[deriv_name][frame_type]
+                options_tree.append(('model', 'aero', 'stab_derivs', frame_type + '_frame', specified_frame, ('???', None), 't'))
+
         else:
-            dict_type = 'model'
-        if options['model']['aero']['overwrite'][name]:
-            options_tree.append((dict_type, 'aero', None, name,options['model']['aero']['overwrite'][name], ('???', None),'x'))
-        else:
-            options_tree.append((dict_type, 'aero', None, name,aero[name], ('???', None),'t'))
+            for input_name in stab_derivs[deriv_name].keys():
+                local_vals = stab_derivs[deriv_name][input_name]
+
+                combi_name = deriv_name + input_name
+
+                if help_options['model']['aero']['overwrite'][combi_name][1] == 's':
+                    dict_type = 'params'
+                else:
+                    dict_type = 'model'
+
+                overwrite_vals = options['model']['aero']['overwrite'][combi_name]
+                if not overwrite_vals == None:
+                    local_vals = overwrite_vals
+
+                local_vals = cas.DM(local_vals)
+
+                options_tree.append((dict_type, 'aero', deriv_name, input_name, local_vals, ('???', None),'x'))
+
+    for bound_name in aero_validity.keys():
+        local_vals = aero_validity[bound_name]
+
+        overwrite_vals = options['model']['aero']['overwrite'][bound_name]
+        if not overwrite_vals == None:
+            local_vals = overwrite_vals
+
+        options_tree.append(
+            ('model', 'aero', None, bound_name, local_vals, ('???', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -365,9 +396,10 @@ def load_stability_derivatives(kite_standard):
     if kite_standard is None:
         raise ValueError("No kite data provided")
     else:
-        aero_deriv = kite_standard['aero_deriv']
+        aero_deriv = kite_standard['stab_derivs']
+        aero_validity = kite_standard['aero_validity']
 
-    return aero_deriv
+    return aero_deriv, aero_validity
 
 
 ######## general induction
@@ -527,10 +559,64 @@ def build_vortex_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'aero', 'vortex', 'n_k', n_k, ('how many nodes to track over one period: n_k', None), 'x')),
     options_tree.append(('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
 
-    periods_tracked = options['model']['aero']['vortex']['periods_tracked']
-    options_tree.append(('solver', 'initialization', 'model', 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_periods_tracked', periods_tracked, ('????', None), 'x')),
+    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+
+    u_ref = get_u_ref(options['user_options'])
+    vortex_u_ref = u_ref
+    options_tree.append(('solver', 'initialization', 'model', 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+
+    far_convection_time = options['model']['aero']['vortex']['far_convection_time']
+    # options_tree.append(('solver', 'initialization', 'model', 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+
+    vortex_epsilon = options['model']['aero']['vortex']['epsilon']
+    options_tree.append(('model', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
+
+
+    CL = estimate_CL(options)
+    geometry = get_geometry(options)
+    c_ref = geometry['c_ref']
+    b_ref = geometry['b_ref']
+
+    groundspeed = options['solver']['initialization']['groundspeed']
+    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+
+    gamma_scale = 0.5 * CL * airspeed_ref * c_ref
+    options_tree.append(('model', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+
+    vortex_position_scale = b_ref
+    options_tree.append(('model', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+
+    vortex_velocity_scale = get_u_ref(options['user_options'])
+    options_tree.append(('model', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_velocity_scale', vortex_position_scale, ('????', None), 'x')),
+
+
+    gravity = get_gravity_ref(options)
+    geometry = get_geometry(options)
+    m_k = geometry['m_k']
+
 
     return options_tree, fixed_params
 
@@ -680,7 +766,14 @@ def build_wind_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', options['user_options']['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', options['user_options']['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
 
-    options_tree.append(('solver', 'initialization', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_model', options['user_options']['wind']['model'], ('???', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_z_ref', options['params']['wind']['z_ref'],
+         ('?????', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_z0_air', options['params']['wind']['log_wind']['z0_air'],
+                         ('?????', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'wind_exp_ref', options['params']['wind']['power_wind']['exp_ref'],
+                         ('?????', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -698,6 +791,7 @@ def get_u_at_altitude(options, zz):
     z0_air = options['params']['wind']['log_wind']['z0_air']
     exp_ref = options['params']['wind']['power_wind']['exp_ref']
     u = wind.get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
+
     return u
 
 ######## atmosphere
@@ -851,13 +945,10 @@ def estimate_power(options, architecture):
     geometry = get_geometry(options)
     s_ref = geometry['s_ref']
 
-    kite_standard = options['user_options']['kite_standard']
-    aero_deriv = load_stability_derivatives(kite_standard)
-    CL = aero_deriv['CL0'] + aero_deriv['CLalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
-    CD = aero_deriv['CD0'] + aero_deriv['CDalpha'] * aero_deriv['alpha_max_deg'] * np.pi / 180.
-
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
 
+    CL = estimate_CL(options)
+    CD = estimate_CD(options)
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
     induction_model = options['user_options']['induction_model']
@@ -869,19 +960,6 @@ def estimate_power(options, architecture):
     number_of_kites = architecture.number_of_kites
 
     estimate_1 = number_of_kites * p_loyd * induction_efficiency
-    #
-    # max_stress = options['params']['tether']['max_stress']
-    # stress_safety_factor = options['params']['tether']['stress_safety_factor']
-    # allowed_stress = max_stress / stress_safety_factor
-    # diam = options['model']['scaling']['theta']['diam_t']
-    # area = np.pi * (diam / 2.)**2.
-    # tension = area * allowed_stress
-    #
-    # reelout_speed = estimate_reelout_speed(options)
-    #
-    # estimate_2 = tension * reelout_speed
-    #
-    # power = np.min([estimate_1, estimate_2])
 
     power = estimate_1
 
@@ -894,6 +972,62 @@ def estimate_reelout_speed(options):
     reelout_speed = loyd_factor * uu
 
     return reelout_speed
+
+def estimate_CL(options):
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
+
+    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+    cos = cas.cos(alpha)
+    sin = cas.sin(alpha)
+
+    if 'CL' in aero_deriv.keys():
+        CL = aero_deriv['CL']['0'][0] + aero_deriv['CL']['alpha'][0] * alpha
+    elif 'CZ' in aero_deriv.keys():
+        CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
+        CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
+        xhat = cas.vertcat(-1. * cos, sin)
+        zhat = cas.vertcat(-1. * sin, -1. * cos)
+        rot = CX * xhat + CZ * zhat
+        CL = rot[1]
+    elif 'CN' in aero_deriv.keys():
+        CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
+        CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
+        ahat = cas.vertcat(cos, -1. * sin)
+        nhat = cas.vertcat(sin, cos)
+        rot = CA * ahat + CN * nhat
+        CL = rot[1]
+
+    return CL
+
+def estimate_CD(options):
+
+    kite_standard = options['user_options']['kite_standard']
+    aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
+
+    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+    cos = cas.cos(alpha)
+    sin = cas.sin(alpha)
+
+    if 'CD' in aero_deriv.keys():
+        CD = aero_deriv['CD']['0'][0] + aero_deriv['CD']['alpha'][0] * alpha
+    elif 'CZ' in aero_deriv.keys():
+        CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
+        CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
+        xhat = cas.vertcat(-1. * cos, sin)
+        zhat = cas.vertcat(-1. * sin, -1. * cos)
+        rot = CX * xhat + CZ * zhat
+        CD = rot[0]
+    elif 'CN' in aero_deriv.keys():
+        CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
+        CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
+        ahat = cas.vertcat(cos, -1. * sin)
+        nhat = cas.vertcat(sin, cos)
+        rot = CA * ahat + CN * nhat
+        CD = rot[0]
+    return CD
+
 
 def estimate_alitude(options):
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.

@@ -31,142 +31,117 @@ _python-3.5 / casadi-3.4.5
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
+from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.tools.print_operations as print_op
 
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
 
-
-def get_kite_effective_velocity(options, variables, wind, kite_obs, architecture):
-
-    parent = architecture.parent_map[kite_obs]
-    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite_obs, parent)
-
-    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
-
-    u_eff_kite = u_app_kite + u_ind_kite
-
-    return u_eff_kite
+#
+def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
+    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
+    u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
+    return u_ind
 
 
+def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
-def get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
+    filament_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
 
-    parent = architecture.parent_map[kite_obs]
+    include_normal_info = (n_hat is not None)
+    if include_normal_info:
+        filament_list = vortex_filament_list.append_normal_to_list(filament_list, n_hat)
 
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
-    n_rings_per_kite = vortex_tools.get_number_of_rings_per_kite(n_k, d, periods_tracked)
-
-    u_ind_kite = cas.DM.zeros((3,1))
-    for kite in architecture.kite_nodes:
-        for rdx in range(1, n_rings_per_kite):
-            u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
-                                                                        kite, rdx)
-            u_ind_kite = u_ind_kite + u_ind_val
-
-    return u_ind_kite
+    u_ind = make_symbolic_filament_and_sum(options, filament_list, include_normal_info)
+    return u_ind
 
 
-def get_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
+def get_induction_factor_at_kite(options, filament_list, wind, variables, parameters, architecture, kite_obs, n_hat=vect_op.xhat()):
 
-    u_ind_kite = get_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
+    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
 
     parent = architecture.parent_map[kite_obs]
-    n_hat = general_geom.get_n_hat_var(variables, parent)
+    u_zero_vec = actuator_flow.get_uzero_vec(options, wind, parent, variables, parameters, architecture)
+    u_zero = vect_op.smooth_norm(u_zero_vec)
 
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
-    u_mag = vect_op.smooth_norm(u_app_act)
-
-    a_calc = -1. * cas.mtimes(u_ind_kite.T, n_hat) / u_mag
+    a_calc = get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=n_hat)
 
     return a_calc
 
 
-def get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture):
-    parent = architecture.parent_map[kite_obs]
-
-    n_k = options['aero']['vortex']['n_k']
-    d = options['aero']['vortex']['d']
-    periods_tracked = options['aero']['vortex']['periods_tracked']
-    n_rings_per_kite = vortex_tools.get_number_of_rings_per_kite(n_k, d, periods_tracked)
-
-    rdx = n_rings_per_kite - 1
-
-    u_ind_kite = cas.DM.zeros((3,1))
-    for kite in architecture.kite_nodes:
-        u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent,
-                                                                    kite, rdx)
-        u_ind_kite = u_ind_kite + u_ind_val
-
-    return u_ind_kite
-
-
-def get_last_induction_factor_at_kite(options, wind, variables, kite_obs, architecture):
-    u_ind_kite = get_last_induced_velocity_at_kite(options, wind, variables, kite_obs, architecture)
-
-    parent = architecture.parent_map[kite_obs]
-    n_hat = general_geom.get_n_hat_var(variables, parent)
-
-    u_app_act = actuator_flow.get_uzero_vec(options, wind, parent, variables, architecture)
-    u_mag = vect_op.smooth_norm(u_app_act)
-
-    a_calc = -1. * cas.mtimes(u_ind_kite.T, n_hat) / u_mag
-
+def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=vect_op.xhat()):
+    u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
+    a_calc = -1. * u_ind / u_zero
     return a_calc
 
 
-def get_residuals(options, variables, wind, architecture):
+def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=False):
 
-    resi = []
-    for kite_obs in architecture.kite_nodes:
-        parent = architecture.parent_map[kite_obs]
-
-        n_k = options['aero']['vortex']['n_k']
-        d = options['aero']['vortex']['d']
-        periods_tracked = options['aero']['vortex']['periods_tracked']
-        n_rings_per_kite = vortex_tools.get_number_of_rings_per_kite(n_k, d, periods_tracked)
-
-        for kite in architecture.kite_nodes:
-            for rdx in range(1, n_rings_per_kite):
-                new_resi = get_residual_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx)
-                resi = cas.vertcat(resi, new_resi)
-
-    return resi
-
-
-def get_residual_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx):
-    u_ind_val = get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx)
-
-    u_ind_var = variables['xl']['w_ind_' + str(kite_obs) + '_' + str(kite) + '_' + str(rdx)]
-
-    resi_unscaled = u_ind_val - u_ind_var
-
-    scale = wind.get_velocity_ref()
-    resi = resi_unscaled / scale
-
-    return resi
-
-
-def get_induced_velocity_at_kite_from_kite_and_ring(options, variables, wind, kite_obs, parent, kite, rdx):
-    filament_list = vortex_tools.get_list_of_filaments_by_kite_and_ring(options, variables, wind, kite, parent, rdx).T
-
-    include_normal_info = False
-    segment_list = biot_savart.get_biot_savart_segment_list(filament_list, options, variables, kite_obs, parent,
-                                                include_normal_info)
+    epsilon = options['induction']['vortex_epsilon']
 
     # define the symbolic function
-    n_symbolics = segment_list.shape[0]
-    seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
-    filament_sym = biot_savart.filament(seg_data_sym)
-    filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
+    n_symbolics = filament_list.shape[0]
 
-    # evaluate the symbolic function
-    total_u_vec_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list)
+    u_ind = cas.DM.zeros((3, 1))
+    if n_symbolics > 0:
+        seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
 
-    return total_u_vec_ind
+        if include_normal_info:
+            filament_sym = biot_savart.filament_normal(seg_data_sym, epsilon=epsilon)
+        else:
+            filament_sym = biot_savart.filament(seg_data_sym, epsilon=epsilon)
 
+        filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
+
+        # evaluate the symbolic function
+        u_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, filament_list)
+
+    return u_ind
+
+def test(test_list):
+
+    options = {}
+    options['induction'] = {}
+    options['induction']['vortex_epsilon'] = 0.
+
+    x_obs = 0.5 * vect_op.xhat_np()
+
+    u_ind = get_induced_velocity_at_observer(options, test_list, x_obs)
+
+    xhat_component = cas.mtimes(u_ind.T, vect_op.xhat())
+    if not (xhat_component == 0):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'test u_ind component in plane of QSVR (along xhat) is ' + str(xhat_component)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    yhat_component = cas.mtimes(u_ind.T, vect_op.yhat())
+    if not (yhat_component == 0):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'test u_ind component in plane of QSVR (along yhat) is ' + str(yhat_component)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    zhat_component = cas.mtimes(u_ind.T, vect_op.zhat())
+    sign_along_zhat = vect_op.sign(zhat_component)
+    sign_comparison = (sign_along_zhat - (-1))**2.
+    if not (sign_comparison < 1.e-8):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'sign of test u_ind component out-of-plane of QSVR (projected on zhat) is ' + str(sign_along_zhat)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    calculated_norm = vect_op.norm(u_ind)
+    expected_norm = 0.752133
+    norm_comparison = (calculated_norm - expected_norm)**2.
+    if not (norm_comparison < 1.e-8):
+        message = 'induced velocity at observer does not work as expected. ' \
+                  'squared difference of norm of test u_ind vector is ' + str(norm_comparison)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None

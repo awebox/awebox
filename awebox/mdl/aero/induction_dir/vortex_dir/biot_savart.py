@@ -34,14 +34,14 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
 
-def get_biot_savart_segment_list(filament_list, options, variables, kite, parent, include_normal_info):
+def list_filament_observer_and_normal_info(point_obs, filament_list, options, n_hat=None):
+    # join the vortex_list to the observation data
 
     n_filaments = filament_list.shape[1]
 
-    # join the vortex_list to the observation data
-    point_obs = variables['xd']['q' + str(kite) + str(parent)]
     epsilon = options['aero']['vortex']['epsilon']
 
     point_obs_extended = []
@@ -49,56 +49,85 @@ def get_biot_savart_segment_list(filament_list, options, variables, kite, parent
         point_obs_extended = cas.vertcat(point_obs_extended, vect_op.ones_sx((1, n_filaments)) * point_obs[jdx])
     eps_extended = vect_op.ones_sx((1, n_filaments)) * epsilon
 
+    seg_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
+
+    if n_hat is not None:
+        n_hat_ext = []
+        for jdx in range(3):
+            n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
+
+        seg_list = cas.vertcat(seg_list, n_hat_ext)
+
+    return seg_list
+
+
+def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, parameters, kite_obs, architecture, include_normal_info):
+
+    n_filaments = filament_list.shape[1]
+
+    parent_obs = architecture.parent_map[kite_obs]
+
+    point_obs = variables['xd']['q' + str(kite_obs) + str(parent_obs)]
+
+    seg_list = list_filament_observer_and_normal_info(point_obs, filament_list, options)
+
     if include_normal_info:
-        n_hat = general_geom.get_n_hat_var(variables, parent)
+
+        n_vec_val = unit_normal.get_n_vec(options, parent_obs, variables, parameters, architecture)
+        n_hat = vect_op.normalize(n_vec_val)
 
         n_hat_ext = []
         for jdx in range(3):
             n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
 
-        segment_list = cas.vertcat(point_obs_extended, filament_list, eps_extended, n_hat_ext)
-    else:
-        segment_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
+        seg_list = cas.vertcat(seg_list, n_hat_ext)
 
-    return segment_list
+    return seg_list
 
 
+def filament_normal(seg_data, epsilon=1.e-2):
+    n_hat = seg_data[-3:]
+    return cas.mtimes(filament(seg_data, epsilon).T, n_hat)
 
-def filament(seg_data):
+def filament(seg_data, epsilon=1.e-2):
 
-    point_obs = seg_data[:3]
-    point_1 = seg_data[3:6]
-    point_2 = seg_data[6:9]
-    Gamma = seg_data[9]
-    epsilon = seg_data[10]
+    try:
+        point_obs = seg_data[:3]
+        point_1 = seg_data[3:6]
+        point_2 = seg_data[6:9]
+        Gamma = seg_data[9]
 
-    vec_1 = point_obs - point_1
-    vec_2 = point_obs - point_2
-    vec_0 = point_2 - point_1
+        vec_1 = point_obs - point_1
+        vec_2 = point_obs - point_2
+        vec_0 = point_2 - point_1
 
-    r1 = vect_op.smooth_norm(vec_1)
-    r2 = vect_op.smooth_norm(vec_2)
-    r0 = vect_op.smooth_norm(vec_0)
+        r1 = vect_op.smooth_norm(vec_1)
+        r2 = vect_op.smooth_norm(vec_2)
+        r0 = vect_op.smooth_norm(vec_0)
 
-    factor = Gamma / (4. * np.pi)
+        factor = Gamma / (4. * np.pi)
 
-    num = (r1 + r2)
+        num = (r1 + r2)
 
-    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    den_reg = (epsilon * r0) ** 2.
-    den = den_ori + den_reg
+        den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
+        den_reg = (epsilon * r0) ** 2.
+        den = den_ori + den_reg
 
-    dir = vect_op.cross(vec_1, vec_2)
-    scale = factor * num / den
+        dir = vect_op.cross(vec_1, vec_2)
+        scale = factor * num / den
 
-    sol = dir * scale
+        sol = dir * scale
+    except:
+        message = 'something went wrong while computing the filament biot-savart induction. proceed with zero induced velocity from this filament.'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return sol
 
 
 
 
-def test_filament():
+def test():
 
     point_obs = vect_op.yhat()
     point_1 = 1000. * vect_op.zhat()
@@ -114,8 +143,10 @@ def test_filament():
     difference = vec_norm - vect_op.xhat()
     resi = cas.mtimes(difference.T, difference)
 
-    epsilon = 1.e-8
-    if resi > epsilon:
-        awelogger.logger.error('biot-savart filament induction test gives error of size: ' + str(resi))
+    thresh = 1.e-6
+    if resi > thresh:
+        message = 'biot-savart filament induction test gives error of size: ' + str(resi)
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return None

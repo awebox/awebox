@@ -128,7 +128,7 @@ def generate_options_dict_for_trials_that_we_dont_expect_to_solve():
     vortex_options['user_options']['tether_drag_model'] = 'split'
     vortex_options['nlp']['n_k'] = 3
     vortex_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    vortex_options['model']['aero']['vortex']['periods_tracked'] = 2
+    vortex_options['model']['aero']['vortex']['wake_nodes'] = 3
     vortex_options['solver']['max_iter'] = 2
 
     options_dict = collections.OrderedDict()

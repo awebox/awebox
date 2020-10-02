@@ -67,6 +67,33 @@ def get_m_scale(parameters, options):
 
 ##### the velocities
 
+def get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters):
+
+    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
+
+    vec_u_eff = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+    if aero_coeff_ref_velocity == 'app':
+        vec_u_app_body = get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters)
+        vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
+    elif aero_coeff_ref_velocity == 'eff':
+        vec_u_earth = vec_u_eff
+
+    return vec_u_earth
+
+def get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
+    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
+
+    if aero_coeff_ref_velocity == 'app':
+        vec_u = get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture,
+                                                    parameters)
+    elif aero_coeff_ref_velocity == 'eff':
+        vec_u = get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture)
+
+    return vec_u
+
+
 def get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture):
     u_eff_in_earth_frame = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
     u_eff_in_body_frame = frames.from_earth_to_body(kite_dcm, u_eff_in_earth_frame)

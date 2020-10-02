@@ -357,6 +357,7 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # solve
+
             self.__solution = solver(**self.__arg)
             self.__stats = solver.stats()
 
