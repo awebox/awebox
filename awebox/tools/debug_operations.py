@@ -77,12 +77,12 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
+    if problem_is_healthy:
+        message = 'OCP appears to be healthy'
     if not problem_is_healthy:
-        identify_largest_kkt_element(kkt_matrix, nlp, solution, arg, stats)
-
-    awelogger.logger.info('Health checked.')
-
-    pdb.set_trace()
+        identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp, solution, arg, stats)
+        message = 'OCP appears to be unhealthy'
+    awelogger.logger.info(message)
 
     return problem_is_healthy
 
@@ -187,7 +187,7 @@ def spy_kkt(kkt_matrix, tol=0.1):
     vect_op.spy(np.array(kkt_matrix), tol=tol, color=False)
     return None
 
-def identify_largest_kkt_element(kkt_matrix, nlp, solution, arg, stats):
+def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp, solution, arg, stats):
     matrA = np.absolute(np.array(kkt_matrix))
     ind = np.unravel_index(np.argmax(matrA, axis=None), matrA.shape)
 
@@ -196,19 +196,29 @@ def identify_largest_kkt_element(kkt_matrix, nlp, solution, arg, stats):
 
     number_variables = nlp.V.cat.shape[0]
 
+    message = '... largest (absolute value sense) KKT matrix entry is associate with:'
+    awelogger.logger.info(message)
+
     if associated_column < number_variables:
         relevant_variable_index = associated_column
         relevant_variable = nlp.V.getCanonicalIndex(relevant_variable_index)
+        message = '{:>10}: {:>15} '.format('column', 'variable') + str(relevant_variable)
     else:
         relevant_multiplier_index = associated_column - number_variables
+        relevant_multiplier = cstr_labels[relevant_multiplier_index]
+        message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
+    awelogger.logger.info(message)
+
 
     if associated_row < number_variables:
         associated_variable_index = associated_row
         associated_variable = nlp.V.getCanonicalIndex(associated_variable_index)
+        message = '{:>10}: {:>15} '.format('row', 'variable') + str(associated_variable)
     else:
         associated_constraint_index = associated_row - number_variables
-
-    pdb.set_trace()
+        associated_constraint = cstr_labels[associated_constraint_index]
+        message = '{:>10}: {:>15} '.format('row', 'constraint') + str(associated_constraint)
+    awelogger.logger.info(message)
 
     return None
 

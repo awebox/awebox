@@ -56,6 +56,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
     # system architecture (see zanon2013a)
@@ -72,7 +73,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # -----------------------------------
     system_variables = {}
     system_variables['scaled'], variables_dict = struct_op.generate_variable_struct(system_variable_list)
-    system_variables['SI'], scaling = generate_scaled_variables(options['scaling'], system_variables['scaled'])
+    system_variables['SI'], scaling = generate_si_variables(options['scaling'], system_variables['scaled'])
 
     # --------------------------------------------
     # generate system constraints and derivatives
@@ -137,6 +138,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ---------------------------------
     outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture)
     outputs = power_balance_outputs(options, outputs, system_variables, architecture)
+    # print_op.warn_about_temporary_funcationality_removal(location='dyn.power_balance_outputs')
 
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
@@ -618,11 +620,11 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
 
     # extract variables
     # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
-    xd = system_variables['SI']['xd']
-    xddot = system_variables['SI']['xddot']
+    # but scaled variables are the decision variables, for which cas.jacobian is defined
+    # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
-    # xd = system_variables['scaled'].prefix['xd']
-    # xddot = system_variables['scaled'].prefix['xddot']
+    xd = system_variables['scaled'].prefix['xd']
+    xddot = system_variables['scaled'].prefix['xddot']
 
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
@@ -647,7 +649,11 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
 
             # rate of change in kinetic energy
             e_local = outputs['e_kinetic'][cat]
-            P = time_derivative(e_local, x_kin, xdot_kin, xddot_kin)
+
+            try:
+                P = time_derivative(e_local, x_kin, xdot_kin, xddot_kin)
+            except:
+                pdb.set_trace()
 
             # convention: negative when energy is added to the system
             outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
@@ -663,9 +669,10 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
 
     # extract variables
     # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
-    xd = system_variables['SI']['xd']
-    xddot = system_variables['SI']['xddot']
-    # xd = system_variables['scaled'].prefix['xd']
+    # but scaled variables are the decision variables, for which cas.jacobian is defined
+    # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
+    xd = system_variables['scaled'].prefix['xd']
+    xddot = system_variables['scaled'].prefix['xddot']
 
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
@@ -1024,45 +1031,82 @@ def induction_equations(options, atmos, wind, variables, outputs, parameters, ar
     return outputs
 
 
-def generate_scaled_variables(scaling_options, variables):
-    # set scaling for xddot equal to that of xd
-    scaling_options['xddot'] = {}
-    for name in list(scaling_options['xd'].keys()):
-        scaling_options['xddot']['d' + name] = scaling_options['xd'][name]
+def generate_si_variables(scaling_options, variables):
 
-    # generate scaling for all variables
+    t_characteristic = scaling_options['other']['t_characteristic']
+
     scaling = {}
-    for variable_type in list(variables.keys()):  # iterate over variable type (e.g. states, controls,...)
-        scaling[variable_type] = {}
-        for name in struct_op.subkeys(variables, variable_type):
-            scaling_name = struct_op.get_scaling_name(scaling_options, variable_type,
-                                                      name)  # seek highest integral variable name in scaling options
-            # check if node-specific scaling option is provided (e.g. 'q10')
-            if len(scaling_name) > 0:
-                scaling[variable_type][name] = scaling_options[variable_type][scaling_name]
-            # otherwise: check if global node variable scaling option is provided (e.g. 'q')
-            else:
-                var_name = struct_op.get_node_variable_name(name)  # omit node numbers
-                scaling_name = struct_op.get_scaling_name(scaling_options, variable_type,
-                                                          var_name)  # seek highest integral variable name in scaling options
-                if len(scaling_name) > 0:  # check if scaling option provided
-                    scaling[variable_type][name] = scaling_options[variable_type][scaling_name]
-                else:  # non-provided scaling factor is equal to one
-                    scaling[variable_type][name] = 1.0
 
-    # set scaling for u-elements equal to that of its integrals in xd-vars (e.g. u.ddlt <=> xd.lt <=> xddot.ddlt)
-    for name in struct_op.subkeys(variables, 'u'):
-        if name in list(scaling['xddot'].keys()):
-            scaling['u'][name] = scaling['xddot'][name]
+    prepared_xd_names = scaling_options['xd'].keys()
+
+    if 'xddot' not in scaling_options.keys():
+        scaling_options['xddot'] = {}
+
+    for var_type in variables.keys():
+        scaling[var_type] = {}
+
+        for var_name in struct_op.subkeys(variables, var_type):
+
+            stripped_name = struct_op.get_variable_name_without_node_identifiers(var_name)
+            prepared_names = scaling_options[var_type].keys()
+
+            var_might_be_derivative = (stripped_name[0] == 'd') and (len(stripped_name) > 1)
+            poss_deriv_name = stripped_name[1:]
+
+            var_might_be_sec_derivative = var_might_be_derivative and (stripped_name[1] == 'd') and (len(stripped_name) > 2)
+            poss_sec_deriv_name = stripped_name[2:]
+
+            var_might_be_third_derivative = var_might_be_sec_derivative and (stripped_name[2] == 'd') and (len(stripped_name) > 3)
+            poss_third_deriv_name = stripped_name[3:]
+
+
+
+            if var_name in prepared_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][var_name])
+
+            elif stripped_name in prepared_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][stripped_name])
+
+            elif var_might_be_derivative and (poss_deriv_name in prepared_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_deriv_name] / t_characteristic)
+
+            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_sec_deriv_name] / t_characteristic ** 2.)
+
+            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_third_deriv_name] / t_characteristic ** 3.)
+
+
+
+            elif var_name in prepared_xd_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][var_name])
+
+            elif stripped_name in prepared_xd_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][stripped_name])
+
+            elif var_might_be_derivative and (poss_deriv_name in prepared_xd_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_deriv_name] / t_characteristic)
+
+            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_xd_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_sec_deriv_name] / t_characteristic ** 2.)
+
+            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_xd_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_third_deriv_name] / t_characteristic ** 3.)
+
+            else:
+                message = 'no scaling information provided for variable ' + var_name + ', expected in ' + var_type + '. Proceeding with unit scaling.'
+                awelogger.logger.warning(message)
+                scaling[var_type][var_name] = cas.DM(1.)
 
     # scale variables
-    scaled_variables = {}
-    for variable_type in list(scaling.keys()):
-        scaled_variables[variable_type] = cas.struct_SX(
-            [cas.entry(name, expr=variables[variable_type, name] * scaling[variable_type][name]) for name in
-             struct_op.subkeys(variables, variable_type)])
+    variables_si = {}
+    for var_type in list(scaling.keys()):
+        subkeys = struct_op.subkeys(variables, var_type)
 
-    return scaled_variables, scaling
+        variables_si[var_type] = cas.struct_SX(
+            [cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
+
+    return variables_si, scaling
 
 
 def generate_generalized_coordinates(system_variables, system_gc):

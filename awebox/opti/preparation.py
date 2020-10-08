@@ -95,7 +95,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     for variable_type in set(model.variables.keys()) - set(['xddot']):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
-            var_name = struct_op.get_node_variable_name(name)
+            var_name = struct_op.get_variable_name_without_node_identifiers(name)
 
             if var_name[0] == 'w':
                 # then, this is a vortex wake variable

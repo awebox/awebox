@@ -40,6 +40,8 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
 
+import pdb
+
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite
@@ -725,6 +727,10 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
+    l_t_scaling = options['model']['scaling']['xd']['l_t']
+    q_scaling = l_t_scaling
+    options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
+
     return options_tree, fixed_params
 
 
@@ -832,6 +838,12 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     m_fict_scaling = f_fict_scaling * (b_ref / 2.)
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
+
+    u_ref = get_u_ref(options['user_options'])
+    t_characteristic = b_ref / u_ref
+    options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_characteristic, ('characteristic time', None),'x'))
 
     return options_tree, fixed_params
 

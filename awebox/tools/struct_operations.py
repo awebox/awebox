@@ -30,12 +30,14 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
+import pdb
 
 import operator
 
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 
 def subkeys(casadi_struct, key):
 
@@ -455,45 +457,76 @@ def calculate_kdx(params, V, t):
 
     return kdx, tau
 
+def var_si_to_scaled(var_type, var_name, var_si, scaling):
+
+    if (var_type in scaling.keys()) and (var_name in scaling[var_type].keys()):
+        scale = scaling[var_type][var_name]
+    else:
+        scale = cas.DM(1.)
+
+    if scale.shape == (1, 1):
+        return var_si / scale
+    else:
+        matrix_factor = cas.inv(cas.diag(scale))
+        return cas.mtimes(matrix_factor, var_si)
+
+def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
+
+    if (var_type in scaling.keys()) and (var_name in scaling[var_type].keys()):
+        scale = scaling[var_type][var_name]
+    else:
+        scale = cas.DM(1.)
+
+    if scale.shape == (1, 1):
+        return var_scaled * scale
+    else:
+        matrix_factor = cas.diag(scale)
+        return cas.mtimes(matrix_factor, var_scaled)
+
+
+def get_distinct_V_indices(V):
+
+    distinct_indices = set([])
+
+    number_V_entries = V.shape[0]
+    for edx in range(number_V_entries):
+        index = V.getCanonicalIndex(edx)
+
+        distinct_indices.add(index[:-1])
+
+    return distinct_indices
+
 def si_to_scaled(model, V_ori):
     V = copy.deepcopy(V_ori)
+    scaling = model.scaling
 
+    distinct_V_indices = get_distinct_V_indices(V)
+    for index in distinct_V_indices:
 
-    n_k = len(V_ori['xd']) - 1
-    if 'coll_var' in list(V.keys()):
-        d = len(V_ori['coll_var',0,:,'xd'])
-        direct_collocation = True
-    else:
-        direct_collocation = False
+        if len(index) == 2:
+            var_type = index[0]
+            var_name = index[1]
+            var_si = V[var_type, var_name]
+            V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-    for variable_type in list(model.variables.keys()):
+        elif len(index) == 3:
+            var_type = index[0]
+            kdx = index[1]
+            var_name = index[2]
+            var_si = V[var_type, kdx, var_name]
+            V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        for name in subkeys(model.variables, variable_type):
-
-            if variable_type == 'theta':
-                V[variable_type, name] = V[variable_type, name] / model.scaling[variable_type][name]
-
-            elif variable_type == 'u':
-                for kdx in range(n_k):
-                    if variable_type in list(V.keys()):
-                        V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
-                    else:
-                        for ddx in range(d):
-                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] / model.scaling[variable_type][name]
-
-            elif variable_type in set(['xa', 'xl','xd','xddot']):
-                if variable_type in list(V.keys()):
-                    if variable_type == 'xd':
-                        for kdx in range(n_k+1):
-                            V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
-                    else:
-                        for kdx in range(n_k):
-                            V[variable_type, kdx, name] = V[variable_type, kdx, name] / model.scaling[variable_type][name]
-
-                if (direct_collocation and variable_type != 'xddot'):
-                    for kdx in range(n_k):
-                        for ddx in range(d):
-                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] / model.scaling[variable_type][name]
+        elif (len(index) == 5) and (index[0] == 'coll_var'):
+            kdx = index[1]
+            ddx = index[2]
+            var_type = index[3]
+            var_name = index[4]
+            var_si = V['coll_var', kdx, ddx, var_type, var_name]
+            V['coll_var', kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+        else:
+            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables from si'
+            awelogger.logger.error(message)
+            raise Exception(message)
 
     return V
 
@@ -501,39 +534,33 @@ def si_to_scaled(model, V_ori):
 def scaled_to_si(variables, scaling, n_k, d, V_ori):
     V = copy.deepcopy(V_ori)
 
-    if 'coll_var' in list(V.keys()):
-        direct_collocation = True
-    else:
-        direct_collocation = False
+    distinct_V_indices = get_distinct_V_indices(V)
+    for index in distinct_V_indices:
 
-    for variable_type in list(variables.keys()):
+        if len(index) == 2:
+            var_type = index[0]
+            var_name = index[1]
+            var_scaled = V[var_type, var_name]
+            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
 
-        for name in subkeys(variables, variable_type):
+        elif len(index) == 3:
+            var_type = index[0]
+            kdx = index[1]
+            var_name = index[2]
+            var_scaled = V[var_type, kdx, var_name]
+            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
 
-            if variable_type == 'theta':
-                V[variable_type, name] = V[variable_type, name] * scaling[variable_type][name]
-
-            elif variable_type == 'u':
-                for kdx in range(n_k):
-                    if variable_type in list(V.keys()):
-                        V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
-                    else:
-                        for ddx in range(d):
-                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] *scaling[variable_type][name]
-
-            elif variable_type in set(['xa', 'xl','xd','xddot']):
-                if variable_type in list(V.keys()):
-                    if variable_type == 'xd':
-                        for kdx in range(n_k+1):
-                            V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
-                    else:
-                        for kdx in range(n_k):
-                            V[variable_type, kdx, name] = V[variable_type, kdx, name] * scaling[variable_type][name]
-
-                if (direct_collocation and variable_type != 'xddot'):
-                    for kdx in range(n_k):
-                        for ddx in range(d):
-                            V['coll_var', kdx, ddx, variable_type, name] = V['coll_var', kdx, ddx, variable_type, name] * scaling[variable_type][name]
+        elif (len(index) == 5) and (index[0] == 'coll_var'):
+            kdx = index[1]
+            ddx = index[2]
+            var_type = index[3]
+            var_name = index[4]
+            var_scaled = V['coll_var', kdx, ddx, var_type, var_name]
+            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        else:
+            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables to si'
+            awelogger.logger.error(message)
+            raise Exception(message)
 
     return V
 
@@ -577,7 +604,7 @@ def get_variable_type(model, name):
 
     return var_type
 
-def get_node_variable_name(name):
+def get_variable_name_without_node_identifiers(name):
 
     var_name = name
     while var_name[-1].isdigit():
@@ -585,13 +612,7 @@ def get_node_variable_name(name):
 
     return var_name
 
-def get_scaling_name(scaling_options, variable_type, name):
 
-    scaling_name = name
-    while not scaling_name in list(scaling_options[variable_type].keys()) and len(scaling_name) > 0:
-        scaling_name = scaling_name[1:]
-
-    return scaling_name
 
 def convert_return_status_string_to_number(return_string):
 
