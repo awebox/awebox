@@ -732,20 +732,13 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     if N is not None:
         cosmetics['interpolation']['N'] = int(N)
 
-    # get new scaling input
-    variables = plot_dict['variables']
-    scaling = plot_dict['scaling']
-    n_k = plot_dict['n_k']
-    if plot_dict['discretization'] == 'direct_collocation':
-        d = plot_dict['d']
-    else:
-        d = None
-
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    plot_dict['V_plot'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_plot)
-    plot_dict['V_ref'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_ref)
+    scaling = plot_dict['scaling']
+    plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
+    plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+
     # get new name
     plot_dict['name'] = name
 

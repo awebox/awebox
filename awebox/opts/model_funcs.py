@@ -727,8 +727,11 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
+
+    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.q')
     l_t_scaling = options['model']['scaling']['xd']['l_t']
-    q_scaling = l_t_scaling
+    l_s_scaling = options['model']['scaling']['theta']['l_s']
+    q_scaling = l_s_scaling
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -834,15 +837,19 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     m_k = geometry['m_k']
     b_ref = geometry['b_ref']
 
+    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.scaling')
+
     f_fict_scaling = 0.5 * options['model']['model_bounds']['acceleration']['acc_max'] * m_k * gravity
     m_fict_scaling = f_fict_scaling * (b_ref / 2.)
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
 
     options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
 
     u_ref = get_u_ref(options['user_options'])
-    t_characteristic = b_ref / u_ref
+    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    t_characteristic = 1. #b_ref / u_ref
     options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_characteristic, ('characteristic time', None),'x'))
 
     return options_tree, fixed_params

@@ -496,9 +496,8 @@ def get_distinct_V_indices(V):
 
     return distinct_indices
 
-def si_to_scaled(model, V_ori):
+def si_to_scaled(V_ori, scaling):
     V = copy.deepcopy(V_ori)
-    scaling = model.scaling
 
     distinct_V_indices = get_distinct_V_indices(V)
     for index in distinct_V_indices:
@@ -531,7 +530,7 @@ def si_to_scaled(model, V_ori):
     return V
 
 
-def scaled_to_si(variables, scaling, n_k, d, V_ori):
+def scaled_to_si(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
     distinct_V_indices = get_distinct_V_indices(V)

@@ -629,7 +629,7 @@ class Optimization(object):
             self.__V_opt = self.__V_init
         else:
             self.__V_opt = nlp.V(self.__solution['x'])
-        self.__V_final = struct_op.scaled_to_si(model.variables, model.scaling, nlp.n_k, nlp.d, self.__V_opt)
+        self.__V_final = struct_op.scaled_to_si(self.__V_opt, model.scaling)
         self.__integral_outputs_final = self.scaled_to_si_integral_outputs(nlp, model)
 
         return None

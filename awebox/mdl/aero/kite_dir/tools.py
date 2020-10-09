@@ -34,34 +34,26 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.indicators as indicators
 import awebox.tools.vector_operations as vect_op
 import numpy as np
+import awebox.tools.print_operations as print_op
 
 ##### the force and moment lifted variables
 
 def get_f_aero_var(variables, kite, parent, parameters, options):
-    unscaled = variables['xl']['f_aero' + str(kite) + str(parent)]
-    f_scale = get_f_scale(parameters, options)
-    rescaled = unscaled * f_scale
-
-    return rescaled
+    f_aero_si = variables['xl']['f_aero' + str(kite) + str(parent)]
+    return f_aero_si
 
 def get_m_aero_var(variables, kite, parent, parameters, options):
-    unscaled = variables['xl']['m_aero' + str(kite) + str(parent)]
-    m_scale = get_m_scale(parameters, options)
-    rescaled = unscaled * m_scale
-    return rescaled
+    m_aero_si = variables['xl']['m_aero' + str(kite) + str(parent)]
+    return m_aero_si
 
 def get_f_scale(parameters, options):
-
-    g = options['scaling']['other']['g']
-    m_k = parameters['theta0', 'geometry', 'm_k']
-    scale = g * m_k * 10.
+    scale = options['scaling']['xl']['f_aero']
     return scale
 
 def get_m_scale(parameters, options):
+    f_scale = options['scaling']['xl']['f_aero']
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    g = options['scaling']['other']['g']
-    m_k = parameters['theta0', 'geometry', 'm_k']
-    scale = b_ref * g * m_k / 2.
+    scale = 0.5 * b_ref * f_scale
     return scale
 
 

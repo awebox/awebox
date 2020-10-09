@@ -58,7 +58,7 @@ def get_initial_guess(nlp, model, formulation, options):
         raise ValueError('NaN detected in V_init_si')
 
     # scale initial guess
-    V_init = struct_op.si_to_scaled(model, V_init_si)
+    V_init = struct_op.si_to_scaled(V_init_si, model.scaling)
     return V_init
 
 def __build_si_initial_guess(nlp, model, formulation, options):

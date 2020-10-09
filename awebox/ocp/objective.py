@@ -81,24 +81,24 @@ def get_general_reg_costs_function(variables, V):
 
     slack_fun = get_local_slack_penalty_function()
 
-    for type in set(variables.keys()):
-        category = sorting_dict[type]['category']
-        exceptions = sorting_dict[type]['exceptions']
+    for var_type in set(variables.keys()):
+        category = sorting_dict[var_type]['category']
+        exceptions = sorting_dict[var_type]['exceptions']
 
-        for subkey in set(struct_op.subkeys(variables, type)):
-            name = struct_op.get_variable_name_without_node_identifiers(subkey)
+        for var_name in set(struct_op.subkeys(variables, var_type)):
+            name = struct_op.get_variable_name_without_node_identifiers(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
-                reg_costs[category] = reg_costs[category] + cas.sum1(regs[type, subkey])
+                reg_costs[category] = reg_costs[category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
-                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[type, subkey])
+                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
 
-                for idx in variables.f[type, subkey]:
+                for idx in variables.f[var_type, var_name]:
                     var_loc = var_sym[idx]
                     ref_loc = ref_sym[idx]
                     weight_loc = weight_sym[idx]
@@ -163,24 +163,24 @@ def get_regularization_weights(variables, P, nlp_options):
 
     weights = variables(P['p', 'weights'])
 
-    for type in set(variables.keys()):
-        category = sorting_dict[type]['category']
-        exceptions = sorting_dict[type]['exceptions']
+    for var_type in set(variables.keys()):
+        category = sorting_dict[var_type]['category']
+        exceptions = sorting_dict[var_type]['exceptions']
 
-        for subkey in set(struct_op.subkeys(variables, type)):
-            name = struct_op.get_variable_name_without_node_identifiers(subkey)
+        for var_name in set(struct_op.subkeys(variables, var_type)):
+            name = struct_op.get_variable_name_without_node_identifiers(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
                 shortened_cat_name = category[:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
-                weights[type, subkey] = weights[type, subkey] * factor / normalization
+                weights[var_type, var_name] = weights[var_type, var_name] * factor / normalization
 
             elif (name in exceptions.keys()) and (not exceptions[name] == None):
                 shortened_cat_name = exceptions[name][:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
-                weights[type, subkey] = weights[type, subkey] * factor / normalization
+                weights[var_type, var_name] = weights[var_type, var_name] * factor / normalization
 
     return weights
 
@@ -239,22 +239,6 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     return reg_costs
 
 
-
-def get_local_tracking_function(variables, V, P):
-    # todo: this does not appear to be used anywhere... remove?
-
-    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
-
-    vars = variables
-    refs = variables(P['p']['ref'])
-    weights = variables(P['p']['weights'])
-
-    all_reg_costs = reg_costs_struct(reg_costs_fun(vars, refs, weights))
-    tracking_cost = all_reg_costs['tracking_cost']
-
-    tracking_fun = cas.Function('tracking_fun', [variables, P], [tracking_cost])
-
-    return tracking_fun
 
 
 

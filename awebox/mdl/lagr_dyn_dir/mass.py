@@ -34,7 +34,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dynamics_components_dir.tether as tether
+import awebox.mdl.lagr_dyn_dir.tether as tether
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -78,10 +78,6 @@ def generate_m_nodes_scaling(options, variables, outputs, parameters, architectu
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
         mass = node_masses_scaling['m' + str(node) + str(parent)]
-
-        # if node == 1:
-        #     mass += node_masses_scaling['groundstation']
-        #
 
         node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, mass, mass, mass)
 
@@ -208,6 +204,3 @@ def add_kite_mass(node, node_masses, architecture, parameters):
         node_masses['m' + str(node) + str(parent)] += kite_mass
 
     return node_masses
-
-
-

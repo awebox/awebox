@@ -34,7 +34,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dynamics_components_dir.tether as tether
+import awebox.mdl.lagr_dyn_dir.tether as tether
 
 from awebox.logger.logger import Logger as awelogger
 
