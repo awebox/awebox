@@ -8,6 +8,10 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+import pdb
+
+from awebox.logger.logger import Logger as awelogger
+
 
 def generate_holonomic_constraints(architecture, outputs, variables, generalized_coordinates, parameters, options):
     number_of_nodes = architecture.number_of_nodes
@@ -19,93 +23,39 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     theta_si = variables['SI']['theta']
     xgc_si = generalized_coordinates['SI']['xgc']
     xa_si = variables['SI']['xa']
-    xddot_si = variables['SI']['xddot']
-
-    # extract necessary scaled variables
-    xgc = generalized_coordinates['scaled']['xgc']
-    xgcdot = generalized_coordinates['scaled']['xgcdot']
-    xgcddot = generalized_coordinates['scaled']['xgcddot']
 
     # scaled variables struct
-    var = variables['scaled']
-    ddl_t_scaled = var[struct_op.get_variable_type(variables['SI'], 'ddl_t'), 'ddl_t']
+    var_scaled = variables['scaled']
 
     if 'tether_length' not in list(outputs.keys()):
         outputs['tether_length'] = {}
 
-    # build constraints with si variables and obtain derivatives w.r.t scaled variables
-    g = []
+    # build constraints with si variables
+    g, g_dict = get_tether_length_constraint(options, variables['SI'], parameters, architecture)
+    outputs['tether_length'] = g_dict
+
     gdot = []
     gddot = []
     holonomic_constraints = 0.0
-    for n in range(1, number_of_nodes):
-        parent = parent_map[n]
 
-        if n not in kite_nodes or options['tether']['attachment'] == 'com':
-            current_node = xgc_si['q' + str(n) + str(parent)]
-        elif n in kite_nodes and options['tether']['attachment'] == 'stick':
-            if int(options['kite_dof']) == 6:
-                dcm = cas.reshape(xd_si['r{}{}'.format(n, parent)], (3, 3))
-            elif int(options['kite_dof']) == 3:
-                raise ValueError('Stick tether attachment option not implemented for 3DOF kites')
-            current_node = xgc_si['q{}{}'.format(n, parent)] + cas.mtimes(dcm,
-                                                                          parameters['theta0', 'geometry', 'r_tether'])
-        else:
-            raise ValueError('Unknown tether attachment option: {}'.format(options['tether']['attachment']))
+    for node in range(1, number_of_nodes):
+        parent = parent_map[node]
 
-        if n == 1:
-            previous_node = cas.vertcat(0., 0., 0.)
-            segment_length = xd_si['l_t']
-        elif n in kite_nodes:
-            grandparent = parent_map[parent]
-            previous_node = xgc_si['q' + str(parent) + str(grandparent)]
-            segment_length = theta_si['l_s']
-        else:
-            grandparent = parent_map[parent]
-            previous_node = xgc_si['q' + str(parent) + str(grandparent)]
-            segment_length = theta_si['l_i']
+        # chain rule, based on scaled variables
+        g_local = g_dict['c' + str(node) + str(parent)]
+        g.append(g_local)
 
-        # holonomic constraint
-        length_constraint = 0.5 * (
-                cas.mtimes(
-                    (current_node - previous_node).T,
-                    (current_node - previous_node)) - segment_length ** 2.0)
-        g.append(length_constraint)
+        dg_local = tools.time_derivative(options, g_local, variables, architecture, node)
+        gdot.append(dg_local)
 
-        # first-order derivative
-        gdot.append(tools.time_derivative(g[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']), cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), None))
+        ddg_local = tools.time_derivative(options, dg_local, variables, architecture, node)
+        gddot.append(ddg_local)
 
-        if int(options['kite_dof']) == 6:
-            for k in kite_nodes:
-                kparent = parent_map[k]
-                gdot[-1] += 2 * cas.mtimes(
-                    vect_op.jacobian_dcm(g[-1], xd_si, var, k, kparent),
-                    var['xd', 'omega{}{}'.format(k, kparent)]
-                )
+        outputs['tether_length']['dc' + str(node) + str(parent)] = dg_local
+        outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
 
-        # second-order derivative
-        gddot.append(tools.time_derivative(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']), cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), cas.vertcat(xgcddot.cat, ddl_t_scaled)))
+        holonomic_constraints += xa_si['lambda{}{}'.format(node, parent)] * g_local
 
-        if int(options['kite_dof']) == 6:
-            for kite in kite_nodes:
-                kparent = parent_map[kite]
-
-                # add time derivative due to angular velocity
-                gddot[-1] += 2 * cas.mtimes(
-                    vect_op.jacobian_dcm(gdot[-1], xd_si, var, kite, kparent),
-                    var['xd', 'omega{}{}'.format(kite, kparent)]
-                )
-
-                # add time derivative due to angular acceleration
-                gddot[-1] += 2 * cas.mtimes(
-                    vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
-                    var['xddot', 'domega{}{}'.format(kite, kparent)]
-                )
-
-        outputs['tether_length']['c' + str(n) + str(parent)] = g[-1]
-        outputs['tether_length']['dc' + str(n) + str(parent)] = gdot[-1]
-        outputs['tether_length']['ddc' + str(n) + str(parent)] = gddot[-1]
-        holonomic_constraints += xa_si['lambda{}{}'.format(n, parent)] * g[-1]
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -173,56 +123,34 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
                             (first_node - second_node)) - segment_length ** 2.0)
 
                 # append constraint
+                g_local = length_constraint
                 g.append(length_constraint)
 
-                # first-order derivative
-                gdot.append(tools.time_derivative(g[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']),
-                                                  cas.vertcat(xgcdot.cat, var['xd', 'dl_t']), None))
+                dg_local = tools.time_derivative(options, g_local, variables, architecture, node)
+                gdot.append(dg_local)
 
-                if int(options['kite_dof']) == 6:
-                    for kite in kite_children:
-                        kparent = parent_map[kite]
-                        gdot[-1] += 2 * cas.mtimes(
-                            vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
-                            var['xd', 'omega{}{}'.format(kite, kparent)]
-                        )
-
-                # second-order derivative
-                gddot.append(tools.time_derivative(gdot[-1], cas.vertcat(xgc.cat, var['xd', 'l_t']),
-                                                   cas.vertcat(xgcdot.cat, var['xd', 'dl_t']),
-                                                   cas.vertcat(xgcddot.cat, ddl_t_scaled)))
-
-                if int(options['kite_dof']) == 6:
-                    for kite in kite_children:
-                        kparent = parent_map[kite]
-                        gddot[-1] += 2 * cas.mtimes(
-                            vect_op.jacobian_dcm(gdot[-1], xd_si, var, kite, kparent),
-                            var['xd', 'omega{}{}'.format(kite, kparent)]
-                        )
-                        gddot[-1] += 2 * cas.mtimes(
-                            vect_op.jacobian_dcm(g[-1], xd_si, var, kite, kparent),
-                            var['xddot', 'domega{}{}'.format(kite, kparent)]
-                        )
+                ddg_local = tools.time_derivative(options, dg_local, variables, architecture, node)
+                gddot.append(ddg_local)
 
                 # save invariants to outputs
-                outputs['tether_length']['c{}'.format(n01)] = g[-1]
-                outputs['tether_length']['dc{}'.format(n01)] = gdot[-1]
-                outputs['tether_length']['ddc{}'.format(n01)] = gddot[-1]
+                outputs['tether_length']['c{}'.format(n01)] = g_local
+                outputs['tether_length']['dc{}'.format(n01)] = dg_local
+                outputs['tether_length']['ddc{}'.format(n01)] = ddg_local
 
                 # add to holonomic constraints
-                holonomic_constraints += xa_si['lambda{}'.format(n01)] * g[-1]
+                holonomic_constraints += xa_si['lambda{}'.format(n01)] * g_local
 
-        if n in kite_nodes:
-            if 'r' + str(n) + str(parent) in list(xd_si.keys()):
-                r = cas.reshape(var['xd', 'r' + str(n) + str(parent)], (3, 3))
+        if node in kite_nodes:
+            if 'r' + str(node) + str(parent) in list(xd_si.keys()):
+                r = cas.reshape(var_scaled['xd', 'r' + str(node) + str(parent)], (3, 3))
                 orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
                 orthonormality = cas.reshape(orthonormality, (9, 1))
 
-                outputs['tether_length']['orthonormality' + str(n) + str(parent)] = orthonormality
+                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
 
-                dr_dt = variables['SI']['xddot']['dr' + str(n) + str(parent)]
+                dr_dt = variables['SI']['xddot']['dr' + str(node) + str(parent)]
                 dr_dt = cas.reshape(dr_dt, (3, 3))
-                omega = variables['SI']['xd']['omega' + str(n) + str(parent)]
+                omega = variables['SI']['xd']['omega' + str(node) + str(parent)]
                 omega_skew = vect_op.skew(omega)
                 dr = cas.mtimes(r, omega_skew)
                 rot_kinematics = dr_dt - dr
@@ -233,10 +161,71 @@ def generate_holonomic_constraints(architecture, outputs, variables, generalized
     g = cas.vertcat(*g)
     gdot = cas.vertcat(*gdot)
     gddot = cas.vertcat(*gddot)
-    # holonomic_fun = cas.Function('holonomic_fun', [xgc,xgcdot,xgcddot,var['xd','l_t'],var['xd','dl_t'],ddl_t_scaled],[g,gdot,gddot])
-    holonomic_fun = None  # todo: still used?
 
-    return holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun
+    return holonomic_constraints, outputs, g, gdot, gddot
+
+
+def get_tether_length_constraint(options, vars_si, parameters, architecture):
+
+    xd_si = vars_si['xd']
+    theta_si = vars_si['theta']
+
+    g = []
+    g_dict = {}
+
+    number_of_nodes = architecture.number_of_nodes
+    parent_map = architecture.parent_map
+    kite_nodes = architecture.kite_nodes
+
+    com_attachment = (options['tether']['attachment'] == 'com')
+    stick_attachment = (options['tether']['attachment'] == 'stick')
+    kite_has_6dof = (int(options['kite_dof']) == 6)
+
+    if not (com_attachment or stick_attachment):
+        message = 'Unknown tether attachment option: {}'.format(options['tether']['attachment'])
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    for node in range(1, number_of_nodes):
+
+        parent = parent_map[node]
+        q_si = xd_si['q' + str(node) + str(parent)]
+
+        node_is_a_kite = (node in kite_nodes)
+        has_extended_arm = node_is_a_kite and stick_attachment
+
+        if has_extended_arm and not kite_has_6dof:
+            message = 'Stick tether attachment option not implemented for 3DOF kites'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+        if has_extended_arm:
+            dcm = cas.reshape(xd_si['r{}{}'.format(node, parent)], (3, 3))
+            current_node = q_si + cas.mtimes(dcm, parameters['theta0', 'geometry', 'r_tether'])
+        else:
+            current_node = q_si
+
+        if node == 1:
+            previous_node = cas.DM.zeros((3, 1))
+            segment_length = xd_si['l_t']
+        elif node in kite_nodes:
+            grandparent = parent_map[parent]
+            previous_node = xd_si['q' + str(parent) + str(grandparent)]
+            segment_length = theta_si['l_s']
+        else:
+            grandparent = parent_map[parent]
+            previous_node = xd_si['q' + str(parent) + str(grandparent)]
+            segment_length = theta_si['l_i']
+
+        # holonomic constraint
+        seg_vector = (current_node - previous_node)
+        length_constraint = 0.5 * (cas.mtimes(seg_vector.T, seg_vector) - segment_length ** 2.0)
+        g.append(length_constraint)
+
+        g_dict['c' + str(node) + str(parent)] = length_constraint
+
+    return g, g_dict
+
 
 
 def generate_holonomic_scaling(options, architecture, variables, parameters):

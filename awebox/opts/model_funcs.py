@@ -731,7 +731,8 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     print_op.warn_about_temporary_funcationality_removal(location='model_funcs.q')
     l_t_scaling = options['model']['scaling']['xd']['l_t']
     l_s_scaling = options['model']['scaling']['theta']['l_s']
-    q_scaling = l_s_scaling
+    # q_scaling = l_s_scaling
+    q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
     return options_tree, fixed_params

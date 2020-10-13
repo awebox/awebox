@@ -459,29 +459,47 @@ def calculate_kdx(params, V, t):
 
 def var_si_to_scaled(var_type, var_name, var_si, scaling):
 
-    if (var_type in scaling.keys()) and (var_name in scaling[var_type].keys()):
-        scale = scaling[var_type][var_name]
-    else:
-        scale = cas.DM(1.)
+    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
+    if scaling_defined_for_variable:
 
-    if scale.shape == (1, 1):
-        return var_si / scale
+        scale = scaling[var_type][var_name]
+
+        if scale.shape == (1, 1):
+
+            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
+            if use_unit_scaling:
+                return var_si
+            else:
+                return var_si / scale
+
+        else:
+            matrix_factor = cas.inv(cas.diag(scale))
+            return cas.mtimes(matrix_factor, var_si)
+
     else:
-        matrix_factor = cas.inv(cas.diag(scale))
-        return cas.mtimes(matrix_factor, var_si)
+        return var_si
+
 
 def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
 
-    if (var_type in scaling.keys()) and (var_name in scaling[var_type].keys()):
-        scale = scaling[var_type][var_name]
-    else:
-        scale = cas.DM(1.)
+    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
+    if scaling_defined_for_variable:
 
-    if scale.shape == (1, 1):
-        return var_scaled * scale
+        scale = scaling[var_type][var_name]
+
+        if scale.shape == (1, 1):
+
+            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
+            if use_unit_scaling:
+                return var_scaled
+            else:
+                return var_scaled * scale
+        else:
+            matrix_factor = cas.diag(scale)
+            return cas.mtimes(matrix_factor, var_scaled)
+
     else:
-        matrix_factor = cas.diag(scale)
-        return cas.mtimes(matrix_factor, var_scaled)
+        return var_scaled
 
 
 def get_distinct_V_indices(V):

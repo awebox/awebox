@@ -107,7 +107,6 @@ class Model(object):
         outputs_dict,
         constraint_out,
         constraint_out_fun,
-        holonomic_fun,
         integral_outputs,
         integral_outputs_fun,
         integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
@@ -124,7 +123,6 @@ class Model(object):
         self.__outputs_dict = outputs_dict
         self.__constraint_out = constraint_out
         self.__constraint_out_fun = constraint_out_fun
-        self.__holonomic_fun = holonomic_fun
         self.__integral_outputs = integral_outputs
         self.__integral_outputs_fun = integral_outputs_fun
         self.__integral_scaling = integral_scaling
@@ -340,14 +338,6 @@ class Model(object):
     @timings.setter
     def timings(self, value):
         awelogger.logger.warning('Cannot set timings object.')
-
-    @property
-    def holonomic_fun(self):
-        return self.__holonomic_fun
-
-    @holonomic_fun.setter
-    def holonomic_fun(self, value):
-        awelogger.logger.warning('Cannot set holonomic_fun object.')
 
     @property
     def type(self):

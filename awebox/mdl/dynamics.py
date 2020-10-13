@@ -78,7 +78,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # lagrangian function of the system
     # ---------------------------------
 
-    lagr_dynamics, holonomic_fun, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, variables_dict, system_gc, parameters, outputs)
+    lagr_dynamics, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, variables_dict, system_gc, parameters, outputs)
     dynamics_list = lagr_dynamics
 
     # --------------------------------------------
@@ -146,7 +146,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         out_dict,
         constraint_out,
         constraint_out_fun,
-        holonomic_fun,
         integral_outputs_struct,
         integral_outputs_fun,
         integral_scaling]
@@ -317,23 +316,14 @@ def power_balance_outputs(options, outputs, system_variables, architecture):
     outputs = potential_power_outputs(options, outputs, system_variables, architecture)
 
     if options['test']['check_energy_summation']:
-        outputs = comparison_kin_and_pot_power_outputs(outputs, system_variables, architecture)
+        outputs = comparison_kin_and_pot_power_outputs(options, outputs, system_variables, architecture)
 
     return outputs
 
 
-def comparison_kin_and_pot_power_outputs(outputs, system_variables, architecture):
+def comparison_kin_and_pot_power_outputs(options, outputs, system_variables, architecture):
 
     outputs['power_balance_comparison'] = {}
-
-    xd = system_variables['SI']['xd']
-    xddot = system_variables['SI']['xddot']
-
-    q_sym = cas.vertcat(*[xd['q' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
-    dq_sym = cas.vertcat(
-        *[xd['dq' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
-    ddq_sym = cas.vertcat(*[xddot['ddq' + str(n) + str(architecture.parent_map[n])] for n in range(1, architecture.number_of_nodes)])
-
     types = ['potential', 'kinetic']
 
     for type in types:
@@ -344,7 +334,7 @@ def comparison_kin_and_pot_power_outputs(outputs, system_variables, architecture
             e_local += dict[keyname]
 
         # rate of change in kinetic energy
-        P = lagr_tools.time_derivative(e_local, q_sym, dq_sym, ddq_sym)
+        P = lagr_tools.time_derivative(options, e_local, system_variables)
 
         # convention: negative when kinetic energy is added to the system
         outputs['power_balance_comparison'][type] = -1. * P
@@ -388,22 +378,9 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
-    xd = system_variables['scaled'].prefix['xd']
-    xddot = system_variables['scaled'].prefix['xddot']
-
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         label = str(n) + str(architecture.parent_map[n])
-
-        # input variables for kinetic energy
-        x_kin = cas.vertcat(xd['q' + label])
-        xdot_kin = cas.vertcat(xd['dq' + label])
-        xddot_kin = cas.vertcat(xddot['ddq' + label])
-
-        if (n in architecture.kite_nodes) and (int(options['kite_dof']) == 6):
-            x_kin = cas.vertcat(x_kin, xd['omega' + label])
-            xdot_kin = cas.vertcat(xdot_kin, xddot['domega' + label])
-            xddot_kin = cas.vertcat(xddot_kin, cas.DM.zeros(xd['omega' + label].shape))
 
         categories = {'q' + label: str(n)}
 
@@ -415,7 +392,7 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
             # rate of change in kinetic energy
             e_local = outputs['e_kinetic'][cat]
 
-            P = lagr_tools.time_derivative(e_local, x_kin, xdot_kin, xddot_kin)
+            P = lagr_tools.time_derivative(options, e_local, system_variables)
 
             # convention: negative when energy is added to the system
             outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
@@ -433,21 +410,14 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
     # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
-    xd = system_variables['scaled'].prefix['xd']
-    xddot = system_variables['scaled'].prefix['xddot']
 
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         label = str(n) + str(architecture.parent_map[n])
 
-        # input variables for potential energy
-        x_pot = cas.vertcat(xd['q' + label])
-        xdot_pot = cas.vertcat(xd['dq' + label])
-        xddot_pot = cas.vertcat(xddot['ddq' + label])
-
         # rate of change in potential energy (ignore in-outflow of potential energy)
         e_local = outputs['e_potential']['q' + label]
-        P = lagr_tools.time_derivative(e_local, x_pot, xdot_pot, xddot_pot)
+        P = lagr_tools.time_derivative(options, e_local, system_variables)
 
         # convention: negative when potential energy is added to the system
         outputs['power_balance']['P_pot' + str(n)] = -1. * P

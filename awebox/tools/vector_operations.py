@@ -176,37 +176,6 @@ def zhat_np():
     zhat_np = np.array(cas.vertcat(0., 0., 1.))
     return zhat_np
 
-def rotation_matrix(theta, phi, psi):
-    # rotation angles are defined positive, for clockwise rotation when
-    # looking from origin along positive axis
-
-    ori_pre_rot = np.eye(3)
-
-    rot_x = cas.MX.zeros(3, 3)
-    rot_x[0, 0] = 1.0
-    rot_x[1, 1] = np.cos(phi)
-    rot_x[1, 2] = np.sin(phi)
-    rot_x[2, 1] = -1.0 * np.sin(phi)
-    rot_x[2, 2] = np.cos(phi)
-
-    rot_y = cas.MX.zeros(3, 3)
-    rot_y[0, 0] = np.cos(theta)
-    rot_y[0, 2] = -1.0 * np.sin(theta)
-    rot_y[1, 1] = 1.0
-    rot_y[2, 0] = np.sin(theta)
-    rot_y[2, 2] = np.cos(theta)
-
-    rot_z = cas.MX.zeros(3, 3)
-    rot_z[0, 0] = np.cos(psi)
-    rot_z[0, 1] = np.sin(psi)
-    rot_z[1, 0] = -1.0 * np.sin(psi)
-    rot_z[1, 1] = np.cos(psi)
-    rot_z[2, 2] = 1.0
-
-    ori_post_rot = cas.mtimes(cas.mtimes(rot_x, rot_y), cas.mtimes(rot_z, ori_pre_rot))
-
-    return ori_post_rot
-
 def null(arg_array, eps=1e-15):
     u, s, vh = scipy.linalg.svd(arg_array)
     null_mask = (s <= eps)
@@ -252,18 +221,19 @@ def unskew(A):
     )
     return B[:,np.newaxis]
 
-def rot_op(R, A):
+def rotation(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
-def jacobian_dcm(expr, xd_si, var, kite, kparent):
+def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
     """ Differentiate expression w.r.t. kite direct cosine matrix"""
 
-    dcm_si = xd_si['r{}{}'.format(kite, kparent)]
-    dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
-    jac_dcm = rot_op(
+    dcm_si = xd_si['r{}{}'.format(kite, parent)]
+    dcm_scaled = variables_scaled['xd', 'r{}{}'.format(kite, parent)]
+
+    jac_dcm = rotation(
             cas.reshape(dcm_si, (3,3)),
-            cas.reshape(cas.jacobian(expr, dcm_sc), (3,3))
+            cas.reshape(cas.jacobian(expr, dcm_scaled), (3,3))
     ).T
     return jac_dcm
 
@@ -292,7 +262,7 @@ def lower_triangular_inclusive(matrix):
     return elements
 
 def columnize(var):
-    # only allows 2x2 matrices for variable
+    # only allows 2D matrices for variable
 
     [counted_rows, counted_columns] = var.shape
     number_elements = counted_rows * counted_columns

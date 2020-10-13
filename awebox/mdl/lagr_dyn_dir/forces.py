@@ -40,6 +40,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+from awebox.logger.logger import Logger as awelogger
+
 
 
 def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, architecture):
@@ -75,14 +77,14 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, ar
     return node_forces, outputs
 
 
-def generate_drag_mode_forces(variables, outputs, architecture):
+def generate_drag_mode_forces(variables_si, outputs, architecture):
     # create generator forces
     generator_forces = {}
     for n in architecture.kite_nodes:
         parent = architecture.parent_map[n]
 
         # compute generator force
-        kappa = variables['xd']['kappa{}{}'.format(n, parent)]
+        kappa = variables_si['xd']['kappa{}{}'.format(n, parent)]
         speed = outputs['aerodynamics']['airspeed{}'.format(n)]
         v_app = outputs['aerodynamics']['air_velocity{}'.format(n)]
         gen_force = kappa * speed * v_app
@@ -94,7 +96,7 @@ def generate_drag_mode_forces(variables, outputs, architecture):
     return generator_forces, outputs
 
 
-def generate_tether_drag_forces(options, variables, parameters, atmos, wind, outputs, architecture):
+def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs, architecture):
     # homotopy parameters
     p_dec = parameters.prefix['phi']
 
@@ -112,7 +114,7 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
 
         parent = architecture.parent_map[n]
 
-        outputs = tether_aero.get_force_outputs(options, variables, atmos, wind, n, tether_cd_fun, outputs,
+        outputs = tether_aero.get_force_outputs(options, variables_si, atmos, wind, n, tether_cd_fun, outputs,
                                                 architecture)
 
         multi_upper = outputs['tether_aero']['multi_upper' + str(n)]
@@ -158,7 +160,7 @@ def generate_tether_drag_forces(options, variables, parameters, atmos, wind, out
         tether_drag_forces['f' + str(n) + str(parent)] += drag_node
 
     # collect tether drag losses
-    outputs = indicators.collect_tether_drag_losses(variables, tether_drag_forces, outputs, architecture)
+    outputs = indicators.collect_tether_drag_losses(variables_si, tether_drag_forces, outputs, architecture)
 
     return tether_drag_forces, outputs
 
@@ -202,26 +204,20 @@ def fictitious_embedding(options, p_dec, u_si, outputs, kite, parent):
 
     return homotopy_force, homotopy_moment
 
-def generate_tether_moments(options, variables, holonomic_constraints, outputs, architecture):
+def generate_tether_moments(options, variables_si, variables_scaled, holonomic_constraints, outputs, architecture):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    xd = variables['SI']['xd']
+    xd_si = variables_si['xd']
 
     if int(options['kite_dof']) == 6:
         outputs['tether_moments'] = {}
-        for n in kite_nodes:
-            parent = parent_map[n]
-
-            rlocal = cas.reshape(xd['r' + str(n) + str(parent)], (3, 3))
+        for kite in kite_nodes:
+            parent = parent_map[kite]
 
             # tether constraint contribution
-            tether_moment = 2 * vect_op.rot_op(
-                rlocal,
-                cas.reshape(cas.jacobian(holonomic_constraints, variables['scaled']['xd', 'r{}{}'.format(n, parent)]),
-                            (3, 3))
-            )
-            outputs['tether_moments']['n{}{}'.format(n, parent)] = tether_moment
+            tether_moment = 2 * vect_op.jacobian_dcm(holonomic_constraints, xd_si, variables_scaled, kite, parent).T
+            outputs['tether_moments']['n{}{}'.format(kite, parent)] = tether_moment
 
     return outputs
 

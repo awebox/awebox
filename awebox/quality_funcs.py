@@ -32,6 +32,7 @@
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
+import pdb
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -91,14 +92,18 @@ def test_invariants(trial, test_param_dict, results):
     for node in range(1,number_of_nodes):
         for i in [0, 1]:
             parent = parent_map[node]
+            out_local = trial.visualization.plot_dict['output_vals'][i]
+
             if discretization == 'direct_collocation':
-                c_list = trial.visualization.plot_dict['output_vals'][i]['coll_outputs', :, :, 'tether_length', 'c' + str(node) + str(parent)]
-                dc_list = trial.visualization.plot_dict['output_vals'][i]['coll_outputs', :, :, 'tether_length', 'dc' + str(node) + str(parent)]
-                ddc_list = trial.visualization.plot_dict['output_vals'][i]['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)]
+                c_list = out_local['coll_outputs', :, :, 'tether_length', 'c' + str(node) + str(parent)]
+                dc_list = out_local['coll_outputs', :, :, 'tether_length', 'dc' + str(node) + str(parent)]
+                ddc_list = out_local['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)]
+
             elif discretization == 'multiple_shooting':
-                c_list = trial.visualization.plot_dict['output_vals'][i]['outputs', :, 'tether_length', 'c' + str(node) + str(parent)]
-                dc_list = trial.visualization.plot_dict['output_vals'][i]['outputs', :, 'tether_length', 'dc' + str(node) + str(parent)]
-                ddc_list = trial.visualization.plot_dict['output_vals'][i]['outputs', :, 'tether_length', 'ddc' + str(node) + str(parent)]
+                c_list = out_local['outputs', :, 'tether_length', 'c' + str(node) + str(parent)]
+                dc_list = out_local['outputs', :, 'tether_length', 'dc' + str(node) + str(parent)]
+                ddc_list = out_local['outputs', :, 'tether_length', 'ddc' + str(node) + str(parent)]
+
             c_avg = np.average(abs(np.array(c_list)))
             dc_avg = np.average(abs(np.array(dc_list)))
             ddc_avg = np.average(abs(np.array(ddc_list)))

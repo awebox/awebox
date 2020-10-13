@@ -8,11 +8,12 @@ import awebox.mdl.lagr_dyn_dir.tools as tools
 
 import awebox.mdl.lagr_dyn_dir.holonomics as holonomic_comp
 import awebox.mdl.lagr_dyn_dir.mass as mass_comp
-import awebox.mdl.lagr_dyn_dir.tether as tether_comp
 import awebox.mdl.lagr_dyn_dir.energy as energy_comp
 import awebox.mdl.lagr_dyn_dir.forces as forces_comp
 
 import numpy as np
+
+import pdb
 
 def get_dynamics(options, atmos, wind, architecture, system_variables, variables_dict, system_gc, parameters, outputs):
 
@@ -33,11 +34,11 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # lagrangian
     # --------------------------------
 
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses_si, system_variables, generalized_coordinates, architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses_si, system_variables['SI'], architecture)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
-    holonomic_constraints, outputs, g, gdot, gddot, holonomic_fun = holonomic_comp.generate_holonomic_constraints(
+    holonomic_constraints, outputs, g, gdot, gddot = holonomic_comp.generate_holonomic_constraints(
         architecture,
         outputs,
         system_variables,
@@ -54,30 +55,20 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
 
     f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, system_variables['SI'], parameters, outputs,
                                                     architecture)
-    outputs = forces_comp.generate_tether_moments(options, system_variables, holonomic_constraints, outputs,
+    outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], holonomic_constraints, outputs,
                                                   architecture)
 
     # --------------------------------
     # translational dynamics
     # --------------------------------
 
-    # gc's represented in lagr
-    xgc = cas.vertcat(generalized_coordinates['scaled']['xgc'].cat)
-    xgcdot = cas.vertcat(generalized_coordinates['scaled']['xgcdot'].cat)
-    xgcddot = cas.vertcat(generalized_coordinates['scaled']['xgcddot'].cat)
-    l_t = system_variables['scaled']['xd', 'l_t']
-    dl_t = system_variables['scaled']['xd', 'dl_t']
-    ddl_t = system_variables['scaled'][struct_op.get_variable_type(variables_dict, 'ddl_t'), 'ddl_t']
-
-    q_translation = cas.vertcat(xgc, l_t, xgcdot, dl_t)
-    qdot_translation = cas.vertcat(xgcdot, dl_t, xgcddot, ddl_t)
-
     # lhs of lagrange equations
     dlagr_dqdot = cas.jacobian(lag, generalized_coordinates['scaled']['xgcdot'].cat).T
     dlagr_dq = cas.jacobian(lag, generalized_coordinates['scaled']['xgc'].cat).T
-    lagrangian_lhs_translation = tools.time_derivative(dlagr_dqdot, q_translation, qdot_translation, None) - dlagr_dq
+    lagrangian_lhs_translation = tools.time_derivative(options, dlagr_dqdot, system_variables) - dlagr_dq
 
     baumgarte = parameters['theta0', 'tether', 'kappa']
+
     lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
 
     # lagrangian momentum correction
@@ -130,7 +121,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
         dynamics_constraints
     ]
 
-    return lagr_dynamics, holonomic_fun, outputs
+    return lagr_dynamics, outputs
 
 
 
@@ -152,15 +143,16 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
     use_wound_tether = options['tether']['use_wound_tether']
     if not use_wound_tether:
 
-        for n in range(1, architecture.number_of_nodes):
-            label = str(n) + str(architecture.parent_map[n])
+        for node in range(1, architecture.number_of_nodes):
+            label = str(node) + str(architecture.parent_map[node])
             mass = node_masses['m' + label]
-            velocity = system_variables['SI']['xd']['dq' + label]  # velocity of the mass particles leaving the system
-            mass_flow = tools.time_derivative(mass, system_variables['scaled']['xd', 'l_t'],
-                                        system_variables['scaled']['xd', 'dl_t'], None)
+            mass_flow = tools.time_derivative(options, mass, system_variables, architecture, node)
 
+            # velocity of the mass particles leaving the system
+            velocity = system_variables['SI']['xd']['dq' + label]
+            # see formula in reference
             lagrangian_momentum_correction += mass_flow * cas.mtimes(velocity.T, cas.jacobian(velocity,
-                                                                                              xgcdot)).T  # see formula in reference
+                                                                                              xgcdot)).T
 
     return lagrangian_momentum_correction
 
