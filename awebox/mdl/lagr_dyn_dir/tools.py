@@ -46,7 +46,7 @@ def time_derivative(expr, variables, architecture):
         r_name = 'r{}{}'.format(kite, parent)
         kite_has_6dof = r_name in struct_op.subkeys(vars_scaled, 'xd')
         if kite_has_6dof:
-            r_kite = vars_scaled['xd', ]
+            r_kite = vars_scaled['xd', r_name]
             dcm_kite = cas.reshape(r_kite, (3, 3))
 
             omega = vars_scaled['xd', 'omega{}{}'.format(kite, parent)]
