@@ -1,7 +1,6 @@
 
 import casadi.tools as cas
 
-import awebox.mdl.lagr_dyn_dir.tether as tether_comp
 import awebox.mdl.lagr_dyn_dir.tools as tools
 
 import awebox.tools.vector_operations as vect_op
@@ -29,9 +28,10 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         outputs['tether_length'] = {}
 
     # build constraints with si variables
-    g, g_dict = get_tether_length_constraint(options, variables['SI'], parameters, architecture)
+    g_dict = get_tether_length_constraint(options, variables['SI'], parameters, architecture)
     outputs['tether_length'].update(g_dict)
 
+    g = []
     gdot = []
     gddot = []
     holonomic_constraints = 0.0
@@ -51,15 +51,15 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         ddg_local = tools.time_derivative(dg_local, variables, architecture)
         gddot.append(ddg_local)
 
-        outputs['tether_length']['c' + str(node) + str(parent)] = g[-1]
-        outputs['tether_length']['dc' + str(node) + str(parent)] = gdot[-1]
-        outputs['tether_length']['ddc' + str(node) + str(parent)] = gddot[-1]
-        holonomic_constraints += xa_si['lambda{}{}'.format(node, parent)] * g[-1]
+        # outputs['tether_length']['c' + str(node) + str(parent)] = g[-1]
+        outputs['tether_length']['dc' + str(node) + str(parent)] = dg_local
+        outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
+        holonomic_constraints += xa_si['lambda{}{}'.format(node, parent)] * g_local
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
 
-        g, g_dict = get_cross_tether_length_constraint(options, variables['SI'], parameters, architecture)
+        g_dict = get_cross_tether_length_constraint(options, variables['SI'], parameters, architecture)
         outputs['tether_length'].update(g_dict)
 
         for l in architecture.layer_nodes:
@@ -125,7 +125,6 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
     xd_si = vars_si['xd']
     theta_si = vars_si['theta']
 
-    g = []
     g_dict = {}
 
     kite_nodes = architecture.kite_nodes
@@ -195,18 +194,15 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
                             (first_node - second_node).T,
                             (first_node - second_node)) - segment_length ** 2.0)
 
-                g.append(length_constraint)
-
                 g_dict['c{}'.format(n01)] = length_constraint
 
-    return g, g_dict
+    return g_dict
 
 def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
     xd_si = vars_si['xd']
     theta_si = vars_si['theta']
 
-    g = []
     g_dict = {}
 
     number_of_nodes = architecture.number_of_nodes
@@ -256,11 +252,10 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
         # holonomic constraint
         seg_vector = (current_node - previous_node)
         length_constraint = 0.5 * (cas.mtimes(seg_vector.T, seg_vector) - segment_length ** 2.0)
-        g.append(length_constraint)
 
         g_dict['c' + str(node) + str(parent)] = length_constraint
 
-    return g, g_dict
+    return g_dict
 
 
 
@@ -270,7 +265,7 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
 
     # mass vector, containing the mass of all nodes
     for n in range(1, architecture.number_of_nodes):
-        seg_props = tether_comp.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
+        seg_props = tools.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
         loc_scaling = seg_props['scaling_length'] ** 2.
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
@@ -283,7 +278,7 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
             if number_of_layer_kites == 2:
                 holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
             else:
-                for kdx in layer_kites:
+                for kite in layer_kites:
                     holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
 
     return holonomic_scaling

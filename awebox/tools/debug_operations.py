@@ -57,31 +57,32 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
 
-    problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
-    if problem_is_ill_conditioned:
-        message = 'problem appears to be ill-conditioned'
-        awelogger.logger.info(message)
-
-    licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options)
+    licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_labels)
     if not licq_holds:
-        message = 'linear independent constraint qualification appears not to be met at solution'
+        message = '\n linear independent constraint qualification appears not to be met at solution'
         awelogger.logger.info(message)
+        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
-        message = 'second order sufficient conditions appear not to be met at solution'
+        message = '\n second order sufficient conditions appear not to be met at solution'
         awelogger.logger.info(message)
 
     if health_solver_options['spy_kkt_matrix']:
         spy_kkt(kkt_matrix)
 
+    problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
+    if problem_is_ill_conditioned:
+        message = '\n problem appears to be ill-conditioned'
+        awelogger.logger.info(message)
+
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
     if problem_is_healthy:
-        message = 'OCP appears to be healthy'
+        message = '\n OCP appears to be healthy'
     if not problem_is_healthy:
-        identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp, solution, arg, stats)
-        message = 'OCP appears to be unhealthy'
+        identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+        message = '\n OCP appears to be unhealthy'
     awelogger.logger.info(message)
 
     return problem_is_healthy
@@ -90,6 +91,8 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
 
     awelogger.logger.info('collect tractability indicators...')
     tractability = {}
+
+    tractability['autoscaling_triggered'] = was_autoscale_triggered(stats)
     tractability['local_iterations'] = get_local_iterations(stats)
     tractability['total_iterations'] = get_total_iterations(iterations)
     tractability['diagonality'] = get_pearson_diagonality(kkt_matrix)
@@ -103,6 +106,15 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
         awelogger.logger.info(message)
 
     return tractability
+
+def was_autoscale_triggered(stats):
+
+    unscaled_obj = stats['iterations']['obj'][-1]
+    scaled_dual_infeasibility = stats['iterations']['inf_du'][-1]
+    unscaled_constraint_violation = stats['iterations']['inf_pr'][-1]
+
+    maybe = 0.5
+    return maybe
 
 def get_local_iterations(stats):
     awelogger.logger.info('get local iterations...')
@@ -163,14 +175,57 @@ def is_reduced_hessian_positive_definite(min_reduced_hessian_eigenvalue, health_
     reduced_hessian_eig_thesh = health_solver_options['thresh']['reduced_hessian_eig']
     return min_reduced_hessian_eigenvalue > reduced_hessian_eig_thesh
 
-def is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options):
+
+def is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_labels):
 
     rank_tolerance = health_solver_options['tol']['constraint_jacobian_rank']
 
     matrix_rank = np.linalg.matrix_rank(cstr_jacobian_eval, rank_tolerance)
-    required_rank = np.shape(cstr_jacobian_eval)[0]
+    required_rank = np.min(np.shape(cstr_jacobian_eval))
 
     return (required_rank == matrix_rank)
+
+
+def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
+
+    number_cstr = cstr_jacobian_eval.shape[0]
+
+    start_point = 0
+    end_point = number_cstr - 1
+
+    stop_now = False
+
+    while(not stop_now):
+        dist_points = (end_point - start_point) / 2
+        midpoint = int(start_point + dist_points)
+
+        front_half = cstr_jacobian_eval[start_point:midpoint, :]
+        front_is_full_rank = is_cstr_jacobian_full_rank(front_half, health_solver_options, cstr_labels)
+
+        back_half = cstr_jacobian_eval[midpoint:end_point, :]
+        back_is_full_rank = is_cstr_jacobian_full_rank(back_half, health_solver_options, cstr_labels)
+
+        if (dist_points > 2) and (front_is_full_rank) and (not back_is_full_rank):
+            start_point = midpoint
+
+        elif (dist_points > 2) and (back_is_full_rank) and (not front_is_full_rank):
+            end_point = midpoint
+
+        else:
+            message = 'binary-search isolates problem between start index ' + str(start_point) + ' and end index ' + str(end_point)
+            awelogger.logger.info(message)
+
+            message = 'start index associated with constraint: ' + cstr_labels[start_point]
+            awelogger.logger.info(message)
+
+            message = 'end index associated with constraint: ' + cstr_labels[end_point]
+            awelogger.logger.info(message)
+
+            stop_now = True
+
+    pdb.set_trace()
+
+    return None
 
 
 def is_problem_ill_conditioned(condition_number, health_solver_options):
@@ -187,8 +242,10 @@ def spy_kkt(kkt_matrix, tol=0.1):
     vect_op.spy(np.array(kkt_matrix), tol=tol, color=False)
     return None
 
-def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp, solution, arg, stats):
+def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
     matrA = np.absolute(np.array(kkt_matrix))
+
+    max_val = np.max(matrA)
     ind = np.unravel_index(np.argmax(matrA, axis=None), matrA.shape)
 
     associated_row = ind[0]
@@ -196,7 +253,7 @@ def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp, solution, arg, st
 
     number_variables = nlp.V.cat.shape[0]
 
-    message = '... largest (absolute value sense) KKT matrix entry is associate with:'
+    message = '... largest (absolute value sense) KKT matrix entry (' + str(max_val) + ') is associated with:'
     awelogger.logger.info(message)
 
     if associated_column < number_variables:

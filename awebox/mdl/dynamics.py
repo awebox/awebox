@@ -44,7 +44,6 @@ import awebox.mdl.aero.induction_dir.induction as induction
 
 import awebox.mdl.aero.indicators as indicators
 
-import awebox.mdl.lagr_dyn_dir.tether as tether_comp
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
 
@@ -647,7 +646,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
         parent = parent_map[n]
 
-        seg_props = tether_comp.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
+        seg_props = lagr_tools.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']

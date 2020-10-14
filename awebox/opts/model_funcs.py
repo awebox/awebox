@@ -850,7 +850,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     u_ref = get_u_ref(options['user_options'])
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    t_characteristic = 1. #b_ref / u_ref
+    t_characteristic = 1.e0 #b_ref / u_ref
     options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_characteristic, ('characteristic time', None),'x'))
 
     return options_tree, fixed_params

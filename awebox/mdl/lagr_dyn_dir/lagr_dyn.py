@@ -64,12 +64,15 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # lhs of lagrange equations
     dlagr_dqdot = cas.jacobian(lag, generalized_coordinates['scaled']['xgcdot'].cat).T
     dlagr_dqdot_dt = tools.time_derivative(dlagr_dqdot, system_variables, architecture)
+
     dlagr_dq = cas.jacobian(lag, generalized_coordinates['scaled']['xgc'].cat).T
+
     lagrangian_lhs_translation = dlagr_dqdot_dt - dlagr_dq
 
     baumgarte = parameters['theta0', 'tether', 'kappa']
-
+    # todo: doesn't the sign of the 2 baumgarte gdot sign need to be flipped?
     lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.sign_flip_baumgarte')
 
     # lagrangian momentum correction
     if options['tether']['use_wound_tether']:
@@ -214,9 +217,9 @@ def generate_generalized_coordinates(system_variables, system_gc):
         generalized_coordinates['xgcdot'] = cas.struct_SX(
             [cas.entry('d' + name, expr=system_variables['xd', 'd' + name])
              for name in system_gc])
-        generalized_coordinates['xgcddot'] = cas.struct_SX(
-            [cas.entry('dd' + name, expr=system_variables['xddot', 'dd' + name])
-             for name in system_gc])
+        # generalized_coordinates['xgcddot'] = cas.struct_SX(
+        #     [cas.entry('dd' + name, expr=system_variables['xddot', 'dd' + name])
+        #      for name in system_gc])
     else:
         generalized_coordinates = {}
         generalized_coordinates['xgc'] = cas.struct_SX(
@@ -224,9 +227,9 @@ def generate_generalized_coordinates(system_variables, system_gc):
         generalized_coordinates['xgcdot'] = cas.struct_SX(
             [cas.entry('d' + name, expr=system_variables['xd']['d' + name])
              for name in system_gc])
-        generalized_coordinates['xgcddot'] = cas.struct_SX(
-            [cas.entry('dd' + name, expr=system_variables['xddot']['dd' + name])
-             for name in system_gc])
+        # generalized_coordinates['xgcddot'] = cas.struct_SX(
+        #     [cas.entry('dd' + name, expr=system_variables['xddot']['dd' + name])
+        #      for name in system_gc])
 
     return generalized_coordinates
 

@@ -36,6 +36,7 @@ import time
 from . import dae
 from awebox.logger.logger import Logger as awelogger
 
+import pdb
 
 class Model(object):
     def __init__(self):
@@ -116,6 +117,9 @@ class Model(object):
 
         self.__variables = variables
         self.__variables_dict = variables_dict
+
+        pdb.set_trace()
+
         self.__scaling = scaling
         self.__dynamics = dynamics
         self.__outputs = outputs
