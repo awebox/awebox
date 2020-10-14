@@ -617,9 +617,16 @@ def get_variable_type(model, name):
 
     for variable_type in set(variables_dict.keys()) - set(['xddot']):
         if name in list(variables_dict[variable_type].keys()):
-            var_type = variable_type
+            return variable_type
 
-    return var_type
+    if name in list(variables_dict['xddot'].keys()):
+        return 'xddot'
+
+    message = 'variable ' + name + ' not found in variables dictionary'
+    awelogger.logger.error(message)
+    raise Exception(message)
+
+    return None
 
 def get_variable_name_without_node_identifiers(name):
 

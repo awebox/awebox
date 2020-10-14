@@ -4,53 +4,54 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import pdb
-
 from awebox.logger.logger import Logger as awelogger
 
-def time_derivative_prev(expr, q_sym, dq_sym, ddq_sym=None):
-    deriv = cas.mtimes(cas.jacobian(expr, q_sym), dq_sym)
-
-    if ddq_sym is not None:
-        deriv += cas.mtimes(cas.jacobian(expr, dq_sym), ddq_sym)
-
-    return deriv
+import pdb
 
 
-def time_derivative(options, expr, variables, architecture=None, node=None):
+def time_derivative(expr, variables, architecture):
+
+    # notice that the the chain rule
+    # df/dt = partial f/partial t
+    #       + (partial f/partial x1)(partial x1/partial t)
+    #       + (partial f/partial x2)(partial x2/partial t)...
+    # doesn't care about the scaling of the component functions, as long as
+    # the units of (partial xi) will cancel
+
+    # it is here assumed that (partial f/partial t) = 0.
 
     vars_scaled = variables['scaled']
-    xd_subkeys = struct_op.subkeys(vars_scaled, 'xd')
-
     deriv = 0.
 
-    for var_type in vars_scaled.keys():
+    # (partial f/partial xi) for variables with trivial derivatives
+    deriv_vars = struct_op.subkeys(vars_scaled, 'xddot')
+    for deriv_name in deriv_vars:
 
-        local_subkeys = struct_op.subkeys(vars_scaled, var_type)
-        for var_name in local_subkeys:
+        deriv_type = struct_op.get_variable_type(variables['SI'], deriv_name)
 
-            var_might_be_derivative = (var_name[0] == 'd') and (len(var_name) > 1)
-            if var_might_be_derivative:
+        var_name = deriv_name[1:]
+        var_type = struct_op.get_variable_type(variables['SI'], var_name)
 
-                poss_deriv_name = var_name[1:]
-                if poss_deriv_name in local_subkeys:
-                    q_sym = vars_scaled[var_type, poss_deriv_name]
-                    dq_sym = vars_scaled[var_type, var_name]
-                    deriv += cas.mtimes(cas.jacobian(expr, q_sym), dq_sym)
+        q_sym = vars_scaled[var_type, var_name]
+        dq_sym = vars_scaled[deriv_type, deriv_name]
+        deriv += cas.mtimes(cas.jacobian(expr, q_sym), dq_sym)
 
-                elif poss_deriv_name in xd_subkeys:
-                    q_sym = vars_scaled['xd', poss_deriv_name]
-                    dq_sym = vars_scaled[var_type, var_name]
-                    deriv += cas.mtimes(cas.jacobian(expr, q_sym), dq_sym)
 
-    if (architecture is not None) and (node is not None):
-        parent = architecture.parent_map[node]
-        node_is_a_kite = node in architecture.kite_nodes
-        kite_has_6dof = (int(options['kite_dof']) == 6)
+    # (partial f/partial xi) for kite rotation matrices
+    kite_nodes = architecture.kite_nodes
+    for kite in kite_nodes:
+        parent = architecture.parent_map[kite]
 
-        if node_is_a_kite and kite_has_6dof:
-            jacobian_dcm = vect_op.jacobian_dcm(expr, variables['SI']['xd'], vars_scaled, node, parent)
-            omega_scaled = vars_scaled['xd', 'omega' + str(node) + str(parent)]
-            deriv += 2. * cas.mtimes(jacobian_dcm, omega_scaled)
+        r_name = 'r{}{}'.format(kite, parent)
+        kite_has_6dof = r_name in struct_op.subkeys(vars_scaled, 'xd')
+        if kite_has_6dof:
+            r_kite = vars_scaled['xd', ]
+            dcm_kite = cas.reshape(r_kite, (3, 3))
+
+            omega = vars_scaled['xd', 'omega{}{}'.format(kite, parent)]
+
+            dexpr_dr = cas.jacobian(expr, r_kite)
+            dr_dt = cas.reshape(cas.mtimes(vect_op.skew(omega), cas.inv(dcm_kite.T)), (9, 1))
+            deriv += cas.mtimes(dexpr_dr, dr_dt)
 
     return deriv

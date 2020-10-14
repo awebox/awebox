@@ -42,7 +42,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
         architecture,
         outputs,
         system_variables,
-        generalized_coordinates,
         parameters,
         options)
 
@@ -64,8 +63,9 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
 
     # lhs of lagrange equations
     dlagr_dqdot = cas.jacobian(lag, generalized_coordinates['scaled']['xgcdot'].cat).T
+    dlagr_dqdot_dt = tools.time_derivative(dlagr_dqdot, system_variables, architecture)
     dlagr_dq = cas.jacobian(lag, generalized_coordinates['scaled']['xgc'].cat).T
-    lagrangian_lhs_translation = tools.time_derivative(options, dlagr_dqdot, system_variables) - dlagr_dq
+    lagrangian_lhs_translation = dlagr_dqdot_dt - dlagr_dq
 
     baumgarte = parameters['theta0', 'tether', 'kappa']
 
@@ -146,7 +146,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
         for node in range(1, architecture.number_of_nodes):
             label = str(node) + str(architecture.parent_map[node])
             mass = node_masses['m' + label]
-            mass_flow = tools.time_derivative(options, mass, system_variables, architecture, node)
+            mass_flow = tools.time_derivative(mass, system_variables, architecture)
 
             # velocity of the mass particles leaving the system
             velocity = system_variables['SI']['xd']['dq' + label]

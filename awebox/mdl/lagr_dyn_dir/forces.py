@@ -42,7 +42,7 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-
+import pdb
 
 def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, architecture):
     # initialize dictionary

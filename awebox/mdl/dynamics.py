@@ -324,6 +324,7 @@ def power_balance_outputs(options, outputs, system_variables, architecture):
 def comparison_kin_and_pot_power_outputs(options, outputs, system_variables, architecture):
 
     outputs['power_balance_comparison'] = {}
+
     types = ['potential', 'kinetic']
 
     for type in types:
@@ -334,7 +335,7 @@ def comparison_kin_and_pot_power_outputs(options, outputs, system_variables, arc
             e_local += dict[keyname]
 
         # rate of change in kinetic energy
-        P = lagr_tools.time_derivative(options, e_local, system_variables)
+        P = lagr_tools.time_derivative(e_local, system_variables, architecture)
 
         # convention: negative when kinetic energy is added to the system
         outputs['power_balance_comparison'][type] = -1. * P
@@ -373,7 +374,6 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
     @return: outputs updated outputs dict
     """
 
-    # extract variables
     # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
@@ -392,11 +392,10 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
             # rate of change in kinetic energy
             e_local = outputs['e_kinetic'][cat]
 
-            P = lagr_tools.time_derivative(options, e_local, system_variables)
+            P = lagr_tools.time_derivative(e_local, system_variables, architecture)
 
             # convention: negative when energy is added to the system
             outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
-
 
     return outputs
 
@@ -406,7 +405,6 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
     @return: outputs updated outputs dict
     """
 
-    # extract variables
     # notice that the quality test uses a normalized value of each power source, so scaling should be irrelevant
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
@@ -417,7 +415,7 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
 
         # rate of change in potential energy (ignore in-outflow of potential energy)
         e_local = outputs['e_potential']['q' + label]
-        P = lagr_tools.time_derivative(options, e_local, system_variables)
+        P = lagr_tools.time_derivative(e_local, system_variables, architecture)
 
         # convention: negative when potential energy is added to the system
         outputs['power_balance']['P_pot' + str(n)] = -1. * P
