@@ -34,12 +34,15 @@ from . import animation
 from . import output
 from . import wake
 
+import os
+
 import matplotlib.pyplot as plt
 
 from awebox.logger.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
 #todo: options for saving plots
+
 
 class Visualization(object):
 
@@ -207,8 +210,14 @@ class Visualization(object):
             for char in ['(', ')', '_', ' ']:
                 name_rep = name_rep.replace(char, '')
 
-            plt.savefig('./figures/' + name_rep + '_' + flag + '.eps', bbox_inches='tight', format='eps', dpi=1000)
-            plt.savefig('./figures/' + name_rep + '_' + flag + '.pdf', bbox_inches='tight', format='pdf', dpi=1000)
+            directory = "./figures"
+            directory_exists = os.path.isdir(directory)
+            if not directory_exists:
+                os.mkdir(directory)
+
+            save_name = directory + '/' + name_rep + '_' + flag
+            plt.savefig(save_name + '.eps', bbox_inches='tight', format='eps', dpi=1000)
+            plt.savefig(save_name + '.pdf', bbox_inches='tight', format='pdf', dpi=1000)
 
         return None
 
