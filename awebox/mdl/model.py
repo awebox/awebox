@@ -117,9 +117,6 @@ class Model(object):
 
         self.__variables = variables
         self.__variables_dict = variables_dict
-
-        pdb.set_trace()
-
         self.__scaling = scaling
         self.__dynamics = dynamics
         self.__outputs = outputs
