@@ -33,6 +33,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.tools.struct_operations as struct_op
+import pdb
 
 def get_variable_bounds(nlp_options, V, model):
 
@@ -40,44 +41,40 @@ def get_variable_bounds(nlp_options, V, model):
     vars_lb = V(-cas.inf)
     vars_ub = V(cas.inf)
 
+    distinct_variables = struct_op.get_distinct_V_indices(V)
+
     # fill in bounds
-    for idx in range(V.shape[0]):
+    for canonical in distinct_variables:
 
-        canonical = V.getCanonicalIndex(idx)
+        [var_is_coll_var, var_is_us, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
 
-        [coll_flag, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
+        if var_is_us:
+            # bounds on slacks (convention: h(x) < 0)
+            vars_ub['us'] = 0.0
 
-        if dim == 0:
+        elif var_is_coll_var:
 
-            if not coll_flag:
+            vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
+            vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
-                if var_type in {'xd', 'xl', 'xa','u'}:
+            [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var, var_type, kdx, ddx, name)
 
-                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+        else:
 
-                    [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name)
+            if var_type in {'xd', 'xl', 'xa','u'}:
 
-                    # [vars_lb, vars_ub] = assign_fixed_q_r_values(nlp_options, V_init, vars_lb, vars_ub, var_type, kdx, ddx, name)
+                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-                if var_type == 'theta':
-                    vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
+                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var, var_type, kdx, ddx, name)
 
-                if var_type == 'phi':
-                    vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
-                    vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
+            if var_type == 'theta':
+                vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
 
-            else:
-
-                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
-
-                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name)
-
-    # bounds on slacks (convention: h(x) < 0)
-    if 'us' in list(V.keys()):
-        vars_ub['us'] = 0.0
+            if var_type == 'phi':
+                vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
+                vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
 
     return [vars_lb, vars_ub]
 

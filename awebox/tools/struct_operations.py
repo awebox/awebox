@@ -545,13 +545,23 @@ def get_return_status_dictionary():
 
 def get_V_index(canonical):
 
+    var_is_coll_var = (canonical[0] == 'coll_var')
+    var_is_us_var = (canonical[0] == 'us')
 
-    if canonical[0] == 'coll_var':
-        coll_flag = True
-        canonical = (canonical[3],) + canonical[1:3] + canonical[4:]
+    length = len(canonical)
 
-    elif canonical[0] == 'us':
-        coll_flag = None
+    if var_is_coll_var:
+        # coll_var, kdx, ddx, type, name
+
+        var_type = canonical[3]
+        kdx = canonical[1]
+        ddx = canonical[2]
+        name = canonical[4]
+        dim = None
+
+    elif var_is_us_var:
+        # todo: what is this? is it useful for anything?
+
         var_type = None
         kdx = None
         ddx = None
@@ -559,32 +569,29 @@ def get_V_index(canonical):
         dim = None
 
     else:
-        coll_flag = False
-
-    if coll_flag is not None:
-        length = len(canonical)
-
         var_type = canonical[0]
+        dim = None
         kdx = None
         ddx = None
 
-        if length == 5:
+        if length == 4:
             kdx = canonical[1]
             ddx = canonical[2]
             name = canonical[3]
-            dim = canonical[4]
-
-        elif length == 4:
-            kdx = canonical[1]
-            name = canonical[2]
-            dim = canonical[3]
 
         elif length == 3:
+            kdx = canonical[1]
+            name = canonical[2]
+
+        elif length == 2:
             name = canonical[1]
-            dim = canonical[2]
 
+        else:
+            message = 'unexpected (distinct) canonical_index handing'
+            awelogger.logger.error(message)
+            raise Exception(message)
 
-    return [coll_flag, var_type, kdx, ddx, name, dim]
+    return [var_is_coll_var, var_is_us_var, var_type, kdx, ddx, name, dim]
 
 def construct_Xdot_struct(nlp_options, variables_dict):
     ''' Construct a symbolic structure for the
