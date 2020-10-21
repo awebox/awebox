@@ -324,6 +324,7 @@ def build_trajectory_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'system_bounds', 'theta', theta, [fixed_params[theta]]*2,  ('user input for fixed bounds on theta', None),'x'))
 
     options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
+    options_tree.append(('nlp', 'trajectory', None, 'type', user_options['trajectory']['type'], ('??', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -731,8 +732,8 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     print_op.warn_about_temporary_funcationality_removal(location='model_funcs.q')
     l_t_scaling = options['model']['scaling']['xd']['l_t']
     l_s_scaling = options['model']['scaling']['theta']['l_s']
-    # q_scaling = l_s_scaling
-    q_scaling = 1.
+    q_scaling = l_s_scaling
+    # q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -743,22 +744,21 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
 def build_tether_control_options(options, options_tree, fixed_params):
 
     user_options = options['user_options']
+    in_drag_mode_operation = user_options['trajectory']['system_type'] == 'drag_mode'
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
     dddl_t_max = options['model']['ground_station']['dddl_t_max']
-    if user_options['trajectory']['system_type'] == 'drag_mode':
-        if options['model']['tether']['control_var'] == 'ddl_t':
-            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
-        elif options['model']['tether']['control_var'] == 'dddl_t':
-            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
-        else:
-            raise ValueError('invalid tether control variable chosen')
 
+    control_name = options['model']['tether']['control_var']
+
+    if in_drag_mode_operation:
+        options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:
-        if options['model']['tether']['control_var'] == 'ddl_t':
+        if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-        elif options['model']['tether']['control_var'] == 'dddl_t':
+
+        elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-1. * dddl_t_max, dddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
         else:
@@ -850,8 +850,10 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     u_ref = get_u_ref(options['user_options'])
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    t_characteristic = 1.e0 #b_ref / u_ref
-    options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_characteristic, ('characteristic time', None),'x'))
+    t_char_flow = induction_varrho_ref * b_ref / u_ref
+    t_char_pendulum = np.sqrt(options['model']['scaling']['xd']['l_t'] / options['model']['scaling']['other']['g'])
+    t_char = t_char_pendulum
+    options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_char, ('characteristic time', None),'x'))
 
     return options_tree, fixed_params
 

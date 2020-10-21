@@ -38,6 +38,8 @@ import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.performance_operations as perf_op
+
 
 def subkeys(casadi_struct, key):
 
@@ -127,8 +129,6 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
-    var_list = []
-
     # extract discretization type
     if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
@@ -137,21 +137,33 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     else:
         direct_collocation = False
 
+    traj_is_periodic = perf_op.determine_if_periodic(nlp_options)
+
     # extract variables
     variables = model_variables
 
+    var_list = []
     # make list of variables at specific time
-    for var_type in list(variables.keys()):
+    for var_type in variables.keys():
 
         # algebraic variables
         if var_type in {'xl', 'xa'}:
 
             if direct_collocation and (scheme == 'radau'):
-                # note that this shifting pattern is not strictly true,
-                # but is requried to prevent licq errors for simple xl = 0 constraints
-                # at nodes (d+1) and (d) from equivalence
-                if ddx == None:
-                    var_list.append(V['coll_var', kdx, 0, var_type])
+                if ddx is None:
+
+                    if traj_is_periodic:
+                        if kdx == 0:
+                            var_list.append(V['coll_var', -1, -1, var_type])
+                        else:
+                            var_list.append(V['coll_var', kdx-1, -1, var_type])
+
+                    else:
+                        # note that this shifting pattern is not strictly true,
+                        # but is required to prevent licq errors for simple xl = 0 constraints
+                        # at nodes (d+1) and (d) from equivalence
+                        var_list.append(V['coll_var', kdx, 0, var_type])
+
                 else:
                     var_list.append(V['coll_var', kdx, ddx, var_type])
 
@@ -212,36 +224,10 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     return var_at_time
 
+
+
 def get_variables_at_final_time(nlp_options, V, Xdot, model):
-    nk = nlp_options['n_k']
-
-    var_list = []
-
-    # extract variables
-    variables = model.variables
-
-    # make list of variables at specific time
-    for var_type in list(variables.keys()):
-
-        # algebraic variables
-        if var_type in {'xa','xl','xddot','u'}:
-
-            var_list.append(np.zeros(variables[var_type].shape))
-
-        # differential states
-        elif var_type == 'xd':
-
-            var_list.append(V['xd', nk])
-
-        # parameters
-        elif var_type == 'theta':
-            var_list.append(get_V_theta(V, nlp_options, nk))
-
-        else:
-            raise ValueError("iterating over non-supported model variable type")
-
-    var_at_time = variables(cas.vertcat(*var_list))
-
+    var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
     return var_at_time
 
 def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=None, ddx=None):
@@ -263,117 +249,13 @@ def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_param
     return param_at_time
 
 def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
-
-    var_list = []
-
-    # extract discretization type
-    if nlp_options['discretization'] == 'direct_collocation':
-        direct_collocation = True
-        scheme = nlp_options['collocation']['scheme']
-        u_param = nlp_options['collocation']['u_param']
-    else:
-        direct_collocation = False
-
-    variables = model.variables
-    for var_type in list(variables.keys()):
-
-        # algebraic variables
-        if var_type in {'xl', 'xa'}:
-
-            if direct_collocation and (scheme == 'radau'):
-                # note that this shifting pattern is not strictly true,
-                # but is requried to prevent licq errors for simple xl = 0 constraints
-                # at nodes (d+1) and (d) from equivalence
-                if ddx == None:
-                    var_list.append(np.zeros(variables[var_type].shape))
-                else:
-                    var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
-
-            elif direct_collocation and (scheme != 'radau'):
-                if ddx == None: # interval node
-                    if var_type in list(V.keys()): # check if alg vars are lifted
-                        var_list.append(P['p', 'ref',var_type, kdx])
-                    else: # not lifted
-                        var_list.append(np.zeros(variables[var_type].shape)) # will not be used
-                else:
-                    var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
-            else: # multiple shooting
-                if var_type in list(V.keys()): # check if lifted
-                    var_list.append(P['p', 'ref',var_type, kdx])
-                else: # not lifted
-                    var_list.append(np.zeros(variables[var_type].shape)) # will not be used
-        # differential states
-        elif var_type == 'xd':
-            if ddx == None:
-                var_list.append(P['p', 'ref',var_type, kdx])
-            else:
-                var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
-
-        # controls
-        elif var_type == 'u':
-
-            if direct_collocation:
-                if (u_param == 'poly'):
-                    if ddx == None:
-                        var_list.append(np.zeros(variables[var_type].shape))
-                    else:
-                        var_list.append(P['p', 'ref','coll_var', kdx, ddx, var_type])
-                else:
-                    var_list.append(P['p', 'ref',var_type, kdx])
-            else:
-                var_list.append(P['p', 'ref',var_type, kdx])
-
-        # parameters
-        elif var_type == 'theta':
-            var_list.append(get_P_theta(P, nlp_options, kdx))
-
-        # state derivatives
-        elif var_type == 'xddot':
-            if ddx == None: # interval node
-                if var_type in list(V.keys()): # check if xddot is lifted
-                    var_list.append(V[var_type, kdx])
-                else: # not lifted
-                    var_list.append(np.zeros(variables[var_type].shape)) # will not be used
-            else:
-                var_list.append(Xdot['coll_xd', kdx, ddx])
-
-        else:
-            raise ValueError("iterating over non-supported model variable type")
-
-    var_at_time = variables(cas.vertcat(*var_list))
+    V_from_P = V(P['p', 'ref'])
+    var_at_time = get_variables_at_time(nlp_options, V_from_P, Xdot, model.variables, kdx, ddx)
 
     return var_at_time
 
-def get_var_ref_at_final_time(nlp_options, P, Xdot, model):
-
-    var_list = []
-    nk = nlp_options['n_k']
-
-    # extract variables
-    variables = model.variables
-
-    # make list of variables at specific time
-    for var_type in list(variables.keys()):
-
-        # algebraic variables
-        if var_type in {'xa','xl','xddot','u'}:
-
-            var_list.append(np.zeros(variables[var_type].shape))
-
-        # differential states
-        elif var_type == 'xd':
-
-            var_list.append(P['p','ref','xd', nk])
-
-        # parameters
-        elif var_type == 'theta':
-            var_list.append(get_P_theta(P, nlp_options, nk))
-
-        else:
-            raise ValueError("iterating over non-supported model variable type")
-
-    var_at_time = variables(cas.vertcat(*var_list))
-
+def get_var_ref_at_final_time(nlp_options, P, V, Xdot, model):
+    var_at_time = get_var_ref_at_time(nlp_options, P, V, Xdot, model, -1, ddx=-1)
     return var_at_time
 
 def get_V_theta(V, nlp_numerics_options, k):
@@ -398,27 +280,6 @@ def get_V_theta(V, nlp_numerics_options, k):
 
     return theta
 
-def get_P_theta(P, params, k):
-
-    nk = params['n_k']
-    k = list(range(nk+1))[k]
-
-    if P['p','ref','theta','t_f'].shape[0] == 1:
-        theta = P['p','ref','theta']
-    else:
-        tf_index = P.f['p','ref','theta','t_f']
-        theta_index = P.f['p','ref','theta']
-        theta = []
-        for idx in theta_index:
-            if idx == tf_index[0] and k < round(nk * params['phase_fix_reelout']):
-                theta.append(P.cat[idx])
-            elif idx == tf_index[1] and k >= round(nk * params['phase_fix_reelout']) :
-                theta.append(P.cat[idx])
-            elif idx not in tf_index:
-                theta.append(P.cat[idx])
-        theta = cas.vertcat(*theta)
-
-    return theta
 
 def calculate_tf(params, V, k):
 

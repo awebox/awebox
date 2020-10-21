@@ -48,3 +48,12 @@ def get_loyd_phf(CL, CD, elevation_angle=0.):
 
     phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
     return phf
+
+
+def determine_if_periodic(options):
+
+    enforce_periodicity = bool(True)
+    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
+         enforce_periodicity = bool(False)
+
+    return enforce_periodicity

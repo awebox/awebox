@@ -176,12 +176,6 @@ def zhat_np():
     zhat_np = np.array(cas.vertcat(0., 0., 1.))
     return zhat_np
 
-def null(arg_array, eps=1e-15):
-    u, s, vh = scipy.linalg.svd(arg_array)
-    null_mask = (s <= eps)
-    null_space = scipy.compress(null_mask, vh, axis=0)
-    return scipy.transpose(null_space)
-
 def spy(matrix, tol=0.1, color=True):
     fig = plt.figure()
     fig.clf()
@@ -189,7 +183,7 @@ def spy(matrix, tol=0.1, color=True):
     matrix = sps.csr_matrix(matrix)
 
     elements = matrix.shape[0]
-    markersize = (1./float(elements)) * 500.
+    markersize = (1./float(elements)) * 5000.
 
     if color:
         matrix_dense = np.abs(matrix.todense())

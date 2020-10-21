@@ -56,16 +56,16 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, ar
     aero_forces, outputs = generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs,
                                                        architecture)
 
-    # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
-    tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
-                                                              architecture)
+    # # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
+    # tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
+    #                                                           architecture)
 
     if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(variables_si, outputs, architecture)
 
     for force in list(node_forces.keys()):
         if force[0] == 'f':
-            node_forces[force] += tether_drag_forces[force]
+            # node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
             if options['trajectory']['system_type'] == 'drag_mode':
@@ -73,6 +73,8 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, ar
                     node_forces[force] += generator_forces[force]
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
+
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.forces')
 
     return node_forces, outputs
 
@@ -192,7 +194,9 @@ def fictitious_embedding(options, p_dec, u_si, outputs, kite, parent):
     fict_force = u_si['f_fict' + str(kite) + str(parent)]
     true_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
 
-    homotopy_force = p_dec['gamma'] * fict_force + true_force
+    # homotopy_force = p_dec['gamma'] * fict_force + true_force
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.forces')
+    homotopy_force = p_dec['gamma'] * fict_force
 
     if int(options['kite_dof']) == 6:
         fict_moment = u_si['m_fict' + str(kite) + str(parent)]

@@ -258,15 +258,34 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
     return g_dict
 
 
+def get_constraint_lhs(g, gdot, gddot, parameters):
+    # todo: update baumgarte for dddl_t control.
+
+    baumgarte = parameters['theta0', 'tether', 'kappa']
+    # lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
+
+    print_op.warn_about_temporary_funcationality_removal(location='holonomics')
+    lagrangian_lhs_constraints = gddot
+
+    return lagrangian_lhs_constraints
+
 
 def generate_holonomic_scaling(options, architecture, variables, parameters):
     scaling = options['scaling']
     holonomic_scaling = []
 
-    # mass vector, containing the mass of all nodes
     for n in range(1, architecture.number_of_nodes):
         seg_props = tools.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
-        loc_scaling = seg_props['scaling_length'] ** 2.
+
+        scaling_length = seg_props['scaling_length']
+        scaling_speed = seg_props['scaling_speed']
+        scaling_acc = seg_props['scaling_acc']
+
+        g_loc = scaling_length**2.
+        gdot_loc = 2. * scaling_length * scaling_speed
+        gddot_loc = 2. * scaling_length * scaling_acc + 2. * scaling_speed**2.
+
+        loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
     number_of_kites = len(architecture.kite_nodes)

@@ -36,6 +36,9 @@ import numpy as np
 import awebox.tools.struct_operations as struct_op
 from collections import OrderedDict
 from . import constraints
+import awebox.tools.print_operations as print_op
+
+import pdb
 
 class Collocation(object):
     """Collocation class with methods for optimal control

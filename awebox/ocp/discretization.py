@@ -40,6 +40,9 @@ from . import performance
 import awebox.tools.struct_operations as struct_op
 from . import var_struct
 
+import pdb
+
+import awebox.tools.print_operations as print_op
 
 def construct_time_grids(nlp_numerics_options):
 
@@ -327,19 +330,16 @@ def discretize(nlp_numerics_options, model, formulation):
         Integral_outputs_list,
         Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_numerics_options, model, formulation, V, P)
 
+    # extract initial (reference) variables
+    var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model.variables, 0)
+    var_ref_initial = struct_op.get_var_ref_at_time(nlp_numerics_options, P, V, Xdot, model, 0)
+
+    # add initial constraints
+    [g_list, g_bounds] = constraints.append_initial_constraints(
+        g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_ref_initial, xi)
+
     # Construct list of constraints (+ bounds) and outputs
     for kdx in range(nk):
-
-        if kdx == 0:
-
-            # extract initial (reference) variables
-            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model.variables, 0)
-            var_ref_initial = struct_op.get_var_ref_at_time(nlp_numerics_options, P, V, Xdot, model, 0)
-
-            # add initial constraints
-            [g_list, g_bounds] = constraints.append_initial_constraints(
-                                     g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_ref_initial, xi)
-
         if (ms) or (direct_collocation and scheme != 'radau'):
 
             # at each interval node, algebraic constraints should be satisfied
@@ -384,11 +384,13 @@ def discretize(nlp_numerics_options, model, formulation):
 
     # extract terminal (reference) variables
     var_terminal = struct_op.get_variables_at_final_time(nlp_numerics_options, V, Xdot, model)
-    var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_numerics_options, P, Xdot, model)
+    var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_numerics_options, P, V, Xdot, model)
 
     # add terminal and periodicity constraints
     [g_list, g_bounds] = constraints.append_terminal_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_terminal, var_ref_terminal, xi)
     [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
+
+    print_op.warn_about_temporary_funcationality_removal(location='discret')
 
     if direct_collocation:
         [g_list, g_bounds] = constraints.append_integral_constraints(nlp_numerics_options, g_list, g_bounds, Integral_constraint_list,

@@ -68,7 +68,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # -----------------------------------
     system_variables = {}
     system_variables['scaled'], variables_dict = struct_op.generate_variable_struct(system_variable_list)
-    system_variables['SI'], scaling = generate_si_variables(options['scaling'], system_variables['scaled'])
+    system_variables['SI'], options['scaling'] = generate_si_variables(options['scaling'], system_variables['scaled'])
+    scaling = options['scaling']
 
     # define outputs to monitor system constraints etc.
     outputs = {}
@@ -799,6 +800,8 @@ def generate_si_variables(scaling_options, variables):
                 awelogger.logger.warning(message)
                 scaling[var_type][var_name] = cas.DM(1.)
 
+        scaling_options[var_type].update(scaling[var_type])
+
     # scale variables
     variables_si = {}
     for var_type in list(scaling.keys()):
@@ -807,7 +810,7 @@ def generate_si_variables(scaling_options, variables):
         variables_si[var_type] = cas.struct_SX(
             [cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
 
-    return variables_si, scaling
+    return variables_si, scaling_options
 
 
 

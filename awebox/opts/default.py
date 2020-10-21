@@ -201,7 +201,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration, as measured in multiples of g [-]', None),'x'),
         ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),
         ('params',  'model_bounds', None,            'angular_velocity_max', 50.,        ('maximum magnitude of angular velocity [deg/s]', None), 's'),
-
         ('model',   'model_bounds', 'rotation',     'include',               True,      ('include constraints on roll and pitch motion', None), 't'),
         ('model',   'model_bounds', 'rotation',     'type',                 'yaw',      ('rotation constraint type', ['yaw','roll_pitch']), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
@@ -395,6 +394,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     'thresh',   'condition_number',         1e5,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
         ('solver',  'health_check',     'tol',      'reduced_hessian_null',     1e-8,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
         ('solver',  'health_check',     'tol',      'constraint_jacobian_rank', 1e-8,   ('tolerance of rank compution for constraint jacobian', None), 'x'),
+        ('solver',  'health_check',     'tol',      'linear_dependence_ratio',  1e-2,   ('tolerance of rough linear dependence identifier', None), 'x'),
         ('solver',  'health_check',     None,       'spy_kkt_matrix',           False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
 
         ### simulation options

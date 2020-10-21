@@ -69,10 +69,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
 
     lagrangian_lhs_translation = dlagr_dqdot_dt - dlagr_dq
 
-    baumgarte = parameters['theta0', 'tether', 'kappa']
-    # todo: doesn't the sign of the 2 baumgarte gdot sign need to be flipped?
-    lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.sign_flip_baumgarte')
+    lagrangian_lhs_constraints = holonomic_comp.get_constraint_lhs(g, gdot, gddot, parameters)
 
     # lagrangian momentum correction
     if options['tether']['use_wound_tether']:
@@ -116,12 +113,13 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # concatenation
     # --------------------------------
 
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
     lagr_dynamics = [
         trivial_dynamics_states,
         dynamics_translation,
         rotation_dynamics,
         trivial_dynamics_controls,
-        dynamics_constraints
+        # dynamics_constraints
     ]
 
     return lagr_dynamics, outputs

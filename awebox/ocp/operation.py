@@ -37,6 +37,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.performance_operations as perf_op
 
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
@@ -45,10 +46,13 @@ import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 import awebox.tools.parameterization as parameterization
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+
+import pdb
 
 def get_operation_conditions(options):
 
-    periodic = determine_if_periodic(options)
+    periodic = perf_op.determine_if_periodic(options)
     initial_conditions = determine_if_initial_conditions(options)
     param_initial_conditions = determine_if_param_initial_conditions(options)
     param_terminal_conditions = determine_if_param_terminal_conditions(options)
@@ -71,14 +75,6 @@ def determine_if_terminal_inequalities(options):
 
     return False
 
-
-def determine_if_periodic(options):
-
-    enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
-         enforce_periodicity = bool(False)
-
-    return enforce_periodicity
 
 def determine_if_param_initial_conditions(options):
 
@@ -301,10 +297,12 @@ def variable_does_not_belong_to_unselected_induction_model(name, options):
 def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
-    for name in set(struct_op.subkeys(initial_model_variables, 'xd')):
+    for name in struct_op.subkeys(initial_model_variables, 'xd'):
 
         not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
 
+        print_op.warn_about_temporary_funcationality_removal(location='ocp.operation.bouddary')
+        # (not name[-4:] == 'dl_t') and
         if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])

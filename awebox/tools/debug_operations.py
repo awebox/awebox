@@ -31,7 +31,9 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
+import numpy.ma as ma
 import pdb
+import sympy
 
 import awebox.tools.vector_operations as vect_op
 
@@ -39,7 +41,7 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-
+import scipy
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
@@ -59,13 +61,15 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_labels)
     if not licq_holds:
-        message = '\n linear independent constraint qualification appears not to be met at solution'
+        awelogger.logger.info('')
+        message = 'linear independent constraint qualification appears not to be met at solution'
         awelogger.logger.info(message)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
-        message = '\n second order sufficient conditions appear not to be met at solution'
+        awelogger.logger.info('')
+        message = 'second order sufficient conditions appear not to be met at solution'
         awelogger.logger.info(message)
 
     if health_solver_options['spy_kkt_matrix']:
@@ -73,17 +77,21 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
     if problem_is_ill_conditioned:
-        message = '\n problem appears to be ill-conditioned'
+        awelogger.logger.info('')
+        message = 'problem appears to be ill-conditioned'
         awelogger.logger.info(message)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
+    awelogger.logger.info('')
     if problem_is_healthy:
-        message = '\n OCP appears to be healthy'
+        message = 'OCP appears to be healthy'
     if not problem_is_healthy:
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
-        message = '\n OCP appears to be unhealthy'
+        message = 'OCP appears to be unhealthy'
     awelogger.logger.info(message)
+
+    pdb.set_trace()
 
     return problem_is_healthy
 
@@ -92,7 +100,7 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
     awelogger.logger.info('collect tractability indicators...')
     tractability = {}
 
-    tractability['autoscaling_triggered'] = was_autoscale_triggered(stats)
+    # todo: add autoscaling_triggered? indicator
     tractability['local_iterations'] = get_local_iterations(stats)
     tractability['total_iterations'] = get_total_iterations(iterations)
     tractability['diagonality'] = get_pearson_diagonality(kkt_matrix)
@@ -102,8 +110,10 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
 
     awelogger.logger.info('tractability indicator report')
     for item in tractability.keys():
-        message = '{:>30}: {:.2e}'.format(item, tractability[item])
-        awelogger.logger.info(message)
+
+        if isinstance(tractability[item], float):
+            message = '{:>30}: {:.2e}'.format(item, tractability[item])
+            awelogger.logger.info(message)
 
     return tractability
 
@@ -161,9 +171,11 @@ def get_condition_number(kkt_matrix):
 def get_min_reduced_hessian_eigenvalue(reduced_hessian):
     awelogger.logger.info('get minimum reduced hessian eigenvalue...')
 
-    eigenvalues, _ = np.linalg.eig(np.array(reduced_hessian))
-    min_eigenvalue = np.min(eigenvalues)
-    return min_eigenvalue
+    if not reduced_hessian.shape == (0, 0):
+        eigenvalues, _ = np.linalg.eig(np.array(reduced_hessian))
+        return np.min(eigenvalues)
+    else:
+        return []
 
 
 
@@ -188,42 +200,34 @@ def is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_l
 
 def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
 
-    number_cstr = cstr_jacobian_eval.shape[0]
+    message = '... possible (floating-point) dependent constraints include: '
+    awelogger.logger.info(message)
 
-    start_point = 0
-    end_point = number_cstr - 1
+    number_constraints = cstr_jacobian_eval.shape[0]
 
-    stop_now = False
+    max_entry = np.max(np.abs(cstr_jacobian_eval))
 
-    while(not stop_now):
-        dist_points = (end_point - start_point) / 2
-        midpoint = int(start_point + dist_points)
+    tol_ratio = health_solver_options['tol']['linear_dependence_ratio']
+    min_tolerated_entry = max_entry * tol_ratio
 
-        front_half = cstr_jacobian_eval[start_point:midpoint, :]
-        front_is_full_rank = is_cstr_jacobian_full_rank(front_half, health_solver_options, cstr_labels)
+    mask = (np.absolute(cstr_jacobian_eval) > min_tolerated_entry)
+    masked = mask * cstr_jacobian_eval
+    abs_masked = np.absolute(masked)
 
-        back_half = cstr_jacobian_eval[midpoint:end_point, :]
-        back_is_full_rank = is_cstr_jacobian_full_rank(back_half, health_solver_options, cstr_labels)
+    sum1 = np.sum(abs_masked, axis=1) # sums values row-wise. values correspond to constraints
+    zero_with_floating_point = (sum1 == 0)
+    indices = range(number_constraints)
+    dependent_indices = set(indices * zero_with_floating_point) - set([0])
+    for idx in dependent_indices:
+        awelogger.logger.info(cstr_labels[idx])
 
-        if (dist_points > 2) and (front_is_full_rank) and (not back_is_full_rank):
-            start_point = midpoint
-
-        elif (dist_points > 2) and (back_is_full_rank) and (not front_is_full_rank):
-            end_point = midpoint
-
-        else:
-            message = 'binary-search isolates problem between start index ' + str(start_point) + ' and end index ' + str(end_point)
-            awelogger.logger.info(message)
-
-            message = 'start index associated with constraint: ' + cstr_labels[start_point]
-            awelogger.logger.info(message)
-
-            message = 'end index associated with constraint: ' + cstr_labels[end_point]
-            awelogger.logger.info(message)
-
-            stop_now = True
-
-    pdb.set_trace()
+    masked_int = np.array((masked / tol_ratio).astype(int))
+    _, inds = sympy.Matrix(masked_int).T.rref()
+    inds_set = set(inds)
+    all_set = set(range(number_constraints))
+    deps_set = all_set - inds_set
+    for idx in deps_set:
+        awelogger.logger.info(cstr_labels[idx])
 
     return None
 
@@ -286,7 +290,7 @@ def get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_
     awelogger.logger.info('compute reduced hessian...')
 
     null_tolerance = health_solver_options['tol']['reduced_hessian_null']
-    null = vect_op.null(cstr_jacobian_eval, null_tolerance)
+    null = scipy.linalg.null_space(cstr_jacobian_eval, null_tolerance)
 
     reduced_hessian = cas.mtimes(cas.mtimes(null.T, lagr_hessian_eval), null)
 
@@ -383,17 +387,16 @@ def collect_equality_and_active_inequality_constraints(health_solver_options, nl
     lam_g_sym = cas.SX.sym('lam_g_sym', solution['lam_g'].shape)
 
     p_fix_num = nlp.P(arg['p'])
-    var_constraint_functions = collect_var_constraints(health_solver_options, nlp, arg, solution)
 
     _, eq_labels, eq_fun = collect_equality_constraints(nlp)
-    _, active_ineq_labels, active_fun = collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
-
     equality_constraints = eq_fun(nlp.g_fun(var_sym, p_sym))
-    active_inequality_constraints = active_fun(nlp.g_fun(var_sym, p_sym))
-
     equality_lambdas = eq_fun(lam_g_sym)
+
+    _, active_ineq_labels, active_fun = collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
+    active_inequality_constraints = active_fun(nlp.g_fun(var_sym, p_sym))
     active_inequality_lambdas = active_fun(lam_g_sym)
 
+    var_constraint_functions = collect_var_constraints(health_solver_options, nlp, arg, solution)
     all_active_var_bounds = var_constraint_functions['all_act_fun'](var_sym, lbx_sym, ubx_sym)
     all_active_var_lambdas = var_constraint_functions['all_act_lam_fun'](lam_x_sym)
     all_active_var_labels = var_constraint_functions['all_act_labels']

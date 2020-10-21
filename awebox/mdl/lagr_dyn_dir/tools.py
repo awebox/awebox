@@ -87,6 +87,9 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     seg_length = vars_containing_length[length_sym]
     scaling_length = scaling[vars_sym][length_sym]
 
+    scaling_speed = scaling_length / scaling['other']['t_characteristic']
+    scaling_acc = scaling_speed / scaling['other']['t_characteristic']
+
     seg_diam = theta[diam_sym]
     max_diam = options['system_bounds']['theta'][diam_sym][1]
     length_scaling = scaling[vars_sym][length_sym]
@@ -103,6 +106,9 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     props = {}
     props['seg_length'] = seg_length
     props['scaling_length'] = scaling_length
+
+    props['scaling_speed'] = scaling_speed
+    props['scaling_acc'] = scaling_acc
 
     props['seg_diam'] = seg_diam
     props['max_diam'] = max_diam

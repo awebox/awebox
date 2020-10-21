@@ -34,6 +34,9 @@ import casadi.tools as cas
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
+import awebox.tools.print_operations as print_op
+
+import pdb
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
@@ -90,6 +93,7 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
                 )
 
         else:
+
             # for radau: omit path constrains on interval nodes
             entry_tuple += (
                     cas.entry('stage_constraints', repeat = [nk, d], struct = stage_constraints),
@@ -134,7 +138,7 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
 def make_stage_constraint_struct(model):
 
     # make entry list to check if not empty
-    entry_list = [cas.entry('collocation', shape =model.dynamics(model.variables, model.parameters).size())]
+    entry_list = [cas.entry('collocation', shape = model.dynamics(model.variables, model.parameters).size())]
     if list(model.constraints.keys()):  # check if not empty
         entry_list.append(cas.entry('path_constraints', struct = model.constraints))
 
