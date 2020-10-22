@@ -191,9 +191,8 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
-    # # set state bounds
-    # if (options['initialization']['type'] == 'power_cycle' and options['initialization']['system_type'] == 'lift_mode') \
-    #     or (options['initialization']['type'] == 'tracking'):
+    # set state bounds
+    # if (options['initialization']['type'] == 'power_cycle') or (options['initialization']['type'] == 'tracking'):
     #     if 'ddl_t' in list(model.variables_dict['u'].keys()):
     #         if 'u' in V_init.keys():
     #             V_bounds['lb']['u', :, 'ddl_t'] = 0.

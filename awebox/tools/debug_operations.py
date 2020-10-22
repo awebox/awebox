@@ -59,10 +59,18 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
 
-    licq_holds = is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_labels)
+    exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
+    if not exact_licq_holds:
+        awelogger.logger.info('')
+        message = 'linear independent constraint qualification is not satisfied at solution, for exact computation'
+        awelogger.logger.info(message)
+        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+
+
+    licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
     if not licq_holds:
         awelogger.logger.info('')
-        message = 'linear independent constraint qualification appears not to be met at solution'
+        message = 'linear independent constraint qualification appears not to be satisfied at solution, given tolerance'
         awelogger.logger.info(message)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
@@ -188,12 +196,15 @@ def is_reduced_hessian_positive_definite(min_reduced_hessian_eigenvalue, health_
     return min_reduced_hessian_eigenvalue > reduced_hessian_eig_thesh
 
 
-def is_cstr_jacobian_full_rank(cstr_jacobian_eval, health_solver_options, cstr_labels):
+def is_matrix_full_rank(matrix, health_solver_options, tol=None):
 
-    rank_tolerance = health_solver_options['tol']['constraint_jacobian_rank']
+    if tol is None:
+        rank_tolerance = health_solver_options['tol']['constraint_jacobian_rank']
+    else:
+        rank_tolerance = tol
 
-    matrix_rank = np.linalg.matrix_rank(cstr_jacobian_eval, rank_tolerance)
-    required_rank = np.min(np.shape(cstr_jacobian_eval))
+    matrix_rank = np.linalg.matrix_rank(matrix, rank_tolerance)
+    required_rank = np.min(matrix.shape)
 
     return (required_rank == matrix_rank)
 
@@ -203,33 +214,51 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
 
-    number_constraints = cstr_jacobian_eval.shape[0]
+    local_cje = cstr_jacobian_eval
+    local_labels = cstr_labels
 
-    max_entry = np.max(np.abs(cstr_jacobian_eval))
+    while not is_matrix_full_rank(local_cje, health_solver_options):
 
-    tol_ratio = health_solver_options['tol']['linear_dependence_ratio']
-    min_tolerated_entry = max_entry * tol_ratio
+        number_constraints = local_cje.shape[0]
+        current_hunt = True
 
-    mask = (np.absolute(cstr_jacobian_eval) > min_tolerated_entry)
-    masked = mask * cstr_jacobian_eval
-    abs_masked = np.absolute(masked)
+        for cdx in range(number_constraints):
 
-    sum1 = np.sum(abs_masked, axis=1) # sums values row-wise. values correspond to constraints
-    zero_with_floating_point = (sum1 == 0)
-    indices = range(number_constraints)
-    dependent_indices = set(indices * zero_with_floating_point) - set([0])
-    for idx in dependent_indices:
-        awelogger.logger.info(cstr_labels[idx])
+            if current_hunt:
 
-    masked_int = np.array((masked / tol_ratio).astype(int))
-    _, inds = sympy.Matrix(masked_int).T.rref()
-    inds_set = set(inds)
-    all_set = set(range(number_constraints))
-    deps_set = all_set - inds_set
-    for idx in deps_set:
-        awelogger.logger.info(cstr_labels[idx])
+                prev_matrix = local_cje[cdx:, :]
+                current_matrix = prev_matrix[1:, :]
+
+                prev_full_rank = is_matrix_full_rank(prev_matrix, health_solver_options)
+                current_full_rank = is_matrix_full_rank(current_matrix, health_solver_options)
+
+                if current_full_rank and (not prev_full_rank):
+
+                    print(local_labels[cdx])
+                    current_hunt = False
+
+                    local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
+
 
     return None
+
+def pop_cstr_and_label(cdx, local_cje, local_labels):
+
+    number_constraints = local_cje.shape[0]
+
+    if cdx == 0:
+        local_cje = local_cje[1:, :]
+        local_labels = local_labels[1:]
+
+    elif cdx == number_constraints - 1:
+        local_cje = local_cje[:-1, :]
+        local_labels = local_labels[:-1]
+
+    else:
+        local_cje = cas.vertcat(local_cje[:cdx, :], local_cje[cdx + 1:, :])
+        local_labels = local_labels[:cdx] + local_labels[cdx + 1:]
+
+    return local_cje, local_labels
 
 
 def is_problem_ill_conditioned(condition_number, health_solver_options):

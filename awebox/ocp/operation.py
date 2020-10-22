@@ -301,8 +301,6 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
 
         not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
 
-        print_op.warn_about_temporary_funcationality_removal(location='ocp.operation.bouddary')
-        # (not name[-4:] == 'dl_t') and
         if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])

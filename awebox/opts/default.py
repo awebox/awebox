@@ -391,7 +391,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     'when',     'final',                    False,  ('run a health-check after final homotopy step', [True, False]), 'x'),
         ('solver',  'health_check',     'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
         ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-6,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
-        ('solver',  'health_check',     'thresh',   'condition_number',         1e5,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
+        ('solver',  'health_check',     'thresh',   'condition_number',         1e7,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
         ('solver',  'health_check',     'tol',      'reduced_hessian_null',     1e-8,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
         ('solver',  'health_check',     'tol',      'constraint_jacobian_rank', 1e-8,   ('tolerance of rank compution for constraint jacobian', None), 'x'),
         ('solver',  'health_check',     'tol',      'linear_dependence_ratio',  1e-2,   ('tolerance of rough linear dependence identifier', None), 'x'),

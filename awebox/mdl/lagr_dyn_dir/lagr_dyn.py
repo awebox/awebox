@@ -113,14 +113,14 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # concatenation
     # --------------------------------
 
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
     lagr_dynamics = [
         trivial_dynamics_states,
         dynamics_translation,
         rotation_dynamics,
         trivial_dynamics_controls,
-        # dynamics_constraints
+        dynamics_constraints
     ]
+    print_op.warn_about_temporary_funcationality_removal('lagr_dyn')
 
     return lagr_dynamics, outputs
 

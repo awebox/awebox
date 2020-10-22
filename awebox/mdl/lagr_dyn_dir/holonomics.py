@@ -262,10 +262,7 @@ def get_constraint_lhs(g, gdot, gddot, parameters):
     # todo: update baumgarte for dddl_t control.
 
     baumgarte = parameters['theta0', 'tether', 'kappa']
-    # lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
-
-    print_op.warn_about_temporary_funcationality_removal(location='holonomics')
-    lagrangian_lhs_constraints = gddot
+    lagrangian_lhs_constraints = gddot + 2. * baumgarte * gdot + baumgarte ** 2. * g
 
     return lagrangian_lhs_constraints
 

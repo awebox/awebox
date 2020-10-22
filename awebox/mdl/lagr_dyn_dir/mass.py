@@ -139,9 +139,7 @@ def generate_mass_dictionary_for_all_nodes(options, variables, parameters, archi
 
 def add_groundstation_mass(node_masses, parameters):
     m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
-    # node_masses['groundstation'] += m_groundstation
-
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.mass.groundstation')
+    node_masses['groundstation'] += m_groundstation
 
     return node_masses
 
@@ -159,9 +157,7 @@ def add_wound_tether_mass(node_masses, options, architecture, variables, paramet
         awelogger.logger.error('unknown option in mass dictionary generation')
 
     wound_mass = wound_cross_section * parameters['theta0', 'tether', 'rho'] * wound_length
-    # node_masses['m00'] += wound_mass
-
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.mass.wound')
+    node_masses['m00'] += wound_mass
 
     return node_masses
 
@@ -186,13 +182,11 @@ def add_above_ground_tether_segment_mass(upper_node, node_masses, options, archi
 
     top_mass_alloc_frac = options['tether']['top_mass_alloc_frac']
 
-    # # attribute (the fraction of the segment mass that belong to the top node) to the top node
-    # node_masses['m' + str(upper_node) + str(parent)] += top_mass_alloc_frac * seg_mass
-    #
-    # # attribute (the fraction of the segment mass that doesn't belong to the top node) to the bottom node
-    # node_masses['m' + str(parent) + str(grandparent)] += (1. - top_mass_alloc_frac) * seg_mass
+    # attribute (the fraction of the segment mass that belong to the top node) to the top node
+    node_masses['m' + str(upper_node) + str(parent)] += top_mass_alloc_frac * seg_mass
 
-    print_op.warn_about_temporary_funcationality_removal('lagr_dyn.mass.above')
+    # attribute (the fraction of the segment mass that doesn't belong to the top node) to the bottom node
+    node_masses['m' + str(parent) + str(grandparent)] += (1. - top_mass_alloc_frac) * seg_mass
 
     return node_masses
 
