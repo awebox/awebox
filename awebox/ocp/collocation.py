@@ -175,7 +175,7 @@ class Collocation(object):
 
         # compute quadrature weights
         Lambda = np.linalg.solve(coeff_collocation[1:,1:], np.eye(len(coeff_collocation)-1))
-        quad_weights_1 = np.matmul(Lambda,coeff_continuity[1:])
+        quad_weights_1 = np.matmul(Lambda, coeff_continuity[1:])
         quad_weights = np.linalg.solve(coeff_collocation[1:,1:], coeff_continuity[1:])
 
         self.__quad_weights = quad_weights

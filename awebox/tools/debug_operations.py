@@ -72,7 +72,8 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given tolerance'
         awelogger.logger.info(message)
-        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+        # identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+    print_op.warn_about_temporary_funcationality_removal('debug')
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
@@ -234,7 +235,7 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
 
                 if current_full_rank and (not prev_full_rank):
 
-                    print(local_labels[cdx])
+                    awelogger.logger.info(local_labels[cdx])
                     current_hunt = False
 
                     local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)

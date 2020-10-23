@@ -735,8 +735,6 @@ def induction_equations(options, atmos, wind, variables, outputs, parameters, ar
 
 def generate_si_variables(scaling_options, variables):
 
-    t_characteristic = scaling_options['other']['t_characteristic']
-
     scaling = {}
 
     prepared_xd_names = scaling_options['xd'].keys()
@@ -770,13 +768,13 @@ def generate_si_variables(scaling_options, variables):
                 scaling[var_type][var_name] = cas.DM(scaling_options[var_type][stripped_name])
 
             elif var_might_be_derivative and (poss_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_deriv_name] / t_characteristic)
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_deriv_name])
 
             elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_sec_deriv_name] / t_characteristic ** 2.)
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_sec_deriv_name])
 
             elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_third_deriv_name] / t_characteristic ** 3.)
+                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_third_deriv_name])
 
 
 
@@ -787,13 +785,13 @@ def generate_si_variables(scaling_options, variables):
                 scaling[var_type][var_name] = cas.DM(scaling_options['xd'][stripped_name])
 
             elif var_might_be_derivative and (poss_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_deriv_name] / t_characteristic)
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_deriv_name])
 
             elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_sec_deriv_name] / t_characteristic ** 2.)
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_sec_deriv_name])
 
             elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_third_deriv_name] / t_characteristic ** 3.)
+                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_third_deriv_name])
 
             else:
                 message = 'no scaling information provided for variable ' + var_name + ', expected in ' + var_type + '. Proceeding with unit scaling.'

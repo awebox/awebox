@@ -728,11 +728,8 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
-    l_t_scaling = options['model']['scaling']['xd']['l_t']
-    l_s_scaling = options['model']['scaling']['theta']['l_s']
-    # q_scaling = l_s_scaling
+    # todo: figure out how scaled q's will alter the tether tension.
     q_scaling = 1.
-    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.q')
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -844,15 +841,6 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
     options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
-
-    u_ref = get_u_ref(options['user_options'])
-    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    # t_char_flow = induction_varrho_ref * b_ref / u_ref
-    t_char_pendulum = np.sqrt(options['model']['scaling']['xd']['l_t'] / options['model']['scaling']['other']['g'])
-    # t_char = t_char_pendulum
-    t_char = 1.
-    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.t')
-    options_tree.append(('model', 'scaling', 'other', 't_characteristic', t_char, ('characteristic time', None),'x'))
 
     return options_tree, fixed_params
 
