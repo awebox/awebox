@@ -28,7 +28,7 @@ takes states, finds approximate total force and moment for a tether element
 finds equivalent forces corresponding to the total force and moment.
 _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, jochem de schutter alu-fr 2017
+- edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
 
 import casadi.tools as cas
@@ -38,26 +38,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
+import awebox.tools.print_operations as print_op
+import pdb
 
-
-def get_scale(options, atmos, wind, upper_node):
-
-    if upper_node == 1:
-        diam = options['scaling']['theta']['diam_t']
-        length = options['scaling']['xd']['l_t']
-    else:
-        diam = options['scaling']['theta']['diam_s']
-        length = options['scaling']['theta']['l_s']
-
-    area = diam * length
-
-    rho = atmos.get_density_ref()
-    u = wind.get_velocity_ref()
-    dyn_press = 0.5 * rho * u**2.
-
-    scale = area * dyn_press
-
-    return scale
 
 def get_tether_model_types(options):
 
@@ -78,48 +61,87 @@ def get_tether_model_types(options):
     return tether_models
 
 
-def get_force_vars(variables, upper_node, options, atmos, wind):
+def get_force_var(variables_si, upper_node, architecture):
 
-    tether_models = get_tether_model_types(options)
-    sides = ['upper', 'lower']
+    lower_node = architecture.parent_map[upper_node]
+    name = str(upper_node) + str(lower_node)
+    var = variables_si['xl']['f_tether' + name]
+    return var
 
-    scale = get_scale(options, atmos, wind, upper_node)
+def get_tether_resi(options, variables_si, atmos, wind, architecture, parameters, outputs):
 
-    forces = {}
-    for model in tether_models:
-        for side in sides:
-            name = model + '_' + side + str(upper_node)
-            var = variables['xl']['f_' + name]
-            forces[name] = var * scale
+    # homotopy parameters
+    p_dec = parameters.prefix['phi']
+    
+    # initialize dictionary
+    tether_drag_forces = {}
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        tether_drag_forces['f' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
-    return forces
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+    
+        multi_upper = outputs['tether_aero']['multi_upper' + str(node)]
+        multi_lower = outputs['tether_aero']['multi_lower' + str(node)]
+        single_upper = outputs['tether_aero']['single_upper' + str(node)]
+        single_lower = outputs['tether_aero']['single_lower' + str(node)]
+        split_upper = outputs['tether_aero']['split_upper' + str(node)]
+        split_lower = outputs['tether_aero']['split_lower' + str(node)]
+        kite_only_upper = outputs['tether_aero']['kite_only_upper' + str(node)]
+        kite_only_lower = outputs['tether_aero']['kite_only_lower' + str(node)]
+    
+        tether_model = options['tether']['tether_drag']['model_type']
+    
+        if tether_model == 'multi':
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+    
+        elif tether_model == 'single':
+            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
+            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
+    
+        elif tether_model == 'split':
+            drag_node = split_upper
+            drag_parent = split_lower
+    
+        elif tether_model == 'kite_only':
+            drag_node = kite_only_upper
+            drag_parent = kite_only_lower
+    
+        elif tether_model == 'not_in_use':
+            drag_parent = cas.DM.zeros((3, 1))
+            drag_node = cas.DM.zeros((3, 1))
+    
+        else:
+            raise ValueError('tether drag model not supported.')
+    
+        # attribute portion of segment drag to parent
+        if node > 1:
+            grandparent = architecture.parent_map[parent]
+            tether_drag_forces['f' + str(parent) + str(grandparent)] += drag_parent
+    
+        # attribute portion of segment drag to node
+        tether_drag_forces['f' + str(node) + str(parent)] += drag_node
 
-def get_residuals(outputs, variables, architecture, options, atmos, wind):
+    resi = []
+    for node in range(1, architecture.number_of_nodes):
 
-    tether_models = get_tether_model_types(options)
-    sides = ['upper', 'lower']
+        parent = architecture.parent_map[node]
+        f_tether_var = get_force_var(variables_si, node, architecture)
+        f_tether_val = tether_drag_forces['f' + str(node) + str(parent)]
+        local_resi_unscaled = (f_tether_var - f_tether_val)
 
-    all_resi = []
+        scale = options['scaling']['xl']['f_tether']
+        print_op.warn_about_temporary_funcationality_removal(location='tether-aero')
 
-    n_nodes = architecture.number_of_nodes
-    for n in range(1, n_nodes):
-        force_vars = get_force_vars(variables, n, options, atmos, wind)
-        force_outputs = outputs['tether_aero']
+        local_resi = local_resi_unscaled / scale
+        
+        resi = cas.vertcat(resi, local_resi)
 
-        scale = get_scale(options, atmos, wind, n)
+    return resi
 
-        for model in tether_models:
-            for side in sides:
 
-                name = model + '_' + side + str(n)
-
-                f_var = force_vars[name]
-                f_out = force_outputs[name]
-
-                resi = (f_var - f_out) / scale
-                all_resi = cas.vertcat(all_resi, resi)
-
-    return all_resi
 
 
 

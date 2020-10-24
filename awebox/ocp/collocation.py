@@ -359,6 +359,8 @@ class Collocation(object):
 
         else:
 
+            print_op.warn_about_temporary_funcationality_removal('collocation.not_parallel.local_dyn')
+
             # initialize function evaluations
             coll_dynamics = []
             coll_constraints = []
@@ -368,14 +370,23 @@ class Collocation(object):
             integral_constraints['inequality'] = []
             integral_constraints['equality'] = []
 
+            
+
             # evaluate functions in for loop
-            for i in range(N_coll):
-                coll_dynamics = cas.horzcat(coll_dynamics, model.dynamics(coll_vars[:,i],coll_params[:,i]))
-                coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,i],coll_params[:,i]))
-                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,i],coll_params[:,i]))
+            for kdx in range(self.__n_k):
+                for ddx in range(self.__d):
+
+                    idx = ddx + kdx * self.__d
+
+                    deriv_scaling = np.max(np.array(self.__coeff_collocation[:, ddx]))
+                    local_dyn = model.dynamics(coll_vars[:,idx],coll_params[:,idx]) #/ deriv_scaling
+    
+                    coll_dynamics = cas.horzcat(coll_dynamics, local_dyn)
+                    coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,idx],coll_params[:,idx]))
+                    coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                    integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                    integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
+                    integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 
 
         # integrate integral outputs

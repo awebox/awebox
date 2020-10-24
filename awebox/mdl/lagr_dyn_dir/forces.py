@@ -97,67 +97,19 @@ def generate_drag_mode_forces(variables_si, outputs, architecture):
 
 
 def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs, architecture):
-    # homotopy parameters
-    p_dec = parameters.prefix['phi']
 
     # tether_drag_coeff.plot_cd_vs_reynolds(100, options)
     tether_cd_fun = tether_drag_coeff.get_tether_cd_fun(options, parameters)
 
-    # initialize dictionary
-    tether_drag_forces = {}
-    for n in range(1, architecture.number_of_nodes):
-        parent = architecture.parent_map[n]
-        tether_drag_forces['f' + str(n) + str(parent)] = cas.SX.zeros((3, 1))
-
     # mass vector, containing the mass of all nodes
-    for n in range(1, architecture.number_of_nodes):
-
-        parent = architecture.parent_map[n]
-
-        outputs = tether_aero.get_force_outputs(options, variables_si, atmos, wind, n, tether_cd_fun, outputs,
+    for node in range(1, architecture.number_of_nodes):
+        outputs = tether_aero.get_force_outputs(options, variables_si, atmos, wind, node, tether_cd_fun, outputs,
                                                 architecture)
 
-        multi_upper = outputs['tether_aero']['multi_upper' + str(n)]
-        multi_lower = outputs['tether_aero']['multi_lower' + str(n)]
-        single_upper = outputs['tether_aero']['single_upper' + str(n)]
-        single_lower = outputs['tether_aero']['single_lower' + str(n)]
-        split_upper = outputs['tether_aero']['split_upper' + str(n)]
-        split_lower = outputs['tether_aero']['split_lower' + str(n)]
-        kite_only_upper = outputs['tether_aero']['kite_only_upper' + str(n)]
-        kite_only_lower = outputs['tether_aero']['kite_only_lower' + str(n)]
-
-        tether_model = options['tether']['tether_drag']['model_type']
-
-        if tether_model == 'multi':
-            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
-            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
-
-        elif tether_model == 'single':
-            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
-            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
-
-        elif tether_model == 'split':
-            drag_node = split_upper
-            drag_parent = split_lower
-
-        elif tether_model == 'kite_only':
-            drag_node = kite_only_upper
-            drag_parent = kite_only_lower
-
-        elif tether_model == 'not_in_use':
-            drag_parent = cas.DM.zeros((3, 1))
-            drag_node = cas.DM.zeros((3, 1))
-
-        else:
-            raise ValueError('tether drag model not supported.')
-
-        # attribute portion of segment drag to parent
-        if n > 1:
-            grandparent = architecture.parent_map[parent]
-            tether_drag_forces['f' + str(parent) + str(grandparent)] += drag_parent
-
-        # attribute portion of segment drag to node
-        tether_drag_forces['f' + str(n) + str(parent)] += drag_node
+    tether_drag_forces = {}
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        tether_drag_forces['f' + str(node) + str(parent)] = tether_aero.get_force_var(variables_si, node, architecture)
 
     # collect tether drag losses
     outputs = indicators.collect_tether_drag_losses(variables_si, tether_drag_forces, outputs, architecture)

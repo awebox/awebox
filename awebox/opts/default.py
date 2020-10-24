@@ -395,7 +395,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     'tol',      'reduced_hessian_null',     1e-8,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
         ('solver',  'health_check',     'tol',      'constraint_jacobian_rank', 1e-8,   ('tolerance of rank compution for constraint jacobian', None), 'x'),
         ('solver',  'health_check',     'tol',      'linear_dependence_ratio',  1e-2,   ('tolerance of rough linear dependence identifier', None), 'x'),
-        ('solver',  'health_check',     None,       'spy_kkt_matrix',           False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
+        ('solver',  'health_check',     None,       'spy_matrices',           False,    ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
 
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),

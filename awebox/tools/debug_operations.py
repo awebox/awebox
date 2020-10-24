@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+import matplotlib.pylab as plt
 import numpy as np
 import numpy.ma as ma
 import pdb
@@ -72,8 +73,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given tolerance'
         awelogger.logger.info(message)
-        # identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-    print_op.warn_about_temporary_funcationality_removal('debug')
+        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
@@ -81,8 +81,10 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         message = 'second order sufficient conditions appear not to be met at solution'
         awelogger.logger.info(message)
 
-    if health_solver_options['spy_kkt_matrix']:
-        spy_kkt(kkt_matrix)
+    if health_solver_options['spy_matrices']:
+        vect_op.spy(kkt_matrix, title='KKT matrix')
+        vect_op.spy(lagr_hessian_eval, title='Hessian of the Lagrangian')
+        vect_op.spy(cstr_jacobian_eval, title='Jacobian of Active Constraints')
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
     if problem_is_ill_conditioned:
@@ -100,9 +102,35 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         message = 'OCP appears to be unhealthy'
     awelogger.logger.info(message)
 
+
+    cje = cstr_jacobian_eval
+    for mdx in range(nlp.d * nlp.n_k):
+        cn_shift = int(mdx / nlp.d) * 10
+        cdx = 17 * (mdx + 1) + cn_shift - 3
+        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
+        cdx += 1
+        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
+        cdx += 1
+        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
+
+        # print(cstr_labels[17 * mdx + cn_shift: 17 * (mdx + 1) + cn_shift])
+        # print(np.max(np.absolute(np.array(cje[17 * mdx + cn_shift: 17 * (mdx + 1) + cn_shift, :])), axis=1))
+
+    plt.show()
+
     pdb.set_trace()
 
+
     return problem_is_healthy
+
+def get_nonzeros_as_strings(matrix, cdx, nlp):
+    dict = {}
+    nonzeros = np.nonzero(matrix[cdx,:])[0]
+    for ndx in nonzeros:
+        var = nlp.V.getCanonicalIndex(ndx)
+        dict[var] = matrix[cdx, ndx]
+
+    return repr(dict)
 
 def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian):
 
@@ -212,6 +240,14 @@ def is_matrix_full_rank(matrix, health_solver_options, tol=None):
 
 def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
 
+    message = '... largest absolute jacobian entry occurs at: '
+    awelogger.logger.info(message)
+    max_cdx = np.where(np.absolute(cstr_jacobian_eval) == np.amax(np.absolute(cstr_jacobian_eval)))[0][0]
+    max_label = cstr_labels[max_cdx]
+    nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, max_cdx, nlp)
+    message = 'constraint number ' + str(max_cdx) + ': ' + max_label + ' -> ' + nonzero_string
+    awelogger.logger.info(message)
+
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
 
@@ -235,7 +271,11 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
 
                 if current_full_rank and (not prev_full_rank):
 
-                    awelogger.logger.info(local_labels[cdx])
+                    dep_label = local_labels[cdx]
+                    dep_index = cstr_labels.index(dep_label)
+                    nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, dep_index, nlp)
+                    message = 'constraint number ' + str(dep_index) + ': ' + dep_label + ' -> ' + nonzero_string
+                    awelogger.logger.info(message)
                     current_hunt = False
 
                     local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
@@ -271,10 +311,6 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
 
 
 ######## spy
-
-def spy_kkt(kkt_matrix, tol=0.1):
-    vect_op.spy(np.array(kkt_matrix), tol=tol, color=False)
-    return None
 
 def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
     matrA = np.absolute(np.array(kkt_matrix))

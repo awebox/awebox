@@ -58,8 +58,6 @@ def get_framed_forces(vec_u, options, variables, kite, architecture, parameters)
 
 def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
-    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
-
     resi = []
     for kite in architecture.kite_nodes:
 

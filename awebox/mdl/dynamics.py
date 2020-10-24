@@ -39,6 +39,7 @@ from collections import OrderedDict
 from . import system
 
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import awebox.mdl.aero.induction_dir.induction as induction
 
@@ -86,7 +87,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # --------------------------------------------
 
     # add outputs for constraints
-    # notice, this must be after the
+    # ANY "SIMPLE/BOX" CONTROL BOUNDS HERE WILL LEAD TO LICQ VIOLATION.
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = wound_tether_length_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters, architecture)
@@ -95,7 +96,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = angular_velocity_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-    outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
     outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
 
     if options['kite_dof'] == 6:
@@ -118,6 +118,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # enforce lifted aerodynamic force
     aero_force_resi = kite_aero.get_force_resi(options, system_variables['SI'], atmos, wind, architecture, parameters)
     dynamics_list += [aero_force_resi]
+
+    # enforce lifted tether force
+    tether_force_resi = tether_aero.get_tether_resi(options, system_variables['SI'], atmos, wind, architecture, parameters, outputs)
+    dynamics_list += [tether_force_resi]
 
     # induction constraint
     induction_constraint = get_induction_constraint(options, outputs, parameters)
@@ -477,38 +481,6 @@ def anticollision_inequality(options, variables, outputs, parameters, architectu
     return outputs
 
 
-def dcoeff_actuation_inequality(options, variables, parameters, outputs):
-    # nu*u_max + (1 - nu)*u_compromised_max > u
-    # u - nu*u_max + (1 - nu)*u_compromised_max < 0
-    if int(options['kite_dof']) != 3:
-        return outputs
-    if 'dcoeff_actuation' not in list(outputs.keys()):
-        outputs['dcoeff_actuation'] = OrderedDict()
-    nu = parameters['phi', 'nu']
-    dcoeff_max = options['model_bounds']['dcoeff_max']
-    dcoeff_compromised_max = parameters['theta0', 'model_bounds', 'dcoeff_compromised_max']
-    dcoeff_min = options['model_bounds']['dcoeff_min']
-    dcoeff_compromised_min = parameters['theta0', 'model_bounds', 'dcoeff_compromised_min']
-    traj_type = options['trajectory']['type']
-    scenario = None
-    broken_kite = None
-
-    for variable in list(variables['u'].keys()):
-        if variable[:6] == 'dcoeff':
-
-            dcoeff = variables['u'][variable]
-            if traj_type == 'compromised_landing':
-                scenario, broken_kite = options['compromised_landing']['emergency_scenario']
-            if (variable[-2] == str(broken_kite) and scenario == 'broken_roll'):
-                outputs['dcoeff_actuation']['max_n' + variable[6:]] = dcoeff - (
-                            nu * dcoeff_max + (1 - nu) * dcoeff_compromised_max)
-                outputs['dcoeff_actuation']['min_n' + variable[6:]] = - dcoeff + (
-                            nu * dcoeff_min + (1 - nu) * dcoeff_compromised_min)
-            else:
-                outputs['dcoeff_actuation']['max_n' + variable[6:]] = dcoeff - dcoeff_max
-                outputs['dcoeff_actuation']['min_n' + variable[6:]] = - dcoeff + dcoeff_min
-
-    return outputs
 
 
 def coeff_actuation_inequality(options, variables, parameters, outputs):

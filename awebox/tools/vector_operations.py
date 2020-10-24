@@ -176,14 +176,14 @@ def zhat_np():
     zhat_np = np.array(cas.vertcat(0., 0., 1.))
     return zhat_np
 
-def spy(matrix, tol=0.1, color=True):
+def spy(matrix, tol=0.1, color=True, title=''):
     fig = plt.figure()
     fig.clf()
 
     matrix = sps.csr_matrix(matrix)
 
     elements = matrix.shape[0]
-    markersize = (1./float(elements)) * 5000.
+    markersize = (1./float(elements)) * 500.
 
     if color:
         matrix_dense = np.abs(matrix.todense())
@@ -192,7 +192,8 @@ def spy(matrix, tol=0.1, color=True):
     else:
         plt.spy(matrix, precision=tol, markersize=markersize)
 
-    plt.show()
+    plt.title(title)
+
 
 def skew(vec):
     " creates skew-symmetric matrix"

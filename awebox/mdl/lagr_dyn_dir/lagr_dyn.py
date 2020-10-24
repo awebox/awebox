@@ -102,6 +102,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # trivial kinematics
     # --------------------------------
 
+
     trivial_dynamics_states = cas.vertcat(
         *[system_variables['scaled']['xddot', name] - system_variables['scaled']['xd', name] for name in
           list(system_variables['SI']['xddot'].keys()) if name in list(system_variables['SI']['xd'].keys())])
@@ -120,6 +121,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
         trivial_dynamics_controls,
         dynamics_constraints
     ]
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
 
     return lagr_dynamics, outputs
 

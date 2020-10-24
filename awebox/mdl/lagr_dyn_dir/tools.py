@@ -60,25 +60,29 @@ def time_derivative(expr, variables, architecture):
 
 
 def get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node):
-    kite_nodes = architecture.kite_nodes
 
     xd = variables_si['xd']
     theta = variables_si['theta']
     scaling = options['scaling']
 
-    if upper_node == 1:
+    lower_node = architecture.parent_map[upper_node]
+    main_tether = (lower_node == 0)
+    secondary_tether = (upper_node in architecture.kite_nodes)
+
+    if main_tether:
         vars_containing_length = xd
         vars_sym = 'xd'
         length_sym = 'l_t'
         diam_sym = 'diam_t'
 
-    elif upper_node in kite_nodes:
+    elif secondary_tether:
         vars_containing_length = theta
         vars_sym = 'theta'
         length_sym = 'l_s'
         diam_sym = 'diam_s'
 
     else:
+        # intermediate tether
         vars_containing_length = theta
         vars_sym = 'theta'
         length_sym = 'l_i'
