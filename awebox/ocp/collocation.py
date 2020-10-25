@@ -370,16 +370,30 @@ class Collocation(object):
             integral_constraints['inequality'] = []
             integral_constraints['equality'] = []
 
-            
+            h = 1. / self.__n_k
+            t_f = options['normalization']['t_f']
+
+            u_and_xd_keys = set(model.variables_dict['u'].keys() + model.variables_dict['xd'].keys())
+            triv_var_names = set(model.variables_dict['xddot'].keys()).intersection(u_and_xd_keys)
+            triv_dyn = cas.vertcat(*[model.variables_dict['xddot'][var_name] for var_name in triv_var_names])
+            number_triv_dyn_rows = triv_dyn.shape[0]
+
 
             # evaluate functions in for loop
             for kdx in range(self.__n_k):
                 for ddx in range(self.__d):
 
                     idx = ddx + kdx * self.__d
+                    # print(self.__coeff_collocation[:, :] / h / t_f)
+                    # deriv_scaling = np.max(np.array(self.__coeff_collocation[ddx,:] / h / t_f))
+                    #
+                    # local_dyn_unscaled = model.dynamics(coll_vars[:,idx],coll_params[:,idx])
+                    # dyn_scaling = np.ones(local_dyn_unscaled.shape)
+                    # dyn_scaling[:number_triv_dyn_rows] *= deriv_scaling
+                    # # local_dyn = local_dyn_unscaled / deriv_scaling
 
-                    deriv_scaling = np.max(np.array(self.__coeff_collocation[:, ddx]))
-                    local_dyn = model.dynamics(coll_vars[:,idx],coll_params[:,idx]) #/ deriv_scaling
+                    local_dyn = model.dynamics(coll_vars[:,idx],coll_params[:,idx])
+                    # pdb.set_trace()
     
                     coll_dynamics = cas.horzcat(coll_dynamics, local_dyn)
                     coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,idx],coll_params[:,idx]))

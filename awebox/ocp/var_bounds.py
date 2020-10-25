@@ -27,13 +27,17 @@ var_bounds code of the awebox
 takes variable struct and options to and model inequalities, generates constraint structures, and defines the nlp constraints
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: rachel leuthold, jochem de schutter alu-fr 2018
+- edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
 
 import casadi.tools as cas
 
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
+
 import pdb
+
 
 def get_variable_bounds(nlp_options, V, model):
 
@@ -61,7 +65,40 @@ def get_variable_bounds(nlp_options, V, model):
 
         else:
 
-            if var_type in {'xd', 'xl', 'xa','u'}:
+            if var_type == 'xd':
+                print_op.warn_about_temporary_funcationality_removal(location='ocp.var_bounds.xd')
+                use_radau = nlp_options['collocation']['scheme'] == 'radau'
+                coll_variables_already_bounded = ('coll_var' in V.keys()) and use_radau
+                periodic = perf_op.determine_if_periodic(nlp_options)
+
+                if coll_variables_already_bounded and periodic:
+                    # do nothing. this prevents licq errors at active variable bounds
+                    32.0
+
+                elif coll_variables_already_bounded and (not periodic):
+                    # only apply bounds at nodes that are not also described by collocation nodes:
+
+                    if kdx == 0:
+                        vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                        vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+
+                        [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
+                                                                     var_type, kdx, ddx, name)
+
+                    else:
+                        # do nothing
+                        32.0
+
+                else:
+                    # apply the bounds at all kdx, because ddx=-1 does not already constrain these variables
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+
+                    [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
+                                                                 var_type, kdx, ddx, name)
+
+
+            if var_type in {'xl', 'xa','u'}:
 
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']

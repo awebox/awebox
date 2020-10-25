@@ -87,7 +87,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # --------------------------------------------
 
     # add outputs for constraints
-    # ANY "SIMPLE/BOX" CONTROL BOUNDS HERE WILL LEAD TO LICQ VIOLATION.
+    # DO NOT PUT "SIMPLE/BOX"-TYPE BOUNDS HERE! ==> these (especially) on controls lead to LICQ-like (floating point) violations
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = wound_tether_length_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters, architecture)
@@ -96,7 +96,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = angular_velocity_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-    outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs)
+
+    print_op.warn_about_temporary_funcationality_removal(location='dynamics.coeff')
 
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
@@ -481,41 +482,6 @@ def anticollision_inequality(options, variables, outputs, parameters, architectu
     return outputs
 
 
-
-
-def coeff_actuation_inequality(options, variables, parameters, outputs):
-    # nu*xd_max + (1 - nu)*u_compromised_max > xd
-    # xd - nu*xd_max + (1 - nu)*xd_compromised_max < 0
-    if int(options['kite_dof']) != 3:
-        return outputs
-    if 'coeff_actuation' not in list(outputs.keys()):
-        outputs['coeff_actuation'] = OrderedDict()
-    nu = parameters['phi', 'nu']
-    coeff_max = options['aero']['three_dof']['coeff_max']
-    coeff_compromised_max = parameters['theta0', 'model_bounds', 'coeff_compromised_max']
-    coeff_min = options['aero']['three_dof']['coeff_min']
-    coeff_compromised_min = parameters['theta0', 'model_bounds', 'coeff_compromised_min']
-    traj_type = options['trajectory']['type']
-    scenario = None
-    broken_kite = None
-
-    for variable in list(variables['xd'].keys()):
-        if variable[:5] == 'coeff':
-
-            coeff = variables['xd'][variable]
-            if traj_type == 'compromised_landing':
-                scenario, broken_kite = options['compromised_landing']['emergency_scenario']
-
-            if (variable[-2] == str(broken_kite) and scenario == 'structural_damages'):
-                outputs['coeff_actuation']['max_n' + variable[5:]] = coeff - (
-                            nu * coeff_max + (1 - nu) * coeff_compromised_max)
-                outputs['coeff_actuation']['min_n' + variable[5:]] = - coeff + (
-                            nu * coeff_min + (1 - nu) * coeff_compromised_min)
-            else:
-                outputs['coeff_actuation']['max_n' + variable[5:]] = coeff - coeff_max
-                outputs['coeff_actuation']['min_n' + variable[5:]] = - coeff + coeff_min
-
-    return outputs
 
 
 def acceleration_inequality(options, variables, outputs, parameters):
