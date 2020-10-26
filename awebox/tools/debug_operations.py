@@ -97,29 +97,16 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     awelogger.logger.info('')
     if problem_is_healthy:
         message = 'OCP appears to be healthy'
+        awelogger.logger.info(message)
+
     if not problem_is_healthy:
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
         message = 'OCP appears to be unhealthy'
-    awelogger.logger.info(message)
-
-
-    cje = cstr_jacobian_eval
-    for mdx in range(nlp.d * nlp.n_k):
-        cn_shift = int(mdx / nlp.d) * 10
-        cdx = 17 * (mdx + 1) + cn_shift - 3
-        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
-        cdx += 1
-        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
-        cdx += 1
-        print(cstr_labels[cdx] + '->' + get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp))
-
-        # print(cstr_labels[17 * mdx + cn_shift: 17 * (mdx + 1) + cn_shift])
-        # print(np.max(np.absolute(np.array(cje[17 * mdx + cn_shift: 17 * (mdx + 1) + cn_shift, :])), axis=1))
+        awelogger.logger.error(message)
 
     plt.show()
 
     pdb.set_trace()
-
 
     return problem_is_healthy
 
@@ -127,8 +114,9 @@ def get_nonzeros_as_strings(matrix, cdx, nlp):
     dict = {}
     nonzeros = np.nonzero(matrix[cdx,:])[0]
     for ndx in nonzeros:
-        var = nlp.V.getCanonicalIndex(ndx)
-        dict[var] = matrix[cdx, ndx]
+        var = nlp.V.labels()[ndx]
+        value = '{:.2e}'.format(matrix[cdx, ndx])
+        dict[var] = value
 
     return repr(dict)
 

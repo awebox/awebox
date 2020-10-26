@@ -206,11 +206,11 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
         ('model',   'model_bounds', 'dcoeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', 'coeff_actuation', 'include',      False,       ('include a bound on coeff', None), 'x'),
+        ('model',   'model_bounds', 'coeff_actuation',  'include',      False,       ('include a bound on coeff', None), 'x'),
         ('model',   'model_bounds', None, 'dcoeff_max',      [5.,80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
         ('model',   'model_bounds', None, 'dcoeff_min',      [-5.,-80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
-        ('params',   'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
-        ('params',   'model_bounds', None, 'coeff_compromised_min', np.array([0., -60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
+        ('params',  'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
+        ('params',  'model_bounds', None, 'coeff_compromised_min', np.array([0., -60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
         ('model',   'model_bounds', None, 'dcoeff_compromised_factor', 1., ('???', None), 's'),
 
         #### scaling

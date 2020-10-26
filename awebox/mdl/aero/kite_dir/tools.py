@@ -51,10 +51,8 @@ def get_f_scale(parameters, options):
     return scale
 
 def get_m_scale(parameters, options):
-    f_scale = options['scaling']['xl']['f_aero']
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    scale = 0.5 * b_ref * f_scale
-    return scale
+    m_scale = options['scaling']['xl']['m_aero']
+    return m_scale
 
 
 ##### the velocities

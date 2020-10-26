@@ -257,6 +257,9 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
 
+        coeff_scaling = 1.
+        options_tree.append(('model', 'scaling', 'xd', 'coeff', coeff_scaling, ('???', None), 'x'))
+
         compromised_factor = options['model']['model_bounds']['dcoeff_compromised_factor']
         options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
         options_tree.append(('model', 'model_bounds','dcoeff_actuation','include',True,('include dcoeff bound for roll control',None),'x'))
@@ -871,8 +874,10 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     m_k = geometry['m_k']
     b_ref = geometry['b_ref']
 
-    f_fict_scaling = 0.5 * options['model']['model_bounds']['acceleration']['acc_max'] * m_k * gravity
-    m_fict_scaling = f_fict_scaling * (b_ref / 2.)
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+
+    f_fict_scaling = m_k * gravity * acc_max
+    m_fict_scaling = f_fict_scaling * b_ref / 2.
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
 

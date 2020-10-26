@@ -87,7 +87,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # scaling
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, system_variables['SI'], parameters)
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
-    forces_scaling = node_masses_scaling * options['scaling']['other']['g']
+    forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max']
 
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
@@ -114,11 +114,12 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # concatenation
     # --------------------------------
 
+    # put the trivial constraints first, so they can be scaled according to the radau coefficients, if collocation.
     lagr_dynamics = [
         trivial_dynamics_states,
+        trivial_dynamics_controls,
         dynamics_translation,
         rotation_dynamics,
-        trivial_dynamics_controls,
         dynamics_constraints
     ]
     print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')

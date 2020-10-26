@@ -86,8 +86,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # collect the outputs needed for constraint definition
     # --------------------------------------------
 
-    # add outputs for constraints
-    # DO NOT PUT "SIMPLE/BOX"-TYPE BOUNDS HERE! ==> these (especially) on controls lead to LICQ-like (floating point) violations
+    ##### add outputs for constraints
+    # please do not put "SIMPLE/BOX"-TYPE VARIABLE BOUNDS here...
+    # ESPECIALLY on CONTROLS (which causes LICQ errors under direct-collocation)
+    # let's use ipopt's clever variable_bounds handling, instead! (thanks!)
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = wound_tether_length_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters, architecture)
