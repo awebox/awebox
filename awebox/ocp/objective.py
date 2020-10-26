@@ -86,7 +86,7 @@ def get_general_reg_costs_function(variables, V):
         exceptions = sorting_dict[var_type]['exceptions']
 
         for var_name in set(struct_op.subkeys(variables, var_type)):
-            name = struct_op.get_variable_name_without_node_identifiers(var_name)
+            name, _ = struct_op.split_name_and_node_identifier(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
                 reg_costs[category] = reg_costs[category] + cas.sum1(regs[var_type, var_name])
@@ -168,7 +168,7 @@ def get_regularization_weights(variables, P, nlp_options):
         exceptions = sorting_dict[var_type]['exceptions']
 
         for var_name in set(struct_op.subkeys(variables, var_type)):
-            name = struct_op.get_variable_name_without_node_identifiers(var_name)
+            name, _ = struct_op.split_name_and_node_identifier(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
                 shortened_cat_name = category[:-5]

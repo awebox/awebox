@@ -87,9 +87,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # --------------------------------------------
 
     ##### add outputs for constraints
-    # please do not put "SIMPLE/BOX"-TYPE VARIABLE BOUNDS here...
-    # ESPECIALLY on CONTROLS (which causes LICQ errors under direct-collocation)
-    # let's use ipopt's clever variable_bounds handling, instead! (thanks!)
+    # please do not put "SIMPLE/BOX"-BOUNDS on CONTROLS here...
+    # these cause LICQ errors when using direct-collocation!
     outputs = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = wound_tether_length_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = airspeed_inequality(options, system_variables['SI'], outputs, parameters, architecture)
@@ -98,8 +97,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs = anticollision_radius_inequality(options, system_variables['SI'], outputs, parameters, architecture)
     outputs = acceleration_inequality(options, system_variables['SI'], outputs, parameters)
     outputs = angular_velocity_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-
-    print_op.warn_about_temporary_funcationality_removal(location='dynamics.coeff')
+    outputs = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, outputs, architecture)
+    outputs = coeff_actuation_inequality(options, system_variables['SI'], parameters, outputs, architecture)
 
     if options['kite_dof'] == 6:
         outputs = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
@@ -484,6 +483,81 @@ def anticollision_inequality(options, variables, outputs, parameters, architectu
     return outputs
 
 
+def dcoeff_actuation_inequality(options, variables_si, parameters, outputs, architecture):
+    # nu*u_max + (1 - nu)*u_compromised_max > u
+    # u - nu*u_max + (1 - nu)*u_compromised_max < 0
+    if int(options['kite_dof']) != 3:
+        return outputs
+    if 'dcoeff_actuation' not in list(outputs.keys()):
+        outputs['dcoeff_actuation'] = OrderedDict()
+
+    nu = parameters['phi', 'nu']
+    dcoeff_max = options['aero']['three_dof']['dcoeff_max']
+    dcoeff_compromised_max = parameters['theta0', 'model_bounds', 'dcoeff_compromised_max']
+    dcoeff_min = options['aero']['three_dof']['dcoeff_min']
+    dcoeff_compromised_min = parameters['theta0', 'model_bounds', 'dcoeff_compromised_min']
+    traj_type = options['trajectory']['type']
+
+    for variable in variables_si['xd'].keys():
+
+        var_name, kiteparent = struct_op.split_name_and_node_identifier(variable)
+        dcoeff = variables_si['xd'][variable]
+        kite, parent = struct_op.split_kite_and_parent(kiteparent, architecture)
+        scenario, broken_kite = options['compromised_landing']['emergency_scenario']
+
+        if var_name == 'dcoeff':
+            if (traj_type == 'compromised_landing') and (kite == broken_kite) and (scenario == 'broken_roll'):
+                outputs['dcoeff_actuation']['max_n' + kiteparent] = dcoeff - (
+                            nu * dcoeff_max + (1 - nu) * dcoeff_compromised_max)
+                outputs['dcoeff_actuation']['min_n' + kiteparent] = - dcoeff + (
+                            nu * dcoeff_min + (1 - nu) * dcoeff_compromised_min)
+
+            else:
+                dcoeff_max = options['aero']['three_dof']['dcoeff_max']
+                dcoeff_min = options['aero']['three_dof']['dcoeff_min']
+                outputs['dcoeff_actuation']['max_n' + kiteparent] = (dcoeff - dcoeff_max)
+                outputs['dcoeff_actuation']['min_n' + kiteparent] = (dcoeff_min - dcoeff)
+
+    return outputs
+
+
+def coeff_actuation_inequality(options, variables_si, parameters, outputs, architecture):
+    # nu*xd_max + (1 - nu)*u_compromised_max > xd
+    # xd - nu*xd_max + (1 - nu)*xd_compromised_max < 0
+    if int(options['kite_dof']) != 3:
+        return outputs
+    if 'coeff_actuation' not in list(outputs.keys()):
+        outputs['coeff_actuation'] = OrderedDict()
+
+    nu = parameters['phi', 'nu']
+    coeff_max = options['aero']['three_dof']['coeff_max']
+    coeff_compromised_max = parameters['theta0', 'model_bounds', 'coeff_compromised_max']
+    coeff_min = options['aero']['three_dof']['coeff_min']
+    coeff_compromised_min = parameters['theta0', 'model_bounds', 'coeff_compromised_min']
+    traj_type = options['trajectory']['type']
+
+    for variable in list(variables_si['xd'].keys()):
+
+        var_name, kiteparent = struct_op.split_name_and_node_identifier(variable)
+        if var_name == 'coeff':
+
+            coeff = variables_si['xd'][variable]
+            scenario, broken_kite = options['compromised_landing']['emergency_scenario']
+            kite, parent = struct_op.split_kite_and_parent(kiteparent, architecture)
+
+            if (traj_type == 'compromised_landing') and (kite == broken_kite) and (scenario == 'structural_damages'):
+                outputs['coeff_actuation']['max_n' + kiteparent] = coeff - (
+                            nu * coeff_max + (1 - nu) * coeff_compromised_max)
+                outputs['coeff_actuation']['min_n' + kiteparent] = - coeff + (
+                            nu * coeff_min + (1 - nu) * coeff_compromised_min)
+
+            else:
+                coeff_max = options['aero']['three_dof']['coeff_max']
+                coeff_min = options['aero']['three_dof']['coeff_min']
+                outputs['coeff_actuation']['max_n' + kiteparent] = (coeff - coeff_max)
+                outputs['coeff_actuation']['min_n' + kiteparent] = (coeff_min - coeff)
+
+    return outputs
 
 
 def acceleration_inequality(options, variables, outputs, parameters):
@@ -587,7 +661,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
         parent = parent_map[n]
 
-        seg_props = lagr_tools.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
@@ -687,7 +761,7 @@ def generate_si_variables(scaling_options, variables):
 
         for var_name in struct_op.subkeys(variables, var_type):
 
-            stripped_name = struct_op.get_variable_name_without_node_identifiers(var_name)
+            stripped_name, _ = struct_op.split_name_and_node_identifier(var_name)
             prepared_names = scaling_options[var_type].keys()
 
             var_might_be_derivative = (stripped_name[0] == 'd') and (len(stripped_name) > 1)
@@ -961,12 +1035,8 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     return outputs
 
 
-def generate_constraints(options, variables, parameters, constraint_out):
+def generate_inequality_constraints(options, variables, parameters, constraint_out):
     constraint_list = []
-
-    # list all model equalities
-    collection = options['model_constr']
-    eq_struct, constraint_list = select_model_constraints(constraint_list, collection, constraint_out)
 
     # list all model inequalities
     collection = options['model_bounds']
@@ -974,14 +1044,10 @@ def generate_constraints(options, variables, parameters, constraint_out):
 
     # make constraint dict
     model_constraints_dict = OrderedDict()
-    model_constraints_dict['equality'] = eq_struct
     model_constraints_dict['inequality'] = ineq_struct
 
     # make entries if not empty
     constraint_entries = []
-    if list(eq_struct.keys()):
-        constraint_entries.append(cas.entry('equality', struct=eq_struct))
-
     if list(ineq_struct.keys()):
         constraint_entries.append(cas.entry('inequality', struct=ineq_struct))
 
@@ -1007,11 +1073,14 @@ def generate_constraints(options, variables, parameters, constraint_out):
 def select_model_constraints(constraint_list, collection, constraint_out):
     constraint_dict = OrderedDict()
 
-    for constr_type in list(constraint_out.keys()):
-        if constr_type in list(collection.keys()) and collection[constr_type]['include']:
+    for constr_type in constraint_out.keys():
+        if (constr_type in collection.keys()) and (collection[constr_type]['include']):
 
-            for name in struct_op.subkeys(constraint_out, constr_type):
-                constraint_list.append(constraint_out[constr_type, name])
+            try:
+                for name in struct_op.subkeys(constraint_out, constr_type):
+                    constraint_list.append(constraint_out[constr_type, name])
+            except:
+                pdb.set_trace()
 
             constraint_dict[constr_type] = cas.struct_symSX(
                 [cas.entry(name, shape=constraint_out[constr_type, name].size())

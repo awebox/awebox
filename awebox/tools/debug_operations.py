@@ -58,20 +58,25 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     reduced_hessian = get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval)
 
+    if health_solver_options['spy_matrices']:
+        vect_op.spy(kkt_matrix, title='KKT matrix')
+        vect_op.spy(lagr_hessian_eval, title='Hessian of the Lagrangian')
+        vect_op.spy(cstr_jacobian_eval, title='Jacobian of Active Constraints')
+        plt.show()
+
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     if not exact_licq_holds:
         awelogger.logger.info('')
-        message = 'linear independent constraint qualification is not satisfied at solution, for exact computation'
+        message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
         awelogger.logger.info(message)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-
 
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
     if not licq_holds:
         awelogger.logger.info('')
-        message = 'linear independent constraint qualification appears not to be satisfied at solution, given tolerance'
+        message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
         awelogger.logger.info(message)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
@@ -80,11 +85,6 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'second order sufficient conditions appear not to be met at solution'
         awelogger.logger.info(message)
-
-    if health_solver_options['spy_matrices']:
-        vect_op.spy(kkt_matrix, title='KKT matrix')
-        vect_op.spy(lagr_hessian_eval, title='Hessian of the Lagrangian')
-        vect_op.spy(cstr_jacobian_eval, title='Jacobian of Active Constraints')
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
     if problem_is_ill_conditioned:
@@ -103,8 +103,6 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
         message = 'OCP appears to be unhealthy'
         awelogger.logger.error(message)
-
-    plt.show()
 
     pdb.set_trace()
 

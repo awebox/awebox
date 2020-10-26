@@ -114,7 +114,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     # concatenation
     # --------------------------------
 
-    # put the trivial constraints first, so they can be scaled according to the radau coefficients, if collocation.
+    # put the trivial constraints first, so they can be scaled according
+    # to the radau coefficients, when using radau collocation (and no paralellization).
     lagr_dynamics = [
         trivial_dynamics_states,
         trivial_dynamics_controls,
@@ -122,7 +123,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
         rotation_dynamics,
         dynamics_constraints
     ]
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
 
     return lagr_dynamics, outputs
 

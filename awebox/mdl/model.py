@@ -61,7 +61,7 @@ class Model(object):
             self.__generate_system_dynamics(options)
             self.__generate_variable_bounds(options)
             self.__generate_parameter_bounds(options)
-            self.__generate_constraints(options)
+            self.__generate_model_inequalities(options)
             self.__options = options
 
             self.__timings['overall'] = time.time()-timer
@@ -169,11 +169,11 @@ class Model(object):
         self.__parameter_bounds = param_bounds
         return None
 
-    def __generate_constraints(self, options):
+    def __generate_model_inequalities(self, options):
 
-        awelogger.logger.info('generate constraints..')
+        awelogger.logger.info('generate model inequality constraints..')
 
-        constraints, constraints_fun, constraints_dict = dyn.generate_constraints(
+        constraints, constraints_fun, constraints_dict = dyn.generate_inequality_constraints(
                            options, self.__variables,self.__parameters,self.__constraint_out(self.__constraint_out_fun(self.__variables, self.__parameters)))
 
         self.__constraints = constraints

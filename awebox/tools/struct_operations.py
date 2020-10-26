@@ -489,14 +489,6 @@ def get_variable_type(model, name):
 
     return None
 
-def get_variable_name_without_node_identifiers(name):
-
-    var_name = name
-    while var_name[-1].isdigit():
-        var_name = var_name[:-1]
-
-    return var_name
-
 
 
 def convert_return_status_string_to_number(return_string):
@@ -823,6 +815,19 @@ def evaluate_cost_dict(cost_fun, V_plot, p_fix_num):
             cost[name[:-4]] = cost_fun[name](V_plot, p_fix_num)
 
     return cost
+
+def split_name_and_node_identifier(name):
+
+    var_name = name
+    kiteparent = ''
+
+    while var_name[-1].isdigit():
+
+        kiteparent = var_name[-1] + kiteparent
+        var_name = var_name[:-1]
+
+    return var_name, kiteparent
+
 
 def split_kite_and_parent(kiteparent, architecture):
 

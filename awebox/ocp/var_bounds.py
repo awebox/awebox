@@ -66,7 +66,7 @@ def get_variable_bounds(nlp_options, V, model):
         else:
 
             if var_type == 'xd':
-                print_op.warn_about_temporary_funcationality_removal(location='ocp.var_bounds.xd')
+
                 use_radau = nlp_options['collocation']['scheme'] == 'radau'
                 coll_variables_already_bounded = ('coll_var' in V.keys()) and use_radau
                 periodic = perf_op.determine_if_periodic(nlp_options)

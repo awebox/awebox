@@ -359,8 +359,6 @@ class Collocation(object):
 
         else:
 
-            print_op.warn_about_temporary_funcationality_removal('collocation.not_parallel.local_dyn')
-
             # initialize function evaluations
             coll_dynamics = []
             coll_constraints = []
@@ -378,15 +376,15 @@ class Collocation(object):
             triv_dyn = cas.vertcat(*[model.variables_dict['xddot'][var_name] for var_name in triv_var_names])
             number_triv_dyn_rows = triv_dyn.shape[0]
 
-
             # evaluate functions in for loop
             for kdx in range(self.__n_k):
                 for ddx in range(self.__d):
 
                     idx = ddx + kdx * self.__d
 
-                    # todo: try this at larger n_k. maybe need to switch signs
-                    deriv_scaling = np.max(np.absolute(np.array(self.__coeff_collocation[:, ddx+1] / h / tf)))
+                    # scale the trivial constraints by the maximum derivative value, to keep the
+                    # jacobian of the constraints within a reasonable range for all collocation orders
+                    deriv_scaling = np.max(np.absolute(np.array(self.__coeff_collocation[:, ddx+1] / tf / h)))
                     local_dyn_unscaled = model.dynamics(coll_vars[:,idx],coll_params[:,idx])
                     dyn_scaling = np.ones(local_dyn_unscaled.shape)
                     dyn_scaling[:number_triv_dyn_rows] *= deriv_scaling

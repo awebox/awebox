@@ -252,7 +252,8 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
-    if int(kite_dof) == 3:
+    kite_has_3_dof = (int(kite_dof) == 3)
+    if kite_has_3_dof:
 
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
@@ -260,45 +261,16 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         coeff_scaling = 1.
         options_tree.append(('model', 'scaling', 'xd', 'coeff', coeff_scaling, ('???', None), 'x'))
 
-        compromised_factor = options['model']['model_bounds']['dcoeff_compromised_factor']
         options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
-        options_tree.append(('model', 'model_bounds','dcoeff_actuation','include',True,('include dcoeff bound for roll control',None),'x'))
-        options_tree.append(('model', 'model_bounds','coeff_actuation','include',True,('include dcoeff bound for roll control',None),'x'))
 
+        compromised_factor = options['model']['aero']['three_dof']['dcoeff_compromised_factor']
         dcoeff_compromised_max = np.array([5*compromised_factor,5])
-        options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_max', dcoeff_compromised_max,('include dcoeff bound for roll control',None),'x'))
-        options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_min', -1. * dcoeff_compromised_max,('include dcoeff bound for roll control',None),'x'))
+        options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_max', dcoeff_compromised_max, ('????', None), 'x'))
+        options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_min', -1. * dcoeff_compromised_max, ('?????', None), 'x'))
 
-
-        dcoeff_max = options['model']['model_bounds']['dcoeff_max']
-        dcoeff_min = options['model']['model_bounds']['dcoeff_min']
-        dcoeff_compromised_min = -1. * dcoeff_compromised_max
-
-        coeff_max = options['model']['aero']['three_dof']['coeff_max']
-        coeff_min = options['model']['aero']['three_dof']['coeff_min']
-        coeff_compromised_max = options['params']['model_bounds']['coeff_compromised_max']
-        coeff_compromised_min = options['params']['model_bounds']['coeff_compromised_min']
-
-        traj_type = user_options['trajectory']['type']
-        scenario, broken_kite = user_options['trajectory']['compromised_landing']['emergency_scenario']
-
-        options_tree.append(('model', 'system_bounds', 'u', 'dcoeff', [dcoeff_min, dcoeff_max], ('???', None), 'x'))
-        if (traj_type == 'compromised_landing') and (scenario == 'broken_roll'):
-            # todo: @Thilo - does this still work as expected?
-            broken_parent = architecture.parent_map[broken_kite]
-            nu = options['model']['parameters']['phi']['nu']
-            adjusted_min = (nu * dcoeff_min + (1 - nu) * dcoeff_compromised_min)
-            adjusted_max = (nu * dcoeff_max + (1 - nu) * dcoeff_compromised_max)
-            options_tree.append(('model', 'system_bounds', 'u', 'dcoeff'+ broken_kite + broken_parent, [adjusted_min, adjusted_max], ('???', None), 'x'))
-
-        options_tree.append(('model', 'system_bounds', 'xd', 'coeff', [coeff_min, coeff_max], ('???', None), 'x'))
-        if (traj_type == 'compromised_landing') and (scenario == 'structural_damages'):
-            # todo: @Thilo - does this still work as expected?
-            broken_parent = architecture.parent_map[broken_kite]
-            nu = options['model']['parameters']['phi']['nu']
-            adjusted_min = (nu * coeff_min + (1 - nu) * coeff_compromised_min)
-            adjusted_max =  (nu * coeff_max + (1 - nu) * coeff_compromised_max)
-            options_tree.append(('model', 'system_bounds', 'xd', 'coeff'+ broken_kite + broken_parent, [adjusted_min, adjusted_max], ('???', None), 'x'))
+    else:
+        options_tree.append(('model', 'model_bounds', 'coeff_actuation', 'include', False, ('???', None), 'x'))
+        options_tree.append(('model', 'model_bounds', 'dcoeff_actuation', 'include', False, ('???', None), 'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
@@ -316,9 +288,6 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     options_tree.append(('model', None, None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
     if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
-
-    # model equality constraints
-    options_tree.append(('model', 'model_constr', None, 'include', False, None,'x'))
 
     # map single airspeed interval constraint to min/max constraints
     if options['model']['model_bounds']['airspeed']['include']:
@@ -359,7 +328,11 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
     for theta in list(fixed_params.keys()):
         options_tree.append(('model', 'system_bounds', 'theta', theta, [fixed_params[theta]]*2,  ('user input for fixed bounds on theta', None),'x'))
 
-    options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
+    scenario, broken_kite = user_options['trajectory']['compromised_landing']['emergency_scenario']
+    if not broken_kite in architecture.kite_nodes:
+        broken_kite = architecture.kite_nodes[0]
+
+    options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', [scenario, broken_kite], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
     options_tree.append(('nlp', 'trajectory', None, 'type', user_options['trajectory']['type'], ('??', None), 'x'))
 
     t_f_guess = estimate_time_period(options, architecture)
@@ -888,8 +861,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     l_t_scaling = options['model']['scaling']['xd']['l_t']
     diam_t_scaling = options['model']['scaling']['theta']['diam_t']
     cd = 1.
-    sin_loss = 1. #np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)**2.
-    print_op.warn_about_temporary_funcationality_removal(location='model_funcs')
+    sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
 
     f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
     options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_tether_scaling, ('scaling of tether drag forces', None),'x'))

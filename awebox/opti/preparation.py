@@ -98,7 +98,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     for variable_type in set(model.variables.keys()) - set(['xddot']):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
-            var_name = struct_op.get_variable_name_without_node_identifiers(name)
+            var_name, _ = struct_op.split_name_and_node_identifier(name)
 
             if var_name[0] == 'w':
                 # then, this is a vortex wake variable
@@ -190,24 +190,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
             else:
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
-
-    # set state bounds
-    # if (options['initialization']['type'] == 'power_cycle') or (options['initialization']['type'] == 'tracking'):
-    #     if 'ddl_t' in list(model.variables_dict['u'].keys()):
-    #         if 'u' in V_init.keys():
-    #             V_bounds['lb']['u', :, 'ddl_t'] = 0.
-    #             V_bounds['ub']['u', :, 'ddl_t'] = 0.
-    #         else:
-    #             V_bounds['lb']['coll_var', :, :, 'u', 'ddl_t'] = 0.
-    #             V_bounds['ub']['coll_var', :, :, 'u', 'ddl_t'] = 0.
-    #     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-    #         if 'u' in V_init.keys():
-    #             V_bounds['lb']['u', :, 'dddl_t'] = 0.
-    #             V_bounds['ub']['u', :, 'dddl_t'] = 0.
-    #         else:
-    #             V_bounds['lb']['coll_var', :, :, 'u', 'dddl_t'] = 0.
-    #             V_bounds['ub']['coll_var', :, :, 'u', 'dddl_t'] = 0.
-    print_op.warn_about_temporary_funcationality_removal(location='opti.preparation')
 
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta','t_f'].shape[0] > 1:

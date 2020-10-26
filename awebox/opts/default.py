@@ -97,6 +97,11 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',           ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
         ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
         ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
+        ('model', 'aero', 'three_dof',  'dcoeff_max',   [5., 80. * np.pi / 180],        ('include a bound on dcoeff', None), 'x'),
+        ('model', 'aero', 'three_dof',  'dcoeff_min',   [-5., -80. * np.pi / 180],      ('include a bound on dcoeff', None), 'x'),
+        ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
+        ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
+        ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
@@ -205,13 +210,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'rotation',     'type',                 'yaw',      ('rotation constraint type', ['yaw','roll_pitch']), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
-        ('model',   'model_bounds', 'dcoeff_actuation', 'include',      False,       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', 'coeff_actuation',  'include',      False,       ('include a bound on coeff', None), 'x'),
-        ('model',   'model_bounds', None, 'dcoeff_max',      [5.,80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', None, 'dcoeff_min',      [-5.,-80.*np.pi/180],       ('include a bound on dcoeff', None), 'x'),
-        ('params',  'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
-        ('params',  'model_bounds', None, 'coeff_compromised_min', np.array([0., -60*np.pi/180.]), ('include a bound on dcoeff', None), 's'),
-        ('model',   'model_bounds', None, 'dcoeff_compromised_factor', 1., ('???', None), 's'),
+        ('model',   'model_bounds', 'dcoeff_actuation', 'include',          True,       ('include a bound on dcoeff', None), 'x'),
+        ('model',   'model_bounds', 'coeff_actuation',  'include',          True,       ('include a bound on coeff', None), 'x'),
 
         #### scaling
         ('model',  'scaling', 'xd',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
