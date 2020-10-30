@@ -104,9 +104,15 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         message = 'OCP appears to be unhealthy'
         awelogger.logger.error(message)
 
-    pdb.set_trace()
-
     return problem_is_healthy
+
+
+def print_cstr_info(cstr_jacobian_eval, cstr_labels, cdx, nlp):
+    nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp)
+    message = 'constraint number ' + str(cdx) + ': ' + cstr_labels[cdx] + ' -> ' + nonzero_string
+    awelogger.logger.info(message)
+    return None
+
 
 def get_nonzeros_as_strings(matrix, cdx, nlp):
     dict = {}
@@ -229,10 +235,8 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
     message = '... largest absolute jacobian entry occurs at: '
     awelogger.logger.info(message)
     max_cdx = np.where(np.absolute(cstr_jacobian_eval) == np.amax(np.absolute(cstr_jacobian_eval)))[0][0]
-    max_label = cstr_labels[max_cdx]
-    nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, max_cdx, nlp)
-    message = 'constraint number ' + str(max_cdx) + ': ' + max_label + ' -> ' + nonzero_string
-    awelogger.logger.info(message)
+    print_cstr_info(cstr_jacobian_eval, cstr_labels, max_cdx, nlp)
+
 
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
@@ -259,9 +263,7 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
 
                     dep_label = local_labels[cdx]
                     dep_index = cstr_labels.index(dep_label)
-                    nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, dep_index, nlp)
-                    message = 'constraint number ' + str(dep_index) + ': ' + dep_label + ' -> ' + nonzero_string
-                    awelogger.logger.info(message)
+                    print_cstr_info(cstr_jacobian_eval, cstr_labels, dep_index, nlp)
                     current_hunt = False
 
                     local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)

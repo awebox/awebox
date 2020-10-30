@@ -33,6 +33,7 @@ import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.indicators as indicators
+import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
 import awebox.mdl.aero.kite_dir.frames as frames
@@ -56,9 +57,10 @@ def get_framed_forces(vec_u, options, variables, kite, architecture, parameters)
     return dict
 
 
-def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
-    resi = []
+    cstr_list = mdl_constraint.MdlConstraintList()
+
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
@@ -74,11 +76,16 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
 
         f_scale = tools.get_f_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_aero_earth_val) / f_scale
+        resi_f_kite = (f_aero_var - f_aero_earth_val)
 
-        resi = cas.vertcat(resi, resi_f_kite)
+        f_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_f_kite,
+                                                   name='f_aero' + str(kite) + str(parent),
+                                                   cstr_type='eq',
+                                                   include=True,
+                                                   ref=f_scale)
+        cstr_list.append(f_kite_cstr)
 
-    return resi
+    return cstr_list
 
 
 

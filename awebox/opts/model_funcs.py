@@ -238,6 +238,11 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
 
+        options_tree.append(('model', 'scaling', 'xd', 'delta', 1, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'xd', 'omega', 1, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'xd', 'r', 1, ('descript', None), 'x'))
+
+
     return options_tree, fixed_params
 
 def get_kite_dof(user_options):
@@ -744,6 +749,9 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     # todo: figure out how scaled q's will alter the tether tension.
     q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'theta', 't_f', 1, ('descript', None), 'x'))
+
 
     return options_tree, fixed_params
 

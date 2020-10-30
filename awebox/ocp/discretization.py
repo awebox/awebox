@@ -389,13 +389,7 @@ def discretize(nlp_numerics_options, model, formulation):
     # add terminal and periodicity constraints
     [g_list, g_bounds] = constraints.append_terminal_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_terminal, var_ref_terminal, xi)
 
-    print_op.warn_about_temporary_funcationality_removal('ocp.discret.periodicity')
-    for var_name in set(model.variables_dict['xd'].keys()):
-        local_periodic = V['xd', 0, var_name] - V['xd', -1, var_name]
-        local_ndg = local_periodic.shape
-        g_list.append(local_periodic)
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', local_ndg)
-    # [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
+    [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
 
     if direct_collocation:
         [g_list, g_bounds] = constraints.append_integral_constraints(nlp_numerics_options, g_list, g_bounds, Integral_constraint_list,

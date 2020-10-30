@@ -65,8 +65,7 @@ def generate_structure(options, architecture):
 
     if int(kite_dof) == 3:
         kite_states = kite_states + [('coeff', (2, 1))]
-        kite_states = kite_states + [('dcoeff', (2, 1))]
-        kite_controls = kite_controls + [('ddcoeff', (2, 1))]
+        kite_controls = kite_controls + [('dcoeff', (2, 1))]
 
     elif int(kite_dof) == 6:
         kite_states = kite_states + [('omega', (3, 1)), ('r', (9, 1))]

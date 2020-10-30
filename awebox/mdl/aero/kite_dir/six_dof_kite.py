@@ -42,6 +42,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 import copy
+import awebox.mdl.mdl_constraint as mdl_constraint
 
 
 def arbitrarily_desired_force_frame():
@@ -88,14 +89,15 @@ def get_framed_moments(vec_u, options, variables, kite, architecture, parameters
     return dict
 
 
-def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
     surface_control = options['surface_control']
 
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
 
-    resi = []
+    cstr_list = mdl_constraint.MdlConstraintList()
+
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
@@ -126,12 +128,24 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
         f_aero_val = force_arb_info['vector']
         m_aero_val = moment_info['vector']
 
-        resi_f_kite = (f_aero_var - f_aero_val) / f_scale
-        resi_m_kite = (m_aero_var - m_aero_val) / m_scale
+        resi_f_kite = (f_aero_var - f_aero_val)
+        resi_m_kite = (m_aero_var - m_aero_val)
 
-        resi = cas.vertcat(resi, resi_f_kite, resi_m_kite)
+        f_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_f_kite,
+                                                   name='f_aero' + str(kite) + str(parent),
+                                                   cstr_type='eq',
+                                                   include=True,
+                                                   ref=f_scale)
+        cstr_list.append(f_kite_cstr)
 
-    return resi
+        m_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_m_kite,
+                                                   name='m_aero' + str(kite) + str(parent),
+                                                   cstr_type='eq',
+                                                   include=True,
+                                                   ref=m_scale)
+        cstr_list.append(m_kite_cstr)
+
+    return cstr_list
 
 
 def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho):

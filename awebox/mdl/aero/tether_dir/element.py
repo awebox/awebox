@@ -114,8 +114,8 @@ def get_element_diameter(variables, upper_node, architecture):
     elif secondary_tether:
         diam = variables['theta']['diam_s']
     else:
-        # intermediate tether
-        diam = variables['theta']['diam_i']
+        # todo: add intermediate tether diameter
+        diam = variables['theta']['diam_t']
 
     return diam
 

@@ -14,8 +14,9 @@ import awebox.mdl.lagr_dyn_dir.forces as forces_comp
 import numpy as np
 
 import pdb
+import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_dynamics(options, atmos, wind, architecture, system_variables, variables_dict, system_gc, parameters, outputs):
+def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, cstr_list):
 
     parent_map = architecture.parent_map
     number_of_nodes = architecture.number_of_nodes
@@ -89,42 +90,58 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, variables
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
     forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max']
 
-    dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
-    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
+    dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation)
+    dynamics_translation_cstr = mdl_constraint.MdlConstraint(expr=dynamics_translation,
+                                                             cstr_type='eq',
+                                                             name='dynamics_translation',
+                                                             include=True,
+                                                             ref=forces_scaling)
+    cstr_list.append(dynamics_translation_cstr)
+
+    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)
+    dynamics_constraint_cstr = mdl_constraint.MdlConstraint(expr=dynamics_constraints,
+                                                            cstr_type='eq',
+                                                            name='dynamics_constraint',
+                                                            include=True,
+                                                            ref = holonomic_scaling)
+    cstr_list.append(dynamics_constraint_cstr)
+
 
     # --------------------------------
     # rotational dynamics
     # --------------------------------
 
     rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
+    rotation_dynamics_cstr = mdl_constraint.MdlConstraint(expr=rotation_dynamics,
+                                                          cstr_type='eq',
+                                                          name='rotation_dynamics',
+                                                          include=True,
+                                                          ref = 1.)
+    cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
     # trivial kinematics
     # --------------------------------
 
+    for name in system_variables['SI']['xddot'].keys():
 
-    trivial_dynamics_states = cas.vertcat(
-        *[system_variables['scaled']['xddot', name] - system_variables['scaled']['xd', name] for name in
-          list(system_variables['SI']['xddot'].keys()) if name in list(system_variables['SI']['xd'].keys())])
-    trivial_dynamics_controls = cas.vertcat(
-        *[system_variables['scaled']['xddot', name] - system_variables['scaled']['u', name] for name in
-          list(system_variables['SI']['xddot'].keys()) if name in list(system_variables['SI']['u'].keys())])
+        name_in_xd = name in system_variables['SI']['xd'].keys()
+        name_in_u = name in system_variables['SI']['u'].keys()
 
-    # --------------------------------
-    # concatenation
-    # --------------------------------
+        if name_in_xd:
+            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xddot', name] - system_variables['scaled']['xd', name]])
+        elif name_in_u:
+            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xddot', name] - system_variables['scaled']['u', name]])
 
-    # put the trivial constraints first, so they can be scaled according
-    # to the radau coefficients, when using radau collocation (and no paralellization).
-    lagr_dynamics = [
-        trivial_dynamics_states,
-        trivial_dynamics_controls,
-        dynamics_translation,
-        rotation_dynamics,
-        dynamics_constraints
-    ]
+        if name_in_xd or name_in_u:
+            trivial_dyn_cstr = mdl_constraint.MdlConstraint(expr=trivial_dyn,
+                                                            cstr_type='eq',
+                                                            name='trivial_' + name,
+                                                            include=True,
+                                                            ref=1.)
+            cstr_list.append(trivial_dyn_cstr)
 
-    return lagr_dynamics, outputs
+    return cstr_list, outputs
 
 
 
@@ -171,19 +188,19 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
 
     rotation_dynamics = []
     if int(options['kite_dof']) == 6:
-        outputs['tether_moments'] = {}
-        for n in kite_nodes:
-            parent = parent_map[n]
-            moment = f_nodes['m' + str(n) + str(parent)]
 
-            rlocal = cas.reshape(xd['r' + str(n) + str(parent)], (3, 3))
-            drlocal = cas.reshape(xddot['dr' + str(n) + str(parent)], (3, 3))
+        for kite in kite_nodes:
+            parent = parent_map[kite]
+            moment = f_nodes['m' + str(kite) + str(parent)]
 
-            omega = xd['omega' + str(n) + str(parent)]
+            rlocal = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
+            drlocal = cas.reshape(xddot['dr' + str(kite) + str(parent)], (3, 3))
+
+            omega = xd['omega' + str(kite) + str(parent)]
             omega_skew = vect_op.skew(omega)
-            domega = xddot['domega' + str(n) + str(parent)]
+            domega = xddot['domega' + str(kite) + str(parent)]
 
-            tether_moment = outputs['tether_moments']['n{}{}'.format(n, parent)]
+            tether_moment = outputs['tether_moments']['n{}{}'.format(kite, parent)]
 
             # moment = J dot(omega) + omega x (J omega) + [tether moment which is zero if holonomic constraints do not depend on omega]
             J_dot_omega = cas.mtimes(j_inertia, domega)

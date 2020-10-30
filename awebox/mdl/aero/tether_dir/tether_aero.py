@@ -38,6 +38,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
+import awebox.mdl.mdl_constraint as mdl_constraint
 import awebox.tools.print_operations as print_op
 import pdb
 
@@ -68,7 +69,7 @@ def get_force_var(variables_si, upper_node, architecture):
     var = variables_si['xl']['f_tether' + name]
     return var
 
-def get_tether_resi(options, variables_si, atmos, wind, architecture, parameters, outputs):
+def get_tether_cstr(options, variables_si, atmos, wind, architecture, parameters, outputs):
 
     # homotopy parameters
     p_dec = parameters.prefix['phi']
@@ -124,7 +125,7 @@ def get_tether_resi(options, variables_si, atmos, wind, architecture, parameters
         # attribute portion of segment drag to node
         tether_drag_forces['f' + str(node) + str(parent)] += drag_node
 
-    resi = []
+    cstr_list = mdl_constraint.MdlConstraintList()
     for node in range(1, architecture.number_of_nodes):
 
         parent = architecture.parent_map[node]
@@ -133,11 +134,15 @@ def get_tether_resi(options, variables_si, atmos, wind, architecture, parameters
         local_resi_unscaled = (f_tether_var - f_tether_val)
 
         scale = options['scaling']['xl']['f_tether']
-        local_resi = local_resi_unscaled / scale
-        
-        resi = cas.vertcat(resi, local_resi)
 
-    return resi
+        f_cstr = mdl_constraint.MdlConstraint(expr=local_resi_unscaled,
+                                              name='f_tether' + str(node) + str(parent),
+                                              cstr_type='eq',
+                                              include=True,
+                                              ref=scale)
+        cstr_list.append(f_cstr)
+
+    return cstr_list
 
 
 

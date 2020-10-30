@@ -200,8 +200,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'aero_validity', 'scaling',              1.,         ('tightness scaling for aero_validity inequalities', None),'x'),
         ('model',   'model_bounds', 'anticollision', 'safety_factor',        5.,         ('safety margin for anticollision constraint [m]', None),'x'),
         ('model',   'model_bounds', 'anticollision', 'include',              True,       ('include a minimum distance anticollision inequality in constraints', [True, False]),'x'),
-        ('model',   'model_bounds', 'anticollision_radius', 'include',       False,      ('include a minimum radius anticollision inequality in constraints', [True, False]),'x'),
-        ('model',   'model_bounds', 'anticollision_radius', 'scaling',       1.,         ('tightness scaling for anticollision inequalities', None),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
         ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration, as measured in multiples of g [-]', None),'x'),
         ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),

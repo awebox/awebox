@@ -37,6 +37,9 @@ import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
+
+import pdb
+
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
     vj = yhat() * (a[0] * b[2] - a[2] * b[0])
@@ -207,14 +210,13 @@ def skew(vec):
 
 def unskew(A):
     "Unskew matrix to vector"
-    B = 0.5*np.array(
-        [
-            A[2,1]-A[1,2],
-            A[0,2]-A[2,0],
-            A[1,0]-A[0,1]
-        ]
+
+    B = 0.5*cas.vertcat(
+        A[2,1]-A[1,2],
+        A[0,2]-A[2,0],
+        A[1,0]-A[0,1]
     )
-    return B[:,np.newaxis]
+    return B
 
 def rotation(R, A):
     "Rotation operator as defined in Gros2013b"

@@ -42,6 +42,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 import numpy as np
+import awebox.mdl.mdl_constraint as mdl_constraint
 
 def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
@@ -168,17 +169,17 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
     return outputs
 
 
-def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
     if int(options['kite_dof']) == 3:
-        resi = three_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+        cstr_list = three_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters)
 
     elif int(options['kite_dof']) == 6:
-        resi = six_dof_kite.get_force_resi(options, variables, atmos, wind, architecture, parameters)
+        cstr_list = six_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters)
     else:
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 
-    return resi
+    return cstr_list
 
 
 def get_wingtip_position(kite, options, model, variables, parameters, ext_int):

@@ -10,6 +10,7 @@ import casadi as cas
 import awebox.mdl.architecture as archi
 import numpy as np
 import awebox.mdl.system as system
+import awebox.mdl.mdl_constraint as mdl_constraint
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 #
@@ -272,4 +273,8 @@ def test_tether_moments():
     msg = 'Incorrect tether moment contribution for single kite systems'
     assert np.linalg.norm(tether_moment_true-tether_moment)/np.linalg.norm(tether_moment_true) < 1e-8, msg
 
+    return None
+
+def test_constraint_mechanism():
+    mdl_constraint.test()
     return None

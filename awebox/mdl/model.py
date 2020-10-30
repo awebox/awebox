@@ -61,7 +61,6 @@ class Model(object):
             self.__generate_system_dynamics(options)
             self.__generate_variable_bounds(options)
             self.__generate_parameter_bounds(options)
-            self.__generate_model_inequalities(options)
             self.__options = options
 
             self.__timings['overall'] = time.time()-timer
@@ -102,12 +101,10 @@ class Model(object):
         [variables,
         variables_dict,
         scaling,
-        dynamics,
+        constraints_list,
         outputs,
         outputs_fun,
         outputs_dict,
-        constraint_out,
-        constraint_out_fun,
         integral_outputs,
         integral_outputs_fun,
         integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
@@ -118,12 +115,10 @@ class Model(object):
         self.__variables = variables
         self.__variables_dict = variables_dict
         self.__scaling = scaling
-        self.__dynamics = dynamics
+        self.__constraints_list = constraints_list
         self.__outputs = outputs
         self.__outputs_fun = outputs_fun
         self.__outputs_dict = outputs_dict
-        self.__constraint_out = constraint_out
-        self.__constraint_out_fun = constraint_out_fun
         self.__integral_outputs = integral_outputs
         self.__integral_outputs_fun = integral_outputs_fun
         self.__integral_scaling = integral_scaling
@@ -136,8 +131,10 @@ class Model(object):
         """Generate DAE object for casadi integrators, rootfinder,...
         """
 
+        dynamics = self.__constraints_list.get_expression_list('eq')
+
         awelogger.logger.info('generate dae object')
-        model_dae = dae.Dae(self.__variables, self.__parameters, self.__dynamics, self.__integral_outputs_fun)
+        model_dae = dae.Dae(self.__variables, self.__parameters, dynamics, self.__integral_outputs_fun)
         model_dae.build_rootfinder()
 
         return model_dae
@@ -167,19 +164,6 @@ class Model(object):
             param_bounds[name]['ub'] = 1.
 
         self.__parameter_bounds = param_bounds
-        return None
-
-    def __generate_model_inequalities(self, options):
-
-        awelogger.logger.info('generate model inequality constraints..')
-
-        constraints, constraints_fun, constraints_dict = dyn.generate_inequality_constraints(
-                           options, self.__variables,self.__parameters,self.__constraint_out(self.__constraint_out_fun(self.__variables, self.__parameters)))
-
-        self.__constraints = constraints
-        self.__constraints_fun = constraints_fun
-        self.__constraints_dict = constraints_dict
-
         return None
 
 
@@ -245,24 +229,12 @@ class Model(object):
         return self.__parameter_bounds
 
     @property
-    def constraints(self):
-        return self.__constraints
-
-    @property
-    def constraints_dict(self):
-        return self.__constraints_dict
-
-    @property
-    def constraints_fun(self):
-        return self.__constraints_fun
+    def constraints_list(self):
+        return self.__constraints_list
 
     @property
     def scaling(self):
         return self.__scaling
-
-    @property
-    def dynamics(self):
-        return self.__dynamics
 
     @property
     def architecture(self):

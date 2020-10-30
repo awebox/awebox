@@ -126,108 +126,186 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
+def no_available_var_info(variables, var_type):
+    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
+    awelogger.logger.warning(message)
+    return np.zeros(variables[var_type].shape)
+
+
+def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
+
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    scheme = nlp_options['collocation']['scheme']
+
+    radau_collocation = (direct_collocation and scheme == 'radau')
+    other_collocation = (direct_collocation and not scheme == 'radau')
+
+    traj_is_periodic = perf_op.determine_if_periodic(nlp_options)
+    at_control_node = (ddx is None)
+    at_initial = (kdx == 0) and at_control_node
+
+    if radau_collocation:
+
+        if traj_is_periodic and at_initial:
+            return V['coll_var', -1, -1, var_type]
+        elif (not traj_is_periodic) and at_initial:
+
+            # note that this shifting pattern is not strictly true,
+            # but is required to prevent licq errors for simple xl = 0 constraints
+            # at nodes (d+1) and (d) from equivalence
+            return V['coll_var', kdx, 0, var_type]
+
+        elif at_control_node:
+            return V['coll_var', kdx - 1, -1, var_type]
+        else:
+            return V['coll_var', kdx, ddx, var_type]
+
+    elif other_collocation:
+
+        standardly_available = False
+        hopeful_name = '[coll_var,' + str(kdx) + ',' + str(ddx)
+        length_hopeful_name = len(hopeful_name)
+        for label in V.labels():
+            if (label[:length_hopeful_name] == hopeful_name):
+                standardly_available = True
+
+        lifted_alg_variables = (var_type in list(V.keys()))
+
+        if standardly_available:
+            return V['coll_var', kdx, ddx, var_type]
+        elif at_control_node and lifted_alg_variables:
+            return V[var_type, kdx]
+        else:
+            return no_available_var_info(model_variables, var_type)
+
+    elif multiple_shooting:
+        lifted_alg_variables = (var_type in list(V.keys()))
+        if lifted_alg_variables:
+            return V[var_type, kdx]
+        else:
+            return no_available_var_info(model_variables, var_type)
+
+    else:
+        return no_available_var_info(model_variables, var_type)
+
+
+def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
+
+    var_type = 'xd'
+
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    at_control_node = (ddx is None)
+
+    if at_control_node:
+        return V[var_type, kdx]
+    elif direct_collocation:
+        return V['coll_var', kdx, ddx, var_type]
+    else:
+        return no_available_var_info(model_variables, var_type)
+
+
+def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
+
+    var_type = 'u'
+
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+
+    piecewise_constant_controls = not (nlp_options['collocation']['u_param'] == 'poly')
+    at_control_node = (ddx is None)
+
+    if direct_collocation and piecewise_constant_controls:
+        return V[var_type, kdx]
+
+    elif direct_collocation and (not piecewise_constant_controls) and at_control_node:
+        return V['coll_var', kdx, 0, var_type]
+
+    elif direct_collocation and (not piecewise_constant_controls):
+        return V['coll_var', kdx, ddx, var_type]
+
+    elif multiple_shooting:
+        return V[var_type, kdx]
+
+    else:
+        return no_available_var_info(model_variables, var_type)
+
+
+def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
+
+    var_type = 'xddot'
+
+    at_control_node = (ddx is None)
+    lifted_derivs = (var_type in list(V.keys()))
+
+    if Xdot is not None:
+        empty_Xdot = Xdot(0.)
+        passed_Xdot_is_meaningful = not (Xdot == empty_Xdot)
+    else:
+        passed_Xdot_is_meaningful = False
+
+
+    if passed_Xdot_is_meaningful and at_control_node:
+        return Xdot['xd', kdx]
+    elif passed_Xdot_is_meaningful and (not at_control_node):
+        return Xdot['coll_xd', kdx, ddx]
+    elif lifted_derivs:
+        return V[var_type, kdx]
+    else:
+        return no_available_var_info(model_variables, var_type)
+
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
-    # extract discretization type
-    if nlp_options['discretization'] == 'direct_collocation':
-        direct_collocation = True
-        scheme = nlp_options['collocation']['scheme']
-        u_param = nlp_options['collocation']['u_param']
-    else:
-        direct_collocation = False
-
-    traj_is_periodic = perf_op.determine_if_periodic(nlp_options)
-
-    # extract variables
-    variables = model_variables
-
     var_list = []
     # make list of variables at specific time
-    for var_type in variables.keys():
+    for var_type in model_variables.keys():
 
-        # algebraic variables
         if var_type in {'xl', 'xa'}:
+            local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
 
-            if direct_collocation and (scheme == 'radau'):
-                if ddx is None:
-
-                    if traj_is_periodic:
-                        if kdx == 0:
-                            var_list.append(V['coll_var', -1, -1, var_type])
-                        else:
-                            var_list.append(V['coll_var', kdx-1, -1, var_type])
-
-                    else:
-                        # note that this shifting pattern is not strictly true,
-                        # but is required to prevent licq errors for simple xl = 0 constraints
-                        # at nodes (d+1) and (d) from equivalence
-                        var_list.append(V['coll_var', kdx, 0, var_type])
-
-                else:
-                    var_list.append(V['coll_var', kdx, ddx, var_type])
-
-            elif direct_collocation and (scheme != 'radau'):
-                if ddx == None:
-                    if var_type in list(V.keys()): # check if alg vars are lifted
-                        var_list.append(V[var_type, kdx])
-                    else: # not lifted
-                        var_list.append(np.zeros(variables[var_type].shape)) # implicit function of other states
-                else:
-                    var_list.append(V['coll_var', kdx, ddx, var_type])
-            else:
-                if var_type in list(V.keys()): # check if lifted
-                    var_list.append(V[var_type, kdx])
-                else:
-                    var_list.append(np.zeros(variables[var_type].shape)) # implicit function of other states
-
-        # differential states
         elif var_type == 'xd':
-            if ddx == None:
-                var_list.append(V[var_type, kdx])
-            else:
-                var_list.append(V['coll_var', kdx, ddx, var_type])
+            local_var = get_states_at_time(nlp_options, V, model_variables, kdx, ddx)
 
-        # controls
         elif var_type == 'u':
+            local_var = get_controls_at_time(nlp_options, V, model_variables, kdx, ddx)
 
-            if direct_collocation:
-                if (u_param == 'poly'):
-                    if ddx == None:
-                        var_list.append(V['coll_var', kdx, 0, var_type])
-                    else:
-                        var_list.append(V['coll_var', kdx, ddx, var_type])
-                else:
-                    var_list.append(V[var_type, kdx])
-            else:
-                var_list.append(V[var_type, kdx])
-
-        # parameters
         elif var_type == 'theta':
-            var_list.append(get_V_theta(V, nlp_options, kdx))
+            local_var = get_V_theta(V, nlp_options, kdx)
 
-        # state derivatives
         elif var_type == 'xddot':
-            if ddx == None:
-                if var_type in list(V.keys()): #  check if xddot is lifted
-                    var_list.append(V[var_type, kdx])
-                else: # not lifted
-                    var_list.append(np.zeros(variables[var_type].shape)) # implicit function of other states
-
-            else:
-                var_list.append(Xdot['coll_xd', kdx, ddx])
+            local_var = get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx)
 
         else:
-            raise ValueError("iterating over non-supported model variable type")
+            local_var = no_available_var_info(model_variables, var_type)
 
-    var_at_time = variables(cas.vertcat(*var_list))
+        var_list.append(local_var)
+
+    var_at_time = model_variables(cas.vertcat(*var_list))
 
     return var_at_time
 
 
 
 def get_variables_at_final_time(nlp_options, V, Xdot, model):
-    var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
+
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+
+    scheme = nlp_options['collocation']['scheme']
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    radau_collocation = (direct_collocation and scheme == 'radau')
+    other_collocation = (direct_collocation and (not scheme == 'radau'))
+
+    if radau_collocation:
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
+    elif other_collocation or multiple_shooting:
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
+    else:
+        message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
+        awelogger.logger.error(message)
+        raise Exception(message)
+
     return var_at_time
 
 def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=None, ddx=None):
@@ -251,11 +329,11 @@ def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_param
 def get_var_ref_at_time(nlp_options, P, V, Xdot, model, kdx, ddx=None):
     V_from_P = V(P['p', 'ref'])
     var_at_time = get_variables_at_time(nlp_options, V_from_P, Xdot, model.variables, kdx, ddx)
-
     return var_at_time
 
 def get_var_ref_at_final_time(nlp_options, P, V, Xdot, model):
-    var_at_time = get_var_ref_at_time(nlp_options, P, V, Xdot, model, -1, ddx=-1)
+    V_from_P = V(P['p', 'ref'])
+    var_at_time = get_variables_at_final_time(nlp_options, V_from_P, Xdot, model)
     return var_at_time
 
 def get_V_theta(V, nlp_numerics_options, k):
