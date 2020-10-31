@@ -34,7 +34,11 @@ import casadi.tools as cas
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
+
+import awebox.ocp.ocp_constraint as ocp_constraint
+
 import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
 
 import pdb
 
@@ -137,13 +141,7 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
 
 def make_stage_constraint_struct(model):
 
-    # make entry list to check if not empty
-    entry_list = [cas.entry('collocation', shape = model.dynamics(model.variables, model.parameters).size())]
-    if list(model.constraints.keys()):  # check if not empty
-        entry_list.append(cas.entry('path_constraints', struct = model.constraints))
-
-    # stage constraints structure -- necessary for interleaving
-    stage_constraints = cas.struct_symSX(entry_list)
+    stage_constraints = model.constraints_list.get_structure('all')
 
     return stage_constraints
 
@@ -228,18 +226,17 @@ def append_terminal_constraints(g_list, g_bounds, constraints, constraints_fun, 
 
     return [g_list, g_bounds]
 
-def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, var_initial, var_ref_initial, xi):
+def get_initial_constraints(constraints_fun, var_initial, var_ref_initial, xi):
 
     # evaluate constraint
     g_initial = constraints_fun['initial'](var_initial, var_ref_initial, xi)
+    init_cstr = cstr_op.Constraint(expr=g_initial,
+                                   name='initial', #todo: refine by name
+                                   cstr_type='eq',
+                                   include=True,
+                                   scale=1.)
 
-    # append constraint
-    g_list.append(g_initial)
-    # append constraint bounds
-    for cstr_type in list(constraints['initial'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['initial'][cstr_type].size()[0])
-
-    return [g_list, g_bounds]
+    return init_cstr
 
 def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
     g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)

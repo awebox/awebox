@@ -32,12 +32,14 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+
+import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
-import awebox.mdl.aero.kite_dir.frames as frames
-import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -78,11 +80,11 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         resi_f_kite = (f_aero_var - f_aero_earth_val)
 
-        f_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_f_kite,
-                                                   name='f_aero' + str(kite) + str(parent),
-                                                   cstr_type='eq',
-                                                   include=True,
-                                                   ref=f_scale)
+        f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
+                                        name='f_aero' + str(kite) + str(parent),
+                                        cstr_type='eq',
+                                        include=True,
+                                        scale=f_scale)
         cstr_list.append(f_kite_cstr)
 
     return cstr_list

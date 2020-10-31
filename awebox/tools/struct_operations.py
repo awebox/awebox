@@ -215,9 +215,13 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
     piecewise_constant_controls = not (nlp_options['collocation']['u_param'] == 'poly')
     at_control_node = (ddx is None)
+    before_last_node = kdx < nlp_options['n_k']
 
-    if direct_collocation and piecewise_constant_controls:
+    if direct_collocation and piecewise_constant_controls and before_last_node:
         return V[var_type, kdx]
+
+    elif direct_collocation and piecewise_constant_controls and (not before_last_node):
+        return V[var_type, -1]
 
     elif direct_collocation and (not piecewise_constant_controls) and at_control_node:
         return V['coll_var', kdx, 0, var_type]

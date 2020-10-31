@@ -125,16 +125,16 @@ class Model(object):
 
         self.__output_components = [outputs_fun, outputs_dict]
 
+        self.__dynamics = self.__constraints_list.get_function(options, self.__variables, self.__parameters, 'eq')
+
         return None
 
     def get_dae(self):
         """Generate DAE object for casadi integrators, rootfinder,...
         """
 
-        dynamics = self.__constraints_list.get_expression_list('eq')
-
         awelogger.logger.info('generate dae object')
-        model_dae = dae.Dae(self.__variables, self.__parameters, dynamics, self.__integral_outputs_fun)
+        model_dae = dae.Dae(self.__variables, self.__parameters, self.__dynamics, self.__integral_outputs_fun)
         model_dae.build_rootfinder()
 
         return model_dae
@@ -327,3 +327,15 @@ class Model(object):
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+    @property
+    def dynamics(self):
+        return self.__dynamics
+
+    @property
+    def constraints(self):
+        return self.__constraints_list.get_expression_list('ineq')
+
+    @property
+    def constraints_dict(self):
+        return self.__constraints_list.get_dict()

@@ -35,11 +35,14 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
+
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.mdl_constraint as mdl_constraint
-import awebox.tools.print_operations as print_op
+
 import pdb
 
 
@@ -135,11 +138,11 @@ def get_tether_cstr(options, variables_si, atmos, wind, architecture, parameters
 
         scale = options['scaling']['xl']['f_tether']
 
-        f_cstr = mdl_constraint.MdlConstraint(expr=local_resi_unscaled,
-                                              name='f_tether' + str(node) + str(parent),
-                                              cstr_type='eq',
-                                              include=True,
-                                              ref=scale)
+        f_cstr = cstr_op.Constraint(expr=local_resi_unscaled,
+                                  name='f_tether' + str(node) + str(parent),
+                                  cstr_type='eq',
+                                  include=True,
+                                  scale=scale)
         cstr_list.append(f_cstr)
 
     return cstr_list

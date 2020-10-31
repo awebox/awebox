@@ -53,6 +53,7 @@ import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
 
 from awebox.logger.logger import Logger as awelogger
 import pdb
@@ -85,7 +86,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ---------------------------------
     # lagrangian function of the system
     # ---------------------------------
-    cstr_list, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, cstr_list)
+    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs)
+    cstr_list.append(lagr_dyn_cstr)
 
     # --------------------------------------------
     # collect the outputs needed for constraint definition
@@ -182,11 +184,11 @@ def get_induction_cstr(options, atmos, wind, variables_si, parameters, outputs, 
                                + (1. - parameters['phi', 'iota']) * induction_final
         include=True
 
-    induction_cstr = mdl_constraint.MdlConstraint(expr=induction_constraint,
+    induction_cstr = cstr_op.Constraint(expr=induction_constraint,
                                                   name='induction',
                                                   cstr_type='eq',
                                                   include=include,
-                                                  ref=1.)
+                                                  scale=1.)
 
     return induction_cstr
 
@@ -212,11 +214,11 @@ def manage_power_integration(options, power, system_variables, parameters):
         energy_resi = (system_variables['SI']['xddot']['de'] - power)
         include_cstr = True
 
-    energy_cstr = mdl_constraint.MdlConstraint(expr=energy_resi,
+    energy_cstr = cstr_op.Constraint(expr=energy_resi,
                                                name='energy',
                                                cstr_type='eq',
                                                include=include_cstr,
-                                               ref = options['scaling']['xd']['e'])
+                                               scale = options['scaling']['xd']['e'])
 
     # dynamics function options
     if options['jit_code_gen']['include']:
@@ -470,11 +472,11 @@ def anticollision_inequality(options, variables, parameters, architecture):
         dist = variables['xd']['q' + str(kite_a) + str(parent_a)] - variables['xd']['q' + str(kite_b) + str(parent_b)]
         dist_inequality = 1 - (cas.mtimes(dist.T, dist) / dist_min ** 2)
 
-        anticollision_cstr = mdl_constraint.MdlConstraint(expr=dist_inequality,
+        anticollision_cstr = cstr_op.Constraint(expr=dist_inequality,
                                                           name='anticollision' + str(kite_a) + str(kite_b),
                                                           cstr_type='ineq',
                                                           include=options['model_bounds']['anticollision']['include'],
-                                                          ref=1.)
+                                                          scale=1.)
         cstr_list.append(anticollision_cstr)
 
     return cstr_list
@@ -515,18 +517,18 @@ def dcoeff_actuation_inequality(options, variables_si, parameters, architecture)
             resi_max = (dcoeff - applied_max)
             resi_min = (applied_min - dcoeff)
 
-            max_cstr = mdl_constraint.MdlConstraint(expr=resi_max,
+            max_cstr = cstr_op.Constraint(expr=resi_max,
                                                     name='dcoeff_max' + kiteparent,
                                                     cstr_type='ineq',
                                                     include=options['model_bounds']['dcoeff_actuation']['include'],
-                                                    ref=1.)
+                                                    scale=1.)
             cstr_list.append(max_cstr)
 
-            min_cstr = mdl_constraint.MdlConstraint(expr=resi_min,
+            min_cstr = cstr_op.Constraint(expr=resi_min,
                                                     name='dcoeff_min' + kiteparent,
                                                     cstr_type='ineq',
                                                     include=options['model_bounds']['dcoeff_actuation']['include'],
-                                                    ref=1.)
+                                                    scale=1.)
             cstr_list.append(min_cstr)
 
     return cstr_list
@@ -567,18 +569,18 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
             resi_max = (coeff - applied_max)
             resi_min = (applied_min - coeff)
 
-            max_cstr = mdl_constraint.MdlConstraint(expr=resi_max,
+            max_cstr = cstr_op.Constraint(expr=resi_max,
                                                     name='coeff_max' + kiteparent,
                                                     cstr_type='ineq',
                                                     include=options['model_bounds']['coeff_actuation']['include'],
-                                                    ref=1.)
+                                                    scale=1.)
             cstr_list.append(max_cstr)
 
-            min_cstr = mdl_constraint.MdlConstraint(expr=resi_min,
+            min_cstr = cstr_op.Constraint(expr=resi_min,
                                                     name='coeff_min' + kiteparent,
                                                     cstr_type='ineq',
                                                     include=options['model_bounds']['coeff_actuation']['include'],
-                                                    ref=1.)
+                                                    scale=1.)
             cstr_list.append(min_cstr)
 
     return cstr_list
@@ -602,11 +604,11 @@ def acceleration_inequality(options, variables):
             # acc^2 < acc_max^2 -> acc^2 / acc_max^2 - 1 < 0
             local_ineq = acc_sq_norm - 1.
 
-            acc_cstr = mdl_constraint.MdlConstraint(expr=local_ineq,
+            acc_cstr = cstr_op.Constraint(expr=local_ineq,
                                                     name='acceleration' + var_label,
                                                     cstr_type='ineq',
                                                     include=options['model_bounds']['acceleration']['include'],
-                                                    ref=1.)
+                                                    scale=1.)
             cstr_list.append(acc_cstr)
 
     return cstr_list
@@ -631,18 +633,18 @@ def airspeed_inequality(options, outputs, parameters, architecture):
         max_resi = airspeed / airspeed_max - 1.
         min_resi = - airspeed / airspeed_min + 1.
 
-        max_cstr = mdl_constraint.MdlConstraint(expr=max_resi,
+        max_cstr = cstr_op.Constraint(expr=max_resi,
                                                 name='airspeed_max' + str(kite) + str(parent),
                                                 cstr_type='ineq',
                                                 include=options['model_bounds']['airspeed']['include'],
-                                                ref=1.)
+                                                scale=1.)
         cstr_list.append(max_cstr)
 
-        min_cstr = mdl_constraint.MdlConstraint(expr=min_resi,
+        min_cstr = cstr_op.Constraint(expr=min_resi,
                                                 name='airspeed_min' + str(kite) + str(parent),
                                                 cstr_type='ineq',
                                                 include=options['model_bounds']['airspeed']['include'],
-                                                ref=1.)
+                                                scale=1.)
         cstr_list.append(min_cstr)
 
     return cstr_list
@@ -671,11 +673,11 @@ def angular_velocity_inequality(options, variables, parameters, architecture):
             # (omega^\top omega)/omega_norm_max^2 - 1 <= 0
 
             ineq = cas.mtimes(omega.T, omega) / omega_norm_max ** 2. - 1.
-            omega_cstr = mdl_constraint.MdlConstraint(expr=ineq,
+            omega_cstr = cstr_op.Constraint(expr=ineq,
                                                       name='angular_velocity' + str(kite) + str(parent),
                                                       cstr_type='ineq',
                                                       include=options['model_bounds']['angular_velocity']['include'],
-                                                      ref=1.)
+                                                      scale=1.)
             cstr_list.append(omega_cstr)
 
     return cstr_list
@@ -730,11 +732,11 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         tether_constraint_includes = options['model_bounds']['tether']['tether_constraint_includes']
 
         if n in tether_constraint_includes['stress']:
-            stress_cstr = mdl_constraint.MdlConstraint(expr=stress_inequality,
+            stress_cstr = cstr_op.Constraint(expr=stress_inequality,
                                                        name='tether_stress' + str(n) + str(parent),
                                                        cstr_type='ineq',
                                                        include=True,
-                                                       ref=1.)
+                                                       scale=1.)
             cstr_list.append(stress_cstr)
 
         if n in tether_constraint_includes['force']:
@@ -742,18 +744,18 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
             force_max_resi = (tension - max_tension)
             force_min_resi = -(tension - min_tension)
 
-            force_max_cstr = mdl_constraint.MdlConstraint(expr=force_max_resi,
+            force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
                                                        name='tether_force_max' + str(n) + str(parent),
                                                        cstr_type='ineq',
                                                        include=True,
-                                                       ref=vect_op.smooth_abs(max_tension))
+                                                       scale=vect_op.smooth_abs(max_tension))
             cstr_list.append(force_max_cstr)
 
-            force_min_cstr = mdl_constraint.MdlConstraint(expr=force_min_resi,
+            force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
                                                        name='tether_force_min' + str(n) + str(parent),
                                                        cstr_type='ineq',
                                                        include=True,
-                                                       ref=vect_op.smooth_abs(min_tension))
+                                                       scale=vect_op.smooth_abs(min_tension))
             cstr_list.append(force_min_cstr)
 
         # outputs so that the user can find the stress and tension
@@ -774,11 +776,11 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
                 outputs['local_performance']['tether_stress{}{}'.format(kites[0], kites[1])] = tension / cross_section
 
                 stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
-                stress_cstr = mdl_constraint.MdlConstraint(expr=stress_inequality_untightened,
+                stress_cstr = cstr_op.Constraint(expr=stress_inequality_untightened,
                                                            name='tether_stress' + str(kites[0]) + str(kites[1]),
                                                            cstr_type='ineq',
                                                            include=True,
-                                                           ref=1./tightness)
+                                                           scale=1./tightness)
                 cstr_list.append(stress_cstr)
 
             else:
@@ -791,11 +793,11 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
                     stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
 
-                    stress_cstr = mdl_constraint.MdlConstraint(expr=stress_inequality_untightened,
+                    stress_cstr = cstr_op.Constraint(expr=stress_inequality_untightened,
                                                                name='tether_stress' + label,
                                                                cstr_type='ineq',
                                                                include=True,
-                                                               ref=1./tightness)
+                                                               scale=1./tightness)
                     cstr_list.append(stress_cstr)
 
 
@@ -816,11 +818,11 @@ def wound_tether_length_inequality(options, variables):
         expr = (l_t - l_t_full)
         include=options['model_bounds']['wound_tether_length']['include']
 
-    cstr = mdl_constraint.MdlConstraint(expr=expr,
+    cstr = cstr_op.Constraint(expr=expr,
                                         name='wound_tether_length',
                                         cstr_type='ineq',
                                         include=include,
-                                        ref=length_scaling)
+                                        scale=length_scaling)
 
     return cstr
 
@@ -1053,18 +1055,18 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                 expr_max = rotation_angles - max_angles
                 expr_min = min_angles - rotation_angles
 
-                cstr_max = mdl_constraint.MdlConstraint(expr=expr_max,
+                cstr_max = cstr_op.Constraint(expr=expr_max,
                                                         name='rotation_max' + str(kite) + str(parent),
                                                         cstr_type='ineq',
                                                         include=options['model_bounds']['rotation']['include'],
-                                                        ref=1.)
+                                                        scale=1.)
                 cstr_list.append(cstr_max)
 
-                cstr_min = mdl_constraint.MdlConstraint(expr=expr_min,
+                cstr_min = cstr_op.Constraint(expr=expr_min,
                                                         name='rotation_min' + str(kite) + str(parent),
                                                         cstr_type='ineq',
                                                         include=options['model_bounds']['rotation']['include'],
-                                                        ref=1.)
+                                                        scale=1.)
                 cstr_list.append(cstr_min)
 
                 outputs['local_performance']['rot_angles' + str(kite) + str(parent)] = cas.vertcat(
@@ -1079,11 +1081,11 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     parameters['theta0', 'model_bounds', 'rot_angles', 2]
                 )
 
-                cstr_min = mdl_constraint.MdlConstraint(expr=-1. * yaw_expr,
+                cstr_min = cstr_op.Constraint(expr=-1. * yaw_expr,
                                                         name='rotation_max' + str(kite) + str(parent),
                                                         cstr_type='ineq',
                                                         include=options['model_bounds']['rotation']['include'],
-                                                        ref=1.)
+                                                        scale=1.)
                 cstr_list.append(cstr_min)
 
                 outputs['local_performance']['rot_angles' + str(kite) + str(parent)] = yaw_angle
@@ -1118,32 +1120,32 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                         expr_min_tether1 = min_angles - rotation_angles
                         expr_min_tether2 = min_angles - rotation_angles2
 
-                        cstr_max_tether1 = mdl_constraint.MdlConstraint(expr=expr_max_tether1,
+                        cstr_max_tether1 = cstr_op.Constraint(expr=expr_max_tether1,
                                                                 name='rotation_max' + tether_name,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_max_tether1)
 
-                        cstr_max_tether2 = mdl_constraint.MdlConstraint(expr=expr_max_tether2,
+                        cstr_max_tether2 = cstr_op.Constraint(expr=expr_max_tether2,
                                                                 name='rotation_max' + tether_name2,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_max_tether2)
 
-                        cstr_min_tether1 = mdl_constraint.MdlConstraint(expr=expr_min_tether1,
+                        cstr_min_tether1 = cstr_op.Constraint(expr=expr_min_tether1,
                                                                 name='rotation_min' + tether_name,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_min_tether1)
 
-                        cstr_min_tether2 = mdl_constraint.MdlConstraint(expr=expr_min_tether2,
+                        cstr_min_tether2 = cstr_op.Constraint(expr=expr_min_tether2,
                                                                 name='rotation_min' + tether_name2,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_min_tether2)
 
                         outputs['local_performance']['rot_angles' + tether_name] = cas.vertcat(
@@ -1163,18 +1165,18 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                         rotation_angle_expr2, span2 = get_span_angle_expr(options, xd, kites[(k + 1) % len(kites)],
                                                                           kites[k], parent_map, parameters)
 
-                        cstr_max_tether1 = mdl_constraint.MdlConstraint(expr=rotation_angle_expr,
+                        cstr_max_tether1 = cstr_op.Constraint(expr=rotation_angle_expr,
                                                                 name='rotation_max' + tether_name,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_max_tether1)
 
-                        cstr_max_tether2 = mdl_constraint.MdlConstraint(expr=rotation_angle_expr2,
+                        cstr_max_tether2 = cstr_op.Constraint(expr=rotation_angle_expr2,
                                                                 name='rotation_max' + tether_name2,
                                                                 cstr_type='ineq',
                                                                 include=options['model_bounds']['rotation']['include'],
-                                                                ref=1.)
+                                                                scale=1.)
                         cstr_list.append(cstr_max_tether2)
 
                         outputs['local_performance']['rot_angles' + tether_name] = span

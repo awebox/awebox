@@ -31,18 +31,22 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.indicators as indicators
-import numpy as np
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
+import numpy as np
+import copy
+
+import awebox.mdl.mdl_constraint as mdl_constraint
+
+import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.stability_derivatives as stability_derivatives
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 
-import copy
-import awebox.mdl.mdl_constraint as mdl_constraint
+
 
 
 def arbitrarily_desired_force_frame():
@@ -131,18 +135,18 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
         resi_f_kite = (f_aero_var - f_aero_val)
         resi_m_kite = (m_aero_var - m_aero_val)
 
-        f_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_f_kite,
+        f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
                                                    name='f_aero' + str(kite) + str(parent),
                                                    cstr_type='eq',
                                                    include=True,
-                                                   ref=f_scale)
+                                                   scale=f_scale)
         cstr_list.append(f_kite_cstr)
 
-        m_kite_cstr = mdl_constraint.MdlConstraint(expr=resi_m_kite,
+        m_kite_cstr = cstr_op.Constraint(expr=resi_m_kite,
                                                    name='m_aero' + str(kite) + str(parent),
                                                    cstr_type='eq',
                                                    include=True,
-                                                   ref=m_scale)
+                                                   scale=m_scale)
         cstr_list.append(m_kite_cstr)
 
     return cstr_list

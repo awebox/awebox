@@ -11,6 +11,7 @@ import awebox.mdl.architecture as archi
 import numpy as np
 import awebox.mdl.system as system
 import awebox.mdl.mdl_constraint as mdl_constraint
+import awebox.tools.constraint_operations as cstr_op
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 #
@@ -79,7 +80,6 @@ def generate_architecture_dict():
                   'kites_map': {0:[],1:[2,3,4]}}
 
     test_archi_dict['triple_kites'] = archi_dict
-
 
     # triple-dual kites
     archi_dict = {'parent_map': {1:0, 2:1, 3:1, 4:1, 5:1, 6:5, 7:5},
@@ -276,5 +276,119 @@ def test_tether_moments():
     return None
 
 def test_constraint_mechanism():
-    mdl_constraint.test()
+    rdx = 0
+    results = {}
+
+    # can we make a MdlConstraint?
+    var = cas.SX.sym('var')
+    expr = cas.vertcat(var ** 2. - 2., 8. * var)
+    cstr_type = 'eq'
+    name = 'cstr1'
+    cstr1 = cstr_op.Constraint(expr=expr, name=name, cstr_type=cstr_type, include=True, scale=1.)
+
+    # is the length of that constraint as expected?
+    results[rdx] = (cstr1.expr.shape == (2, 1))
+    rdx += 1
+
+    # can we make a MdlConstraintList?
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    # are the lengths of the eq_list and ineq_list both zero?
+    results[rdx] = (len(cstr_list.eq_list) == 0) and (len(cstr_list.ineq_list) == 0)
+    rdx += 1
+
+    # can we add non-empty constraints to cstr_list?
+    expr2 = var + 4.
+    cstr_type2 = 'eq'
+    name2 = 'cstr2'
+    cstr2 = cstr_op.Constraint(expr=expr2, name=name2, cstr_type=cstr_type2, include=True, scale=1.)
+
+    cstr_list.append(cstr1)
+    cstr_list.append(cstr2)
+
+    # does the list record two equality constraints and 0 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 0)
+    rdx += 1
+
+    # is the number of expressions in the equality constraints == 3?
+    results[rdx] = (cstr_list.get_expression_list('eq').shape == (3, 1))
+    rdx += 1
+
+    # can we add an empty list to the cstr_list?
+    cstr_list.append([])
+
+    # does the list still record two equality constraints and 0 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 0)
+    rdx += 1
+
+    # can we make an incomplete constraint?
+    expr3 = []
+    cstr_type3 = 'eq'
+    name3 = 'cstr3'
+    cstr3 = cstr_op.Constraint(expr=expr3, name=name3, cstr_type=cstr_type3, include=True, scale=1.)
+
+    # can we add the incomplete constraint to the list?
+    cstr_list.append(cstr3)
+
+    # does the list still record two equality constraints and 0 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 0)
+    rdx += 1
+
+    # can we make an empty list?
+    cstr_list_empty = mdl_constraint.MdlConstraintList()
+
+    # can we add the empty list to the existing list?
+    cstr_list.append(cstr_list_empty)
+
+    # does the list still record two equality constraints and 0 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 0)
+    rdx += 1
+
+    # can we make a non-empty list, and append it to the main list?
+    cstr_list_nonempty = mdl_constraint.MdlConstraintList()
+    expr4 = var + 8.
+    cstr_type4 = 'ineq'
+    name4 = 'cstr4'
+    cstr4 = cstr_op.Constraint(expr=expr4, name=name4, cstr_type=cstr_type4, include=True, scale=1.)
+    cstr_list_nonempty.append(cstr4)
+    cstr_list.append(cstr_list_nonempty)
+
+    # does the list now record two equality constraints and 1 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 1)
+    rdx += 1
+
+    # can we make a constraint with a duplicate name, and append it to the main list?
+    expr5 = cas.sin(var) + 8.
+    cstr_type5 = 'ineq'
+    name5 = 'cstr4'
+    cstr5 = cstr_op.Constraint(expr=expr5, name=name5, cstr_type=cstr_type5, include=True, scale=1.)
+    cstr_list.append(cstr5)
+
+    # does the list still record two equality constraints and 1 inequality constraints?
+    results[rdx] = (len(cstr_list.eq_list) == 2) and (len(cstr_list.ineq_list) == 1)
+    rdx += 1
+
+    # does the list still record 3 constraints together?
+    results[rdx] = (len(cstr_list.all_list) == 3)
+    rdx += 1
+
+    # get functions
+    params = cas.SX.sym('params', (2, 1))
+    cstr5_fun = cstr5.get_function(variables=var, parameters=params)
+
+    # do the functions give expected results?
+    var_test = 30. * np.pi / 180.
+    sol_test = np.sin(var_test) + 8.
+    found_test = cstr5_fun(30. * np.pi / 180, params)
+    results[rdx] = (found_test == sol_test)
+    rdx += 1
+
+    ##############
+    # summarize results
+    ##############
+
+    print(results)
+    for res_value in results.values():
+        assert (res_value)
+
     return None

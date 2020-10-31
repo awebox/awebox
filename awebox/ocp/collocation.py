@@ -33,10 +33,13 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import numpy as np
-import awebox.tools.struct_operations as struct_op
+
 from collections import OrderedDict
 from . import constraints
+
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
 
 import pdb
 
@@ -292,7 +295,7 @@ class Collocation(object):
         return Integral_outputs_list
 
 
-    def append_continuity_constraint(self, g_list, g_bounds, V, kdx):
+    def get_continuity_constraint(self, V, kdx):
 
         # get an expression for the state at the end of the finite element
         xf_k = 0
@@ -302,14 +305,16 @@ class Collocation(object):
             else:
                 xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'xd']
 
-
-        # add continuity equation to nlp
+        # pin the end of the control interval to the start of the new control interval
         g_continuity = V['xd', kdx + 1] - xf_k
-        g_list.append(g_continuity)
-        # add constraint bounds
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', g_continuity.size()[0])
 
-        return [g_list, g_bounds]
+        cstr = cstr_op.Constraint(expr=g_continuity,
+                                  name='continuity' + str(kdx),
+                                  cstr_type='eq',
+                                  include=True,
+                                  ref=1.)
+
+        return cstr
 
     def __integrate_integral_constraints(self, integral_constraints, kdx, t_f):
 
@@ -326,78 +331,27 @@ class Collocation(object):
         """ Generate collocation and path constraints on all nodes, provide integral outputs and
             integral constraints on all nodes
         """
-        # extract discretization information
-        N_coll = self.__n_k*self.__d # collocation points
 
         # construct list of all collocation node variables and parameters
         coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
         coll_params = struct_op.get_coll_params(options, V, P, model)
 
-        # evaluate dynamics and constraint functions on all intervals
-        if options['parallelization']['include']:
+        # initialize function evaluations
+        coll_outputs = []
+        integral_outputs_deriv = []
+        integral_constraints = OrderedDict()
+        integral_constraints['inequality'] = []
+        integral_constraints['equality'] = []
 
-            parallellization = options['parallelization']['type']
+        # evaluate functions in for loop
+        for kdx in range(self.__n_k):
+            for ddx in range(self.__d):
+                idx = ddx + kdx * self.__d
 
-            # use function map for parallellization
-            dynamics = model.dynamics.map('dynamics_map', parallellization, N_coll, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, N_coll, [], [])
-            integral_outputs_fun = model.integral_outputs_fun.map('integral_outputs_map', parallellization, N_coll, [], [])
-            outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, N_coll, [], [])
-
-            # extract formulation information
-            constraints_fun_ineq = formulation.constraints_fun['integral']['inequality'].map('integral_constraints_map_ineq', 'serial', N_coll, [], [])
-            constraints_fun_eq = formulation.constraints_fun['integral']['equality'].map('integral_constraints_map_eq', 'serial', N_coll, [], [])
-
-            # evaluate functions
-            coll_dynamics = dynamics(coll_vars, coll_params)
-            coll_constraints = path_constraints_fun(coll_vars, coll_params)
-            coll_outputs = outputs_fun(coll_vars, coll_params)
-            integral_outputs_deriv = integral_outputs_fun(coll_vars, coll_params)
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = constraints_fun_ineq(coll_vars, coll_params)
-            integral_constraints['equality'] = constraints_fun_eq(coll_vars, coll_params)
-
-        else:
-
-            # initialize function evaluations
-            coll_dynamics = []
-            coll_constraints = []
-            coll_outputs = []
-            integral_outputs_deriv = []
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = []
-            integral_constraints['equality'] = []
-
-            h = 1. / self.__n_k
-            tf = options['normalization']['t_f']
-
-            u_and_xd_keys = set(model.variables_dict['u'].keys() + model.variables_dict['xd'].keys())
-            triv_var_names = set(model.variables_dict['xddot'].keys()).intersection(u_and_xd_keys)
-            triv_dyn = cas.vertcat(*[model.variables_dict['xddot'][var_name] for var_name in triv_var_names])
-            number_triv_dyn_rows = triv_dyn.shape[0]
-
-            # evaluate functions in for loop
-            for kdx in range(self.__n_k):
-                for ddx in range(self.__d):
-
-                    idx = ddx + kdx * self.__d
-
-                    # scale the trivial constraints by the maximum derivative value, to keep the
-                    # jacobian of the constraints within a reasonable range for all collocation orders
-                    deriv_scaling = np.max(np.absolute(np.array(self.__coeff_collocation[:, ddx+1] / tf / h)))
-                    local_dyn_unscaled = model.dynamics(coll_vars[:,idx],coll_params[:,idx])
-                    dyn_scaling = np.ones(local_dyn_unscaled.shape)
-                    dyn_scaling[:number_triv_dyn_rows] *= deriv_scaling
-
-                    local_dyn = local_dyn_unscaled / dyn_scaling
-
-                    coll_dynamics = cas.horzcat(coll_dynamics, local_dyn)
-                    coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,idx],coll_params[:,idx]))
-                    coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
-                    integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
-                    integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
-                    integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
-
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 
         # integrate integral outputs
         Integral_outputs_list = [np.zeros(model.integral_outputs.cat.shape[0])]
@@ -407,7 +361,7 @@ class Collocation(object):
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
 
-        return coll_dynamics, coll_constraints, coll_outputs, Integral_outputs_list, Integral_constraints_list
+        return coll_cstr_list, coll_outputs, Integral_outputs_list, Integral_constraints_list
 
 
 

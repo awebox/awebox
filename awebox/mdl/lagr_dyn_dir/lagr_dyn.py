@@ -3,6 +3,7 @@ import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
 
 import awebox.mdl.lagr_dyn_dir.tools as tools
 
@@ -16,7 +17,7 @@ import numpy as np
 import pdb
 import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, cstr_list):
+def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs):
 
     parent_map = architecture.parent_map
     number_of_nodes = architecture.number_of_nodes
@@ -58,6 +59,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], holonomic_constraints, outputs,
                                                   architecture)
 
+    cstr_list = mdl_constraint.MdlConstraintList()
+
     # --------------------------------
     # translational dynamics
     # --------------------------------
@@ -90,20 +93,20 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
     forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max']
 
-    dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation)
-    dynamics_translation_cstr = mdl_constraint.MdlConstraint(expr=dynamics_translation,
+    dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
+    dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,
                                                              cstr_type='eq',
                                                              name='dynamics_translation',
                                                              include=True,
-                                                             ref=forces_scaling)
+                                                             scale=1.)
     cstr_list.append(dynamics_translation_cstr)
 
-    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)
-    dynamics_constraint_cstr = mdl_constraint.MdlConstraint(expr=dynamics_constraints,
+    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
+    dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
                                                             cstr_type='eq',
                                                             name='dynamics_constraint',
                                                             include=True,
-                                                            ref = holonomic_scaling)
+                                                            scale=1.)
     cstr_list.append(dynamics_constraint_cstr)
 
 
@@ -112,11 +115,11 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # --------------------------------
 
     rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
-    rotation_dynamics_cstr = mdl_constraint.MdlConstraint(expr=rotation_dynamics,
+    rotation_dynamics_cstr = cstr_op.Constraint(expr=rotation_dynamics,
                                                           cstr_type='eq',
                                                           name='rotation_dynamics',
                                                           include=True,
-                                                          ref = 1.)
+                                                          scale = 1.)
     cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
@@ -134,11 +137,11 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
             trivial_dyn = cas.vertcat(*[system_variables['scaled']['xddot', name] - system_variables['scaled']['u', name]])
 
         if name_in_xd or name_in_u:
-            trivial_dyn_cstr = mdl_constraint.MdlConstraint(expr=trivial_dyn,
+            trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
                                                             cstr_type='eq',
                                                             name='trivial_' + name,
                                                             include=True,
-                                                            ref=1.)
+                                                            scale=1.)
             cstr_list.append(trivial_dyn_cstr)
 
     return cstr_list, outputs
