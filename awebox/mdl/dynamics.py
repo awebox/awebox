@@ -76,16 +76,16 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     scaling = options['scaling']
 
     # -----------------------------------
-    # prepare empty constraints list
+    # prepare empty constraints list and outputs
     # -----------------------------------
     cstr_list = mdl_constraint.MdlConstraintList()
-
-    # define outputs to monitor system constraints etc.
     outputs = {}
 
     # ---------------------------------
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
+
+    # enforce the lagrangian dynamics
     lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs)
     cstr_list.append(lagr_dyn_cstr)
 

@@ -36,8 +36,6 @@ import numpy as np
 
 from collections import OrderedDict
 
-import awebox.ocp.constraints as constraints
-
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
@@ -326,7 +324,7 @@ class Collocation(object):
 
         return integral_over_interval
 
-    def collocate_constraints(self, options, model, formulation, V, P, Xdot):
+    def collocate_outputs_and_integrals(self, options, model, formulation, V, P, Xdot):
         """ Generate collocation and path constraints on all nodes, provide integral outputs and
             integral constraints on all nodes
         """

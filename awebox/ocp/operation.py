@@ -65,45 +65,24 @@ def get_operation_conditions(options):
     return [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints]
 
 def determine_if_integral_constraints(options):
-
-    if (options['trajectory']['type'] == 'compromised_landing' and options['compromised_landing']['emergency_scenario'][0] == 'broken_battery'):
-        return True
-
-    return False
+    compromised_landing = (options['trajectory']['type'] == 'compromised_landing')
+    broken_battery = compromised_landing and (options['compromised_landing']['emergency_scenario'][0] == 'broken_battery')
+    return broken_battery
 
 def determine_if_terminal_inequalities(options):
-
-    if options['trajectory']['type'] in ['nominal_landing', 'compromised_landing']:
-        return True
-
-    return False
+    return (options['trajectory']['type'] in ['nominal_landing', 'compromised_landing'])
 
 
 def determine_if_param_initial_conditions(options):
-
-    enforce_param_initial_conditions = bool(False)
-
-    if options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing']:
-         enforce_param_initial_conditions = bool(True)
-
-    return enforce_param_initial_conditions
+    return (options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing'])
 
 def determine_if_initial_conditions(options):
-
-    enforce_initial_conditions = bool(False)
-
-    if options['trajectory']['type'] in ['launch','mpc']:
-         enforce_initial_conditions = bool(True)
-
-    return enforce_initial_conditions
+    return (options['trajectory']['type'] in ['launch','mpc'])
 
 def determine_if_param_terminal_conditions(options):
-    if options['trajectory']['type'] in ['transition', 'launch']:
-         return True
+    return (options['trajectory']['type'] in ['transition', 'launch'])
 
-    return False
-
-def get_initial_constraints(options, initial_variables, ref_variables, xi_var, model, xi_dict):
+def get_initial_constraints(options, initial_variables, ref_variables, model, xi_dict):
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
@@ -115,7 +94,6 @@ def get_initial_constraints(options, initial_variables, ref_variables, xi_var, m
                                     cstr_type='eq')
         cstr_list.append(init_energy_cstr)
 
-    xi = xi_var
     _, initial_conditions, param_initial_conditions, _, _, _ = get_operation_conditions(options)
 
     if param_initial_conditions:
@@ -175,34 +153,27 @@ def generate_integral_constraints(options, variables, parameters, model):
 
     return integral_constraints_struct, integral_constraints_fun, integral_constants
 
-def generate_terminal_constraints(options, terminal_variables, ref_variables, model, xi_dict):
+def get_terminal_constraints(options, terminal_variables, ref_variables, model, xi_dict):
 
-    xi = xi_dict['xi']
-    eqs_dict = {}
-    ineqs_dict = {}
-    constraint_list = []
+    cstr_list = ocp_constraint.OcpConstraintList()
 
-    [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = get_operation_conditions(options)
+    _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints = get_operation_conditions(options)
 
-    # list al terminal equalities ==> put SX expressions in dict
     if param_terminal_conditions:
-        eqs_dict['param_terminal_conditions'] = make_param_terminal_conditions(terminal_variables, ref_variables, xi_dict, model, options)
-        constraint_list.append(eqs_dict['param_terminal_conditions'])
-
-    # list all terminal inequalities ==> put SX expressions in dict
+        terminal_param_eq = make_param_terminal_conditions(terminal_variables, ref_variables, xi_dict, model, options)
+        terminal_param_cstr = cstr_op.Constraint(expr=terminal_param_eq,
+                                    name='param_terminal_conditions',
+                                    cstr_type='eq')
+        cstr_list.append(terminal_param_cstr)
 
     if terminal_inequalities:
-        ineqs_dict['terminal_position'] = make_terminal_position_inequality(terminal_variables, model, options)
-        constraint_list.append(ineqs_dict['terminal_position'])
+        terminal_ineq = make_terminal_position_inequality(terminal_variables, model, options)
+        terminal_ineq_cstr = cstr_op.Constraint(expr=terminal_ineq,
+                                    name='terminal_inequalities',
+                                    cstr_type='ineq')
+        cstr_list.append(terminal_ineq_cstr)
 
-    # generate initial constraints - empty struct containing both equalities and inequalitiess
-    terminal_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-
-    # fill in struct and create function
-    terminal_constraints = terminal_constraints_struct(cas.vertcat(*constraint_list))
-    terminal_constraints_fun = cas.Function('terminal_constraints_fun',[terminal_variables, ref_variables, xi],[terminal_constraints.cat])
-
-    return terminal_constraints_struct, terminal_constraints_fun
+    return cstr_list
 
 
 
@@ -223,22 +194,19 @@ def get_vortex_strength_constraints(options, variables, model):
 
 
 def get_wake_fix_constraints(options, variables, model):
-    print_op.warn_about_temporary_funcationality_removal(location='ocp.operation')
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
-    # ineqs_dict = {}
-    # eqs_dict, constraint_list = vortex_fix.get_cstr_in_operation_format(options, variables, model, Collocation)
-    #
-    # # generate initial constraints - empty struct containing both equalities and inequalitiess
-    # wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-    #
-    # # fill in struct and create function
-    # wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
-    # wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
-    #
-    # return wake_fix_constraints, wake_fix_constraints_fun
+    ineqs_dict = {}
+    eqs_dict, constraint_list = vortex_fix.get_cstr_in_operation_format(options, variables, model, Collocation)
 
-    return None
+    # generate initial constraints - empty struct containing both equalities and inequalitiess
+    wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
+
+    # fill in struct and create function
+    wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
+    wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
+
+    return wake_fix_constraints, wake_fix_constraints_fun
 
 
 def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
@@ -266,31 +234,29 @@ def make_initial_energy_equality(initial_model_variables, ref_variables):
     return initial_energy_eq
 
 def variable_does_not_belong_to_unselected_induction_model(name, options):
-    # induction_steadyness = options['induction']['steadyness']
-    # induction_symmetry = options['induction']['symmetry']
-    #
-    # induction_label = ''
-    # if induction_steadyness == 'steady':
-    #     induction_label += 'q'
-    # elif induction_steadyness == 'unsteady':
-    #     induction_label += 'u'
-    #
-    # if induction_symmetry == 'axisymmetric':
-    #     induction_label += 'axi'
-    # elif induction_symmetry == 'asymmetric':
-    #     induction_label += 'asym'
-    #
-    # remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
-    # if induction_label in remaining_induction_labels:
-    #     remaining_induction_labels.remove(induction_label)
-    #
-    # not_unselected = True
-    # for label in remaining_induction_labels:
-    #     if label in name:
-    #         not_unselected = False
-    #
-    print_op.warn_about_temporary_funcationality_removal(location='operation.unselect')
+    induction_steadyness = options['induction']['steadyness']
+    induction_symmetry = options['induction']['symmetry']
+
+    induction_label = ''
+    if induction_steadyness == 'steady':
+        induction_label += 'q'
+    elif induction_steadyness == 'unsteady':
+        induction_label += 'u'
+
+    if induction_symmetry == 'axisymmetric':
+        induction_label += 'axi'
+    elif induction_symmetry == 'asymmetric':
+        induction_label += 'asym'
+
+    remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
+    if induction_label in remaining_induction_labels:
+        remaining_induction_labels.remove(induction_label)
+
     not_unselected = True
+    for label in remaining_induction_labels:
+        if label in name:
+            not_unselected = False
+
     return not_unselected
 
 

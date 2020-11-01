@@ -91,3 +91,5 @@ def test_sweep_serial():
     os.remove("serial_test.dict")
 
     sweep_test.plot(['all','comp_all'])
+
+test_trial_serial()

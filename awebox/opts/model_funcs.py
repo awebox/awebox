@@ -479,6 +479,9 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
+    options_tree.append(('nlp', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
+
     options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
 
     local_label = get_local_actuator_label(actuator_steadyness, actuator_symmetry)

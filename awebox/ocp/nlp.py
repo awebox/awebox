@@ -86,7 +86,7 @@ class NLP(object):
         Integral_outputs_fun,
         time_grids,
         Collocation,
-        Multiple_shooting] =  discretization.discretize(nlp_options,model,formulation)
+        Multiple_shooting] = discretization.discretize(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
 
         self.__V = V

@@ -339,3 +339,7 @@ class Model(object):
     @property
     def constraints_dict(self):
         return self.__constraints_list.get_dict()
+
+    @property
+    def constraints_fun(self):
+        return self.__constraints_list.get_function(self.__options, self.__variables, self.__parameters, 'ineq')

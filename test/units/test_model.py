@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 """Test to check model functionality
 
-@author: Jochem De Schutter
+@author: Jochem De Schutter,
+edit: rachel leuthold, alu-fr 2020
 """
 
 import awebox as awe
@@ -12,6 +13,8 @@ import numpy as np
 import awebox.mdl.system as system
 import awebox.mdl.mdl_constraint as mdl_constraint
 import awebox.tools.constraint_operations as cstr_op
+
+import pdb
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 #
@@ -221,7 +224,13 @@ def test_cross_tether_model():
     assert('c23' in outputs['tether_length'].keys())
     assert('c32' not in outputs['tether_length'].keys())
 
-    assert(constraints['inequality']['tether_stress'].shape[0] == 4)
+    assert (constraints['inequality']['tether_stress10'].shape[0] == 1)
+    assert (constraints['inequality']['tether_stress21'].shape[0] == 1)
+    assert (constraints['inequality']['tether_stress31'].shape[0] == 1)
+    assert (constraints['inequality']['tether_stress23'].shape[0] == 1)
+
+    assert ('tether_stress00' not in constraints['inequality'].keys())
+    assert ('tether_stress32' not in constraints['inequality'].keys())
 
     return None
 

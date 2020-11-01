@@ -32,6 +32,8 @@ import casadi.tools as cas
 import awebox.tools.constraint_operations as cstr_op
 import numpy as np
 import pdb
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 
 class MdlConstraintList(cstr_op.ConstraintList):
@@ -44,7 +46,7 @@ class MdlConstraintList(cstr_op.ConstraintList):
 
         entry_list = []
         for cstr in cstr_list:
-            joined_name = cstr.cstr_type + '_' + cstr.name
+            joined_name = cstr.name
             local = cas.entry(joined_name, shape=cstr.expr.shape)
             entry_list.append(local)
 

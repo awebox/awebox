@@ -247,7 +247,7 @@ def find_int_weights(nlp_options):
     nk = nlp_options['n_k']
     d = nlp_options['collocation']['d']
     scheme = nlp_options['collocation']['scheme']
-    Collocation = collocation.Collocation(nk,d,scheme)
+    Collocation = collocation.Collocation(nk, d, scheme)
     int_weights = Collocation.quad_weights
 
     return int_weights

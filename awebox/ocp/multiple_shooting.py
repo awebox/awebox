@@ -33,6 +33,8 @@ import numpy as np
 import awebox.tools.struct_operations as struct_op
 from . import constraints
 
+import awebox.tools.constraint_operations as cstr_op
+
 class Multiple_shooting(object):
     """Multiple shooting class with methods for optimal control
     """
@@ -258,7 +260,7 @@ class Multiple_shooting(object):
         return Integral_outputs_list
 
 
-    def append_continuity_constraint(self, g_list, g_bounds, ms_xf, V, kdx):
+    def get_continuity_constraint(self, ms_xf, V, kdx):
         """Append multiple shooting continuity constraint to list of constraints
 
         @param g_list current list of constraints
@@ -270,11 +272,11 @@ class Multiple_shooting(object):
 
         # add continuity equation to nlp
         g_continuity = V['xd', kdx + 1] - ms_xf[:,kdx]
-        g_list.append(g_continuity)
-        # add constraint bounds
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', g_continuity.size()[0])
 
-        return [g_list, g_bounds]
+        cont_cstr = cstr_op.Constraint(expr=g_continuity,
+                                  name='ms_continuity_' + str(kdx),
+                                  cstr_type='eq')
+        return cont_cstr
 
     def __fill_in_Xdot(self, Xdot):
         """Construct state derivatives at all interval nodes
