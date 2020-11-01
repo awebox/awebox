@@ -284,7 +284,7 @@ def test_constraint_mechanism():
     expr = cas.vertcat(var ** 2. - 2., 8. * var)
     cstr_type = 'eq'
     name = 'cstr1'
-    cstr1 = cstr_op.Constraint(expr=expr, name=name, cstr_type=cstr_type, include=True, scale=1.)
+    cstr1 = cstr_op.Constraint(expr=expr, name=name, cstr_type=cstr_type)
 
     # is the length of that constraint as expected?
     results[rdx] = (cstr1.expr.shape == (2, 1))
@@ -301,7 +301,7 @@ def test_constraint_mechanism():
     expr2 = var + 4.
     cstr_type2 = 'eq'
     name2 = 'cstr2'
-    cstr2 = cstr_op.Constraint(expr=expr2, name=name2, cstr_type=cstr_type2, include=True, scale=1.)
+    cstr2 = cstr_op.Constraint(expr=expr2, name=name2, cstr_type=cstr_type2)
 
     cstr_list.append(cstr1)
     cstr_list.append(cstr2)
@@ -325,7 +325,7 @@ def test_constraint_mechanism():
     expr3 = []
     cstr_type3 = 'eq'
     name3 = 'cstr3'
-    cstr3 = cstr_op.Constraint(expr=expr3, name=name3, cstr_type=cstr_type3, include=True, scale=1.)
+    cstr3 = cstr_op.Constraint(expr=expr3, name=name3, cstr_type=cstr_type3)
 
     # can we add the incomplete constraint to the list?
     cstr_list.append(cstr3)
@@ -349,7 +349,7 @@ def test_constraint_mechanism():
     expr4 = var + 8.
     cstr_type4 = 'ineq'
     name4 = 'cstr4'
-    cstr4 = cstr_op.Constraint(expr=expr4, name=name4, cstr_type=cstr_type4, include=True, scale=1.)
+    cstr4 = cstr_op.Constraint(expr=expr4, name=name4, cstr_type=cstr_type4)
     cstr_list_nonempty.append(cstr4)
     cstr_list.append(cstr_list_nonempty)
 
@@ -361,7 +361,7 @@ def test_constraint_mechanism():
     expr5 = cas.sin(var) + 8.
     cstr_type5 = 'ineq'
     name5 = 'cstr4'
-    cstr5 = cstr_op.Constraint(expr=expr5, name=name5, cstr_type=cstr_type5, include=True, scale=1.)
+    cstr5 = cstr_op.Constraint(expr=expr5, name=name5, cstr_type=cstr_type5)
     cstr_list.append(cstr5)
 
     # does the list still record two equality constraints and 1 inequality constraints?

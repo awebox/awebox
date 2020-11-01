@@ -465,41 +465,40 @@ def collect_equality_and_active_inequality_constraints(health_solver_options, nl
 
     return stacked_cstr_fun, stacked_lam_fun, stacked_labels
 
-def collect_type_constraints(nlp, is_equality):
+def collect_type_constraints(nlp, cstr_type):
 
-    constraints = []
-    list_names = []
-    constraint_sym = []
+    found_cstrs = []
+    found_names = []
+    found_syms = []
 
     # list the evaluated constraints at solution
-    g = nlp.g
+    ocp_cstr_list = nlp.ocp_cstr_list
 
+    name_list = ocp_cstr_list.get_name_list('all')
+
+    g = nlp.g
     g_sym = cas.SX.sym('g_sym', g.shape)
 
-    for gdx in range(g.shape[0]):
-        cstr_name = g.getCanonicalIndex(gdx)
+    for cstr in ocp_cstr_list.get_list('all'):
+        local_name = cstr.name
+        if cstr.cstr_type == cstr_type:
 
-        condition = 'inequality' in cstr_name
-        if is_equality:
-            condition = not condition
+            indices = [idx for idx,name in enumerate(name_list) if name == local_name]
 
-        if condition:
-            constraints = cas.vertcat(constraints, g.cat[gdx])
-            constraint_sym = cas.vertcat(constraint_sym, g_sym[gdx])
+            for idx in indices:
+                found_cstrs = cas.vertcat(found_cstrs, g[idx])
+                found_syms = cas.vertcat(found_syms, g_sym[idx])
+                found_names += [local_name]
 
-            name_list_strings = list(map(str, cstr_name))
-            name_list = [name + '_' for name in name_list_strings[:-1]] + [name_list_strings[-1]]
-            list_names += [''.join(name_list)]
+    cstr_fun = cas.Function('cstr_fun', [g_sym], [found_syms])
 
-    cstr_fun = cas.Function('cstr_fun', [g_sym], [constraint_sym])
-
-    return constraints, list_names, cstr_fun
+    return found_cstrs, found_names, cstr_fun
 
 def collect_equality_constraints(nlp):
-    return collect_type_constraints(nlp, True)
+    return collect_type_constraints(nlp, 'eq')
 
 def collect_inequality_constraints(nlp):
-    return collect_type_constraints(nlp, False)
+    return collect_type_constraints(nlp, 'ineq')
 
 def collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num):
 
@@ -510,27 +509,30 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
     list_names = []
     active_sym = []
 
-    [g_ineq, g_names, ineq_fun] = collect_inequality_constraints(nlp)
+    [g_ineq, g_ineq_names, ineq_fun] = collect_inequality_constraints(nlp)
 
     # list the evaluated constraints at solution
+    ocp_cstr_list = nlp.ocp_cstr_list
+
     g = nlp.g
     g_fun = nlp.g_fun
-    g_vals = g(g_fun(v_vals, p_fix_num))
-    gsym = cas.SX.sym('gsym', g.shape)
+    g_vals = g_fun(v_vals, p_fix_num)
+    g_sym = cas.SX.sym('g_sym', g.shape)
+    g_names = ocp_cstr_list.get_name_list('all')
 
     # list the multipliers lambda at solution
-    lam_vals = g(solution['lam_g'])
+    lam_vals = solution['lam_g']
 
     g_ineq_vals = ineq_fun(g_vals)
     lambda_ineq_vals = ineq_fun(lam_vals)
-    g_ineq_sym = ineq_fun(gsym)
+    g_ineq_sym = ineq_fun(g_sym)
 
     if not g_ineq_sym.shape[0] == 0:
         for gdx in range(g_ineq.shape[0]):
 
             local_g = g_ineq_vals[gdx]
             local_lam = lambda_ineq_vals[gdx]
-            local_name = g_names[gdx]
+            local_name = g_ineq_names[gdx]
 
             # if eval_constraint is small, then constraint is active. or.
             # if lambda >> eval_constraint, then: constraint is active
@@ -539,10 +541,10 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
                 # append active constraints to active_list
                 active_constraints = cas.vertcat(active_constraints, local_g)
 
-                list_names += [local_name + '_' + str(gdx)]
+                list_names += [local_name]
                 active_sym = cas.vertcat(active_sym, g_ineq_sym[gdx])
 
-    active_fun = cas.Function('active_fun', [gsym], [active_sym])
+    active_fun = cas.Function('active_fun', [g_sym], [active_sym])
 
     # return active_list
     return active_constraints, list_names, active_fun

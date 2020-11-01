@@ -78,13 +78,11 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         f_scale = tools.get_f_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_aero_earth_val)
+        resi_f_kite = (f_aero_var - f_aero_earth_val) / f_scale
 
         f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
                                         name='f_aero' + str(kite) + str(parent),
-                                        cstr_type='eq',
-                                        include=True,
-                                        scale=f_scale)
+                                        cstr_type='eq')
         cstr_list.append(f_kite_cstr)
 
     return cstr_list

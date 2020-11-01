@@ -96,17 +96,13 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,
                                                              cstr_type='eq',
-                                                             name='dynamics_translation',
-                                                             include=True,
-                                                             scale=1.)
+                                                             name='dynamics_translation')
     cstr_list.append(dynamics_translation_cstr)
 
     dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
     dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
                                                             cstr_type='eq',
-                                                            name='dynamics_constraint',
-                                                            include=True,
-                                                            scale=1.)
+                                                            name='dynamics_constraint')
     cstr_list.append(dynamics_constraint_cstr)
 
 
@@ -114,13 +110,13 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # rotational dynamics
     # --------------------------------
 
-    rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
-    rotation_dynamics_cstr = cstr_op.Constraint(expr=rotation_dynamics,
-                                                          cstr_type='eq',
-                                                          name='rotation_dynamics',
-                                                          include=True,
-                                                          scale = 1.)
-    cstr_list.append(rotation_dynamics_cstr)
+    kite_has_6dof = (int(options['kite_dof']) == 6)
+    if kite_has_6dof:
+        rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
+        rotation_dynamics_cstr = cstr_op.Constraint(expr=rotation_dynamics,
+                                                              cstr_type='eq',
+                                                              name='rotation_dynamics')
+        cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
     # trivial kinematics
@@ -138,10 +134,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
         if name_in_xd or name_in_u:
             trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
-                                                            cstr_type='eq',
-                                                            name='trivial_' + name,
-                                                            include=True,
-                                                            scale=1.)
+                                                cstr_type='eq',
+                                                name='trivial_' + name)
             cstr_list.append(trivial_dyn_cstr)
 
     return cstr_list, outputs

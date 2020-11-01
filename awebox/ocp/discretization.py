@@ -35,6 +35,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.ocp.ocp_constraint as ocp_constraint
+import awebox.ocp.operation as operation
 
 from . import constraints
 from . import collocation
@@ -272,7 +273,6 @@ def discretize(nlp_options, model, formulation):
     #---------------------------------------
     form_constraints = formulation.constraints
     constraints_fun = formulation.constraints_fun # initial, terminal and periodicity constraints
-    g_struct = constraints.setup_constraint_structure(nlp_options, model, formulation) # empty struct for collocated constraints
 
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
@@ -309,16 +309,14 @@ def discretize(nlp_options, model, formulation):
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
     var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
-    init_cstr = constraints.get_initial_constraints(constraints_fun, var_initial, var_ref_initial, xi)
+    init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, xi, model, formulation.xi_dict)
     ocp_cstr_list.append(init_cstr)
 
     # parallellize constraints on collocation nodes
     if direct_collocation:
-        [coll_cstr_list,
-        coll_outputs,
+        [coll_outputs,
         Integral_outputs_list,
         Integral_constraint_list] = Collocation.collocate_constraints(nlp_options, model, formulation, V, P, Xdot)
-    ocp_cstr_list.append(coll_cstr_list)
 
     # parallellize constraints on interval nodes
     if ms:
@@ -358,27 +356,25 @@ def discretize(nlp_options, model, formulation):
                 Outputs_list.append(coll_outputs[:,kdx*d+ddx])
 
         elif ms:
-
             # endpoint should match next start point
             [g_list, g_bounds] = Multiple_shooting.append_continuity_constraint(g_list, g_bounds, ms_xf, V, kdx)
 
     if direct_collocation and (scheme == 'radau'):
-        coll_cstr_list = ocp_constraint.OcpConstraintList()
-        coll_cstr_list.expand_with_radau_collocation(nlp_options, P, V, Xdot, model)
+        ocp_cstr_list.expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
 
-
-    # extract terminal (reference) variables
+    # add terminal constraints
     var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
     var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
+    terminal_cstr = constraints.get_terminal_constraints(constraints_fun, var_terminal, var_ref_terminal, xi)
+    ocp_cstr_list.append(terminal_cstr)
 
-    # add terminal and periodicity constraints
-    [g_list, g_bounds] = constraints.append_terminal_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_terminal, var_ref_terminal, xi)
-
-    [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
+    # add periodic constraints
+    periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
+    ocp_cstr_list.append(periodic_cstr)
 
     if direct_collocation:
-        [g_list, g_bounds] = constraints.append_integral_constraints(nlp_options, g_list, g_bounds, Integral_constraint_list,
-                                                                            form_constraints, constraints_fun, V, Xdot, model, formulation.integral_constants)
+        integral_cstr = constraints.get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
+        ocp_cstr_list.append(integral_cstr)
 
     Outputs_list.append(form_outputs_fun(V, P))
 
@@ -386,20 +382,18 @@ def discretize(nlp_options, model, formulation):
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
 
-    [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
-    [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
+    print_op.warn_about_temporary_funcationality_removal('discret.wake')
+    # [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
+    # [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs.cat])
 
-    # Create g struct and functions and g_bounds vectors
-    [g, g_fun, g_jacobian_fun, g_bounds] = constraints.create_constraint_outputs(g_list, g_bounds, g_struct, V, P)
-
     Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
-    return V, P, Xdot_struct, Xdot_fun, g_struct, g_fun, g_jacobian_fun, g_bounds, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
 

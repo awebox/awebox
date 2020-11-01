@@ -46,14 +46,11 @@ class OcpConstraintList(cstr_op.ConstraintList):
         model_parameters = model.parameters
         model_constraints_list = model.constraints_list
 
-        n_k = nlp_options['n_k']
-        d = nlp_options['collocation']['d']
-
-        periodic = perf_op.determine_if_periodic(nlp_options)
-
-        # inequality constraints get enforced at control nodes
         mdl_ineq_list = model_constraints_list.ineq_list
         mdl_eq_list = model_constraints_list.eq_list
+
+        n_k = nlp_options['n_k']
+        d = nlp_options['collocation']['d']
 
         for kdx in range(n_k):
 
@@ -68,9 +65,7 @@ class OcpConstraintList(cstr_op.ConstraintList):
 
                 local_cstr = cstr_op.Constraint(expr=expr,
                                                 name=mdl_ineq.name + '_' + str(kdx),
-                                                cstr_type=mdl_ineq.cstr_type,
-                                                include=mdl_ineq.include,
-                                                scale=mdl_ineq.scale)
+                                                cstr_type=mdl_ineq.cstr_type)
                 self.append(local_cstr)
 
             # equality constraints get enforced at collocation nodes
@@ -85,14 +80,14 @@ class OcpConstraintList(cstr_op.ConstraintList):
 
                     local_cstr = cstr_op.Constraint(expr=expr,
                                                     name=mdl_eq.name + '_' + str(kdx) + '_' + str(ddx),
-                                                    cstr_type=mdl_eq.cstr_type,
-                                                    include=mdl_eq.include,
-                                                    scale=mdl_eq.scale)
+                                                    cstr_type=mdl_eq.cstr_type)
                     self.append(local_cstr)
 
             # continuity condition between (kdx, -1) and (kdx + 1)
-            collocation.get_continuity_constraint(V, kdx)
+            continuity_cstr = collocation.get_continuity_constraint(V, kdx)
+            self.append(continuity_cstr)
 
+        periodic = perf_op.determine_if_periodic(nlp_options)
         if not periodic:
             # append inequality constraint at end, too.
             kdx = n_k
@@ -107,7 +102,7 @@ class OcpConstraintList(cstr_op.ConstraintList):
 
                 local_cstr = cstr_op.Constraint(expr=expr,
                                                 name=mdl_ineq.name + '_' + str(kdx),
-                                                cstr_type=mdl_ineq.cstr_type,
-                                                include=mdl_ineq.include,
-                                                scale=mdl_ineq.scale)
+                                                cstr_type=mdl_ineq.cstr_type)
                 self.append(local_cstr)
+
+        return None

@@ -35,7 +35,8 @@ from awebox.logger.logger import Logger as awelogger
 import numpy as np
 
 from collections import OrderedDict
-from . import constraints
+
+import awebox.ocp.constraints as constraints
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
@@ -289,7 +290,7 @@ class Collocation(object):
                     Integral_outputs_list.append(integral_output[name][i])
 
         else:
-
+            # do nothing
             32.0
 
         return Integral_outputs_list
@@ -310,9 +311,7 @@ class Collocation(object):
 
         cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity' + str(kdx),
-                                  cstr_type='eq',
-                                  include=True,
-                                  ref=1.)
+                                  cstr_type='eq')
 
         return cstr
 
@@ -361,7 +360,7 @@ class Collocation(object):
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
 
-        return coll_cstr_list, coll_outputs, Integral_outputs_list, Integral_constraints_list
+        return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
 
 

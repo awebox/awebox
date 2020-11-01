@@ -266,7 +266,8 @@ class Trial(object):
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
         solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
-        solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
+        solution_dict['ocp_cstr_list'] = self.__nlp.ocp_cstr_list
+        solution_dict['g_opt'] = self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['opt_arg'] = self.__optimization.arg
 
         return solution_dict

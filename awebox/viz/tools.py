@@ -33,7 +33,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
+import pdb
+import awebox.tools.print_operations as print_op
 
 def get_naca_airfoil_coordinates(s, m, p, t):
 
@@ -709,8 +710,12 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['architecture'] = model.architecture
-    plot_dict['constraints_dict'] = struct_op.strip_of_contents(model.constraints_dict)
+    print_op.warn_about_temporary_funcationality_removal(location='viz_tools.recalibrate')
+    plot_dict['mdl_cstr_list'] = model.constraints_list
+    # plot_dict['constraints_dict'] = struct_op.strip_of_contents(model.constraints_dict)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
+
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
 
@@ -997,6 +1002,7 @@ def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
     # execute function from dict
     if type(additional_args) == dict:
         plot_logic_dict[flag][0](*standard_args, **additional_args)
+
     elif additional_args is None:
         plot_logic_dict[flag][0](*standard_args)
     else:

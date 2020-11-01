@@ -32,8 +32,8 @@ python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
-import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
+# import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
+# import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 import awebox.ocp.ocp_constraint as ocp_constraint
 
@@ -131,11 +131,13 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
     if list(constraints['integral'].keys()):
         constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
 
-    if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
-        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+    print_op.warn_about_temporary_funcationality_removal(location='ocp.constraints')
 
-    if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
-        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
+    # if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
+    #     constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+    #
+    # if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
+    #     constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
 
     return constraints_entry_list
 
@@ -213,72 +215,75 @@ def append_path_constraints(g_list, g_bounds, path_constraints, path_constraints
 
     return [g_list, g_bounds]
 
-def append_terminal_constraints(g_list, g_bounds, constraints, constraints_fun, var_terminal, var_ref_terminal, xi):
+def get_terminal_constraints(constraints_fun, var_terminal, var_ref_terminal, xi):
 
-    # evaluate constraint
     g_terminal = constraints_fun['terminal'](var_terminal, var_ref_terminal, xi)
+    cstr = cstr_op.Constraint(expr=g_terminal,
+                               name='terminal', #todo: refine by name
+                               cstr_type='eq')
+    return cstr
 
-    # append constraint
-    g_list.append(g_terminal)
-    # append constraint bounds
-    for cstr_type in list(constraints['terminal'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['terminal'][cstr_type].size()[0])
-
-    return [g_list, g_bounds]
 
 def get_initial_constraints(constraints_fun, var_initial, var_ref_initial, xi):
 
-    # evaluate constraint
     g_initial = constraints_fun['initial'](var_initial, var_ref_initial, xi)
-    init_cstr = cstr_op.Constraint(expr=g_initial,
-                                   name='initial', #todo: refine by name
-                                   cstr_type='eq',
-                                   include=True,
-                                   scale=1.)
+    cstr = cstr_op.Constraint(expr=g_initial,
+                               name='initial', #todo: refine by name
+                               cstr_type='eq')
+    return cstr
 
-    return init_cstr
-
-def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
-    return g_list, g_bounds
-
-def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
-    return g_list, g_bounds
+# def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
+#     g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+#     return g_list, g_bounds
+#
+# def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
+#     g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+#     return g_list, g_bounds
 
 
-def append_periodic_constraints(g_list, g_bounds, constraints, constraints_fun, var_init, var_terminal):
+def append_periodic_constraints(constraints_fun, var_init, var_terminal):
 
-    # evaluate constraint
     g_periodic = constraints_fun['periodic'](var_init, var_terminal)
+    cstr = cstr_op.Constraint(expr=g_periodic,
+                               name='periodic', #todo: refine by name
+                               cstr_type='eq')
+    return cstr
 
-    # append constraint
-    g_list.append(g_periodic)
-    # append constraint bounds
-    for cstr_type in list(constraints['periodic'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['periodic'][cstr_type].size()[0])
+def get_integral_constraints(integral_list, integral_constants):
 
-    return [g_list, g_bounds]
-
-def append_integral_constraints(nlp_numerics_options, g_list, g_bounds, integral_list, constraints, constraints_fun, V, Xdot, model, integral_constants):
+    cstr_list = ocp_constraint.OcpConstraintList()
 
     # nu = V['phi','nu']
     integral_sum = {}
-    g_integral = {}
 
-    for cstr_type in list(integral_constants.keys()):
-        integral_t0 = integral_constants[cstr_type]
-        integral_sum[cstr_type] = 0.
+    for key_name in list(integral_constants.keys()):
+        integral_t0 = integral_constants[key_name]
+        integral_sum[key_name] = 0.
         for i in range(len(integral_list)):
-            integral_sum[cstr_type] += integral_list[i][cstr_type]
-        g_integral[cstr_type] = - integral_t0 - integral_sum[cstr_type]
-        g_integral[cstr_type] /= integral_t0
-        g_list.append(g_integral[cstr_type])
+            integral_sum[key_name] += integral_list[i][key_name]
 
-    for cstr_type in list(constraints['integral'].keys()):
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, g_integral[cstr_type].size()[0])
+        expr = (- integral_t0 - integral_sum[key_name]) / integral_t0
+        cstr_type = translate_cstr_type(key_name)
 
-    return [g_list, g_bounds]
+        g_cstr = cstr_op.Constraint(expr=expr,
+                                    name='integral_' + key_name,
+                                    cstr_type=cstr_type)
+        cstr_list.append(g_cstr)
+
+    return cstr_list
+
+
+def translate_cstr_type(constraint_type):
+
+    # convention h(w) <= 0
+    if constraint_type == 'inequality':
+        return 'ineq'
+    elif constraint_type == 'equality':
+        return 'eq'
+    else:
+        raise ValueError('Wrong constraint type chosen. Possible values: "inequality" / "equality" ')
+
+    return None
 
 def append_constraint_bounds(constraint_bounds, constraint_type, ndg):
 

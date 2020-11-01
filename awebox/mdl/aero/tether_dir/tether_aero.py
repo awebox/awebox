@@ -137,12 +137,11 @@ def get_tether_cstr(options, variables_si, atmos, wind, architecture, parameters
         local_resi_unscaled = (f_tether_var - f_tether_val)
 
         scale = options['scaling']['xl']['f_tether']
+        local_resi = local_resi_unscaled / scale
 
-        f_cstr = cstr_op.Constraint(expr=local_resi_unscaled,
+        f_cstr = cstr_op.Constraint(expr=local_resi,
                                   name='f_tether' + str(node) + str(parent),
-                                  cstr_type='eq',
-                                  include=True,
-                                  scale=scale)
+                                  cstr_type='eq')
         cstr_list.append(f_cstr)
 
     return cstr_list

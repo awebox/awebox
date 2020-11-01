@@ -49,3 +49,9 @@ class MdlConstraintList(cstr_op.ConstraintList):
             entry_list.append(local)
 
         return cas.struct_symSX(entry_list)
+
+    def get_dict(self):
+        dict = {}
+        dict['equality'] = self.get_structure('eq')(self.get_expression_list('eq'))
+        dict['inequality'] = self.get_structure('ineq')(self.get_expression_list('ineq'))
+        return dict

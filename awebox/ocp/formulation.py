@@ -213,11 +213,11 @@ class Formulation(object):
         ref_variables = model.variables(cas.MX.sym('variables', model.variables.cat.shape)) #todo: deepcopy necessary?
 
 
-        initial_constraints, initial_constraints_fun = operation.generate_initial_constraints(options,
-                            variables,
-                            ref_variables,
-                            model,
-                            self.__xi_dict)
+        # initial_constraints, initial_constraints_fun = operation.get_initial_constraints(options,
+        #                                                                                  variables,
+        #                                                                                  ref_variables,
+        #                                                                                  model,
+        #                                                                                  self.__xi_dict)
 
         terminal_constraints, terminal_constraints_fun = operation.generate_terminal_constraints(options,
                             variables,
@@ -225,34 +225,35 @@ class Formulation(object):
                             model,
                             self.__xi_dict)
 
-        periodic_constraints, periodic_constraints_fun = operation.generate_periodic_constraints(options,
-                            variables,
-                            ref_variables)
+        # periodic_constraints, periodic_constraints_fun = operation.get_periodic_constraints(options,
+        #                                                                                     variables,
+        #                                                                                     ref_variables)
 
         integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(options, variables, parameters, model)
 
-        self.__constraints = {'initial': initial_constraints,
+        self.__constraints = {#'initial': initial_constraints,
                               'terminal': terminal_constraints,
-                              'periodic': periodic_constraints,
+                              # 'periodic': periodic_constraints,
                               'integral': integral_constraints
                               }
 
-        self.__constraints_fun = {'initial': initial_constraints_fun,
+        self.__constraints_fun = {#'initial': initial_constraints_fun,
                                   'terminal': terminal_constraints_fun,
-                                  'periodic': periodic_constraints_fun,
+                                  # 'periodic': periodic_constraints_fun,
                                   'integral': integral_constraint_fun}
 
-        induction_comparison_labels = options['induction']['comparison_labels']
-        if 'vor' in induction_comparison_labels:
-            wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables,
-                                                                                                model)
-            vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(
-                options, variables, model)
-
-            self.__constraints['wake_fix'] = wake_fix_constraints
-            self.__constraints['vortex_strength'] = vortex_strength_constraints
-            self.__constraints_fun['wake_fix'] = wake_fix_constraints_fun
-            self.__constraints_fun['vortex_strength'] = vortex_strength_constraints_fun
+        print_op.warn_about_temporary_funcationality_removal(location='formulation')
+        #
+        # induction_comparison_labels = options['induction']['comparison_labels']
+        # if 'vor' in induction_comparison_labels:
+        #     wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables, model)
+        #     vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(
+        #         options, variables, model)
+        #
+        #     self.__constraints['wake_fix'] = wake_fix_constraints
+        #     self.__constraints['vortex_strength'] = vortex_strength_constraints
+        #     self.__constraints_fun['wake_fix'] = wake_fix_constraints_fun
+        #     self.__constraints_fun['vortex_strength'] = vortex_strength_constraints_fun
 
         self.__integral_constants = integral_constants
 

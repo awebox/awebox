@@ -35,13 +35,11 @@ import awebox.tools.struct_operations as struct_op
 import pdb
 
 class Constraint:
-    def __init__(self, expr=None, cstr_type=None, name=None, include=True, scale=1.):
+    def __init__(self, expr=None, cstr_type=None, name=None):
 
         self.__expr = None
         self.__cstr_type = None
         self.__name = None
-        self.__include = False
-        self.__scale = 1.
 
         expr_is_expected = self.is_expr_as_expected(expr)
         if expr_is_expected:
@@ -64,28 +62,8 @@ class Constraint:
             message = 'unexpected constraint name: ' + name
             awelogger.logger.warning(message)
 
-        scale_is_expected = self.is_scale_expected(scale)
-        if scale_is_expected:
-            self.__scale = scale
-        else:
-            message = 'unexpected constraint scale: ' + str(scale) + ', for constraint ' + name
-            awelogger.logger.warning(message)
-
-        if expr_is_expected and cstr_type_is_expected and name_is_expected and isinstance(include, bool):
-            self.__include = include
-
     def is_constraint_complete(self):
         return (self.__expr is not None) and (self.__name is not None) and (self.__cstr_type is not None)
-
-    def is_scale_expected(self, scale):
-
-        if isinstance(scale, int):
-            scale = float(scale)
-        float_scale_is_expected = isinstance(scale, float)
-
-        casadi_scale_is_expected = isinstance(scale, cas.DM)
-
-        return casadi_scale_is_expected or float_scale_is_expected
 
     def is_expr_as_expected(self, expr):
 
@@ -114,9 +92,26 @@ class Constraint:
         return self.__cstr_type == 'ineq'
 
     def get_function(self, variables, parameters):
-
         output = self.__expr
         return cas.Function('cstr_fun', [variables, parameters], [output])
+
+    def get_lb(self):
+        if self.is_inequality():
+            return -1 * cas.inf * cas.DM.ones(self.expr.shape)
+        elif self.is_equality():
+            return cas.DM.zeros(self.expr.shape)
+        else:
+            message = 'unable to get lower bound for constraint ' + self.name + '. unexpected constraint type: ' + str(self.cstr_type) + '.'
+            awelogger.logger.warning(message)
+        return None
+
+    def get_ub(self):
+        if self.is_inequality() or self.is_equality():
+            return cas.DM.zeros(self.expr.shape)
+        else:
+            message = 'unable to get lower bound for constraint ' + self.name + '. unexpected constraint type: ' + str(self.cstr_type) + '.'
+            awelogger.logger.warning(message)
+        return None
 
     @property
     def expr(self):
@@ -141,22 +136,6 @@ class Constraint:
     @name.setter
     def name(self, value):
         awelogger.logger.warning('Cannot set name object.')
-
-    @property
-    def scale(self):
-        return self.__scale
-
-    @scale.setter
-    def scale(self, value):
-        awelogger.logger.warning('Cannot set scale object.')
-
-    @property
-    def include(self):
-        return self.__include
-
-    @include.setter
-    def include(self, value):
-        awelogger.logger.warning('Cannot set include object.')
 
 
 class ConstraintList:
@@ -279,11 +258,26 @@ class ConstraintList:
 
         expr_list = []
         for cstr in cstr_list:
-            if cstr.include:
-                local_expr = cstr.expr / cstr.scale
-                expr_list = cas.vertcat(expr_list, local_expr)
+            local_expr = cstr.expr
+            expr_list = cas.vertcat(expr_list, local_expr)
 
         return expr_list
+
+    def get_lb(self, cstr_type):
+        cstr_list = self.get_list(cstr_type)
+        lb_list = []
+        for cstr in cstr_list:
+            local_lb = cstr.get_lb()
+            lb_list = cas.vertcat(lb_list, local_lb)
+        return lb_list
+
+    def get_ub(self, cstr_type):
+        cstr_list = self.get_list(cstr_type)
+        ub_list = []
+        for cstr in cstr_list:
+            local_ub = cstr.get_ub()
+            ub_list = cas.vertcat(ub_list, local_ub)
+        return ub_list
 
     def get_name_list(self, cstr_type):
 
@@ -291,12 +285,11 @@ class ConstraintList:
 
         name_list = []
         for cstr in list:
-            if cstr.include:
-                local_expr = cstr.expr
-                number = local_expr.shape[0]
+            local_expr = cstr.expr
+            number = local_expr.shape[0]
 
-                local_name = cstr.name
-                name_list += number * [local_name]
+            local_name = cstr.name
+            name_list += number * [local_name]
 
         return name_list
 
@@ -312,27 +305,6 @@ class ConstraintList:
 
         # create function
         return cas.Function('cstr_fun', [relevant_variables, relevant_parameters], [expr_list], opts)
-
-    def get_dict(self):
-
-        dict = {}
-        type_dict = {'equality': self.get_list('eq'), 'inequality': self.get_list('ineq')}
-
-        for cstr_type in type_dict.keys():
-            cstr_list = type_dict[cstr_type]
-
-            if cstr_type not in dict.keys():
-                dict[cstr_type] = {}
-
-            for cstr in cstr_list:
-                local_name, local_id = struct_op.split_name_and_node_identifier(cstr.name)
-
-                if local_name not in dict[cstr_type].keys():
-                    dict[cstr_type][local_name] = []
-
-                dict[cstr_type][local_name] = cas.vertcat(dict[cstr_type][local_name], cstr.expr)
-
-        return dict
 
     @property
     def eq_list(self):

@@ -44,6 +44,7 @@ import copy
 from awebox.logger.logger import Logger as awelogger
 
 import time
+import pdb
 
 class Optimization(object):
     def __init__(self):
@@ -357,7 +358,6 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # solve
-
             self.__solution = solver(**self.__arg)
             self.__stats = solver.stats()
 

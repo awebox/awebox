@@ -132,21 +132,17 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
         f_aero_val = force_arb_info['vector']
         m_aero_val = moment_info['vector']
 
-        resi_f_kite = (f_aero_var - f_aero_val)
-        resi_m_kite = (m_aero_var - m_aero_val)
+        resi_f_kite = (f_aero_var - f_aero_val) / f_scale
+        resi_m_kite = (m_aero_var - m_aero_val) / m_scale
 
         f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
-                                                   name='f_aero' + str(kite) + str(parent),
-                                                   cstr_type='eq',
-                                                   include=True,
-                                                   scale=f_scale)
+                                       name='f_aero' + str(kite) + str(parent),
+                                       cstr_type='eq')
         cstr_list.append(f_kite_cstr)
 
         m_kite_cstr = cstr_op.Constraint(expr=resi_m_kite,
-                                                   name='m_aero' + str(kite) + str(parent),
-                                                   cstr_type='eq',
-                                                   include=True,
-                                                   scale=m_scale)
+                                       name='m_aero' + str(kite) + str(parent),
+                                       cstr_type='eq')
         cstr_list.append(m_kite_cstr)
 
     return cstr_list
