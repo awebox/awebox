@@ -38,7 +38,7 @@ import awebox.tools.struct_operations as struct_op
 
 class MdlConstraintList(cstr_op.ConstraintList):
     def __init__(self):
-        super().__init__(list_name='model constraints list')
+        super().__init__(list_name='model_constraints_list')
 
     def get_structure(self, cstr_type):
 
