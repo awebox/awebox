@@ -710,8 +710,6 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['architecture'] = model.architecture
-    # plot_dict['mdl_cstr_list'] = model.constraints_list
-    print_op.warn_about_temporary_funcationality_removal(location='viz.tools')
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)

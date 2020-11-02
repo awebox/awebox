@@ -43,6 +43,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 
+from awebox.logger.logger import Logger as awelogger
+
 import pdb
 
 
@@ -50,7 +52,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     radau_collocation = direct_collocation and (nlp_options['collocation']['scheme'] == 'radau')
-    other_collocation = direct_collocation and (not nlp_options['collocation']['scheme'] == 'radau')
+    other_collocation = direct_collocation and (not radau_collocation)
 
     multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
 
@@ -63,13 +65,18 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     ocp_cstr_list.append(init_cstr)
 
     if multiple_shooting:
-        ocp_cstr_list.expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_constraints, ms_xf)
+        ocp_cstr_list.expand_with_multiple_shooting(nlp_options, P, V, Xdot, model, dae, Multiple_shooting, ms_z0, ms_xf)
 
     elif radau_collocation:
         ocp_cstr_list.expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
 
     elif other_collocation:
         ocp_cstr_list.expand_with_other_collocation()
+
+    else:
+        message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     # add terminal constraints
     var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
@@ -88,7 +95,6 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     print_op.warn_about_temporary_funcationality_removal('discret.wake')
     # [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
     # [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
-
 
     return ocp_cstr_list
 

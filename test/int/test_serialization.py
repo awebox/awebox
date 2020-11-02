@@ -11,7 +11,6 @@ import logging
 import pickle
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
-
 def test_trial_serial():
 
     # set-up trial options
@@ -91,5 +90,3 @@ def test_sweep_serial():
     os.remove("serial_test.dict")
 
     sweep_test.plot(['all','comp_all'])
-
-test_trial_serial()

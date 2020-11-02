@@ -138,22 +138,34 @@ class Constraint:
         awelogger.logger.warning('Cannot set name object.')
 
 
+
+
 class ConstraintList:
-    def __init__(self):
+    def __init__(self, list_name=None):
         self.__eq_list = []
         self.__ineq_list = []
         self.__all_list = []
+
+        if list_name is None:
+            list_name = 'constraint list'
+
+        self.__list_name = list_name
 
     def append(self, cstr):
 
         if isinstance(cstr, Constraint):
 
+            # appending to all should happen before appending to specific list,
+            # based on how the "is duplicate" check is done.
+
             if cstr.is_equality():
+                self.append_all(cstr)
                 self.append_eq(cstr)
-                self.append_all(cstr)
+
             elif cstr.is_inequality():
-                self.append_ineq(cstr)
                 self.append_all(cstr)
+                self.append_ineq(cstr)
+
             else:
                 message = 'tried to append constraint (' + cstr.name + ') of unexpected cstr_type. append ignored.'
                 awelogger.logger.warning(message)
@@ -173,70 +185,57 @@ class ConstraintList:
 
         return None
 
-    def append_ineq(self, cstr):
+    def check_completeness_newness_and_type_before_append(self, cstr, cstr_type):
+        passes = True
+
         is_complete = cstr.is_constraint_complete()
-        is_inequality = cstr.is_inequality()
-        is_new_constraint = self.does_new_constraint_have_new_name(cstr, 'ineq')
+        is_new_constraint = self.does_new_constraint_have_new_name(cstr)
+
+        if cstr_type == 'eq':
+            is_correct_type = cstr.is_equality()
+        elif cstr_type == 'ineq':
+            is_correct_type = cstr.is_inequality()
+        elif cstr_type == 'all':
+            is_correct_type = cstr.is_equality() or cstr.is_inequality()
 
         if not is_complete:
-            message = 'tried to append an incomplete constraint (' + cstr.name + '). append ignored.'
+            message = 'tried to append an incomplete constraint (' + cstr.name + ') to ' + self.__list_name + '. append ignored.'
             awelogger.logger.warning(message)
+            passes = False
         elif not is_new_constraint:
-            message = 'tried to append a duplicate constraint (' + cstr.name + '). append ignored.'
+            message = 'tried to append a duplicate constraint (' + cstr.name + ') to ' + self.__list_name + '. append ignored.'
             awelogger.logger.warning(message)
-        elif not is_inequality:
-            message = 'tried to append a constraint (' + cstr.name + ') that is not an inequality to ineq_list. append ignored.'
+            passes = False
+        elif not is_correct_type:
+            message = 'tried to append a constraint (' + cstr.name + ') that is not of type ' + cstr_type + ' to appropriate list of ' + self.__list_name + '. append ignored.'
             awelogger.logger.warning(message)
-        elif is_complete and is_new_constraint and is_inequality:
-            self.__ineq_list += [cstr]
-        else:
-            message = 'something went wrong when appending constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
+            passes = False
 
+        return passes
+
+
+
+    def append_ineq(self, cstr):
+        passes = self.check_completeness_newness_and_type_before_append(cstr, 'ineq')
+        if passes:
+            self.__ineq_list += [cstr]
         return None
 
     def append_eq(self, cstr):
-        is_complete = cstr.is_constraint_complete()
-        is_equality = cstr.is_equality()
-        is_new_constraint = self.does_new_constraint_have_new_name(cstr, 'eq')
-
-        if not is_complete:
-            message = 'tried to append an incomplete constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-        elif not is_new_constraint:
-            message = 'tried to append a duplicate constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-        elif not is_equality:
-            message = 'tried to append a constraint (' + cstr.name + ') that is not an equality to eq_list. append ignored.'
-            awelogger.logger.warning(message)
-        elif is_complete and is_new_constraint and is_equality:
+        passes = self.check_completeness_newness_and_type_before_append(cstr, 'eq')
+        if passes:
             self.__eq_list += [cstr]
-        else:
-            message = 'something went wrong when appending constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-
         return None
 
     def append_all(self, cstr):
-        is_complete = cstr.is_constraint_complete()
-        is_new_constraint = self.does_new_constraint_have_new_name(cstr, 'all')
 
-        if not is_complete:
-            message = 'tried to append an incomplete constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-        elif not is_new_constraint:
-            message = 'tried to append a duplicate constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-        elif is_complete and is_new_constraint:
+        passes = self.check_completeness_newness_and_type_before_append(cstr, 'all')
+        if passes:
             self.__all_list += [cstr]
-        else:
-            message = 'something went wrong when appending constraint (' + cstr.name + '). append ignored.'
-            awelogger.logger.warning(message)
-
         return None
 
-    def does_new_constraint_have_new_name(self, cstr, cstr_type):
-        return not (cstr.name in self.get_name_list(cstr_type))
+    def does_new_constraint_have_new_name(self, cstr):
+        return not (cstr.name in self.get_name_list(cstr.cstr_type))
 
     def get_list(self, cstr_type):
         if cstr_type == 'eq':
@@ -330,3 +329,10 @@ class ConstraintList:
     def all_list(self, value):
         awelogger.logger.warning('Cannot set all_list object.')
 
+    @property
+    def list_name(self):
+        return self.__list_name
+
+    @list_name.setter
+    def list_name(self, value):
+        awelogger.logger.warning('Cannot set list_name object.')

@@ -214,6 +214,7 @@ class Optimization(object):
 
         V = nlp.V
         P = nlp.P
+
         nx = V.cat.shape[0]
         ng = nlp.g.shape[0]
         np = P.cat.shape[0]
