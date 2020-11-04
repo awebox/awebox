@@ -128,7 +128,7 @@ def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, 
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        [homotopy_force, homotopy_moment] = fictitious_embedding(options, p_dec, variables_si['u'], outputs, kite, parent)
+        [homotopy_force, homotopy_moment] = fictitious_embedding(options, p_dec, variables_si, kite, parent)
         aero_forces['f' + str(kite) + str(parent)] = homotopy_force
 
         if int(options['kite_dof']) == 6:
@@ -137,18 +137,20 @@ def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, 
     return aero_forces, outputs
 
 
-def fictitious_embedding(options, p_dec, u_si, outputs, kite, parent):
+def fictitious_embedding(options, p_dec, variables_si, kite, parent):
+
+    f_aero_var, m_aero_var = kite_aero.get_force_and_moment_vars(variables_si, kite, parent, options)
 
     # remember: generalized coordinates are in earth-fixed cartesian coordinates for translational dynamics
 
-    fict_force = u_si['f_fict' + str(kite) + str(parent)]
-    true_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
+    fict_force = variables_si['u']['f_fict' + str(kite) + str(parent)]
+    true_force = f_aero_var
 
     homotopy_force = p_dec['gamma'] * fict_force + true_force
 
     if int(options['kite_dof']) == 6:
-        fict_moment = u_si['m_fict' + str(kite) + str(parent)]
-        true_moment = outputs['aerodynamics']['m_aero_body' + str(kite)]
+        fict_moment = variables_si['u']['m_fict' + str(kite) + str(parent)]
+        true_moment = m_aero_var
 
         homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
     else:

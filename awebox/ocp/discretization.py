@@ -269,7 +269,8 @@ def discretize(nlp_options, model, formulation):
 
         ms_xf = None
         ms_z0 = None
-        ms_constraints = None
+        ms_vars = None
+        ms_params = None
 
 
     if multiple_shooting:
@@ -281,12 +282,14 @@ def discretize(nlp_options, model, formulation):
         P = setup_nlp_p(V, model)
 
         [ms_xf,
-        ms_z0,
-        Xdot,
-        ms_constraints,
-        ms_outputs,
-        Integral_outputs_list,
-        Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_options, model, formulation, V, P)
+         ms_z0,
+         ms_vars,
+         ms_params,
+         Xdot,
+         _,
+         ms_outputs,
+         Integral_outputs_list,
+         Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_options, model, formulation, V, P)
 
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
@@ -298,7 +301,7 @@ def discretize(nlp_options, model, formulation):
     #-------------------------------------------
     # GET CONSTRAINTS
     #-------------------------------------------
-    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_constraints, ms_xf)
+    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
 
     # ---------------------------------------
     # PREPARE OUTPUTS STRUCTURE

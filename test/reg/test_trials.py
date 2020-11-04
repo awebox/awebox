@@ -28,7 +28,7 @@ def generate_options_dict():
     # set options
     single_kite_options = options.Options(internal_access = True)
     single_kite_options['user_options']['system_model']['architecture'] = {1:0}
-    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 5
+    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
     single_kite_options['user_options']['kite_standard'] = ampyx_data.data_dict()
     single_kite_options['user_options']['system_model']['kite_dof'] = 3
     single_kite_options['user_options']['induction_model'] = 'not_in_use'
@@ -51,7 +51,6 @@ def generate_options_dict():
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
-    small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
     small_dual_kite_options['params']['ground_station']['r_gen'] = 0.1
     small_dual_kite_options['params']['ground_station']['m_gen'] = 5.
 
@@ -59,7 +58,6 @@ def generate_options_dict():
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
-    actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 3
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'

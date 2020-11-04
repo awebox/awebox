@@ -33,6 +33,7 @@ import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
@@ -43,21 +44,6 @@ import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
 
-def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
-
-    kite_dcm = get_kite_dcm(vec_u, kite, variables, architecture)
-
-    parent = architecture.parent_map[kite]
-
-    f_aero_earth = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-    f_aero_body = frames.from_earth_to_body(kite_dcm, f_aero_earth)
-    f_aero_control = frames.from_body_to_control(f_aero_body)
-    f_aero_wind = frames.from_earth_to_wind(vec_u, kite_dcm, f_aero_earth)
-
-    dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
-
-    return dict
-
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
@@ -66,7 +52,7 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
+        f_aero_var = tools.get_f_aero_var(variables, kite, parent)
 
         vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
         kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
@@ -74,11 +60,17 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
         vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
                                                              architecture, parameters)
 
-        f_aero_earth_val = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
+        force_found_frame = 'earth'
+        force_found_vector = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
+
+        print_op.warn_about_temporary_funcationality_removal(location='3dof')
+        # todo: which vec_u is this supposed to be?
+        forces_dict = tools.get_framed_forces(vec_u, kite_dcm, variables, kite, architecture)
+        force_framed_variable = forces_dict[force_found_frame]
 
         f_scale = tools.get_f_scale(parameters, options)
 
-        resi_f_kite = (f_aero_var - f_aero_earth_val) / f_scale
+        resi_f_kite = (force_framed_variable - force_found_vector) / f_scale
 
         f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
                                         name='f_aero' + str(kite) + str(parent),

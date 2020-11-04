@@ -48,7 +48,9 @@ from awebox.logger.logger import Logger as awelogger
 
 import pdb
 
-def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_constraints, ms_xf):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
+    awelogger.logger.info('generate constraints...')
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     radau_collocation = direct_collocation and (nlp_options['collocation']['scheme'] == 'radau')
@@ -64,8 +66,9 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
     ocp_cstr_list.append(init_cstr)
 
+    # add the path constraints.
     if multiple_shooting:
-        ms_cstr = expand_with_multiple_shooting(nlp_options, P, V, Xdot, model, dae, Multiple_shooting, ms_z0, ms_xf)
+        ms_cstr = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
         ocp_cstr_list.append(ms_cstr)
 
     elif radau_collocation:
@@ -139,8 +142,18 @@ def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
                                                               model_parameters, kdx, ddx)
 
             for mdl_eq in mdl_eq_list:
+
                 local_fun = mdl_eq.get_function(model_variables, model_parameters)
-                expr = local_fun(vars_at_time, params_at_time)
+
+                if 'trivial' in mdl_eq.name:
+                    # compensate for the fact that the (derivatives of the basis functions) become
+                    # increasingly large as order increases
+                    t_f_estimate = nlp_options['normalization']['t_f']
+                    trivial_scaling = np.max(np.absolute(np.array(Collocation.coeff_collocation[:, ddx + 1]))) * (n_k / t_f_estimate)
+                    expr = local_fun(vars_at_time, params_at_time) / trivial_scaling
+
+                else:
+                    expr = local_fun(vars_at_time, params_at_time)
 
                 local_cstr = cstr_op.Constraint(expr=expr,
                                                 name=mdl_eq.name + '_' + str(kdx) + '_' + str(ddx),
@@ -171,7 +184,7 @@ def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     return cstr_list
 
-def expand_with_other_collocation(self):
+def expand_with_other_collocation():
 
     # todo: add this.
     #  notice, that the logic flow of non-radau collection was *never* actually triggered in previous iterates.
@@ -183,19 +196,18 @@ def expand_with_other_collocation(self):
     raise Exception(message)
 
 
-def expand_with_multiple_shooting(nlp_options, P, V, Xdot, model, dae, Multiple_shooting, ms_z0, ms_xf):
+def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
     n_k = nlp_options['n_k']
-
     for kdx in range(n_k):
 
         # at each interval node, algebraic constraints should be satisfied
         alg_cstr = get_algebraic_constraints(dae.z(ms_z0[:, kdx]), V, kdx)
         cstr_list.append(alg_cstr)
 
-        ms_path_cstr = get_inequality_path_constraints(nlp_options, model, V, P, Xdot, kdx)
+        ms_path_cstr = get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx)
         cstr_list.append(ms_path_cstr)
 
         # endpoint should match next start point
@@ -237,7 +249,7 @@ def get_algebraic_constraints(z_at_time, V, kdx):
     return cstr_list
 
 
-def get_inequality_path_constraints(nlp_options, model, V, P, Xdot, kdx):
+def get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx):
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
@@ -245,9 +257,8 @@ def get_inequality_path_constraints(nlp_options, model, V, P, Xdot, kdx):
     model_variables = model.variables
     model_parameters = model.parameters
 
-    vars_at_time = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx)
-    params_at_time = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables,
-                                                      model_parameters, kdx)
+    vars_at_time = ms_vars[:, kdx]
+    params_at_time = ms_params[:, kdx]
 
     # at each interval node, path constraints should be satisfied
     use_slack_formulation = ('us' in list(V.keys()))

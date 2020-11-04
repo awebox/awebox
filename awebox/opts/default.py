@@ -40,7 +40,7 @@ def set_default_user_options(internal_access = False):
         ## user options
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode','drag_mode']), 't'),
-        ('user_options',    'trajectory',  'lift_mode', 'windings',              5,                  ('number of windings [int]', None),'s'),
+        ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             True,               ('choose True or False', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'pumping_range',         None,               ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
@@ -164,7 +164,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
-        ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
+        ('model',   'tether', None,         'control_var',          'ddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
         ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),

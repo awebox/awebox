@@ -72,7 +72,7 @@ def get_force_var(variables_si, upper_node, architecture):
     var = variables_si['xl']['f_tether' + name]
     return var
 
-def get_tether_cstr(options, variables_si, atmos, wind, architecture, parameters, outputs):
+def get_tether_cstr(options, variables_si, architecture, parameters, outputs):
 
     # homotopy parameters
     p_dec = parameters.prefix['phi']

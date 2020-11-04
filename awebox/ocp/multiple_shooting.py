@@ -78,14 +78,14 @@ class Multiple_shooting(object):
             # use function map for parallellization
             parallellization = options['parallelization']['type']
             F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], [])
+            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
             outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
 
             # integrate
             ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
             ms_xf = ms_dynamics['xf']
             ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
-            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params)
+            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
             ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
 
             # integrate quadrature outputs
@@ -116,7 +116,7 @@ class Multiple_shooting(object):
         Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)
         Xdot = self.__fill_in_Xdot(Xdot)
 
-        return ms_xf, ms_z0, Xdot, ms_constraints, ms_outputs, Integral_outputs_list, Integral_constraints_list
+        return ms_xf, ms_z0, self.__ms_vars, self.__ms_params, Xdot, ms_constraints, ms_outputs, Integral_outputs_list, Integral_constraints_list
 
     def __ms_nlp_vars(self, options, model, V, P):
         """Rearrange decision variables to dae-compatible form,

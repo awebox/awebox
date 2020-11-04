@@ -101,8 +101,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
     dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
-                                                            cstr_type='eq',
-                                                            name='dynamics_constraint')
+                                                cstr_type='eq',
+                                                name='dynamics_constraint')
     cstr_list.append(dynamics_constraint_cstr)
 
 
@@ -114,8 +114,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     if kite_has_6dof:
         rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
         rotation_dynamics_cstr = cstr_op.Constraint(expr=rotation_dynamics,
-                                                              cstr_type='eq',
-                                                              name='rotation_dynamics')
+                                                  cstr_type='eq',
+                                                  name='rotation_dynamics')
         cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
@@ -184,35 +184,34 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
     xddot = variables['SI']['xddot']
 
     rotation_dynamics = []
-    if int(options['kite_dof']) == 6:
 
-        for kite in kite_nodes:
-            parent = parent_map[kite]
-            moment = f_nodes['m' + str(kite) + str(parent)]
+    for kite in kite_nodes:
+        parent = parent_map[kite]
+        moment = f_nodes['m' + str(kite) + str(parent)]
 
-            rlocal = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
-            drlocal = cas.reshape(xddot['dr' + str(kite) + str(parent)], (3, 3))
+        rlocal = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
+        drlocal = cas.reshape(xddot['dr' + str(kite) + str(parent)], (3, 3))
 
-            omega = xd['omega' + str(kite) + str(parent)]
-            omega_skew = vect_op.skew(omega)
-            domega = xddot['domega' + str(kite) + str(parent)]
+        omega = xd['omega' + str(kite) + str(parent)]
+        omega_skew = vect_op.skew(omega)
+        domega = xddot['domega' + str(kite) + str(parent)]
 
-            tether_moment = outputs['tether_moments']['n{}{}'.format(kite, parent)]
+        tether_moment = outputs['tether_moments']['n{}{}'.format(kite, parent)]
 
-            # moment = J dot(omega) + omega x (J omega) + [tether moment which is zero if holonomic constraints do not depend on omega]
-            J_dot_omega = cas.mtimes(j_inertia, domega)
-            omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
-            omega_derivative = J_dot_omega + omega_cross_J_omega - moment + tether_moment
-            rotational_2nd_law = omega_derivative / vect_op.norm(cas.diag(j_inertia))
+        # moment = J dot(omega) + omega x (J omega) + [tether moment which is zero if holonomic constraints do not depend on omega]
+        J_dot_omega = cas.mtimes(j_inertia, domega)
+        omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
+        omega_derivative = J_dot_omega + omega_cross_J_omega - moment + tether_moment
+        rotational_2nd_law = omega_derivative / vect_op.norm(cas.diag(j_inertia))
 
-            # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
-            baumgarte = parameters['theta0', 'kappa_r']
-            orthonormality = baumgarte / 2. * (cas.DM_eye(3) - cas.mtimes(rlocal.T, rlocal))
-            ref_frame_deriv_matrix = drlocal - cas.mtimes(rlocal, orthonormality + omega_skew)
-            ref_frame_derivative = cas.reshape(ref_frame_deriv_matrix, (9, 1))
+        # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
+        baumgarte = parameters['theta0', 'kappa_r']
+        orthonormality = baumgarte / 2. * (cas.DM_eye(3) - cas.mtimes(rlocal.T, rlocal))
+        ref_frame_deriv_matrix = drlocal - cas.mtimes(rlocal, orthonormality + omega_skew)
+        ref_frame_derivative = cas.reshape(ref_frame_deriv_matrix, (9, 1))
 
-            # concatenate
-            rotation_dynamics = cas.vertcat(rotation_dynamics, rotational_2nd_law, ref_frame_derivative)
+        # concatenate
+        rotation_dynamics = cas.vertcat(rotation_dynamics, rotational_2nd_law, ref_frame_derivative)
 
     return rotation_dynamics, outputs
 

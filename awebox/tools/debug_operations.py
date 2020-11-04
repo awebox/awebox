@@ -32,17 +32,14 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import matplotlib.pylab as plt
 import numpy as np
-import numpy.ma as ma
+import scipy
 import pdb
-import sympy
 
 import awebox.tools.vector_operations as vect_op
-
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-import scipy
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
@@ -241,32 +238,38 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
 
-    local_cje = cstr_jacobian_eval
-    local_labels = cstr_labels
+    search_dir = {}
+    search_dir['forwards'] = {'cje': cstr_jacobian_eval, 'labels': cstr_labels}
+    search_dir['backwards'] = {'cje': cstr_jacobian_eval[::-1], 'labels': cstr_labels[::-1]}
 
-    while not is_matrix_full_rank(local_cje, health_solver_options):
+    for direction in search_dir.keys():
 
-        number_constraints = local_cje.shape[0]
-        current_hunt = True
+        local_cje = search_dir[direction]['cje']
+        local_labels = search_dir[direction]['labels']
 
-        for cdx in range(number_constraints):
+        while not is_matrix_full_rank(local_cje, health_solver_options):
 
-            if current_hunt:
+            number_constraints = local_cje.shape[0]
+            current_hunt = True
 
-                prev_matrix = local_cje[cdx:, :]
-                current_matrix = prev_matrix[1:, :]
+            for cdx in range(number_constraints):
 
-                prev_full_rank = is_matrix_full_rank(prev_matrix, health_solver_options)
-                current_full_rank = is_matrix_full_rank(current_matrix, health_solver_options)
+                if current_hunt:
 
-                if current_full_rank and (not prev_full_rank):
+                    prev_matrix = local_cje[cdx:, :]
+                    current_matrix = prev_matrix[1:, :]
 
-                    dep_label = local_labels[cdx]
-                    dep_index = cstr_labels.index(dep_label)
-                    print_cstr_info(cstr_jacobian_eval, cstr_labels, dep_index, nlp)
-                    current_hunt = False
+                    prev_full_rank = is_matrix_full_rank(prev_matrix, health_solver_options)
+                    current_full_rank = is_matrix_full_rank(current_matrix, health_solver_options)
 
-                    local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
+                    if current_full_rank and (not prev_full_rank):
+
+                        dep_label = local_labels[cdx]
+                        dep_index = cstr_labels.index(dep_label)
+                        print_cstr_info(cstr_jacobian_eval, cstr_labels, dep_index, nlp)
+                        current_hunt = False
+
+                        local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
 
 
     return None

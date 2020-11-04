@@ -361,7 +361,6 @@ class Collocation(object):
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
 
-
     @property
     def quad_weights(self):
         return self.__quad_weights
@@ -369,3 +368,11 @@ class Collocation(object):
     @quad_weights.setter
     def quad_weights(self, value):
         awelogger.logger.warning('Cannot set quad_weights object.')
+
+    @property
+    def coeff_collocation(self):
+        return self.__coeff_collocation
+
+    @coeff_collocation.setter
+    def coeff_collocation(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation object.')

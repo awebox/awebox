@@ -85,13 +85,11 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
             awelogger.logger.error(message)
 
         if int(options['kite_dof']) == 3:
-            framed_forces = three_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture, parameters)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables, kite, architecture)
             m_aero_body = cas.DM.zeros((3, 1))
         elif int(options['kite_dof']) == 6:
-            framed_forces = six_dof_kite.get_framed_forces(vec_u_eff, options, variables, kite, architecture,
-                                                           parameters)
-            framed_moments = six_dof_kite.get_framed_moments(vec_u_eff, options, variables, kite, architecture,
-                                                             parameters)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables, kite, architecture)
+            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables, kite, architecture)
             m_aero_body = framed_moments['body']
         else:
             message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
@@ -167,6 +165,18 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
 
 
     return outputs
+
+
+def get_force_and_moment_vars(variables_si, kite, parent, options):
+    f_aero = tools.get_f_aero_var(variables_si, kite, parent)
+
+    kite_has_6dof = (int(options['kite_dof']) == 6)
+    if kite_has_6dof:
+        m_aero = tools.get_m_aero_var(variables_si, kite, parent)
+    else:
+        m_aero = cas.DM.zeros((3, 1))
+
+    return f_aero, m_aero
 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters):

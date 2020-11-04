@@ -94,7 +94,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     cstr_list.append(aero_force_cstr)
 
     # enforce lifted tether force
-    tether_force_cstr = tether_aero.get_tether_cstr(options, system_variables['SI'], atmos, wind, architecture, parameters, outputs)
+    tether_force_cstr = tether_aero.get_tether_cstr(options, system_variables['SI'], architecture, parameters, outputs)
     cstr_list.append(tether_force_cstr)
 
     # induction constraint

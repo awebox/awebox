@@ -740,6 +740,11 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
 
     if use_wound_tether:
         l_t_bounds = options['model']['system_bounds']['xd']['l_t']
+
+        print_op.warn_about_temporary_funcationality_removal(location='model_funcs')
+        # prevent licq errors.
+        options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [l_t_bounds[0], cas.inf], ('???', None), 'x'))
+
         l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'], l_t_bounds[0]])
         options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
                              ('length of the main tether when unrolled [m]', None), 'x'))

@@ -49,48 +49,12 @@ from awebox.logger.logger import Logger as awelogger
 
 
 
-def arbitrarily_desired_force_frame():
-    return 'earth'
 
 def get_kite_dcm(kite, variables, architecture):
     parent = architecture.parent_map[kite]
     kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
     return kite_dcm
 
-def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
-
-    kite_dcm = get_kite_dcm(kite, variables, architecture)
-
-    parent = architecture.parent_map[kite]
-
-    # frame_name = options['aero']['stab_derivs']['force_frame']
-    frame_name = arbitrarily_desired_force_frame()
-
-    f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-
-    f_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_wind = frames.from_named_frame_to_wind(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_control = frames.from_named_frame_to_control(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_earth = frames.from_named_frame_to_earth(frame_name, vec_u, kite_dcm, f_aero_var)
-
-    dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
-
-    return dict
-
-def get_framed_moments(vec_u, options, variables, kite, architecture, parameters):
-
-    kite_dcm = get_kite_dcm(kite, variables, architecture)
-
-    parent = architecture.parent_map[kite]
-
-    frame_name = options['aero']['stab_derivs']['moment_frame']
-    m_aero_var = tools.get_m_aero_var(variables, kite, parent, parameters, options)
-
-    m_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, m_aero_var)
-
-    dict = {'body':m_aero_body}
-
-    return dict
 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
@@ -105,8 +69,6 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-        m_aero_var = tools.get_m_aero_var(variables, kite, parent, parameters, options)
 
         if int(surface_control) == 0:
             delta = variables['u']['delta' + str(kite) + str(parent)]
@@ -124,16 +86,20 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
 
-        arb_force_frame = arbitrarily_desired_force_frame()
-        force_arb_info = copy.deepcopy(force_info)
-        force_arb_info['vector'] = frames.from_named_frame_to_named_frame(force_info['frame'], arb_force_frame, vec_u_earth, kite_dcm, force_info['vector'])
-        force_arb_info['frame'] = arb_force_frame
+        force_found_frame = force_info['frame']
+        force_found_vector = force_info['vector']
 
-        f_aero_val = force_arb_info['vector']
-        m_aero_val = moment_info['vector']
+        moment_found_frame = moment_info['frame']
+        moment_found_vector = moment_info['vector']
 
-        resi_f_kite = (f_aero_var - f_aero_val) / f_scale
-        resi_m_kite = (m_aero_var - m_aero_val) / m_scale
+        forces_dict = tools.get_framed_forces(vec_u_earth, kite_dcm, variables, kite, architecture)
+        force_framed_variable = forces_dict[force_found_frame]
+
+        moments_dict = tools.get_framed_moments(vec_u_earth, kite_dcm, variables, kite, architecture)
+        moment_framed_variable = moments_dict[moment_found_frame]
+
+        resi_f_kite = (force_framed_variable - force_found_vector) / f_scale
+        resi_m_kite = (moment_framed_variable - moment_found_vector) / m_scale
 
         f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
                                        name='f_aero' + str(kite) + str(parent),
