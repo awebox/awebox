@@ -36,6 +36,7 @@ import awebox.tools.print_operations as print_op
 
 import numpy as np
 import copy
+import pdb
 
 import awebox.mdl.mdl_constraint as mdl_constraint
 
@@ -70,36 +71,47 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         parent = architecture.parent_map[kite]
 
+        kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+
+        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters)
+
         if int(surface_control) == 0:
             delta = variables['u']['delta' + str(kite) + str(parent)]
         elif int(surface_control) == 1:
             delta = variables['xd']['delta' + str(kite) + str(parent)]
 
         omega = variables['xd']['omega' + str(kite) + str(parent)]
-        kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
-
         q = variables['xd']['q' + str(kite) + str(parent)]
         rho = atmos.get_density(q[2])
-
-        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
-                                                             architecture, parameters)
-
         force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
 
-        force_found_frame = force_info['frame']
-        force_found_vector = force_info['vector']
+        f_found_frame = force_info['frame']
+        f_found_vector = force_info['vector']
 
-        moment_found_frame = moment_info['frame']
-        moment_found_vector = moment_info['vector']
+        m_found_frame = moment_info['frame']
+        m_found_vector = moment_info['vector']
 
         forces_dict = tools.get_framed_forces(vec_u_earth, kite_dcm, variables, kite, architecture)
-        force_framed_variable = forces_dict[force_found_frame]
+        f_var_frame = tools.force_variable_frame()
+        f_var = forces_dict[f_var_frame]
+        f_val = frames.from_named_frame_to_named_frame(from_name=f_found_frame,
+                                                       to_name=f_var_frame,
+                                                       vec_u=vec_u_earth,
+                                                       kite_dcm=kite_dcm,
+                                                       vector=f_found_vector)
 
         moments_dict = tools.get_framed_moments(vec_u_earth, kite_dcm, variables, kite, architecture)
-        moment_framed_variable = moments_dict[moment_found_frame]
+        m_var_frame = tools.moment_variable_frame()
+        m_var = forces_dict[m_var_frame]
+        m_val = frames.from_named_frame_to_named_frame(from_name=m_found_frame,
+                                                       to_name=m_var_frame,
+                                                       vec_u=vec_u_earth,
+                                                       kite_dcm=kite_dcm,
+                                                       vector=m_found_vector)
 
-        resi_f_kite = (force_framed_variable - force_found_vector) / f_scale
-        resi_m_kite = (moment_framed_variable - moment_found_vector) / m_scale
+        resi_f_kite = (f_var - f_val) / f_scale
+        resi_m_kite = (m_var - m_val) / m_scale
 
         f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
                                        name='f_aero' + str(kite) + str(parent),
@@ -114,12 +126,16 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
     return cstr_list
 
 
-def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho):
+def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho):
 
-    alpha = indicators.get_alpha(vec_u, kite_dcm)
-    beta = indicators.get_beta(vec_u, kite_dcm)
+    # we use the vec_u_earth and the kite_dcm to give the relative orientation.
+    # this means, that they must be in the same frame. otherwise, the frame of
+    # the wind vector is not used in this function.
 
-    airspeed = vect_op.norm(vec_u)
+    alpha = indicators.get_alpha(vec_u_earth, kite_dcm)
+    beta = indicators.get_beta(vec_u_earth, kite_dcm)
+
+    airspeed = vect_op.norm(vec_u_earth)
     force_coeff_info, moment_coeff_info = stability_derivatives.stability_derivatives(options, alpha, beta,
                                                                                       airspeed, omega,
                                                                                       delta, parameters)
@@ -133,7 +149,8 @@ def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho
     CF = force_coeff_info['coeffs']
     CM = moment_coeff_info['coeffs']
 
-    dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u.T, vec_u)
+    # notice that magnitudes don't change under rotation
+    dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u_earth.T, vec_u_earth)
     planform_area = parameters['theta0', 'geometry', 's_ref']
 
     force = CF * dynamic_pressure * planform_area

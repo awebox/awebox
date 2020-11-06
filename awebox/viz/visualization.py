@@ -154,7 +154,7 @@ class Visualization(object):
         plot_logic_dict['algebraic_variables'] = (variables.plot_algebraic_variables, None)
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
-        plot_logic_dict['constraints'] = (output.plot_model_inequalities, None)
+        plot_logic_dict['constraints'] = (output.plot_constraints, None)
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
 

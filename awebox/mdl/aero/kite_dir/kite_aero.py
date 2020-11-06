@@ -77,7 +77,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
         if int(options['kite_dof']) == 3:
-            kite_dcm = three_dof_kite.get_kite_dcm(vec_u_eff, kite, variables, architecture)
+            kite_dcm = three_dof_kite.get_kite_dcm(options, variables, wind, kite, architecture)
         elif int(options['kite_dof']) == 6:
             kite_dcm = six_dof_kite.get_kite_dcm(kite, variables, architecture)
         else:

@@ -41,6 +41,8 @@ import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
+import pdb
+
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -50,12 +52,9 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
     cstr_list = mdl_constraint.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
-
         parent = architecture.parent_map[kite]
-        f_aero_var = tools.get_f_aero_var(variables, kite, parent)
 
-        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-        kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
+        kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
 
         vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
                                                              architecture, parameters)
@@ -63,8 +62,6 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
         force_found_frame = 'earth'
         force_found_vector = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
 
-        print_op.warn_about_temporary_funcationality_removal(location='3dof')
-        # todo: which vec_u is this supposed to be?
         forces_dict = tools.get_framed_forces(vec_u, kite_dcm, variables, kite, architecture)
         force_framed_variable = forces_dict[force_found_frame]
 
@@ -93,8 +90,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     # wind parameters
     rho_infty = atmos.get_density(q[2])
 
-    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-    kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, architecture)
+    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
     Lhat = kite_dcm[:,2]
 
     # lift and drag coefficients
@@ -103,10 +99,9 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     drag_coefficient_at_zero_alpha_equivs = ['CX', 'CA', 'CD']
     CD0 = 0.
     for cd_equiv in drag_coefficient_at_zero_alpha_equivs:
-        try:
+        tentative_name = '[theta0,aero,' + cd_equiv +',0,0]'
+        if tentative_name in parameters.labels():
             CD0 = vect_op.abs(parameters['theta0', 'aero', cd_equiv, '0'][0])
-        except:
-            32.0
 
     CD = CD0 + CL ** 2 / (np.pi * parameters['theta0', 'geometry', 'ar'])
 
@@ -158,9 +153,11 @@ def get_planar_dmc(vec_u_eff, variables, kite, architecture):
     return planar_dcm
 
 
-def get_kite_dcm(vec_u_eff, kite, variables, architecture):
+def get_kite_dcm(options, variables, wind, kite, architecture):
 
     parent = architecture.parent_map[kite]
+
+    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
 
     # roll angle
     coeff = variables['xd']['coeff' + str(kite) + str(parent)]
@@ -198,9 +195,7 @@ def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
 
     q = xd['q' + str(kite) + str(parent)]
 
-    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, model.wind, kite, model.architecture)
-
-    kite_dcm = get_kite_dcm(vec_u_eff, kite, variables, model.architecture)
+    kite_dcm = get_kite_dcm(options, variables, model.wind, kite, model.architecture)
     ehat_span = kite_dcm[:, 1]
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']

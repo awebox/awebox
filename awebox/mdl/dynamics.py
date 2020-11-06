@@ -150,6 +150,12 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     for cstr in cstr_list.get_list('ineq'):
         outputs['model_inequalities'][cstr.name] = cstr.expr
 
+    # include the equality constraints into the outputs
+    outputs['model_equalities'] = {}
+    for cstr in cstr_list.get_list('eq'):
+        outputs['model_equalities'][cstr.name] = cstr.expr
+
+
     # add other relevant outputs
     outputs = xddot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,

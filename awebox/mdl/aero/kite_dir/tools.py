@@ -36,6 +36,8 @@ import awebox.tools.vector_operations as vect_op
 import numpy as np
 import awebox.tools.print_operations as print_op
 
+import pdb
+
 ##### the force and moment lifted variables
 
 def get_f_aero_var(variables, kite, parent):
@@ -169,6 +171,7 @@ def get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dc
     return u_app
 
 def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture):
+
     parent = architecture.parent_map[kite]
 
     q = variables['xd']['q' + str(kite) + str(parent)]
