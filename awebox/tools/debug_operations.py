@@ -74,14 +74,14 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     if not licq_holds:
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
-        awelogger.logger.info(message)
+        awelogger.logger.error(message)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
         awelogger.logger.info('')
-        message = 'second order sufficient conditions appear not to be met at solution'
-        awelogger.logger.info(message)
+        message = 'second order sufficient conditions appear not to be met at solution. please check if n_k is large enough.'
+        awelogger.logger.error(message)
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
     if problem_is_ill_conditioned:
@@ -98,8 +98,10 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     if not problem_is_healthy:
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+
+        awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
-        awelogger.logger.error(message)
+        awelogger.logger.info(message)
 
     return problem_is_healthy
 

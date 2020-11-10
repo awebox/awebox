@@ -50,8 +50,8 @@ def get_wind_dcm(vec_u, kite_dcm):
 
 def from_earth_to_body(kite_dcm, vector):
 
-    message = 'kite frame conversion (earth to body) involves a matrix inversion. div-by-zero errors are possible.'
-    awelogger.logger.warning(message)
+    # kite frame conversion (earth to body) involves a matrix inversion. div-by-zero errors are possible.
+    # therefore: avoid using this conversion in critical-path
 
     dcm_inv = cas.inv(kite_dcm)
     transformed = cas.mtimes(dcm_inv, vector)
@@ -78,8 +78,8 @@ def from_wind_to_earth(vec_u, kite_dcm, vector):
 
 def from_earth_to_wind(vec_u, kite_dcm, vector):
 
-    message = 'kite frame conversion (earth to wind) involves a matrix inversion. div-by-zero errors are possible.'
-    awelogger.logger.warning(message)
+    # kite frame conversion (earth to wind) involves a matrix inversion. div-by-zero errors are possible.
+    # therefore: avoid using this conversion in critical-path
 
     wind_dcm = get_wind_dcm(vec_u, kite_dcm)
     wind_dcm_inv = cas.inv(wind_dcm)

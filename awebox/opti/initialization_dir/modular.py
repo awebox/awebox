@@ -44,7 +44,7 @@ import awebox.viz.tools as visualization_tools
 def get_initial_guess(nlp, model, formulation, options):
     """
     Assemble an initial guess based on the problem formulation
-    :param nlp: nlp fomrulation
+    :param nlp: nlp formulation
     :param model: dynamic model
     :param formulation: problem formulation
     :param options: initialization options
