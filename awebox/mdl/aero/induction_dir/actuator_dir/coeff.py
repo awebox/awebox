@@ -39,21 +39,10 @@ import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-
-def get_ct_var(model_options, variables, parent):
-
-    var_type = actuator_geom.get_var_type(model_options)
-    ct_var = variables[var_type]['ct' + str(parent)]
-    return ct_var
-
-def get_dct_var(variables, parent):
-
-    dct_var = variables['xd']['dct' + str(parent)]
-    return dct_var
-
 
 def get_t_star_var(variables, parent):
     t_star = variables['xl']['t_star' + str(parent)]
@@ -73,9 +62,9 @@ def get_LL_matrix_var(variables, parent, label):
 
     return LL_matr
 
-def get_LL_matrix_val(model_options, variables, parent, label):
-    corr = actuator_flow.get_corr_val(model_options, variables, parent, label)
-    chi = actuator_flow.get_wake_angle_chi(model_options, parent, variables, label)
+def get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
+    corr = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+    chi = actuator_flow.get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
     tanhalfchi = cas.tan(chi / 2.)
     sechalfchi = 1. / cas.cos(chi / 2.)
 
@@ -109,42 +98,8 @@ def get_MM_matrix():
 
     return MM
 
-def get_actuator_force(outputs, parent, architecture):
-
-    children = architecture.kites_map[parent]
-
-    total_force_aero = np.zeros((3, 1))
-    for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-
-        total_force_aero = total_force_aero + aero_force
-
-    return total_force_aero
-
-def get_actuator_moment(model_options, variables, outputs, parent, architecture):
-
-    children = architecture.kites_map[parent]
-
-    total_moment_aero = np.zeros((3, 1))
-    for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-        kite_radius = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
-        aero_moment = vect_op.cross(kite_radius, aero_force)
-
-        total_moment_aero = total_moment_aero + aero_moment
-
-    return total_moment_aero
-
-def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
-
-    total_force_aero = get_actuator_force(outputs, parent, architecture)
-    nhat = general_geom.get_n_hat_var(variables, parent)
-    thrust = cas.mtimes(total_force_aero.T, nhat)
-
-    return thrust
-
 def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture):
-    thrust = get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
@@ -152,9 +107,10 @@ def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, paren
 
     return ct
 
+
 def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture):
 
-    total_moment_aero = get_actuator_moment(model_options, variables, outputs, parent, architecture)
+    total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
     y_rotor = general_geom.get_y_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, y_rotor)
 
@@ -162,7 +118,7 @@ def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, archi
 
 def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture):
 
-    total_moment_aero = get_actuator_moment(model_options, variables, outputs, parent, architecture)
+    total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
     z_rotor = general_geom.get_z_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, z_rotor)
 
@@ -234,21 +190,6 @@ def get_moment_ref(model_options, atmos, wind, parameters):
 
     return moment
 
-def get_LL_residual(model_options, variables, parent, label):
-
-    LL_matr_var = get_LL_matrix_var(variables, parent, label)
-    LL_matr_val = get_LL_matrix_val(model_options, variables, parent, label)
-
-    resi_unscaled = LL_matr_var - LL_matr_val
-    resi_reshape = cas.reshape(resi_unscaled, (9, 1))
-
-    a_ref = actuator_flow.get_a_ref(model_options)
-    corr_ref = (1. - a_ref)
-    LL11_ref = 0.25 / corr_ref
-
-    resi = resi_reshape / LL11_ref
-
-    return resi
 
 def get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
 
@@ -268,7 +209,7 @@ def get_t_star_denominator_ref(wind):
 
 
 def get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    thrust = get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     moment_y_val = get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture)
     moment_z_val = get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture)
 

@@ -12,6 +12,8 @@ from casadi.tools import *
 import numpy as np
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
 
 def test_integrators():
 
@@ -128,3 +130,5 @@ def test_integrators():
     assert(err_rk_x < 1e-2)
     assert(err_rk_z < 1e-2)
     assert(err_rk_q < 2e-2)
+
+test_integrators()

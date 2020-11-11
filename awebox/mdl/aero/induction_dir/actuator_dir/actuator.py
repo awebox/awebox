@@ -42,7 +42,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
-
+import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 def get_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
@@ -107,11 +107,11 @@ def get_induction_residual(model_options, atmos, wind, variables, outputs, param
 def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
 
-    thrust = actuator_coeff.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-    corr_val = actuator_flow.get_corr_val(model_options, variables, parent, label)
+    corr_val = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     resi_unscaled = 4. * a_var * corr_val * area * qzero - thrust
 
@@ -125,11 +125,11 @@ def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables,
     a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
     da_var = actuator_flow.get_da_var(model_options, variables, parent, label)
 
-    thrust = actuator_coeff.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-    corr_val = actuator_flow.get_corr_val(model_options, variables, parent, label)
+    corr_val = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
     LLinv11 = 4. * corr_val
 
     MM = actuator_coeff.get_MM_matrix()
@@ -155,7 +155,7 @@ def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables
     c_all, moment_den = actuator_coeff.get_c_all_components(model_options, atmos, wind, variables, parameters,
                                                               outputs, parent, architecture)
 
-    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, variables, parent, label)
+    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
     MM = actuator_coeff.get_MM_matrix()
 
     t_star_num = actuator_coeff.get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
@@ -178,7 +178,7 @@ def get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, 
 
     c_all, moment_denom = actuator_coeff.get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
 
-    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, variables, parent, label)
+    LL_matr = actuator_coeff.get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
 
@@ -244,7 +244,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['dyn_pressure' + str(parent)] = q_app
         outputs['actuator']['df' + str(parent)] = actuator_flow.get_df_val(model_options, wind, parent, variables, architecture)
 
-        thrust = actuator_coeff.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+        thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
         ct = actuator_coeff.get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture)
         outputs['actuator']['thrust' + str(parent)] = thrust
         outputs['actuator']['ct' + str(parent)] = ct

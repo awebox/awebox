@@ -269,7 +269,7 @@ def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
 
     var_type = 'xd'
     for name in struct_op.subkeys(model.variables, var_type):
-        name_stripped = struct_op.get_node_variable_name(name)
+        name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if 'psi' in name_stripped:
             V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
@@ -406,7 +406,7 @@ def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
 
     var_type = 'xl'
     for name in struct_op.subkeys(model.variables, 'xl'):
-        name_stripped = struct_op.get_node_variable_name(name)
+        name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if 'psi' in name_stripped:
             V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)

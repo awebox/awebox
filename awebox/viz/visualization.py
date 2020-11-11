@@ -142,17 +142,9 @@ class Visualization(object):
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
         plot_logic_dict['vortex_verification'] = (wake.plot_vortex_verification, None)
-        # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)
         plot_logic_dict['induction_factor'] = (output.plot_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
-        # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
-        # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
-        # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
         plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
@@ -165,22 +157,10 @@ class Visualization(object):
         plot_logic_dict['algebraic_variables'] = (variables.plot_algebraic_variables, None)
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
-        plot_logic_dict['constraints'] = (output.plot_constraints, {'constr_type':'inequality'})
-        for output_top in list(outputs.keys()):
-            output_path = output_top
-            plot_logic_dict['outputs:' + output_top] = (output.plot_outputs, {'output_path': output_top})
-            try:
-                for output_mid in list(outputs[output_top].keys()):
-                    output_path = output_top + ':' + output_mid
-                    plot_logic_dict['outputs:' + output_path] = (output.plot_outputs,{'output_path': output_path})
-                    try:
-                        for output_bottom in list(outputs[output_top][output_mid].keys()):
-                            output_path = output_top + ':' + output_mid + ':' + output_bottom
-                            plot_logic_dict['outputs:' + output_path] = (output.plot_outputs, {'output_path': output_path})
-                    except:
-                        pass
-            except:
-                pass
+        plot_logic_dict['constraints'] = (output.plot_constraints, None)
+        for output_top_name in list(outputs.keys()):
+            plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
+
         self.__plot_logic_dict = plot_logic_dict
         self.__plot_dict['plot_logic_dict'] = plot_logic_dict
 

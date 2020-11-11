@@ -34,11 +34,10 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dynamics_components_dir.tether as tether
 
 from awebox.logger.logger import Logger as awelogger
 
-def energy_outputs(options, parameters, outputs, node_masses, system_variables, generalized_coordinates, architecture):
+def energy_outputs(options, parameters, outputs, node_masses_si, variables_si, architecture):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
@@ -48,16 +47,16 @@ def energy_outputs(options, parameters, outputs, node_masses, system_variables, 
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
-        outputs = add_node_kinetic(node, options, node_masses, system_variables, parameters, outputs, architecture)
-        outputs = add_node_potential(node, node_masses, system_variables, parameters, outputs, architecture)
+        outputs = add_node_kinetic(node, options, node_masses_si, variables_si, parameters, outputs, architecture)
+        outputs = add_node_potential(node, node_masses_si, variables_si, parameters, outputs, architecture)
 
-    outputs = add_groundstation_kinetic(options, node_masses, system_variables, outputs)
+    outputs = add_groundstation_kinetic(options, node_masses_si, variables_si, outputs)
     outputs = add_groundstation_potential(outputs)
 
     return outputs
 
 
-def add_node_kinetic(node, options, node_masses, system_variables, parameters, outputs, architecture):
+def add_node_kinetic(node, options, node_masses_si, variables_si, parameters, outputs, architecture):
 
     parent = architecture.parent_map[node]
     label = str(node) + str(parent)
@@ -66,12 +65,12 @@ def add_node_kinetic(node, options, node_masses, system_variables, parameters, o
     kites_have_6dof = int(options['kite_dof']) == 6
     node_has_rotational_energy = node_has_a_kite and kites_have_6dof
 
-    mass = node_masses['m' + label]
-    dq = system_variables['SI']['xd']['dq' + label]
+    mass = node_masses_si['m' + label]
+    dq = variables_si['xd']['dq' + label]
     e_kin_trans = 0.5 * mass * cas.mtimes(dq.T, dq)
 
     if node_has_rotational_energy:
-        omega = system_variables['SI']['xd']['omega' + label]
+        omega = variables_si['xd']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
         e_kin_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
 
@@ -85,14 +84,14 @@ def add_node_kinetic(node, options, node_masses, system_variables, parameters, o
     return outputs
 
 
-def add_node_potential(node, node_masses, system_variables, parameters, outputs, architecture):
+def add_node_potential(node, node_masses_si, variables_si, parameters, outputs, architecture):
 
     parent = architecture.parent_map[node]
     label = str(node) + str(parent)
 
     gravity = parameters['theta0', 'atmosphere', 'g']
-    mass = node_masses['m' + label]
-    q = system_variables['SI']['xd']['q' + label]
+    mass = node_masses_si['m' + label]
+    q = variables_si['xd']['q' + label]
 
     e_potential = gravity * mass * q[2]
     outputs['e_potential']['q' + label] = e_potential
@@ -107,19 +106,19 @@ def add_groundstation_potential(outputs):
     return outputs
 
 
-def add_groundstation_kinetic(options, node_masses, system_variables, outputs):
+def add_groundstation_kinetic(options, node_masses_si, variables_si, outputs):
 
     # = 1/2 i omega_gen^2, with no-slip condition
     # add mass of first half of main tether, and the mass of wound tether.
 
-    total_groundstation_mass = node_masses['groundstation']
+    total_groundstation_mass = node_masses_si['groundstation']
 
     if options['tether']['use_wound_tether']:
-        total_groundstation_mass += node_masses['m00']
+        total_groundstation_mass += node_masses_si['m00']
 
-    dq10 = system_variables['SI']['xd']['dq10']
-    q10 = system_variables['SI']['xd']['q10']
-    l_t = system_variables['SI']['xd']['l_t']
+    dq10 = variables_si['xd']['dq10']
+    q10 = variables_si['xd']['q10']
+    l_t = variables_si['xd']['l_t']
 
     speed_groundstation = cas.mtimes(dq10.T, q10) / l_t
 

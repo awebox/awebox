@@ -23,38 +23,21 @@
 #
 #
 '''
-file to provide operations related to the system performance, to the awebox,
+ocp constraint handling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold alu-fr 2020
+- author: rachel leuthold, alu-fr 2020
 '''
 
-import matplotlib.pylab as plt
-import scipy
-import scipy.io
-import scipy.sparse as sps
-
 import casadi.tools as cas
-import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
 
-def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
-    phf = get_loyd_phf(CL, CD, elevation_angle)
-    p_loyd = power_density * s_ref * phf
-    return p_loyd
+import pdb
 
-def get_loyd_phf(CL, CD, elevation_angle=0.):
-    epsilon = 1.e-4 #8
-    CR = CL * vect_op.smooth_sqrt(1. + (CD / (CL + epsilon))**2.)
+class OcpConstraintList(cstr_op.ConstraintList):
+    def __init__(self):
+        super().__init__(list_name='ocp_constraints_list')
 
-    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
-    return phf
-
-
-def determine_if_periodic(options):
-
-    enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
-         enforce_periodicity = bool(False)
-
-    return enforce_periodicity

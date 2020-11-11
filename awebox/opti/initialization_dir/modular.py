@@ -44,7 +44,7 @@ import awebox.viz.tools as visualization_tools
 def get_initial_guess(nlp, model, formulation, options):
     """
     Assemble an initial guess based on the problem formulation
-    :param nlp: nlp fomrulation
+    :param nlp: nlp formulation
     :param model: dynamic model
     :param formulation: problem formulation
     :param options: initialization options
@@ -58,7 +58,7 @@ def get_initial_guess(nlp, model, formulation, options):
         raise ValueError('NaN detected in V_init_si')
 
     # scale initial guess
-    V_init = struct_op.si_to_scaled(model, V_init_si)
+    V_init = struct_op.si_to_scaled(V_init_si, model.scaling)
     return V_init
 
 def __build_si_initial_guess(nlp, model, formulation, options):

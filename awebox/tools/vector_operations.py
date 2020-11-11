@@ -37,6 +37,9 @@ import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
+
+import pdb
+
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
     vj = yhat() * (a[0] * b[2] - a[2] * b[0])
@@ -176,57 +179,24 @@ def zhat_np():
     zhat_np = np.array(cas.vertcat(0., 0., 1.))
     return zhat_np
 
-def rotation_matrix(theta, phi, psi):
-    # rotation angles are defined positive, for clockwise rotation when
-    # looking from origin along positive axis
-
-    ori_pre_rot = np.eye(3)
-
-    rot_x = cas.MX.zeros(3, 3)
-    rot_x[0, 0] = 1.0
-    rot_x[1, 1] = np.cos(phi)
-    rot_x[1, 2] = np.sin(phi)
-    rot_x[2, 1] = -1.0 * np.sin(phi)
-    rot_x[2, 2] = np.cos(phi)
-
-    rot_y = cas.MX.zeros(3, 3)
-    rot_y[0, 0] = np.cos(theta)
-    rot_y[0, 2] = -1.0 * np.sin(theta)
-    rot_y[1, 1] = 1.0
-    rot_y[2, 0] = np.sin(theta)
-    rot_y[2, 2] = np.cos(theta)
-
-    rot_z = cas.MX.zeros(3, 3)
-    rot_z[0, 0] = np.cos(psi)
-    rot_z[0, 1] = np.sin(psi)
-    rot_z[1, 0] = -1.0 * np.sin(psi)
-    rot_z[1, 1] = np.cos(psi)
-    rot_z[2, 2] = 1.0
-
-    ori_post_rot = cas.mtimes(cas.mtimes(rot_x, rot_y), cas.mtimes(rot_z, ori_pre_rot))
-
-    return ori_post_rot
-
-def null(arg_array, eps=1e-15):
-    u, s, vh = scipy.linalg.svd(arg_array)
-    null_mask = (s <= eps)
-    null_space = scipy.compress(null_mask, vh, axis=0)
-    return scipy.transpose(null_space)
-
-def spy(matrix, tol=0.1, color=True):
+def spy(matrix, tol=0.1, color=True, title=''):
     fig = plt.figure()
     fig.clf()
 
     matrix = sps.csr_matrix(matrix)
+
+    elements = matrix.shape[0]
+    markersize = (1./float(elements)) * 500.
 
     if color:
         matrix_dense = np.abs(matrix.todense())
         plt.imshow(matrix_dense, interpolation='none', cmap='binary')
         plt.colorbar()
     else:
-        plt.spy(matrix, precision=tol)
+        plt.spy(matrix, precision=tol, markersize=markersize)
 
-    plt.show()
+    plt.title(title)
+
 
 def skew(vec):
     " creates skew-symmetric matrix"
@@ -240,27 +210,27 @@ def skew(vec):
 
 def unskew(A):
     "Unskew matrix to vector"
-    B = 0.5*np.array(
-        [
-            A[2,1]-A[1,2],
-            A[0,2]-A[2,0],
-            A[1,0]-A[0,1]
-        ]
-    )
-    return B[:,np.newaxis]
 
-def rot_op(R, A):
+    B = 0.5*cas.vertcat(
+        A[2,1]-A[1,2],
+        A[0,2]-A[2,0],
+        A[1,0]-A[0,1]
+    )
+    return B
+
+def rotation(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
-def jacobian_dcm(expr, xd_si, var, kite, kparent):
+def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
     """ Differentiate expression w.r.t. kite direct cosine matrix"""
 
-    dcm_si = xd_si['r{}{}'.format(kite, kparent)]
-    dcm_sc = var['xd','r{}{}'.format(kite, kparent)]
-    jac_dcm = rot_op(
+    dcm_si = xd_si['r{}{}'.format(kite, parent)]
+    dcm_scaled = variables_scaled['xd', 'r{}{}'.format(kite, parent)]
+
+    jac_dcm = rotation(
             cas.reshape(dcm_si, (3,3)),
-            cas.reshape(cas.jacobian(expr, dcm_sc), (3,3))
+            cas.reshape(cas.jacobian(expr, dcm_scaled), (3,3))
     ).T
     return jac_dcm
 
@@ -289,7 +259,7 @@ def lower_triangular_inclusive(matrix):
     return elements
 
 def columnize(var):
-    # only allows 2x2 matrices for variable
+    # only allows 2D matrices for variable
 
     [counted_rows, counted_columns] = var.shape
     number_elements = counted_rows * counted_columns

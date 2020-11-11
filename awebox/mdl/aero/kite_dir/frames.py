@@ -34,7 +34,7 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
-
+import awebox.tools.print_operations as print_op
 
 
 def get_wind_dcm(vec_u, kite_dcm):
@@ -48,8 +48,11 @@ def get_wind_dcm(vec_u, kite_dcm):
     return wind_dcm
 
 
-
 def from_earth_to_body(kite_dcm, vector):
+
+    # kite frame conversion (earth to body) involves a matrix inversion. div-by-zero errors are possible.
+    # therefore: avoid using this conversion in critical-path
+
     dcm_inv = cas.inv(kite_dcm)
     transformed = cas.mtimes(dcm_inv, vector)
     return transformed
@@ -74,6 +77,10 @@ def from_wind_to_earth(vec_u, kite_dcm, vector):
     return transformed
 
 def from_earth_to_wind(vec_u, kite_dcm, vector):
+
+    # kite frame conversion (earth to wind) involves a matrix inversion. div-by-zero errors are possible.
+    # therefore: avoid using this conversion in critical-path
+
     wind_dcm = get_wind_dcm(vec_u, kite_dcm)
     wind_dcm_inv = cas.inv(wind_dcm)
     transformed = cas.mtimes(wind_dcm_inv, vector)

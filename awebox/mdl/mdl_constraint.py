@@ -23,38 +23,37 @@
 #
 #
 '''
-file to provide operations related to the system performance, to the awebox,
+model (time-independent) constraint handling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold alu-fr 2020
+- authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
 
-import matplotlib.pylab as plt
-import scipy
-import scipy.io
-import scipy.sparse as sps
-
 import casadi.tools as cas
+import awebox.tools.constraint_operations as cstr_op
 import numpy as np
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
-
-def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
-    phf = get_loyd_phf(CL, CD, elevation_angle)
-    p_loyd = power_density * s_ref * phf
-    return p_loyd
-
-def get_loyd_phf(CL, CD, elevation_angle=0.):
-    epsilon = 1.e-4 #8
-    CR = CL * vect_op.smooth_sqrt(1. + (CD / (CL + epsilon))**2.)
-
-    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
-    return phf
+import pdb
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 
-def determine_if_periodic(options):
+class MdlConstraintList(cstr_op.ConstraintList):
+    def __init__(self):
+        super().__init__(list_name='model_constraints_list')
 
-    enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
-         enforce_periodicity = bool(False)
+    def get_structure(self, cstr_type):
 
-    return enforce_periodicity
+        cstr_list = self.get_list(cstr_type)
+
+        entry_list = []
+        for cstr in cstr_list:
+            joined_name = cstr.name
+            local = cas.entry(joined_name, shape=cstr.expr.shape)
+            entry_list.append(local)
+
+        return cas.struct_symSX(entry_list)
+
+    def get_dict(self):
+        dict = {}
+        dict['equality'] = self.get_structure('eq')(self.get_expression_list('eq'))
+        dict['inequality'] = self.get_structure('ineq')(self.get_expression_list('ineq'))
+        return dict

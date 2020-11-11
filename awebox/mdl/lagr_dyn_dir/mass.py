@@ -34,10 +34,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.dynamics_components_dir.tether as tether
-
 from awebox.logger.logger import Logger as awelogger
-
+import awebox.mdl.lagr_dyn_dir.tools as tools
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 def generate_m_nodes(options, variables, outputs, parameters, architecture):
     # system architecture (see zanon2013a)
@@ -148,7 +147,7 @@ def add_groundstation_mass(node_masses, parameters):
 
 def add_wound_tether_mass(node_masses, options, architecture, variables, parameters, vals_or_scaling):
 
-    main_props = tether.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
+    main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
     if vals_or_scaling == 'vals':
         wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
         wound_cross_section = main_props['cross_section_area']
@@ -174,7 +173,7 @@ def add_above_ground_tether_segment_mass(upper_node, node_masses, options, archi
     else:
         grandparent = parent_map[parent]
 
-    seg_props = tether.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=upper_node)
+    seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=upper_node)
     if vals_or_scaling == 'vals':
         seg_mass = seg_props['seg_mass']
     elif vals_or_scaling == 'scaling':
@@ -204,6 +203,3 @@ def add_kite_mass(node, node_masses, architecture, parameters):
         node_masses['m' + str(node) + str(parent)] += kite_mass
 
     return node_masses
-
-
-

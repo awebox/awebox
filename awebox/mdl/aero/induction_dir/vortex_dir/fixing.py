@@ -36,7 +36,6 @@ import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
-import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
 
 ######## the constraints : see opti.constraints
@@ -52,7 +51,7 @@ def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
 
 ######## the placeholders : see ocp.operation
 
-def get_cstr_in_operation_format(options, variables, model):
+def get_cstr_in_operation_format(options, variables, model, Collocation):
     eqs_dict = {}
     constraint_list = []
 
@@ -64,7 +63,6 @@ def get_cstr_in_operation_format(options, variables, model):
     n_k = options['n_k']
     d = options['collocation']['d']
     scheme = options['collocation']['scheme']
-    Collocation = collocation.Collocation(n_k, d, scheme)
 
     model_outputs = model.outputs
     V_mock = var_struct.setup_nlp_v(options, model, Collocation)

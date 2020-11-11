@@ -42,6 +42,7 @@ import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 import copy
+import pdb
 
 class Trial(object):
     __isfrozen = False
@@ -266,7 +267,7 @@ class Trial(object):
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
         solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
-        solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
+        solution_dict['g_opt'] = self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['opt_arg'] = self.__optimization.arg
 
         return solution_dict

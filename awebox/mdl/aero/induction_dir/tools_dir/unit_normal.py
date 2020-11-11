@@ -67,8 +67,10 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
         n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
 
     else:
-        awelogger.logger.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
+        message = 'kite-plane normal-vector model-type not supported. Consider checking the number of kites per layer.'
+        awelogger.logger.error(message)
         n_vec = vect_op.xhat_np()
+        raise Exception(message)
 
     return n_vec
 

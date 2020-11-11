@@ -290,6 +290,10 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        system_lifted.extend([('f_tether' + str(node) + str(parent), (3, 1))])
+
     # create the lifted force and moment vars. so that the implicit
     # aerodynamic constraints (with induction correction) can be enforced
     kite_dof = options['kite_dof']
@@ -323,7 +327,7 @@ def define_bounds(options, variables):
 
             variable_bounds[variable_type][name] = {}
             if variable_type in list(options.keys()):
-                var_name = struct_op.get_node_variable_name(name) # omit node numbers
+                var_name, _ = struct_op.split_name_and_node_identifier(name) # omit node numbers
                 if name in list(options[variable_type].keys()): # check if variable has node bounds
                     variable_bounds[variable_type][name]['lb'] = options[variable_type][name][0]
                     variable_bounds[variable_type][name]['ub'] = options[variable_type][name][1]

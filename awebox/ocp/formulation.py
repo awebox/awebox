@@ -66,7 +66,7 @@ class Formulation(object):
             self.generate_variable_bounds(options)
             self.generate_parameter_bounds(options)
             self.generate_parameterization_settings(options)
-            self.generate_constraints(options, model)
+            self.generate_integral_constraints(options, model)
             self.generate_outputs(options)
 
             self.__status = 'I am a formulation.'
@@ -204,56 +204,18 @@ class Formulation(object):
 
         return None
 
-    def generate_constraints(self, options, model):
+    def generate_integral_constraints(self, options, model):
 
-        awelogger.logger.info('generate constraints..')
+        awelogger.logger.info('generate integral constraints..')
 
         variables = model.variables(cas.MX.sym('variables', model.variables.cat.shape))
         parameters = model.parameters(cas.MX.sym('parameters', model.parameters.cat.shape))
-        ref_variables = model.variables(cas.MX.sym('variables', model.variables.cat.shape)) #todo: deepcopy necessary?
 
+        integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(
+            options, variables, parameters, model)
 
-        initial_constraints, initial_constraints_fun = operation.generate_initial_constraints(options,
-                            variables,
-                            ref_variables,
-                            model,
-                            self.__xi_dict)
-
-        terminal_constraints, terminal_constraints_fun = operation.generate_terminal_constraints(options,
-                            variables,
-                            ref_variables,
-                            model,
-                            self.__xi_dict)
-
-        periodic_constraints, periodic_constraints_fun = operation.generate_periodic_constraints(options,
-                            variables,
-                            ref_variables)
-
-        integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(options, variables, parameters, model)
-
-        self.__constraints = {'initial': initial_constraints,
-                              'terminal': terminal_constraints,
-                              'periodic': periodic_constraints,
-                              'integral': integral_constraints
-                              }
-
-        self.__constraints_fun = {'initial': initial_constraints_fun,
-                                  'terminal': terminal_constraints_fun,
-                                  'periodic': periodic_constraints_fun,
-                                  'integral': integral_constraint_fun}
-
-        induction_comparison_labels = options['induction']['comparison_labels']
-        if 'vor' in induction_comparison_labels:
-            wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables,
-                                                                                                model)
-            vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(
-                options, variables, model)
-
-            self.__constraints['wake_fix'] = wake_fix_constraints
-            self.__constraints['vortex_strength'] = vortex_strength_constraints
-            self.__constraints_fun['wake_fix'] = wake_fix_constraints_fun
-            self.__constraints_fun['vortex_strength'] = vortex_strength_constraints_fun
-
+        self.__constraints = {'integral': integral_constraints}
+        self.__constraints_fun = {'integral': integral_constraint_fun}
         self.__integral_constants = integral_constants
 
         return None
@@ -292,10 +254,6 @@ class Formulation(object):
     @property
     def parameter_bounds(self):
         return self.__parameter_bounds
-
-    # @property
-    # def dynamics(self):
-    #     return self.__parameter_bounds
 
     @property
     def constraints(self):

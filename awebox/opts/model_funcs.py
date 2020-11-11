@@ -40,6 +40,8 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
 
+import pdb
+
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite
@@ -48,7 +50,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # problem specifics
     options_tree, fixed_params = build_constraint_applicablity_options(options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_trajectory_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_trajectory_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_integral_options(options, options_tree, fixed_params)
 
     # aerodynamics
@@ -236,6 +238,11 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
 
+        options_tree.append(('model', 'scaling', 'xd', 'delta', 1, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'xd', 'omega', 1, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'xd', 'r', 1, ('descript', None), 'x'))
+
+
     return options_tree, fixed_params
 
 def get_kite_dof(user_options):
@@ -250,17 +257,25 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
-    if int(kite_dof) == 3:
+    kite_has_3_dof = (int(kite_dof) == 3)
+    if kite_has_3_dof:
 
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
 
-        compromised_factor = options['model']['model_bounds']['dcoeff_compromised_factor']
+        coeff_scaling = 1.
+        options_tree.append(('model', 'scaling', 'xd', 'coeff', coeff_scaling, ('???', None), 'x'))
+
         options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
-        options_tree.append(('model', 'model_bounds','dcoeff_actuation','include',True,('include dcoeff bound for roll control',None),'x'))
-        options_tree.append(('model', 'model_bounds','coeff_actuation','include',True,('include dcoeff bound for roll control',None),'x'))
-        options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_max',np.array([5*compromised_factor,5]),('include dcoeff bound for roll control',None),'x'))
-        options_tree.append(('params', 'model_bounds',None,'dcoeff_compromised_min',np.array([-5*compromised_factor,-5]),('include dcoeff bound for roll control',None),'x'))
+
+        compromised_factor = options['model']['aero']['three_dof']['dcoeff_compromised_factor']
+        dcoeff_compromised_max = np.array([5*compromised_factor,5])
+        options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_max', dcoeff_compromised_max, ('????', None), 'x'))
+        options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_min', -1. * dcoeff_compromised_max, ('?????', None), 'x'))
+
+    else:
+        options_tree.append(('model', 'model_bounds', 'coeff_actuation', 'include', False, ('???', None), 'x'))
+        options_tree.append(('model', 'model_bounds', 'dcoeff_actuation', 'include', False, ('???', None), 'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
@@ -279,9 +294,6 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     if architecture.number_of_kites == 1 or user_options['system_model']['cross_tether']:
         options_tree.append(('model', 'model_bounds', 'anticollision', 'include', False, ('anticollision inequality', (True,False)),'x'))
 
-    # model equality constraints
-    options_tree.append(('model', 'model_constr', None, 'include', False, None,'x'))
-
     # map single airspeed interval constraint to min/max constraints
     if options['model']['model_bounds']['airspeed']['include']:
         options_tree.append(('model', 'model_bounds', 'airspeed_max', 'include', True,   ('include max airspeed constraint', None),'x'))
@@ -292,7 +304,7 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
 
 ####### trajectory specifics
 
-def build_trajectory_options(options, options_tree, fixed_params):
+def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
     user_options = options['user_options']
 
@@ -321,7 +333,16 @@ def build_trajectory_options(options, options_tree, fixed_params):
     for theta in list(fixed_params.keys()):
         options_tree.append(('model', 'system_bounds', 'theta', theta, [fixed_params[theta]]*2,  ('user input for fixed bounds on theta', None),'x'))
 
-    options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
+    scenario, broken_kite = user_options['trajectory']['compromised_landing']['emergency_scenario']
+    if not broken_kite in architecture.kite_nodes:
+        broken_kite = architecture.kite_nodes[0]
+
+    options_tree.append(('model', 'compromised_landing', None, 'emergency_scenario', [scenario, broken_kite], ('type of emergency scenario', ['broken_roll','broken_lift']),'x'))
+    options_tree.append(('nlp', 'trajectory', None, 'type', user_options['trajectory']['type'], ('??', None), 'x'))
+
+    t_f_guess = estimate_time_period(options, architecture)
+    options_tree.append(('nlp', 'normalization', None, 't_f', t_f_guess, ('??', None), 'x'))
+
 
     return options_tree, fixed_params
 
@@ -457,6 +478,9 @@ def build_actuator_options(options, options_tree, fixed_params):
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
+
+    options_tree.append(('nlp', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
 
@@ -716,6 +740,11 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
 
     if use_wound_tether:
         l_t_bounds = options['model']['system_bounds']['xd']['l_t']
+
+        print_op.warn_about_temporary_funcationality_removal(location='model_funcs')
+        # prevent licq errors.
+        options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [l_t_bounds[0], cas.inf], ('???', None), 'x'))
+
         l_t_scaling = np.max([options['model']['scaling']['xd']['l_t'], l_t_bounds[0]])
         options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
                              ('length of the main tether when unrolled [m]', None), 'x'))
@@ -725,6 +754,13 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
+    # note: lagrangian dynamics is not yet set up for scaled q's
+    q_scaling = 1.
+    options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'theta', 't_f', 1, ('descript', None), 'x'))
+
+
     return options_tree, fixed_params
 
 
@@ -733,22 +769,21 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
 def build_tether_control_options(options, options_tree, fixed_params):
 
     user_options = options['user_options']
+    in_drag_mode_operation = user_options['trajectory']['system_type'] == 'drag_mode'
 
     ddl_t_max = options['model']['ground_station']['ddl_t_max']
     dddl_t_max = options['model']['ground_station']['dddl_t_max']
-    if user_options['trajectory']['system_type'] == 'drag_mode':
-        if options['model']['tether']['control_var'] == 'ddl_t':
-            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [0.0, 0.0], ('main tether reel-out acceleration', None),'x'))
-        elif options['model']['tether']['control_var'] == 'dddl_t':
-            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [0.0, 0.0], ('main tether reel-out jerk', None),'x'))
-        else:
-            raise ValueError('invalid tether control variable chosen')
 
+    control_name = options['model']['tether']['control_var']
+
+    if in_drag_mode_operation:
+        options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:
-        if options['model']['tether']['control_var'] == 'ddl_t':
+        if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-        elif options['model']['tether']['control_var'] == 'dddl_t':
+
+        elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'xd', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-1. * dddl_t_max, dddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
         else:
@@ -828,10 +863,24 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     m_k = geometry['m_k']
     b_ref = geometry['b_ref']
 
-    f_fict_scaling = 0.5 * options['model']['model_bounds']['acceleration']['acc_max'] * m_k * gravity
-    m_fict_scaling = f_fict_scaling * (b_ref / 2.)
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+
+    f_fict_scaling = 0.5 * m_k * gravity * acc_max
+    m_fict_scaling = f_fict_scaling * b_ref / 2.
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
+
+    # q_ref = get_q_ref(options)
+    # l_t_scaling = options['model']['scaling']['xd']['l_t']
+    # diam_t_scaling = options['model']['scaling']['theta']['diam_t']
+    # cd = 1.
+    # sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
+    #
+    # f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
+    options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_fict_scaling, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
 

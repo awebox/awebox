@@ -28,12 +28,15 @@ _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter, thilo bronnenmeyer alu-fr 2017-2018
 '''
 
+import casadi.tools as cas
+
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 from . import discretization
 from . import objective
 from . import var_bounds
 import time
+import pdb
 
 class NLP(object):
 
@@ -77,27 +80,21 @@ class NLP(object):
         P,
         Xdot,
         Xdot_fun,
-        g,
-        g_fun,
-        g_jacobian_fun,
-        g_bounds,
+        ocp_cstr_list,
         Outputs,
         Outputs_fun,
         Integral_outputs,
         Integral_outputs_fun,
         time_grids,
         Collocation,
-        Multiple_shooting] =  discretization.discretize(nlp_options,model,formulation)
+        Multiple_shooting] = discretization.discretize(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
 
         self.__V = V
         self.__P = P
         self.__Xdot = Xdot
         self.__Xdot_fun = Xdot_fun
-        self.__g = g
-        self.__g_fun = g_fun
-        self.__g_jacobian_fun = g_jacobian_fun
-        self.__g_bounds = g_bounds
+        self.__ocp_cstr_list = ocp_cstr_list
         self.__Outputs = Outputs
         self.__Outputs_fun = Outputs_fun
         self.__Integral_outputs = Integral_outputs
@@ -109,6 +106,11 @@ class NLP(object):
         self.__time_grids = time_grids
         self.__Collocation = Collocation
         self.__Multiple_shooting = Multiple_shooting
+
+        self.__g = ocp_cstr_list.get_expression_list('all')
+        self.__g_fun = ocp_cstr_list.get_function(nlp_options, V, P, 'all')
+        self.__g_jacobian_fun = cas.jacobian(self.__g, V)
+        self.__g_bounds = {'lb': ocp_cstr_list.get_lb('all'), 'ub': ocp_cstr_list.get_ub('all')}
 
         return None
 
@@ -340,3 +342,11 @@ class NLP(object):
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+    @property
+    def ocp_cstr_list(self):
+        return self.__ocp_cstr_list
+
+    @ocp_cstr_list.setter
+    def ocp_cstr_list(self, value):
+        awelogger.logger.warning('Cannot set ocp_cstr_list object.')
