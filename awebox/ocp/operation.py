@@ -268,7 +268,7 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
 
         not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
 
-        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
+        if (not name[0] == 'r') and (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])
             final_value = vect_op.columnize(terminal_model_variables['xd', name])
@@ -276,6 +276,16 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
             difference = initial_value - final_value
 
             periodicity_cstr = cas.vertcat(periodicity_cstr, difference)
+
+
+        print_op.warn_about_temporary_funcationality_removal(location='operation.periodicity')
+        # elif name[0] == 'r':
+        #
+        #     initial_value = vect_op.lower_triangular_exclusive(initial_model_variables['xd', name])
+        #     final_value = vect_op.lower_triangular_exclusive(terminal_model_variables['xd', name])
+        #     difference = initial_value - final_value
+        #     periodicity_cstr = cas.vertcat(periodicity_cstr, difference)
+
 
     periodicity_eq = periodicity_cstr
 

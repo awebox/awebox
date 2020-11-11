@@ -103,7 +103,7 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         moments_dict = tools.get_framed_moments(vec_u_earth, kite_dcm, variables, kite, architecture)
         m_var_frame = tools.moment_variable_frame()
-        m_var = forces_dict[m_var_frame]
+        m_var = moments_dict[m_var_frame]
         m_val = frames.from_named_frame_to_named_frame(from_name=m_found_frame,
                                                        to_name=m_var_frame,
                                                        vec_u=vec_u_earth,

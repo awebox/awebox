@@ -40,11 +40,11 @@ def generate_options_dict():
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver']['save_trial'] = True
 
+    multi_tether_options = copy.deepcopy(single_kite_options)
+    multi_tether_options['user_options']['tether_drag_model'] = 'multi'
+
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-
-    multi_tether_options = copy.deepcopy(dual_kite_options)
-    multi_tether_options['user_options']['tether_drag_model'] = 'multi'
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
@@ -100,9 +100,9 @@ def generate_options_dict():
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
+    # options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_trial'] = dual_kite_options
-    options_dict['small_dual_kite_trial'] = small_dual_kite_options
-    options_dict['multi_tether_trial'] = multi_tether_options
+    # options_dict['small_dual_kite_trial'] = small_dual_kite_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
@@ -194,3 +194,5 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+test_trials()

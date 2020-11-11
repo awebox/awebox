@@ -754,7 +754,7 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
-    # todo: figure out how scaled q's will alter the tether tension.
+    # note: lagrangian dynamics is not yet set up for scaled q's
     q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
@@ -865,7 +865,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
 
-    f_fict_scaling = m_k * gravity * acc_max
+    f_fict_scaling = 0.5 * m_k * gravity * acc_max
     m_fict_scaling = f_fict_scaling * b_ref / 2.
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
@@ -873,14 +873,14 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
     options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
 
-    q_ref = get_q_ref(options)
-    l_t_scaling = options['model']['scaling']['xd']['l_t']
-    diam_t_scaling = options['model']['scaling']['theta']['diam_t']
-    cd = 1.
-    sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
-
-    f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
-    options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_tether_scaling, ('scaling of tether drag forces', None),'x'))
+    # q_ref = get_q_ref(options)
+    # l_t_scaling = options['model']['scaling']['xd']['l_t']
+    # diam_t_scaling = options['model']['scaling']['theta']['diam_t']
+    # cd = 1.
+    # sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
+    #
+    # f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
+    options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_fict_scaling, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
 
