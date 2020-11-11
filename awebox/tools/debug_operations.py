@@ -32,7 +32,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import matplotlib.pylab as plt
 import numpy as np
-import scipy
+import scipy.linalg as scila
 import pdb
 
 import awebox.tools.vector_operations as vect_op
@@ -349,7 +349,7 @@ def get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_
     awelogger.logger.info('compute reduced hessian...')
 
     null_tolerance = health_solver_options['tol']['reduced_hessian_null']
-    null = scipy.linalg.null_space(cstr_jacobian_eval, null_tolerance)
+    null = scila.null_space(cstr_jacobian_eval, null_tolerance)
 
     reduced_hessian = cas.mtimes(cas.mtimes(null.T, lagr_hessian_eval), null)
 

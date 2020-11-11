@@ -235,38 +235,61 @@ def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
     return jac_dcm
 
 def upper_triangular_inclusive(matrix):
+
+    matrix_resquared = resquare(matrix)
+
     elements = []
-    for r in range(matrix.shape[0]):
-        for c in range(matrix.shape[1]):
+    for r in range(matrix_resquared.shape[0]):
+        for c in range(matrix_resquared.shape[1]):
             if c >= r:
-                elements = cas.vertcat(elements, matrix[r, c])
+                elements = cas.vertcat(elements, matrix_resquared[r, c])
     return elements
 
 def lower_triangular_exclusive(matrix):
+
+    matrix_resquared = resquare(matrix)
+
     elements = []
-    for r in range(matrix.shape[0]):
-        for c in range(matrix.shape[1]):
+    for r in range(matrix_resquared.shape[0]):
+        for c in range(matrix_resquared.shape[1]):
             if c < r:
-                elements = cas.vertcat(elements, matrix[r, c])
+                elements = cas.vertcat(elements, matrix_resquared[r, c])
     return elements
 
 def lower_triangular_inclusive(matrix):
+
+    matrix_resquared = resquare(matrix)
+
     elements = []
-    for r in range(matrix.shape[0]):
-        for c in range(matrix.shape[1]):
+    for r in range(matrix_resquared.shape[0]):
+        for c in range(matrix_resquared.shape[1]):
             if c <= r:
-                elements = cas.vertcat(elements, matrix[r, c])
+                elements = cas.vertcat(elements, matrix_resquared[r, c])
     return elements
 
-def columnize(var):
+def columnize(matrix):
     # only allows 2D matrices for variable
 
-    [counted_rows, counted_columns] = var.shape
+    [counted_rows, counted_columns] = matrix.shape
     number_elements = counted_rows * counted_columns
 
-    column_var = cas.reshape(var, (number_elements, 1))
+    column_var = cas.reshape(matrix, (number_elements, 1))
 
     return column_var
+
+def resquare(column):
+
+    entries = column.shape[0] * column.shape[1]
+    guess_side_dim = np.sqrt(float(entries))
+    can_be_resquared = (np.floor(guess_side_dim) **2. == float(entries))
+
+    if can_be_resquared:
+        side = int(guess_side_dim)
+        return cas.reshape(column, (side, side))
+    else:
+        message = 'column matrix cannot be re-squared. inappropriate number of entries: ' + str(entries)
+        awelogger.logger.error(message)
+        return column
 
 def sign(val, eps=1e-8):
     sign = 2. * unitstep(val, eps) - 1.

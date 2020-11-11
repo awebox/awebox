@@ -130,8 +130,6 @@ def get_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
-    d = nlp_options['collocation']['d']
-
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
     in_out_phase = (kdx < switch_kdx)
 
