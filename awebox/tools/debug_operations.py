@@ -108,17 +108,18 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
 def print_cstr_info(cstr_jacobian_eval, cstr_labels, cdx, nlp):
     nonzero_string = get_nonzeros_as_strings(cstr_jacobian_eval, cdx, nlp)
-    message = 'constraint number ' + str(cdx) + ': ' + cstr_labels[cdx] + ' -> ' + nonzero_string
+    message = cstr_labels[cdx] + ' -> ' + nonzero_string
     awelogger.logger.info(message)
     return None
 
 
 def get_nonzeros_as_strings(matrix, cdx, nlp):
     dict = {}
-    nonzeros = np.nonzero(matrix[cdx,:])[0]
+    nonzeros = np.flatnonzero(matrix[cdx, :])
     for ndx in nonzeros:
+
         var = nlp.V.labels()[ndx]
-        value = '{:.2e}'.format(matrix[cdx, ndx])
+        value = '{:.2e}'.format(float(matrix[cdx, ndx]))
         dict[var] = value
 
     return repr(dict)
@@ -265,13 +266,9 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
                     current_full_rank = is_matrix_full_rank(current_matrix, health_solver_options)
 
                     if current_full_rank and (not prev_full_rank):
-
-                        dep_label = local_labels[cdx]
-                        dep_index = cstr_labels.index(dep_label)
-                        print_cstr_info(cstr_jacobian_eval, cstr_labels, dep_index, nlp)
-                        current_hunt = False
-
+                        print_cstr_info(local_cje, local_labels, cdx, nlp)
                         local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
+                        current_hunt = False
 
 
     return None

@@ -112,10 +112,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     kite_has_6dof = (int(options['kite_dof']) == 6)
     if kite_has_6dof:
-        rotation_dynamics, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
-        rotation_dynamics_cstr = cstr_op.Constraint(expr=rotation_dynamics,
-                                                  cstr_type='eq',
-                                                  name='rotation_dynamics')
+        rotation_dynamics_cstr, outputs = generate_rotational_dynamics(system_variables, f_nodes, parameters, outputs, architecture)
         cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
@@ -174,7 +171,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
     return lagrangian_momentum_correction
 
 
-def generate_rotational_dynamics(options, variables, f_nodes, parameters, outputs, architecture):
+def generate_rotational_dynamics(variables, f_nodes, parameters, outputs, architecture):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
@@ -183,7 +180,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
     xd = variables['SI']['xd']
     xddot = variables['SI']['xddot']
 
-    rotation_dynamics = []
+    cstr_list = mdl_constraint.MdlConstraintList()
 
     for kite in kite_nodes:
         parent = parent_map[kite]
@@ -201,19 +198,26 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
         # moment = J dot(omega) + omega x (J omega) + [tether moment which is zero if holonomic constraints do not depend on omega]
         J_dot_omega = cas.mtimes(j_inertia, domega)
         omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
-        omega_derivative = J_dot_omega + omega_cross_J_omega - moment + tether_moment
+        omega_derivative = moment - (J_dot_omega + omega_cross_J_omega + tether_moment)
         rotational_2nd_law = omega_derivative / vect_op.norm(cas.diag(j_inertia))
+
+        rotation_dynamics_cstr = cstr_op.Constraint(expr=rotational_2nd_law,
+                                                    name='rotation_dynamics' + str(kite),
+                                                    cstr_type='eq')
+        cstr_list.append(rotation_dynamics_cstr)
 
         # Rdot = R omega_skew -> R ( kappa/2 (I - R.T R) + omega_skew )
         baumgarte = parameters['theta0', 'kappa_r']
         orthonormality = baumgarte / 2. * (cas.DM_eye(3) - cas.mtimes(rlocal.T, rlocal))
-        ref_frame_deriv_matrix = drlocal - cas.mtimes(rlocal, orthonormality + omega_skew)
+        ref_frame_deriv_matrix = drlocal - (cas.mtimes(rlocal, orthonormality + omega_skew))
         ref_frame_derivative = cas.reshape(ref_frame_deriv_matrix, (9, 1))
 
-        # concatenate
-        rotation_dynamics = cas.vertcat(rotation_dynamics, rotational_2nd_law, ref_frame_derivative)
+        ortho_cstr = cstr_op.Constraint(expr=ref_frame_derivative,
+                                        name='ref_frame_deriv' + str(kite),
+                                        cstr_type='eq')
+        cstr_list.append(ortho_cstr)
 
-    return rotation_dynamics, outputs
+    return cstr_list, outputs
 
 
 def generate_generalized_coordinates(system_variables, system_gc):

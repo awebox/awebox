@@ -273,10 +273,6 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
     scaling = options['scaling']
     holonomic_scaling = []
 
-    if options['tether']['control_var'] == 'dddl_t':
-        message = 'Baumgarte stabilization on tether holonomic constraints, is not set up for dddl_t tether control.'
-        awelogger.logger.warning(message)
-
     for n in range(1, architecture.number_of_nodes):
         seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
 

@@ -35,6 +35,7 @@ from . import performance
 import awebox.tools.struct_operations as struct_op
 import time
 import awebox.tools.vector_operations as vect_op
+import pdb
 
 def get_general_regularization_function(variables):
 
@@ -446,10 +447,14 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
 
 def get_component_cost_function(component_costs, V, P):
 
+    ccc = component_costs.cat
+
     component_cost_fun = {}
 
-    for name in list(component_costs.keys()):
-        component_cost_fun[name + '_fun'] = cas.Function(name + '_fun', [V, P], [component_costs[name]])
+    for idx in range(ccc.shape[0]):
+        local_expr = ccc[idx]
+        local_name = component_costs.keys()[idx]
+        component_cost_fun[local_name + '_fun'] = cas.Function(local_name + '_fun', [V, P], [local_expr])
 
     return component_cost_fun
 
@@ -475,7 +480,13 @@ def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xd
 
 def make_cost_function(V, P, component_costs):
 
-    f = cas.sum1(component_costs.cat)
+    ccc = component_costs.cat
+
+    f = 0.
+    for idx in range(ccc.shape[0]):
+        f += ccc[idx]
+
+    # f = cas.sum1(component_costs.cat)
     f_fun = cas.Function('f', [V, P], [f])
 
     return f_fun

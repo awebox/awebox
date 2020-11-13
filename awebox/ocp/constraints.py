@@ -114,7 +114,6 @@ def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
     model_constraints_list = model.constraints_list
 
     mdl_ineq_list = model_constraints_list.ineq_list
-    mdl_eq_list = model_constraints_list.eq_list
 
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
@@ -141,24 +140,9 @@ def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
             params_at_time = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables,
                                                               model_parameters, kdx, ddx)
 
-            for mdl_eq in mdl_eq_list:
-
-                local_fun = mdl_eq.get_function(model_variables, model_parameters)
-
-                if 'trivial' in mdl_eq.name:
-                    # compensate for the fact that the (derivatives of the basis functions) become
-                    # increasingly large as order increases
-                    t_f_estimate = nlp_options['normalization']['t_f']
-                    trivial_scaling = np.max(np.absolute(np.array(Collocation.coeff_collocation[:, ddx + 1]))) * (n_k / t_f_estimate)
-                    expr = local_fun(vars_at_time, params_at_time) / trivial_scaling
-
-                else:
-                    expr = local_fun(vars_at_time, params_at_time)
-
-                local_cstr = cstr_op.Constraint(expr=expr,
-                                                name=mdl_eq.name + '_' + str(kdx) + '_' + str(ddx),
-                                                cstr_type=mdl_eq.cstr_type)
-                cstr_list.append(local_cstr)
+            middle_eq_cstr = get_equality_radau_constraints(nlp_options, model, Collocation, vars_at_time,
+                                                              params_at_time, kdx, ddx)
+            cstr_list.append(middle_eq_cstr)
 
         # continuity condition between (kdx, -1) and (kdx + 1)
         continuity_cstr = Collocation.get_continuity_constraint(V, kdx)
@@ -181,6 +165,43 @@ def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
                                             name=mdl_ineq.name + '_' + str(kdx),
                                             cstr_type=mdl_ineq.cstr_type)
             cstr_list.append(local_cstr)
+
+    return cstr_list
+
+def get_equality_radau_constraints(nlp_options, model, Collocation, vars_at_time, params_at_time, kdx, ddx=None):
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+    mdl_eq_list = model_constraints_list.eq_list
+    n_k = nlp_options['n_k']
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    for mdl_eq in mdl_eq_list:
+
+        local_fun = mdl_eq.get_function(model_variables, model_parameters)
+
+        if (ddx is not None) and ('trivial' in mdl_eq.name):
+            # compensate for the fact that the (derivatives of the basis functions) become
+            # increasingly large as order increases
+            t_f_estimate = nlp_options['normalization']['t_f']
+            trivial_scaling = np.max(np.absolute(np.array(Collocation.coeff_collocation[:, ddx + 1]))) * (
+                        n_k / t_f_estimate)
+            expr = local_fun(vars_at_time, params_at_time) / trivial_scaling
+
+        else:
+            expr = local_fun(vars_at_time, params_at_time)
+
+        if ddx is not None:
+            name = mdl_eq.name + '_' + str(kdx) + '_' + str(ddx)
+        else:
+            name = mdl_eq.name + '_' + str(kdx)
+
+        local_cstr = cstr_op.Constraint(expr=expr,
+                                        name=name,
+                                        cstr_type=mdl_eq.cstr_type)
+        cstr_list.append(local_cstr)
 
     return cstr_list
 

@@ -94,18 +94,19 @@ class Visualization(object):
             flags.remove('animation_snapshot')
             flags = [flag for flag in flags if 'outputs:' not in flag]
 
+        level_1 = ['states', 'controls', 'isometric']
+        level_2 = level_1 + ['invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
+        level_3 = level_2 + ['aero_dimensionless', 'aero_coefficients', 'projected_xy', 'projected_xz', 'projected_yz']
+
         if 'level_1' in flags:
-            level_1 = ['states', 'controls', 'isometric']
             flags.remove('level_1')
             flags += level_1
 
         if 'level_2' in flags:
-            level_2 = ['states', 'controls', 'isometric', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_2')
             flags += level_2
 
         if 'level_3' in flags:
-            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_3')
             flags += level_3
 
@@ -145,7 +146,8 @@ class Visualization(object):
         plot_logic_dict['induction_factor'] = (output.plot_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
-        plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
+        plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
+        plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:

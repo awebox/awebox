@@ -41,7 +41,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
-
+import pdb
 
 
 ## variables
@@ -263,7 +263,11 @@ def get_f_val(model_options, wind, parent, variables, architecture):
 
 def get_df_val(model_options, wind, parent, variables, architecture):
 
-    ddl_t = variables['xd']['ddl_t']
+    if 'ddl_t' in variables['xd'].keys():
+        ddl_t = variables['xd']['ddl_t']
+    else:
+        ddl_t = variables['u']['ddl_t']
+
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     df_val = ddl_t / vect_op.smooth_norm(u_infty)
 
