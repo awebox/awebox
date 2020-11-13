@@ -159,9 +159,7 @@ def get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, arch
 
 def get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
     if (options['induction_model'] == 'not_in_use'):
-        u_app = get_u_app_alone_in_body_frame_without_induction(options, variables, atmos, wind,
-                                                                                     kite, kite_dcm, architecture,
-                                                                                     parameters)
+        u_app = get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture)
 
     else:
         u_app = get_u_app_alone_in_body_frame_with_induction(options, variables, atmos, wind,

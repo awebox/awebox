@@ -53,6 +53,7 @@ def generate_options_dict():
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
     small_dual_kite_options['params']['ground_station']['r_gen'] = 0.1
     small_dual_kite_options['params']['ground_station']['m_gen'] = 5.
+    small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 2
 
     actuator_qaxi_options = copy.deepcopy(dual_kite_options)
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
@@ -102,7 +103,7 @@ def generate_options_dict():
     options_dict['save_trial'] = save_trial_options
     # options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_trial'] = dual_kite_options
-    # options_dict['small_dual_kite_trial'] = small_dual_kite_options
+    options_dict['small_dual_kite_trial'] = small_dual_kite_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
