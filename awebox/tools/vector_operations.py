@@ -68,17 +68,22 @@ def abs(a):
     abs = smooth_abs(a, 0.)
     return abs
 
-def smooth_abs(a, epsilon=1e-8):
+def smooth_abs(arg, epsilon=1e-8):
 
-    if type(a) == float:
-        return smooth_sqrt(a**2., epsilon)
-    elif type(a) == np.ndarray:
-        a = cas.DM(a)
+    if hasattr(arg, 'shape') and (len(arg.shape) > 0):
+        abs = []
+        for idx in range(arg.shape[0]):
+            local = smooth_sqrt(arg[idx] ** 2., epsilon)
+            abs = cas.vertcat(abs, local)
 
-    abs = []
-    for idx in range(a.shape[0]):
-        local = smooth_sqrt(a[idx]**2., epsilon)
-        abs = cas.vertcat(abs, local)
+    elif isinstance(arg, list):
+        abs = []
+        for idx in range(len(arg)):
+            local = smooth_sqrt(arg[idx] ** 2., epsilon)
+            abs += [local]
+
+    else:
+        abs = smooth_sqrt(arg ** 2., epsilon)
 
     return abs
 

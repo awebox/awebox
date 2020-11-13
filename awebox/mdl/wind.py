@@ -155,7 +155,7 @@ class Wind:
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 
     # approximates the maximum of (zz vs. 0)
-    z_cropped = np.log(np.exp(zz) + np.exp(z_ref / 4.))
+    z_cropped = vect_op.smooth_abs(zz, epsilon=z0_air)
 
     if model == 'log_wind':
 

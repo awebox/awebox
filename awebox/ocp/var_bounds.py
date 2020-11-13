@@ -40,7 +40,6 @@ import pdb
 from awebox.logger.logger import Logger as awelogger
 
 
-
 def get_variable_bounds(nlp_options, V, model):
 
     # initialize
@@ -51,80 +50,53 @@ def get_variable_bounds(nlp_options, V, model):
 
     d = nlp_options['collocation']['d']
 
+    periodic = perf_op.determine_if_periodic(nlp_options)
+
+
     # fill in bounds
     for canonical in distinct_variables:
 
         [var_is_coll_var, var_is_us, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
+        use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx > 0)) or (not periodic))
 
         if var_is_us:
             # bounds on slacks (convention: h(x) < 0)
             vars_ub['us'] = 0.0
 
-        elif var_is_coll_var:
+        elif (var_type == 'xd') and (not var_is_coll_var):
 
-            if (ddx == (d - 1)):
+            if use_depending_on_periodicity:
+                # apply the bounds at all kdx except the first, because those area already pinned by periodicity
+                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+
+                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
+                                                             var_type, kdx, ddx, name)
+
+        elif (var_type in {'xl', 'xa'}):
+            if (var_type in V.keys()) and (not var_is_coll_var) and use_depending_on_periodicity:
+
+                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+
+            elif (not var_type in V.keys()) and (var_is_coll_var) and (ddx == (d -1)):
                 # only apply inequalities at control nodes to prevent LICQ violation when these bounds become active
 
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
-                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var, var_type, kdx, ddx, name)
+        elif (var_type == 'u'):
 
-        else:
+            vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+            vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-            if var_type == 'xd':
+        elif (var_type == 'theta'):
+            vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
+            vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
 
-                use_radau = nlp_options['collocation']['scheme'] == 'radau'
-                coll_variables_already_bounded = ('coll_var' in V.keys()) and use_radau
-                periodic = perf_op.determine_if_periodic(nlp_options)
-
-                if coll_variables_already_bounded and periodic:
-                    # do nothing. all applicable (at control point) xd's are already bounded at collocation variables
-                    32.0
-
-                elif coll_variables_already_bounded and (not periodic) and (kdx == 0):
-                    # only apply bounds at nodes that are not also described by collocation nodes:
-
-                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-                    [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
-                                                                 var_type, kdx, ddx, name)
-
-                elif (not coll_variables_already_bounded) and (periodic) and (kdx > 0):
-                    # apply the bounds at all kdx except the first, because those area already pinned by periodicity
-                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-                    [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
-                                                                 var_type, kdx, ddx, name)
-
-                elif (not coll_variables_already_bounded) and (not periodic):
-                    # apply the bounds at all kdx
-                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-                    [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
-                                                                 var_type, kdx, ddx, name)
-
-
-                else:
-                    32.0 #do nothing
-
-            if var_type in {'xl', 'xa','u'}:
-
-                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var, var_type, kdx, ddx, name)
-
-            if var_type == 'theta':
-                vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
-
-            if var_type == 'phi':
-                vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
-                vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
+        elif (var_type == 'phi'):
+            vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
+            vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
 
     return [vars_lb, vars_ub]
 

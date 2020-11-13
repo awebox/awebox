@@ -101,7 +101,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
         plt.suptitle(fig_name)
         fig.canvas.draw()
 
-def plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_name, fig_num = None):
+def plot_aero_validity(plot_dict, cosmetics, fig_name, fig_num = None):
     interesting_outputs = [('aerodynamics', 'alpha_deg'),
                            ('aerodynamics', 'beta_deg'),
                            ('aerodynamics', 'airspeed'),
@@ -109,6 +109,13 @@ def plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_name, fig_num = 
                            ('aerodynamics', 'mach')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
+
+    interesting_outputs = [('aerodynamics', 'CL'),
+                           ('aerodynamics', 'CD'),
+                           ('aerodynamics', 'CS'),
+                           ('aerodynamics', 'LoverD')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_outputs(plot_dict, cosmetics, fig_name, 'model_inequalities', fig_num, epigraph=0.)
