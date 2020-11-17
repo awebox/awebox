@@ -38,7 +38,9 @@ def test_integrators():
     base_options['nlp']['collocation']['scheme'] = 'radau'
     base_options['nlp']['collocation']['d'] = 4
 
-    # homotopy tuning
+    base_options['model']['tether']['control_var'] = 'dddl_t'
+
+     # homotopy tuning
     base_options['solver']['mu_hippo'] = 1e-4
     base_options['solver']['tol_hippo'] = 1e-4
 
