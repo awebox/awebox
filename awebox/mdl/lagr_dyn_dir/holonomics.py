@@ -9,7 +9,6 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
-import pdb
 
 from awebox.logger.logger import Logger as awelogger
 

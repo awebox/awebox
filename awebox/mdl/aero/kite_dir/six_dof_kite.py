@@ -34,9 +34,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-import numpy as np
-import copy
-import pdb
 
 import awebox.mdl.mdl_constraint as mdl_constraint
 

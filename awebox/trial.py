@@ -42,7 +42,6 @@ import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 import copy
-import pdb
 
 class Trial(object):
     __isfrozen = False

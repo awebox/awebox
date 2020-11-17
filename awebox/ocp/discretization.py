@@ -41,8 +41,6 @@ from . import var_struct
 
 import awebox.tools.struct_operations as struct_op
 
-import pdb
-
 import awebox.tools.print_operations as print_op
 
 def construct_time_grids(nlp_options):

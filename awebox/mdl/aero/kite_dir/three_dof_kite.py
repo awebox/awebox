@@ -41,8 +41,6 @@ import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
-import pdb
-
 
 from awebox.logger.logger import Logger as awelogger
 

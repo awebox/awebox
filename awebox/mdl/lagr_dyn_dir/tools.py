@@ -7,8 +7,6 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-import pdb
-
 
 def time_derivative(expr, variables, architecture):
 

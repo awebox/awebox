@@ -43,7 +43,6 @@ import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.mdl_constraint as mdl_constraint
 
-import pdb
 
 
 def get_tether_model_types(options):

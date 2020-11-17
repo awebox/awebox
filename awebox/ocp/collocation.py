@@ -40,8 +40,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 
-import pdb
-
 class Collocation(object):
     """Collocation class with methods for optimal control
     """

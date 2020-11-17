@@ -31,7 +31,6 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import awebox.tools.constraint_operations as cstr_op
 import numpy as np
-import pdb
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 

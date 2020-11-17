@@ -35,7 +35,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 
-import pdb
 
 class OcpConstraintList(cstr_op.ConstraintList):
     def __init__(self):

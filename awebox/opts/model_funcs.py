@@ -40,8 +40,6 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
 
-import pdb
-
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite

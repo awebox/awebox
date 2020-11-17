@@ -13,8 +13,6 @@ import awebox.mdl.lagr_dyn_dir.energy as energy_comp
 import awebox.mdl.lagr_dyn_dir.forces as forces_comp
 
 import numpy as np
-
-import pdb
 import awebox.mdl.mdl_constraint as mdl_constraint
 
 def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs):

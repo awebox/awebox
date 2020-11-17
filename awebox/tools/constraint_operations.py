@@ -32,7 +32,6 @@ import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 
-import pdb
 
 class Constraint:
     def __init__(self, expr=None, cstr_type=None, name=None):

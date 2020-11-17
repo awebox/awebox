@@ -41,7 +41,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
-import pdb
 
 
 ## variables

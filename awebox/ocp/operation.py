@@ -51,7 +51,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
-import pdb
 
 def get_operation_conditions(options):
 

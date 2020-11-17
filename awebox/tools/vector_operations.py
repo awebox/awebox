@@ -38,8 +38,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
 
-import pdb
-
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
     vj = yhat() * (a[0] * b[2] - a[2] * b[0])

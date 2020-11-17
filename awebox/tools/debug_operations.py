@@ -33,7 +33,6 @@ import casadi.tools as cas
 import matplotlib.pylab as plt
 import numpy as np
 import scipy.linalg as scila
-import pdb
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
