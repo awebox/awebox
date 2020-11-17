@@ -37,58 +37,11 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
-
-######## the constraints : see opti.constraints
-
-def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model):
-
-    resi = get_strength_constraint_all(options, V, Outputs, model)
-
-    g_list.append(resi)
-    g_bounds = tools.append_bounds(g_bounds, resi)
-
-    return g_list, g_bounds
-
-
-######## the placeholders : see ocp.operation
-
-def get_cstr_in_operation_format(options, variables, model):
-    eqs_dict = {}
-    constraint_list = []
-
-    if 'collocation' not in options.keys():
-        message = 'vortex model is not yet set up for any discretization ' \
-                  'other than direct collocation'
-        awelogger.logger.error(message)
-
-    n_k = options['n_k']
-    d = options['collocation']['d']
-    scheme = options['collocation']['scheme']
-    Collocation = collocation.Collocation(n_k, d, scheme)
-
-    model_outputs = model.outputs
-    V_mock = var_struct.setup_nlp_v(options, model, Collocation)
-
-    entry_tuple = (cas.entry('coll_outputs', repeat=[n_k, d], struct=model_outputs))
-    Outputs_mock = cas.struct_symMX([entry_tuple])
-
-    resi_mock = get_strength_constraint_all(options, V_mock, Outputs_mock, model)
-    resi = cas.DM.ones(resi_mock.shape)
-
-    eq_name = 'vortex_strength'
-    eqs_dict[eq_name] = resi
-    
-
-
-
-    constraint_list.append(resi)
-
-    return eqs_dict, constraint_list
-
+import awebox.tools.constraint_operations as cstr_op
 
 ################ actually define the constriants
 
-def get_strength_constraint_all(options, V, Outputs, model):
+def get_strength_constraint(options, V, Outputs, model):
 
     n_k = options['n_k']
     d = options['collocation']['d']
@@ -102,7 +55,7 @@ def get_strength_constraint_all(options, V, Outputs, model):
 
     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
-    resi = []
+    cstr_list = cstr_op.ConstraintList()
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
@@ -113,6 +66,8 @@ def get_strength_constraint_all(options, V, Outputs, model):
 
                 for ndx in range(n_k):
                     for ddx in range(d):
+
+                        local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + '_' + str(ddx)
 
                         variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
                         wg_local = tools.get_ring_strength(variables, kite, ring)
@@ -162,7 +117,11 @@ def get_strength_constraint_all(options, V, Outputs, model):
                         else:
                             wg_ref = 0.
 
-                        resi_local = (wg_local - wg_ref)
-                        resi = cas.vertcat(resi, resi_local)
+                        local_resi = (wg_local - wg_ref)
 
-    return resi
+                        local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                        name = local_name,
+                                                        cstr_type='eq')
+                        cstr_list.append(local_cstr)
+
+    return cstr_list

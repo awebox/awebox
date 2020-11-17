@@ -38,54 +38,13 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import awebox.ocp.var_struct as var_struct
 
-######## the constraints : see opti.constraints
-
-def get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model):
-
-    resi = get_fixing_constraint_all(options, V, Outputs, model)
-
-    g_list.append(resi)
-    g_bounds = tools.append_bounds(g_bounds, resi)
-
-    return g_list, g_bounds
-
-######## the placeholders : see ocp.operation
-
-def get_cstr_in_operation_format(options, variables, model, Collocation):
-    eqs_dict = {}
-    constraint_list = []
-
-    if 'collocation' not in options.keys():
-        message = 'vortex model is not yet set up for any discretization ' \
-                  'other than direct collocation'
-        awelogger.logger.error(message)
-
-    n_k = options['n_k']
-    d = options['collocation']['d']
-    scheme = options['collocation']['scheme']
-
-    model_outputs = model.outputs
-    V_mock = var_struct.setup_nlp_v(options, model, Collocation)
-
-    entry_tuple = (cas.entry('coll_outputs', repeat = [n_k,d], struct = model_outputs))
-    Outputs_mock = cas.struct_symMX([entry_tuple])
-
-    resi_mock = get_fixing_constraint_all(options, V_mock, Outputs_mock, model)
-    resi = cas.DM.ones(resi_mock.shape)
-
-    eq_name = 'vortex_fixing'
-    eqs_dict[eq_name] = resi
-    constraint_list.append(resi)
-
-    return eqs_dict, constraint_list
+import awebox.tools.constraint_operations as cstr_op
 
 ################# define the actual constraint
 
-def get_fixing_constraint_all(options, V, Outputs, model):
+def get_fixing_constraint(options, V, Outputs, model):
 
     n_k = options['n_k']
-    d = options['collocation']['d']
-    control_intervals = n_k + 1
 
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
@@ -94,7 +53,7 @@ def get_fixing_constraint_all(options, V, Outputs, model):
 
     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
 
-    resi = []
+    cstr_list = cstr_op.ConstraintList()
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
@@ -102,6 +61,7 @@ def get_fixing_constraint_all(options, V, Outputs, model):
         for kite in kite_nodes:
             for tip in wingtips:
                 for wake_node in range(wake_nodes):
+                    local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
 
                     if wake_node < n_k:
 
@@ -121,7 +81,11 @@ def get_fixing_constraint_all(options, V, Outputs, model):
                             'coll_outputs', reverse_index, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                         local_resi = wx_local - wingtip_pos
-                        resi = cas.vertcat(resi, local_resi)
+
+                        local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                        name = local_name,
+                                                        cstr_type='eq')
+                        cstr_list.append(local_cstr)
 
                     else:
 
@@ -142,8 +106,11 @@ def get_fixing_constraint_all(options, V, Outputs, model):
                         wx_upstream = tools.get_wake_node_position_si(options, variables_at_final, kite, tip, upstream_node)
 
                         local_resi = wx_local - wx_upstream
-                        resi = cas.vertcat(resi, local_resi)
+                        local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                        name = local_name,
+                                                        cstr_type='eq')
+                        cstr_list.append(local_cstr)
 
-    return resi
+    return cstr_list
 
 

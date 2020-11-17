@@ -298,10 +298,6 @@ def discretize(nlp_options, model, formulation):
     # construct time grids for this nlp
     time_grids = construct_time_grids(nlp_options)
 
-    #-------------------------------------------
-    # GET CONSTRAINTS
-    #-------------------------------------------
-    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
 
     # ---------------------------------------
     # PREPARE OUTPUTS STRUCTURE
@@ -346,6 +342,13 @@ def discretize(nlp_options, model, formulation):
 
     Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
+
+    # -------------------------------------------
+    # GET CONSTRAINTS
+    # -------------------------------------------
+    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
+                                                Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
+                                                ms_vars, ms_params, Outputs)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
