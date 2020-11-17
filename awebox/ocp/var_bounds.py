@@ -105,10 +105,16 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
     in_out_phase = (kdx < switch_kdx)
 
+    n_k = nlp_options['n_k']
+
     if name == 'dl_t' and nlp_options['phase_fix']:
 
         if (var_type == 'xd') and (not coll_flag):
-            if in_out_phase:
+            if kdx == (n_k):
+                vars_lb[var_type, kdx, name] = 0.0
+                vars_ub[var_type, kdx, name] = 0.0
+
+            elif in_out_phase:
                 vars_lb[var_type, kdx, name] = 0.0
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
             else:

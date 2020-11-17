@@ -32,8 +32,8 @@ python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-# import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
-# import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
+import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
+import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 
 import awebox.ocp.operation as operation
@@ -48,7 +48,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import pdb
 
-def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs):
 
     awelogger.logger.info('generate constraints...')
 
@@ -98,9 +98,11 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
         ocp_cstr_list.append(integral_cstr)
 
-    print_op.warn_about_temporary_funcationality_removal('discret.wake')
-    # [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
-    # [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_options, g_list, g_bounds, V, Outputs, model)
+    vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_fixing_cstr)
+
+    vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_strength_cstr)
 
     return ocp_cstr_list
 
