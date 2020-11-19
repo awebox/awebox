@@ -14,8 +14,6 @@ import awebox.mdl.system as system
 import awebox.mdl.mdl_constraint as mdl_constraint
 import awebox.tools.constraint_operations as cstr_op
 
-import pdb
-
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 #
 def test_architecture():

@@ -348,7 +348,8 @@ def scale_variable(variables, var_si, scaling):
     for variable_type in list(variables.keys()):
         subkeys = struct_op.subkeys(variables, variable_type)
         for name in subkeys:
-            var_scaled[variable_type, name] = var_scaled[variable_type, name]/scaling[variable_type][name]
+            local_si = var_scaled[variable_type, name]
+            var_scaled[variable_type, name] = struct_op.var_si_to_scaled(variable_type, name, local_si, scaling)
 
     return var_scaled
 
@@ -356,8 +357,9 @@ def scale_variable(variables, var_si, scaling):
 def scale_bounds(variable_bounds, scaling):
     for variable_type in list(variable_bounds.keys()):
         for name in list(variable_bounds[variable_type].keys()):
-            variable_bounds[variable_type][name]['lb'] = variable_bounds[variable_type][name]['lb']/scaling[variable_type][name]
-            variable_bounds[variable_type][name]['ub'] = variable_bounds[variable_type][name]['ub']/scaling[variable_type][name]
+            for bound_type in ['lb', 'ub']:
+                local_si = variable_bounds[variable_type][name][bound_type]
+                variable_bounds[variable_type][name][bound_type] = struct_op.var_si_to_scaled(variable_type, name, local_si, scaling)
 
     return variable_bounds
 

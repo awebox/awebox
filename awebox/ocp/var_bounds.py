@@ -38,8 +38,7 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-
-def get_variable_bounds(nlp_options, V, model):
+def get_scaled_variable_bounds(nlp_options, V, model):
 
     # initialize
     vars_lb = V(-cas.inf)
@@ -131,14 +130,19 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
         else:
-            32 # do nothing
+            32. # do nothing
 
-    if name == 'l_t' and nlp_options['pumping_range']:
+    pumping_range = nlp_options['pumping_range']
+    if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
+
+        pumping_range_0_scaled = struct_op.var_si_to_scaled('xd', 'l_t', nlp_options['pumping_range'][0], model.scaling)
+        pumping_range_1_scaled = struct_op.var_si_to_scaled('xd', 'l_t', nlp_options['pumping_range'][1], model.scaling)
+
         if kdx == 0 and (not coll_flag) and nlp_options['pumping_range'][0]:
-            vars_lb[var_type, 0, name] = nlp_options['pumping_range'][0]
-            vars_ub[var_type, 0, name] = nlp_options['pumping_range'][0]
+            vars_lb[var_type, 0, name] = pumping_range_0_scaled
+            vars_ub[var_type, 0, name] = pumping_range_0_scaled
         if kdx == switch_kdx and (not coll_flag) and nlp_options['pumping_range'][1]:
-            vars_lb[var_type, kdx, name] = nlp_options['pumping_range'][1]
-            vars_ub[var_type, kdx, name] = nlp_options['pumping_range'][1]
+            vars_lb[var_type, kdx, name] = pumping_range_1_scaled
+            vars_ub[var_type, kdx, name] = pumping_range_1_scaled
 
     return vars_lb, vars_ub

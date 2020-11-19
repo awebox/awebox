@@ -116,7 +116,9 @@ class NLP(object):
     def __generate_variable_bounds(self, nlp_options, model):
 
         awelogger.logger.info('generate variable bounds...')
-        [vars_lb, vars_ub] = var_bounds.get_variable_bounds(nlp_options, self.__V, model)
+
+        # notice that these must be in scaled units.
+        [vars_lb, vars_ub] = var_bounds.get_scaled_variable_bounds(nlp_options, self.__V, model)
 
         self.__V_bounds = {'lb': vars_lb, 'ub': vars_ub}
 
