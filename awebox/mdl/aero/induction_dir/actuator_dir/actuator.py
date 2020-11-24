@@ -62,9 +62,6 @@ def get_residual(model_options, atmos, wind, variables, parameters, outputs, arc
         uzero_matr_resi = actuator_flow.get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture)
         all_residuals = cas.vertcat(all_residuals, uzero_matr_resi)
 
-        rot_matr_residual = general_geom.get_rot_matr_residual(model_options, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, rot_matr_residual)
-
         gamma_resi = actuator_flow.get_gamma_residual(model_options, wind, parent, variables, parameters, architecture)
         all_residuals = cas.vertcat(all_residuals, gamma_resi)
 
