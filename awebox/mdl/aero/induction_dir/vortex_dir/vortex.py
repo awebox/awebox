@@ -38,10 +38,43 @@ import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
+import pdb
 
 def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+
     # no self-induction! rigid wake convection only!
     resi = convection.get_convection_residual(options, wind, variables, architecture)
+
+    # induced velocity residuals
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    filaments = filament_list.shape[1]
+
+    for kite_obs in architecture.kite_nodes:
+
+        u_ind_kite = cas.DM.zeros((3, 1))
+
+        for fdx in range(filaments):
+            # biot-savart of filament induction
+            filament = filament_list[:, fdx]
+            u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables, architecture, kite_obs)
+
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            try:
+                local_var = variables['xl'][ind_name]
+            except:
+                pdb.set_trace()
+            local_resi = local_var - u_ind_fil
+            resi = cas.vertcat(resi, local_resi)
+
+            u_ind_kite += local_var
+
+        # superposition of filament induced velocities at kite
+        ind_name = 'wu_ind_' + str(kite_obs)
+        local_var = variables['xl'][ind_name]
+        local_resi = local_var - u_ind_kite
+        resi = cas.vertcat(resi, local_resi)
+
     return resi
 
 def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):

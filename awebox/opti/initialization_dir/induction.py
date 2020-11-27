@@ -38,6 +38,9 @@ import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_dir.tools as tools_init
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
@@ -81,6 +84,37 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
 
     return V_init
 
+
+def set_wu_ind(init_options, nlp, model, V_init):
+
+    n_k = nlp.n_k
+    d = nlp.d
+    wake_nodes = init_options['aero']['vortex']['wake_nodes']
+    rings = wake_nodes - 1
+
+    for kdx in range(n_k):
+        for ddx in range(d):
+            variables = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx)
+            filament_list = vortex_filament_list.get_list(init_options, variables, model.architecture)
+            filaments = filament_list.shape[1]
+
+            for kite_obs in model.architecture.kite_nodes:
+                u_ind_kite = vortex_flow.get_induced_velocity_at_kite(init_options, filament_list, variables, model.architecture,
+                                                               kite_obs)
+                ind_name = 'wu_ind_' + str(kite_obs)
+                V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
+
+                for fdx in range(filaments):
+                    # biot-savart of filament induction
+                    filament = filament_list[:, fdx]
+                    u_ind_fil = vortex_flow.get_induced_velocity_at_kite(init_options, filament, variables, model.architecture,
+                                                               kite_obs)
+
+                    ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+                    V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_fil
+
+
+    return V_init
 
 def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
     n_k = nlp.n_k

@@ -123,9 +123,7 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     if induction_model == 'actuator':
         u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        columnized_list = outputs['vortex']['filament_list']
-        filament_list = vortex_filament_list.decolumnize(model_options, architecture, columnized_list)
-        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, filament_list, variables, architecture, kite)
+        u_ind_kite = variables['xl']['wu_ind_' + str(kite)]
     elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
         u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
     elif induction_model == 'vortex' and force_zero:
