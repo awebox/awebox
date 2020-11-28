@@ -55,20 +55,20 @@ def get_residual(options, atmos, wind, variables, parameters, outputs, architect
 
     for kite_obs in architecture.kite_nodes:
 
-        x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
-        appended_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
+        # x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
+        # appended_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
 
         u_ind_kite = cas.DM.zeros((3, 1))
 
         for fdx in range(filaments):
             # biot-savart of filament induction
-            filament = appended_list[:, fdx]
-            # u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables, architecture, kite_obs)
+            filament = filament_list[:, fdx]
+            u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables, architecture, kite_obs)
 
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
             local_var = variables['xl'][ind_name]
-            local_resi = biot_savart.filament_resi(local_var, filament, epsilon) / b_ref**4. / u_ref
-            # local_resi = local_var - u_ind_fil
+            # local_resi = biot_savart.filament_resi(local_var, filament, epsilon) / b_ref**4. / u_ref
+            local_resi = local_var - u_ind_fil
             resi = cas.vertcat(resi, local_resi)
 
             u_ind_kite += local_var
