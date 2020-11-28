@@ -38,13 +38,22 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
-
+import pdb
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     awelogger.logger.info('Checking health...')
 
     cstr_fun, lam_fun, cstr_labels = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
+
+    # V_final = nlp.V(solution['x'])
+    # _, eq_labels, eq_fun = collect_equality_constraints(nlp)
+    # p_fix_num = nlp.P(arg['p'])
+    # eq_cstr = eq_fun(nlp.g_fun(V_final, p_fix_num))
+    # print(eq_cstr[2500:2630])
+    #
+    # pdb.set_trace()
+
     cstr_jacobian_eval = get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
 
     lagr_fun, lagr_jacobian_fun, lagr_hessian_fun = generate_lagrangian(health_solver_options, nlp, arg, solution)

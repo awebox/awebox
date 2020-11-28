@@ -51,6 +51,7 @@ def get_residual(options, atmos, wind, variables, parameters, outputs, architect
     filaments = filament_list.shape[1]
     epsilon = options['induction']['vortex_epsilon']
     b_ref = parameters['theta0', 'geometry', 'b_ref']
+    u_ref = wind.get_velocity_ref()
 
     for kite_obs in architecture.kite_nodes:
 
@@ -66,7 +67,7 @@ def get_residual(options, atmos, wind, variables, parameters, outputs, architect
 
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
             local_var = variables['xl'][ind_name]
-            local_resi = biot_savart.filament_resi(local_var, filament, epsilon) / b_ref**3.
+            local_resi = biot_savart.filament_resi(local_var, filament, epsilon) / b_ref**4. / u_ref
             # local_resi = local_var - u_ind_fil
             resi = cas.vertcat(resi, local_resi)
 
@@ -75,7 +76,7 @@ def get_residual(options, atmos, wind, variables, parameters, outputs, architect
         # superposition of filament induced velocities at kite
         ind_name = 'wu_ind_' + str(kite_obs)
         local_var = variables['xl'][ind_name]
-        local_resi = local_var - u_ind_kite
+        local_resi = (local_var - u_ind_kite) / u_ref
         resi = cas.vertcat(resi, local_resi)
 
     return resi
