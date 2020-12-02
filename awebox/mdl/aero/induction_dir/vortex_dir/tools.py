@@ -35,43 +35,33 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 
-def get_wake_node_position_si(options, variables, kite, tip, wake_node):
+def get_wake_node_position_si(variables, kite, tip, wake_node, scaling=None):
 
-    wx_local = get_wake_node_position(variables, kite, tip, wake_node)
-    wx_scale = get_position_scale(options)
-    wx_rescaled = wx_local * wx_scale
-
-    return wx_rescaled
-
-def get_wake_node_position(variables, kite, tip, wake_node):
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    wx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
-    return wx_local
-
-def get_wake_node_velocity_si(options, variables, kite, tip, wake_node):
-    dwx_local = get_wake_node_velocity(variables, kite, tip, wake_node)
-    dwx_scale = get_position_scale(options)
-    dwx_rescaled = dwx_local * dwx_scale
-
-    return dwx_rescaled
-
-def get_wake_node_velocity(variables, kite, tip, wake_node):
-    coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
     dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
+
+    if scaling is not None:
+        return struct_op.var_scaled_to_si('xd', coord_name, dwx_local, scaling)
+
     return dwx_local
 
-def get_ring_strength_si(options, variables, kite, ring):
 
-    wg_local = get_ring_strength(variables, kite, ring)
+def get_wake_node_velocity_si(variables, kite, tip, wake_node, scaling=None):
+    coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
 
-    wg_scale = get_strength_scale(options)
-    wg_rescaled = wg_local * wg_scale
+    if scaling is not None:
+        return struct_op.var_scaled_to_si('xd', coord_name, dwx_local, scaling)
 
-    return wg_rescaled
+    return dwx_local
 
-def get_ring_strength(variables, kite, ring):
+
+def get_ring_strength_si(variables, kite, ring, scaling=None):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
     wg_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xl', coord_name)
+
+    if scaling is not None:
+        return struct_op.var_scaled_to_si('xl', coord_name, wg_local, scaling)
 
     return wg_local
 
@@ -85,18 +75,16 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     return total
 
-def get_position_scale(options):
+def get_strength_scale(variables_dict, scaling):
+    var_type = 'xl'
+    for var_name in variables_dict[var_type].labels():
+        if 'wg' == var_name[:2]:
+            wg_scale = struct_op.var_scaled_to_si(var_type, var_name, 1., scaling)
+            return wg_scale
 
-    wx_scale = options['induction']['vortex_position_scale']
-    return wx_scale
-
-def get_velocity_scale(options):
-    dwx_scale = options['induction']['vortex_u_ref']
-    return dwx_scale
-
-def get_strength_scale(options):
-    wg_scale = options['induction']['vortex_gamma_scale']
+    wg_scale = 1.
     return wg_scale
+
 
 def append_bounds(g_bounds, fix):
 

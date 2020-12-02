@@ -94,12 +94,13 @@ def set_wu_ind(init_options, nlp, model, V_init):
 
     for kdx in range(n_k):
         for ddx in range(d):
-            variables = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx)
-            filament_list = vortex_filament_list.get_list(init_options, variables, model.architecture)
+            # remember that V_init is in si coords, ie. not yet scaled
+            variables_si = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx)
+            filament_list = vortex_filament_list.get_list(init_options, variables_si, model.architecture)
             filaments = filament_list.shape[1]
 
             for kite_obs in model.architecture.kite_nodes:
-                u_ind_kite = vortex_flow.get_induced_velocity_at_kite(init_options, filament_list, variables, model.architecture,
+                u_ind_kite = vortex_flow.get_induced_velocity_at_kite(init_options, filament_list, variables_si, model.architecture,
                                                                kite_obs)
                 ind_name = 'wu_ind_' + str(kite_obs)
                 V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
@@ -107,7 +108,7 @@ def set_wu_ind(init_options, nlp, model, V_init):
                 for fdx in range(filaments):
                     # biot-savart of filament induction
                     filament = filament_list[:, fdx]
-                    u_ind_fil = vortex_flow.get_induced_velocity_at_kite(init_options, filament, variables, model.architecture,
+                    u_ind_fil = vortex_flow.get_induced_velocity_at_kite(init_options, filament, variables_si, model.architecture,
                                                                kite_obs)
 
                     ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
@@ -257,24 +258,17 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
     time_convected = t_local - t_shed
     q_convected = q_tip + U_ref * time_convected
 
-    wx_scale = init_options['induction']['vortex_position_scale']
-    q_rescaled = q_convected / wx_scale
-
-    return q_rescaled
+    return q_convected
 
 def guess_vortex_node_velocity(init_options):
     U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
 
-    dwx_scale = init_options['induction']['vortex_velocity_scale']
-    U_rescaled = U_ref / dwx_scale
-
-    return U_rescaled
+    return U_ref
 
 
 
 def guess_wake_gamma_val(init_options):
-    # already scaled!
-    gamma = cas.DM(1.)
+    gamma = init_options['induction']['vortex_gamma_scale']
 
     return gamma
 

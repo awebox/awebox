@@ -42,25 +42,25 @@ import casadi.tools as cas
 
 ### residuals
 
-def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
-    ind_resi = get_induction_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    ind_resi = get_induction_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
 
-def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
-    ind_resi = get_induction_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    ind_resi = get_induction_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, spec_resi)
 
     return resi
@@ -87,20 +87,20 @@ def get_induction_final_residual(options, atmos, wind, variables, parameters, ou
 
     return resi
 
-def get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        actuator_resi = actuator.get_residual(options, atmos, wind, variables, parameters, outputs,
+        actuator_resi = actuator.get_residual(options, atmos, wind, variables_si, parameters, outputs,
                                               architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        vortex_resi = vortex.get_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
         resi = cas.vertcat(resi, vortex_resi)
 
 
@@ -150,17 +150,17 @@ def get_kite_effective_velocity(model_options, variables, wind, kite, architectu
 
 #### outputs
 
-def collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
+def collect_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables, architecture)
+        outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
+        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables_si, architecture)
 
     return outputs
