@@ -27,11 +27,13 @@ constraints code of the awebox
 takes model inequalities, generates constraint structures, and defines the nlp constraints
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: jochem de schutter, rachel leuthold, alu-fr 2018
+- edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2019
 '''
 
 import casadi.tools as cas
 import numpy as np
+import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
+import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 def setup_constraint_structure(nlp_numerics_options, model, formulation):
 
@@ -121,6 +123,12 @@ def make_constraints_entry_list(nlp_numerics_options, constraints, model):
     if list(constraints['integral'].keys()):
         constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
 
+    if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
+        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+
+    if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
+        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
+
     return constraints_entry_list
 
 def make_stage_constraint_struct(model):
@@ -138,7 +146,7 @@ def make_stage_constraint_struct(model):
 def create_constraint_outputs(g_list, g_bounds, g_struct, V, P):
 
     g = g_struct(cas.vertcat(*g_list))
-    g_fun = cas.Function('g_fun',[V, P], [g.cat])
+    g_fun = cas.Function('g_fun', [V, P], [g.cat])
     g_jacobian_fun = cas.Function('g_jacobian_fun',[V,P],[g.cat, cas.jacobian(g.cat, V.cat)])
 
     g_bounds['lb'] = cas.vertcat(*g_bounds['lb'])
@@ -228,6 +236,15 @@ def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, v
         g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['initial'][cstr_type].size()[0])
 
     return [g_list, g_bounds]
+
+def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
+    g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+    return g_list, g_bounds
+
+def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
+    g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
+    return g_list, g_bounds
+
 
 def append_periodic_constraints(g_list, g_bounds, constraints, constraints_fun, var_init, var_terminal):
 

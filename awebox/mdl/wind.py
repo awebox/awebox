@@ -23,9 +23,9 @@
 #
 #
 '''
-wind model for the a_w_ebox
+wind model for the awebox
 _python-3.5 / casadi-3.4.5
-- author: jochem de schutter, rachel leuthold, a_l_u-_f_r 2018
+- author: jochem de schutter, rachel leuthold, alu-fr 2018-20
 '''
 
 import casadi.tools as cas
@@ -51,19 +51,12 @@ class Wind:
         xhat = vect_op.xhat_np()
 
         u_ref = params['u_ref']
-        z_ref = params['log_wind','z_ref']
-        z0_air = params['log_wind','z0_air']
+        z_ref = params['z_ref']
+        z0_air = params['log_wind', 'z0_air']
+        exp_ref = params['power_wind', 'exp_ref']
 
-        if model == 'log_wind':
-
-            # mathematically: it doesn't make a difference what the base of
-            # these logarithms is, as long as they have the same base.
-            # but, the values will be smaller in base 10 (since we're describing
-            # altitude differences), which makes convergence nicer.
-            u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air) * xhat
-
-        elif model == 'uniform':
-            u = u_ref * xhat
+        if model in ['log_wind', 'power', 'uniform']:
+            u = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz) * xhat
 
         elif model == 'datafile':
             u = self.get_velocity_from_datafile(zz)
@@ -157,3 +150,25 @@ class Wind:
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+
+def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
+
+    if model == 'log_wind':
+
+        # mathematically: it doesn't make a difference what the base of
+        # these logarithms is, as long as they have the same base.
+        # but, the values will be smaller in base 10 (since we're describing
+        # altitude differences), which makes convergence nicer.
+        u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air)
+
+    elif model == 'power':
+        u = u_ref * (zz / z_ref) ** exp_ref
+
+    elif model == 'uniform':
+        u = u_ref
+
+    else:
+        raise ValueError('unsupported atmospheric option chosen: %s', model)
+
+    return u

@@ -33,90 +33,13 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-
 from . import constraints
-
 from . import collocation
-
 from . import multiple_shooting
-
 from . import performance
-
 import awebox.tools.struct_operations as struct_op
+from . import var_struct
 
-def setup_nlp_v(nlp_numerics_options, model, formulation, Collocation):
-
-    # extract necessary inputs
-    variables_dict = model.variables_dict
-    nk = nlp_numerics_options['n_k']
-
-    # check if phase fix and adjust theta accordingly
-    if nlp_numerics_options['phase_fix']:
-        theta = get_phase_fix_theta(variables_dict)
-    else:
-        theta = variables_dict['theta']
-
-    # define interval struct entries for controls and states
-    entry_tuple = (
-        cas.entry('xd', repeat = [nk+1], struct = variables_dict['xd']),
-        )
-
-    # add additional variables according to provided options
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
-
-        if nlp_numerics_options['collocation']['u_param'] == 'zoh':
-            entry_tuple += (
-                cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
-            )
-
-        # add algebraic variables at interval except for radau case
-        if nlp_numerics_options['collocation']['scheme'] != 'radau':
-            if nlp_numerics_options['lift_xddot']:
-                entry_tuple += (
-                    cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']), # depends on implementation (e.g. not present for radau collocation)
-                )
-            if nlp_numerics_options['lift_xa']:
-                entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),) # depends on implementation (e.g. not present for radau collocation)
-                if 'xl' in list(variables_dict.keys()):
-                    entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
-
-        # add collocation node variables
-        d = nlp_numerics_options['collocation']['d'] # interpolating polynomial order
-        coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_numerics_options['collocation']['u_param'])
-        entry_tuple += (cas.entry('coll_var', struct = coll_var, repeat= [nk,d]),)
-
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
-
-        entry_tuple += (
-            cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
-        )
-
-        # add slack variables for inequalities
-        if nlp_numerics_options['slack_constraints'] == True and model.constraints_dict['inequality']:
-            entry_tuple += (cas.entry('us',  repeat = [nk],   struct = model.constraints_dict['inequality']),)
-
-        # multiple shooting: add algebraic variables at interval if lifted
-        if nlp_numerics_options['lift_xddot']:
-            entry_tuple += (
-                cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']), # depends on implementation (e.g. not present for radau collocation)
-            )
-        if nlp_numerics_options['lift_xa']:
-            entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),) # depends on implementation (e.g. not present for radau collocation)
-            if 'xl' in list(variables_dict.keys()):
-                entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
-
-    # add global entries
-    entry_list = [entry_tuple]
-    entry_list += [
-        cas.entry('theta', struct = theta),
-        cas.entry('phi',   struct = model.parameters_dict['phi']),
-        cas.entry('xi',    struct = formulation.xi_dict['xi'])
-    ]
-
-    # generate structure
-    V = cas.struct_symMX(entry_list)
-
-    return V
 
 def construct_time_grids(nlp_numerics_options):
 
@@ -139,6 +62,10 @@ def construct_time_grids(nlp_numerics_options):
     if nlp_numerics_options['phase_fix']:
         tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_numerics_options['phase_fix_reelout'])
+
+        t_switch = tfsym[0] * nk_reelout / nk
+        time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
+
     else:
         tfsym = cas.SX.sym('tfsym',1)
 
@@ -186,13 +113,14 @@ def construct_time_grids(nlp_numerics_options):
     time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
     time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
 
+
     return time_grids
 
 def setup_nlp_cost():
 
     cost = cas.struct_symSX([(
         cas.entry('tracking'),
-        cas.entry('regularisation'),
+        cas.entry('u_regularisation'),
         cas.entry('ddq_regularisation'),
         cas.entry('gamma'),
         cas.entry('iota'),
@@ -204,13 +132,15 @@ def setup_nlp_cost():
         cas.entry('fictitious'),
         cas.entry('power'),
         cas.entry('t_f'),
-        cas.entry('theta'),
+        cas.entry('theta_regularisation'),
         cas.entry('nominal_landing'),
         cas.entry('compromised_battery'),
         cas.entry('transition'),
+        cas.entry('slack')
     )])
 
     return cost
+
 
 def setup_nlp_p_fix(V, model):
 
@@ -227,11 +157,20 @@ def setup_nlp_p(V, model):
     cost = setup_nlp_cost()
     p_fix = setup_nlp_p_fix(V, model)
 
-    P = cas.struct_symMX([
-        cas.entry('p',      struct = p_fix),
-        cas.entry('cost',   struct = cost),
-        cas.entry('theta0', struct = model.parameters_dict['theta0'])
-    ])
+    use_vortex_linearization = 'lin' in model.parameters_dict.keys()
+    if use_vortex_linearization:
+        P = cas.struct_symMX([
+            cas.entry('p', struct=p_fix),
+            cas.entry('cost', struct=cost),
+            cas.entry('theta0', struct=model.parameters_dict['theta0']),
+            cas.entry('lin', struct=V)
+        ])
+    else:
+        P = cas.struct_symMX([
+            cas.entry('p',      struct = p_fix),
+            cas.entry('cost',   struct = cost),
+            cas.entry('theta0', struct = model.parameters_dict['theta0'])
+        ])
 
     return P
 
@@ -340,7 +279,7 @@ def discretize(nlp_numerics_options, model, formulation):
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
     #-------------------------------------------
-    V = setup_nlp_v(nlp_numerics_options, model, formulation, Collocation)
+    V = var_struct.setup_nlp_v(nlp_numerics_options, model, Collocation)
     P = setup_nlp_p(V, model)
     if direct_collocation:
         Xdot = Collocation.get_xdot(nlp_numerics_options, V, model)
@@ -368,9 +307,7 @@ def discretize(nlp_numerics_options, model, formulation):
     g_list = []
     g_bounds = {'lb':[], 'ub':[]}
 
-    # extract model.parameters from V
-    param_at_time = parameters(cas.vertcat(P['theta0'], V['phi']))
-    xi = V['xi']  #TODO: don't hard code!
+    xi = V['xi']
 
     # parallellize constraints on collocation nodes
     if direct_collocation:
@@ -393,13 +330,10 @@ def discretize(nlp_numerics_options, model, formulation):
     # Construct list of constraints (+ bounds) and outputs
     for kdx in range(nk):
 
-        # time constant of the following interval
-        tf = struct_op.calculate_tf(nlp_numerics_options, V, kdx)
-
         if kdx == 0:
 
             # extract initial (reference) variables
-            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model, 0)
+            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model.variables, 0)
             var_ref_initial = struct_op.get_var_ref_at_time(nlp_numerics_options, P, V, Xdot, model, 0)
 
             # add initial constraints
@@ -432,8 +366,10 @@ def discretize(nlp_numerics_options, model, formulation):
                                         g_list, g_bounds, coll_dynamics[:,kdx*d+ddx])
 
                 # at each (except for first node) collocation node, path constraints should be satisfied
-                [g_list, g_bounds] = constraints.append_path_constraints(
-                                        g_list, g_bounds, path_constraints, coll_constraints[:,kdx*d+ddx])
+                there_are_path_constraints = len(path_constraints.keys()) > 0
+                if there_are_path_constraints:
+                    [g_list, g_bounds] = constraints.append_path_constraints(
+                                            g_list, g_bounds, path_constraints, coll_constraints[:,kdx*d+ddx])
 
                 # compute outputs for this time interval
                 Outputs_list.append(coll_outputs[:,kdx*d+ddx])
@@ -464,6 +400,9 @@ def discretize(nlp_numerics_options, model, formulation):
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
 
+    [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
+    [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
+
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_numerics_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
@@ -472,20 +411,9 @@ def discretize(nlp_numerics_options, model, formulation):
     # Create g struct and functions and g_bounds vectors
     [g, g_fun, g_jacobian_fun, g_bounds] = constraints.create_constraint_outputs(g_list, g_bounds, g_struct, V, P)
 
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_numerics_options, model)
+    Xdot_struct = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     return V, P, Xdot_struct, Xdot_fun, g_struct, g_fun, g_jacobian_fun, g_bounds, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
-def get_phase_fix_theta(variables_dict):
 
-    entry_list = []
-    for name in list(variables_dict['theta'].keys()):
-        if name == 't_f':
-            entry_list.append(cas.entry('t_f', shape = (2,1)))
-        else:
-            entry_list.append(cas.entry(name, shape = variables_dict['theta'][name].shape))
-
-    theta = cas.struct_symSX(entry_list)
-
-    return theta

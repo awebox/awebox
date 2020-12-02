@@ -64,11 +64,6 @@ def define_homotopy_schedule(formulation):
     homotopy_schedule = ()
     homotopy_schedule = homotopy_schedule + initial_schedule
 
-
-
-    if induction_model == 'actuator':
-        homotopy_schedule = homotopy_schedule + induction_schedule
-
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
@@ -85,12 +80,12 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-
-
-
-
-    if tether_drag_model in set(['equivalence', 'simple']):
+    if tether_drag_model in set(['single', 'multi']):
         homotopy_schedule = homotopy_schedule + tether_schedule
+
+    make_induction_step = not (induction_model == 'not_in_use')
+    if make_induction_step:
+        homotopy_schedule = homotopy_schedule + induction_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 
@@ -101,7 +96,7 @@ def define_costs_to_update(P, formulation):
     updates = {}
 
     initial_updates = {}
-    initial_updates[0] = struct_op.subkeys(P, 'cost')
+    initial_updates[0] = set(struct_op.subkeys(P, 'cost'))
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma', 'fictitious']
@@ -443,7 +438,7 @@ def define_cost_update_schedule(cost_solver_options):
 def initialize_cost_update_counter(P):
 
     cost_update_counter = {}
-    for name in struct_op.subkeys(P, 'cost'):
+    for name in set(struct_op.subkeys(P, 'cost')):
 
         cost_update_counter[name] = -1
 

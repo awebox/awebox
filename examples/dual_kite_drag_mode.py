@@ -3,6 +3,10 @@
 import awebox as awe
 import matplotlib.pyplot as plt
 
+
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
 # make default options object
 options = awe.Options(True)
 
@@ -21,14 +25,14 @@ options['model']['system_bounds']['u']['dkappa'] = [-1.0, 1.0]
 
 # don't include induction effects, use trivial tether drag
 options['user_options']['induction_model'] = 'not_in_use'
-options['user_options']['tether_drag_model'] = 'trivial'
+options['user_options']['tether_drag_model'] = 'split'
 
 # bounds on tether length
 options['model']['system_bounds']['xd']['l_t'] = [1.0e-2, 1.0e3]
-options['solver']['initialization']['xd']['l_t'] = 1.0e3 # initial guess
+
 
 # choose coarser grid (single-loop trajectory)
-options['nlp']['n_k'] = 20
+# options['nlp']['n_k'] = 20
 
 # initialize and optimize trial
 trial = awe.Trial(options, 'dual_kite_drag_mode')

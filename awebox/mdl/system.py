@@ -26,13 +26,15 @@
 module that describes the awe system under consideration, geometry, etc.
 python-3.5 / casadi 3.0.0
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, alu-fr 2017
+- edited: rachel leuthold, alu-fr 2017-2020
           jochem de schutter, alu-fr 2017
 
 '''
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import copy
+import awebox.tools.print_operations as print_op
 
 def generate_structure(options, architecture):
 
@@ -170,7 +172,7 @@ def generate_structure(options, architecture):
         system_states.extend([('e', (1, 1))]) # energy
 
     # introduce aerodynamics variables
-    [system_lifted, system_states] = extend_aerodynamics(options, system_lifted, system_states, architecture)
+    system_lifted, system_states = extend_aerodynamics(options, system_lifted, system_states, architecture)
 
     # system state derivatives
     system_derivatives = []
@@ -179,6 +181,9 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('l_s', (1, 1)), ('l_i', (1, 1)), ('diam_s', (1, 1)), ('diam_t', (1, 1)), ('t_f',(1,1))]
+    if options['tether']['use_wound_tether']:
+        system_parameters += [('l_t_full', (1, 1))]
+
 
     # add cross-tether lengths and diameters
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -201,43 +206,111 @@ def generate_structure(options, architecture):
 
     return system_variables_list, system_gc
 
+def extend_general_induction(options, system_lifted, system_states, architecture):
+
+    for kite in architecture.kite_nodes:
+        system_lifted.extend([('ui' + str(kite), (3, 1))])
+
+    return system_lifted, system_states
+
+def extend_vortex_induction(options, system_lifted, system_states, architecture):
+
+    wingtips = ['ext', 'int']
+    wake_nodes = options['aero']['vortex']['wake_nodes']
+    rings = wake_nodes - 1
+
+    for kite in architecture.kite_nodes:
+
+        for ring in range(rings):
+            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
+            system_lifted.extend([(gamma_name, (1, 1))])
+
+        for wake_node in range(wake_nodes):
+            for tip in wingtips:
+                coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+                system_states.extend([(coord_name, (3, 1))])
+                system_states.extend([('d' + coord_name, (3, 1))])
+
+    return system_lifted, system_states
+
+def extend_actuator_induction(options, system_lifted, system_states, architecture):
+
+    comparison_labels = options['aero']['induction']['comparison_labels']
+
+    actuator_comp_labels = []
+    for label in comparison_labels:
+        if label[:3] == 'act':
+            actuator_comp_labels += [label[4:]]
+
+    any_asym = any('asym' in label for label in actuator_comp_labels)
+    any_unsteady = any(label[0] == 'u' for label in actuator_comp_labels)
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
+        system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
+
+    for layer_node in architecture.layer_nodes:
+
+        for label in actuator_comp_labels:
+            system_states.extend([('a_' + label + str(layer_node), (1, 1))])
+
+            if any_unsteady:
+                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+
+            if any_asym:
+                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+
+            if any_asym and any_unsteady:
+                system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+
+        system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
+        system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+        system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
+
+    return system_lifted, system_states
+
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
-    induction_model  = options['induction_model']
-    steadyness = options['aero']['actuator']['steadyness']
-    correct_tilt = options['aero']['actuator']['correct_tilt']
-    normal_vector_model = options['aero']['actuator']['normal_vector_model']
+    # create the lifted force and moment vars. so that the implicit
+    # aerodynamic constraints (with induction correction) can be enforced
+    kite_dof = options['kite_dof']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+        system_lifted.extend([('f_aero' + str(kite) + str(parent), (3, 1))])
+        if int(kite_dof) == 6:
+            system_lifted.extend([('m_aero' + str(kite) + str(parent), (3, 1))])
 
+    # create the induction vars. for all comparison models
+    comparison_labels = options['aero']['induction']['comparison_labels']
+    if comparison_labels:
+        system_lifted, system_states = extend_general_induction(options, system_lifted, system_states, architecture)
 
-    # induction factor
-    if not (induction_model in set(['not_in_use'])):
+    any_act = any(label[:3] == 'act' for label in comparison_labels)
+    if any_act:
+        system_lifted, system_states = extend_actuator_induction(options, system_lifted, system_states, architecture)
 
-        for kite in architecture.kite_nodes:
-            parent = architecture.parent_map[kite]
-            system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
-
-        for layer_node in architecture.layer_nodes:
-
-                if steadyness == 'steady':
-                    system_lifted.extend([('a' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('ct' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
-                    system_lifted.extend([('f' + str(layer_node), (1, 1))])
-
-                elif steadyness == 'unsteady':
-                    system_states.extend([('a' + str(layer_node), (1, 1))])
-                    system_states.extend([('ct' + str(layer_node), (1, 1))])
-                    system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-                    system_states.extend([('f' + str(layer_node), (1, 1))])
-
-
-                system_lifted.extend([('fnorm' + str(layer_node), (1, 1))])
-                system_lifted.extend([('nhat' + str(layer_node), (3, 1))])
-                system_lifted.extend([('qapp' + str(layer_node), (1, 1))])
-                system_lifted.extend([('area' + str(layer_node), (1, 1))])
-
-                if correct_tilt:
-                    system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        system_lifted, system_states = extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     return system_lifted, system_states
 
@@ -265,6 +338,18 @@ def define_bounds(options, variables):
                 variable_bounds[variable_type][name]['ub'] = cas.inf
     return variable_bounds
 
+def scale_variable(variables, var_si, scaling):
+
+    var_scaled = variables(copy.deepcopy(var_si))
+
+    for variable_type in list(variables.keys()):
+        subkeys = struct_op.subkeys(variables, variable_type)
+        for name in subkeys:
+            var_scaled[variable_type, name] = var_scaled[variable_type, name]/scaling[variable_type][name]
+
+    return var_scaled
+
+
 def scale_bounds(variable_bounds, scaling):
     for variable_type in list(variable_bounds.keys()):
         for name in list(variable_bounds[variable_type].keys()):
@@ -276,21 +361,38 @@ def scale_bounds(variable_bounds, scaling):
 ##
 #  @brief Method to construct a system parameter struct out of the model options.
 #  @param options The modeling options.
+#  @param architecture The system architecture
 #  @return sys_params System parameters casadi struct.
-def generate_system_parameters(options):
+def generate_system_parameters(options, architecture):
+
+    parameters_dict = {}
 
     # extract parametric options
     parametric_options = options['params']
-
-    parameters_dict = {}
-    # generate nested casadi structure for system parameters
     parameters_dict['theta0'] = struct_op.generate_nested_dict_struct(parametric_options)
+
+    # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
 
-    parameters = cas.struct_symSX([
-        cas.entry('theta0', struct= parameters_dict['theta0']),
-        cas.entry('phi', struct= parameters_dict['phi'])]
-    )
+    # define vortex induction linearization parameters
+    use_vortex_linearization = options['aero']['vortex']['use_linearization']
+    if use_vortex_linearization:
+        vortex_linearization_list, _ = generate_structure(options, architecture)
+        vortex_linearization_params, _ = struct_op.generate_variable_struct(vortex_linearization_list)
+        parameters_dict['lin'] = vortex_linearization_params
+
+    # generate nested casadi structure for system parameters
+    if use_vortex_linearization:
+        parameters = cas.struct_symSX([
+            cas.entry('theta0', struct=parameters_dict['theta0']),
+            cas.entry('phi', struct=parameters_dict['phi']),
+            cas.entry('lin', struct=parameters_dict['lin'])
+        ])
+    else:
+        parameters = cas.struct_symSX([
+            cas.entry('theta0', struct= parameters_dict['theta0']),
+            cas.entry('phi', struct= parameters_dict['phi'])
+        ])
 
     return parameters, parameters_dict
 
@@ -310,3 +412,4 @@ def generate_optimization_parameters():
     optimization_parameters = p_dec
 
     return optimization_parameters
+

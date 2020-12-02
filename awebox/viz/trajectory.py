@@ -28,11 +28,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-import time
-
+import awebox.viz.tools as tools
+import awebox.viz.wake as wake
+import casadi.tools as cas
 
 import matplotlib.animation as manimation
-
 
 def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, label = []):
 
@@ -101,7 +101,7 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
     plt.suptitle(fig_name)
 
     # set equal aspect ratio for a trajectory plots
-    if side != 'isometric':
+    if side not in ['isometric', 'quad']:
         for ax in fig.axes:
             ax.set_aspect('equal')
 
@@ -255,3 +255,73 @@ def plot_trajectory_along_elevation(solution_dict, cosmetics, fig_num):
     ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
     plt.draw()
+
+
+def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
+
+    options = plot_dict['options']
+    architecture = plot_dict['architecture']
+    number_of_nodes = architecture.number_of_nodes
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
+
+    for node in range(1, number_of_nodes):
+
+        # node information
+        parent = parent_map[node]
+
+        # construct local q
+        q_node = []
+        for j in range(3):
+            q_node = cas.vertcat(q_node, plot_dict['xd']['q'+str(node)+str(parent)][j][index])
+
+        # construct local parent
+        if node == 1:
+            q_parent = np.zeros((3, 1))
+        else:
+            grandparent = parent_map[parent]
+            q_parent = []
+            for j in range(3):
+                q_parent = cas.vertcat(q_parent, plot_dict['xd']['q'+str(parent)+str(grandparent)][j][index])
+
+        # stack node + parent vertically
+        vert_stack = cas.vertcat(q_node.T, q_parent.T)
+
+        # plot tether
+        tools.make_side_plot(ax, vert_stack, side, 'k')
+
+    if cosmetics['trajectory']['kite_bodies'] and plot_kites:
+        for kite in kite_nodes:
+
+            # kite colors
+            if init_colors:
+                local_color = 'k'
+            else:
+                local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+
+            parent = parent_map[kite]
+
+            # kite position information
+            q_kite = []
+            for j in range(3):
+                q_kite = cas.vertcat(q_kite, plot_dict['xd']['q'+str(kite)+str(parent)][j][index])
+
+            # dcm information
+            r_dcm = []
+            for j in range(3):
+                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
+            for j in range(3):
+                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
+            for j in range(3):
+                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
+
+            # draw kite body
+            tools.draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
+
+    if cosmetics['trajectory']['wake_nodes']:
+        wake.draw_wake_nodes(ax, side, plot_dict, index)
+
+    ax.get_figure().canvas.draw()
+
+    return None

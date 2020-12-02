@@ -24,7 +24,7 @@ options['user_options']['trajectory']['lift_mode']['windings'] = 6
 
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
-options['user_options']['tether_drag_model'] = 'trivial'
+options['user_options']['tether_drag_model'] = 'split'
 
 options['nlp']['n_k'] = 80
 options['nlp']['collocation']['u_param'] = 'poly'

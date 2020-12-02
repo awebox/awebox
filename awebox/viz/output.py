@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -27,6 +27,7 @@ from matplotlib.ticker import MaxNLocator
 import matplotlib.ticker as mtick
 import matplotlib.pyplot as plt
 import awebox.viz.tools as tools
+from awebox.logger.logger import Logger as awelogger
 
 import casadi.tools as cas
 
@@ -75,50 +76,197 @@ def recursive_output_plot(outputs, fig_name, time_grid_ip, fig_num = None, lines
         plt.plot(time_grid_ip, outputs[0], linestyle = linestyle)
         plt.title(fig_name)
 
-def plot_induction_factor_vs_tether_reel(solution_dict, cosmetics, reload_dict, fig_num):
 
-    V_plot = solution_dict['V_final']
-    variables_dict = solution_dict['variables_dict']
-    scaling = solution_dict['scaling']
-    steadyness = solution_dict['options']['model']['aero']['actuator']['steadyness']
 
-    if steadyness == 'steady':
-        var_keys = list(variables_dict['xl'].keys())
-    elif steadyness == 'unsteady':
-        var_keys = list(variables_dict['xd'].keys())
+def plot_induction_factor(plot_dict, cosmetics, fig_name):
 
-    a_keys = set()
-    for var in var_keys:
-        if var[0] == 'a':
-            a_keys.add(var)
+    idx = 0
+    comparison_labels = tools.reconstruct_comparison_labels(plot_dict)
 
-    a_keys = list(a_keys)
-    num_a = len(a_keys)
+    plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1000 + idx, comparison_labels)
+    plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1100 + idx, comparison_labels)
 
-    # get tether reel values
-    dlt_vals = tools.merge_xd_values(V_plot, 'dl_t',0, reload_dict, cosmetics)[0]
+    plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1500, comparison_labels)
+    plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1600, comparison_labels)
 
-    plt.figure(fig_num).clear()
-    fig, axes = plt.subplots(nrows=num_a, ncols=1, sharex='all', num=fig_num)
 
-    for adx in range(num_a):
-        if steadyness == 'steady':
-            a_vals = tools.merge_xa_values(V_plot,'xl', a_keys[adx],0,reload_dict,cosmetics)[0]
+def plot_relative_radius(plot_dict, cosmetics, fig_name):
+    plot_relative_radius_with_time(plot_dict, cosmetics, fig_name)
+    plot_relative_radius_cycle(plot_dict, cosmetics, fig_name)
 
-        elif steadyness == 'unsteady':
-            a_vals = tools.merge_xd_values(V_plot, a_keys[adx],0,reload_dict,cosmetics)[0]
 
-        if num_a == 1:
-            axes.plot(dlt_vals, a_vals, 'ko:')
-            axes.set_ylabel(a_keys[adx] + ' [-]')
-            axes.set_xlabel('reel-out speed [m/s]')
-            axes.set_title('induction factor vs tether reel-out speed')
+
+
+def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
+
+    architecture = plot_dict['architecture']
+    kite_nodes = architecture.kite_nodes
+    layer_nodes = architecture.layer_nodes
+    dashes = plot_dict['dashes']
+
+    if y_is_per_kite:
+        node_set = kite_nodes
+        set_name = 'kite'
+    else:
+        node_set = layer_nodes
+        set_name = 'layer'
+
+
+    # collect all of induction values
+    y_dict = {}
+    for node in node_set:
+
+        if 'actuator' in plot_dict['outputs']:
+            actuator_outputs = plot_dict['outputs']['actuator']
+
+            for label in comparison_labels:
+                key_name = y_var_sym + '_' + label + str(node)
+
+                if key_name in actuator_outputs.keys():
+
+                    if not (node in y_dict.keys()):
+                        y_dict[node] = {}
+                    y_dict[node][label] = actuator_outputs[key_name][0]
+
+        if 'vortex' in plot_dict['outputs']:
+            vortex_outputs = plot_dict['outputs']['vortex']
+
+            key_name = y_var_sym + str(node)
+            if key_name in vortex_outputs.keys():
+
+                if not (node in y_dict.keys()):
+                    y_dict[node] = {}
+                y_dict[node]['vort'] = vortex_outputs[key_name][0]
+
+
+    ldx = 0
+    if [node_name for node_name in y_dict.keys()]:
+
+        colors = cosmetics['trajectory']['colors']
+        layers = architecture.layer_nodes
+
+        if time_or_cycle == 'time':
+            x_var_name = 'non-dim. time'
+            x_var_latex = r'$t/t_f$ [-]'
+            x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
+
+        elif time_or_cycle == 'cycle':
+            x_var_name = 'reel-out factor'
+            x_var_latex = r'$f$ [-]'
+            if 'actuator' in plot_dict['outputs'].keys():
+                f1 = plot_dict['outputs']['actuator']['f1']
+            elif 'vortex' in plot_dict['outputs'].keys():
+                f1 = plot_dict['outputs']['vortex']['f1']
+            else:
+                awelogger.logger.error('model not yet implemented.')
+            x_vals = np.array(f1[0])
+
         else:
-            axes[adx].plot(dlt_vals, a_vals, 'ko:')
-            axes[adx].set_ylabel(a_keys[adx] + ' [-]')
-            axes[adx].set_xlabel('reel-out speed [m/s]')
-            if adx == 0:
-                axes[adx].set_title('induction factor vs tether reel-out speed')
+            awelogger.logger.error('model not yet implemented.')
+
+        fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
+        title = y_var_name + ' by model and ' + x_var_name
+        axes = tools.set_layer_plot_titles(axes, nrows, title)
+
+        x_min = np.min(x_vals)
+        x_max = np.max(x_vals)
+        y_min = 10.
+        y_max = 0.
+
+        kdx = 0
+        for node in y_dict.keys():
+            kdx += 1
+
+            mdx = 0
+            for model in y_dict[node].keys():
+                mdx += 1
+
+                y_vals = y_dict[node][model]
+                line_label = set_name + ' ' + str(node) +', ' + model
+                y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
+
+                color_vals = colors[mdx]
+                dash_style = dashes[kdx]
+                line_style = ':'
+
+                line, = axes.plot(x_vals, y_vals, color=color_vals, linestyle=line_style, label=line_label)
+                line.set_dashes(dash_style)
+
+        xlabel = x_var_name + ' ' + x_var_latex
+        ylabel = y_var_name + ' ' + y_var_latex
+        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+        axes = tools.set_layer_plot_legend(axes, nrows, ldx)
+
+        ldx += 1
+
+        axes = tools.set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max)
+        if time_or_cycle == 'time':
+            axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
+
+    return None
+
+def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+    y_var_name = 'avg. induction factor'
+    y_var_sym = 'a0'
+    y_var_latex = r'$a_0$ [-]'
+    y_is_per_kite = False
+
+    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
+    y_var_name = 'avg. relative radius'
+    y_var_sym = 'bar_varrho'
+    y_var_latex = r'$\bar{\varrho}$ [-]'
+    y_is_per_kite = False
+
+    fig_num = 2100
+    comparison_labels = ['']
+
+    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+    y_var_name = 'local induction factor'
+    y_var_sym = 'local_a'
+    y_var_latex = r'$a_k$ [-]'
+    y_is_per_kite = True
+
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+def plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+    y_var_name = 'local induction factor'
+    y_var_sym = 'local_a'
+    y_var_latex = r'$a_k$ [-]'
+    y_is_per_kite = True
+
+    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
+    y_var_name = 'avg. relative radius'
+    y_var_sym = 'bar_varrho'
+    y_var_latex = r'$\bar{\varrho}$ [-]'
+    y_is_per_kite = False
+
+    fig_num = 2000
+    comparison_labels = ['']
+
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+def plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
+    y_var_name = 'avg. induction factor'
+    y_var_sym = 'a0'
+    y_var_latex = r'$a_0$ [-]'
+    y_is_per_kite = False
+
+    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+
+
+
+
 
 def plot_reduced_frequency(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -334,60 +482,13 @@ def plot_energy_over_time(solution_dict, cosmetics, fig_num, reload_dict):
 
     plt.show()
 
-def plot_loyd_comparison(solution_dict, cosmetics, fig_num, reload_dict):
+def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    # read in inputs
-    outputs = solution_dict['outputs']
-    options = solution_dict['options']
-    tgrid_coll = reload_dict['tgrid_coll']
-
-    fig = plt.figure(fig_num)
-
-    plt.ion()
-
-    number_of_rows = 3 + len(options['model']['architecture'].kite_nodes)
-
-    phf_loyd_total = np.array(outputs['coll_outputs',:,:,'performance','phf_loyd_total'])
-    phf = np.array(outputs['coll_outputs',:,:,'performance','phf'])
-
-    loyd_factor = np.array(outputs['coll_outputs',:,:,'performance','loyd_factor'])
-    loyd_factor_comparison = np.ones(loyd_factor.shape)
-
-    freelout = np.array(outputs['coll_outputs',:,:,'performance','freelout'])
-    freelout_loyd = 1./3. * np.ones(freelout.shape)
-
-    ax1 = plt.subplot(number_of_rows, 1, 1)
-    ax1.plot(tgrid_coll, cas.vertcat(*phf_loyd_total), 'b--')
-    ax1.plot(tgrid_coll, cas.vertcat(*phf), 'b')
-    ax1.grid('on')
-    ax1.set_ylabel('zeta')
-    ax1.yaxis.set_major_locator(MaxNLocator(4))
-
-    ax2 = plt.subplot(number_of_rows, 1, 2)
-    ax2.plot(tgrid_coll, cas.vertcat(*loyd_factor_comparison), 'b--')
-    ax2.plot(tgrid_coll, cas.vertcat(*loyd_factor), 'b')
-    ax2.grid('on')
-    ax2.set_ylabel('eta')
-    ax2.yaxis.set_major_locator(MaxNLocator(4))
-
-    ax3 = plt.subplot(number_of_rows, 1, 3)
-    ax3.plot(tgrid_coll, cas.vertcat(*freelout_loyd), 'b--')
-    ax3.plot(tgrid_coll, cas.vertcat(*freelout), 'b')
-    ax3.grid('on')
-    ax3.set_ylabel('f')
-    ax3.yaxis.set_major_locator(MaxNLocator(4))
-
-    for n in options['model']['architecture'].kite_nodes:
-
-        speed_ratio = np.array(outputs['coll_outputs',:,:,'local_performance','speed_ratio' + str(n)])
-        speed_ratio_loyd = np.array(outputs['coll_outputs',:,:,'local_performance','speed_ratio_loyd' + str(n)])
-
-        axn = plt.subplot(number_of_rows, 1, 4 + options['model']['architecture'].kite_nodes.index(n))
-        axn.plot(tgrid_coll, cas.vertcat(*speed_ratio_loyd), 'b--')
-        axn.plot(tgrid_coll, cas.vertcat(*speed_ratio), 'b')
-        axn.grid('on')
-        axn.set_ylabel('upsilon ' + str(n))
-        axn.yaxis.set_major_locator(MaxNLocator(4))
+    interesting_outputs = [('performance', 'phf_loyd_total'),
+                           ('performance', 'loyd_factor'),
+                           ('performance', 'p_loyd_total'),
+                           ('performance', 'freelout')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -416,26 +517,60 @@ def plot_aero_forces(solution_dict, cosmetics, fig_num, reload_dict):
 
     fig.canvas.draw()
 
-# def plot_output(solution_dict, cosmetics, fig_num, reload_dict): #todo: fix output plot!
-#
-#     # read in input
-#     options = solution_dict['options']
-#     outputs = solution_dict['outputs']
-#
-#     fig = plt.figure(fig_num)
-#     selected_outputs = [('aerodynamics','alpha_deg'), ('aerodynamics','beta_deg'), ('aerodynamics','CA'), ('aerodynamics','CY'), ('aerodynamics','CN'), ('aerodynamics','CD'), ('aerodynamics','CS'), ('aerodynamics','CL'), ('aerodynamics','reynolds'), ('aerodynamics','mach'), ('aerodynamics','speed')]
-#
-#     plot_table_r = 4
-#     plot_table_c = int(len(selected_outputs) / plot_table_r) + \
-#         1 * (not np.mod(len(selected_outputs), plot_table_r) == 0)
-#
-#     pdu = 1
-#     for name in selected_outputs:
-#         tools.plot_output_block(plot_table_r, plot_table_c, options, outputs, plt, fig, pdu, name, cosmetics, reload_dict, dim)
-#
-#         pdu = pdu + 1
-#
-#     fig.canvas.draw()
+def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num = None):
+
+    outputs = plot_dict['outputs']
+    architecture = plot_dict['architecture']
+    tgrid_ip = plot_dict['time_grids']['ip']
+
+    options_are_not_empty = not (interesting_outputs == [])
+
+    if options_are_not_empty:
+        number_of_opts = len(interesting_outputs)
+
+        # create new figure if desired
+        if fig_num is not None:
+            fig = plt.figure(num=fig_num)
+            axes = fig.axes
+            if len(axes) == 0:  # if figure does not exist yet
+                fig, axes = plt.subplots(num=fig_num, nrows=number_of_opts, ncols=1)
+
+        else:
+            fig, axes = plt.subplots(nrows=number_of_opts, ncols=1)
+
+        axes[-1].set_xlabel('t [s]')
+
+        kite_nodes = architecture.kite_nodes
+
+        for odx in range(len(interesting_outputs)):
+            opt = interesting_outputs[odx]
+
+            category = opt[0]
+            base_name = opt[1]
+
+            output_is_systemwide = base_name in outputs[category].keys()
+
+            if output_is_systemwide:
+                data = np.array(outputs[opt[0]][base_name][0])
+                local_color = cosmetics['trajectory']['colors'][0]
+                axes[odx].plot(tgrid_ip, data, color=local_color)
+
+            else:
+                for kite in kite_nodes:
+
+                    data = np.array(outputs[opt[0]][base_name + str(kite)][0])
+                    local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+                    axes[odx].plot(tgrid_ip, data, color=local_color)
+
+            axes[odx].set_ylabel(opt[1])
+
+        for adx in range(len(axes)):
+            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+
+        plt.suptitle(fig_name)
+        fig.canvas.draw()
+
 
 def plot_actuator_center_in_aerotime(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -564,126 +699,75 @@ def plot_actuator_thrust_coeff_in_aerotime(solution_dict, cosmetics, fig_num, re
 
     n_k = options['nlp']['n_k']
 
-    fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
+    if 'actuator' in outputs.keys():
 
-    layer_parents = architecture.layer_nodes
+        fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
 
-    for parent in layer_parents:
-        tgrid_coll = reload_dict['tgrid_xa_aerotime' + str(parent)]
+        layer_parents = architecture.layer_nodes
 
-        thrust = []
-        thrust1_coeff = []
-        thrust2_area_coeff = []
-        thrust3_coeff = []
+        for parent in layer_parents:
+            tgrid_coll = reload_dict['tgrid_xa_aerotime' + str(parent)]
 
-        for kdx in range(n_k):
+            thrust = []
+            thrust1_coeff = []
+            thrust2_area_coeff = []
+            thrust3_coeff = []
 
-            thrust = cas.vertcat(thrust, cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust' + str(parent)]))
+            for kdx in range(n_k):
 
-            thrust1_coeff = cas.vertcat(thrust1_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust1_coeff' + str(parent)]))
-            thrust2_area_coeff = cas.vertcat(thrust2_area_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust2_area_coeff' + str(parent)]))
-            thrust3_coeff = cas.vertcat(thrust3_coeff,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust3_coeff' + str(parent)]))
+                thrust = cas.vertcat(thrust, cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust' + str(parent)]))
 
-        avg_radius = reload_dict['avg_radius' + str(parent)]
-        avg_area = np.pi * avg_radius**2.
+                thrust1_coeff = cas.vertcat(thrust1_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust1_coeff' + str(parent)]))
+                thrust2_area_coeff = cas.vertcat(thrust2_area_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust2_area_coeff' + str(parent)]))
+                thrust3_coeff = cas.vertcat(thrust3_coeff,
+                                        cas.vertcat(*outputs['coll_outputs', kdx, :, 'actuator', 'thrust3_coeff' + str(parent)]))
 
-        thrust = np.array(thrust)
+            avg_radius = reload_dict['avg_radius' + str(parent)]
+            avg_area = np.pi * avg_radius**2.
 
-        # T / (1/2 rho u_infty^2 A)
-        thrust1_coeff = np.array(thrust1_coeff)
+            thrust = np.array(thrust)
 
-        # T / (1/2 rho u_infty^2 Abar)
-        thrust2_coeff = np.array(thrust2_area_coeff) / float(avg_area)
+            # T / (1/2 rho u_infty^2 A)
+            thrust1_coeff = np.array(thrust1_coeff)
 
-        # 4 a (cos gamma - a)
-        thrust3_coeff = np.array(thrust3_coeff)
+            # T / (1/2 rho u_infty^2 Abar)
+            thrust2_coeff = np.array(thrust2_area_coeff) / float(avg_area)
 
-        axes[0].plot(tgrid_coll, thrust)
-        axes[1].plot(tgrid_coll, thrust1_coeff)
-        axes[2].plot(tgrid_coll, thrust2_coeff)
-        axes[3].plot(tgrid_coll, thrust3_coeff)
+            # 4 a (cos gamma - a)
+            thrust3_coeff = np.array(thrust3_coeff)
 
-    axes[-1].set_xlabel('t u_infty / bar R [-]')
+            axes[0].plot(tgrid_coll, thrust)
+            axes[1].plot(tgrid_coll, thrust1_coeff)
+            axes[2].plot(tgrid_coll, thrust2_coeff)
+            axes[3].plot(tgrid_coll, thrust3_coeff)
 
-    axes[0].set_ylabel('T [N]')
-    axes[1].set_ylabel('CT_1 [-]')
-    axes[2].set_ylabel('CT_2 [-]')
-    axes[3].set_ylabel('CT_3 [-]')
+        axes[-1].set_xlabel('t u_infty / bar R [-]')
 
-    axes[0].set_title('actuator thrust and thrust coefficients')
+        axes[0].set_ylabel('T [N]')
+        axes[1].set_ylabel('CT_1 [-]')
+        axes[2].set_ylabel('CT_2 [-]')
+        axes[3].set_ylabel('CT_3 [-]')
 
-    for adx in range(len(axes)):
-        axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-        axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+        axes[0].set_title('actuator thrust and thrust coefficients')
 
-    plt.tight_layout(w_pad=1.)
+        for adx in range(len(axes)):
+            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
 
-    plt.show()
+        plt.tight_layout(w_pad=1.)
 
-def plot_dimensionless_aero_indictors(solution_dict, cosmetics, fig_num, reload_dict):
+        plt.show()
 
-    outputs = solution_dict['outputs']
-    architecture = solution_dict['architecture']
-    options = solution_dict['options']
+def plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_name, fig_num = None):
 
-    n_k = options['nlp']['n_k']
-
-    fig = plt.figure(fig_num)
-
-    fig, axes = plt.subplots(nrows=4, ncols=1, sharex='all', num=fig_num)
-
-    kite_nodes = architecture.kite_nodes
-
-    tgrid_coll = reload_dict['tgrid_coll']
-    for kite in kite_nodes:
-
-        alpha_deg = []
-        beta_deg = []
-        reynolds = []
-        mach = []
-
-        for kdx in range(n_k):
-
-            alpha_deg = cas.vertcat(alpha_deg,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'aerodynamics', 'alpha_deg' + str(kite)]))  #todo: find new names of alpha_deg and beta_deg!
-            beta_deg = cas.vertcat(beta_deg,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'aerodynamics', 'beta_deg' + str(kite)]))
-            reynolds = cas.vertcat(reynolds,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'aerodynamics', 'reynolds' + str(kite)]))
-            mach = cas.vertcat(mach,
-                                    cas.vertcat(*outputs['coll_outputs', kdx, :, 'aerodynamics', 'mach' + str(kite)]))
-
-        alpha_deg = np.array(alpha_deg)
-        beta_deg = np.array(beta_deg)
-        reynolds = np.array(reynolds)
-        mach = np.array(mach)
-
-        local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-
-        axes[0].plot(tgrid_coll, alpha_deg, color=local_color)
-        axes[1].plot(tgrid_coll, beta_deg, color=local_color)
-        axes[2].plot(tgrid_coll, reynolds, color=local_color)
-        axes[3].plot(tgrid_coll, mach, color=local_color)
-
-    axes[-1].set_xlabel('t [s]')
-
-    axes[0].set_ylabel('alpha [deg]')
-    axes[1].set_ylabel('beta [deg]')
-    axes[2].set_ylabel('reynolds [-]')
-    axes[3].set_ylabel('mach [-]')
-
-    for adx in range(len(axes)):
-        axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-        axes[adx].yaxis.set_major_locator(MaxNLocator(3))
-
-    plt.tight_layout(w_pad=1.)
-
-    axes[0].set_title('kite flight parameters')
-
-    plt.show()
+    interesting_outputs = [('aerodynamics', 'alpha_deg'),
+                           ('aerodynamics', 'beta_deg'),
+                           ('aerodynamics', 'airspeed'),
+                           ('aerodynamics', 'reynolds'),
+                           ('aerodynamics', 'mach')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 
 def plot_constraints(plot_dict, cosmetics, fig_num, constr_type):

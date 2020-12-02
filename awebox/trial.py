@@ -37,7 +37,7 @@ import awebox.mdl.architecture as archi
 import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
-import awebox.tools.data_saving as data_tools
+import awebox.tools.save_operations as data_tools
 import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
@@ -113,7 +113,7 @@ class Trial(object):
         awelogger.logger.info('')
 
     def optimize(self, options = [], final_homotopy_step = 'final',
-                 warmstart_file = None, debug_flags = [],
+                 warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
                  debug_locations = [], save_flag = False):
 
         if not options:
@@ -130,7 +130,7 @@ class Trial(object):
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file,
+                                  final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
                                   debug_locations)
         self.__solution_dict = self.generate_solution_dict()
@@ -158,7 +158,8 @@ class Trial(object):
 
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
-            self.save()
+            saving_method = self.__options['solver']['save_format']
+            self.save(saving_method = saving_method)
 
         awelogger.logger.info('')
 
@@ -222,7 +223,7 @@ class Trial(object):
             self.__visualization = visualization.Visualization()
 
         # pickle data
-        data_tools.pickle_data(self, fn, 'awe')
+        data_tools.save(self, fn, 'awe')
 
     def save_to_dict(self, fn):
 
@@ -234,7 +235,7 @@ class Trial(object):
         data_to_save['plot_dict'] = self.__visualization.plot_dict
 
         # pickle data
-        data_tools.pickle_data(data_to_save, fn, 'dict')
+        data_tools.save(data_to_save, fn, 'dict')
 
     def generate_solution_dict(self):
 

@@ -26,7 +26,7 @@
 from .trial import Trial
 from .sweep import Sweep
 from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data, flatplate_data
+from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
 
 # Visualization classes
 from .viz.visualization import Visualization

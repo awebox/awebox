@@ -36,7 +36,7 @@ import collections
 import awebox.tools.vector_operations as vect_op
 import math
 from awebox.logger.logger import Logger as awelogger
-import awebox.opti.initialization_interpolation as interp
+import awebox.opti.initialization_dir.interpolation as interp
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.wind as wind
 import awebox.viz.tools as visualization_tools
@@ -81,7 +81,7 @@ def __build_si_initial_guess(nlp, model, formulation, options):
 
     return V_init
 
-def __check_configuration_feasibility(configuration, options, configuration_type):
+def __check_configuration_feasibility(configuration, options, configuration_type, model):
 
     ## check for simple position
     if configuration_type == 'simple_pos':
@@ -93,8 +93,9 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         else:
             tether_length = options['theta']['l_s']
         cone_angle = configuration['cone_angle']
-        ua_norm = options['ua_norm']
         acc_max = options['acc_max']
+
+        groundspeed = options['groundspeed']
 
         # check for max acceleration
              # omega = u_a / r
@@ -102,9 +103,9 @@ def __check_configuration_feasibility(configuration, options, configuration_type
              # u_a**2 / acc_max / l_t < sin(phi)
              # arcsin(...) < phi
              # define initial configuration
-        acc = angular_looping_velocity * ua_norm
+        acc = angular_looping_velocity * groundspeed
         if acc > acc_max:
-            cone_angle = np.arcsin(ua_norm**2 / acc_max / tether_length)
+            cone_angle = np.arcsin(groundspeed**2 / acc_max / tether_length)
             awelogger.logger.warning('Warning: configuration in initial guess exceeds maximum acceleration. Changing cone_angle to correspond to maximum acceleration.')
             configuration['cone_angle'] = cone_angle
 
@@ -123,12 +124,14 @@ def __check_configuration_feasibility(configuration, options, configuration_type
 
     return configuration
 
-def __check_primitives_for_feasibility(primitive, options):
+def __check_primitives_for_feasibility(primitive, options, model):
+
+    # todo: does this actually do anything?
 
     configurations = [primitive['initial_configuration'],primitive['terminal_configuration']]
     for configuration in configurations:
         if configuration['type'] == 'simple_pos':
-            configuration = __check_configuration_feasibility(configuration['configuration'], options, configuration['type'])
+            configuration = __check_configuration_feasibility(configuration['configuration'], options, configuration['type'], model)
 
     return primitive
 
@@ -154,12 +157,12 @@ def __set_primitives(options, model):
 
         # get fixed parameters
         number_of_loopings = options['windings']
-        u_ref = options['ua_norm']
+        groundspeed = options['groundspeed']
         if options['model']['architecture'] == (1,1):
             cone_angle = options['max_cone_angle_single'] * np.pi/180.
         else:
             cone_angle = options['max_cone_angle_multi'] * np.pi/180.
-        inclination = options['incid_deg'] * np.pi/180.
+        inclination = options['inclination_deg'] * np.pi/180.
 
         # set rest of parameters
         normed_times = (0, 1)
@@ -168,7 +171,7 @@ def __set_primitives(options, model):
         else:
             tether_length = options['theta']['l_s']
         radius = np.sin(cone_angle) * tether_length
-        angular_looping_velocity = u_ref/radius
+        angular_looping_velocity = groundspeed/radius
 
         initial_configuration = {}
         initial_configuration['l_t'] = options['xd']['l_t']
@@ -270,7 +273,7 @@ def __set_primitives(options, model):
 
     # check for feasibility of all primitives
     for primitive in list(primitives.keys()):
-        primitives[primitive] = __check_primitives_for_feasibility(primitives[primitive], options)
+        primitives[primitive] = __check_primitives_for_feasibility(primitives[primitive], options, model)
 
     return primitives
 

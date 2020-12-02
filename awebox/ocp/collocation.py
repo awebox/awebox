@@ -186,7 +186,7 @@ class Collocation(object):
 
         scheme = nlp_numerics_options['collocation']['scheme']
 
-        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model)
+        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
 
         # size of the finite elements
         h = 1. / self.__n_k
@@ -326,24 +326,16 @@ class Collocation(object):
         # extract discretization information
         N_coll = self.__n_k*self.__d # collocation points
 
-        # extract model information
-        variables = model.variables
-        parameters = model.parameters
-
         # construct list of all collocation node variables and parameters
-        coll_vars = []
-        for kdx in range(self.__n_k):
-            for ddx in range(self.__d):
-                var_at_time = struct_op.get_variables_at_time(options, V, Xdot, model, kdx, ddx)
-                coll_vars = cas.horzcat(coll_vars, var_at_time)
-
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+        coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
+        coll_params = struct_op.get_coll_params(options, V, P, model)
 
         # evaluate dynamics and constraint functions on all intervals
         if options['parallelization']['include']:
 
-            # use function map for parallellization
             parallellization = options['parallelization']['type']
+
+            # use function map for parallellization
             dynamics = model.dynamics.map('dynamics_map', parallellization, N_coll, [], [])
             path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, N_coll, [], [])
             integral_outputs_fun = model.integral_outputs_fun.map('integral_outputs_map', parallellization, N_coll, [], [])

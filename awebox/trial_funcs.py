@@ -33,7 +33,6 @@ python version 3.5 / casadi 3.4.5
 import csv
 import collections
 import awebox.tools.vector_operations as vect_op
-import awebox.tools.struct_operations as struct_op
 import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
@@ -53,7 +52,7 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
     plot_dict = interpolate_data(trial, freq)
     write_csv_dict = init_write_csv_dict(plot_dict)
 
-    # write into ,csv
+    # write into .csv
     with open(name + '.csv', 'w') as point_cloud:
         pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
         pcdw.writeheader()
@@ -161,7 +160,9 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                     dcm = []
                     for i in range(9):
                         dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
+
                     var = vect_op.rotationMatrixToEulerAngles(cas.reshape(dcm,3,3))
+
                     for index in range(3):
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
                 elif rotation_representation not in ['euler', 'dcm']:

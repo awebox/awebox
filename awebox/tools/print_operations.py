@@ -77,8 +77,8 @@ def hline(charact):
 def get_awebox_license_info():
     license_info = []
     license_info += [hline('+')]
-    license_info += ['This is awebox, a modeling and optimization framework for multi-kite AWE systems..']
-    license_info += ['awebox is free software; you can redistribute it and/or modify it under the terms']
+    license_info += ['This is awebox, a modeling and optimization framework for multi-kite AWE systems.']
+    license_info += ['awebox is a free software; you can redistribute it and/or modify it under the terms']
     license_info += ['of the GNU Lesser General Public License as published by the Free Software']
     license_info += ['Foundation license. More information can be found at http://github.com/awebox.']
     license_info += [hline('+')]
@@ -102,3 +102,8 @@ def make_beep_in_linux():
     duration = 1  # second
     freq = 440  # Hz
     os.system('play --no-show-progress --null --channels 1 synth %s sine %f' % (duration, freq))
+
+def warn_about_temporary_funcationality_removal(editor='an editor', location='unspecified'):
+    awelogger.logger.warning(
+        editor + ' has temporarily removed awebox functionality, in order to improve the code. location: ' + location)
+    return None

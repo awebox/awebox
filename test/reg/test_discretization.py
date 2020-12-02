@@ -26,7 +26,7 @@ def test_integrators():
     base_options['user_options']['system_model']['architecture'] = {1:0}
     base_options['user_options']['system_model']['kite_dof'] = 3
     base_options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    base_options['user_options']['tether_drag_model'] = 'trivial'
+    base_options['user_options']['tether_drag_model'] = 'split'
     base_options['user_options']['induction_model'] = 'not_in_use'
     
     # specify direct collocation options
@@ -53,7 +53,7 @@ def test_integrators():
     dae     = model.get_dae()
 
     # build dae variables for t = 0 within first shooting interval
-    variables0 = struct_op.get_variables_at_time(base_options['nlp'], V_final, None, model, 0)
+    variables0 = struct_op.get_variables_at_time(base_options['nlp'], V_final, None, model.variables, 0)
     parameters = model.parameters(vertcat(P['theta0'], V_final['phi']))
     x0, z0, p  = dae.fill_in_dae_variables(variables0, parameters)
 
@@ -90,10 +90,12 @@ def test_integrators():
     err_coll_z = np.max(np.abs(np.divide(dae.z(zf)['xa'] - V_final['coll_var',0, -1, 'xa'], V_final['coll_var',0, -1, 'xa']).full()))
     err_coll_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
 
+    tolerance = 1e-8
+
     # values should match up to nlp solver accuracy
-    assert(err_coll_x < 1e-10)
-    assert(err_coll_z < 1e-10)
-    assert(err_coll_q < 1e-10)
+    assert(err_coll_x < tolerance)
+    assert(err_coll_z < tolerance)
+    assert(err_coll_q < tolerance)
 
     # ===================================
     # TEST RK4-ROOT INTEGRATOR

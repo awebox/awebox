@@ -31,3 +31,8 @@ experimental/
 # Miscellaneous
 .idea/
 .history/
+
+# sourcetrail
+*.srctrlbm
+*.srctrldb
+*.srctrlprj

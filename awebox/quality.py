@@ -59,6 +59,9 @@ class Quality(object):
         results = quality_funcs.test_numerics(trial, test_param_dict, results)
         results = quality_funcs.test_power_balance(trial, test_param_dict, results)
         results = quality_funcs.test_opti_success(trial, test_param_dict, results)
+        results = quality_funcs.test_slack_equalities(trial, test_param_dict, results)
+        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results)
+        results = quality_funcs.test_aero_force_frame_conversion(trial, test_param_dict, results)
 
         # save test results
         self.__results = results

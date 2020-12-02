@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
-- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
+- author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
 
 import casadi.tools as cas
@@ -35,26 +35,97 @@ import operator
 
 import copy
 from functools import reduce
+from awebox.logger.logger import Logger as awelogger
 
 def subkeys(casadi_struct, key):
 
-    indices = np.array(casadi_struct.f[key])
-    number_index = indices.shape[0]
+    if key in casadi_struct.keys():
+        indices = np.array(casadi_struct.f[key])
+        number_index = indices.shape[0]
 
-    subkeys = set()
-    for idx in range(number_index):
-        canonical = casadi_struct.getCanonicalIndex(indices[idx])
-        new_key = canonical[1]
-        subkeys.add(new_key)
+        subkeys = set()
+        for idx in range(number_index):
+            canonical = casadi_struct.getCanonicalIndex(indices[idx])
+            new_key = canonical[1]
+            subkeys.add(new_key)
 
-    subkey_list = sorted(subkeys)
+        subkey_list = sorted(subkeys)
+    else:
+        subkey_list = []
 
     return subkey_list
 
-def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
+def get_coll_vars(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
+    # construct list of all collocation node variables and parameters
+    coll_vars = []
+    for kdx in range(n_k):
+        for ddx in range(d):
+            var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx, ddx)
+            coll_vars = cas.horzcat(coll_vars, var_at_time)
+
+    return coll_vars
+
+
+def get_coll_params(nlp_options, V, P, model):
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+    N_coll = n_k * d # collocation points
+
+    parameters = model.parameters
+
+    use_vortex_linearization = 'lin' in parameters.keys()
+    if use_vortex_linearization:
+        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
+
+        coll_params = []
+        for kdx in range(n_k):
+            for ddx in range(d):
+                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx, ddx)
+                coll_params = cas.horzcat(coll_params, loc_params)
+
+    else:
+        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+
+    return coll_params
+
+
+def get_ms_vars(nlp_options, V, P, Xdot, model):
+
+    n_k = nlp_options['n_k']
+
+    # construct list of all multiple-shooting node variables and parameters
+    ms_vars = []
+    for kdx in range(n_k):
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx)
+        ms_vars = cas.horzcat(ms_vars, var_at_time)
+
+    return ms_vars
+
+
+def get_ms_params(nlp_options, V, P, Xdot, model):
+    n_k = nlp_options['n_k']
+    N_ms = n_k  # collocation points
+
+    parameters = model.parameters
+
+    use_vortex_linearization = 'lin' in parameters.keys()
+    if use_vortex_linearization:
+        message = 'vortex induction model not yet supported for multiple shooting problems.'
+        awelogger.logger.error(message)
+
+    ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
+
+    return ms_params
+
+
+def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     var_list = []
-
 
     # extract discretization type
     if nlp_options['discretization'] == 'direct_collocation':
@@ -64,10 +135,8 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     else:
         direct_collocation = False
 
-    nk = nlp_options['n_k']
-
     # extract variables
-    variables = model.variables
+    variables = model_variables
 
     # make list of variables at specific time
     for var_type in list(variables.keys()):
@@ -142,9 +211,9 @@ def get_variables_at_time(nlp_options, V, Xdot, model, kdx, ddx=None):
     return var_at_time
 
 def get_variables_at_final_time(nlp_options, V, Xdot, model):
+    nk = nlp_options['n_k']
 
     var_list = []
-    nk = nlp_options['n_k']
 
     # extract variables
     variables = model.variables
@@ -173,13 +242,19 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, model):
+def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=None, ddx=None):
     param_list = []
 
-    parameters = model.parameters
+    parameters = model_parameters
 
     for var_type in list(parameters.keys()):
-        param_list.append(V['phi', var_type])
+        if var_type == 'phi':
+            param_list.append(V[var_type])
+        if var_type == 'theta0':
+            param_list.append(P[var_type])
+        if var_type == 'lin':
+            linearized_vars = get_variables_at_time(nlp_options, V(P['lin']), Xdot, model_variables, kdx, ddx)
+            param_list.append(linearized_vars)
 
     param_at_time = parameters(cas.vertcat(*param_list))
 
@@ -299,9 +374,9 @@ def get_var_ref_at_final_time(nlp_options, P, Xdot, model):
 
     return var_at_time
 
-def get_V_theta(V, params, k):
+def get_V_theta(V, nlp_numerics_options, k):
 
-    nk = params['n_k']
+    nk = nlp_numerics_options['n_k']
     k = list(range(nk+1))[k]
 
     if V['theta','t_f'].shape[0] == 1:
@@ -311,9 +386,9 @@ def get_V_theta(V, params, k):
         tf_index = V.f['theta','t_f']
         theta_index = V.f['theta']
         for idx in theta_index:
-            if idx == tf_index[0] and k < round(nk * params['phase_fix_reelout']):
+            if idx == tf_index[0] and k < round(nk * nlp_numerics_options['phase_fix_reelout']):
                 theta.append(V.cat[idx])
-            elif idx == tf_index[1] and k >= round(nk * params['phase_fix_reelout']) :
+            elif idx == tf_index[1] and k >= round(nk * nlp_numerics_options['phase_fix_reelout']) :
                 theta.append(V.cat[idx])
             elif idx not in tf_index:
                 theta.append(V.cat[idx])
@@ -605,7 +680,7 @@ def get_V_index(canonical):
 
     return [coll_flag, var_type, kdx, ddx, name, dim]
 
-def construct_Xdot_struct(nlp_options, model):
+def construct_Xdot_struct(nlp_options, variables_dict):
     ''' Construct a symbolic structure for the
         discretized state derivatives.
 
@@ -616,7 +691,7 @@ def construct_Xdot_struct(nlp_options, model):
 
     # extract information
     nk = nlp_options['n_k']
-    xd = model.variables_dict['xd']
+    xd = variables_dict['xd']
 
     # derivatives at interval nodes
     entry_tuple = (cas.entry('xd', repeat=[nk], struct=xd),)
@@ -695,9 +770,13 @@ def initialize_nested_dict(d,keys):
 
     return d
 
-def setup_warmstart_data(nlp, warmstart_trial):
+def setup_warmstart_data(nlp, warmstart_solution_dict):
 
-    if nlp.discretization != warmstart_trial['options']['nlp']['discretization']:
+    options_in_keys = 'options' in warmstart_solution_dict.keys()
+    if options_in_keys:
+        nlp_discretization = warmstart_solution_dict['options']['nlp']['discretization']
+
+    if options_in_keys and not (nlp.discretization == nlp_discretization):
 
         if nlp.discretization == 'multiple_shooting':
 
@@ -706,15 +785,15 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
             # initialize and extract
             V_init_proposed = nlp.V(0.0)
-            V_coll = warmstart_trial['V_opt']
-            Xdot_coll = warmstart_trial['Xdot_opt']
+            V_coll = warmstart_solution_dict['V_opt']
+            Xdot_coll = warmstart_solution_dict['Xdot_opt']
 
             lam_x_proposed  = nlp.V_bounds['ub'](0.0)
-            lam_x_coll = V_coll(warmstart_trial['opt_arg']['lam_x0'])
+            lam_x_coll = V_coll(warmstart_solution_dict['opt_arg']['lam_x0'])
 
             lam_g_proposed  = nlp.g(0.0)
-            lam_g_coll = warmstart_trial['g_opt'](warmstart_trial['opt_arg']['lam_g0'])
-            g_coll = warmstart_trial['g_opt']
+            lam_g_coll = warmstart_solution_dict['g_opt'](warmstart_solution_dict['opt_arg']['lam_g0'])
+            g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
             for var_type in set(['xd','theta','phi','xi']):
@@ -777,9 +856,9 @@ def setup_warmstart_data(nlp, warmstart_trial):
 
     else:
 
-        V_init_proposed = warmstart_trial['V_opt']
-        lam_x_proposed  = warmstart_trial['opt_arg']['lam_x0']
-        lam_g_proposed  = warmstart_trial['opt_arg']['lam_g0']
+        V_init_proposed = warmstart_solution_dict['V_opt']
+        lam_x_proposed  = warmstart_solution_dict['opt_arg']['lam_x0']
+        lam_g_proposed  = warmstart_solution_dict['opt_arg']['lam_g0']
 
 
     V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
@@ -831,3 +910,51 @@ def evaluate_cost_dict(cost_fun, V_plot, p_fix_num):
             cost[name[:-4]] = cost_fun[name](V_plot, p_fix_num)
 
     return cost
+
+def split_kite_and_parent(kiteparent, architecture):
+
+    for idx in range(1, len(kiteparent)):
+
+        kite_try = int(kiteparent[:idx])
+        parent_try = int(kiteparent[idx:])
+
+        parent_of_kite_try = int(architecture.parent_map[kite_try])
+
+        if parent_of_kite_try == parent_try:
+            return kite_try, parent_try
+
+    return None, None
+
+def generate_variable_struct(variable_list):
+
+    structs = {}
+    for name in list(variable_list.keys()):
+        structs[name] = cas.struct_symSX([cas.entry(variable_list[name][i][0], shape=variable_list[name][i][1])
+                        for i in range(len(variable_list[name]))])
+
+    variable_struct = cas.struct_symSX([cas.entry(name, struct=structs[name])
+                        for name in list(variable_list.keys())])
+
+    return variable_struct, structs
+
+def get_variable_from_model_or_reconstruction(variables, var_type, name):
+
+    if var_type in variables.keys():
+        sub_variables = variables[var_type]
+
+    try:
+        if isinstance(sub_variables, cas.DM):
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.MX):
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.structure3.SXStruct):
+            local_var = variables[var_type][name]
+        else:
+            local_var = variables[var_type, name]
+    except:
+
+        message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return local_var

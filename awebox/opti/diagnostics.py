@@ -59,7 +59,11 @@ def print_runtime_values(stats):
 
     awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
     awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('main loop wall time', stats['t_wall_solver']))
+    try:
+        awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
+    except:
+        32.0 # do nothing!
+
     awelogger.logger.info('')
 
     return None
@@ -149,10 +153,11 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
         elif name[:5] == 'P_gen':
             P_gen_total += power_outputs[name][0]
 
+    epsilon = 1.e-6 # use this to decrease chance of div-by-zero errors at start of optimization
     if np.mean(P_side_total) > 0.0:
-        P_in = np.mean(P_lift_total) + np.mean(P_side_total)
+        P_in = np.mean(P_lift_total) + np.mean(P_side_total) + epsilon
     else:
-        P_in = np.mean(P_lift_total)
+        P_in = np.mean(P_lift_total) + epsilon
         power_and_performance['eff_sideforce_loss'] = -np.mean(P_side_total)/ P_in
 
     power_and_performance['eff_overall'] = - np.mean((power_outputs['P_tether1'][0]+P_gen_total))/P_in
@@ -230,7 +235,7 @@ def compute_power_and_performance(plot_dict):
 
     power_and_performance = compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict)
 
-    power_and_performance =compute_tether_tension_indicators(power_and_performance, plot_dict)
+    power_and_performance = compute_tether_tension_indicators(power_and_performance, plot_dict)
 
     power_and_performance = compute_efficiency_measures(power_and_performance, plot_dict)
 

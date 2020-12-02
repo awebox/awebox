@@ -32,6 +32,7 @@ from . import trajectory
 from . import variables
 from . import animation
 from . import output
+from . import wake
 
 import matplotlib.pyplot as plt
 
@@ -87,6 +88,7 @@ class Visualization(object):
         if 'all' in flags:
             flags = list(self.__plot_logic_dict.keys())
             flags.remove('animation')
+            flags.remove('animation_snapshot')
             flags = [flag for flag in flags if 'outputs:' not in flag]
 
         if 'level_1' in flags:
@@ -95,19 +97,19 @@ class Visualization(object):
             flags += level_1
 
         if 'level_2' in flags:
-            level_2 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz']
+            level_2 = ['states', 'controls', 'isometric', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_2')
             flags += level_2
 
         if 'level_3' in flags:
-            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables']
+            level_3 = ['states', 'controls', 'isometric', 'projected_xy', 'projected_xz', 'projected_yz', 'invariants', 'algebraic_variables', 'lifted_variables', 'constraints']
             flags.remove('level_3')
             flags += level_3
 
         # iterate over flags
         for flag in flags:
             if flag[:5] == 'comp_':
-                logging.warning('Comparison plots are only supported for sweeps. Flag "' + flag + '" ignored.')
+                awelogger.logger.warning('Comparison plots are only supported for sweeps. Flag "' + flag + '" ignored.')
             else:
                 self.__produce_plot(flag, fig_name, parametric_options['visualization']['cosmetics'], fig_num)
 
@@ -134,26 +136,23 @@ class Visualization(object):
         plot_logic_dict['projected_yz'] = (trajectory.plot_trajectory, {'side':'yz'})
         plot_logic_dict['projected_xz'] = (trajectory.plot_trajectory, {'side':'xz'})
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
-        # plot_logic_dict['instant_xy'] = trajectory.plot_trajectory_instant(plot_dict, -1, -1, cosmetics, 'xy', fig_num)
-        # plot_logic_dict['instant_yz'] = trajectory.plot_trajectory_instant(plot_dict, -1, -1, cosmetics, 'yz', fig_num)
-        # plot_logic_dict['instant_xz'] = trajectory.plot_trajectory_instant(plot_dict, -1, -1, cosmetics, 'xz', fig_num)
-        # plot_logic_dict['timelapse'] = trajectory.plot_trajectory_timelapse(plot_dict, cosmetics, 'isometric', fig_num)
-        # plot_logic_dict['timelapse_xy'] = trajectory.plot_trajectory_timelapse(plot_dict, cosmetics, 'xy', fig_num)
-        # plot_logic_dict['timelapse_yz'] = trajectory.plot_trajectory_timelapse(plot_dict, cosmetics, 'yz', fig_num)
-        # plot_logic_dict['timelapse_xz'] = trajectory.plot_trajectory_timelapse(plot_dict, cosmetics, 'xz', fig_num)
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
+        plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
+        plot_logic_dict['vortex_verification'] = (wake.plot_vortex_verification, None)
         # plot_logic_dict['actuator_center'] = output.plot_actuator_center_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_area'] = output.plot_actuator_area_in_aerotime(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['actuator_thrust_coeff'] = output.plot_actuator_thrust_coeff_in_aerotime(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['induction_factor_vs_tether_reel'] = output.plot_induction_factor_vs_tether_reel(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['induction_factor'] = (output.plot_induction_factor, None)
+        plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         # plot_logic_dict['reduced_frequency'] = output.plot_reduced_frequency(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['elevation'] = trajectory.plot_trajectory_along_elevation(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['loyd_comparison'] = output.plot_loyd_comparison(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_forces'] = output.plot_aero_forces(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
+        # plot_logic_dict['aero_forces'] = (output.plot_aero_forces, None)
         # plot_logic_dict['output'] = output.plot_output(plot_dict, cosmetics, fig_num)
         # plot_logic_dict['energy'] = output.plot_energy_over_time(plot_dict, cosmetics, fig_num)
-        # plot_logic_dict['aero_dimensionless'] = output.plot_dimensionless_aero_indictors(plot_dict, cosmetics, fig_num)
+        plot_logic_dict['aero_dimensionless'] = (output.plot_dimensionless_aero_indictors, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
+        plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})
         plot_logic_dict['controls'] = (variables.plot_controls, None)
@@ -161,6 +160,7 @@ class Visualization(object):
             plot_logic_dict['controls:' + control] = (variables.plot_controls, {'individual_control':control})
         plot_logic_dict['invariants'] = (variables.plot_invariants, None)
         plot_logic_dict['algebraic_variables'] = (variables.plot_algebraic_variables, None)
+        plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, {'constr_type':'inequality'})
         for output_top in list(outputs.keys()):

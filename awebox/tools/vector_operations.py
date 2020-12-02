@@ -35,6 +35,7 @@ import scipy.sparse as sps
 
 import casadi.tools as cas
 import numpy as np
+from awebox.logger.logger import Logger as awelogger
 
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
@@ -65,19 +66,17 @@ def abs(a):
     return abs
 
 def smooth_abs(a, epsilon=1e-8):
-    try:
-        try:
-            length = a.shape[0]
-        except:
-            length = len(a)
-    except:
-        length = 1
+
+    if type(a) == float:
+        return smooth_sqrt(a**2., epsilon)
+    elif type(a) == np.ndarray:
+        a = cas.DM(a)
 
     abs = []
-    for idx in range(length):
-        new_entry = smooth_sqrt(a[idx]**2., epsilon)
+    for idx in range(a.shape[0]):
+        local = smooth_sqrt(a[idx]**2., epsilon)
+        abs = cas.vertcat(abs, local)
 
-        abs = cas.vertcat(abs, new_entry)
     return abs
 
 def smooth_sqrt(a, epsilon=1e-8):
@@ -114,6 +113,23 @@ def angle_between(a, b):
     theta = np.arctan2(norm(cross(a, b)), dot(a, b))
 
     return theta
+
+def angle_between_resi(a, b, theta):
+    resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
+    return resi
+
+def zeros_mx(shape):
+    return cas.MX.zeros(shape[0], shape[1])
+
+def zeros_sx(shape):
+    return cas.SX.zeros(shape[0], shape[1])
+
+def ones_mx(shape):
+    return cas.MX.ones(shape[0], shape[1])
+
+def ones_sx(shape):
+    return cas.SX.ones(shape[0], shape[1])
+
 
 def xhat():
     return xhat_np()
@@ -264,6 +280,14 @@ def lower_triangular_exclusive(matrix):
                 elements = cas.vertcat(elements, matrix[r, c])
     return elements
 
+def lower_triangular_inclusive(matrix):
+    elements = []
+    for r in range(matrix.shape[0]):
+        for c in range(matrix.shape[1]):
+            if c <= r:
+                elements = cas.vertcat(elements, matrix[r, c])
+    return elements
+
 def columnize(var):
     # only allows 2x2 matrices for variable
 
@@ -299,7 +323,7 @@ def step_in_out(number, step_in, step_out, eps=1e-4):
     return step
 
 def sum(all_array):
-    sum = cas.mtimes(all_array.T, np.ones(all_array.shape))
+    sum = cas.sum1(all_array)
     return sum
 
 def smooth_max(all_array):
@@ -358,18 +382,22 @@ def estimate_1d_frequency(x, sample_step=1, dt=1.0):
 
 # Checks if a matrix is a valid rotation matrix.
 def isRotationMatrix(R):
-    Rt = np.transpose(R)
-    shouldBeIdentity = np.dot(Rt, R)
-    I = np.identity(3)
-    n = np.linalg.norm(I - shouldBeIdentity)
-    return n < 1e-1
 
+    diff = cas.DM.eye(3) - cas.mtimes(R.T, R)
+    diff_vert = cas.reshape(diff, (9, 1))
+    resi = norm(diff_vert)**0.5
+
+    threshold = 1.e-1
+
+    return resi < threshold
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
 # of the euler angles ( x and z are swapped ).
 def rotationMatrixToEulerAngles(R):
-    assert (isRotationMatrix(R))
+
+    if not isRotationMatrix(R):
+        awelogger.logger.warning('given rotation matrix is not a member of SO(3).')
 
     sy = np.math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
 

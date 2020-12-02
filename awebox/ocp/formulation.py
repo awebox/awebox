@@ -35,10 +35,12 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 import awebox.tools.struct_operations as struct_op
+from . import var_struct
 
 import awebox as awe
 
 from . import operation
+
 
 class Formulation(object):
     def __init__(self):
@@ -80,7 +82,7 @@ class Formulation(object):
 
         [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
 
-        self.__induction_model = options['induction_model']
+        self.__induction_model = options['induction']['induction_model']
         self.__traj_type = options['trajectory']['type']
         self.__tether_drag_model = options['tether_drag_model']
         self.__fix_tether_length = options['trajectory']['tracking']['fix_tether_length']
@@ -151,7 +153,7 @@ class Formulation(object):
 
         [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
 
-        xi = cas.struct_symMX([(cas.entry('xi_0'), cas.entry('xi_f'))])
+        xi = var_struct.get_xi_struct()
         xi_bounds = {}
 
         xi_bounds['xi_0'] = [0.0, 0.0]
@@ -229,16 +231,28 @@ class Formulation(object):
 
         integral_constraints, integral_constraint_fun, integral_constants = operation.generate_integral_constraints(options, variables, parameters, model)
 
-
         self.__constraints = {'initial': initial_constraints,
                               'terminal': terminal_constraints,
                               'periodic': periodic_constraints,
-                              'integral': integral_constraints}
+                              'integral': integral_constraints
+                              }
 
         self.__constraints_fun = {'initial': initial_constraints_fun,
                                   'terminal': terminal_constraints_fun,
                                   'periodic': periodic_constraints_fun,
                                   'integral': integral_constraint_fun}
+
+        induction_comparison_labels = options['induction']['comparison_labels']
+        if 'vor' in induction_comparison_labels:
+            wake_fix_constraints, wake_fix_constraints_fun = operation.get_wake_fix_constraints(options, variables,
+                                                                                                model)
+            vortex_strength_constraints, vortex_strength_constraints_fun = operation.get_vortex_strength_constraints(
+                options, variables, model)
+
+            self.__constraints['wake_fix'] = wake_fix_constraints
+            self.__constraints['vortex_strength'] = vortex_strength_constraints
+            self.__constraints_fun['wake_fix'] = wake_fix_constraints_fun
+            self.__constraints_fun['vortex_strength'] = vortex_strength_constraints_fun
 
         self.__integral_constants = integral_constants
 

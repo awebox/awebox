@@ -25,10 +25,13 @@
 ######################################
 # This file stores all quality tests
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
+# edit: Rachel Leuthold, ALU-FR, 2019-20
+
 ######################################
 
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import casadi.tools as cas
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -142,7 +145,7 @@ def test_outputs(trial, test_param_dict, results):
         loyd_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'loyd_factor'])
     avg_loyd_factor = np.average(loyd_factor)
     if avg_loyd_factor > max_loyd_factor:
-        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
+        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name + '. Average Loyd factor is ' + str(avg_loyd_factor))
         results['loyd_factor'] = False
     else:
         results['loyd_factor'] = True
@@ -221,48 +224,196 @@ def test_power_balance(trial, test_param_dict, results):
     tgrid = trial.visualization.plot_dict['time_grids']['ip']
     power_balance = trial.visualization.plot_dict['outputs']['power_balance']
 
-    # energy balance for all nodes
+    check_energy_summation = test_param_dict['check_energy_summation']
+    if check_energy_summation:
+        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results)
+
     balance = {}
-    max_system_power = 0
-    for node in range(1, trial.model.architecture.number_of_nodes):
-        max_node_power = 0
-        P_total = np.zeros(tgrid.shape)
+    max_abs_system_power = 1.e-15
+    system_net_power_timeseries = np.zeros(tgrid.shape)
 
-        # sum all node-related power in-/outputs
-        for name in list(power_balance.keys()):
-            if name[-len(str(node)):] == str(node):
-                P_total += power_balance[name][0]
-                max_single_power = np.max(np.abs(power_balance[name][0]))
-                # find largest power component
-                max_node_power = np.max([max_single_power, max_node_power])
+    nodes_above_ground = range(1, trial.model.architecture.number_of_nodes)
+    for node in nodes_above_ground:
 
-        # subtract tether power terms coming from node children
-        if node in list(trial.model.architecture.children_map.keys()):
+        node_power_timeseries = np.zeros(tgrid.shape)
+        nodes_childrens_power_timeseries = np.zeros(tgrid.shape)
+        max_abs_node_power = 1.e-15  # preclude any div-by-zero errors
+
+        # how much power originates with the node itself
+        for keyname in list(power_balance.keys()):
+            if power_balance_key_belongs_to_node(keyname, node):
+                timeseries = power_balance[keyname][0]
+                node_power_timeseries += timeseries
+                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+
+        # how much power is just being transferred from the node's children
+        node_has_children = node in list(trial.model.architecture.children_map.keys())
+        if node_has_children:
             children = trial.model.architecture.children_map[node]
             for child in children:
-                max_single_power = np.max(np.abs(power_balance['P_tether'+str(child)][0]))
-                # find largest power component
-                max_node_power = np.max([max_single_power, max_node_power])
-                P_total = P_total - power_balance['P_tether'+str(child)]
+                timeseries = power_balance['P_tether'+str(child)][0]
+                nodes_childrens_power_timeseries += timeseries
+                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        balance[node] = np.linalg.norm(P_total)/max_node_power
-        # find largest system power component
-        max_system_power = np.max([max_node_power, max_system_power])
+        # avoid double-counting power that is just being transferred; only count power at point-of-origin
+        net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
 
-    # balance for entire system
-    P_total = np.zeros(tgrid.shape)
-    for name in list(power_balance.keys()):
-        if (name[:8] != 'P_tether') or (name == 'P_tether1') or (name[:12] == 'P_tetherdrag'):
-            P_total += power_balance[name][0]
+        scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
+        balance[node] = scaled_norm_net_power
 
-    balance['total'] = np.linalg.norm(P_total)/max_system_power
+        # add node net power into system net power
+        max_abs_system_power = np.max([max_abs_node_power, max_abs_system_power])
+        system_net_power_timeseries += net_power_timeseries
+
+    scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
+    balance['total'] = scaled_norm_system_net_power
 
     for node in list(balance.keys()):
-        if balance[node] > test_param_dict['power_balance_tresh']:
-            awelogger.logger.warning('energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_tresh']))
+        if balance[node] > test_param_dict['power_balance_thresh']:
+            message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
+                      + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
+            awelogger.logger.warning(message)
             results['energy_balance' + str(node)] = False
         else:
             results['energy_balance' + str(node)] = True
+
+    return results
+
+def summation_check_on_potential_and_kinetic_power(trial, thresh, results):
+
+    types = ['pot', 'kin']
+
+    kin_comp = np.array(trial.visualization.plot_dict['outputs']['power_balance_comparison']['kinetic'][0])
+    pot_comp = np.array(trial.visualization.plot_dict['outputs']['power_balance_comparison']['potential'][0])
+    comp_timeseries = {'pot': pot_comp, 'kin': kin_comp}
+
+    # extract info
+    tgrid = trial.visualization.plot_dict['time_grids']['ip']
+    power_balance = trial.visualization.plot_dict['outputs']['power_balance']
+
+    for type in types:
+        sum_timeseries = np.zeros(tgrid.shape)
+        for keyname in list(power_balance.keys()):
+            if type in keyname:
+                timeseries = power_balance[keyname][0]
+                sum_timeseries += timeseries
+
+        difference = cas.DM(sum_timeseries - comp_timeseries[type])
+
+        error = float(cas.mtimes(difference.T, difference))
+
+        if error > thresh:
+            awelogger.logger.warning('some of the power based on ' + type + '. energy must have gotten lost, since a summation check fails. Considering trial ' + trial.name +  ' with ' + str(error) + ' > ' + str(thresh))
+            results['power_summation_check_' + type] = False
+        else:
+            results['power_summation_check_' + type] = True
+
+    return results
+
+def power_balance_key_belongs_to_node(keyname, node):
+    keyname_includes_nodenumber = (keyname[-len(str(node)):] == str(node))
+    keyname_is_nonnumeric_before_nodenumber = not (keyname[-len(str(node)) - 1].isnumeric())
+    key_belongs_to_node = keyname_includes_nodenumber and keyname_is_nonnumeric_before_nodenumber
+    return key_belongs_to_node
+
+def test_slack_equalities(trial, test_param_dict, results):
+
+    if 'xl' in trial.model.variables.keys():
+
+        V_final = trial.optimization.V_final
+        xl_vars = trial.model.variables['xl']
+        epsilon = test_param_dict['slacks_thresh']
+
+        discretization = trial.options['nlp']['discretization']
+        if discretization == 'direct_collocation':
+
+            for idx in range(xl_vars.shape[0]):
+                var_name = str(xl_vars[idx])
+
+                if 'slack' in var_name:
+                    slack_name = var_name[3:-2]
+
+                    max_val = 0.
+
+                    for ndx in range(trial.nlp.n_k):
+                        for ddx in range(trial.nlp.d):
+
+                            data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
+                            max_val = np.max([np.max(data), max_val])
+
+                    if max_val < epsilon:
+                        # assume that slack equalities are satisfied
+                        results['slacks_' + var_name] = True
+                    else:
+                        awelogger.logger.warning('slacked equality did not find a feasible solution. ' + var_name + ' > ' + str(test_param_dict['slacks_thresh']))
+                        # slack equalities are not satisfied
+                        results['slacks_' + var_name] = False
+
+        else:
+            awelogger.logger.warning('slack test not yet implemented for multiple-shooting solution')
+
+    return results
+
+def test_tracked_vortex_periods(trial, test_param_dict, results):
+
+    plot_dict = trial.visualization.plot_dict
+    kite_nodes = trial.model.architecture.kite_nodes
+
+    if 'vortex' in plot_dict['outputs']:
+        last_vortex_ind_factor_thresh = test_param_dict['last_vortex_ind_factor_thresh']
+
+        max_last_a = -99999.
+        kite_max_last = -1
+        for kite in kite_nodes:
+            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_a' + str(kite)]))
+            local_max_last_a = np.max(last_a)
+
+            if local_max_last_a > max_last_a:
+                kite_max_last = kite
+                max_last_a = local_max_last_a
+
+        if max_last_a > last_vortex_ind_factor_thresh:
+            message = 'Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' \
+                      + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) \
+                      + '. We recommend increasing the number of tracked periods.'
+            awelogger.logger.warning(message)
+            # slack equalities are not satisfied
+            results['last_vortex_ind_factor'] = False
+
+    return results
+
+
+
+def test_aero_force_frame_conversion(trial, test_param_dict, results):
+    """Test whether the aerodynamic force has the same magnitude when projected into the 4 orthonormal axes: body, control, earth, wind
+    :return: test results
+    """
+
+    plot_dict = trial.visualization.plot_dict
+    outputs = plot_dict['outputs']
+    kite_nodes = trial.model.architecture.kite_nodes
+
+    aero_conversion_thresh = test_param_dict['aero_conversion_thresh']
+
+    conversions = ['body and control frame', 'body and earth frame', 'body and wind frame', 'wind component sums']
+
+    for kite in kite_nodes:
+        vals = outputs['aerodynamics']['check_conversion' + str(kite)]
+
+        for cdx in range(len(vals)):
+            max_val = np.max(np.abs(np.array(vals[cdx])))
+
+            if max_val > aero_conversion_thresh:
+
+                message = 'Too much deviation in norms of aerodynamic force after frame conversion, '\
+                          + 'for ' + conversions[cdx] + ' test, ' \
+                          + 'at kite ' + str(kite) + ': ' \
+                          + str(max_val) + ' > ' + str(aero_conversion_thresh) \
+                          + '. We recommend increasing the number of control intervals n_k.'
+                awelogger.logger.warning(message)
+                # slack equalities are not satisfied
+                results['aero_conversion'] = False
+
 
     return results
 
@@ -282,6 +433,11 @@ def generate_test_param_dict(options):
     test_param_dict['max_velocity'] = options['test_param']['max_velocity']
     test_param_dict['t_f_min'] = options['test_param']['t_f_min']
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
-    test_param_dict['power_balance_tresh'] = options['test_param']['power_balance_tresh']
+    test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
+    test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
+    test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
+    test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
+    test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
+    test_param_dict['aero_conversion_thresh'] = options['test_param']['aero_conversion_thresh']
 
     return test_param_dict
