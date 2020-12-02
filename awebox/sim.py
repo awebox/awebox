@@ -228,7 +228,7 @@ class Simulation:
         """
 
         self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
-        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, None, recalibrate = False)
+        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None
 
