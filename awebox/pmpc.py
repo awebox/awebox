@@ -272,7 +272,7 @@ class Pmpc(object):
         """
 
         info = self.__solver.stats()
-        self.__log['cpu'].append(info['t_wall_solver'])
+        self.__log['cpu'].append(info['t_wall_total'])
         self.__log['iter'].append(info['iter_count'])
         self.__log['status'].append(info['return_status'])
         self.__log['f'].append(sol['f'])
