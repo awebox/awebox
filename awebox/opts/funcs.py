@@ -160,6 +160,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         else:
             phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
+    options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
 
     n_k = options['nlp']['n_k']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
