@@ -83,6 +83,12 @@ def get_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
+    # drag-mode phase fixing: fix y-speed of first system node
+    if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (nlp_options['system_type'] == 'drag_mode'):
+        vars_lb[var_type, 0, name, 1] = 0.0
+        vars_ub[var_type, 0, name, 1] = 0.0
+
+    # lift-mode phase fixing
     if name == 'dl_t' and nlp_options['phase_fix']:
         if kdx < round(nlp_options['n_k'] * nlp_options['phase_fix_reelout']):
             if not coll_flag:
@@ -100,6 +106,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
 
+    # fix smallest and largest tether length value
     if name == 'l_t' and nlp_options['pumping_range']:
 
         if kdx == 0 and (not coll_flag) and nlp_options['pumping_range'][0]:
