@@ -88,7 +88,7 @@ Bronnenmeyer (Masters thesis) / University of Stuttgart 2018
 ### Models
 
 **Induction models**\
-Engineering Wake Induction Model For Axisymmetric Multi-Kite Systems \
+[Engineering Wake Induction Model For Axisymmetric Multi-Kite Systems](https://www.researchgate.net/publication/334616920_Engineering_Wake_Induction_Model_For_Axisymmetric_Multi-Kite_Systems) \
 Leuthold et al. / Wake Conference 2019
 
 **Point-mass model**\
@@ -108,7 +108,7 @@ Horn et al. / Airborne Wind Energy 2013
 ### Software
 
 **IPOPT**\
-On the Implementation of a Primal-Dual Interior Point Filter Line Search Algorithm for Large-Scale Nonlinear Programming \
+[On the Implementation of a Primal-Dual Interior Point Filter Line Search Algorithm for Large-Scale Nonlinear Programming](http://cepac.cheme.cmu.edu/pasilectures/biegler/ipopt.pdf) \
 Wächter et al. / Mathematical Programming 106 (2006) 25-57
 
 **CasADi**\
