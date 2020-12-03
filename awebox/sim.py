@@ -228,7 +228,7 @@ class Simulation:
         """
 
         self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
-        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, None, recalibrate = False)
+        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None
 
@@ -279,3 +279,13 @@ class Simulation:
     @F.setter
     def F(self, value):
         print('Cannot set F object.')
+
+    @property
+    def visualization(self):
+        """ awebox.pmpc.Visualization attribute containing MPC info.
+        """
+        return self.__visualization
+
+    @visualization.setter
+    def visualization(self, value):
+        print('Cannot set visualization object.')
