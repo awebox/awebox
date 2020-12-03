@@ -1128,3 +1128,20 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
 
         var_slice = local_dict(collected_vals)
         return var_slice
+
+def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
+
+    bounds = plot_dict['variable_bounds'][var_type][name]
+    scaling = plot_dict['scaling'][var_type][name]
+    lb = bounds['lb']
+    if type(lb) != float:
+        lb = lb[jdx]
+    ub = bounds['ub']
+    if type(ub) != float:
+        ub = ub[jdx]
+    if lb > -np.inf:
+        plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+    if ub < np.inf:
+        plt.plot(tgrid_ip, [ub*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+
+    return None
