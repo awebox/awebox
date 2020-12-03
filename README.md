@@ -62,7 +62,7 @@ This software has been developed in collaboration with the company [Kiteswarms L
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
 
-## Citing the `awebox` software package
+## Citing `awebox`
 Please use the following citation: 
 
 ```
