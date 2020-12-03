@@ -119,8 +119,12 @@ def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
 def plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_outputs(plot_dict, cosmetics, fig_name, 'model_inequalities', fig_num, epigraph=0.)
 
+def plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num=None):
+    plot_outputs(plot_dict, cosmetics, fig_name, 'model_equalities', fig_num, epigraph=0.)
+
 def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
+    plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
 
 def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 

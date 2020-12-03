@@ -625,6 +625,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
             options_tree.append(('model', 'scaling', 'xl', gamma_name, gamma_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
+    u_ref = get_u_ref(options['user_options'])
+    # vortex_position_scale = 2. * u_ref
     vortex_position_scale = b_ref
     for kite in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
@@ -634,14 +636,16 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
                 options_tree.append(('model', 'scaling', 'xd', 'd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
                 options_tree.append(('model', 'scaling', 'xd', 'dd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
 
-    u_ref = get_u_ref(options['user_options'])
+    a_ref = options['model']['aero']['actuator']['a_ref']
+    # u_ind = a_ref * u_ref
+    u_ind = u_ref
     for kite_obs in architecture.kite_nodes:
         for fdx in range(filaments):
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ref / float(filaments), ('descript', None), 'x'))
+            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind / float(filaments), ('descript', None), 'x'))
 
         ind_name = 'wu_ind_' + str(kite_obs)
-        options_tree.append(('model', 'scaling', 'xl', ind_name, u_ref, ('descript', None), 'x'))
+        options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
 
 
 
