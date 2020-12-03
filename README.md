@@ -4,10 +4,11 @@
 
 * generating optimization-friendly system dynamics for different combinations of modeling options.
 * formulating optimal control problems for common multi-kite trajectory types.
-* solving the optimization problem reliably
-* postprocessing the solution and performing quality checks 
+* solving the trajectory optimization problem reliably
+* postprocessing and visualizing the solution and performing quality checks 
+* tracking MPC design and handling for offline closed-loop simulations
 
-At the moment, the main focus of the toolbox are _rigid-wing_, _lift-mode_ multiple-kite systems.
+The main focus of the toolbox are _rigid-wing_, _lift_- and _drag_-mode multiple-kite systems.
 
 ## Installation
 
@@ -20,34 +21,11 @@ It is optional but highly recommended to use HSL linear solvers as a plugin with
      git clone https://github.com/awebox/awebox.git
      ```
 
-2.   Install CasADI version **3.4.5** for Python 3, following these [installation instructions](https://github.com/casadi/casadi/wiki/InstallationInstructions).
+2.   Install CasADI version **3.5** for Python 3, following these [installation instructions](https://github.com/casadi/casadi/wiki/InstallationInstructions).
 
 3.   In order to get the HSL solvers and render them visible to CasADi, follow these [instructions](https://github.com/casadi/casadi/wiki/Obtaining-HSL).
 
-##### possible variations to the HSL installation instructions, for linux installation in the /usr/ directory, using anaconda: 
- 
-- At Instruction  6.  (to avoid Step 2 and the use of LD_LIBRARY_PATH to let IPOPT know where to find libhsl.so, which does not seem to work):
-```
-./configure --prefix=/usr LIBS="-llapack" --with-blas="-L/usr/lib -lblas" CXXFLAGS="-g -O2 -fopenmp" FCFLAGS="-g -O2 -fopenmp" CFLAGS="-g -O2 -fopenmp"
-```
- 
-- At Instruction 7. (very important, as the metis library is not being linked otherwise) :
-```
-make LDFLAGS="-lmetis"  
-```
- 
-- At Instruction 8. (because of /usr chosen as install directory)  :
-```
-sudo make install
-```
- 
-
-- At Instruction 9. :
-```
-ln -s usr/lib/libcoinhsl.so (anaconda folder where CasaDI is installed)/libhsl.so
-```
-The anaconda folder may possibly be at: /home/user_name/anaconda3/lib/python3.7/site-packages/casadi
-
+Additional installation instructions can be found [here](https://github.com/awebox/awebox/blob/develop/INSTALLATION.md).
 
 
 ## Getting started
@@ -67,8 +45,8 @@ python3 examples/single_kite_lift_mode_simple.py
 
 ## Options
 
-For an overview of the different (user and non-user) options, first have a look at the examples.  
-An exhaustive overview can be found in `awebox/opts/default.py`, where all the default options are set.  
+For an overview of the available options, first have a look at the different examples.  
+An exhaustive overview can be found in `awebox/opts/default.py`.
 In order to alter non-user options: generate the `Options`-object with internal access rights switched on:
 
 ```python
@@ -84,8 +62,8 @@ This software has been developed in collaboration with the company [Kiteswarms L
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
 
-## How to cite the `awebox`
-Please cite the `awebox` using the following citation: 
+## Citing the `awebox` software package
+Please use the following citation: 
 
 ```
 awebox: Modelling and optimal control of single- and multiple-kite systems for airborne wind energy. https://github.com/awebox/awebox
@@ -95,46 +73,44 @@ awebox: Modelling and optimal control of single- and multiple-kite systems for a
 
 ### `awebox`-based research
 
+Optimal Control of Stacked Multi-Kite Systems for Utility-Scale Airborne Wind Energy \
+De Schutter et al., IEEE Conference on Decision and Control (CDC) 2019
+
+Wake Characteristics of Pumping Mode Airborne Wind Energy Systems
+Haas et al., Journal of Physics: Conference Series 2019
+
 Operational Regions of a Multi-Kite AWE System \
-R. Leuthold, J. De Schutter, E Malz, G. Licitra, S. Gros, M. Diehl \
-European Control Conference (ECC) 2018
+Leuthold et al., European Control Conference (ECC) 2018
 
 Optimal Control for Multi-Kite Emergency Trajectories \
-T. Bronnenmeyer (Masters thesis) \
-University of Stuttgart 2018
+Bronnenmeyer (Masters thesis), University of Stuttgart 2018
 
 ### Models
 
 **Induction models**\
 Engineering Wake Induction Model For Axisymmetric Multi-Kite Systems \
-R. Leuthold, C. Crawford, S. Gros, M. Diehl \
-Wake Conference 2019 (accepted)
+Leuthold et al., Wake Conference 2019
 
 **Point-mass model**\
 Airborne Wind Energy Based on Dual Airfoils \
-M. Zanon, S. Gros, J. Andersson, M. Diehl \
-IEEE Transactions on Control Systems Technology 2013
+Zanon et al., IEEE Transactions on Control Systems Technology 2013
 
 ### Methods
 
 **Homotopy strategy** \
 A Relaxation Strategy for the Optimization of Airborne Wind Energy Systems \
-S. Gros, M. Zanon, M. Diehl \
-Proceedings of the European Control Conference (ECC) 2013
+Gros et al., European Control Conference (ECC) 2013
 
 **Trajectory optimization** \
 Numerical Trajectory Optimization for Airborne Wind Energy Systems Described by High Fidelity Aircraft Models \
-G. Horn, S. Gros, M. Diehl \
-Airborne Wind Energy 2013
+Horn et al., Airborne Wind Energy 2013
 
 ### Software
 
 **IPOPT**\
 On the Implementation of a Primal-Dual Interior Point Filter Line Search Algorithm for Large-Scale Nonlinear Programming \
-A. Wächter, L.T. Biegler \
-Mathematical Programming 106 (2006) 25-57
+Wächter et al., Mathematical Programming 106 (2006) 25-57
 
 **CasADi**\
 CasADi - A software framework for nonlinear optimization and optimal control \
-J.A.E. Andersson, J. Gillis, G. Horn, J.B. Rawlings, M. Diehl \
-Mathematical Programming Computation, 2018
+Andersson et al., Mathematical Programming Computation 2018
