@@ -641,12 +641,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
             p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
                     linestyle= '--', color = p[-1].get_color() )
 
         else:
             p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
                     linestyle =  '--', color = p[-1].get_color())
