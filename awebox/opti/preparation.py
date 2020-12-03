@@ -235,6 +235,8 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
 
+    opts['record_time'] = 1
+
     if awelogger.logger.getEffectiveLevel() > 10:
         opts['ipopt.print_level'] = 0
         opts['print_time'] = 0
