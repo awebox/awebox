@@ -73,44 +73,44 @@ awebox: Modelling and optimal control of single- and multiple-kite systems for a
 
 ### `awebox`-based research
 
-Optimal Control of Stacked Multi-Kite Systems for Utility-Scale Airborne Wind Energy \
-De Schutter et al., IEEE Conference on Decision and Control (CDC) 2019
+[Optimal Control of Stacked Multi-Kite Systems for Utility-Scale Airborne Wind Energy](https://cdn.syscop.de/publications/DeSchutter2019.pdf) \
+De Schutter et al. / IEEE Conference on Decision and Control (CDC) 2019
 
-Wake Characteristics of Pumping Mode Airborne Wind Energy Systems
-Haas et al., Journal of Physics: Conference Series 2019
+[Wake Characteristics of Pumping Mode Airborne Wind Energy Systems](https://cdn.syscop.de/publications/Haas2019.pdf) \
+Haas et al. / Journal of Physics: Conference Series 2019
 
-Operational Regions of a Multi-Kite AWE System \
-Leuthold et al., European Control Conference (ECC) 2018
+[Operational Regions of a Multi-Kite AWE System](https://cdn.syscop.de/publications/Leuthold2018.pdf) \
+Leuthold et al. / European Control Conference (ECC) 2018
 
-Optimal Control for Multi-Kite Emergency Trajectories \
-Bronnenmeyer (Masters thesis), University of Stuttgart 2018
+[Optimal Control for Multi-Kite Emergency Trajectories](https://cdn.syscop.de/publications/Bronnenmeyer2018.pdf) \
+Bronnenmeyer (Masters thesis) / University of Stuttgart 2018
 
 ### Models
 
 **Induction models**\
 Engineering Wake Induction Model For Axisymmetric Multi-Kite Systems \
-Leuthold et al., Wake Conference 2019
+Leuthold et al. / Wake Conference 2019
 
 **Point-mass model**\
-Airborne Wind Energy Based on Dual Airfoils \
-Zanon et al., IEEE Transactions on Control Systems Technology 2013
+[Airborne Wind Energy Based on Dual Airfoils](https://cdn.syscop.de/publications/Zanon2013a.pdf) \
+Zanon et al. / IEEE Transactions on Control Systems Technology 2013
 
 ### Methods
 
 **Homotopy strategy** \
-A Relaxation Strategy for the Optimization of Airborne Wind Energy Systems \
-Gros et al., European Control Conference (ECC) 2013
+[A Relaxation Strategy for the Optimization of Airborne Wind Energy Systems](https://cdn.syscop.de/publications/Gros2013a.pdf) \
+Gros et al. / European Control Conference (ECC) 2013
 
 **Trajectory optimization** \
-Numerical Trajectory Optimization for Airborne Wind Energy Systems Described by High Fidelity Aircraft Models \
-Horn et al., Airborne Wind Energy 2013
+[Numerical Trajectory Optimization for Airborne Wind Energy Systems Described by High Fidelity Aircraft Models](https://cdn.syscop.de/publications/Horn2013.pdf) \
+Horn et al. / Airborne Wind Energy 2013
 
 ### Software
 
 **IPOPT**\
 On the Implementation of a Primal-Dual Interior Point Filter Line Search Algorithm for Large-Scale Nonlinear Programming \
-Wächter et al., Mathematical Programming 106 (2006) 25-57
+Wächter et al. / Mathematical Programming 106 (2006) 25-57
 
 **CasADi**\
-CasADi - A software framework for nonlinear optimization and optimal control \
-Andersson et al., Mathematical Programming Computation 2018
+[CasADi - A software framework for nonlinear optimization and optimal control](https://cdn.syscop.de/publications/Andersson2018.pdf) \
+Andersson et al. / Mathematical Programming Computation 2018
