@@ -59,10 +59,7 @@ def print_runtime_values(stats):
 
     awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
     awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    try:
-        awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
-    except:
-        32.0 # do nothing!
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
 
     awelogger.logger.info('')
 

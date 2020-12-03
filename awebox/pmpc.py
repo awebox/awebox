@@ -179,6 +179,7 @@ class Pmpc(object):
         opts['ipopt.max_iter'] = self.__mpc_options['max_iter']
         opts['ipopt.max_cpu_time'] = self.__mpc_options['max_cpu_time']
         opts['jit'] = self.__mpc_options['jit']
+        opts['record_time'] = 1
 
         if awelogger.logger.level > 10:
             opts['ipopt.print_level'] = 0
