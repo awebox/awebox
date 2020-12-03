@@ -65,9 +65,7 @@ This project has received funding from the European Union’s Horizon 2020 resea
 ## Citing `awebox`
 Please use the following citation: 
 
-```
-awebox: Modelling and optimal control of single- and multiple-kite systems for airborne wind energy. https://github.com/awebox/awebox
-```
+"_awebox: Modelling and optimal control of single- and multiple-kite systems for airborne wind energy. https://github.com/awebox/awebox_"
 
 ## Literature
 
