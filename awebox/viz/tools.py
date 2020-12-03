@@ -713,6 +713,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
+    plot_dict['variable_bounds'] = model.variable_bounds
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
