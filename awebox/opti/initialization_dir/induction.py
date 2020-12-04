@@ -268,7 +268,7 @@ def guess_vortex_node_velocity(init_options):
 
 
 def guess_wake_gamma_val(init_options):
-    gamma = init_options['induction']['vortex_gamma_scale']
+    gamma = cas.DM(0.) #init_options['induction']['vortex_gamma_scale']
 
     return gamma
 
