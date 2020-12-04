@@ -999,7 +999,7 @@ def wound_tether_length_inequality(options, variables, outputs, parameters, arch
     outputs['wound_tether_length']['wound_tether_length'] = cas.DM((0,0))
 
     if options['tether']['use_wound_tether']:
-        l_t_full = variables['theta']['l_t_full']
+        l_t_full = variables['theta']['l_t_full']/options['tether']['wound_tether_safety_factor']
         l_t = variables['xd']['l_t']
 
         length_scaling = options['scaling']['xd']['l_t']
