@@ -19,6 +19,7 @@ import awebox.tools.print_operations as print_op
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
+
 def generate_options_dict():
     """
     Set options for the trials that should be tested and store them in dictionary
@@ -55,12 +56,15 @@ def generate_options_dict():
     small_dual_kite_options['params']['ground_station']['m_gen'] = 5.
     small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 1
 
-    actuator_qaxi_options = copy.deepcopy(dual_kite_6_dof_options)
+    actuator_qaxi_options = options.Options(internal_access=True)
+    actuator_qaxi_options['user_options']['system_model']['architecture'] = {1: 0, 2: 1, 3: 1}
+    actuator_qaxi_options['user_options']['kite_standard'] = ampyx_data.data_dict()
+    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 3
+    actuator_qaxi_options['user_options']['tether_drag_model'] = 'split'
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
     actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    actuator_qaxi_options['nlp']['n_k'] = 20
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
@@ -71,7 +75,6 @@ def generate_options_dict():
 
     actuator_uasym_options = copy.deepcopy(actuator_qasym_options)
     actuator_uasym_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
-    actuator_uasym_options['nlp']['n_k'] = 15
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
     actuator_comparison_options['model']['aero']['actuator']['steadyness_comparison'] = ['q', 'u']

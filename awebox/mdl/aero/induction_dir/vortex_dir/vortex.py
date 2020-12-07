@@ -38,8 +38,6 @@ import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
-import pdb
-
 def get_residual(options, wind, variables_si, outputs, architecture):
 
     # no self-induction! rigid wake convection only!

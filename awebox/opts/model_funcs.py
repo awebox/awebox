@@ -432,9 +432,6 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], ('????', None), 'x')),
 
-    n_hat_slack_range = options['model']['aero']['actuator']['n_hat_slack_range']
-    options_tree.append(('model', 'system_bounds', 'xl', 'n_hat_slack', n_hat_slack_range, ('slacks remain positive [-]', None), 'x')),
-
     options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
                          ('normalization factor for normal vector [-]', None), 'x')),
     options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0.1, 2.],
