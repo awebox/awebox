@@ -76,7 +76,7 @@ def get_fixing_constraint(options, V, Outputs, model):
                         variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables,
                                                                             reverse_index, -1)
 
-                        wx_local = tools.get_wake_node_position_si(options, variables_at_shed, kite, tip, wake_node)
+                        wx_local = tools.get_wake_node_position_si(variables_at_shed, kite, tip, wake_node, model.scaling)
                         wingtip_pos = Outputs[
                             'coll_outputs', reverse_index, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
@@ -102,8 +102,8 @@ def get_fixing_constraint(options, V, Outputs, model):
                         variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)
 
                         upstream_node = wake_node - n_k
-                        wx_local = tools.get_wake_node_position_si(options, variables_at_initial, kite, tip, wake_node)
-                        wx_upstream = tools.get_wake_node_position_si(options, variables_at_final, kite, tip, upstream_node)
+                        wx_local = tools.get_wake_node_position_si(variables_at_initial, kite, tip, wake_node, model.scaling)
+                        wx_upstream = tools.get_wake_node_position_si(variables_at_final, kite, tip, upstream_node, model.scaling)
 
                         local_resi = wx_local - wx_upstream
                         local_cstr = cstr_op.Constraint(expr = local_resi,

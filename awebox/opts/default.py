@@ -48,7 +48,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'trajectory',  'transition','terminal_trajectory',   None,               ('relative path to pickled terminal trajectory', None),'x'),
         ('user_options',    'trajectory',  'compromised_landing','emergency_scenario', ('broken_lift',2),  ('type of emergency scenario as tuple, with (SCENARIO, KITE_NODE)', None),'x'),
         ('user_options',    'trajectory',  'compromised_landing','xi_0_initial',   0.00,             ('starting position on initial trajectory between 0 and 1', None),'s'),
-        ('user_options',    'trajectory',  'tracking',  'fix_tether_length',     True,                ('fixing tether length for the trajectory', [True, False]),'s'),
+        ('user_options',    'trajectory',  'tracking',  'fix_tether_length',     False,              ('fixing tether length for the trajectory', [True, False]),'s'),
         ('user_options',    'trajectory',  None,        'fixed_params',          {},                 ('give dict of fixed system parameters and their values',None),'s'),
         ('user_options',    'system_model',None,        'kite_dof',              6,                  ('give the number of states that designate each kites position [int]: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'t'),
         ('user_options',    'system_model',None,        'surface_control',       1,                  ('which derivative of the control-surface-deflection is controlled? [int]: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x'),
@@ -118,7 +118,6 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal']), 'x'),
-        ('model', 'aero', 'actuator',   'n_hat_slack_range',    [0., 0.],   ('range for the normal vector slack variables', None), 'x'),
         ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
         ('model', 'aero', 'vortex',     'wake_nodes',           5,         ('number of wake nodes per kite', None), 'x'),

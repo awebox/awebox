@@ -39,12 +39,12 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 
-
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     awelogger.logger.info('Checking health...')
 
     cstr_fun, lam_fun, cstr_labels = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
+
     cstr_jacobian_eval = get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
 
     lagr_fun, lagr_jacobian_fun, lagr_hessian_fun = generate_lagrangian(health_solver_options, nlp, arg, solution)

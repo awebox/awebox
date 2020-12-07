@@ -596,7 +596,7 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
             temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name])) * vortex_tools.get_position_scale(plot_dict['options']['model'])
+            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 

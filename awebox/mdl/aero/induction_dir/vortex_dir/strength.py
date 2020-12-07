@@ -43,6 +43,8 @@ import awebox.tools.constraint_operations as cstr_op
 
 def get_strength_constraint(options, V, Outputs, model):
 
+    cstr_list = cstr_op.ConstraintList()
+
     n_k = options['n_k']
     d = options['collocation']['d']
 
@@ -51,11 +53,7 @@ def get_strength_constraint(options, V, Outputs, model):
     rings = wake_nodes - 1
     kite_nodes = model.architecture.kite_nodes
 
-    strength_scale = tools.get_strength_scale(options)
-
     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
-    cstr_list = cstr_op.ConstraintList()
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
@@ -69,8 +67,8 @@ def get_strength_constraint(options, V, Outputs, model):
 
                         local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + '_' + str(ddx)
 
-                        variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
-                        wg_local = tools.get_ring_strength(variables, kite, ring)
+                        variables_scaled = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
+                        wg_local = tools.get_ring_strength_si(variables_scaled, kite, ring, model.scaling)
 
                         ndx_shed = n_k - 1 - wake_node
                         ddx_shed = d - 1
@@ -113,11 +111,11 @@ def get_strength_constraint(options, V, Outputs, model):
                             ndx_shed_w_periodicity = ndx_shed - period_number * n_k
 
                             gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'circulation' + str(kite)]
-                            wg_ref = 1. * gamma_val / strength_scale
+                            wg_ref = 1. * gamma_val
                         else:
                             wg_ref = 0.
 
-                        local_resi = (wg_local - wg_ref)
+                        local_resi = (wg_local - wg_ref) / tools.get_strength_scale(model.variables_dict, model.scaling)
 
                         local_cstr = cstr_op.Constraint(expr = local_resi,
                                                         name = local_name,

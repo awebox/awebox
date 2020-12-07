@@ -55,7 +55,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_stability_derivative_options(options, help_options, options_tree, fixed_params)
     options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params)
-    options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params, architecture)
 
     # tether
     options_tree, fixed_params = build_tether_drag_options(options, options_tree, fixed_params)
@@ -432,9 +432,6 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], ('????', None), 'x')),
 
-    n_hat_slack_range = options['model']['aero']['actuator']['n_hat_slack_range']
-    options_tree.append(('model', 'system_bounds', 'xl', 'n_hat_slack', n_hat_slack_range, ('slacks remain positive [-]', None), 'x')),
-
     options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
                          ('normalization factor for normal vector [-]', None), 'x')),
     options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0.1, 2.],
@@ -574,7 +571,7 @@ def get_local_actuator_label(actuator_steadyness, actuator_symmetry):
 
 ###### vortex induction
 
-def build_vortex_options(options, options_tree, fixed_params):
+def build_vortex_options(options, options_tree, fixed_params, architecture):
 
     n_k = options['nlp']['n_k']
     d = options['nlp']['collocation']['d']
@@ -614,30 +611,39 @@ def build_vortex_options(options, options_tree, fixed_params):
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
 
+    rings = wake_nodes - 1
+    filaments = wake_nodes * 3 * len(architecture.kite_nodes)
+    wingtips = ['ext', 'int']
+
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
-    options_tree.append(('model', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'induction', None, 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+    for kite in architecture.kite_nodes:
+        for ring in range(rings):
+            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
+            options_tree.append(('model', 'scaling', 'xl', gamma_name, gamma_scale, ('descript', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
-    vortex_position_scale = b_ref
-    options_tree.append(('model', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'induction', None, 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_position_scale', vortex_position_scale, ('????', None), 'x')),
+    u_ref = get_u_ref(options['user_options'])
+    vortex_position_scale = 2. * u_ref
+    for kite in architecture.kite_nodes:
+        for wake_node in range(wake_nodes):
+            for tip in wingtips:
+                coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+                options_tree.append(('model', 'scaling', 'xd', coord_name, vortex_position_scale, ('descript', None), 'x'))
+                options_tree.append(('model', 'scaling', 'xd', 'd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
+                options_tree.append(('model', 'scaling', 'xd', 'dd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
 
-    vortex_velocity_scale = get_u_ref(options['user_options'])
-    options_tree.append(('model', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'induction', None, 'vortex_velocity_scale', vortex_velocity_scale, ('????', None), 'x')),
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_velocity_scale', vortex_position_scale, ('????', None), 'x')),
+    a_ref = options['model']['aero']['actuator']['a_ref']
+    u_ind = a_ref * u_ref
+
+    for kite_obs in architecture.kite_nodes:
+        for fdx in range(filaments):
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind / float(filaments), ('descript', None), 'x'))
+
+        ind_name = 'wu_ind_' + str(kite_obs)
+        options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
 
 
-    gravity = get_gravity_ref(options)
-    geometry = get_geometry(options)
-    m_k = geometry['m_k']
 
 
     return options_tree, fixed_params

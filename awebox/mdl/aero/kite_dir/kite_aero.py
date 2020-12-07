@@ -44,20 +44,20 @@ import casadi.tools as cas
 import numpy as np
 import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_forces_and_moments(options, atmos, wind, variables, outputs, parameters, architecture):
-    outputs = get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+def get_forces_and_moments(options, atmos, wind, variables_si, outputs, parameters, architecture):
+    outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
-    outputs = indicators.get_performance_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+    outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+        outputs = induction.collect_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     return outputs
 
 
-def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
+def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
 
-    xd = variables['xd']
+    xd = variables_si['xd']
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
@@ -71,25 +71,25 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         q = xd['q' + str(kite) + str(parent)]
         dq = xd['dq' + str(kite) + str(parent)]
 
-        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables_si, wind, kite, architecture)
         u_eff = vect_op.smooth_norm(vec_u_eff)
         rho = atmos.get_density(q[2])
         q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
         if int(options['kite_dof']) == 3:
-            kite_dcm = three_dof_kite.get_kite_dcm(options, variables, wind, kite, architecture)
+            kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
         elif int(options['kite_dof']) == 6:
-            kite_dcm = six_dof_kite.get_kite_dcm(kite, variables, architecture)
+            kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
         else:
             message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
             awelogger.logger.error(message)
 
         if int(options['kite_dof']) == 3:
-            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables, kite, architecture)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
             m_aero_body = cas.DM.zeros((3, 1))
         elif int(options['kite_dof']) == 6:
-            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables, kite, architecture)
-            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables, kite, architecture)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
+            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture)
             m_aero_body = framed_moments['body']
         else:
             message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
@@ -152,12 +152,12 @@ def get_aerodynamic_outputs(options, atmos, wind, variables, outputs, parameters
         base_aerodynamic_quantities['q'] = q
         base_aerodynamic_quantities['dq'] = dq
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables, parameters, base_aerodynamic_quantities, outputs)
+        outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables_si, parameters, base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
-        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables, parameters,
+        outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables_si, parameters,
                                                                base_aerodynamic_quantities, outputs)
-        outputs = indicators.collect_power_balance_outputs(options, architecture, variables, base_aerodynamic_quantities, outputs)
+        outputs = indicators.collect_power_balance_outputs(options, architecture, variables_si, base_aerodynamic_quantities, outputs)
 
 
     return outputs

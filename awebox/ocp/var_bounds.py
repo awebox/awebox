@@ -37,7 +37,6 @@ import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def get_scaled_variable_bounds(nlp_options, V, model):
 
