@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -228,7 +228,7 @@ class Simulation:
         """
 
         self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
-        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, None, recalibrate = False)
+        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None
 
@@ -279,3 +279,13 @@ class Simulation:
     @F.setter
     def F(self, value):
         print('Cannot set F object.')
+
+    @property
+    def visualization(self):
+        """ awebox.pmpc.Visualization attribute containing MPC info.
+        """
+        return self.__visualization
+
+    @visualization.setter
+    def visualization(self, value):
+        print('Cannot set visualization object.')

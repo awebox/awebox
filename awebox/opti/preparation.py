@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -218,6 +218,8 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_target'] = options['mu_target']
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
+
+    opts['record_time'] = 1
 
     if awelogger.logger.getEffectiveLevel() > 10:
         opts['ipopt.print_level'] = 0

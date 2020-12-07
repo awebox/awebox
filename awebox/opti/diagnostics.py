@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -60,10 +60,7 @@ def print_runtime_values(stats):
 
     awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
     awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    try:
-        awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
-    except:
-        32.0 # do nothing!
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
 
     awelogger.logger.info('')
 

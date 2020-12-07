@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -135,7 +135,6 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 's_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'b_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'c_ref',       None,     ('geometrical parameter', None),'s'),
-        ('model',  'geometry', 'overwrite', 'c_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'ar',          None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'j',           None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'length',      None,     ('geometrical parameter', None),'x'),
@@ -170,6 +169,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
         ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
+        ('model',   'tether', None,         'wound_tether_safety_factor', 1.1, ('wound tether safety factor', None),'x'),
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
 
         #### system bounds and limits (physical)

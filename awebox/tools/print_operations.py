@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -78,7 +78,7 @@ def get_awebox_license_info():
     license_info = []
     license_info += [hline('+')]
     license_info += ['This is awebox, a modeling and optimization framework for multi-kite AWE systems.']
-    license_info += ['awebox is a free software; you can redistribute it and/or modify it under the terms']
+    license_info += ['awebox is free software; you can redistribute it and/or modify it under the terms']
     license_info += ['of the GNU Lesser General Public License as published by the Free Software']
     license_info += ['Foundation license. More information can be found at http://github.com/awebox.']
     license_info += [hline('+')]

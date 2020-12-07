@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -800,12 +800,13 @@ def wound_tether_length_inequality(options, variables):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
+
     if options['model_bounds']['wound_tether_length']['include']:
 
         length_scaling = options['scaling']['xd']['l_t']
 
         if options['tether']['use_wound_tether']:
-            l_t_full = variables['theta']['l_t_full']
+            l_t_full = variables['theta']['l_t_full'] / options['tether']['wound_tether_safety_factor']
             l_t = variables['xd']['l_t']
 
             expr = (l_t - l_t_full) / length_scaling
