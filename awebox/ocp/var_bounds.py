@@ -50,7 +50,6 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
     periodic = perf_op.determine_if_periodic(nlp_options)
 
-
     # fill in bounds
     for canonical in distinct_variables:
 
@@ -109,17 +108,6 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
             else:
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = 0.0
-
-        elif (not var_type == 'xd') and (coll_flag):
-            # prevent double application of bounds at continuity points
-            if in_out_phase:
-                # only apply inequalities at control points, to prevent LICQ
-                vars_lb['coll_var', kdx, ddx, var_type, name] = 0.0
-                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
-            else:
-                # only apply inequalities at control points, to prevent LICQ
-                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
         else:
             32. # do nothing
 
