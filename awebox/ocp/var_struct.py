@@ -87,10 +87,6 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation=None):
             cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
         )
 
-        # add slack variables for inequalities
-        if nlp_numerics_options['slack_constraints'] == True and model.constraints_dict['inequality']:
-            entry_tuple += (cas.entry('us',  repeat = [nk],   struct = model.constraints_dict['inequality']),)
-
         # multiple shooting: add algebraic variables at interval if lifted
         if nlp_numerics_options['lift_xddot']:
             entry_tuple += (
