@@ -52,8 +52,8 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     counter += len(integral_variables)
 
     if individual_state == None:
-        plot_table_r = 4
-        plot_table_c = int(np.ceil(np.float(counter) / np.float(plot_table_r)))
+        plot_table_c = 3
+        plot_table_r = int(np.ceil(np.float(counter) / np.float(plot_table_c)))
     else:
         plot_table_r = len(variables_to_plot + integral_variables_to_plot)
         plot_table_c = 1
@@ -81,6 +81,8 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xd'][name].shape[0]):
                 p = plt.plot(tgrid_ip, plot_dict['xd'][name][jdx])
+                if cosmetics['plot_bounds']:
+                    tools.plot_bounds(plot_dict, 'xd', name, jdx, tgrid_ip, p)
                 if cosmetics['plot_ref']:
                     plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xd'][name][jdx],
                         linestyle= '--', color = p[-1].get_color() )
@@ -244,6 +246,8 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
             ax = plt.axes(axes[counter-1])
             for jdx in range(variables_dict['xl'][name].shape[0]):
                 p = plt.plot(tgrid_ip, plot_dict['xl'][name][jdx])
+                if cosmetics['plot_bounds']:
+                    tools.plot_bounds(plot_dict, 'xl', name, jdx, tgrid_ip, p)
                 if cosmetics['plot_ref']:
                     plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xl'][name][jdx],
                         linestyle= '--', color = p[-1].get_color() )
@@ -433,10 +437,13 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
-        lambdavec = plot_dict['xa']['lambda' + str(n) + str(parent)]
+        lam_name = 'lambda' + str(n) + str(parent)
+        lambdavec = plot_dict['xa'][lam_name]
         p = plt.plot(tgrid_ip, lambdavec[0])
+        if cosmetics['plot_bounds']:
+            tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa']['lambda' + str(n) + str(parent)][0],
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa'][lam_name][0],
                 linestyle= '--', color = p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
     
@@ -447,6 +454,8 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
                 lam_name = 'lambda{}{}'.format(kites[0], kites[1])
                 lambdavec = plot_dict['xa'][lam_name]
                 p = plt.plot(tgrid_ip, lambdavec[0])
+                if cosmetics['plot_bounds']:
+                    tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
                 if cosmetics['plot_ref']:
                     plt.plot(
                         plot_dict['time_grids']['ref']['ip'],
@@ -459,6 +468,8 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
                     lam_name = 'lambda{}{}'.format(kites[k], kites[(k+1)%len(kites)])
                     lambdavec = plot_dict['xa'][lam_name]
                     p = plt.plot(tgrid_ip, lambdavec[0])
+                    if cosmetics['plot_bounds']:
+                        tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
                     if cosmetics['plot_ref']:
                         plt.plot(
                             plot_dict['time_grids']['ref']['ip'],
@@ -468,3 +479,4 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
                     legend_names.append(lam_name)
     plt.legend(legend_names)
     plt.suptitle(fig_name)
+

@@ -641,12 +641,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
             p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
                     linestyle= '--', color = p[-1].get_color() )
 
         else:
             p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
                     linestyle =  '--', color = p[-1].get_color())
@@ -713,6 +717,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
+    plot_dict['variable_bounds'] = model.variable_bounds
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
@@ -1127,3 +1132,20 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
 
         var_slice = local_dict(collected_vals)
         return var_slice
+
+def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
+
+    bounds = plot_dict['variable_bounds'][var_type][name]
+    scaling = plot_dict['scaling'][var_type][name]
+    lb = bounds['lb']
+    if type(lb) != float:
+        lb = lb[jdx]
+    ub = bounds['ub']
+    if type(ub) != float:
+        ub = ub[jdx]
+    if lb > -np.inf:
+        plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+    if ub < np.inf:
+        plt.plot(tgrid_ip, [ub*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+
+    return None
