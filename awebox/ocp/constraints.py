@@ -282,26 +282,15 @@ def get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx):
     params_at_time = ms_params[:, kdx]
 
     # at each interval node, path constraints should be satisfied
-    use_slack_formulation = ('us' in list(V.keys()))
-
     for cstr in mdl_cstr_list.get_list('ineq'):
 
         local_fun = cstr.get_function(model_variables, model_parameters)
 
-        if use_slack_formulation:
-            slacks = V['us', kdx]
-            expr = local_fun(vars_at_time, params_at_time) - slacks
-            local_cstr = cstr_op.Constraint(expr=expr,
-                                            name=cstr.name + '_slack_' + str(kdx),
-                                            cstr_type='eq')
-            cstr_list.append(local_cstr)
-
-        else:
-            expr = local_fun(vars_at_time, params_at_time)
-            local_cstr = cstr_op.Constraint(expr=expr,
-                                            name=cstr.name + '_' + str(kdx),
-                                            cstr_type=cstr.cstr_type)
-            cstr_list.append(local_cstr)
+        expr = local_fun(vars_at_time, params_at_time)
+        local_cstr = cstr_op.Constraint(expr=expr,
+                                        name=cstr.name + '_' + str(kdx),
+                                        cstr_type=cstr.cstr_type)
+        cstr_list.append(local_cstr)
 
     return cstr_list
 

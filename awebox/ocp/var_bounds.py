@@ -54,14 +54,10 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     # fill in bounds
     for canonical in distinct_variables:
 
-        [var_is_coll_var, var_is_us, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
+        [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
         use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx > 0)) or (not periodic))
 
-        if var_is_us:
-            # bounds on slacks (convention: h(x) < 0)
-            vars_ub['us'] = 0.0
-
-        elif (var_type == 'xd') and (not var_is_coll_var):
+        if (var_type == 'xd') and (not var_is_coll_var):
 
             if use_depending_on_periodicity:
                 # apply the bounds at all kdx except the first, because those area already pinned by periodicity

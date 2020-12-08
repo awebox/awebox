@@ -619,7 +619,6 @@ def get_return_status_dictionary():
 def get_V_index(canonical):
 
     var_is_coll_var = (canonical[0] == 'coll_var')
-    var_is_us_var = (canonical[0] == 'us')
 
     length = len(canonical)
 
@@ -630,15 +629,6 @@ def get_V_index(canonical):
         kdx = canonical[1]
         ddx = canonical[2]
         name = canonical[4]
-        dim = None
-
-    elif var_is_us_var:
-        # todo: what is this? is it useful for anything?
-
-        var_type = None
-        kdx = None
-        ddx = None
-        name = None
         dim = None
 
     else:
@@ -664,7 +654,7 @@ def get_V_index(canonical):
             awelogger.logger.error(message)
             raise Exception(message)
 
-    return [var_is_coll_var, var_is_us_var, var_type, kdx, ddx, name, dim]
+    return [var_is_coll_var, var_type, kdx, ddx, name, dim]
 
 def construct_Xdot_struct(nlp_options, variables_dict):
     ''' Construct a symbolic structure for the
