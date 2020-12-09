@@ -275,7 +275,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
         ('nlp',  'parallelization',  None, 'overwrite',            None,                   ('parallellize function evaluations', (True, False)),'t'),
-        ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', (True, False)),'t'),
+        ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
 
         ### Multiple shooting integrator options

@@ -35,7 +35,6 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
-
 import awebox.ocp.operation as operation
 import awebox.ocp.ocp_constraint as ocp_constraint
 
@@ -45,6 +44,9 @@ import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
+
+import copy
+import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs):
 
@@ -106,6 +108,64 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
 
 def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
+    if nlp_options['parallelization']['include']:
+        cstr_list = expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation)
+    else:
+        cstr_list = expand_with_radau_collocation_in_serial(nlp_options, P, V, Xdot, model, Collocation)
+
+    return cstr_list
+
+def expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
+    parallellization = nlp_options['parallelization']['type']
+
+    # the inequality constraints
+    shooting_nodes = struct_op.count_shooting_nodes(nlp_options)
+
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+
+    shooting_vars = struct_op.get_shooting_vars(nlp_options, V, P, Xdot, model)
+    shooting_params = struct_op.get_shooting_params(nlp_options, V, P, model)
+
+    ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
+    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
+                                   name='parallelized_model_inequalities',
+                                   cstr_type='ineq')
+    cstr_list.append(ineq_cstr)
+
+    # the equality constraints
+    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
+
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+
+    ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
+    eq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_eqs_expr, (ocp_eqs_expr.shape[0] * ocp_eqs_expr.shape[1], 1)),
+                                 name='parallelized_model_equalities',
+                                 cstr_type='eq')
+    cstr_list.append(eq_cstr)
+
+    # the continuity constraints
+    for kdx in range(n_k):
+        # continuity condition between (kdx, -1) and (kdx + 1)
+        continuity_cstr = Collocation.get_continuity_constraint(V, kdx)
+        cstr_list.append(continuity_cstr)
+
+    return cstr_list
+
+
+def expand_with_radau_collocation_in_serial(nlp_options, P, V, Xdot, model, Collocation):
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
@@ -219,6 +279,18 @@ def expand_with_other_collocation():
 
 def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
 
+    if nlp_options['parallelization']['include']:
+        cstr_list = expand_with_multiple_shooting_in_parallel(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+    else:
+        cstr_list = expand_with_multiple_shooting_in_serial(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+
+    return cstr_list
+
+
+
+
+def expand_with_multiple_shooting_in_serial(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
     cstr_list = ocp_constraint.OcpConstraintList()
 
     n_k = nlp_options['n_k']
@@ -232,6 +304,55 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
         cstr_list.append(ms_path_cstr)
 
         # endpoint should match next start point
+        cont_cstr = Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx)
+        cstr_list.append(cont_cstr)
+
+    return cstr_list
+
+def expand_with_multiple_shooting_in_parallel(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+
+    n_k = nlp_options['n_k']
+
+    parallellization = nlp_options['parallelization']['type']
+
+    # algebraic constraints
+    z_from_V = []
+    for kdx in range(n_k):
+        if 'xl' in V.keys():
+            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx], V['xl', kdx]])
+        else:
+            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx]])
+        z_from_V = cas.horzcat(z_from_V, local_z_from_V)
+
+    z_at_time_sym = copy.deepcopy(dae.z)
+    z_from_V_sym = copy.deepcopy(dae.z)
+    alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
+    alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
+
+    alg_expr = alg_map(ms_z0, z_from_V)
+    alg_cstr = cstr_op.Constraint(expr=cas.reshape(alg_expr, (alg_expr.shape[0] * alg_expr.shape[1], 1)),
+                                   name='parallelized_algebraics',
+                                   cstr_type='eq')
+    cstr_list.append(alg_cstr)
+
+    # the inequality constraints
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, n_k, [], [])
+
+    ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
+                                   name='parallelized_model_inequalities',
+                                   cstr_type='ineq')
+    cstr_list.append(ineq_cstr)
+
+    # continuity constraints
+    for kdx in range(n_k):
         cont_cstr = Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx)
         cstr_list.append(cont_cstr)
 

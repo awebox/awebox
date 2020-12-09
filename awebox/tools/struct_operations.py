@@ -58,6 +58,49 @@ def subkeys(casadi_struct, key):
 
     return subkey_list
 
+def count_shooting_nodes(nlp_options):
+    n_k = nlp_options['n_k']
+    periodic = perf_op.determine_if_periodic(nlp_options)
+    if periodic:
+        shooting_nodes = n_k
+    else:
+        shooting_nodes = n_k + 1
+
+    return shooting_nodes
+
+def get_shooting_vars(nlp_options, V, P, Xdot, model):
+
+    shooting_nodes = count_shooting_nodes(nlp_options)
+
+    shooting_vars = []
+    for kdx in range(shooting_nodes):
+        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx)
+        shooting_vars = cas.horzcat(shooting_vars, var_at_time)
+
+    return shooting_vars
+
+def get_shooting_params(nlp_options, V, P, model):
+
+    shooting_nodes = count_shooting_nodes(nlp_options)
+
+    parameters = model.parameters
+
+    use_vortex_linearization = 'lin' in parameters.keys()
+    if use_vortex_linearization:
+        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
+
+        coll_params = []
+        for kdx in range(shooting_nodes):
+            loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx)
+            coll_params = cas.horzcat(coll_params, loc_params)
+
+    else:
+        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
+
+    return coll_params
+
+
+
 def get_coll_vars(nlp_options, V, P, Xdot, model):
 
     n_k = nlp_options['n_k']
