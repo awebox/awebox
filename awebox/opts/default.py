@@ -162,7 +162,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
-        ('model',   'tether', None,         'control_var',          'ddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
+        ('model',   'tether', None,         'control_var',          'dddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
         ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
