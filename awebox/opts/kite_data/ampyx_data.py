@@ -102,52 +102,43 @@ def battery_model_parameters(coeff_max, coeff_min):
     return battery_model
 
 def aero():
-    # A reference model for airborne wind energy systems for optimization and control
-    # Article
-    # March 2019 Renewable Energy
-    # Elena Malz Jonas Koenemann S. Sieberling Sebastien Gros
-
     # commented values are not currently supported, future implementation
 
     stab_derivs = {}
 
     stab_derivs['frame'] = {}
-    stab_derivs['frame']['force'] = 'control'
+    stab_derivs['frame']['force'] = 'wind'
     stab_derivs['frame']['moment'] = 'control'
 
-    stab_derivs['CX'] = {}
-    stab_derivs['CX']['0'] = [-0.0293]
-    stab_derivs['CX']['alpha'] = [0.4784, 2.5549]
-    stab_derivs['CX']['q'] = [-0.6029]
-    # stab_derivs['CX']['alpha_q'] = [4.4124]
-    stab_derivs['CX']['deltae'] = [-0.0106]
-    stab_derivs['CX']['alpha_deltae'] = [0.1115]
+    # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
+    stab_derivs['CL'] = {}
+    stab_derivs['CL']['0'] = [0.5284]
+    stab_derivs['CL']['alpha'] = [4.6306]
+    stab_derivs['CL']['q'] = [-0.6029]
+    stab_derivs['CL']['deltae'] = [0.1]
 
-    stab_derivs['CY'] = {}
-    stab_derivs['CY']['beta'] = [-0.1855]
-    # stab_derivs['CY']['alpha_beta'] = [-0.0299]
-    # stab_derivs['CY']['alpha2_beta'] = [0.0936]
-    stab_derivs['CY']['p'] = [-0.1022]
-    # stab_derivs['CY']['alpha_p'] = [-0.0140]
-    # stab_derivs['CY']['alpha2_p'] = [0.0496]
-    stab_derivs['CY']['r'] = [0.1694]
-    # stab_derivs['CY']['alpha_r'] = [0.1368]
-    stab_derivs['CY']['deltaa'] = [-0.0514]
-    stab_derivs['CY']['alpha_deltaa'] = [-0.0024]
-    # stab_derivs['CY']['alpha2_deltaa'] = [0.0579]
-    stab_derivs['CY']['deltar'] = [0.10325]
-    stab_derivs['CY']['alpha_deltar'] = [0.0268]
-    # stab_derivs['CY']['alpha2_deltar'] = [-0.1036]
+    stab_derivs['CS'] = {}
+    stab_derivs['CS']['0'] = [0.]
+    stab_derivs['CS']['beta'] = [-0.217]
+    stab_derivs['CS']['deltar'] = [0.113]
 
-    stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['0'] = [-0.5526]
-    stab_derivs['CZ']['alpha'] = [-5.0676, 5.7736]
-    stab_derivs['CZ']['q'] = [-7.5560]
-    # stab_derivs['CZ']['alpha_q'] = [0.1251]
-    # stab_derivs['CZ']['alpha2_q'] = [6.1486]
-    stab_derivs['CZ']['deltae'] = [-0.315]
-    stab_derivs['CZ']['alpha_deltae'] = [-0.0013]
-    # stab_derivs['CZ']['alpha2_deltae'] = [0.2923]
+    stab_derivs['CD'] = {}
+    stab_derivs['CD']['0'] = [0.0273]
+    stab_derivs['CD']['alpha'] = [0.0965, 1.2697]
+    stab_derivs['CD']['beta'] = [0., -0.16247]
+    stab_derivs['CD']['deltae'] = [4.52856e-5, 4.19816e-5]
+    stab_derivs['CD']['deltaa'] = [0., 5.60583e-5]
+    stab_derivs['CD']['deltar'] = [0., 2.03105e-5]
+    # stab_derivs['CD']['alpha_deltae'] = [-9.79647e-5]
+    # stab_derivs['CD']['beta_deltaa'] = [-6.73139e-6]
+    # stab_derivs['CD']['beta_deltar'] = [5.55453e-5]
+
+
+    # A reference model for airborne wind energy systems for optimization and control
+    # Article
+    # March 2019 Renewable Energy
+    # Elena Malz Jonas Koenemann S. Sieberling Sebastien Gros
+
 
     stab_derivs['Cl'] = {}
     stab_derivs['Cl']['beta'] = [-0.0630]

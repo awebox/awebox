@@ -37,6 +37,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi as cas
 
+
 def print_homotopy_values(nlp, solution, p_fix_num):
     V = nlp.V
 
@@ -65,12 +66,15 @@ def print_runtime_values(stats):
 
     return None
 
-def health_check(nlp, solution, arg, options, solve_succeeded):
-    check_after_failure = (not solve_succeeded) and options['health']['after_failure_check']
-    check_in_general = options['health']['autorun_check']
+def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, solve_succeeded, stats, iterations):
+    should_make_autorun_check = (options['health_check']['when']['autorun'])
+    should_make_failure_check = (not solve_succeeded) and (options['health_check']['when']['failure'])
+    should_make_final_check = (options['health_check']['when']['final']) and (step_name == final_homotopy_step)
 
-    if check_after_failure or check_in_general:
-        debug_op.health_check(options['health'], nlp, solution, arg)
+    should_make_check = should_make_autorun_check or should_make_failure_check or should_make_final_check
+
+    if should_make_check:
+        debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
 
     return None
 

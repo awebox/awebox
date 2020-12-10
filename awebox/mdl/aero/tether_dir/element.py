@@ -105,10 +105,16 @@ def get_element_diameter(variables, upper_node, architecture):
 
     parent_map = architecture.parent_map
     lower_node = parent_map[upper_node]
-    if lower_node == 0:
-        diam = variables['theta']['diam_s']
 
+    main_tether = (lower_node == 0)
+    secondary_tether = (upper_node in architecture.kite_nodes)
+
+    if main_tether:
+        diam = variables['theta']['diam_t']
+    elif secondary_tether:
+        diam = variables['theta']['diam_s']
     else:
+        # todo: add intermediate tether diameter
         diam = variables['theta']['diam_t']
 
     return diam

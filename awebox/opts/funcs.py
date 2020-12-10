@@ -189,7 +189,10 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             # parallelization starts to become effective from two layers on
             parallelize = True
 
-    # integrator options
+    options_tree.append(('nlp', 'jit_code_gen', None, 'include', options['model']['jit_code_gen']['include'],  ('????', None),'x'))
+    options_tree.append(('nlp', 'jit_code_gen', None, 'compiler', options['model']['jit_code_gen']['compiler'], ('????', None), 'x'))
+
+     # integrator options
     if options['nlp']['integrator']['jit_overwrite'] is not None:
         options_tree.append(('nlp', 'integrator', None, 'jit', options['nlp']['integrator']['jit_overwrite'],  ('jit integrator', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'collocation':

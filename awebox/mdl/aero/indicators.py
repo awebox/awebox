@@ -124,6 +124,8 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     aero_coefficients = base_aerodynamic_quantities['aero_coefficients']
     f_aero_earth = base_aerodynamic_quantities['f_aero_earth']
     f_aero_body = base_aerodynamic_quantities['f_aero_body']
+
+
     f_aero_control = base_aerodynamic_quantities['f_aero_control']
     f_aero_wind = base_aerodynamic_quantities['f_aero_wind']
     f_lift_earth = base_aerodynamic_quantities['f_lift_earth']

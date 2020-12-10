@@ -27,6 +27,7 @@ def test_initial_guess_generation():
     options['user_options']['induction_model'] = 'not_in_use'
     options['user_options']['kite_standard'] = ampyx_data.data_dict()
     options['solver']['initialization']['initialization_type'] = 'modular'
+    options['model']['tether']['control_var'] = 'dddl_t'
 
     # make trial, build and run
     trial = awe.Trial(name='test', seed=options)

@@ -33,9 +33,12 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import numpy as np
-import awebox.tools.struct_operations as struct_op
+
 from collections import OrderedDict
-from . import constraints
+
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
 
 class Collocation(object):
     """Collocation class with methods for optimal control
@@ -172,7 +175,7 @@ class Collocation(object):
 
         # compute quadrature weights
         Lambda = np.linalg.solve(coeff_collocation[1:,1:], np.eye(len(coeff_collocation)-1))
-        quad_weights_1 = np.matmul(Lambda,coeff_continuity[1:])
+        quad_weights_1 = np.matmul(Lambda, coeff_continuity[1:])
         quad_weights = np.linalg.solve(coeff_collocation[1:,1:], coeff_continuity[1:])
 
         self.__quad_weights = quad_weights
@@ -283,13 +286,13 @@ class Collocation(object):
                     Integral_outputs_list.append(integral_output[name][i])
 
         else:
-
+            # do nothing
             32.0
 
         return Integral_outputs_list
 
 
-    def append_continuity_constraint(self, g_list, g_bounds, V, kdx):
+    def get_continuity_constraint(self, V, kdx):
 
         # get an expression for the state at the end of the finite element
         xf_k = 0
@@ -299,14 +302,14 @@ class Collocation(object):
             else:
                 xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'xd']
 
-
-        # add continuity equation to nlp
+        # pin the end of the control interval to the start of the new control interval
         g_continuity = V['xd', kdx + 1] - xf_k
-        g_list.append(g_continuity)
-        # add constraint bounds
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', g_continuity.size()[0])
 
-        return [g_list, g_bounds]
+        cstr = cstr_op.Constraint(expr=g_continuity,
+                                  name='continuity' + str(kdx),
+                                  cstr_type='eq')
+
+        return cstr
 
     def __integrate_integral_constraints(self, integral_constraints, kdx, t_f):
 
@@ -319,61 +322,31 @@ class Collocation(object):
 
         return integral_over_interval
 
-    def collocate_constraints(self, options, model, formulation, V, P, Xdot):
+    def collocate_outputs_and_integrals(self, options, model, formulation, V, P, Xdot):
         """ Generate collocation and path constraints on all nodes, provide integral outputs and
             integral constraints on all nodes
         """
-        # extract discretization information
-        N_coll = self.__n_k*self.__d # collocation points
 
         # construct list of all collocation node variables and parameters
         coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
         coll_params = struct_op.get_coll_params(options, V, P, model)
 
-        # evaluate dynamics and constraint functions on all intervals
-        if options['parallelization']['include']:
+        # initialize function evaluations
+        coll_outputs = []
+        integral_outputs_deriv = []
+        integral_constraints = OrderedDict()
+        integral_constraints['inequality'] = []
+        integral_constraints['equality'] = []
 
-            parallellization = options['parallelization']['type']
+        # evaluate functions in for loop
+        for kdx in range(self.__n_k):
+            for ddx in range(self.__d):
+                idx = ddx + kdx * self.__d
 
-            # use function map for parallellization
-            dynamics = model.dynamics.map('dynamics_map', parallellization, N_coll, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, N_coll, [], [])
-            integral_outputs_fun = model.integral_outputs_fun.map('integral_outputs_map', parallellization, N_coll, [], [])
-            outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, N_coll, [], [])
-
-            # extract formulation information
-            constraints_fun_ineq = formulation.constraints_fun['integral']['inequality'].map('integral_constraints_map_ineq', 'serial', N_coll, [], [])
-            constraints_fun_eq = formulation.constraints_fun['integral']['equality'].map('integral_constraints_map_eq', 'serial', N_coll, [], [])
-
-            # evaluate functions
-            coll_dynamics = dynamics(coll_vars, coll_params)
-            coll_constraints = path_constraints_fun(coll_vars, coll_params)
-            coll_outputs = outputs_fun(coll_vars, coll_params)
-            integral_outputs_deriv = integral_outputs_fun(coll_vars, coll_params)
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = constraints_fun_ineq(coll_vars, coll_params)
-            integral_constraints['equality'] = constraints_fun_eq(coll_vars, coll_params)
-
-        else:
-
-            # initialize function evaluations
-            coll_dynamics = []
-            coll_constraints = []
-            coll_outputs = []
-            integral_outputs_deriv = []
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = []
-            integral_constraints['equality'] = []
-
-            # evaluate functions in for loop
-            for i in range(N_coll):
-                coll_dynamics = cas.horzcat(coll_dynamics, model.dynamics(coll_vars[:,i],coll_params[:,i]))
-                coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,i],coll_params[:,i]))
-                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,i],coll_params[:,i]))
-
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 
         # integrate integral outputs
         Integral_outputs_list = [np.zeros(model.integral_outputs.cat.shape[0])]
@@ -383,8 +356,7 @@ class Collocation(object):
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
 
-        return coll_dynamics, coll_constraints, coll_outputs, Integral_outputs_list, Integral_constraints_list
-
+        return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
 
     @property
@@ -394,3 +366,11 @@ class Collocation(object):
     @quad_weights.setter
     def quad_weights(self, value):
         awelogger.logger.warning('Cannot set quad_weights object.')
+
+    @property
+    def coeff_collocation(self):
+        return self.__coeff_collocation
+
+    @coeff_collocation.setter
+    def coeff_collocation(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation object.')

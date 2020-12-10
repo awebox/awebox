@@ -40,7 +40,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
-
+import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 
 ## variables
@@ -262,7 +262,11 @@ def get_f_val(model_options, wind, parent, variables, architecture):
 
 def get_df_val(model_options, wind, parent, variables, architecture):
 
-    ddl_t = variables['xd']['ddl_t']
+    if 'ddl_t' in variables['xd'].keys():
+        ddl_t = variables['xd']['ddl_t']
+    else:
+        ddl_t = variables['u']['ddl_t']
+
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     df_val = ddl_t / vect_op.smooth_norm(u_infty)
 
@@ -388,20 +392,26 @@ def get_wake_angle_chi_coleman(model_options, parent, variables, label):
 
     return chi
 
-def get_wake_angle_chi_jimenez(model_options, parent, variables, label):
+def get_wake_angle_chi_jimenez(model_options, atmos, wind, variables, outputs, parameters, parent, architecture):
+
     gamma = get_gamma_var(variables, parent)
 
     cosgamma = get_cosgamma_var(variables, parent)
     singamma = get_singamma_var(variables, parent)
 
     var_type = actuator_geom.get_var_type(model_options)
-    ct_var = variables[var_type]['ct' + str(parent)]
 
-    chi = gamma + 0.5 * ct_var * cosgamma**2. * singamma
+    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    qzero = get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+
+    ct_val = thrust / area / qzero
+
+    chi = gamma + 0.5 * ct_val * cosgamma**2. * singamma
 
     return chi
 
-def get_wake_angle_chi(model_options, parent, variables, label):
+def get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
 
     wake_skew = model_options['aero']['actuator']['wake_skew']
 
@@ -410,12 +420,13 @@ def get_wake_angle_chi(model_options, parent, variables, label):
     elif wake_skew == 'coleman':
         chi_val = get_wake_angle_chi_coleman(model_options, parent, variables, label)
     elif wake_skew == 'jimenez':
-        chi_val = get_wake_angle_chi_jimenez(model_options, parent, variables, label)
+        chi_val = get_wake_angle_chi_jimenez(model_options, atmos, wind, variables, outputs, parameters, parent, architecture)
     elif wake_skew == 'not_in_use':
         chi_val = 0.
     else:
         chi_val = 0.
-        awelogger.logger.warning('unknown wake skew angle (chi) model selected')
+        message = 'unknown wake skew angle (chi) model selected'
+        raise Exception(message)
     return chi_val
 
 
@@ -459,7 +470,6 @@ def get_label(model_options):
     return label
 
 
-
 def get_corr_val_axisym(model_options, variables, parent, label):
     a_var = get_a_var(model_options, variables, parent, label)
     corr_val = (1. - a_var)
@@ -472,11 +482,11 @@ def get_corr_val_glauert(model_options, variables, parent, label):
     corr_val = cas.sqrt( (1. - a_var * (2. * cosgamma_var - a_var)) )
     return corr_val
 
-def get_corr_val_coleman(model_options, variables, parent, label):
+def get_corr_val_coleman(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     a = get_a_var(model_options, variables, parent, label)
     singamma = get_singamma_var(variables, parent)
     cosgamma = get_cosgamma_var(variables, parent)
-    chi = get_wake_angle_chi(model_options, parent, variables, label)
+    chi = get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     corr_val = cosgamma + np.tan(chi / 2.) * singamma - a / (np.cos(chi / 2.)**2.)
     return corr_val
@@ -487,7 +497,7 @@ def get_corr_val_simple(model_options, variables, parent, label):
     corr_val = (cosgamma_var - a_var)
     return corr_val
 
-def get_corr_val(model_options, variables, parent, label):
+def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
 
     actuator_skew = model_options['aero']['actuator']['actuator_skew']
 
@@ -495,7 +505,7 @@ def get_corr_val(model_options, variables, parent, label):
         corr_val = get_corr_val_axisym(model_options, variables, parent, label)
 
     elif actuator_skew == 'coleman':
-        corr_val = get_corr_val_coleman(model_options, variables, parent, label)
+        corr_val = get_corr_val_coleman(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     elif actuator_skew == 'glauert':
         corr_val = get_corr_val_glauert(model_options, variables, parent, label)
@@ -504,6 +514,8 @@ def get_corr_val(model_options, variables, parent, label):
         corr_val = get_corr_val_simple(model_options, variables, parent, label)
 
     else:
+        message = 'unknown actuator angle correction model selected'
+        raise Exception(message)
         corr_val = get_corr_val_simple(model_options, variables, parent, label)
 
     return corr_val

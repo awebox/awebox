@@ -24,44 +24,46 @@
 #
 '''
 discretization code (direct collocation or multiple shooting)
-creates n_l_p variables
-creates n_l_p constraints
-creates n_l_p outputs
+creates nlp variables and outputs, and gets discretized constraints
 python-3.5 / casadi-3.4.5
 - authors: elena malz 2016
-           rachel leuthold, jochem de schutter alu-fr 2017-18
+           rachel leuthold, jochem de schutter alu-fr 2017-20
 '''
 
 import casadi.tools as cas
-from . import constraints
-from . import collocation
-from . import multiple_shooting
+
+import awebox.ocp.constraints as constraints
+import awebox.ocp.collocation as coll_module
+import awebox.ocp.multiple_shooting as ms_module
+
 from . import performance
-import awebox.tools.struct_operations as struct_op
 from . import var_struct
 
+import awebox.tools.struct_operations as struct_op
 
-def construct_time_grids(nlp_numerics_options):
+import awebox.tools.print_operations as print_op
+
+def construct_time_grids(nlp_options):
 
     time_grids = {}
-    nk = nlp_numerics_options['n_k']
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
+    nk = nlp_options['n_k']
+    if nlp_options['discretization'] == 'direct_collocation':
         direct_collocation = True
         ms = False
-        d = nlp_numerics_options['collocation']['d']
-        scheme = nlp_numerics_options['collocation']['scheme']
+        d = nlp_options['collocation']['d']
+        scheme = nlp_options['collocation']['scheme']
         tau_root = cas.vertcat(cas.collocation_points(d, scheme))
         tcoll = []
 
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
+    elif nlp_options['discretization'] == 'multiple_shooting':
         direct_collocation = False
         ms = True
         tcoll = None
 
     # make symbolic time constants
-    if nlp_numerics_options['phase_fix']:
+    if nlp_options['phase_fix']:
         tfsym = cas.SX.sym('tfsym',2)
-        nk_reelout = round(nk * nlp_numerics_options['phase_fix_reelout'])
+        nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
 
         t_switch = tfsym[0] * nk_reelout / nk
         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
@@ -76,7 +78,7 @@ def construct_time_grids(nlp_numerics_options):
     for k in range(nk+1):
 
         # extract correct time constant in case of phase fix
-        if nlp_numerics_options['phase_fix']:
+        if nlp_options['phase_fix']:
             if k < nk_reelout:
                 tf = tfsym[0]
                 k0 = 0.0
@@ -174,9 +176,9 @@ def setup_nlp_p(V, model):
 
     return P
 
-def setup_integral_output_structure(nlp_numerics_options, integral_outputs):
+def setup_integral_output_structure(nlp_options, integral_outputs):
 
-    nk = nlp_numerics_options['n_k']
+    nk = nlp_options['n_k']
 
     entry_tuple = ()
 
@@ -185,8 +187,8 @@ def setup_integral_output_structure(nlp_numerics_options, integral_outputs):
         cas.entry('int_out', repeat = [nk+1], struct = integral_outputs),
     )
 
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
-        d  = nlp_numerics_options['collocation']['d']
+    if nlp_options['discretization'] == 'direct_collocation':
+        d  = nlp_options['collocation']['d']
         entry_tuple += (
             cas.entry('coll_int_out', repeat = [nk,d], struct = integral_outputs),
         )
@@ -195,20 +197,20 @@ def setup_integral_output_structure(nlp_numerics_options, integral_outputs):
 
     return Integral_outputs_struct
 
-def setup_output_structure(nlp_numerics_options, model_outputs, form_outputs):
+def setup_output_structure(nlp_options, model_outputs, form_outputs):
     # create outputs
     # n_o_t_e: !!! outputs are defined at nodes where both state and algebraic variables
     # are defined. In the radau case, algebraic variables are not defined on the interval
     # nodes, note however that algebraic variables might be discontinuous so the same
     # holds for the outputs!!!
-    nk = nlp_numerics_options['n_k']
+    nk = nlp_options['n_k']
 
     entry_tuple =  ()
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
+    if nlp_options['discretization'] == 'direct_collocation':
 
         # extract collocation parameters
-        d  = nlp_numerics_options['collocation']['d']
-        scheme = nlp_numerics_options['collocation']['scheme']
+        d  = nlp_options['collocation']['d']
+        scheme = nlp_options['collocation']['scheme']
 
         if scheme != 'radau':
 
@@ -225,7 +227,7 @@ def setup_output_structure(nlp_numerics_options, model_outputs, form_outputs):
                 cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
             )
 
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
+    elif nlp_options['discretization'] == 'multiple_shooting':
 
         # define outputs on interval nodes
         entry_tuple += (
@@ -237,162 +239,93 @@ def setup_output_structure(nlp_numerics_options, model_outputs, form_outputs):
 
     return Outputs
 
-def discretize(nlp_numerics_options, model, formulation):
+def discretize(nlp_options, model, formulation):
 
     # -----------------------------------------------------------------------------
     # discretization setup
     # -----------------------------------------------------------------------------
-    nk = nlp_numerics_options['n_k']
+    nk = nlp_options['n_k']
 
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
-        direct_collocation = True
-        ms = False
-        d = nlp_numerics_options['collocation']['d']
-        scheme = nlp_numerics_options['collocation']['scheme']
-        Collocation = collocation.Collocation(nk, d, scheme)
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+
+    if direct_collocation:
+        d = nlp_options['collocation']['d']
+        scheme = nlp_options['collocation']['scheme']
+        Collocation = coll_module.Collocation(nk, d, scheme)
+
+        dae = None
         Multiple_shooting = None
 
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
-        direct_collocation = False
-        ms = True
-        Collocation = None
+        V = var_struct.setup_nlp_v(nlp_options, model, Collocation)
+        P = setup_nlp_p(V, model)
+
+        Xdot = Collocation.get_xdot(nlp_options, V, model)
+        [coll_outputs,
+        Integral_outputs_list,
+        Integral_constraint_list] = Collocation.collocate_outputs_and_integrals(nlp_options, model, formulation, V, P, Xdot)
+
+        ms_xf = None
+        ms_z0 = None
+        ms_vars = None
+        ms_params = None
+
+
+    if multiple_shooting:
         dae = model.get_dae()
-        Multiple_shooting = multiple_shooting.Multiple_shooting(nk, dae, nlp_numerics_options['integrator'])
-        slacks = None
+        Multiple_shooting = ms_module.Multiple_shooting(nk, dae, nlp_options['integrator'])
+        Collocation = None
 
-    # --------------------------------------
-    # prepare model variables and dynamics
-    # --------------------------------------
-    variables = model.variables
-    parameters = model.parameters
-    variables_dict = model.variables_dict
+        V = var_struct.setup_nlp_v(nlp_options, model)
+        P = setup_nlp_p(V, model)
 
-    #---------------------------------------
-    # prepare constraints structure
-    #---------------------------------------
-    form_constraints = formulation.constraints
-    constraints_fun = formulation.constraints_fun # initial, terminal and periodicity constraints
-    path_constraints = model.constraints
-    path_constraints_fun = model.constraints_fun
-    g_struct = constraints.setup_constraint_structure(nlp_numerics_options, model, formulation) # empty struct for collocated constraints
+        [ms_xf,
+         ms_z0,
+         ms_vars,
+         ms_params,
+         Xdot,
+         _,
+         ms_outputs,
+         Integral_outputs_list,
+         Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_options, model, formulation, V, P)
 
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
     #-------------------------------------------
-    V = var_struct.setup_nlp_v(nlp_numerics_options, model, Collocation)
-    P = setup_nlp_p(V, model)
-    if direct_collocation:
-        Xdot = Collocation.get_xdot(nlp_numerics_options, V, model)
 
     # construct time grids for this nlp
-    time_grids = construct_time_grids(nlp_numerics_options)
+    time_grids = construct_time_grids(nlp_options)
+
 
     # ---------------------------------------
-    # prepare outputs structure
+    # PREPARE OUTPUTS STRUCTURE
     # ---------------------------------------
     outputs = model.outputs
-    outputs_fun = model.outputs_fun
 
-    [form_outputs, form_outputs_dict] = performance.collect_performance_outputs(nlp_numerics_options, model, V)
+    form_outputs, _ = performance.collect_performance_outputs(nlp_options, model, V)
     form_outputs_fun = cas.Function('form_outputs_fun', [V, P], [form_outputs.cat])
 
-    Outputs_struct = setup_output_structure(nlp_numerics_options, outputs, form_outputs)
+    Outputs_struct = setup_output_structure(nlp_options, outputs, form_outputs)
 
     #-------------------------------------------
-    # COLLOCATE CONSTRAINTS, OUTPUTS
+    # COLLOCATE OUTPUTS
     #-------------------------------------------
 
     # prepare listing of outputs and constraints
     Outputs_list = []
-    g_list = []
-    g_bounds = {'lb':[], 'ub':[]}
 
-    xi = V['xi']
-
-    # parallellize constraints on collocation nodes
-    if direct_collocation:
-        [coll_dynamics,
-        coll_constraints,
-        coll_outputs,
-        Integral_outputs_list,
-        Integral_constraint_list] = Collocation.collocate_constraints(nlp_numerics_options, model, formulation, V, P, Xdot)
-
-    # parallellize constraints on interval nodes
-    if ms:
-        [ms_xf,
-        ms_z0,
-        Xdot,
-        ms_constraints,
-        ms_outputs,
-        Integral_outputs_list,
-        Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_numerics_options, model, formulation, V, P)
-
-    # Construct list of constraints (+ bounds) and outputs
-    for kdx in range(nk):
-
-        if kdx == 0:
-
-            # extract initial (reference) variables
-            var_initial = struct_op.get_variables_at_time(nlp_numerics_options, V, Xdot, model.variables, 0)
-            var_ref_initial = struct_op.get_var_ref_at_time(nlp_numerics_options, P, V, Xdot, model, 0)
-
-            # add initial constraints
-            [g_list, g_bounds] = constraints.append_initial_constraints(
-                                     g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_ref_initial, xi)
-
-        if (ms) or (direct_collocation and scheme != 'radau'):
-
-            # at each interval node, algebraic constraints should be satisfied
-            [g_list, g_bounds] = constraints.append_algebraic_constraints(
-                            g_list, g_bounds, dae.z(ms_z0[:,kdx]), V, kdx)
-
-            # at each interval node, path constraints should be satisfied
-            if 'us' in list(V.keys()): # slack path constraints
-                slacks = V['us',kdx]
-
-            [g_list, g_bounds] = constraints.append_path_constraints(
-                                    g_list, g_bounds, path_constraints, ms_constraints[:, kdx],slacks)
-
+    # Construct outputs
+    if multiple_shooting:
+        for kdx in range(nk):
             # compute outputs for this time interval
             Outputs_list.append(ms_outputs[:,kdx])
 
-        if direct_collocation:
-
-            # add constraints and outputs on collocation nodes
+    if direct_collocation:
+        for kdx in range(nk):
+            # add outputs on collocation nodes
             for ddx in range(d):
-
-                # at each (except for first node) collocation point dynamics should meet
-                [g_list, g_bounds] = constraints.append_collocation_constraints(
-                                        g_list, g_bounds, coll_dynamics[:,kdx*d+ddx])
-
-                # at each (except for first node) collocation node, path constraints should be satisfied
-                there_are_path_constraints = len(path_constraints.keys()) > 0
-                if there_are_path_constraints:
-                    [g_list, g_bounds] = constraints.append_path_constraints(
-                                            g_list, g_bounds, path_constraints, coll_constraints[:,kdx*d+ddx])
-
                 # compute outputs for this time interval
                 Outputs_list.append(coll_outputs[:,kdx*d+ddx])
-
-            # endpoint should match next start point
-            [g_list, g_bounds] = Collocation.append_continuity_constraint(g_list, g_bounds, V, kdx)
-
-        elif ms:
-
-            # endpoint should match next start point
-            [g_list, g_bounds] = Multiple_shooting.append_continuity_constraint(g_list, g_bounds, ms_xf, V, kdx)
-
-    # extract terminal (reference) variables
-    var_terminal = struct_op.get_variables_at_final_time(nlp_numerics_options, V, Xdot, model)
-    var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_numerics_options, P, Xdot, model)
-
-    # add terminal and periodicity constraints
-    [g_list, g_bounds] = constraints.append_terminal_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_terminal, var_ref_terminal, xi)
-    [g_list, g_bounds] = constraints.append_periodic_constraints(g_list, g_bounds, form_constraints, constraints_fun, var_initial, var_terminal)
-
-    if direct_collocation:
-        [g_list, g_bounds] = constraints.append_integral_constraints(nlp_numerics_options, g_list, g_bounds, Integral_constraint_list,
-                                                                            form_constraints, constraints_fun, V, Xdot, model, formulation.integral_constants)
 
     Outputs_list.append(form_outputs_fun(V, P))
 
@@ -400,20 +333,21 @@ def discretize(nlp_numerics_options, model, formulation):
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
 
-    [g_list, g_bounds] = constraints.append_wake_fix_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
-    [g_list, g_bounds] = constraints.append_vortex_strength_constraints(nlp_numerics_options, g_list, g_bounds, V, Outputs, model)
-
     # Create Integral outputs struct and function
-    Integral_outputs_struct = setup_integral_output_structure(nlp_numerics_options, model.integral_outputs)
+    Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs.cat])
 
-    # Create g struct and functions and g_bounds vectors
-    [g, g_fun, g_jacobian_fun, g_bounds] = constraints.create_constraint_outputs(g_list, g_bounds, g_struct, V, P)
-
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
+    Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
-    return V, P, Xdot_struct, Xdot_fun, g_struct, g_fun, g_jacobian_fun, g_bounds, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+    # -------------------------------------------
+    # GET CONSTRAINTS
+    # -------------------------------------------
+    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
+                                                Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
+                                                ms_vars, ms_params, Outputs)
+
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
 

@@ -19,6 +19,7 @@ import awebox.tools.print_operations as print_op
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
+
 def generate_options_dict():
     """
     Set options for the trials that should be tested and store them in dictionary
@@ -28,7 +29,7 @@ def generate_options_dict():
     # set options
     single_kite_options = options.Options(internal_access = True)
     single_kite_options['user_options']['system_model']['architecture'] = {1:0}
-    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 5
+    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
     single_kite_options['user_options']['kite_standard'] = ampyx_data.data_dict()
     single_kite_options['user_options']['system_model']['kite_dof'] = 3
     single_kite_options['user_options']['induction_model'] = 'not_in_use'
@@ -40,26 +41,30 @@ def generate_options_dict():
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver']['save_trial'] = True
 
+    multi_tether_options = copy.deepcopy(single_kite_options)
+    multi_tether_options['user_options']['tether_drag_model'] = 'multi'
+
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-
-    multi_tether_options = copy.deepcopy(dual_kite_options)
-    multi_tether_options['user_options']['tether_drag_model'] = 'multi'
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
-    small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
     small_dual_kite_options['params']['ground_station']['r_gen'] = 0.1
     small_dual_kite_options['params']['ground_station']['m_gen'] = 5.
+    small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 1
 
-    actuator_qaxi_options = copy.deepcopy(dual_kite_options)
+    actuator_qaxi_options = options.Options(internal_access=True)
+    actuator_qaxi_options['user_options']['system_model']['architecture'] = {1: 0, 2: 1, 3: 1}
+    actuator_qaxi_options['user_options']['kite_standard'] = ampyx_data.data_dict()
+    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 3
+    actuator_qaxi_options['user_options']['tether_drag_model'] = 'split'
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
-    actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 3
+    actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
@@ -70,7 +75,6 @@ def generate_options_dict():
 
     actuator_uasym_options = copy.deepcopy(actuator_qasym_options)
     actuator_uasym_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
-    actuator_uasym_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
     actuator_comparison_options['model']['aero']['actuator']['steadyness_comparison'] = ['q', 'u']
@@ -102,9 +106,9 @@ def generate_options_dict():
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
+    # options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['small_dual_kite_trial'] = small_dual_kite_options
-    options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options

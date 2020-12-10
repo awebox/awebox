@@ -33,7 +33,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
+import awebox.tools.print_operations as print_op
 
 def get_naca_airfoil_coordinates(s, m, p, t):
 
@@ -596,7 +596,7 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
             temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name])) * vortex_tools.get_position_scale(plot_dict['options']['model'])
+            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 
@@ -713,8 +713,8 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['architecture'] = model.architecture
-    plot_dict['constraints_dict'] = struct_op.strip_of_contents(model.constraints_dict)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
     plot_dict['variable_bounds'] = model.variable_bounds
@@ -737,20 +737,13 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     if N is not None:
         cosmetics['interpolation']['N'] = int(N)
 
-    # get new scaling input
-    variables = plot_dict['variables']
-    scaling = plot_dict['scaling']
-    n_k = plot_dict['n_k']
-    if plot_dict['discretization'] == 'direct_collocation':
-        d = plot_dict['d']
-    else:
-        d = None
-
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    plot_dict['V_plot'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_plot)
-    plot_dict['V_ref'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_ref)
+    scaling = plot_dict['scaling']
+    plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
+    plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+
     # get new name
     plot_dict['name'] = name
 
@@ -1009,6 +1002,7 @@ def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
     # execute function from dict
     if type(additional_args) == dict:
         plot_logic_dict[flag][0](*standard_args, **additional_args)
+
     elif additional_args is None:
         plot_logic_dict[flag][0](*standard_args)
     else:

@@ -38,58 +38,58 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.architecture as archi
 
-def get_list(options, variables, architecture):
+def get_list(options, variables_si, architecture):
 
     kite_nodes = architecture.kite_nodes
 
     filament_list = []
     for kite in kite_nodes:
-        kite_fil_list = get_list_by_kite(options, variables, architecture, kite)
+        kite_fil_list = get_list_by_kite(options, variables_si, architecture, kite)
         filament_list = cas.horzcat(filament_list, kite_fil_list)
 
     return filament_list
 
-def get_list_by_kite(options, variables, architecture, kite):
+def get_list_by_kite(options, variables_si, architecture, kite):
 
     wake_nodes = options['induction']['vortex_wake_nodes']
     tracked_rings = wake_nodes - 1
 
     filament_list = []
     for ring in range(tracked_rings):
-        ring_fil_list = get_list_by_ring(options, variables, kite, ring)
+        ring_fil_list = get_list_by_ring(options, variables_si, kite, ring)
         filament_list = cas.horzcat(filament_list, ring_fil_list)
 
-    last_ring_fil_list = get_list_from_last_ring(options, variables, architecture, kite)
+    last_ring_fil_list = get_list_from_last_ring(options, variables_si, architecture, kite)
     filament_list = cas.horzcat(filament_list, last_ring_fil_list)
 
     return filament_list
 
-def get_last_list(options, variables, architecture):
+def get_last_list(options, variables_si, architecture):
 
     kite_nodes = architecture.kite_nodes
 
     filament_list = []
     for kite in kite_nodes:
-        last_ring_fil_list = get_list_from_last_ring(options, variables, architecture, kite)
+        last_ring_fil_list = get_list_from_last_ring(options, variables_si, architecture, kite)
         filament_list = cas.horzcat(filament_list, last_ring_fil_list)
 
     return filament_list
 
-def get_list_by_ring(options, variables, kite, ring):
+def get_list_by_ring(options, variables_si, kite, ring):
 
     wake_node = ring
 
-    TENE = tools.get_wake_node_position_si(options, variables, kite, 'int', wake_node + 1)
-    LENE = tools.get_wake_node_position_si(options, variables, kite, 'int', wake_node)
-    LEPE = tools.get_wake_node_position_si(options, variables, kite, 'ext', wake_node)
-    TEPE = tools.get_wake_node_position_si(options, variables, kite, 'ext', wake_node + 1)
+    TENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node + 1)
+    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node)
+    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node)
+    TEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node + 1)
 
-    strength = tools.get_ring_strength_si(options, variables, kite, ring)
+    strength = tools.get_ring_strength_si(variables_si, kite, ring)
 
     if ring == 0:
         strength_prev = cas.DM.zeros((1, 1))
     else:
-        strength_prev = tools.get_ring_strength_si(options, variables, kite, ring - 1)
+        strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
 
     filament_list = make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev)
     return filament_list
@@ -102,7 +102,7 @@ def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev):
     return filament_list
 
 
-def get_list_from_last_ring(options, variables, architecture, kite):
+def get_list_from_last_ring(options, variables_si, architecture, kite):
 
     wake_nodes = options['induction']['vortex_wake_nodes']
     rings = wake_nodes - 1
@@ -118,13 +118,13 @@ def get_list_from_last_ring(options, variables, architecture, kite):
     far_convection_time = options['induction']['vortex_far_convection_time']
     u_ref = options['induction']['vortex_u_ref']
 
-    LENE = tools.get_wake_node_position_si(options, variables, kite, 'int', last_tracked_wake_node)
-    LEPE = tools.get_wake_node_position_si(options, variables, kite, 'ext', last_tracked_wake_node)
+    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', last_tracked_wake_node)
+    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', last_tracked_wake_node)
 
     TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
     TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
 
-    strength_prev = tools.get_ring_strength_si(options, variables, kite, ring - 1)
+    strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
     strength = strength_prev
 
     filament_list = make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev)
@@ -173,13 +173,12 @@ def decolumnize(options, architecture, columnized_list):
 
     return filament_list
 
-def test(gamma_scale=1.):
+def test():
 
     architecture = archi.Architecture({1:0})
 
     options = {}
     options['induction'] = {}
-    options['induction']['vortex_gamma_scale'] = gamma_scale
     options['induction']['vortex_wake_nodes'] = 2
     options['induction']['vortex_far_convection_time'] = 1.
     options['induction']['vortex_u_ref'] = 1.
@@ -201,14 +200,14 @@ def test(gamma_scale=1.):
         cas.entry('xl', struct=xl_struct)
     ])
 
-    variables = var_struct(0.)
-    variables['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
-    variables['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
-    variables['xd', 'wx_' + str(kite) + '_ext_1'] = variables['xd', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
-    variables['xd', 'wx_' + str(kite) + '_int_1'] = variables['xd', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
-    variables['xl', 'wg_' + str(kite) + '_0'] = 1./gamma_scale
+    variables_si = var_struct(0.)
+    variables_si['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
+    variables_si['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
+    variables_si['xd', 'wx_' + str(kite) + '_ext_1'] = variables_si['xd', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
+    variables_si['xd', 'wx_' + str(kite) + '_int_1'] = variables_si['xd', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
+    variables_si['xl', 'wg_' + str(kite) + '_0'] = 1.
 
-    test_list = get_list(options, variables, architecture)
+    test_list = get_list(options, variables_si, architecture)
 
     filaments = test_list.shape[1]
 

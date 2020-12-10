@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -23,38 +23,20 @@
 #
 #
 '''
-file to provide operations related to the system performance, to the awebox,
+ocp constraint handling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold alu-fr 2020
+- author: rachel leuthold, alu-fr 2020
 '''
 
-import matplotlib.pylab as plt
-import scipy
-import scipy.io
-import scipy.sparse as sps
-
 import casadi.tools as cas
-import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
-
-def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
-    phf = get_loyd_phf(CL, CD, elevation_angle)
-    p_loyd = power_density * s_ref * phf
-    return p_loyd
-
-def get_loyd_phf(CL, CD, elevation_angle=0.):
-    epsilon = 1.e-4 #8
-    CR = CL * vect_op.smooth_sqrt(1. + (CD / (CL + epsilon))**2.)
-
-    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
-    return phf
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
 
 
-def determine_if_periodic(options):
+class OcpConstraintList(cstr_op.ConstraintList):
+    def __init__(self):
+        super().__init__(list_name='ocp_constraints_list')
 
-    enforce_periodicity = bool(True)
-    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
-         enforce_periodicity = bool(False)
-
-    return enforce_periodicity

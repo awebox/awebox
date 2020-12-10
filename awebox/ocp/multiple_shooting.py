@@ -33,6 +33,8 @@ import numpy as np
 import awebox.tools.struct_operations as struct_op
 from . import constraints
 
+import awebox.tools.constraint_operations as cstr_op
+
 class Multiple_shooting(object):
     """Multiple shooting class with methods for optimal control
     """
@@ -67,7 +69,7 @@ class Multiple_shooting(object):
         # rearrange nlp variables
         self.__ms_nlp_vars(options, model, V, P)
 
-        # implicit values ofalgebraic variables at interval nodes
+        # implicit values of algebraic variables at interval nodes
         ms_z0 = self.__ms_z0
 
         # evaluate dynamics and constraint functions on all intervals
@@ -76,28 +78,19 @@ class Multiple_shooting(object):
             # use function map for parallellization
             parallellization = options['parallelization']['type']
             F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], [])
+            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
             outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
 
             # integrate
             ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
             ms_xf = ms_dynamics['xf']
             ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
-            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params)
+            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
             ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
 
             # integrate quadrature outputs
             for i in range(self.__n_k):
                 ms_qf[:,i+1] = ms_qf[:,i+1] + ms_qf[:,i]
-
-            # extract formulation information
-            # constraints_fun_ineq = formulation.constraints_fun['integral']['inequality'].map('integral_constraints_map_ineq', 'serial', N_coll, [], [])
-            # constraints_fun_eq = formulation.constraints_fun['integral']['equality'].map('integral_constraints_map_eq', 'serial', N_coll, [], [])
-
-
-            # integral_constraints = OrderedDict()
-            # integral_constraints['inequality'] = constraints_fun_ineq(coll_vars, coll_params)
-            # integral_constraints['equality'] = constraints_fun_eq(coll_vars, coll_params)
 
         else:
 
@@ -106,9 +99,6 @@ class Multiple_shooting(object):
             ms_qf = np.zeros(self.__dae.dae['quad'].size())
             ms_constraints = []
             ms_outputs = []
-            # integral_constraints = OrderedDict()
-            # integral_constraints['inequality'] = []
-            # integral_constraints['equality'] = []
 
             # evaluate functions in for loop
             for i in range(self.__n_k):
@@ -117,23 +107,16 @@ class Multiple_shooting(object):
                 ms_qf = cas.horzcat(ms_qf, ms_qf[:,-1]+ms_dynamics['qf'])
                 ms_constraints = cas.horzcat(ms_constraints, model.constraints_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
                 ms_outputs = cas.horzcat(ms_outputs, model.outputs_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
-                # integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,i],coll_params[:,i]))
-                # integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,i],coll_params[:,i]))
-
 
         # integral outputs and constraints
         Integral_outputs_list = self.__build_integral_outputs(ms_qf, model.integral_outputs)
-        # Integral_constraints_list = []
-        # for kdx in range(self.__n_k):
-        #     tf = struct_op.calculate_tf(options, V, kdx)
-        #     Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
         Integral_constraints_list = None
 
         # construct state derivative struct
         Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)
         Xdot = self.__fill_in_Xdot(Xdot)
 
-        return ms_xf, ms_z0, Xdot, ms_constraints, ms_outputs, Integral_outputs_list, Integral_constraints_list
+        return ms_xf, ms_z0, self.__ms_vars, self.__ms_params, Xdot, ms_constraints, ms_outputs, Integral_outputs_list, Integral_constraints_list
 
     def __ms_nlp_vars(self, options, model, V, P):
         """Rearrange decision variables to dae-compatible form,
@@ -258,7 +241,7 @@ class Multiple_shooting(object):
         return Integral_outputs_list
 
 
-    def append_continuity_constraint(self, g_list, g_bounds, ms_xf, V, kdx):
+    def get_continuity_constraint(self, ms_xf, V, kdx):
         """Append multiple shooting continuity constraint to list of constraints
 
         @param g_list current list of constraints
@@ -270,11 +253,11 @@ class Multiple_shooting(object):
 
         # add continuity equation to nlp
         g_continuity = V['xd', kdx + 1] - ms_xf[:,kdx]
-        g_list.append(g_continuity)
-        # add constraint bounds
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', g_continuity.size()[0])
 
-        return [g_list, g_bounds]
+        cont_cstr = cstr_op.Constraint(expr=g_continuity,
+                                  name='ms_continuity_' + str(kdx),
+                                  cstr_type='eq')
+        return cont_cstr
 
     def __fill_in_Xdot(self, Xdot):
         """Construct state derivatives at all interval nodes

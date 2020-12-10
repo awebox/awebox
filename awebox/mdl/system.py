@@ -218,18 +218,25 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
     rings = wake_nodes - 1
+    filaments = wake_nodes * 3 * len(architecture.kite_nodes)
 
     for kite in architecture.kite_nodes:
-
         for ring in range(rings):
             gamma_name = 'wg_' + str(kite) + '_' + str(ring)
             system_lifted.extend([(gamma_name, (1, 1))])
-
         for wake_node in range(wake_nodes):
             for tip in wingtips:
                 coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
                 system_states.extend([(coord_name, (3, 1))])
                 system_states.extend([('d' + coord_name, (3, 1))])
+
+    for kite_obs in architecture.kite_nodes:
+        for fdx in range(filaments):
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            system_lifted.extend([(ind_name, (3, 1))])
+
+        ind_name = 'wu_ind_' + str(kite_obs)
+        system_lifted.extend([(ind_name, (3, 1))])
 
     return system_lifted, system_states
 
@@ -274,7 +281,6 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_hat_slack' + str(layer_node), (6, 1))])
         system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
         system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
@@ -289,6 +295,10 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
     return system_lifted, system_states
 
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
+
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        system_lifted.extend([('f_tether' + str(node) + str(parent), (3, 1))])
 
     # create the lifted force and moment vars. so that the implicit
     # aerodynamic constraints (with induction correction) can be enforced
@@ -323,7 +333,7 @@ def define_bounds(options, variables):
 
             variable_bounds[variable_type][name] = {}
             if variable_type in list(options.keys()):
-                var_name = struct_op.get_node_variable_name(name) # omit node numbers
+                var_name, _ = struct_op.split_name_and_node_identifier(name) # omit node numbers
                 if name in list(options[variable_type].keys()): # check if variable has node bounds
                     variable_bounds[variable_type][name]['lb'] = options[variable_type][name][0]
                     variable_bounds[variable_type][name]['ub'] = options[variable_type][name][1]
@@ -345,7 +355,8 @@ def scale_variable(variables, var_si, scaling):
     for variable_type in list(variables.keys()):
         subkeys = struct_op.subkeys(variables, variable_type)
         for name in subkeys:
-            var_scaled[variable_type, name] = var_scaled[variable_type, name]/scaling[variable_type][name]
+            local_si = var_scaled[variable_type, name]
+            var_scaled[variable_type, name] = struct_op.var_si_to_scaled(variable_type, name, local_si, scaling)
 
     return var_scaled
 
@@ -353,8 +364,9 @@ def scale_variable(variables, var_si, scaling):
 def scale_bounds(variable_bounds, scaling):
     for variable_type in list(variable_bounds.keys()):
         for name in list(variable_bounds[variable_type].keys()):
-            variable_bounds[variable_type][name]['lb'] = variable_bounds[variable_type][name]['lb']/scaling[variable_type][name]
-            variable_bounds[variable_type][name]['ub'] = variable_bounds[variable_type][name]['ub']/scaling[variable_type][name]
+            for bound_type in ['lb', 'ub']:
+                local_si = variable_bounds[variable_type][name][bound_type]
+                variable_bounds[variable_type][name][bound_type] = struct_op.var_si_to_scaled(variable_type, name, local_si, scaling)
 
     return variable_bounds
 

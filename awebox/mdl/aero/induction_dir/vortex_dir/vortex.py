@@ -38,37 +38,102 @@ import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
+def get_residual(options, wind, variables_si, outputs, architecture):
 
-def get_residual(options, atmos, wind, variables, parameters, outputs, architecture):
     # no self-induction! rigid wake convection only!
-    resi = convection.get_convection_residual(options, wind, variables, architecture)
+    resi = convection.get_convection_residual(options, wind, variables_si, architecture)
+
+    # induced velocity residuals
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    filaments = filament_list.shape[1]
+    u_ref = wind.get_velocity_ref()
+
+    for kite_obs in architecture.kite_nodes:
+        u_ind_kite = cas.DM.zeros((3, 1))
+        for fdx in range(filaments):
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            local_var = variables_si['xl'][ind_name]
+            u_ind_kite += local_var
+
+        # superposition of filament induced velocities at kite
+        ind_name = 'wu_ind_' + str(kite_obs)
+        local_var = variables_si['xl'][ind_name]
+        local_resi = (local_var - u_ind_kite) / u_ref
+        resi = cas.vertcat(resi, local_resi)
+
     return resi
 
-def collect_vortex_outputs(model_options, atmos, wind, variables, outputs, parameters, architecture):
+def get_induction_trivial_residual(options, wind, variables_si, outputs, architecture):
+    resi = []
+
+    # induced velocity residuals
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    filaments = filament_list.shape[1]
+    u_ref = wind.get_velocity_ref()
+
+    for kite_obs in architecture.kite_nodes:
+
+        for fdx in range(filaments):
+            u_ind_fil = cas.DM.zeros((3, 1))
+
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            local_var = variables_si['xl'][ind_name]
+            local_resi = (local_var - u_ind_fil) / u_ref
+            resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+
+def get_induction_final_residual(options, wind, variables_si, outputs, architecture):
+    resi = []
+
+    # induced velocity residuals
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    filaments = filament_list.shape[1]
+    u_ref = wind.get_velocity_ref()
+
+    for kite_obs in architecture.kite_nodes:
+
+        for fdx in range(filaments):
+            # biot-savart of filament induction
+            filament = filament_list[:, fdx]
+            u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
+
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            local_var = variables_si['xl'][ind_name]
+            local_resi = (local_var - u_ind_fil) / u_ref
+            resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
 
     biot_savart.test()
-    test_list = vortex_filament_list.test(gamma_scale=5.)
+    test_list = vortex_filament_list.test()
     flow.test(test_list)
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
 
-    filament_list = vortex_filament_list.get_list(model_options, variables, architecture)
+    filament_list = vortex_filament_list.get_list(model_options, variables_si, architecture)
 
     columnized_list = vortex_filament_list.columnize(filament_list)
     outputs['vortex']['filament_list'] = columnized_list
 
-    last_filament_list = vortex_filament_list.get_last_list(model_options, variables, architecture)
+    last_filament_list = vortex_filament_list.get_last_list(model_options, variables_si, architecture)
 
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
         parent = architecture.parent_map[kite]
 
-        u_ind_vortex = flow.get_induced_velocity_at_kite(model_options, filament_list, variables, architecture, kite)
+        u_ind_vortex = flow.get_induced_velocity_at_kite(model_options, filament_list, variables_si, architecture, kite)
 
-        n_hat = unit_normal.get_n_hat(model_options, parent, variables, parameters, architecture)
-        local_a = flow.get_induction_factor_at_kite(model_options, filament_list, wind, variables, parameters, architecture, kite, n_hat=n_hat)
-        last_a = flow.get_induction_factor_at_kite(model_options, last_filament_list, wind, variables, parameters, architecture, kite, n_hat=n_hat)
+        n_hat = unit_normal.get_n_hat(model_options, parent, variables_si, parameters, architecture)
+        local_a = flow.get_induction_factor_at_kite(model_options, filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
+        last_a = flow.get_induction_factor_at_kite(model_options, last_filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
 
         outputs['vortex']['u_ind_vortex' + str(kite)] = u_ind_vortex
         outputs['vortex']['local_a' + str(kite)] = local_a

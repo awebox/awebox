@@ -213,6 +213,7 @@ class Optimization(object):
 
         V = nlp.V
         P = nlp.P
+
         nx = V.cat.shape[0]
         ng = nlp.g.shape[0]
         np = P.cat.shape[0]
@@ -311,33 +312,33 @@ class Optimization(object):
             if self.__solve_succeeded:
 
                 timer = time.time()
-                self.solve_specific_homotopy_step(step_name, nlp, model, options, visualization)
+                self.solve_specific_homotopy_step(step_name, final_homotopy_step, nlp, model, options, visualization)
                 self.update_runtime_info(timer, step_name)
 
         awelogger.logger.info(print_op.hline('#'))
 
         return None
 
-    def solve_specific_homotopy_step(self, step_name, nlp, model, options, visualization):
+    def solve_specific_homotopy_step(self, step_name, final_homotopy_step, nlp, model, options, visualization):
 
         initial_solver = self.__solvers['initial']
         middle_solver = self.__solvers['middle']
         final_solver = self.__solvers['final']
 
         if step_name == 'initial':
-            self.solve_general_homotopy_step(step_name, 0, options, nlp, model, initial_solver, visualization)
+            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, initial_solver, visualization)
 
         elif step_name == 'final':
-            self.solve_general_homotopy_step(step_name, 0, options, nlp, model, final_solver, visualization)
+            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
             for homotopy_part in range(number_of_steps):
-                self.solve_general_homotopy_step(step_name, homotopy_part, options, nlp, model, middle_solver, visualization)
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, homotopy_part, options, nlp, model, middle_solver, visualization)
 
         return None
 
-    def solve_general_homotopy_step(self, step_name, counter, options, nlp, model, solver, visualization):
+    def solve_general_homotopy_step(self, step_name, final_homotopy_step, counter, options, nlp, model, solver, visualization):
 
         if self.__solve_succeeded:
 
@@ -357,7 +358,6 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # solve
-
             self.__solution = solver(**self.__arg)
             self.__stats = solver.stats()
 
@@ -372,7 +372,7 @@ class Optimization(object):
 
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
-            diagnostics.health_check(nlp, self.__solution, self.__arg, options, self.__solve_succeeded)
+            diagnostics.health_check(step_name, final_homotopy_step, nlp, self.__solution, self.__arg, options, self.__solve_succeeded, self.__stats, self.__iterations)
 
             if step_name in self.__debug_locations or self.__debug_locations == 'all':
                 V_plot = nlp.V(self.__solution['x'])
@@ -629,7 +629,7 @@ class Optimization(object):
             self.__V_opt = self.__V_init
         else:
             self.__V_opt = nlp.V(self.__solution['x'])
-        self.__V_final = struct_op.scaled_to_si(model.variables, model.scaling, nlp.n_k, nlp.d, self.__V_opt)
+        self.__V_final = struct_op.scaled_to_si(self.__V_opt, model.scaling)
         self.__integral_outputs_final = self.scaled_to_si_integral_outputs(nlp, model)
 
         return None

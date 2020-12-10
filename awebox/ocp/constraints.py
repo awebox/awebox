@@ -35,261 +35,421 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
-def setup_constraint_structure(nlp_numerics_options, model, formulation):
+import awebox.ocp.operation as operation
+import awebox.ocp.ocp_constraint as ocp_constraint
 
-    constraints_entry_list = make_constraints_entry_list(nlp_numerics_options, formulation.constraints, model)
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.performance_operations as perf_op
 
-    # Constraints structure
-    g_struct = cas.struct_symSX(constraints_entry_list)
+from awebox.logger.logger import Logger as awelogger
 
-    return g_struct
+import copy
+import pdb
 
-def make_constraints_entry_list(nlp_numerics_options, constraints, model):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs):
 
-    # get discretization information
-    nk = nlp_numerics_options['n_k']
+    awelogger.logger.info('generate constraints...')
 
-    # initialize entry list
-    constraints_entry_list = []
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    radau_collocation = direct_collocation and (nlp_options['collocation']['scheme'] == 'radau')
+    other_collocation = direct_collocation and (not radau_collocation)
 
-    # size of algebraic variables on interval nodes
-    nz = 0
-    if nlp_numerics_options['lift_xddot']:
-        nz += model.variables['xddot'].shape[0]
-    if nlp_numerics_options['lift_xa']:
-        nz += model.variables['xa'].shape[0]
-        if 'xl' in list(model.variables.keys()):
-            nz += model.variables['xl'].shape[0]
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+
+    ocp_cstr_list = ocp_constraint.OcpConstraintList()
 
     # add initial constraints
-    if list(constraints['initial'].keys()): # check if not empty
-        constraints_entry_list.append(cas.entry('initial', struct = constraints['initial']))
+    var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
+    var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
+    init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
+    ocp_cstr_list.append(init_cstr)
 
-    # empty tuple for nested constraints
-    entry_tuple = ()
+    # add the path constraints.
+    if multiple_shooting:
+        ms_cstr = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+        ocp_cstr_list.append(ms_cstr)
 
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
+    elif radau_collocation:
+        radau_cstr = expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
+        ocp_cstr_list.append(radau_cstr)
 
-        # extract collocation parameters
-        d = nlp_numerics_options['collocation']['d']
-        scheme = nlp_numerics_options['collocation']['scheme']
+    elif other_collocation:
+        other_cstr = expand_with_other_collocation()
+        ocp_cstr_list.append(other_cstr)
 
-        # make stage_constraints to be applied on the collocation nodes
-        stage_constraints = make_stage_constraint_struct(model)
-
-        if scheme != 'radau':
-            # for legendre: add path constrains on interval nodes
-            if list(model.constraints.keys()):  # check if not empty
-
-                if nz > 0: # if there are any lifted algebraic vars on interval node
-                    entry_tuple += (cas.entry('algebraic_constraints', repeat = [nk],    shape = (nz,1)),)
-
-                entry_tuple += (
-                    cas.entry('path_constraints',      repeat = [nk],    struct = model.constraints),
-                    cas.entry('stage_constraints',     repeat = [nk, d], struct = stage_constraints),
-                )
-
-        else:
-            # for radau: omit path constrains on interval nodes
-            entry_tuple += (
-                    cas.entry('stage_constraints', repeat = [nk, d], struct = stage_constraints),
-            )
-
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
-
-        # add path constraints at interval nodes
-        if list(model.constraints.keys()):  # check if not empty
-            if nz > 0: # if there are any lifted algebraic vars on interval node
-                entry_tuple += (cas.entry('algebraic_constraints', repeat = [nk], shape = (nz,1)),)
-
-            entry_tuple += (cas.entry('path_constraints',      repeat = [nk], struct = model.constraints),)
-
-    # add continuity constraints
-    entry_tuple += (
-        cas.entry('continuity', repeat = [nk], shape = model.variables['xd'].size()),
-    )
-
-    # add stage and continuity constraints to list
-    constraints_entry_list.append(entry_tuple)
+    else:
+        message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     # add terminal constraints
-    if list(constraints['terminal'].keys()): # check if not empty
-        constraints_entry_list.append(cas.entry('terminal', struct = constraints['terminal']))
+    var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
+    var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
+    terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
+    ocp_cstr_list.append(terminal_cstr)
 
-    # add periodicity constraints
-    if list(constraints['periodic'].keys()):
-        constraints_entry_list.append(cas.entry('periodic', struct = constraints['periodic']))
+    # add periodic constraints
+    periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
+    ocp_cstr_list.append(periodic_cstr)
 
-    if list(constraints['integral'].keys()):
-        constraints_entry_list.append(cas.entry('integral', struct=constraints['integral']))
+    if direct_collocation:
+        integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
+        ocp_cstr_list.append(integral_cstr)
 
-    if ('wake_fix' in constraints.keys()) and (list(constraints['wake_fix'].keys())):
-        constraints_entry_list.append(cas.entry('wake_fix', struct = constraints['wake_fix']))
+    vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_fixing_cstr)
 
-    if ('vortex_strength' in constraints.keys()) and (list(constraints['vortex_strength'].keys())):
-        constraints_entry_list.append(cas.entry('vortex_strength', struct = constraints['vortex_strength']))
+    vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_strength_cstr)
 
-    return constraints_entry_list
+    return ocp_cstr_list
 
-def make_stage_constraint_struct(model):
 
-    # make entry list to check if not empty
-    entry_list = [cas.entry('collocation', shape =model.dynamics(model.variables, model.parameters).size())]
-    if list(model.constraints.keys()):  # check if not empty
-        entry_list.append(cas.entry('path_constraints', struct = model.constraints))
+def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
+    if nlp_options['parallelization']['include']:
+        cstr_list = expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation)
+    else:
+        cstr_list = expand_with_radau_collocation_in_serial(nlp_options, P, V, Xdot, model, Collocation)
 
-    # stage constraints structure -- necessary for interleaving
-    stage_constraints = cas.struct_symSX(entry_list)
+    return cstr_list
 
-    return stage_constraints
+def expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation):
 
-def create_constraint_outputs(g_list, g_bounds, g_struct, V, P):
+    cstr_list = ocp_constraint.OcpConstraintList()
 
-    g = g_struct(cas.vertcat(*g_list))
-    g_fun = cas.Function('g_fun', [V, P], [g.cat])
-    g_jacobian_fun = cas.Function('g_jacobian_fun',[V,P],[g.cat, cas.jacobian(g.cat, V.cat)])
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
 
-    g_bounds['lb'] = cas.vertcat(*g_bounds['lb'])
-    g_bounds['ub'] = cas.vertcat(*g_bounds['ub'])
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
 
-    return g, g_fun, g_jacobian_fun, g_bounds
+    parallellization = nlp_options['parallelization']['type']
 
-def append_algebraic_constraints(g_list, g_bounds, z_at_time, V, kdx):
+    # the inequality constraints
+    shooting_nodes = struct_op.count_shooting_nodes(nlp_options)
 
-    # extract
-    g_algebraic = np.array([])
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+
+    shooting_vars = struct_op.get_shooting_vars(nlp_options, V, P, Xdot, model)
+    shooting_params = struct_op.get_shooting_params(nlp_options, V, P, model)
+
+    ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
+    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
+                                   name='parallelized_model_inequalities',
+                                   cstr_type='ineq')
+    cstr_list.append(ineq_cstr)
+
+    # the equality constraints
+    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
+
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+
+    ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
+    eq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_eqs_expr, (ocp_eqs_expr.shape[0] * ocp_eqs_expr.shape[1], 1)),
+                                 name='parallelized_model_equalities',
+                                 cstr_type='eq')
+    cstr_list.append(eq_cstr)
+
+    # the continuity constraints
+    for kdx in range(n_k):
+        # continuity condition between (kdx, -1) and (kdx + 1)
+        continuity_cstr = Collocation.get_continuity_constraint(V, kdx)
+        cstr_list.append(continuity_cstr)
+
+    return cstr_list
+
+
+def expand_with_radau_collocation_in_serial(nlp_options, P, V, Xdot, model, Collocation):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+
+    mdl_ineq_list = model_constraints_list.ineq_list
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
+    for kdx in range(n_k):
+
+        vars_at_time = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx)
+        params_at_time = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables,
+                                                          model_parameters, kdx)
+
+        # inequality constraints get enforced at control nodes
+        for mdl_ineq in mdl_ineq_list:
+            local_fun = mdl_ineq.get_function(model_variables, model_parameters)
+            expr = local_fun(vars_at_time, params_at_time)
+
+            local_cstr = cstr_op.Constraint(expr=expr,
+                                            name=mdl_ineq.name + '_' + str(kdx),
+                                            cstr_type=mdl_ineq.cstr_type)
+            cstr_list.append(local_cstr)
+
+        # equality constraints get enforced at collocation nodes
+        for ddx in range(d):
+            vars_at_time = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx)
+            params_at_time = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables,
+                                                              model_parameters, kdx, ddx)
+
+            middle_eq_cstr = get_equality_radau_constraints(nlp_options, model, Collocation, vars_at_time,
+                                                              params_at_time, kdx, ddx)
+            cstr_list.append(middle_eq_cstr)
+
+        # continuity condition between (kdx, -1) and (kdx + 1)
+        continuity_cstr = Collocation.get_continuity_constraint(V, kdx)
+        cstr_list.append(continuity_cstr)
+
+    periodic = perf_op.determine_if_periodic(nlp_options)
+    if not periodic:
+        # append inequality constraint at end, too.
+        kdx = n_k
+        vars_at_time = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx)
+        params_at_time = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables,
+                                                          model_parameters, kdx)
+
+        # inequality constraints get enforced at control nodes
+        for mdl_ineq in mdl_ineq_list:
+            local_fun = mdl_ineq.get_function(model_variables, model_parameters)
+            expr = local_fun(vars_at_time, params_at_time)
+
+            local_cstr = cstr_op.Constraint(expr=expr,
+                                            name=mdl_ineq.name + '_' + str(kdx),
+                                            cstr_type=mdl_ineq.cstr_type)
+            cstr_list.append(local_cstr)
+
+    return cstr_list
+
+def get_equality_radau_constraints(nlp_options, model, Collocation, vars_at_time, params_at_time, kdx, ddx=None):
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+    mdl_eq_list = model_constraints_list.eq_list
+    n_k = nlp_options['n_k']
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    for mdl_eq in mdl_eq_list:
+
+        local_fun = mdl_eq.get_function(model_variables, model_parameters)
+
+        if (ddx is not None) and ('trivial' in mdl_eq.name):
+            # compensate for the fact that the (derivatives of the basis functions) become
+            # increasingly large as order increases
+            t_f_estimate = nlp_options['normalization']['t_f']
+            trivial_scaling = np.max(np.absolute(np.array(Collocation.coeff_collocation[:, ddx + 1]))) * (
+                        n_k / t_f_estimate)
+            expr = local_fun(vars_at_time, params_at_time) / trivial_scaling
+
+        else:
+            expr = local_fun(vars_at_time, params_at_time)
+
+        if ddx is not None:
+            name = mdl_eq.name + '_' + str(kdx) + '_' + str(ddx)
+        else:
+            name = mdl_eq.name + '_' + str(kdx)
+
+        local_cstr = cstr_op.Constraint(expr=expr,
+                                        name=name,
+                                        cstr_type=mdl_eq.cstr_type)
+        cstr_list.append(local_cstr)
+
+    return cstr_list
+
+def expand_with_other_collocation():
+
+    # todo: add this.
+    #  notice, that the logic flow of non-radau collection was *never* actually triggered in previous iterates.
+    #  there would certainly have been an error otherwise, see, for example,
+    #  the inclusion of the un-defined variable ms_z0[:, kdx]
+
+    message = 'OCP discretization with non-Radau collection is not supported at present.'
+    awelogger.logger.error(message)
+    raise Exception(message)
+
+
+def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
+    if nlp_options['parallelization']['include']:
+        cstr_list = expand_with_multiple_shooting_in_parallel(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+    else:
+        cstr_list = expand_with_multiple_shooting_in_serial(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+
+    return cstr_list
+
+
+
+
+def expand_with_multiple_shooting_in_serial(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    n_k = nlp_options['n_k']
+    for kdx in range(n_k):
+
+        # at each interval node, algebraic constraints should be satisfied
+        alg_cstr = get_algebraic_constraints(dae.z(ms_z0[:, kdx]), V, kdx)
+        cstr_list.append(alg_cstr)
+
+        ms_path_cstr = get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx)
+        cstr_list.append(ms_path_cstr)
+
+        # endpoint should match next start point
+        cont_cstr = Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx)
+        cstr_list.append(cont_cstr)
+
+    return cstr_list
+
+def expand_with_multiple_shooting_in_parallel(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
+
+    model_variables = model.variables
+    model_parameters = model.parameters
+    model_constraints_list = model.constraints_list
+
+    n_k = nlp_options['n_k']
+
+    parallellization = nlp_options['parallelization']['type']
+
+    # algebraic constraints
+    z_from_V = []
+    for kdx in range(n_k):
+        if 'xl' in V.keys():
+            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx], V['xl', kdx]])
+        else:
+            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx]])
+        z_from_V = cas.horzcat(z_from_V, local_z_from_V)
+
+    z_at_time_sym = copy.deepcopy(dae.z)
+    z_from_V_sym = copy.deepcopy(dae.z)
+    alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
+    alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
+
+    alg_expr = alg_map(ms_z0, z_from_V)
+    alg_cstr = cstr_op.Constraint(expr=cas.reshape(alg_expr, (alg_expr.shape[0] * alg_expr.shape[1], 1)),
+                                   name='parallelized_algebraics',
+                                   cstr_type='eq')
+    cstr_list.append(alg_cstr)
+
+    # the inequality constraints
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, n_k, [], [])
+
+    ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
+                                   name='parallelized_model_inequalities',
+                                   cstr_type='ineq')
+    cstr_list.append(ineq_cstr)
+
+    # continuity constraints
+    for kdx in range(n_k):
+        cont_cstr = Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx)
+        cstr_list.append(cont_cstr)
+
+    return cstr_list
+
+
+
+def get_algebraic_constraints(z_at_time, V, kdx):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
 
     if 'xddot' in list(V.keys()):
         xddot_at_time = z_at_time['xddot']
-        g_algebraic = cas.vertcat(g_algebraic, xddot_at_time - V['xddot', kdx])
+        expr = xddot_at_time - V['xddot', kdx]
+        xddot_cstr = cstr_op.Constraint(expr=expr,
+                                        name='xddot_' + str(kdx),
+                                        cstr_type='eq')
+        cstr_list.append(xddot_cstr)
 
     if 'xa' in list(V.keys()):
         xa_at_time = z_at_time['xa']
-        g_algebraic = cas.vertcat(g_algebraic, xa_at_time - V['xa',kdx])
+        expr = xa_at_time - V['xa',kdx]
+        xa_cstr = cstr_op.Constraint(expr=expr,
+                                     name='xa_' + str(kdx),
+                                     cstr_type='eq')
+        cstr_list.append(xa_cstr)
 
     if 'xl' in list(V.keys()):
         xl_at_time = z_at_time['xl']
-        g_algebraic = cas.vertcat(g_algebraic, xl_at_time - V['xl', kdx])
+        expr = xl_at_time - V['xl', kdx]
+        xl_cstr = cstr_op.Constraint(expr=expr,
+                                     name='xl_' + str(kdx),
+                                     cstr_type='eq')
+        cstr_list.append(xl_cstr)
 
-    g_list.append(g_algebraic)
-    g_bounds = append_constraint_bounds(g_bounds, 'equality', g_algebraic.shape[0])
-
-    return [g_list, g_bounds]
-
-def append_collocation_constraints(g_list, g_bounds, dynamics):
-
-    # evaluate constraint
-    g_list.append(dynamics)
-    # add constraint bounds
-    g_bounds = append_constraint_bounds(g_bounds, 'equality', dynamics.size()[0])
-
-    return [g_list, g_bounds]
-
-def append_path_constraints(g_list, g_bounds, path_constraints, path_constraints_values, slacks = None):
-
-    if slacks is not None:
-
-        path_constraints_struct = path_constraints(path_constraints_values)
-
-        # append slacked constraints
-        if 'equality' in list(path_constraints_struct.keys()):
-            g_list.append(path_constraints_struct['equality'])
-        if 'inequality' in list(path_constraints_struct.keys()):
-            g_list.append(path_constraints_struct['inequality'] - slacks)
-
-        # append constraint bounds
-        for cstr_type in list(path_constraints.keys()):
-            g_bounds = append_constraint_bounds(g_bounds, 'equality', path_constraints[cstr_type].size()[0])
-
-    else:
-
-        # append constraint
-        g_list.append(path_constraints_values)
-        # append constraint bounds
-        for cstr_type in list(path_constraints.keys()):
-            g_bounds = append_constraint_bounds(g_bounds, cstr_type, path_constraints[cstr_type].size()[0])
-
-    return [g_list, g_bounds]
-
-def append_terminal_constraints(g_list, g_bounds, constraints, constraints_fun, var_terminal, var_ref_terminal, xi):
-
-    # evaluate constraint
-    g_terminal = constraints_fun['terminal'](var_terminal, var_ref_terminal, xi)
-
-    # append constraint
-    g_list.append(g_terminal)
-    # append constraint bounds
-    for cstr_type in list(constraints['terminal'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['terminal'][cstr_type].size()[0])
-
-    return [g_list, g_bounds]
-
-def append_initial_constraints(g_list, g_bounds, constraints, constraints_fun, var_initial, var_ref_initial, xi):
-
-    # evaluate constraint
-    g_initial = constraints_fun['initial'](var_initial, var_ref_initial, xi)
-
-    # append constraint
-    g_list.append(g_initial)
-    # append constraint bounds
-    for cstr_type in list(constraints['initial'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['initial'][cstr_type].size()[0])
-
-    return [g_list, g_bounds]
-
-def append_wake_fix_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_fix.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
-    return g_list, g_bounds
-
-def append_vortex_strength_constraints(options, g_list, g_bounds, V, Outputs, model):
-    g_list, g_bounds = vortex_strength.get_cstr_in_constraints_format(options, g_list, g_bounds, V, Outputs, model)
-    return g_list, g_bounds
+    return cstr_list
 
 
-def append_periodic_constraints(g_list, g_bounds, constraints, constraints_fun, var_init, var_terminal):
+def get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx):
 
-    # evaluate constraint
-    g_periodic = constraints_fun['periodic'](var_init, var_terminal)
+    cstr_list = ocp_constraint.OcpConstraintList()
 
-    # append constraint
-    g_list.append(g_periodic)
-    # append constraint bounds
-    for cstr_type in list(constraints['periodic'].keys()): # cstr_type = equality / inequality
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, constraints['periodic'][cstr_type].size()[0])
+    mdl_cstr_list = model.constraints_list
+    model_variables = model.variables
+    model_parameters = model.parameters
 
-    return [g_list, g_bounds]
+    vars_at_time = ms_vars[:, kdx]
+    params_at_time = ms_params[:, kdx]
 
-def append_integral_constraints(nlp_numerics_options, g_list, g_bounds, integral_list, constraints, constraints_fun, V, Xdot, model, integral_constants):
+    # at each interval node, path constraints should be satisfied
+    for cstr in mdl_cstr_list.get_list('ineq'):
+
+        local_fun = cstr.get_function(model_variables, model_parameters)
+
+        expr = local_fun(vars_at_time, params_at_time)
+        local_cstr = cstr_op.Constraint(expr=expr,
+                                        name=cstr.name + '_' + str(kdx),
+                                        cstr_type=cstr.cstr_type)
+        cstr_list.append(local_cstr)
+
+    return cstr_list
+
+
+
+def get_integral_constraints(integral_list, integral_constants):
+
+    cstr_list = ocp_constraint.OcpConstraintList()
 
     # nu = V['phi','nu']
     integral_sum = {}
-    g_integral = {}
 
-    for cstr_type in list(integral_constants.keys()):
-        integral_t0 = integral_constants[cstr_type]
-        integral_sum[cstr_type] = 0.
+    for key_name in list(integral_constants.keys()):
+        integral_t0 = integral_constants[key_name]
+        integral_sum[key_name] = 0.
         for i in range(len(integral_list)):
-            integral_sum[cstr_type] += integral_list[i][cstr_type]
-        g_integral[cstr_type] = - integral_t0 - integral_sum[cstr_type]
-        g_integral[cstr_type] /= integral_t0
-        g_list.append(g_integral[cstr_type])
+            integral_sum[key_name] += integral_list[i][key_name]
 
-    for cstr_type in list(constraints['integral'].keys()):
-        g_bounds = append_constraint_bounds(g_bounds, cstr_type, g_integral[cstr_type].size()[0])
+        expr = (- integral_t0 - integral_sum[key_name]) / integral_t0
+        cstr_type = translate_cstr_type(key_name)
 
-    return [g_list, g_bounds]
+        g_cstr = cstr_op.Constraint(expr=expr,
+                                    name='integral_' + key_name,
+                                    cstr_type=cstr_type)
+        cstr_list.append(g_cstr)
 
-def append_constraint_bounds(constraint_bounds, constraint_type, ndg):
+    return cstr_list
+
+
+def translate_cstr_type(constraint_type):
 
     # convention h(w) <= 0
     if constraint_type == 'inequality':
-        constraint_bounds['lb'].append(np.array([-cas.inf]*ndg))
+        return 'ineq'
     elif constraint_type == 'equality':
-        constraint_bounds['lb'].append(np.zeros(ndg))
+        return 'eq'
     else:
         raise ValueError('Wrong constraint type chosen. Possible values: "inequality" / "equality" ')
 
-    # upper bound is always zero
-    constraint_bounds['ub'].append(np.zeros(ndg))
+    return None
 
-    return constraint_bounds

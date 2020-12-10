@@ -45,7 +45,7 @@ def get_initial_guess(nlp, model, formulation, init_options):
 
     if True in np.isnan(np.array(V_init_si.cat)):
         raise ValueError('NaN detected in V_init_si')
-    V_init = struct_op.si_to_scaled(model, V_init_si)
+    V_init = struct_op.si_to_scaled(V_init_si, model.scaling)
 
     return V_init
 

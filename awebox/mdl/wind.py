@@ -154,16 +154,21 @@ class Wind:
 
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 
+    # approximates the maximum of (zz vs. 0)
+    z_cropped = vect_op.smooth_abs(zz, epsilon=z0_air)
+
     if model == 'log_wind':
 
         # mathematically: it doesn't make a difference what the base of
         # these logarithms is, as long as they have the same base.
         # but, the values will be smaller in base 10 (since we're describing
         # altitude differences), which makes convergence nicer.
-        u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air)
+        # u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air)
+        u = u_ref * np.log10(z_cropped / z0_air) / np.log10(z_ref / z0_air)
 
     elif model == 'power':
-        u = u_ref * (zz / z_ref) ** exp_ref
+        # u = u_ref * (zz / z_ref) ** exp_ref
+        u = u_ref * (z_cropped / z_ref) ** exp_ref
 
     elif model == 'uniform':
         u = u_ref

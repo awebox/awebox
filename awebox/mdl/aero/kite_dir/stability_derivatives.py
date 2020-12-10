@@ -36,7 +36,6 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 
-
 def stability_derivatives(options, alpha, beta, airspeed, omega, delta, parameters):
 
     frames.test_conversions()

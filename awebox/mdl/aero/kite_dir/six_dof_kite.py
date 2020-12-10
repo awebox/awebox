@@ -31,76 +31,47 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.indicators as indicators
-import numpy as np
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
+
+import awebox.mdl.mdl_constraint as mdl_constraint
+
+import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.stability_derivatives as stability_derivatives
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
-
-import copy
 
 
-def arbitrarily_desired_force_frame():
-    return 'earth'
+
+
 
 def get_kite_dcm(kite, variables, architecture):
     parent = architecture.parent_map[kite]
     kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
     return kite_dcm
 
-def get_framed_forces(vec_u, options, variables, kite, architecture, parameters):
-
-    kite_dcm = get_kite_dcm(kite, variables, architecture)
-
-    parent = architecture.parent_map[kite]
-
-    # frame_name = options['aero']['stab_derivs']['force_frame']
-    frame_name = arbitrarily_desired_force_frame()
-
-    f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-
-    f_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_wind = frames.from_named_frame_to_wind(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_control = frames.from_named_frame_to_control(frame_name, vec_u, kite_dcm, f_aero_var)
-    f_aero_earth = frames.from_named_frame_to_earth(frame_name, vec_u, kite_dcm, f_aero_var)
-
-    dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
-
-    return dict
-
-def get_framed_moments(vec_u, options, variables, kite, architecture, parameters):
-
-    kite_dcm = get_kite_dcm(kite, variables, architecture)
-
-    parent = architecture.parent_map[kite]
-
-    frame_name = options['aero']['stab_derivs']['moment_frame']
-    m_aero_var = tools.get_m_aero_var(variables, kite, parent, parameters, options)
-
-    m_aero_body = frames.from_named_frame_to_body(frame_name, vec_u, kite_dcm, m_aero_var)
-
-    dict = {'body':m_aero_body}
-
-    return dict
 
 
-def get_force_resi(options, variables, atmos, wind, architecture, parameters):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
     surface_control = options['surface_control']
 
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
 
-    resi = []
+    cstr_list = mdl_constraint.MdlConstraintList()
+
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        f_aero_var = tools.get_f_aero_var(variables, kite, parent, parameters, options)
-        m_aero_var = tools.get_m_aero_var(variables, kite, parent, parameters, options)
+
+        kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+
+        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
+                                                             architecture, parameters)
 
         if int(surface_control) == 0:
             delta = variables['u']['delta' + str(kite) + str(parent)]
@@ -108,38 +79,60 @@ def get_force_resi(options, variables, atmos, wind, architecture, parameters):
             delta = variables['xd']['delta' + str(kite) + str(parent)]
 
         omega = variables['xd']['omega' + str(kite) + str(parent)]
-        kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
-
         q = variables['xd']['q' + str(kite) + str(parent)]
         rho = atmos.get_density(q[2])
-
-        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
-                                                             architecture, parameters)
-
         force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
 
-        arb_force_frame = arbitrarily_desired_force_frame()
-        force_arb_info = copy.deepcopy(force_info)
-        force_arb_info['vector'] = frames.from_named_frame_to_named_frame(force_info['frame'], arb_force_frame, vec_u_earth, kite_dcm, force_info['vector'])
-        force_arb_info['frame'] = arb_force_frame
+        f_found_frame = force_info['frame']
+        f_found_vector = force_info['vector']
 
-        f_aero_val = force_arb_info['vector']
-        m_aero_val = moment_info['vector']
+        m_found_frame = moment_info['frame']
+        m_found_vector = moment_info['vector']
 
-        resi_f_kite = (f_aero_var - f_aero_val) / f_scale
-        resi_m_kite = (m_aero_var - m_aero_val) / m_scale
+        forces_dict = tools.get_framed_forces(vec_u_earth, kite_dcm, variables, kite, architecture)
+        f_var_frame = tools.force_variable_frame()
+        f_var = forces_dict[f_var_frame]
+        f_val = frames.from_named_frame_to_named_frame(from_name=f_found_frame,
+                                                       to_name=f_var_frame,
+                                                       vec_u=vec_u_earth,
+                                                       kite_dcm=kite_dcm,
+                                                       vector=f_found_vector)
 
-        resi = cas.vertcat(resi, resi_f_kite, resi_m_kite)
+        moments_dict = tools.get_framed_moments(vec_u_earth, kite_dcm, variables, kite, architecture)
+        m_var_frame = tools.moment_variable_frame()
+        m_var = moments_dict[m_var_frame]
+        m_val = frames.from_named_frame_to_named_frame(from_name=m_found_frame,
+                                                       to_name=m_var_frame,
+                                                       vec_u=vec_u_earth,
+                                                       kite_dcm=kite_dcm,
+                                                       vector=m_found_vector)
 
-    return resi
+        resi_f_kite = (f_var - f_val) / f_scale
+        resi_m_kite = (m_var - m_val) / m_scale
+
+        f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
+                                       name='f_aero' + str(kite) + str(parent),
+                                       cstr_type='eq')
+        cstr_list.append(f_kite_cstr)
+
+        m_kite_cstr = cstr_op.Constraint(expr=resi_m_kite,
+                                       name='m_aero' + str(kite) + str(parent),
+                                       cstr_type='eq')
+        cstr_list.append(m_kite_cstr)
+
+    return cstr_list
 
 
-def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho):
+def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho):
 
-    alpha = indicators.get_alpha(vec_u, kite_dcm)
-    beta = indicators.get_beta(vec_u, kite_dcm)
+    # we use the vec_u_earth and the kite_dcm to give the relative orientation.
+    # this means, that they must be in the same frame. otherwise, the frame of
+    # the wind vector is not used in this function.
 
-    airspeed = vect_op.norm(vec_u)
+    alpha = indicators.get_alpha(vec_u_earth, kite_dcm)
+    beta = indicators.get_beta(vec_u_earth, kite_dcm)
+
+    airspeed = vect_op.norm(vec_u_earth)
     force_coeff_info, moment_coeff_info = stability_derivatives.stability_derivatives(options, alpha, beta,
                                                                                       airspeed, omega,
                                                                                       delta, parameters)
@@ -153,7 +146,8 @@ def get_force_and_moment(options, parameters, vec_u, kite_dcm, omega, delta, rho
     CF = force_coeff_info['coeffs']
     CM = moment_coeff_info['coeffs']
 
-    dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u.T, vec_u)
+    # notice that magnitudes don't change under rotation
+    dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u_earth.T, vec_u_earth)
     planform_area = parameters['theta0', 'geometry', 's_ref']
 
     force = CF * dynamic_pressure * planform_area

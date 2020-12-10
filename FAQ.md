@@ -233,6 +233,10 @@ Please increase this number using the options inputs:
 
 ---> the 'SI' version.
 
+---> if you want the scaled version, you can instead query:
+sol = trial.optimization.solution
+V_solution_scaled = trial.nlp.V(sol['x'])
+
 
 ### What are the units of the power output? (aka. the given 'SI' unit of power...)
 

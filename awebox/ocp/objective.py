@@ -81,24 +81,24 @@ def get_general_reg_costs_function(variables, V):
 
     slack_fun = get_local_slack_penalty_function()
 
-    for type in set(variables.keys()):
-        category = sorting_dict[type]['category']
-        exceptions = sorting_dict[type]['exceptions']
+    for var_type in set(variables.keys()):
+        category = sorting_dict[var_type]['category']
+        exceptions = sorting_dict[var_type]['exceptions']
 
-        for subkey in set(struct_op.subkeys(variables, type)):
-            name = struct_op.get_node_variable_name(subkey)
+        for var_name in set(struct_op.subkeys(variables, var_type)):
+            name, _ = struct_op.split_name_and_node_identifier(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
-                reg_costs[category] = reg_costs[category] + cas.sum1(regs[type, subkey])
+                reg_costs[category] = reg_costs[category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
-                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[type, subkey])
+                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
 
-                for idx in variables.f[type, subkey]:
+                for idx in variables.f[var_type, var_name]:
                     var_loc = var_sym[idx]
                     ref_loc = ref_sym[idx]
                     weight_loc = weight_sym[idx]
@@ -163,24 +163,24 @@ def get_regularization_weights(variables, P, nlp_options):
 
     weights = variables(P['p', 'weights'])
 
-    for type in set(variables.keys()):
-        category = sorting_dict[type]['category']
-        exceptions = sorting_dict[type]['exceptions']
+    for var_type in set(variables.keys()):
+        category = sorting_dict[var_type]['category']
+        exceptions = sorting_dict[var_type]['exceptions']
 
-        for subkey in set(struct_op.subkeys(variables, type)):
-            name = struct_op.get_node_variable_name(subkey)
+        for var_name in set(struct_op.subkeys(variables, var_type)):
+            name, _ = struct_op.split_name_and_node_identifier(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
                 shortened_cat_name = category[:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
-                weights[type, subkey] = weights[type, subkey] * factor / normalization
+                weights[var_type, var_name] = weights[var_type, var_name] * factor / normalization
 
             elif (name in exceptions.keys()) and (not exceptions[name] == None):
                 shortened_cat_name = exceptions[name][:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
-                weights[type, subkey] = weights[type, subkey] * factor / normalization
+                weights[var_type, var_name] = weights[var_type, var_name] * factor / normalization
 
     return weights
 
@@ -240,22 +240,6 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
 
 
 
-def get_local_tracking_function(variables, V, P):
-    # todo: this does not appear to be used anywhere... remove?
-
-    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
-
-    vars = variables
-    refs = variables(P['p']['ref'])
-    weights = variables(P['p']['weights'])
-
-    all_reg_costs = reg_costs_struct(reg_costs_fun(vars, refs, weights))
-    tracking_cost = all_reg_costs['tracking_cost']
-
-    tracking_fun = cas.Function('tracking_fun', [variables, P], [tracking_cost])
-
-    return tracking_fun
-
 
 
 def find_int_weights(nlp_options):
@@ -263,7 +247,7 @@ def find_int_weights(nlp_options):
     nk = nlp_options['n_k']
     d = nlp_options['collocation']['d']
     scheme = nlp_options['collocation']['scheme']
-    Collocation = collocation.Collocation(nk,d,scheme)
+    Collocation = collocation.Collocation(nk, d, scheme)
     int_weights = Collocation.quad_weights
 
     return int_weights
@@ -462,10 +446,14 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
 
 def get_component_cost_function(component_costs, V, P):
 
+    ccc = component_costs.cat
+
     component_cost_fun = {}
 
-    for name in list(component_costs.keys()):
-        component_cost_fun[name + '_fun'] = cas.Function(name + '_fun', [V, P], [component_costs[name]])
+    for idx in range(ccc.shape[0]):
+        local_expr = ccc[idx]
+        local_name = component_costs.keys()[idx]
+        component_cost_fun[local_name + '_fun'] = cas.Function(local_name + '_fun', [V, P], [local_expr])
 
     return component_cost_fun
 
@@ -491,7 +479,13 @@ def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xd
 
 def make_cost_function(V, P, component_costs):
 
-    f = cas.sum1(component_costs.cat)
+    ccc = component_costs.cat
+
+    f = 0.
+    for idx in range(ccc.shape[0]):
+        f += ccc[idx]
+
+    # f = cas.sum1(component_costs.cat)
     f_fun = cas.Function('f', [V, P], [f])
 
     return f_fun

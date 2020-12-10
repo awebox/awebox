@@ -35,7 +35,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.ocp.collocation as collocation
 
 
-def setup_nlp_v(nlp_numerics_options, model, Collocation):
+
+def setup_nlp_v(nlp_numerics_options, model, Collocation=None):
 
     # extract necessary inputs
     variables_dict = model.variables_dict
@@ -72,6 +73,10 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation):
                     entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
 
         # add collocation node variables
+        if Collocation is None:
+            message = 'a None instance of Collocation was passed to the NLP variable structure generator'
+            raise Exception(message)
+
         d = nlp_numerics_options['collocation']['d'] # interpolating polynomial order
         coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_numerics_options['collocation']['u_param'])
         entry_tuple += (cas.entry('coll_var', struct = coll_var, repeat= [nk,d]),)
@@ -81,10 +86,6 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation):
         entry_tuple += (
             cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
         )
-
-        # add slack variables for inequalities
-        if nlp_numerics_options['slack_constraints'] == True and model.constraints_dict['inequality']:
-            entry_tuple += (cas.entry('us',  repeat = [nk],   struct = model.constraints_dict['inequality']),)
 
         # multiple shooting: add algebraic variables at interval if lifted
         if nlp_numerics_options['lift_xddot']:
@@ -97,11 +98,12 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation):
                 entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
 
     # add global entries
-    entry_list = [entry_tuple]
-    entry_list += [
+    # when the global variables are before the discretized variables, it leads to prettier kkt matrix spy plots
+    entry_list = [
         cas.entry('theta', struct = theta),
         cas.entry('phi',   struct = model.parameters_dict['phi']),
-        cas.entry('xi',    struct = get_xi_struct())
+        cas.entry('xi',    struct = get_xi_struct()),
+        entry_tuple
     ]
 
     # generate structure
