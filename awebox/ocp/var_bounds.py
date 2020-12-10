@@ -90,20 +90,17 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
-<<<<<<< HEAD
     # drag-mode phase fixing: fix y-speed of first system node
     if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (nlp_options['system_type'] == 'drag_mode'):
         vars_lb[var_type, 0, name, 1] = 0.0
         vars_ub[var_type, 0, name, 1] = 0.0
 
     # lift-mode phase fixing
-=======
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
     in_out_phase = (kdx < switch_kdx)
 
     n_k = nlp_options['n_k']
 
->>>>>>> develop
     if name == 'dl_t' and nlp_options['phase_fix']:
 
         if (var_type == 'xd') and (not coll_flag):
@@ -117,17 +114,8 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
             else:
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = 0.0
-<<<<<<< HEAD
-            else:
-                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
-
-    # fix smallest and largest tether length value
-    if name == 'l_t' and nlp_options['pumping_range']:
-=======
         else:
             32. # do nothing
->>>>>>> develop
 
     pumping_range = nlp_options['pumping_range']
     if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
