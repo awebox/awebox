@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -39,6 +39,8 @@ import copy
 import casadi as cas
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+
 
 def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
@@ -95,7 +97,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     for variable_type in set(model.variables.keys()) - set(['xddot']):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
-            var_name = struct_op.get_node_variable_name(name)
+            var_name, _ = struct_op.split_name_and_node_identifier(name)
 
             if var_name[0] == 'w':
                 # then, this is a vortex wake variable
@@ -188,24 +190,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
-    # set state bounds
-    if (options['initialization']['type'] == 'power_cycle' and options['initialization']['system_type'] == 'lift_mode') \
-        or (options['initialization']['type'] == 'tracking'):
-        if 'ddl_t' in list(model.variables_dict['u'].keys()):
-            if 'u' in V_init.keys():
-                V_bounds['lb']['u', :, 'ddl_t'] = 0.
-                V_bounds['ub']['u', :, 'ddl_t'] = 0.
-            else:
-                V_bounds['lb']['coll_var', :, :, 'u', 'ddl_t'] = 0.
-                V_bounds['ub']['coll_var', :, :, 'u', 'ddl_t'] = 0.
-        elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-            if 'u' in V_init.keys():
-                V_bounds['lb']['u', :, 'dddl_t'] = 0.
-                V_bounds['ub']['u', :, 'dddl_t'] = 0.
-            else:
-                V_bounds['lb']['coll_var', :, :, 'u', 'dddl_t'] = 0.
-                V_bounds['ub']['coll_var', :, :, 'u', 'dddl_t'] = 0.
-
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta','t_f'].shape[0] > 1:
         V_bounds['lb']['xd',:,'dl_t'] = model.variable_bounds['xd']['dl_t']['lb']
@@ -234,6 +218,8 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_target'] = options['mu_target']
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
+
+    opts['record_time'] = 1
 
     if awelogger.logger.getEffectiveLevel() > 10:
         opts['ipopt.print_level'] = 0

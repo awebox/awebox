@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -33,7 +33,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
+import awebox.tools.print_operations as print_op
 
 def get_naca_airfoil_coordinates(s, m, p, t):
 
@@ -596,7 +596,7 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
             temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name])) * vortex_tools.get_position_scale(plot_dict['options']['model'])
+            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 
@@ -641,12 +641,16 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
             p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
                     linestyle= '--', color = p[-1].get_color() )
 
         else:
             p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
                     linestyle =  '--', color = p[-1].get_color())
@@ -709,10 +713,11 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['architecture'] = model.architecture
-    plot_dict['constraints_dict'] = struct_op.strip_of_contents(model.constraints_dict)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
+    plot_dict['variable_bounds'] = model.variable_bounds
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
@@ -732,20 +737,13 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     if N is not None:
         cosmetics['interpolation']['N'] = int(N)
 
-    # get new scaling input
-    variables = plot_dict['variables']
-    scaling = plot_dict['scaling']
-    n_k = plot_dict['n_k']
-    if plot_dict['discretization'] == 'direct_collocation':
-        d = plot_dict['d']
-    else:
-        d = None
-
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    plot_dict['V_plot'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_plot)
-    plot_dict['V_ref'] = struct_op.scaled_to_si(variables, scaling, n_k, d, V_ref)
+    scaling = plot_dict['scaling']
+    plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
+    plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+
     # get new name
     plot_dict['name'] = name
 
@@ -1004,6 +1002,7 @@ def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
     # execute function from dict
     if type(additional_args) == dict:
         plot_logic_dict[flag][0](*standard_args, **additional_args)
+
     elif additional_args is None:
         plot_logic_dict[flag][0](*standard_args)
     else:
@@ -1127,3 +1126,20 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
 
         var_slice = local_dict(collected_vals)
         return var_slice
+
+def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
+
+    bounds = plot_dict['variable_bounds'][var_type][name]
+    scaling = plot_dict['scaling'][var_type][name]
+    lb = bounds['lb']
+    if type(lb) != float:
+        lb = lb[jdx]
+    ub = bounds['ub']
+    if type(ub) != float:
+        ub = ub[jdx]
+    if lb > -np.inf:
+        plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+    if ub < np.inf:
+        plt.plot(tgrid_ip, [ub*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+
+    return None

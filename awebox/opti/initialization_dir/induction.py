@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -38,6 +38,9 @@ import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_dir.tools as tools_init
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
+import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
@@ -81,6 +84,38 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
 
     return V_init
 
+
+def set_wu_ind(init_options, nlp, model, V_init):
+
+    n_k = nlp.n_k
+    d = nlp.d
+    wake_nodes = init_options['aero']['vortex']['wake_nodes']
+    rings = wake_nodes - 1
+
+    for kdx in range(n_k):
+        for ddx in range(d):
+            # remember that V_init is in si coords, ie. not yet scaled
+            variables_si = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx)
+            filament_list = vortex_filament_list.get_list(init_options, variables_si, model.architecture)
+            filaments = filament_list.shape[1]
+
+            for kite_obs in model.architecture.kite_nodes:
+                u_ind_kite = vortex_flow.get_induced_velocity_at_kite(init_options, filament_list, variables_si, model.architecture,
+                                                               kite_obs)
+                ind_name = 'wu_ind_' + str(kite_obs)
+                V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
+
+                for fdx in range(filaments):
+                    # biot-savart of filament induction
+                    filament = filament_list[:, fdx]
+                    u_ind_fil = vortex_flow.get_induced_velocity_at_kite(init_options, filament, variables_si, model.architecture,
+                                                               kite_obs)
+
+                    ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+                    V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_fil
+
+
+    return V_init
 
 def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
     n_k = nlp.n_k
@@ -223,24 +258,17 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
     time_convected = t_local - t_shed
     q_convected = q_tip + U_ref * time_convected
 
-    wx_scale = init_options['induction']['vortex_position_scale']
-    q_rescaled = q_convected / wx_scale
-
-    return q_rescaled
+    return q_convected
 
 def guess_vortex_node_velocity(init_options):
     U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
 
-    dwx_scale = init_options['induction']['vortex_velocity_scale']
-    U_rescaled = U_ref / dwx_scale
-
-    return U_rescaled
+    return U_ref
 
 
 
 def guess_wake_gamma_val(init_options):
-    # already scaled!
-    gamma = cas.DM(1.)
+    gamma = cas.DM(0.) #init_options['induction']['vortex_gamma_scale']
 
     return gamma
 
@@ -269,7 +297,7 @@ def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
 
     var_type = 'xd'
     for name in struct_op.subkeys(model.variables, var_type):
-        name_stripped = struct_op.get_node_variable_name(name)
+        name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if 'psi' in name_stripped:
             V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
@@ -406,7 +434,7 @@ def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
 
     var_type = 'xl'
     for name in struct_op.subkeys(model.variables, 'xl'):
-        name_stripped = struct_op.get_node_variable_name(name)
+        name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if 'psi' in name_stripped:
             V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)

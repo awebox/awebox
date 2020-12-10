@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -27,10 +27,11 @@ update model that generates the
 cost update and bounds update to be used in the homotopy process
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, alu-fr 2018
-- edited: jochem de schutter, alu-fr 2018-2019
+- edited: jochem de schutter, alu-fr 2018-2020
 '''
 
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options):
 
@@ -80,12 +81,12 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-    if tether_drag_model in set(['single', 'multi']):
-        homotopy_schedule = homotopy_schedule + tether_schedule
-
     make_induction_step = not (induction_model == 'not_in_use')
     if make_induction_step:
         homotopy_schedule = homotopy_schedule + induction_schedule
+
+    if tether_drag_model in set(['single', 'multi']):
+        homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 

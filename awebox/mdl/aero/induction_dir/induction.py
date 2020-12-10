@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -42,65 +42,79 @@ import casadi.tools as cas
 
 ### residuals
 
-def get_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
-    ind_resi = get_induction_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    ind_resi = get_induction_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
 
-def get_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
-    ind_resi = get_induction_final_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+    ind_resi = get_induction_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    spec_resi = get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
-def get_induction_trivial_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_induction_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
     for kite in architecture.kite_nodes:
         ind_val = cas.DM.zeros((3, 1))
-        ind_var = get_kite_induced_velocity_var(variables, wind, kite)
+        ind_var = get_kite_induced_velocity_var(variables_si, wind, kite)
         ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
         resi = cas.vertcat(resi, ind_resi)
 
+    comparison_labels = options['aero']['induction']['comparison_labels']
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        vortex_resi = vortex.get_induction_trivial_residual(options, wind, variables_si, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
+
+
     return resi
 
-def get_induction_final_residual(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_induction_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
     for kite in architecture.kite_nodes:
-        ind_val = get_kite_induced_velocity_val(options, wind, variables, kite, architecture, parameters, outputs)
-        ind_var = get_kite_induced_velocity_var(variables, wind, kite)
+        ind_val = get_kite_induced_velocity_val(options, wind, variables_si, kite, architecture, parameters, outputs)
+        ind_var = get_kite_induced_velocity_var(variables_si, wind, kite)
         ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
         resi = cas.vertcat(resi, ind_resi)
 
+    comparison_labels = options['aero']['induction']['comparison_labels']
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        vortex_resi = vortex.get_induction_final_residual(options, wind, variables_si, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
+
+
     return resi
 
-def get_specific_residuals(options, atmos, wind, variables, parameters, outputs, architecture):
+def get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        actuator_resi = actuator.get_residual(options, atmos, wind, variables, parameters, outputs,
+        actuator_resi = actuator.get_residual(options, atmos, wind, variables_si, parameters, outputs,
                                               architecture)
         resi = cas.vertcat(resi, actuator_resi)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        vortex_resi = vortex.get_residual(options, atmos, wind, variables, parameters, outputs, architecture)
+        vortex_resi = vortex.get_residual(options, wind, variables_si, outputs, architecture)
         resi = cas.vertcat(resi, vortex_resi)
 
 
@@ -123,9 +137,7 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     if induction_model == 'actuator':
         u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        columnized_list = outputs['vortex']['filament_list']
-        filament_list = vortex_filament_list.decolumnize(model_options, architecture, columnized_list)
-        u_ind_kite = vortex_flow.get_induced_velocity_at_kite(model_options, filament_list, variables, architecture, kite)
+        u_ind_kite = variables['xl']['wu_ind_' + str(kite)]
     elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
         u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
     elif induction_model == 'vortex' and force_zero:
@@ -152,17 +164,17 @@ def get_kite_effective_velocity(model_options, variables, wind, kite, architectu
 
 #### outputs
 
-def collect_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
+def collect_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables, outputs, parameters, architecture)
-        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables, architecture)
+        outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
+        outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables_si, architecture)
 
     return outputs

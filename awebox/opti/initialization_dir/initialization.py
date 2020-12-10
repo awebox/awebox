@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -45,7 +45,7 @@ def get_initial_guess(nlp, model, formulation, init_options):
 
     if True in np.isnan(np.array(V_init_si.cat)):
         raise ValueError('NaN detected in V_init_si')
-    V_init = struct_op.si_to_scaled(model, V_init_si)
+    V_init = struct_op.si_to_scaled(V_init_si, model.scaling)
 
     return V_init
 

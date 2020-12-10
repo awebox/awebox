@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -36,6 +36,7 @@ import scipy.sparse as sps
 import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.vector_operations as vect_op
 
 def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
     phf = get_loyd_phf(CL, CD, elevation_angle)
@@ -43,8 +44,17 @@ def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
     return p_loyd
 
 def get_loyd_phf(CL, CD, elevation_angle=0.):
-    epsilon = 1.e-8
-    CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
+    epsilon = 1.e-4 #8
+    CR = CL * vect_op.smooth_sqrt(1. + (CD / (CL + epsilon))**2.)
 
     phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
     return phf
+
+
+def determine_if_periodic(options):
+
+    enforce_periodicity = bool(True)
+    if options['trajectory']['type'] in ['transition', 'compromised_landing', 'nominal_landing', 'launch','mpc']:
+         enforce_periodicity = bool(False)
+
+    return enforce_periodicity

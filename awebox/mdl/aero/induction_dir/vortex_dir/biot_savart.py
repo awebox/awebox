@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -92,40 +92,70 @@ def filament_normal(seg_data, epsilon=1.e-2):
 def filament(seg_data, epsilon=1.e-2):
 
     try:
-        point_obs = seg_data[:3]
-        point_1 = seg_data[3:6]
-        point_2 = seg_data[6:9]
-        Gamma = seg_data[9]
-
-        vec_1 = point_obs - point_1
-        vec_2 = point_obs - point_2
-        vec_0 = point_2 - point_1
-
-        r1 = vect_op.smooth_norm(vec_1)
-        r2 = vect_op.smooth_norm(vec_2)
-        r0 = vect_op.smooth_norm(vec_0)
-
-        factor = Gamma / (4. * np.pi)
-
-        num = (r1 + r2)
-
-        den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-        den_reg = (epsilon * r0) ** 2.
-        den = den_ori + den_reg
-
-        dir = vect_op.cross(vec_1, vec_2)
-        scale = factor * num / den
-
-        sol = dir * scale
+        num = get_numerator(seg_data)
+        den = get_denominator(seg_data, epsilon)
+        sol = num / den
     except:
-        message = 'something went wrong while computing the filament biot-savart induction. proceed with zero induced velocity from this filament.'
+        message = 'something went wrong while computing the filament biot-savart induction.'
         awelogger.logger.error(message)
         raise Exception(message)
 
     return sol
 
+def filament_resi(u_fil_var, seg_data, epsilon=1.e-2):
+
+    try:
+        num = get_numerator(seg_data)
+        den = get_denominator(seg_data, epsilon)
+        resi = (u_fil_var * den - num)
+    except:
+        message = 'something went wrong while computing the filament biot-savart residual.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return resi
 
 
+def get_numerator(seg_data):
+
+    point_obs = seg_data[:3]
+    point_1 = seg_data[3:6]
+    point_2 = seg_data[6:9]
+    Gamma = seg_data[9]
+
+    vec_1 = point_obs - point_1
+    vec_2 = point_obs - point_2
+    vec_0 = point_2 - point_1
+
+    r1 = vect_op.smooth_norm(vec_1)
+    r2 = vect_op.smooth_norm(vec_2)
+
+    factor = Gamma / (4. * np.pi)
+
+    scale = (r1 + r2) * factor
+    dir = vect_op.cross(vec_1, vec_2)
+    num = dir * scale
+
+    return num
+
+def get_denominator(seg_data, epsilon):
+    point_obs = seg_data[:3]
+    point_1 = seg_data[3:6]
+    point_2 = seg_data[6:9]
+
+    vec_1 = point_obs - point_1
+    vec_2 = point_obs - point_2
+    vec_0 = point_2 - point_1
+
+    r1 = vect_op.smooth_norm(vec_1)
+    r2 = vect_op.smooth_norm(vec_2)
+    r0 = vect_op.smooth_norm(vec_0)
+
+    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
+    den_reg = (epsilon * r0) ** 2.
+    den = den_ori + den_reg
+
+    return den
 
 def test():
 

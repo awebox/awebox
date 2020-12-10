@@ -1,7 +1,7 @@
-#### frequently asked questions, relating to the awebox.
+# `awebox` FAQ
 
 
-1. how do I warmstart from a previous run?
+### How do I warmstart from a previous run?
 
 ---> make sure that your previous run was saved in .dict format as "trialname.dict"
 in your run file
@@ -19,12 +19,12 @@ options['solver']['mu_hippo'] = 1.e-6
 trial.optimize(warmstart_file = warmstart_file)
 
 
-2. how do I access a part of the solved optimization variables, such as the system parameters theta?
+### How do I access a part of the solved optimization variables, such as the system parameters theta?
 
 theta = trial.optimization.V_final['theta']
 
 
-3. how do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
+### How do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
 
     plot_dict = trial.visualization.plot_dict
     zeta = plot_dict['power_and_performance']['zeta']
@@ -32,14 +32,16 @@ theta = trial.optimization.V_final['theta']
 
 
 
-4. how do I get the IPOPT verbose output to print during the optimization process?
+### How do I get the IPOPT verbose output to print during the optimization process?
 
 include the following into the preamble of the run file: 
+
+```
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
+```
 
-
-5. the sub-problems of the homotopy converge nicely until we get to the power problems. what should I do?
+### The sub-problems of the homotopy converge nicely until we get to the power problems. what should I do?
 
 you may need to re-tune the scaling values for the tether tensions, the energy, and the power. To do this: 
 ---> first, cap the number of iterations at a small value:
@@ -70,24 +72,24 @@ options['solver']['cost_overwrite']['power'][1] = power_cost
 options['solver']['max_iter'] = 2e3
 
 
-6. what does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
+### What does it mean when I get an error message: "Process finished with exit code 137 (interrupted by signal 9: SIGKILL)"
 
 this likely means that the memory useage was too high. maybe try breaking your sweeps up into smaller groups.
 
 
-7. how do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'n_hat_slack1'...)
+### How do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'n_hat_slack1'...)
 
  V_final = trial.optimization.V_final
  V_final['coll_var', :, :, 'xl', 'n_hat_slack1']
 
 
-8. how do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
+### How do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
 
 plot_dict = trial.visualization.plot_dict
 b_ref = plot_dict['options']['params']['geometry']['b_ref']
 
 
-9. how do I get an animated output of the trajectory ("monitor plot")?
+### How do I get an animated output of the trajectory ("monitor plot")?
 
 ---> make sure that you have the 'ffmpeg' movie writer installed on your computer
 
@@ -100,7 +102,7 @@ trial.plot(plot_list)
 ---> be aware that creating the animation is a fairly slow process.
 
 
-10. when I try to run a script that imports the awebox (like one of the included examples), I get the following error:
+### When I try to run a script that imports the awebox (like one of the included examples), I get the following error:
 
 user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
 Traceback (most recent call last):
@@ -121,7 +123,7 @@ user@computer:~$ export PYTHONPATH="${PYTHONPATH}:/home/user/path_to_the_awebox/
 
 
 
-11. when I try to run a script that uses the awebox (like one of the included examples), I get the following error: 
+### When I try to run a script that uses the awebox (like one of the included examples), I get the following error: 
 
 user@computer:~/awebox/examples$ python3 single_kite_lift_mode_simple.py 
 Traceback (most recent call last):
@@ -144,7 +146,7 @@ what should I do?
 user@computer:~$ pip3 install casadi
 
 
-12. when I try to run a script that uses the awebox (like one of the included examples), I get the following output: 
+### When I try to run a script that uses the awebox (like one of the included examples), I get the following output: 
 
 INFO:	Initial solution...
 INFO:	
@@ -163,12 +165,12 @@ if, when you run the script, the optimization itself succeeds, then you should f
 https://github.com/casadi/casadi/wiki/Obtaining-HSL
 
 
-13. on the Obtaining-HSL page install instructions, they keep referring to a path (where_you_want_to_install) and (hsl_install_directory). if I don't use the --prefix flag, where does HSL install normally? 
+### On the Obtaining-HSL page install instructions, they keep referring to a path (where_you_want_to_install) and (hsl_install_directory). if I don't use the --prefix flag, where does HSL install normally? 
 
 to /usr/local/lib
 
 
-14. when I try to run a script that uses the awebox (like one of the included examples), especially with the linear solver MA57, I get the following output:
+### When I try to run a script that uses the awebox with the linear solver MA57, I get the following output:
 
 INFO:	Initial solution...
 INFO:
@@ -189,12 +191,12 @@ what should I do?
 
 ----> you probably don't have the HSL/COIN solvers installed correctly on your computer. In particular, you should return to the steps of "make"ing the hsl solvers, paying special attention to the flags.
 
-15. Where on earth are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
+### Where are the performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
 
 Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.
 
 
-16. My awebox script gets "Killed" unexpectedly, with output like: 
+### My awebox script gets "Killed" unexpectedly, with output like: 
 
 INFO:	Building optimization...
 INFO:	initialize callback...
@@ -206,7 +208,7 @@ What happened?
 ----> You may not have enough memory to construct the desired OCP. Can you make your problem smaller somehow? 
 
 
-17. I keep getting a warning message, even though the IPOPT output says that my optimization solved.
+### I keep getting a warning message, even though the IPOPT output says that my optimization solved.
 
 ...
 INFO:	solver return status..........: Solve_Succeeded    
@@ -227,12 +229,16 @@ Please increase this number using the options inputs:
 
 
 
-18. Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
+### Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
 
 ---> the 'SI' version.
 
+---> if you want the scaled version, you can instead query:
+sol = trial.optimization.solution
+V_solution_scaled = trial.nlp.V(sol['x'])
 
-19. What are the units of the power output? (aka. the given 'SI' unit of power...)
+
+### What are the units of the power output? (aka. the given 'SI' unit of power...)
 
 The power is defined according to:
     segment tension = (lambda_multiplier) * (segment length)
@@ -245,7 +251,7 @@ which means that the units of power are:
 ---> However, if you use sweep.plot('comp_stats'), the plotted "power_output_kw" has units of [kW].
 
 
-20. Is there a version of the HSL solver "xxx" binary/dynamic-link-library/etc. available for operating system "yyy"?
+### Is there a version of the HSL solver "xxx" binary/dynamic-link-library/etc. available for operating system "yyy"?
 
 We're not sure... But, if it exists, you will be able to find it at:
 http://www.hsl.rl.ac.uk/ipopt/
@@ -256,7 +262,7 @@ http://www.hsl.rl.ac.uk/contact.html
 Good luck!
 
 
-21. How do I know if the trials in my sweep, actually converged?
+### How do I know if the trials in my sweep, actually converged?
 
 ----> Include the flag "comp_convergence" into the plot_list.
 ----> A converged trial will have a "return_status_numeric" value of 1 or 2
@@ -264,7 +270,7 @@ Good luck!
     sweep.plot(['comp_convergence'])
 
 
-22. How do I know if any particular trial, actually converged?
+### How do I know if any particular trial, actually converged?
 
 ----> You can check the return_status_numeric of the trial, with the knowledge that
 ----> a converged trial will have a "return_status_numeric" value of 1 or 2
@@ -273,7 +279,7 @@ Good luck!
 
 
 
-23. I want to run an axi-symmetric simulation (where the wind axis is parallel to the main tether). What should I do?
+### I want to run an axi-symmetric simulation (where the wind axis is parallel to the main tether). What should I do?
 
 You will need to remove the ground constraints, remove gravity, and make the wind and atmosphere uniform. You can do this with:
 
@@ -289,7 +295,7 @@ It's also helpful to initialize according to the axi-symmetry that you're expect
 
 
 
-24. How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
+### How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
 
 P_loc = trial.optimization.p_fix_num
 V_loc = trial.optimization.V_final
@@ -298,7 +304,7 @@ for cost in component_cost_fun.keys():
     val = component_cost_fun[cost](V_loc, P_loc)
     print(cost + ': ' + str(val))
 
-25. How do I test if I've installed the COIN/HSL linear solvers correctly?
+### How do I test if I've installed the COIN/HSL linear solvers correctly?
 
 ----> We suggest running the following tests:
 --------> Does the casadi example NLP rocket solve in its given form ('mumps' linear solver)?

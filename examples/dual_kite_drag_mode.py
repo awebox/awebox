@@ -30,7 +30,6 @@ options['user_options']['tether_drag_model'] = 'split'
 # bounds on tether length
 options['model']['system_bounds']['xd']['l_t'] = [1.0e-2, 1.0e3]
 
-
 # choose coarser grid (single-loop trajectory)
 # options['nlp']['n_k'] = 20
 

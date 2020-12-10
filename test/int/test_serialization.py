@@ -11,7 +11,6 @@ import logging
 import pickle
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
-
 def test_trial_serial():
 
     # set-up trial options

@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -128,12 +128,24 @@ def __interpolate_specific_variable(t_cont, tgrid_s_curve, interpolation_variabl
     poly_coeff = interpolation_parameters['polynomial_coeff']
 
     if interpolation_scheme == 's_curve':
-        interpolation_variables[variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[
-            variable_name + node_str], tgrid_s_curve)
-        interpolation_variables['d' + variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[
-            variable_name + node_str], tgrid_s_curve, derivative_order=1)
-        interpolation_variables['dd' + variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[
-            variable_name + node_str], tgrid_s_curve, derivative_order=2)
+
+        # todo: this is a really hackish method of "fixing" this problem, but i cannot figure out what is going on.
+        #  can someone would actually uses this modular initialization pick this up?
+
+        try:
+            interpolation_variables[variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[variable_name + node_str], tgrid_s_curve)
+        except:
+            interpolation_variables[variable_name + node_str] = interpolation_parameters['configurations']['conf_0'][variable_name + node_str]
+
+        try:
+            interpolation_variables['d' + variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[variable_name + node_str], tgrid_s_curve, derivative_order=1)
+        except:
+            interpolation_variables['d' + variable_name + node_str] = interpolation_parameters['configurations']['conf_0']['d' + variable_name + node_str]
+
+        try:
+            interpolation_variables['dd' + variable_name + node_str] = __eval_piecewise_polynomial(t_cont, poly_coeff[variable_name + node_str], tgrid_s_curve, derivative_order=2)
+        except:
+            interpolation_variables['dd' + variable_name + node_str] = interpolation_parameters['configurations']['conf_0']['dd' + variable_name + node_str]
 
     elif interpolation_scheme == 'poly':
         interpolation_variables[variable_name + node_str] = __eval_polynomial(t_cont, poly_coeff[

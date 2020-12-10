@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -60,6 +60,7 @@ def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
     return u_ind
 
 
+
 def get_induction_factor_at_kite(options, filament_list, wind, variables, parameters, architecture, kite_obs, n_hat=vect_op.xhat()):
 
     x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
@@ -77,6 +78,7 @@ def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_ha
     u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
     a_calc = -1. * u_ind / u_zero
     return a_calc
+
 
 
 def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=False):

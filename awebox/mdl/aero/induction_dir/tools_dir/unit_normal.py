@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -67,8 +67,10 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
         n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
 
     else:
-        awelogger.logger.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
+        message = 'kite-plane normal-vector model-type not supported. Consider checking the number of kites per layer.'
+        awelogger.logger.error(message)
         n_vec = vect_op.xhat_np()
+        raise Exception(message)
 
     return n_vec
 

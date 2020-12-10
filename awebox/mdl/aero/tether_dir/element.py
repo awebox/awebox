@@ -4,7 +4,7 @@
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
 #    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -105,10 +105,16 @@ def get_element_diameter(variables, upper_node, architecture):
 
     parent_map = architecture.parent_map
     lower_node = parent_map[upper_node]
-    if lower_node == 0:
-        diam = variables['theta']['diam_s']
 
+    main_tether = (lower_node == 0)
+    secondary_tether = (upper_node in architecture.kite_nodes)
+
+    if main_tether:
+        diam = variables['theta']['diam_t']
+    elif secondary_tether:
+        diam = variables['theta']['diam_s']
     else:
+        # todo: add intermediate tether diameter
         diam = variables['theta']['diam_t']
 
     return diam

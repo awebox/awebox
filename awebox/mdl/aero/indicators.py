@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -124,6 +124,8 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     aero_coefficients = base_aerodynamic_quantities['aero_coefficients']
     f_aero_earth = base_aerodynamic_quantities['f_aero_earth']
     f_aero_body = base_aerodynamic_quantities['f_aero_body']
+
+
     f_aero_control = base_aerodynamic_quantities['f_aero_control']
     f_aero_wind = base_aerodynamic_quantities['f_aero_wind']
     f_lift_earth = base_aerodynamic_quantities['f_lift_earth']

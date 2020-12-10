@@ -33,7 +33,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.tools.print_operations as print_op
 
-def get_convection_residual(options, wind, variables, architecture):
+def get_convection_residual(options, wind, variables_si, architecture):
 
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']
@@ -44,13 +44,13 @@ def get_convection_residual(options, wind, variables, architecture):
         for tip in wingtips:
             for wake_node in range(wake_nodes):
 
-                wx_local = tools.get_wake_node_position_si(options, variables, kite, tip, wake_node)
-                dwx_local = tools.get_wake_node_velocity_si(options, variables, kite, tip, wake_node)
+                wx_local = tools.get_wake_node_position_si(variables_si, kite, tip, wake_node)
+                dwx_local = tools.get_wake_node_velocity_si(variables_si, kite, tip, wake_node)
 
                 altitude = cas.mtimes(wx_local.T, vect_op.zhat())
                 u_infty = wind.get_velocity(altitude)
 
-                resi_local = dwx_local - u_infty
+                resi_local = (dwx_local - u_infty) / wind.get_velocity_ref()
                 resi = cas.vertcat(resi, resi_local)
 
     return resi
