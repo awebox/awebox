@@ -46,65 +46,110 @@ import awebox.tools.performance_operations as perf_op
 from awebox.logger.logger import Logger as awelogger
 
 import copy
-import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs):
 
     awelogger.logger.info('generate constraints...')
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
-    radau_collocation = direct_collocation and (nlp_options['collocation']['scheme'] == 'radau')
-    other_collocation = direct_collocation and (not radau_collocation)
-
     multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
 
     ocp_cstr_list = ocp_constraint.OcpConstraintList()
+    ocp_cstr_entry_list = []
+
+    # model constraints structs
+    mdl_path_constraints = model.constraints_dict['inequality']
+    mdl_dyn_constraints = model.constraints_dict['equality']
+    
+    # get discretization information
+    nk = nlp_options['n_k']
+    
+    # size of algebraic variables on interval nodes
+    nz = 0
+    if nlp_options['lift_xddot']:
+        nz += model.variables['xddot'].shape[0]
+    if nlp_options['lift_xa']:
+        nz += model.variables['xa'].shape[0]
+        if 'xl' in list(model.variables.keys()):
+            nz += model.variables['xl'].shape[0]
 
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
     var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
     init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
     ocp_cstr_list.append(init_cstr)
+    if len(init_cstr.eq_list) != 0:
+        ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.eq_list[0].expr.shape))
+
+    # entry tuple for nested constraints
+    entry_tuple = ()
 
     # add the path constraints.
     if multiple_shooting:
         ms_cstr = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
         ocp_cstr_list.append(ms_cstr)
+        if nz > 0: # if there are any lifted algebraic vars on interval node
+            entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
+        entry_tuple += (cas.entry('path', repeat = [nk], struct = mdl_path_constraints),)
 
-    elif radau_collocation:
+    elif direct_collocation:
         radau_cstr = expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
         ocp_cstr_list.append(radau_cstr)
-
-    elif other_collocation:
-        other_cstr = expand_with_other_collocation()
-        ocp_cstr_list.append(other_cstr)
+        d = nlp_options['collocation']['d']
+        if nz > 0: # if there are any lifted algebraic vars on interval node
+            entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
+        entry_tuple += (
+            cas.entry('path',        repeat = [nk],    struct = mdl_path_constraints),
+            cas.entry('collocation', repeat = [nk, d], struct = mdl_dyn_constraints),
+            )
 
     else:
         message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
         awelogger.logger.error(message)
         raise Exception(message)
 
+    # continuity constraints
+    entry_tuple += (
+        cas.entry('continuity', repeat = [nk], struct = model.variables_dict['xd']),
+    )
+
+    # add stage and continuity constraints to list
+    ocp_cstr_entry_list.append(entry_tuple)
+
     # add terminal constraints
     var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
     var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
     terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
     ocp_cstr_list.append(terminal_cstr)
+    if len(terminal_cstr.eq_list) != 0:
+        ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.eq_list[0].expr.shape))
 
     # add periodic constraints
     periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
     ocp_cstr_list.append(periodic_cstr)
+    if len(periodic_cstr.eq_list) != 0:
+        ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.eq_list[0].expr.shape))
+
+    vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_fixing_cstr)
+    if len(vortex_fixing_cstr.eq_list) != 0:
+        ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.eq_list[0].expr.shape))
+
+    vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
+    ocp_cstr_list.append(vortex_strength_cstr)
+    if len(vortex_strength_cstr.eq_list) != 0:
+        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape =  vortex_strength_cstr.eq_list[0].expr.shape))
 
     if direct_collocation:
         integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
         ocp_cstr_list.append(integral_cstr)
+        if len(integral_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.eq_list[0].expr.shape))
 
-    vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model)
-    ocp_cstr_list.append(vortex_fixing_cstr)
+    # Constraints structure
+    ocp_cstr_struct = cas.struct_symSX(ocp_cstr_entry_list)(ocp_cstr_list.get_expression_list('all'))
 
-    vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
-    ocp_cstr_list.append(vortex_strength_cstr)
-
-    return ocp_cstr_list
+    return ocp_cstr_list, ocp_cstr_struct
 
 
 def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
