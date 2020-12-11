@@ -90,6 +90,12 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
+    # drag-mode phase fixing: fix y-speed of first system node
+    if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (nlp_options['system_type'] == 'drag_mode'):
+        vars_lb[var_type, 0, name, 1] = 0.0
+        vars_ub[var_type, 0, name, 1] = 0.0
+
+    # lift-mode phase fixing
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
     in_out_phase = (kdx < switch_kdx)
 
