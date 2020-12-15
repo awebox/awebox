@@ -168,69 +168,12 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
-def no_available_var_info(variables, var_type):
-    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
-    awelogger.logger.warning(message)
-    return np.zeros(variables[var_type].shape)
-
-
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
-    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
-
-    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
-    scheme = nlp_options['collocation']['scheme']
-
-    radau_collocation = (direct_collocation and scheme == 'radau')
-    other_collocation = (direct_collocation and not scheme == 'radau')
-
-    traj_is_periodic = perf_op.determine_if_periodic(nlp_options)
-    at_control_node = (ddx is None)
-    at_initial = (kdx == 0) and at_control_node
-
-    if radau_collocation:
-
-        if traj_is_periodic and at_initial:
-            return V['coll_var', -1, -1, var_type]
-        elif (not traj_is_periodic) and at_initial:
-
-            # note that this shifting pattern is not strictly true,
-            # but is required to prevent licq errors for simple xl = 0 constraints
-            # at nodes (d+1) and (d) from equivalence
-            return V['coll_var', kdx, 0, var_type]
-
-        elif at_control_node:
-            return V['coll_var', kdx - 1, -1, var_type]
-        else:
-            return V['coll_var', kdx, ddx, var_type]
-
-    elif other_collocation:
-
-        standardly_available = False
-        hopeful_name = '[coll_var,' + str(kdx) + ',' + str(ddx)
-        length_hopeful_name = len(hopeful_name)
-        for label in V.labels():
-            if (label[:length_hopeful_name] == hopeful_name):
-                standardly_available = True
-
-        lifted_alg_variables = (var_type in list(V.keys()))
-
-        if standardly_available:
-            return V['coll_var', kdx, ddx, var_type]
-        elif at_control_node and lifted_alg_variables:
-            return V[var_type, kdx]
-        else:
-            return no_available_var_info(model_variables, var_type)
-
-    elif multiple_shooting:
-        lifted_alg_variables = (var_type in list(V.keys()))
-        if lifted_alg_variables:
-            return V[var_type, kdx]
-        else:
-            return no_available_var_info(model_variables, var_type)
-
+    if (ddx is None):
+        return V[var_type, kdx]
     else:
-        return no_available_var_info(model_variables, var_type)
+        return V['coll_var', kdx, ddx, var_type]
 
 
 def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
@@ -291,13 +234,13 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     else:
         passed_Xdot_is_meaningful = False
 
-
-    if passed_Xdot_is_meaningful and at_control_node:
-        return Xdot['xd', kdx]
-    elif passed_Xdot_is_meaningful and (not at_control_node):
+    if at_control_node:
+        if lifted_derivs:
+            return V[var_type, kdx]
+        elif passed_Xdot_is_meaningful:
+            return Xdot['xd', kdx]
+    elif passed_Xdot_is_meaningful:
         return Xdot['coll_xd', kdx, ddx]
-    elif lifted_derivs:
-        return V[var_type, kdx]
     else:
         return no_available_var_info(model_variables, var_type)
 
@@ -572,7 +515,7 @@ def coll_slice_to_vec(coll_slice):
     coll_list = []
 
     for i in range(len(coll_slice)):
-            coll_list.append(cas.vertcat(*coll_slice[i]))
+        coll_list.append(cas.vertcat(*coll_slice[i]))
 
     coll_vec = cas.vertcat(*coll_list)
 
