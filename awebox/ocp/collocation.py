@@ -306,7 +306,7 @@ class Collocation(object):
         g_continuity = V['xd', kdx + 1] - xf_k
 
         cstr = cstr_op.Constraint(expr=g_continuity,
-                                  name='continuity' + str(kdx),
+                                  name='continuity_{}'.format(kdx),
                                   cstr_type='eq')
 
         return cstr

@@ -164,6 +164,10 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     shooting_vars = struct_op.get_shooting_vars(nlp_options, V, P, Xdot, model)
     shooting_params = struct_op.get_shooting_params(nlp_options, V, P, model)
 
+    # collect collocation variables
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+
     # create maps of relevant functions
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
     mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
@@ -172,35 +176,42 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
     mdl_eq_map_shooting = mdl_eq_fun.map('mdl_eq_map', parallellization, shooting_nodes, [], [])
 
-    # the inequality constraints
+    # evaluate constraint functions
     ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
-    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.numel(), 1)),
-                                   name='path_constraints',
-                                   cstr_type='ineq')
-    cstr_list.append(ineq_cstr)
-
-    # the equality constraints
-    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
-    coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
-
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    eq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_eqs_expr, (ocp_eqs_expr.numel(), 1)),
-                                 name='collocation_constraints',
-                                 cstr_type='eq')
-    cstr_list.append(eq_cstr)
-
     ocp_eqs_shooting_expr = mdl_eq_map_shooting(shooting_vars, shooting_params)
-    expr = cas.reshape(ocp_eqs_shooting_expr, (ocp_eqs_shooting_expr.numel(), 1))
-    eq_cstr_shooting = cstr_op.Constraint(expr = expr,
-                                        name = 'algebraic_constraints',
-                                        cstr_type='eq')
-    cstr_list.append(eq_cstr_shooting)
 
-    # the continuity constraints
+    # sort constraints to obtain desired sparsity structure
+    sorted_cstr = []
     for kdx in range(n_k):
-        # continuity condition between (kdx, -1) and (kdx + 1)
-        continuity_cstr = Collocation.get_continuity_constraint(V, kdx)
-        cstr_list.append(continuity_cstr)
+
+        # algebraic constraints on shooting nodes
+        cstr_list.append(cstr_op.Constraint(
+            expr = ocp_eqs_shooting_expr[:,kdx],
+            name = 'algebraic_{}'.format(kdx),
+            cstr_type = 'eq'
+            )
+        )
+
+        # path constraints on shooting nodes
+        cstr_list.append(cstr_op.Constraint(
+            expr= ocp_ineqs_expr[:,kdx],
+            name='path_{}'.format(kdx),
+            cstr_type='ineq'
+            )
+        )
+
+        # collocation constraints
+        for jdx in range(d):
+            cstr_list.append(cstr_op.Constraint(
+                expr = ocp_eqs_expr[:,kdx*d+jdx],
+                name = 'collocation_{}_{}'.format(kdx,jdx),
+                cstr_type = 'eq'
+                )
+            )
+
+        # continuity constraints
+        cstr_list.append(Collocation.get_continuity_constraint(V, kdx))
 
     return cstr_list
 
