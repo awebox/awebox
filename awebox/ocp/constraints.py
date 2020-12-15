@@ -182,7 +182,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     ocp_eqs_shooting_expr = mdl_eq_map_shooting(shooting_vars, shooting_params)
 
     # sort constraints to obtain desired sparsity structure
-    sorted_cstr = []
     for kdx in range(n_k):
 
         # algebraic constraints on shooting nodes
@@ -230,10 +229,9 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     # algebraic constraints
     z_from_V = []
     for kdx in range(n_k):
+        local_z_from_V = cas.vertcat(V['xddot',kdx], V['xa', kdx])
         if 'xl' in V.keys():
-            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx], V['xl', kdx]])
-        else:
-            local_z_from_V = cas.vertcat([V['xddot', kdx], V['xa', kdx]])
+            local_z_from_V = cas.vertcat(local_z_from_V, V['xl', kdx])
         z_from_V = cas.horzcat(z_from_V, local_z_from_V)
 
     z_at_time_sym = copy.deepcopy(dae.z)
@@ -241,87 +239,36 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
     alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
 
-    alg_expr = alg_map(ms_z0, z_from_V)
-    alg_cstr = cstr_op.Constraint(expr=cas.reshape(alg_expr, (alg_expr.shape[0] * alg_expr.shape[1], 1)),
-                                   name='parallelized_algebraics',
-                                   cstr_type='eq')
-    cstr_list.append(alg_cstr)
-
-    # the inequality constraints
+    # inequality constraints
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
     mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, n_k, [], [])
 
+    # evaluate mapped constraint functions
+    alg_expr = alg_map(ms_z0, z_from_V)
     ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
-    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
-                                   name='parallelized_model_inequalities',
-                                   cstr_type='ineq')
-    cstr_list.append(ineq_cstr)
 
-    # continuity constraints
     for kdx in range(n_k):
-        cont_cstr = Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx)
-        cstr_list.append(cont_cstr)
+
+        # algebraic constraints
+        cstr_list.append(cstr_op.Constraint(
+            expr = alg_expr[:,kdx],
+            name = 'algebraic_{}'.format(kdx),
+            cstr_type = 'eq'
+            )
+        )
+
+        # path constraints
+        cstr_list.append(cstr_op.Constraint(
+            expr = ocp_ineqs_expr[:,kdx],
+            name = 'path_{}'.format(kdx),
+            cstr_type = 'ineq'
+            )
+        )
+
+        # continuity constraints
+        cstr_list.append(Multiple_shooting.get_continuity_constraint(ms_xf, V, kdx))
 
     return cstr_list
-
-
-
-def get_algebraic_constraints(z_at_time, V, kdx):
-
-    cstr_list = ocp_constraint.OcpConstraintList()
-
-    if 'xddot' in list(V.keys()):
-        xddot_at_time = z_at_time['xddot']
-        expr = xddot_at_time - V['xddot', kdx]
-        xddot_cstr = cstr_op.Constraint(expr=expr,
-                                        name='xddot_' + str(kdx),
-                                        cstr_type='eq')
-        cstr_list.append(xddot_cstr)
-
-    if 'xa' in list(V.keys()):
-        xa_at_time = z_at_time['xa']
-        expr = xa_at_time - V['xa',kdx]
-        xa_cstr = cstr_op.Constraint(expr=expr,
-                                     name='xa_' + str(kdx),
-                                     cstr_type='eq')
-        cstr_list.append(xa_cstr)
-
-    if 'xl' in list(V.keys()):
-        xl_at_time = z_at_time['xl']
-        expr = xl_at_time - V['xl', kdx]
-        xl_cstr = cstr_op.Constraint(expr=expr,
-                                     name='xl_' + str(kdx),
-                                     cstr_type='eq')
-        cstr_list.append(xl_cstr)
-
-    return cstr_list
-
-
-def get_inequality_path_constraints(model, V, ms_vars, ms_params, kdx):
-
-    cstr_list = ocp_constraint.OcpConstraintList()
-
-    mdl_cstr_list = model.constraints_list
-    model_variables = model.variables
-    model_parameters = model.parameters
-
-    vars_at_time = ms_vars[:, kdx]
-    params_at_time = ms_params[:, kdx]
-
-    # at each interval node, path constraints should be satisfied
-    for cstr in mdl_cstr_list.get_list('ineq'):
-
-        local_fun = cstr.get_function(model_variables, model_parameters)
-
-        expr = local_fun(vars_at_time, params_at_time)
-        local_cstr = cstr_op.Constraint(expr=expr,
-                                        name=cstr.name + '_' + str(kdx),
-                                        cstr_type=cstr.cstr_type)
-        cstr_list.append(local_cstr)
-
-    return cstr_list
-
-
 
 def get_integral_constraints(integral_list, integral_constants):
 
