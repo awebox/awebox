@@ -72,41 +72,22 @@ class Multiple_shooting(object):
         # implicit values of algebraic variables at interval nodes
         ms_z0 = self.__ms_z0
 
-        # evaluate dynamics and constraint functions on all intervals
-        if options['parallelization']['include']:
+        # use function map for parallellization
+        parallellization = options['parallelization']['type']
+        F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
+        path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
+        outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
 
-            # use function map for parallellization
-            parallellization = options['parallelization']['type']
-            F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
-            outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
+        # integrate
+        ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
+        ms_xf = ms_dynamics['xf']
+        ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
+        ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
+        ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
 
-            # integrate
-            ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
-            ms_xf = ms_dynamics['xf']
-            ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
-            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
-            ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
-
-            # integrate quadrature outputs
-            for i in range(self.__n_k):
-                ms_qf[:,i+1] = ms_qf[:,i+1] + ms_qf[:,i]
-
-        else:
-
-            # initialize function evaluations
-            ms_xf = []
-            ms_qf = np.zeros(self.__dae.dae['quad'].size())
-            ms_constraints = []
-            ms_outputs = []
-
-            # evaluate functions in for loop
-            for i in range(self.__n_k):
-                ms_dynamics = self.__F(x0 = self.__ms_x[:,i], z0 = self.__ms_z[:,i], p = self.__ms_p[:,i])
-                ms_xf = cas.horzcat(ms_xf, ms_dynamics['xf'])
-                ms_qf = cas.horzcat(ms_qf, ms_qf[:,-1]+ms_dynamics['qf'])
-                ms_constraints = cas.horzcat(ms_constraints, model.constraints_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
-                ms_outputs = cas.horzcat(ms_outputs, model.outputs_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
+        # integrate quadrature outputs
+        for i in range(self.__n_k):
+            ms_qf[:,i+1] = ms_qf[:,i+1] + ms_qf[:,i]
 
         # integral outputs and constraints
         Integral_outputs_list = self.__build_integral_outputs(ms_qf, model.integral_outputs)
