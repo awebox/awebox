@@ -112,16 +112,11 @@ class Multiple_shooting(object):
         param_at_time = model.parameters(cas.vertcat(P['theta0'], V['phi']))
         ms_params = cas.repmat(param_at_time, 1, self.__n_k)
 
-        if options['parallelization']['include']:
-            # use function map for rootfinder parallellization
-            G_map = self.__dae.rootfinder.map('G_map', options['parallelization']['type'], self.__n_k, [], [])
-            x_root = []
-            z_root = []
-            p_root = []
-
-        else:
-            # compute implicit vars in for loop
-            z_implicit = []
+        # use function map for rootfinder parallellization
+        G_map = self.__dae.rootfinder.map('G_map', options['parallelization']['type'], self.__n_k, [], [])
+        x_root = []
+        z_root = []
+        p_root = []
 
         # compute explicit values of implicit variables
         ms_vars0 = []
@@ -132,19 +127,14 @@ class Multiple_shooting(object):
             # get dae vars at time
             x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
 
-            if not options['parallelization']['include']:
-                # compute implicit vars in for loop
-                z_at_time = self.__dae.z(self.__dae.rootfinder(z,x,p))
-                z_implicit = cas.horzcat(z_implicit, z_at_time)
-            else:
-                # store vars for parallelization
-                x_root = cas.horzcat(x_root, x)
-                z_root = cas.horzcat(z_root, z)
-                p_root = cas.horzcat(p_root, p)
+ 
+            # store vars for parallelization
+            x_root = cas.horzcat(x_root, x)
+            z_root = cas.horzcat(z_root, z)
+            p_root = cas.horzcat(p_root, p)
 
-        if options['parallelization']['include']:
-            # compute implicit vars in parallel fashion
-            z_implicit = G_map(z_root, x_root, p_root)
+        # compute implicit vars in parallel fashion
+        z_implicit = G_map(z_root, x_root, p_root)
 
         # construct list of all interval variables
         ms_vars = []
