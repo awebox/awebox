@@ -758,7 +758,7 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['xd','theta','phi','xi']):
+            for var_type in set(['xd','theta','phi','xi','xa','xl','xddot']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
 
@@ -771,44 +771,13 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
                     V_init_proposed['u',i] = np.mean(cas.horzcat(*V_coll['coll_var',i,:,'u']))
                     lam_x_proposed['u',i]  = np.mean(cas.horzcat(*lam_x_coll['coll_var',i,:,'u']))
 
-            if 'xddot' in list(V_init_proposed.keys()):
-                V_init_proposed['xddot'] = Xdot_coll['xd']
+            # initialize path constraint multipliers
+            for i in range(n_k):
+                lam_g_proposed['path',i] = lam_g_coll['path',i]
 
-            # initialize slacks
-            if 'us' in list(V_init_proposed.keys()):
-                for i in range(n_k-1):
-                    V_init_proposed['us',i+1] = g_coll['stage_constraints',i,-1,'path_constraints','inequality']
-
-            # initialize algebraic variables on all but first interval node
-            for var_type in set(['xa','xl']):
-                if var_type in list(V_init_proposed.keys()):
-                    for i in range(n_k-1):
-                        V_init_proposed[var_type,i+1] = V_coll['coll_var',i,-1,var_type]
-                        lam_x_proposed[var_type,i+1]  = lam_x_coll['coll_var',i,-1,var_type]
-
-            # initialize path constraint multipliers on all but first interval node
-            for i in range(n_k-1):
-                lam_g_proposed['path_constraints',i+1] = lam_g_coll['stage_constraints',i,-1,'path_constraints']
-
-            # initialize multipliers and alg_vars on first interval depending on periodicity
+            # initialize periodicity multipliers
             if 'periodic' in list(lam_g_coll.keys()) and 'periodic' in list(lam_g_proposed.keys()):
                 lam_g_proposed['periodic'] = lam_g_coll['periodic']
-                lam_g_proposed['path_constraints',0] = lam_g_coll['stage_constraints',-1,-1,'path_constraints']
-                for var_type in set(['xa','xl']):
-                    if var_type in list(V_init_proposed.keys()):
-                        V_init_proposed[var_type,0] = V_coll['coll_var',-1,-1,var_type]
-                        lam_x_proposed[var_type,0]  = lam_x_coll['coll_var',-1,-1,var_type]
-                if 'us' in list(V_init_proposed.keys()):
-                    V_init_proposed['us',0] = g_coll['stage_constraints',-1,-1,'path_constraints']
-
-            else:
-                lam_g_proposed['path_constraints',0] = lam_g_coll['stage_constraints',0,0,'path_constraints']
-                for var_type in set(['xa','xl']):
-                    if var_type in list(V_init_proposed.keys()):
-                        V_init_proposed[var_type,0] = V_coll['coll_var',0,0,var_type]
-                        lam_x_proposed[var_type,0]  = lam_x_coll['coll_var',0,0,var_type]
-                if 'us' in list(V_init_proposed.keys()):
-                    V_init_proposed['us',0] = g_coll['stage_constraints',0,0,'path_constraints']
 
             # initialize continuity multipliers
             lam_g_proposed['continuity'] = lam_g_coll['continuity']
