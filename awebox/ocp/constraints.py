@@ -234,8 +234,8 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
             local_z_from_V = cas.vertcat(local_z_from_V, V['xl', kdx])
         z_from_V = cas.horzcat(z_from_V, local_z_from_V)
 
-    z_at_time_sym = copy.deepcopy(dae.z)
-    z_from_V_sym = copy.deepcopy(dae.z)
+    z_at_time_sym = cas.MX.sym('z_at_time_sym',dae.z.shape)
+    z_from_V_sym =  cas.MX.sym('z_from_V_sym',dae.z.shape)
     alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
     alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
 
