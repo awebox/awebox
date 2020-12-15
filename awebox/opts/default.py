@@ -269,8 +269,6 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
         ('nlp',  'collocation',      None, 'u_param',              'zoh',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
-        ('nlp',  None,               None, 'lift_xddot',           True,                   ('lift xddot values on interval nodes', [True, False]),'x'),
-        ('nlp',  None,               None, 'lift_xa',              True,                   ('lift xa values on interval nodes', [True, False]),'x'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
