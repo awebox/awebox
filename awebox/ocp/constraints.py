@@ -65,13 +65,9 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     nk = nlp_options['n_k']
     
     # size of algebraic variables on interval nodes
-    nz = 0
-    if nlp_options['lift_xddot']:
-        nz += model.variables['xddot'].shape[0]
-    if nlp_options['lift_xa']:
-        nz += model.variables['xa'].shape[0]
-        if 'xl' in list(model.variables.keys()):
-            nz += model.variables['xl'].shape[0]
+    nz = model.variables['xa'].shape[0]
+    if 'xl' in list(model.variables.keys()):
+        nz += model.variables['xl'].shape[0]
 
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
