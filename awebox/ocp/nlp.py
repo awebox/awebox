@@ -213,6 +213,14 @@ class NLP(object):
         awelogger.logger.warning('Cannot set g object.')
 
     @property
+    def g_struct(self):
+        return self.__g_struct
+
+    @g_struct.setter
+    def g_struct(self, value):
+        awelogger.logger.warning('Cannot set g_struct object.')
+
+    @property
     def g_fun(self):
         return self.__g_fun
 
