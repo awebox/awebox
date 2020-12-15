@@ -59,7 +59,8 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         if (var_type == 'xd') and (not var_is_coll_var):
 
             if use_depending_on_periodicity:
-                # apply the bounds at all kdx except the first, because those area already pinned by periodicity
+
+                # apply the bounds at all kdx except the first, because those are already pinned by periodicity
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
@@ -67,16 +68,10 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                                                              var_type, kdx, ddx, name)
 
         elif (var_type in {'xl', 'xa', 'u'}):
-            if (var_type in V.keys()) and (not var_is_coll_var) and use_depending_on_periodicity:
+            if (var_type in V.keys()) and (not var_is_coll_var):
 
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-            elif (not var_type in V.keys()) and (var_is_coll_var) and (ddx == (d -1)):
-                # only apply inequalities at control nodes to prevent LICQ violation when these bounds become active
-
-                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
         elif (var_type == 'theta'):
             vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
