@@ -143,8 +143,8 @@ class Multiple_shooting(object):
         ms_p = []
 
         for kdx in range(self.__n_k):
-            # fill in non-lifted vars
-            var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
+            # fill in non-lifted vars (not applicable)
+            #var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
             # update dae vars at time
             x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
 
