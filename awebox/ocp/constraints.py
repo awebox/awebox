@@ -89,8 +89,8 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         entry_tuple += (cas.entry('path', repeat = [nk], struct = mdl_path_constraints),)
 
     elif direct_collocation:
-        radau_cstr = expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
-        ocp_cstr_list.append(radau_cstr)
+        coll_cstr = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation)
+        ocp_cstr_list.append(coll_cstr)
         d = nlp_options['collocation']['d']
         entry_tuple += (
             cas.entry('path',        repeat = [nk],    struct = mdl_path_constraints),
@@ -146,15 +146,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     return ocp_cstr_list, ocp_cstr_struct
 
 
-def expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation):
-    if nlp_options['parallelization']['include']:
-        cstr_list = expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation)
-    else:
-        cstr_list = expand_with_radau_collocation_in_serial(nlp_options, P, V, Xdot, model, Collocation)
-
-    return cstr_list
-
-def expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Collocation):
+def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
@@ -167,33 +159,42 @@ def expand_with_radau_collocation_in_parallel(nlp_options, P, V, Xdot, model, Co
 
     parallellization = nlp_options['parallelization']['type']
 
-    # the inequality constraints
+    # collect shooting variables
     shooting_nodes = struct_op.count_shooting_nodes(nlp_options)
-
-    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
-
     shooting_vars = struct_op.get_shooting_vars(nlp_options, V, P, Xdot, model)
     shooting_params = struct_op.get_shooting_params(nlp_options, V, P, model)
 
+    # create maps of relevant functions
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+
+    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
+    mdl_eq_map_shooting = mdl_eq_fun.map('mdl_eq_map', parallellization, shooting_nodes, [], [])
+
+    # the inequality constraints
     ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
-    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.shape[0] * ocp_ineqs_expr.shape[1], 1)),
-                                   name='parallelized_model_inequalities',
+    ineq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_ineqs_expr, (ocp_ineqs_expr.numel(), 1)),
+                                   name='path_constraints',
                                    cstr_type='ineq')
     cstr_list.append(ineq_cstr)
 
     # the equality constraints
-    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
-
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    eq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_eqs_expr, (ocp_eqs_expr.shape[0] * ocp_eqs_expr.shape[1], 1)),
-                                 name='parallelized_model_equalities',
+    eq_cstr = cstr_op.Constraint(expr=cas.reshape(ocp_eqs_expr, (ocp_eqs_expr.numel(), 1)),
+                                 name='collocation_constraints',
                                  cstr_type='eq')
     cstr_list.append(eq_cstr)
+
+    ocp_eqs_shooting_expr = mdl_eq_map_shooting(shooting_vars, shooting_params)
+    expr = cas.reshape(ocp_eqs_shooting_expr, (ocp_eqs_shooting_expr.numel(), 1))
+    eq_cstr_shooting = cstr_op.Constraint(expr = expr,
+                                        name = 'algebraic_constraints',
+                                        cstr_type='eq')
+    cstr_list.append(eq_cstr_shooting)
 
     # the continuity constraints
     for kdx in range(n_k):
@@ -303,18 +304,6 @@ def get_equality_radau_constraints(nlp_options, model, Collocation, vars_at_time
         cstr_list.append(local_cstr)
 
     return cstr_list
-
-def expand_with_other_collocation():
-
-    # todo: add this.
-    #  notice, that the logic flow of non-radau collection was *never* actually triggered in previous iterates.
-    #  there would certainly have been an error otherwise, see, for example,
-    #  the inclusion of the un-defined variable ms_z0[:, kdx]
-
-    message = 'OCP discretization with non-Radau collection is not supported at present.'
-    awelogger.logger.error(message)
-    raise Exception(message)
-
 
 def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
 
