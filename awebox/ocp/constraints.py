@@ -79,21 +79,19 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     # entry tuple for nested constraints
     entry_tuple = ()
+    entry_tuple += (cas.entry('dynamics', repeat = [nk], struct = model.variables_dict['xd']),)
+    entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
 
     # add the path constraints.
     if multiple_shooting:
         ms_cstr = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
         ocp_cstr_list.append(ms_cstr)
-        if nz > 0: # if there are any lifted algebraic vars on interval node
-            entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
         entry_tuple += (cas.entry('path', repeat = [nk], struct = mdl_path_constraints),)
 
     elif direct_collocation:
         radau_cstr = expand_with_radau_collocation(nlp_options, P, V, Xdot, model, Collocation)
         ocp_cstr_list.append(radau_cstr)
         d = nlp_options['collocation']['d']
-        if nz > 0: # if there are any lifted algebraic vars on interval node
-            entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
         entry_tuple += (
             cas.entry('path',        repeat = [nk],    struct = mdl_path_constraints),
             cas.entry('collocation', repeat = [nk, d], struct = mdl_dyn_constraints),
