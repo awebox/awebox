@@ -57,7 +57,7 @@ class Multiple_shooting(object):
         return None
 
     def discretize_constraints(self, options, model, formulation, V, P):
-        """Discretize dynamics and path constraints in a (possibly) parallelizable fashion
+        """Discretize dynamics and path constraints in a parallelizable fashion
 
         @param options nlp options
         @param model awebox model
@@ -137,29 +137,29 @@ class Multiple_shooting(object):
         z_implicit = G_map(z_root, x_root, p_root)
 
         # construct list of all interval variables
-        ms_vars = []
-        ms_x = []
-        ms_z = []
-        ms_p = []
+        # ms_vars = []
+        # ms_x = []
+        # ms_z = []
+        # ms_p = []
 
-        for kdx in range(self.__n_k):
-            # fill in non-lifted vars (not applicable)
-            #var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
-            # update dae vars at time
-            x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
+        # for kdx in range(self.__n_k):
+        #     # fill in non-lifted vars (not applicable)
+        #     #var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
+        #     # update dae vars at time
+        #     x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
 
-            # store result
-            ms_vars = cas.horzcat(ms_vars, var_at_time)
-            ms_x = cas.horzcat(ms_x, x)
-            ms_z = cas.horzcat(ms_z, z)
-            ms_p = cas.horzcat(ms_p, p)
+        #     # store result
+        #     ms_vars = cas.horzcat(ms_vars, var_at_time)
+        #     ms_x = cas.horzcat(ms_x, x)
+        #     ms_z = cas.horzcat(ms_z, z)
+        #     ms_p = cas.horzcat(ms_p, p)
 
         self.__ms_params = ms_params
-        self.__ms_vars = ms_vars
-        self.__ms_x = ms_x
-        self.__ms_z = ms_z
+        self.__ms_vars = cas.horzcat(*ms_vars0)
+        self.__ms_x = x_root
+        self.__ms_z = z_root
         self.__ms_z0 = z_implicit
-        self.__ms_p = ms_p
+        self.__ms_p = p_root
 
         return None
 
@@ -226,7 +226,7 @@ class Multiple_shooting(object):
         g_continuity = V['xd', kdx + 1] - ms_xf[:,kdx]
 
         cont_cstr = cstr_op.Constraint(expr=g_continuity,
-                                  name='ms_continuity_' + str(kdx),
+                                  name='continuity_{}'.format(kdx),
                                   cstr_type='eq')
         return cont_cstr
 
