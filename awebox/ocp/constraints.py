@@ -75,7 +75,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
     ocp_cstr_list.append(init_cstr)
     if len(init_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.eq_list[0].expr.shape))
+        ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.get_expression_list('all').shape))
 
     # entry tuple for nested constraints
     entry_tuple = ()
@@ -116,30 +116,30 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
     ocp_cstr_list.append(terminal_cstr)
     if len(terminal_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.eq_list[0].expr.shape))
+        ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.get_expression_list('all').shape))
 
     # add periodic constraints
     periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
     ocp_cstr_list.append(periodic_cstr)
     if len(periodic_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.eq_list[0].expr.shape))
+        ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.get_expression_list('all').shape))
 
     vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model)
     ocp_cstr_list.append(vortex_fixing_cstr)
     if len(vortex_fixing_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.eq_list[0].expr.shape))
+        ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.get_expression_list('all').shape))
 
     vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
     ocp_cstr_list.append(vortex_strength_cstr)
     if len(vortex_strength_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape =  vortex_strength_cstr.eq_list[0].expr.shape))
+        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape =  vortex_strength_cstr.get_expression_list('all').shape))
 
     if direct_collocation:
         integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
         ocp_cstr_list.append(integral_cstr)
         if len(integral_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.eq_list[0].expr.shape))
-
+            ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
+    import ipdb; ipdb.set_trace()
     # Constraints structure
     ocp_cstr_struct = cas.struct_symSX(ocp_cstr_entry_list)(ocp_cstr_list.get_expression_list('all'))
 
