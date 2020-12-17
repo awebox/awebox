@@ -139,7 +139,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(integral_cstr)
         if len(integral_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
-    import ipdb; ipdb.set_trace()
+
     # Constraints structure
     ocp_cstr_struct = cas.struct_symSX(ocp_cstr_entry_list)(ocp_cstr_list.get_expression_list('all'))
 
