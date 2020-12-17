@@ -3,7 +3,7 @@
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 
-- edit: Rachel Leuthold, ALU-FR 2020
+- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020
 """
 
 import collections
@@ -19,6 +19,123 @@ import awebox.tools.print_operations as print_op
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
+def test_singe_kite():
+
+    options_dict = generate_options_dict()
+    trial_name = 'single_kite_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_drag_mode():
+
+    options_dict = generate_options_dict()
+    trial_name = 'drag_mode_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+
+def test_save_trial():
+
+    options_dict = generate_options_dict()
+    trial_name = 'save_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+# def test_multi_tether():
+
+#     options_dict = generate_options_dict()
+#     trial_name = 'multi_tether_trial'
+#     solve_and_check(options_dict[trial_name], trial_name)
+    
+#     return None
+    
+def test_dual_kite():
+
+    options_dict = generate_options_dict()
+    trial_name = 'dual_kite_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_dual_kite_6_dof():
+
+    options_dict = generate_options_dict()
+    trial_name = 'dual_kite_6_dof_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_small_dual_kite():
+
+    options_dict = generate_options_dict()
+    trial_name = 'small_dual_kite_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_actuator_qaxi():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_qaxi_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_actuator_uaxi_options():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_uaxi_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_actuator_qasym():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_qasym_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_actuator_uasym():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_uasym_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_actuator_comparison():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_comparison_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_dual_kite_tracking():
+
+    options_dict = generate_options_dict()
+    trial_name = 'dual_kite_tracking_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+    
+def test_dual_kite_tracking_winch():
+
+    options_dict = generate_options_dict()
+    trial_name = 'dual_kite_tracking_trial_winch'
+    solve_and_check(options_dict[trial_name], trial_name)
+    
+    return None
+
+def test_vortex_trial():
+
+    options_dict = generate_options_dict_for_trials_that_we_dont_expect_to_solve()
+    trial_name = 'vortex_trial'
+    solve_trial(options_dict[trial_name], trial_name)
+
+    return None
 
 def generate_options_dict():
     """
@@ -139,30 +256,6 @@ def generate_options_dict_for_trials_that_we_dont_expect_to_solve():
     options_dict['vortex_trial'] = vortex_options
 
     return options_dict
-
-
-def test_trials():
-    """
-    Test all trials that are defined in options_dict
-    :return: None
-    """
-
-    # generate options_dict
-    options_dict = generate_options_dict()
-
-    # loop over trials
-    for trial_name in list(options_dict.keys()):
-        trial_options = options_dict[trial_name]
-        solve_and_check(trial_options, trial_name)
-
-    options_dict_dont_solve = generate_options_dict_for_trials_that_we_dont_expect_to_solve()
-
-    # loop over trials
-    for trial_name in list(options_dict_dont_solve.keys()):
-        trial_options = options_dict_dont_solve[trial_name]
-        solve_trial(trial_options, trial_name)
-
-    return None
 
 def solve_and_check(trial_options, trial_name):
     """
