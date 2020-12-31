@@ -192,7 +192,7 @@ def spy(matrix, tol=0.1, color=True, title=''):
     markersize = (1./float(elements)) * 500.
 
     if color:
-        matrix_dense = np.abs(matrix.todense())
+        matrix_dense = matrix.todense()
         plt.imshow(matrix_dense, interpolation='none', cmap='binary')
         plt.colorbar()
     else:

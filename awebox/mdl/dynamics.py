@@ -88,13 +88,15 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs)
     cstr_list.append(lagr_dyn_cstr)
 
-    # enforce lifted aerodynamic force
-    aero_force_cstr = kite_aero.get_force_cstr(options, system_variables['SI'], atmos, wind, architecture, parameters)
-    cstr_list.append(aero_force_cstr)
+    # enforce lifted aerodynamic force <-- this must happen after lagr_dyn.get_dynamics, which determines the kite indicators
+    if options['aero']['lift_aero_force']:
+        aero_force_cstr = kite_aero.get_force_cstr(options, system_variables['SI'], atmos, wind, architecture, parameters, outputs)
+        cstr_list.append(aero_force_cstr)
 
     # enforce lifted tether force
-    tether_force_cstr = tether_aero.get_tether_cstr(options, system_variables['SI'], architecture, parameters, outputs)
-    cstr_list.append(tether_force_cstr)
+    if options['tether']['lift_tether_force']:
+        tether_force_cstr = tether_aero.get_tether_cstr(options, system_variables['SI'], architecture, outputs)
+        cstr_list.append(tether_force_cstr)
 
     # induction constraint
     induction_cstr = get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)

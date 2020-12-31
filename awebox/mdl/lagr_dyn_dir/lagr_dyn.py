@@ -89,7 +89,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # scaling
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, system_variables['SI'], parameters)
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
-    forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max']
+    forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max'] * 10.
+    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
 
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,

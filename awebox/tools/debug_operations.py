@@ -32,10 +32,13 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import matplotlib.pylab as plt
 import numpy as np
+import numpy.ma as ma
 import scipy.linalg as scila
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -54,10 +57,14 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     reduced_hessian = get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval)
 
+    identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+    print_op.warn_about_temporary_funcationality_removal(location='debug_op')
+
     if health_solver_options['spy_matrices']:
-        vect_op.spy(kkt_matrix, title='KKT matrix')
-        vect_op.spy(lagr_hessian_eval, title='Hessian of the Lagrangian')
-        vect_op.spy(cstr_jacobian_eval, title='Jacobian of Active Constraints')
+        vect_op.spy(np.absolute(np.array(kkt_matrix)), title='KKT Matrix')
+        vect_op.spy(np.absolute(np.array(lagr_hessian_eval)), title='Hessian of the Lagrangian')
+        vect_op.spy(np.absolute(np.array(cstr_jacobian_eval)), title='Jacobian of Active Constraints')
+        vect_op.spy(np.absolute(np.array(reduced_hessian)), title='Reduced Hessian')
         plt.show()
 
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
@@ -141,6 +148,9 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
 
         if isinstance(tractability[item], float):
             message = '{:>30}: {:.2e}'.format(item, tractability[item])
+            awelogger.logger.info(message)
+        else:
+            message = '{:>30}: '.format(item) + str(tractability[item])
             awelogger.logger.info(message)
 
     return tractability

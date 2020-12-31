@@ -71,11 +71,9 @@ def get_force_var(variables_si, upper_node, architecture):
     var = variables_si['xl']['f_tether' + name]
     return var
 
-def get_tether_cstr(options, variables_si, architecture, parameters, outputs):
+def distribute_tether_drag_forces(options, variables_si, architecture, outputs):
 
-    # homotopy parameters
-    p_dec = parameters.prefix['phi']
-    
+
     # initialize dictionary
     tether_drag_forces = {}
     for node in range(1, architecture.number_of_nodes):
@@ -84,41 +82,10 @@ def get_tether_cstr(options, variables_si, architecture, parameters, outputs):
 
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
-    
-        multi_upper = outputs['tether_aero']['multi_upper' + str(node)]
-        multi_lower = outputs['tether_aero']['multi_lower' + str(node)]
-        single_upper = outputs['tether_aero']['single_upper' + str(node)]
-        single_lower = outputs['tether_aero']['single_lower' + str(node)]
-        split_upper = outputs['tether_aero']['split_upper' + str(node)]
-        split_lower = outputs['tether_aero']['split_lower' + str(node)]
-        kite_only_upper = outputs['tether_aero']['kite_only_upper' + str(node)]
-        kite_only_lower = outputs['tether_aero']['kite_only_lower' + str(node)]
-    
-        tether_model = options['tether']['tether_drag']['model_type']
-    
-        if tether_model == 'multi':
-            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
-            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
-    
-        elif tether_model == 'single':
-            drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
-            drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
-    
-        elif tether_model == 'split':
-            drag_node = split_upper
-            drag_parent = split_lower
-    
-        elif tether_model == 'kite_only':
-            drag_node = kite_only_upper
-            drag_parent = kite_only_lower
-    
-        elif tether_model == 'not_in_use':
-            drag_parent = cas.DM.zeros((3, 1))
-            drag_node = cas.DM.zeros((3, 1))
-    
-        else:
-            raise ValueError('tether drag model not supported.')
-    
+
+        drag_node = outputs['tether_aero']['homotopy_upper' + str(node)]
+        drag_parent = outputs['tether_aero']['homotopy_lower' + str(node)]
+
         # attribute portion of segment drag to parent
         if node > 1:
             grandparent = architecture.parent_map[parent]
@@ -127,9 +94,15 @@ def get_tether_cstr(options, variables_si, architecture, parameters, outputs):
         # attribute portion of segment drag to node
         tether_drag_forces['f' + str(node) + str(parent)] += drag_node
 
+    return tether_drag_forces
+
+
+def get_tether_cstr(options, variables_si, architecture, outputs):
+
+    tether_drag_forces = distribute_tether_drag_forces(options, variables_si, architecture, outputs)
+
     cstr_list = mdl_constraint.MdlConstraintList()
     for node in range(1, architecture.number_of_nodes):
-
         parent = architecture.parent_map[node]
         f_tether_var = get_force_var(variables_si, node, architecture)
         f_tether_val = tether_drag_forces['f' + str(node) + str(parent)]
@@ -139,18 +112,14 @@ def get_tether_cstr(options, variables_si, architecture, parameters, outputs):
         local_resi = local_resi_unscaled / scale
 
         f_cstr = cstr_op.Constraint(expr=local_resi,
-                                  name='f_tether' + str(node) + str(parent),
-                                  cstr_type='eq')
+                                    name='f_tether' + str(node) + str(parent),
+                                    cstr_type='eq')
         cstr_list.append(f_cstr)
 
     return cstr_list
 
 
-
-
-
-
-def get_force_outputs(model_options, variables, atmos, wind, upper_node, tether_cd_fun, outputs, architecture):
+def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_node, tether_cd_fun, outputs, architecture):
 
     split_distribution_fun = segment.get_segment_half_fun()
     equivalent_distribution_fun = segment.get_segment_equiv_fun()
@@ -182,6 +151,36 @@ def get_force_outputs(model_options, variables, atmos, wind, upper_node, tether_
     outputs['tether_aero']['split_lower' + str(upper_node)] = split_lower
     outputs['tether_aero']['kite_only_upper' + str(upper_node)] = kite_only_upper
     outputs['tether_aero']['kite_only_lower' + str(upper_node)] = kite_only_lower
+
+    # homotopy parameters
+    p_dec = parameters.prefix['phi']
+
+    tether_model = model_options['tether']['tether_drag']['model_type']
+    if tether_model == 'multi':
+        drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
+        drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+
+    elif tether_model == 'single':
+        drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * single_upper
+        drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * single_lower
+
+    elif tether_model == 'split':
+        drag_node = split_upper
+        drag_parent = split_lower
+
+    elif tether_model == 'kite_only':
+        drag_node = kite_only_upper
+        drag_parent = kite_only_lower
+
+    elif tether_model == 'not_in_use':
+        drag_parent = cas.DM.zeros((3, 1))
+        drag_node = cas.DM.zeros((3, 1))
+
+    else:
+        raise ValueError('tether drag model not supported.')
+
+    outputs['tether_aero']['homotopy_upper' + str(upper_node)] = drag_node
+    outputs['tether_aero']['homotopy_lower' + str(upper_node)] = drag_parent
 
     outputs['tether_aero']['reynolds' + str(upper_node)] = re_number
 

@@ -41,6 +41,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 
 def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, architecture):
@@ -102,13 +103,16 @@ def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, 
 
     # mass vector, containing the mass of all nodes
     for node in range(1, architecture.number_of_nodes):
-        outputs = tether_aero.get_force_outputs(options, variables_si, atmos, wind, node, tether_cd_fun, outputs,
+        outputs = tether_aero.get_force_outputs(options, variables_si, parameters, atmos, wind, node, tether_cd_fun, outputs,
                                                 architecture)
 
-    tether_drag_forces = {}
-    for node in range(1, architecture.number_of_nodes):
-        parent = architecture.parent_map[node]
-        tether_drag_forces['f' + str(node) + str(parent)] = tether_aero.get_force_var(variables_si, node, architecture)
+    if options['tether']['lift_tether_force']:
+        tether_drag_forces = {}
+        for node in range(1, architecture.number_of_nodes):
+            parent = architecture.parent_map[node]
+            tether_drag_forces['f' + str(node) + str(parent)] = tether_aero.get_force_var(variables_si, node, architecture)
+    else:
+        tether_drag_forces = tether_aero.distribute_tether_drag_forces(options, variables_si, architecture, outputs)
 
     # collect tether drag losses
     outputs = indicators.collect_tether_drag_losses(variables_si, tether_drag_forces, outputs, architecture)
@@ -127,7 +131,7 @@ def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, 
     for kite in architecture.kite_nodes:
 
         parent = architecture.parent_map[kite]
-        [homotopy_force, homotopy_moment] = fictitious_embedding(options, p_dec, variables_si, kite, parent)
+        [homotopy_force, homotopy_moment] = fictitious_embedding(options, p_dec, variables_si, kite, parent, outputs)
         aero_forces['f' + str(kite) + str(parent)] = homotopy_force
 
         if int(options['kite_dof']) == 6:
@@ -136,21 +140,26 @@ def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, 
     return aero_forces, outputs
 
 
-def fictitious_embedding(options, p_dec, variables_si, kite, parent):
+def fictitious_embedding(options, p_dec, variables_si, kite, parent, outputs):
 
-    f_aero_var, m_aero_var = kite_aero.get_force_and_moment_vars(variables_si, kite, parent, options)
+    kite_has_6_dof = (int(options['kite_dof']) == 6)
 
     # remember: generalized coordinates are in earth-fixed cartesian coordinates for translational dynamics
 
-    fict_force = variables_si['u']['f_fict' + str(kite) + str(parent)]
-    true_force = f_aero_var
+    if options['aero']['lift_aero_force']:
+        f_aero_var, m_aero_var = kite_aero.get_force_and_moment_vars(variables_si, kite, parent, options)
+        true_force = f_aero_var
+        true_moment = m_aero_var
+    else:
+        true_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
+        if kite_has_6_dof:
+            true_moment = outputs['aerodynamics']['m_aero_body' + str(kite)]
 
+    fict_force = variables_si['u']['f_fict' + str(kite) + str(parent)]
     homotopy_force = p_dec['gamma'] * fict_force + true_force
 
     if int(options['kite_dof']) == 6:
         fict_moment = variables_si['u']['m_fict' + str(kite) + str(parent)]
-        true_moment = m_aero_var
-
         homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
     else:
         homotopy_moment = []

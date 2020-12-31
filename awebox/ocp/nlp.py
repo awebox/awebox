@@ -37,6 +37,8 @@ from . import objective
 from . import var_bounds
 import time
 
+import pdb
+
 class NLP(object):
 
     def __init__(self):
@@ -88,6 +90,8 @@ class NLP(object):
         Collocation,
         Multiple_shooting] = discretization.discretize(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
+
+        ocp_cstr_list.scale(nlp_options['constraint_scale'])
 
         self.__V = V
         self.__P = P
