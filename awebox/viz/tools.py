@@ -1131,12 +1131,14 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
     bounds = plot_dict['variable_bounds'][var_type][name]
     scaling = plot_dict['scaling'][var_type][name]
-    lb = bounds['lb']
-    if type(lb) != float:
-        lb = lb[jdx]
-    ub = bounds['ub']
-    if type(ub) != float:
-        ub = ub[jdx]
+    if type(bounds['lb']) == np.ndarray:
+        lb = bounds['lb'][jdx]
+    else:
+        lb = bounds['lb']
+    if type(bounds['ub']) == np.ndarray:
+        ub = bounds['ub'][jdx]
+    else:
+        ub = bounds['ub']
     if lb > -np.inf:
         plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
     if ub < np.inf:
