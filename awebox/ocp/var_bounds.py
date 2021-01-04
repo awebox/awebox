@@ -57,16 +57,8 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         if (var_type == 'xd') and (not var_is_coll_var):
 
-<<<<<<< Updated upstream
-            if use_depending_on_periodicity:
-
-                # apply the bounds at all kdx except the first, because those are already pinned by periodicity
-                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-=======
             vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
             vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
->>>>>>> Stashed changes
 
             [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
                                                             var_type, kdx, ddx, name)
