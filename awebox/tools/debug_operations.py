@@ -57,9 +57,6 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     reduced_hessian = get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval)
 
-    identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-    print_op.warn_about_temporary_funcationality_removal(location='debug_op')
-
     if health_solver_options['spy_matrices']:
         vect_op.spy(np.absolute(np.array(kkt_matrix)), title='KKT Matrix')
         vect_op.spy(np.absolute(np.array(lagr_hessian_eval)), title='Hessian of the Lagrangian')

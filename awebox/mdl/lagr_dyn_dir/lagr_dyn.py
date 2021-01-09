@@ -89,8 +89,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # scaling
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, system_variables['SI'], parameters)
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
-    forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max'] # * 10.
-    print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn')
+    forces_scaling = options['scaling']['xl']['f_aero'] * (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
 
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,
@@ -198,9 +197,8 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
         J_dot_omega = cas.mtimes(j_inertia, domega)
         omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
         omega_derivative = moment - (J_dot_omega + omega_cross_J_omega + tether_moment)
-        print_op.warn_about_temporary_funcationality_removal(location='lagr_dyn.rot')
         m_scale = options['scaling']['xl']['m_aero']
-        rotational_2nd_law = omega_derivative / m_scale #/ vect_op.norm(cas.diag(j_inertia))
+        rotational_2nd_law = omega_derivative / m_scale
 
         rotation_dynamics_cstr = cstr_op.Constraint(expr=rotational_2nd_law,
                                                     name='rotation_dynamics' + str(kite),

@@ -377,35 +377,33 @@ def estimate_1d_frequency(x, sample_step=1, dt=1.0):
 
 
 # Checks if a matrix is a valid rotation matrix.
-def isRotationMatrix(R):
+def is_rotation_matrix(dcm, thresh=1.e-1):
 
-    diff = cas.DM.eye(3) - cas.mtimes(R.T, R)
+    diff = cas.DM.eye(3) - cas.mtimes(dcm.T, dcm)
     diff_vert = cas.reshape(diff, (9, 1))
     resi = norm(diff_vert)**0.5
 
-    threshold = 1.e-1
-
-    return resi < threshold
+    return resi < thresh
 
 # Calculates rotation matrix to euler angles
 # The result is the same as MATLAB except the order
 # of the euler angles ( x and z are swapped ).
-def rotationMatrixToEulerAngles(R):
+def rotation_matrix_to_euler_angles(dcm):
 
-    if not isRotationMatrix(R):
+    if not is_rotation_matrix(dcm):
         awelogger.logger.warning('given rotation matrix is not a member of SO(3).')
 
-    sy = np.math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
+    sy = np.math.sqrt(dcm[0, 0] * dcm[0, 0] + dcm[1, 0] * dcm[1, 0])
 
     singular = sy < 1e-6
 
     if not singular:
-        x = np.math.atan2(R[2, 1], R[2, 2])
-        y = np.math.atan2(-R[2, 0], sy)
-        z = np.math.atan2(R[1, 0], R[0, 0])
+        x = np.math.atan2(dcm[2, 1], dcm[2, 2])
+        y = np.math.atan2(-dcm[2, 0], sy)
+        z = np.math.atan2(dcm[1, 0], dcm[0, 0])
     else:
-        x = np.math.atan2(-R[1, 2], R[1, 1])
-        y = np.math.atan2(-R[2, 0], sy)
+        x = np.math.atan2(-dcm[1, 2], dcm[1, 1])
+        y = np.math.atan2(-dcm[2, 0], sy)
         z = 0
 
     return np.array([x, y, z])

@@ -261,8 +261,7 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
 
-        print_op.warn_about_temporary_funcationality_removal(location='model_funcs.coeff')
-        coeff_scaling = 0.1 #1.
+        coeff_scaling = 0.1
         options_tree.append(('model', 'scaling', 'xd', 'coeff', coeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
@@ -869,8 +868,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
 
-    print_op.warn_about_temporary_funcationality_removal(location='model_funcs')
-    f_scaling = m_k * gravity * acc_max # * 10.
+    f_scaling = m_k * gravity * acc_max
     m_scaling = m_k * gravity * b_ref / 2.
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_scaling, ('scaling of fictitious homotopy moments', None),'x'))

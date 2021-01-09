@@ -123,6 +123,7 @@ def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, 
 def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs, architecture):
     # homotopy parameters
     p_dec = parameters.prefix['phi']
+
     # get aerodynamic forces and moments
     outputs = kite_aero.get_forces_and_moments(options, atmos, wind, variables_si, outputs, parameters, architecture)
 

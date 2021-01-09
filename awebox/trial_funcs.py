@@ -161,7 +161,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                     for i in range(9):
                         dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
 
-                    var = vect_op.rotationMatrixToEulerAngles(cas.reshape(dcm,3,3))
+                    var = vect_op.rotation_matrix_to_euler_angles(cas.reshape(dcm, 3, 3))
 
                     for index in range(3):
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])

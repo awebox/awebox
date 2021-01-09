@@ -59,7 +59,7 @@ def generate_options_dict():
     actuator_qaxi_options = options.Options(internal_access=True)
     actuator_qaxi_options['user_options']['system_model']['architecture'] = {1: 0, 2: 1, 3: 1}
     actuator_qaxi_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 3
+    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 6
     actuator_qaxi_options['user_options']['tether_drag_model'] = 'split'
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'

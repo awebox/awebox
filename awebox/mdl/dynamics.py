@@ -277,7 +277,7 @@ def make_output_constraint_structure(options, outputs, system_variables, paramet
     full_list = []
     for output_type in list(outputs.keys()):
 
-        if output_type in set(represented_constraints):
+        if (output_type in set(represented_constraints)) and (options['model_bounds'][output_type]['include']):
 
             local_list = []
             for name in list(outputs[output_type].keys()):

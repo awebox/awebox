@@ -388,40 +388,6 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
     return results
 
 
-
-def test_aero_force_frame_conversion(trial, test_param_dict, results):
-    """Test whether the aerodynamic force has the same magnitude when projected into the 4 orthonormal axes: body, control, earth, wind
-    :return: test results
-    """
-
-    plot_dict = trial.visualization.plot_dict
-    outputs = plot_dict['outputs']
-    kite_nodes = trial.model.architecture.kite_nodes
-
-    aero_conversion_thresh = test_param_dict['aero_conversion_thresh']
-
-    conversions = ['body and control frame', 'body and earth frame', 'body and wind frame', 'wind component sums']
-
-    for kite in kite_nodes:
-        vals = outputs['aerodynamics']['check_conversion' + str(kite)]
-
-        for cdx in range(len(vals)):
-            max_val = np.max(np.abs(np.array(vals[cdx])))
-
-            if max_val > aero_conversion_thresh:
-
-                message = 'Too much deviation in norms of aerodynamic force after frame conversion, '\
-                          + 'for ' + conversions[cdx] + ' test, ' \
-                          + 'at kite ' + str(kite) + ': ' \
-                          + str(max_val) + ' > ' + str(aero_conversion_thresh) \
-                          + '. We recommend increasing the number of control intervals n_k.'
-                awelogger.logger.warning(message)
-                # slack equalities are not satisfied
-                results['aero_conversion'] = False
-
-
-    return results
-
 def generate_test_param_dict(options):
     """
     Set parameters relevant for testing
@@ -443,6 +409,5 @@ def generate_test_param_dict(options):
     test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
-    test_param_dict['aero_conversion_thresh'] = options['test_param']['aero_conversion_thresh']
 
     return test_param_dict
