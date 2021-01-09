@@ -46,7 +46,6 @@ import awebox.tools.performance_operations as perf_op
 from awebox.logger.logger import Logger as awelogger
 
 import copy
-import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs):
 

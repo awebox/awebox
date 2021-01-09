@@ -37,8 +37,6 @@ from . import objective
 from . import var_bounds
 import time
 
-import pdb
-
 class NLP(object):
 
     def __init__(self):
