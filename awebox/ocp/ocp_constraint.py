@@ -39,4 +39,3 @@ import awebox.tools.print_operations as print_op
 class OcpConstraintList(cstr_op.ConstraintList):
     def __init__(self):
         super().__init__(list_name='ocp_constraints_list')
-

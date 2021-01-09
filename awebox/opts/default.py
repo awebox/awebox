@@ -102,6 +102,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
+        ('model', 'aero', None,         'lift_aero_force',      True,        ('lift the aero force into the decision variables', [True, False]), 'x'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
@@ -169,8 +170,9 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
         ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
-        ('model',   'tether', None,         'wound_tether_safety_factor', 1.1, ('wound tether safety factor', None),'x'),
+        ('model',   'tether', None,         'wound_tether_safety_factor', 1.1,  ('wound tether safety factor', None),'x'),
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
+        ('model',   'tether', None,         'lift_tether_force',    True,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -277,6 +279,8 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'parallelization',  None, 'overwrite',            None,                   ('parallellize function evaluations', (True, False)),'t'),
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
+        ('nlp',  None,               None, 'constraint_scale',     1.,                      ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
+
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
@@ -318,15 +322,17 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
+        ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 10.,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'cost_factor',    None,   'power',                 1.,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
+        ('solver',   'weights',        None,   'l_t',                   1e-3,       ('optimization weight for all l_t variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),
         ('solver',   'weights',        None,   'w',                     1e-10,      ('optimization weight for all vortex variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'omega',                 1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
@@ -361,7 +367,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'x'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'x'),
 
-        ('solver',  'cost',             'tracking',         1,      0.,         ('update cost for tracking', None),'x'),
+        ('solver',  'cost',             'tracking',         1,      1.e-6,         ('update cost for tracking', None),'x'),
         ('solver',  'cost',             'gamma',            1,      1e3,        ('update cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'x'),
         ('solver',  'cost',             'psi',              1,      1e3,        ('update cost for psi', None),'x'),
@@ -375,8 +381,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'compromised_battery',  1,  1e1,        ('update cost for compromised_battery', None),'x'),
         ('solver',  'cost',             'transition',       1,      1e-1,        ('update cost for transition', None), 'x'),
 
+        ('solver',  'cost',             'fictitious',           2,  1.e0,       ('second update cost for fictitious', None), 'x'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'x'),
-        ('solver',  'cost',             'tracking',             2,  0,          ('second update cost for tracking', None),'x'),
+        ('solver',  'cost',             'tracking',             2,  1.e-6,          ('second update cost for tracking', None),'x'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
@@ -458,7 +465,6 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 1e-4,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
-        ('quality', 'test_param', None, 'aero_conversion_thresh', 1.e-2,   ('maximum difference in force norm during aero frame conversion', None), 'x'),
     ]
 
     default_options_tree = add_available_aerodynamic_stability_derivative_overwrites(default_options_tree)
@@ -485,9 +491,6 @@ def add_available_aerodynamic_stability_derivative_overwrites(default_options_tr
             available_coeffs += coeffs[frame_name]
 
     available_inputs = ['0', 'alpha', 'beta', 'p', 'q', 'r', 'deltaa', 'deltae', 'deltar']
-    for combi_1 in ['alpha', 'beta']:
-        for combi_2 in ['deltaa', 'deltae', 'deltar']:
-            available_inputs += [combi_1 + '_' + combi_2]
 
     for coeff in available_coeffs:
         for input in available_inputs:

@@ -89,7 +89,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # scaling
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, system_variables['SI'], parameters)
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
-    forces_scaling = node_masses_scaling * options['scaling']['other']['g'] * options['model_bounds']['acceleration']['acc_max']
+    forces_scaling = options['scaling']['xl']['f_aero'] * (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
 
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,
@@ -110,7 +110,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     kite_has_6dof = (int(options['kite_dof']) == 6)
     if kite_has_6dof:
-        rotation_dynamics_cstr, outputs = generate_rotational_dynamics(system_variables, f_nodes, parameters, outputs, architecture)
+        rotation_dynamics_cstr, outputs = generate_rotational_dynamics(options, system_variables, f_nodes, parameters, outputs, architecture)
         cstr_list.append(rotation_dynamics_cstr)
 
     # --------------------------------
@@ -169,7 +169,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
     return lagrangian_momentum_correction
 
 
-def generate_rotational_dynamics(variables, f_nodes, parameters, outputs, architecture):
+def generate_rotational_dynamics(options, variables, f_nodes, parameters, outputs, architecture):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
@@ -197,7 +197,8 @@ def generate_rotational_dynamics(variables, f_nodes, parameters, outputs, archit
         J_dot_omega = cas.mtimes(j_inertia, domega)
         omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
         omega_derivative = moment - (J_dot_omega + omega_cross_J_omega + tether_moment)
-        rotational_2nd_law = omega_derivative / vect_op.norm(cas.diag(j_inertia))
+        m_scale = options['scaling']['xl']['m_aero']
+        rotational_2nd_law = omega_derivative / m_scale
 
         rotation_dynamics_cstr = cstr_op.Constraint(expr=rotational_2nd_law,
                                                     name='rotation_dynamics' + str(kite),

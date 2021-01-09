@@ -168,17 +168,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     ortho_resi = cas.mtimes(ortho.T, ortho)
     outputs['aerodynamics']['ortho_resi' + str(kite)] = ortho_resi
 
-    conversion_resis = []
-    conversion_targets = {'control': f_aero_control, 'earth': f_aero_earth, 'wind': f_aero_wind}
-    for f_aero_target in conversion_targets.values():
-        resi = 1. - vect_op.norm(f_aero_target) / vect_op.norm(f_aero_body)
-        conversion_resis = cas.vertcat(conversion_resis, resi)
-
-    resi = vect_op.norm(f_aero_earth - f_lift_earth - f_drag_earth - f_side_earth) / vect_op.norm(f_aero_body)
-    conversion_resis = cas.vertcat(conversion_resis, resi)
-
-    outputs['aerodynamics']['check_conversion' + str(kite)] = conversion_resis
-
     outputs['aerodynamics']['f_lift_earth' + str(kite)] = f_lift_earth
     outputs['aerodynamics']['f_drag_earth' + str(kite)] = f_drag_earth
     outputs['aerodynamics']['f_side_earth' + str(kite)] = f_side_earth

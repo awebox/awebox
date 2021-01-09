@@ -177,6 +177,7 @@ def get_kite_dcm(t, init_options, model, node, ret):
 
     return kite_dcm
 
+
 def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)

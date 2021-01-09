@@ -54,10 +54,37 @@ def get_kite_dcm(kite, variables, architecture):
     return kite_dcm
 
 
-
-def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
+def get_force_and_moment_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
 
     surface_control = options['surface_control']
+
+    parent = architecture.parent_map[kite]
+
+    kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+
+    vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
+                                                              parameters, outputs)
+
+    if int(surface_control) == 0:
+        delta = variables['u']['delta' + str(kite) + str(parent)]
+    elif int(surface_control) == 1:
+        delta = variables['xd']['delta' + str(kite) + str(parent)]
+
+    omega = variables['xd']['omega' + str(kite) + str(parent)]
+    q = variables['xd']['q' + str(kite) + str(parent)]
+    rho = atmos.get_density(q[2])
+    force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
+
+    f_found_frame = force_info['frame']
+    f_found_vector = force_info['vector']
+
+    m_found_frame = moment_info['frame']
+    m_found_vector = moment_info['vector']
+
+    return f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm
+
+
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
@@ -68,26 +95,8 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
 
         parent = architecture.parent_map[kite]
 
-        kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
-
-        vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
-                                                             architecture, parameters)
-
-        if int(surface_control) == 0:
-            delta = variables['u']['delta' + str(kite) + str(parent)]
-        elif int(surface_control) == 1:
-            delta = variables['xd']['delta' + str(kite) + str(parent)]
-
-        omega = variables['xd']['omega' + str(kite) + str(parent)]
-        q = variables['xd']['q' + str(kite) + str(parent)]
-        rho = atmos.get_density(q[2])
-        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
-
-        f_found_frame = force_info['frame']
-        f_found_vector = force_info['vector']
-
-        m_found_frame = moment_info['frame']
-        m_found_vector = moment_info['vector']
+        f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm = get_force_and_moment_vector(
+            options, variables, atmos, wind, architecture, parameters, kite, outputs)
 
         forces_dict = tools.get_framed_forces(vec_u_earth, kite_dcm, variables, kite, architecture)
         f_var_frame = tools.force_variable_frame()

@@ -112,13 +112,17 @@ class Constraint:
             awelogger.logger.warning(message)
         return None
 
+    def scale(self, scaling):
+        self.expr = scaling * self.expr
+        return None
+
     @property
     def expr(self):
         return self.__expr
 
     @expr.setter
     def expr(self, value):
-        awelogger.logger.warning('Cannot set expr object.')
+        self.__expr = value
         
     @property
     def cstr_type(self):
@@ -303,6 +307,17 @@ class ConstraintList:
 
         # create function
         return cas.Function('cstr_fun', [relevant_variables, relevant_parameters], [expr_list], opts)
+
+    def scale(self, scaling):
+
+        cstr_type_list = ['eq', 'ineq', 'all']
+        for cstr_type in cstr_type_list:
+
+            list = self.get_list(cstr_type)
+            for cstr in list:
+                cstr.scale(scaling)
+
+        return None
 
     @property
     def eq_list(self):

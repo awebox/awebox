@@ -26,7 +26,7 @@
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.opts.model_funcs as model_funcs
-
+import awebox.tools.print_operations as print_op
 
 
 def build_options_dict(options, help_options, architecture):
@@ -245,7 +245,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
-        jerk_weight = 1e1*options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
+        jerk_scale = 1.e-3 #1.e1
+        jerk_weight = jerk_scale * options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
     else:
         jerk_weight = options['solver']['weights_overwrite']['dddl_t']
     options_tree.append(('solver', 'weights', None, 'dddl_t', jerk_weight,('optimization weight for control variable dddl_t [-]', None),'s'))
@@ -261,7 +262,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
-    options_tree.append(('solver',  'initialization', 'xd', 'l_t', options['model']['scaling']['xd']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+    options_tree.append(('solver',  'initialization', 'xd', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
 
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 

@@ -54,10 +54,63 @@ def get_forces_and_moments(options, atmos, wind, variables_si, outputs, paramete
 
     return outputs
 
-
-def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
+def get_framed_forces_and_moments(options, variables_si, atmos, wind, architecture, parameters, kite, outputs):
+    parent = architecture.parent_map[kite]
 
     xd = variables_si['xd']
+    q = xd['q' + str(kite) + str(parent)]
+    dq = xd['dq' + str(kite) + str(parent)]
+
+    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables_si, wind, kite, architecture)
+    rho = atmos.get_density(q[2])
+    q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
+
+    if int(options['kite_dof']) == 3:
+        kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
+    elif int(options['kite_dof']) == 6:
+        kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
+    else:
+        message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+        awelogger.logger.error(message)
+
+    if int(options['kite_dof']) == 3:
+
+        if options['aero']['lift_aero_force']:
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
+        else:
+            force_found_vector, force_found_frame, vec_u, kite_dcm = three_dof_kite.get_force_vector(options,
+                                                                                                     variables_si,
+                                                                                                     atmos,
+                                                                                                     wind, architecture,
+                                                                                                     parameters, kite,
+                                                                                                     outputs)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                    force_found_vector, force_found_frame)
+
+        framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                  cas.DM.zeros((3, 1)), 'body')
+
+    elif int(options['kite_dof']) == 6:
+
+        if options['aero']['lift_aero_force']:
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
+            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture)
+
+        else:
+            f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm = six_dof_kite.get_force_and_moment_vector(
+                options, variables_si, atmos, wind, architecture, parameters, kite, outputs)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                    f_found_vector, f_found_frame)
+            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                      m_found_vector, m_found_frame)
+
+    else:
+        message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
+        awelogger.logger.error(message)
+
+    return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
+
+def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
@@ -66,34 +119,10 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
 
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
-        parent = architecture.parent_map[kite]
 
-        q = xd['q' + str(kite) + str(parent)]
-        dq = xd['dq' + str(kite) + str(parent)]
-
-        vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables_si, wind, kite, architecture)
+        framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq = get_framed_forces_and_moments(options, variables_si, atmos, wind, architecture, parameters, kite, outputs)
+        m_aero_body = framed_moments['body']
         u_eff = vect_op.smooth_norm(vec_u_eff)
-        rho = atmos.get_density(q[2])
-        q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
-
-        if int(options['kite_dof']) == 3:
-            kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
-        elif int(options['kite_dof']) == 6:
-            kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
-        else:
-            message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-            awelogger.logger.error(message)
-
-        if int(options['kite_dof']) == 3:
-            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
-            m_aero_body = cas.DM.zeros((3, 1))
-        elif int(options['kite_dof']) == 6:
-            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
-            framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture)
-            m_aero_body = framed_moments['body']
-        else:
-            message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-            awelogger.logger.error(message)
 
         f_aero_body = framed_forces['body']
         f_aero_wind = framed_forces['wind']
@@ -174,14 +203,13 @@ def get_force_and_moment_vars(variables_si, kite, parent, options):
 
     return f_aero, m_aero
 
-
-def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
     if int(options['kite_dof']) == 3:
-        cstr_list = three_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters)
+        cstr_list = three_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs)
 
     elif int(options['kite_dof']) == 6:
-        cstr_list = six_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters)
+        cstr_list = six_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs)
     else:
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 

@@ -89,6 +89,8 @@ class NLP(object):
         Multiple_shooting] = discretization.discretize(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
 
+        ocp_cstr_list.scale(nlp_options['constraint_scale'])
+
         self.__V = V
         self.__P = P
         self.__Xdot = Xdot
