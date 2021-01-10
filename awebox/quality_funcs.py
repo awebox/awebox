@@ -370,7 +370,7 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
         max_last_a = -99999.
         kite_max_last = -1
         for kite in kite_nodes:
-            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_a' + str(kite)]))
+            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_ui_norm_over_ref' + str(kite)]))
             local_max_last_a = np.max(last_a)
 
             if local_max_last_a > max_last_a:
@@ -378,7 +378,7 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
                 max_last_a = local_max_last_a
 
         if max_last_a > last_vortex_ind_factor_thresh:
-            message = 'Last vortex ring has large impact on induction factor at kite ' + str(kite_max_last) + ': ' \
+            message = 'Last vortex ring has large (non-dimensionalized) induced velocity at kite ' + str(kite_max_last) + ': ' \
                       + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) \
                       + '. We recommend increasing the number of tracked periods.'
             awelogger.logger.warning(message)
