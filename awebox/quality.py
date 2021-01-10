@@ -86,6 +86,9 @@ class Quality(object):
         awelogger.logger.warning('For more information, use trial.quality.print_results()')
         awelogger.logger.warning('#################################################')
 
+        self.__number_of_passed = number_of_passed
+        self.__number_of_tests = number_of_tests
+
     def print_results(self):
 
         results = self.__results
@@ -106,3 +109,6 @@ class Quality(object):
     @results.setter
     def results(self, value):
         print('Cannot set results object.')
+
+    def all_tests_passed(self):
+        return (self.__number_of_passed == self.__number_of_tests)
