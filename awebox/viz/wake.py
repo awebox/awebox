@@ -34,6 +34,9 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.wind as wind
 
+import matplotlib
+matplotlib.use('TkAgg')
+
 
 def draw_wake_nodes(ax, side, plot_dict, index):
 
