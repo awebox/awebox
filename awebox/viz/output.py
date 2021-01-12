@@ -145,7 +145,7 @@ def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 
 # actuator outputs
 
-def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
+def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
 
     architecture = plot_dict['architecture']
     kite_nodes = architecture.kite_nodes
@@ -193,24 +193,9 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
         colors = cosmetics['trajectory']['colors']
         layers = architecture.layer_nodes
 
-        if time_or_cycle == 'time':
-            x_var_name = 'non-dim. time'
-            x_var_latex = r'$t/t_f$ [-]'
-            x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
-
-        elif time_or_cycle == 'cycle':
-            x_var_name = 'reel-out factor'
-            x_var_latex = r'$f$ [-]'
-            if 'actuator' in plot_dict['outputs'].keys():
-                f1 = plot_dict['outputs']['actuator']['f1']
-            elif 'vortex' in plot_dict['outputs'].keys():
-                f1 = plot_dict['outputs']['vortex']['f1']
-            else:
-                awelogger.logger.error('model not yet implemented.')
-            x_vals = np.array(f1[0])
-
-        else:
-            awelogger.logger.error('model not yet implemented.')
+        x_var_name = 'non-dim. time'
+        x_var_latex = r'$t/t_f$ [-]'
+        x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
 
         fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
         title = y_var_name + ' by model and ' + x_var_name
@@ -248,8 +233,7 @@ def plot_generic_actuator_output(time_or_cycle, y_var_name, y_var_sym, y_var_lat
         ldx += 1
 
         axes = tools.set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max)
-        if time_or_cycle == 'time':
-            axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
+        axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
 
     return None
 
@@ -259,7 +243,7 @@ def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num,
     y_var_latex = r'$a_0$ [-]'
     y_is_per_kite = False
 
-    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 
 def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
@@ -271,16 +255,7 @@ def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
     fig_num = 2100
     comparison_labels = ['']
 
-    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
-
-
-def plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
-    y_var_name = 'local induction factor'
-    y_var_sym = 'local_a'
-    y_var_latex = r'$a_k$ [-]'
-    y_is_per_kite = True
-
-    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 
 def plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
@@ -289,28 +264,7 @@ def plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig
     y_var_latex = r'$a_k$ [-]'
     y_is_per_kite = True
 
-    plot_generic_actuator_output('time', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
-
-
-def plot_relative_radius_cycle(plot_dict, cosmetics, fig_name):
-    y_var_name = 'avg. relative radius'
-    y_var_sym = 'bar_varrho'
-    y_var_latex = r'$\bar{\varrho}$ [-]'
-    y_is_per_kite = False
-
-    fig_num = 2000
-    comparison_labels = ['']
-
-    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
-
-
-def plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
-    y_var_name = 'avg. induction factor'
-    y_var_sym = 'a0'
-    y_var_latex = r'$a_0$ [-]'
-    y_is_per_kite = False
-
-    plot_generic_actuator_output('cycle', y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
 
 def plot_induction_factor(plot_dict, cosmetics, fig_name):
 
@@ -318,13 +272,9 @@ def plot_induction_factor(plot_dict, cosmetics, fig_name):
     comparison_labels = tools.reconstruct_comparison_labels(plot_dict)
 
     plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1000 + idx, comparison_labels)
-    plot_modelled_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1100 + idx, comparison_labels)
-
     plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1500, comparison_labels)
-    plot_avg_induction_factor_cycle(plot_dict, cosmetics, fig_name, 1600, comparison_labels)
 
 
 def plot_relative_radius(plot_dict, cosmetics, fig_name):
     plot_relative_radius_with_time(plot_dict, cosmetics, fig_name)
-    plot_relative_radius_cycle(plot_dict, cosmetics, fig_name)
 

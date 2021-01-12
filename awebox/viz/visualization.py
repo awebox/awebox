@@ -152,6 +152,10 @@ class Visualization(object):
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
         plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
+        plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
+        plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
+        plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
+        plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
         for variable in list(variables_dict['xd'].keys()) + integral_variables:
