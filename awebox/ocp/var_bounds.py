@@ -46,6 +46,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
     distinct_variables = struct_op.get_distinct_V_indices(V)
 
+    n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
     periodic = perf_op.determine_if_periodic(nlp_options)
@@ -54,11 +55,13 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     for canonical in distinct_variables:
 
         [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
+        use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
         if (var_type == 'xd') and (not var_is_coll_var):
 
-            vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-            vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+            if use_depending_on_periodicity:
+                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
             [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
                                                             var_type, kdx, ddx, name)
