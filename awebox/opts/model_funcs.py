@@ -597,15 +597,15 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
 
-    vortex_epsilon = options['model']['aero']['vortex']['epsilon']
-    options_tree.append(('model', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-
-
-    CL = estimate_CL(options)
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
+    r_core = options['model']['aero']['vortex']['core_to_chord_ratio'] * c_ref
+
+    options_tree.append(('model', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+
+    CL = estimate_CL(options)
     b_ref = geometry['b_ref']
 
     groundspeed = options['solver']['initialization']['groundspeed']
