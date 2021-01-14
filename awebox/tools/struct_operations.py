@@ -352,7 +352,7 @@ def calculate_tf(params, V, k):
 
     nk = params['n_k']
 
-    if params['phase_fix'] == True:
+    if params['phase_fix'] == 'single_reelout':
         if k < round(nk * params['phase_fix_reelout']):
             tf = V['theta', 't_f', 0]
         else:
@@ -366,7 +366,7 @@ def calculate_kdx(params, V, t):
 
     n_k = params['n_k']
 
-    if params['phase_fix'] == True:
+    if params['phase_fix'] == 'single_reelout':
         k_reelout = round(n_k * params['phase_fix_reelout'])
         t_reelout = k_reelout*V['theta','t_f',0]/n_k
         if t <= t_reelout:
