@@ -307,7 +307,7 @@ def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, c
                 if cosmetics['plot_coll']:
                     # add node values
                     output_values = cas.vertcat(output_values, cas.vertcat(*output_vals['coll_outputs',k, :, output_type, output_name,dim]))
-
+            output_values = np.array(output_values)
             if cosmetics['plot_coll']:
                 tgrid = tgrid_u_coll
             else:
@@ -362,7 +362,7 @@ def merge_xd_values(V ,name, dim, plot_dict, cosmetics):
                 if (cosmetics['plot_coll'] and k < plot_dict['n_k']):
                     # add node values
                     xd_values = cas.vertcat(xd_values, cas.vertcat(*V['coll_var',k, :, 'xd', name,dim]).full())
-
+            xd_values = np.array(xd_values)
             if cosmetics['plot_coll']:
                 tgrid = tgrid_x_coll
             else:
@@ -377,7 +377,7 @@ def merge_xd_values(V ,name, dim, plot_dict, cosmetics):
                 xd_values = []
                 tgrid = []
 
-    # make list of time grid and values
+    # make list of time grid
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     xd_values = list(chain.from_iterable(xd_values))
 
@@ -411,7 +411,7 @@ def merge_xa_values(V, var_type, name, dim, plot_dict, cosmetics):
                 if cosmetics['plot_coll']:
                     # add node values
                     xa_values = cas.vertcat(xa_values, cas.vertcat(*V['coll_var',k, :, var_type, name,dim]))
-
+            xa_values = np.array(xa_values)
             if cosmetics['plot_coll']:
                 tgrid = tgrid_xa_coll
             else:
@@ -1131,12 +1131,14 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
     bounds = plot_dict['variable_bounds'][var_type][name]
     scaling = plot_dict['scaling'][var_type][name]
-    lb = bounds['lb']
-    if type(lb) != float:
-        lb = lb[jdx]
-    ub = bounds['ub']
-    if type(ub) != float:
-        ub = ub[jdx]
+    if type(bounds['lb']) == np.ndarray:
+        lb = bounds['lb'][jdx]
+    else:
+        lb = bounds['lb']
+    if type(bounds['ub']) == np.ndarray:
+        ub = bounds['ub'][jdx]
+    else:
+        ub = bounds['ub']
     if lb > -np.inf:
         plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
     if ub < np.inf:

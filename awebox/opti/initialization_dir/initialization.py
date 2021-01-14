@@ -80,6 +80,8 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
 
     V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init)
 
+    V_init = set_xddot(V_init, nlp)
+
     # specified initial values for system parameters
     V_init = set_nontime_system_parameters(init_options, model, V_init)
 
@@ -213,3 +215,11 @@ def set_nontime_system_parameters(init_options, model, V_init):
             raise ValueError("please specify an initial value for variable '" + name + "' of type 'theta'")
 
     return V_init
+
+def set_xddot(V_init, nlp):
+
+    if 'xddot' in list(V_init.keys()):
+        Xdot_init = nlp.Xdot(nlp.Xdot_fun(V_init))
+        for k in range(nlp.n_k):
+            V_init['xddot',k] = Xdot_init['xd',k]
+    return V_init 

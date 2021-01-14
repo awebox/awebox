@@ -80,6 +80,7 @@ class NLP(object):
         Xdot,
         Xdot_fun,
         ocp_cstr_list,
+        ocp_cstr_struct,
         Outputs,
         Outputs_fun,
         Integral_outputs,
@@ -106,9 +107,9 @@ class NLP(object):
         self.__Collocation = Collocation
         self.__Multiple_shooting = Multiple_shooting
 
-        self.__g = ocp_cstr_list.get_expression_list('all')
+        self.__g = ocp_cstr_struct(ocp_cstr_list.get_expression_list('all'))
         self.__g_fun = ocp_cstr_list.get_function(nlp_options, V, P, 'all')
-        self.__g_jacobian_fun = cas.jacobian(self.__g, V)
+        self.__g_jacobian_fun = cas.Function('g_jacobian_fun',[V,P], [cas.jacobian(self.__g, V)])
         self.__g_bounds = {'lb': ocp_cstr_list.get_lb('all'), 'ub': ocp_cstr_list.get_ub('all')}
 
         return None

@@ -97,12 +97,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                              name='dynamics_translation')
     cstr_list.append(dynamics_translation_cstr)
 
-    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
-    dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
-                                                cstr_type='eq',
-                                                name='dynamics_constraint')
-    cstr_list.append(dynamics_constraint_cstr)
-
 
     # --------------------------------
     # rotational dynamics
@@ -132,6 +126,15 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                 cstr_type='eq',
                                                 name='trivial_' + name)
             cstr_list.append(trivial_dyn_cstr)
+
+    # ---------------------------
+    # holonomic constraints
+    # ---------------------------
+    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
+    dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
+                                                cstr_type='eq',
+                                                name='dynamics_constraint')
+    cstr_list.append(dynamics_constraint_cstr)
 
     return cstr_list, outputs
 

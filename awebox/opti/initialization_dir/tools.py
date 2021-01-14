@@ -217,7 +217,7 @@ def insert_val(V_init, var_type, name, init_val, idx = 0):
     # initialize on collocation nodes
     V_init['coll_var', :, :, var_type, name, idx] = init_val
 
-    if var_type == 'xd':
+    if var_type in ['xd', 'xl','xa']:
         # initialize on interval nodes
         # V_init[var_type, :, :, name] = init_val
 

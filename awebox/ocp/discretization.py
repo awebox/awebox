@@ -198,11 +198,8 @@ def setup_integral_output_structure(nlp_options, integral_outputs):
     return Integral_outputs_struct
 
 def setup_output_structure(nlp_options, model_outputs, form_outputs):
+
     # create outputs
-    # n_o_t_e: !!! outputs are defined at nodes where both state and algebraic variables
-    # are defined. In the radau case, algebraic variables are not defined on the interval
-    # nodes, note however that algebraic variables might be discontinuous so the same
-    # holds for the outputs!!!
     nk = nlp_options['n_k']
 
     entry_tuple =  ()
@@ -212,20 +209,11 @@ def setup_output_structure(nlp_options, model_outputs, form_outputs):
         d  = nlp_options['collocation']['d']
         scheme = nlp_options['collocation']['scheme']
 
-        if scheme != 'radau':
-
-            # define outputs on interval and collocation nodes
-            entry_tuple += (
-                cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
-                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
-            )
-
-        else:
-
-            # define outputs on collocation nodes
-            entry_tuple += (
-                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
-            )
+        # define outputs on interval and collocation nodes
+        entry_tuple += (
+            cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
+            cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+        )
 
     elif nlp_options['discretization'] == 'multiple_shooting':
 
@@ -322,10 +310,13 @@ def discretize(nlp_options, model, formulation):
 
     if direct_collocation:
         for kdx in range(nk):
+            
+            Outputs_list.append(coll_outputs[:,kdx*(d+1)])
+
             # add outputs on collocation nodes
             for ddx in range(d):
                 # compute outputs for this time interval
-                Outputs_list.append(coll_outputs[:,kdx*d+ddx])
+                Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
 
     Outputs_list.append(form_outputs_fun(V, P))
 
@@ -344,10 +335,10 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     # GET CONSTRAINTS
     # -------------------------------------------
-    ocp_cstr_list = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
-                                                Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-                                                ms_vars, ms_params, Outputs)
+    ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
+        Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
+            ms_vars, ms_params, Outputs)
 
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
 
