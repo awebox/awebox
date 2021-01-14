@@ -54,7 +54,7 @@ def get_time_period(nlp_options, V, outputs):
     n_k = nlp_options['n_k']
     pf_reelout = nlp_options['phase_fix_reelout']
 
-    if nlp_options['phase_fix']:
+    if nlp_options['phase_fix'] == 'single_reelout':
         time_period_zeroth = V['theta', 't_f',0] * round(n_k * pf_reelout)
         time_period_first = V['theta', 't_f',1] * (n_k - round(n_k * pf_reelout))
         # average over collocation nodes
@@ -209,8 +209,8 @@ def find_phase_fix_time_period_first(nlp_numerics_options, V):
     return time_period_first
 
 def find_time_period(nlp_numerics_options, V):
-    use_phase_fix = nlp_numerics_options['phase_fix']
-    if use_phase_fix:
+
+    if nlp_numerics_options['phase_fix'] == 'single_reelout':
         time_period_zeroth = find_phase_fix_time_period_zeroth(nlp_numerics_options, V)
         time_period_first = find_phase_fix_time_period_first(nlp_numerics_options, V)
 

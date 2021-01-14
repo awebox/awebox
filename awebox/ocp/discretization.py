@@ -61,7 +61,7 @@ def construct_time_grids(nlp_options):
         tcoll = None
 
     # make symbolic time constants
-    if nlp_options['phase_fix']:
+    if nlp_options['phase_fix'] == 'single_reelout':
         tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
 
@@ -77,8 +77,8 @@ def construct_time_grids(nlp_options):
 
     for k in range(nk+1):
 
-        # extract correct time constant in case of phase fix
-        if nlp_options['phase_fix']:
+        # extract correct time constant in case of single_reelout phase fix
+        if nlp_options['phase_fix'] == 'single_reelout':
             if k < nk_reelout:
                 tf = tfsym[0]
                 k0 = 0.0

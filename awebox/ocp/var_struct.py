@@ -45,7 +45,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
 
     # check if phase fix and adjust theta accordingly
-    if nlp_options['phase_fix']:
+    if nlp_options['phase_fix'] == 'single_reelout':
         theta = get_phase_fix_theta(variables_dict)
     else:
         theta = variables_dict['theta']
