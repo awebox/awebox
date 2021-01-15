@@ -129,9 +129,6 @@ def list_all_possible_coeffs():
 
 def list_all_possible_inputs():
     list = ['0', 'alpha', 'beta', 'p', 'q', 'r', 'deltaa', 'deltae', 'deltar']
-    for combi_1 in ['alpha', 'beta']:
-        for combi_2 in ['deltaa', 'deltae', 'deltar']:
-            list += [combi_1 + '_' + combi_2]
     return list
 
 
@@ -158,10 +155,6 @@ def collect_inputs(alpha, beta, airspeed, omega, delta, parameters, named_frame)
     inputs['deltae'] = deltae
     inputs['deltar'] = deltar
 
-    for combi_1 in ['alpha', 'beta']:
-        for combi_2 in ['deltaa', 'deltae', 'deltar']:
-            inputs[combi_1 + '_' + combi_2] = inputs[combi_1] * inputs[combi_2]
-
     return inputs
 
 
@@ -186,9 +179,10 @@ def collect_contributions(parameters, inputs):
                     awelogger.logger.error(message)
 
                 input_val = inputs[input_name]
+                alpha_val = inputs['alpha']
                 input_stack = []
                 for ldx in range(deriv_length):
-                    input_stack = cas.vertcat(input_stack, input_val**(ldx + 1))
+                    input_stack = cas.vertcat(input_stack, input_val * alpha_val**ldx )
 
                 contrib_from_input = cas.mtimes(deriv_stack.T, input_stack)
                 coeffs[deriv_name] += contrib_from_input

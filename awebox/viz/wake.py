@@ -34,6 +34,48 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.wind as wind
 
+import matplotlib
+matplotlib.use('TkAgg')
+
+
+def plot_wake(plot_dict, cosmetics, fig_name, side):
+
+    fig = plt.figure()
+
+    if side == 'xy':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('y [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'xz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'yz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'isometric':
+        ax = plt.subplot(111, projection='3d')
+        draw_wake_nodes(ax, 'isometric', plot_dict, -1)
+        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
+        ax.xaxis._axinfo['label']['space_factor'] = 2.8
+        ax.yaxis._axinfo['label']['space_factor'] = 2.8
+        ax.zaxis._axinfo['label']['space_factor'] = 2.8
+
+    draw_wake_nodes(ax, side, plot_dict, -1)
+
+    ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
+    plt.suptitle(fig_name)
+
+    return None
 
 def draw_wake_nodes(ax, side, plot_dict, index):
 
@@ -145,10 +187,14 @@ def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
     mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
     length_mu = mu_grid_points.shape[0]
 
-    beta = np.linspace(0., np.pi / 2, half_points)
-    cos_front = 0.5 * (1. - np.cos(beta))
-    cos_back = -1. * cos_front[::-1]
-    psi_grid_unscaled = cas.vertcat(cos_back, cos_front) + 0.5
+    verification_uniform_distribution = plot_dict['options']['model']['aero']['vortex']['verification_uniform_distribution']
+    if verification_uniform_distribution:
+        psi_grid_unscaled = np.linspace(0., 1., 2 * half_points)
+    else:
+        beta = np.linspace(0., np.pi / 2, half_points)
+        cos_front = 0.5 * (1. - np.cos(beta))
+        cos_back = -1. * cos_front[::-1]
+        psi_grid_unscaled = cas.vertcat(cos_back, cos_front) + 0.5
     psi_grid_points_cas = psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
 
     psi_grid_points_np = np.array(psi_grid_points_cas)

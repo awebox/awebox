@@ -42,12 +42,12 @@ def list_filament_observer_and_normal_info(point_obs, filament_list, options, n_
 
     n_filaments = filament_list.shape[1]
 
-    epsilon = options['aero']['vortex']['epsilon']
+    r_core = options['induction']['vortex_core_radius']
 
     point_obs_extended = []
     for jdx in range(3):
         point_obs_extended = cas.vertcat(point_obs_extended, vect_op.ones_sx((1, n_filaments)) * point_obs[jdx])
-    eps_extended = vect_op.ones_sx((1, n_filaments)) * epsilon
+    eps_extended = vect_op.ones_sx((1, n_filaments)) * r_core
 
     seg_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
 
@@ -85,15 +85,15 @@ def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, pa
     return seg_list
 
 
-def filament_normal(seg_data, epsilon=1.e-2):
+def filament_normal(seg_data, r_core=1.e-2):
     n_hat = seg_data[-3:]
-    return cas.mtimes(filament(seg_data, epsilon).T, n_hat)
+    return cas.mtimes(filament(seg_data, r_core).T, n_hat)
 
-def filament(seg_data, epsilon=1.e-2):
+def filament(seg_data, r_core=1.e-2):
 
     try:
-        num = get_numerator(seg_data)
-        den = get_denominator(seg_data, epsilon)
+        num = get_numerator(seg_data, r_core)
+        den = get_denominator(seg_data, r_core)
         sol = num / den
     except:
         message = 'something went wrong while computing the filament biot-savart induction.'
@@ -102,11 +102,11 @@ def filament(seg_data, epsilon=1.e-2):
 
     return sol
 
-def filament_resi(u_fil_var, seg_data, epsilon=1.e-2):
+def filament_resi(u_fil_var, seg_data, r_core=1.e-2):
 
     try:
-        num = get_numerator(seg_data)
-        den = get_denominator(seg_data, epsilon)
+        num = get_numerator(seg_data, r_core)
+        den = get_denominator(seg_data, r_core)
         resi = (u_fil_var * den - num)
     except:
         message = 'something went wrong while computing the filament biot-savart residual.'
@@ -115,8 +115,12 @@ def filament_resi(u_fil_var, seg_data, epsilon=1.e-2):
 
     return resi
 
+def get_altitude(vec_1, vec_2, r0):
+    vec_a = vect_op.cross(vec_1, vec_2)
+    altitude = vect_op.smooth_norm(vec_a) / r0
+    return altitude
 
-def get_numerator(seg_data):
+def get_numerator(seg_data, r_core):
 
     point_obs = seg_data[:3]
     point_1 = seg_data[3:6]
@@ -129,6 +133,7 @@ def get_numerator(seg_data):
 
     r1 = vect_op.smooth_norm(vec_1)
     r2 = vect_op.smooth_norm(vec_2)
+    r0 = vect_op.smooth_norm(vec_0)
 
     factor = Gamma / (4. * np.pi)
 
@@ -138,7 +143,11 @@ def get_numerator(seg_data):
 
     return num
 
-def get_denominator(seg_data, epsilon):
+def get_denominator(seg_data, r_core):
+
+    # for actual signs:
+    # https: // openfast.readthedocs.io / en / master / source / user / aerodyn - olaf / OLAFTheory.html
+
     point_obs = seg_data[:3]
     point_1 = seg_data[3:6]
     point_2 = seg_data[6:9]
@@ -152,8 +161,9 @@ def get_denominator(seg_data, epsilon):
     r0 = vect_op.smooth_norm(vec_0)
 
     den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    den_reg = (epsilon * r0) ** 2.
-    den = den_ori + den_reg
+    reg_den = r0**2. * r_core**2.
+
+    den = den_ori + reg_den
 
     return den
 
@@ -163,19 +173,24 @@ def test():
     point_1 = 1000. * vect_op.zhat()
     point_2 = -1. * point_1
     Gamma = 1.
-    epsilon = 1.e-2
-    seg_data = cas.vertcat(point_obs, point_1, point_2, Gamma, epsilon)
+    seg_data = cas.vertcat(point_obs, point_1, point_2, Gamma)
 
-    vec_found = filament(seg_data)
+    r_core = 0.
+    vec_found = filament(seg_data, r_core=r_core)
     val_normalize = 1. / (2. * np.pi)
     vec_norm = vec_found / val_normalize
 
-    difference = vec_norm - vect_op.xhat()
-    resi = cas.mtimes(difference.T, difference)
+    mag_test = (vect_op.norm(vec_norm) - 1.)**2.
+    mag_thresh = 1.e-6
+    if mag_test > mag_thresh:
+        message = 'biot-savart filament induction magnitude test gives error of size: ' + str(mag_test)
+        awelogger.logger.error(message)
+        raise Exception(message)
 
-    thresh = 1.e-6
-    if resi > thresh:
-        message = 'biot-savart filament induction test gives error of size: ' + str(resi)
+    dir_test = vect_op.norm(vec_norm - vect_op.xhat() * cas.mtimes(vec_norm.T, vect_op.xhat()))
+    dir_thresh = 1.e-6
+    if dir_test > dir_thresh:
+        message = 'biot-savart filament induction direction test gives error of size: ' + str(dir_test)
         awelogger.logger.error(message)
         raise Exception(message)
 

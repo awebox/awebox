@@ -45,20 +45,26 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
 
-def get_force_cstr(options, variables, atmos, wind, architecture, parameters):
+def get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
+    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+
+    vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
+                                                        parameters, outputs)
+
+    force_found_frame = 'earth'
+    force_found_vector = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture,
+                                                             parameters)
+
+    return force_found_vector, force_found_frame, vec_u, kite_dcm
+
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
 
-        kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
-
-        vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm,
-                                                             architecture, parameters)
-
-        force_found_frame = 'earth'
-        force_found_vector = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters)
+        force_found_vector, force_found_frame, vec_u, kite_dcm = get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs)
 
         forces_dict = tools.get_framed_forces(vec_u, kite_dcm, variables, kite, architecture)
         force_framed_variable = forces_dict[force_found_frame]

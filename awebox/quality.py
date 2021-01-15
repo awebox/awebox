@@ -61,7 +61,6 @@ class Quality(object):
         results = quality_funcs.test_opti_success(trial, test_param_dict, results)
         results = quality_funcs.test_slack_equalities(trial, test_param_dict, results)
         results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results)
-        results = quality_funcs.test_aero_force_frame_conversion(trial, test_param_dict, results)
 
         # save test results
         self.__results = results
@@ -87,6 +86,9 @@ class Quality(object):
         awelogger.logger.warning('For more information, use trial.quality.print_results()')
         awelogger.logger.warning('#################################################')
 
+        self.__number_of_passed = number_of_passed
+        self.__number_of_tests = number_of_tests
+
     def print_results(self):
 
         results = self.__results
@@ -107,3 +109,6 @@ class Quality(object):
     @results.setter
     def results(self, value):
         print('Cannot set results object.')
+
+    def all_tests_passed(self):
+        return (self.__number_of_passed == self.__number_of_tests)

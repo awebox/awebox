@@ -37,6 +37,7 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
+import awebox.tools.vector_operations as vect_op
 
 def get_residual(options, wind, variables_si, outputs, architecture):
 
@@ -100,10 +101,12 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
         for fdx in range(filaments):
             # biot-savart of filament induction
             filament = filament_list[:, fdx]
+
             u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
 
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
             local_var = variables_si['xl'][ind_name]
+
             local_resi = (local_var - u_ind_fil) / u_ref
             resi = cas.vertcat(resi, local_resi)
 
@@ -133,11 +136,13 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, pa
 
         n_hat = unit_normal.get_n_hat(model_options, parent, variables_si, parameters, architecture)
         local_a = flow.get_induction_factor_at_kite(model_options, filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
-        last_a = flow.get_induction_factor_at_kite(model_options, last_filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
+
+        last_ui_norm = vect_op.norm(flow.get_induced_velocity_at_kite(model_options, last_filament_list, variables_si, architecture, kite))
+        last_ui_norm_over_ref = last_ui_norm / wind.get_velocity_ref()
 
         outputs['vortex']['u_ind_vortex' + str(kite)] = u_ind_vortex
         outputs['vortex']['local_a' + str(kite)] = local_a
-        outputs['vortex']['last_a' + str(kite)] = last_a
+        outputs['vortex']['last_ui_norm_over_ref' + str(kite)] = last_ui_norm_over_ref
 
     return outputs
 

@@ -83,7 +83,7 @@ def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_ha
 
 def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=False):
 
-    epsilon = options['induction']['vortex_epsilon']
+    r_core = options['induction']['vortex_core_radius']
 
     # define the symbolic function
     n_symbolics = filament_list.shape[0]
@@ -93,9 +93,9 @@ def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=F
         seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
 
         if include_normal_info:
-            filament_sym = biot_savart.filament_normal(seg_data_sym, epsilon=epsilon)
+            filament_sym = biot_savart.filament_normal(seg_data_sym, r_core=r_core)
         else:
-            filament_sym = biot_savart.filament(seg_data_sym, epsilon=epsilon)
+            filament_sym = biot_savart.filament(seg_data_sym, r_core=r_core)
 
         filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
 
@@ -108,7 +108,7 @@ def test(test_list):
 
     options = {}
     options['induction'] = {}
-    options['induction']['vortex_epsilon'] = 0.
+    options['induction']['vortex_core_radius'] = 0.
 
     x_obs = 0.5 * vect_op.xhat_np()
 

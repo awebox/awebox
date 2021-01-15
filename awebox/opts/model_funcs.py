@@ -261,7 +261,7 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
 
-        coeff_scaling = 1.
+        coeff_scaling = 0.1
         options_tree.append(('model', 'scaling', 'xd', 'coeff', coeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
@@ -597,15 +597,15 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
 
-    vortex_epsilon = options['model']['aero']['vortex']['epsilon']
-    options_tree.append(('model', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon', vortex_epsilon, ('????', None), 'x')),
-
-
-    CL = estimate_CL(options)
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
+    r_core = options['model']['aero']['vortex']['core_to_chord_ratio'] * c_ref
+
+    options_tree.append(('model', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
+
+    CL = estimate_CL(options)
     b_ref = geometry['b_ref']
 
     groundspeed = options['solver']['initialization']['groundspeed']
@@ -868,13 +868,13 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
 
-    f_fict_scaling = 0.5 * m_k * gravity * acc_max
-    m_fict_scaling = f_fict_scaling * b_ref / 2.
-    options_tree.append(('model', 'scaling', 'u', 'f_fict', f_fict_scaling, ('scaling of fictitious homotopy forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'u', 'm_fict', m_fict_scaling, ('scaling of fictitious homotopy moments', None),'x'))
+    f_scaling = m_k * gravity * acc_max
+    m_scaling = m_k * gravity * b_ref / 2.
+    options_tree.append(('model', 'scaling', 'u', 'f_fict', f_scaling, ('scaling of fictitious homotopy forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'u', 'm_fict', m_scaling, ('scaling of fictitious homotopy moments', None),'x'))
 
-    options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_fict_scaling, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'm_aero', m_scaling, ('scaling of aerodynamic forces', None),'x'))
 
     # q_ref = get_q_ref(options)
     # l_t_scaling = options['model']['scaling']['xd']['l_t']
@@ -883,7 +883,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     # sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
     #
     # f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
-    options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_fict_scaling, ('scaling of tether drag forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'f_tether', f_scaling, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
 

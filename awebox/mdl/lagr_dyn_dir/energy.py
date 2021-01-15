@@ -108,7 +108,10 @@ def add_groundstation_potential(outputs):
 
 def add_groundstation_kinetic(options, node_masses_si, variables_si, outputs):
 
-    # = 1/2 i omega_gen^2, with no-slip condition
+    # E_kinetic_groundstation
+    # = 1/2 J omega_gen^2, with no-slip condition
+    # = 1/2 (1/2 m r^2) omega^2
+    # = 1/4 m dl_t^2
     # add mass of first half of main tether, and the mass of wound tether.
 
     total_groundstation_mass = node_masses_si['groundstation']

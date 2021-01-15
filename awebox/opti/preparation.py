@@ -41,7 +41,6 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
-
 def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
     # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
@@ -109,7 +108,6 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
             else:
                 p_fix_num['p', 'weights', variable_type, name] = 1.0
 
-
             # set references
             if variable_type == 'u':
                 if 'u' in V_ref.keys():
@@ -124,7 +122,6 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
                     p_fix_num['p', 'ref', variable_type, :, name] = V_ref[variable_type, :, name]
                 if 'coll_var' in list(V_ref.keys()):
                     p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
-
 
     # system parameters
     param_options = options['initialization']['sys_params_num']

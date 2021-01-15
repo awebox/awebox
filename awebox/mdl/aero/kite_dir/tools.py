@@ -35,15 +35,33 @@ import awebox.mdl.aero.indicators as indicators
 import awebox.tools.vector_operations as vect_op
 import numpy as np
 import awebox.tools.print_operations as print_op
+from awebox.logger.logger import Logger as awelogger
+
 
 ##### the force and moment lifted variables
 
 def get_f_aero_var(variables, kite, parent):
-    f_aero_si = variables['xl']['f_aero' + str(kite) + str(parent)]
+
+    var_type = 'xl'
+    var_name = 'f_aero' + str(kite) + str(parent)
+
+    if var_name in variables[var_type].keys():
+        f_aero_si = variables[var_type][var_name]
+    else:
+        awelogger.logger.error('lifted aero forces not found.')
+
     return f_aero_si
 
 def get_m_aero_var(variables, kite, parent):
-    m_aero_si = variables['xl']['m_aero' + str(kite) + str(parent)]
+
+    var_type = 'xl'
+    var_name = 'm_aero' + str(kite) + str(parent)
+
+    if var_name in variables[var_type].keys():
+        m_aero_si = variables[var_type][var_name]
+    else:
+        awelogger.logger.error('lifted aero moments not found.')
+
     return m_aero_si
 
 def force_variable_frame():
@@ -61,33 +79,39 @@ def get_m_scale(parameters, options):
     return m_scale
 
 
-def get_framed_forces(vec_u, kite_dcm, variables, kite, architecture):
+def get_framed_forces(vec_u, kite_dcm, variables, kite, architecture, f_vector=None, f_frame=None):
 
     parent = architecture.parent_map[kite]
 
-    f_variable_frame = force_variable_frame()
-    f_aero_var = get_f_aero_var(variables, kite, parent)
+    if f_vector is None:
+        f_vector = get_f_aero_var(variables, kite, parent)
 
-    f_aero_body = frames.from_named_frame_to_body(f_variable_frame, vec_u, kite_dcm, f_aero_var)
-    f_aero_wind = frames.from_named_frame_to_wind(f_variable_frame, vec_u, kite_dcm, f_aero_var)
-    f_aero_control = frames.from_named_frame_to_control(f_variable_frame, vec_u, kite_dcm, f_aero_var)
-    f_aero_earth = frames.from_named_frame_to_earth(f_variable_frame, vec_u, kite_dcm, f_aero_var)
+    if f_frame is None:
+        f_frame = force_variable_frame()
+
+    f_aero_body = frames.from_named_frame_to_body(f_frame, vec_u, kite_dcm, f_vector)
+    f_aero_wind = frames.from_named_frame_to_wind(f_frame, vec_u, kite_dcm, f_vector)
+    f_aero_control = frames.from_named_frame_to_control(f_frame, vec_u, kite_dcm, f_vector)
+    f_aero_earth = frames.from_named_frame_to_earth(f_frame, vec_u, kite_dcm, f_vector)
 
     dict = {'body':f_aero_body, 'control': f_aero_control, 'wind': f_aero_wind, 'earth': f_aero_earth}
 
     return dict
 
-def get_framed_moments(vec_u, kite_dcm, variables, kite, architecture):
+def get_framed_moments(vec_u, kite_dcm, variables, kite, architecture, m_vector=None, m_frame=None):
 
     parent = architecture.parent_map[kite]
 
-    m_variable_frame = moment_variable_frame()
-    m_aero_var = get_m_aero_var(variables, kite, parent)
+    if m_vector is None:
+        m_vector = get_m_aero_var(variables, kite, parent)
 
-    m_aero_body = frames.from_named_frame_to_body(m_variable_frame, vec_u, kite_dcm, m_aero_var)
-    m_aero_wind = frames.from_named_frame_to_wind(m_variable_frame, vec_u, kite_dcm, m_aero_var)
-    m_aero_control = frames.from_named_frame_to_control(m_variable_frame, vec_u, kite_dcm, m_aero_var)
-    m_aero_earth = frames.from_named_frame_to_earth(m_variable_frame, vec_u, kite_dcm, m_aero_var)
+    if m_frame is None:
+        m_frame = moment_variable_frame()
+
+    m_aero_body = frames.from_named_frame_to_body(m_frame, vec_u, kite_dcm, m_vector)
+    m_aero_wind = frames.from_named_frame_to_wind(m_frame, vec_u, kite_dcm, m_vector)
+    m_aero_control = frames.from_named_frame_to_control(m_frame, vec_u, kite_dcm, m_vector)
+    m_aero_earth = frames.from_named_frame_to_earth(m_frame, vec_u, kite_dcm, m_vector)
 
     dict = {'body':m_aero_body, 'control': m_aero_control, 'wind': m_aero_wind, 'earth': m_aero_earth}
 
@@ -98,13 +122,12 @@ def get_framed_moments(vec_u, kite_dcm, variables, kite, architecture):
 
 ##### the velocities
 
-def get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
+def get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs):
 
     aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
 
     if aero_coeff_ref_velocity == 'app':
-        vec_u_app_body = get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm,
-                                                             architecture, parameters)
+        vec_u_app_body = get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs)
         vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
 
     elif aero_coeff_ref_velocity == 'eff':
@@ -112,17 +135,6 @@ def get_local_air_velocity_in_earth_frame(options, variables, atmos, wind, kite,
         vec_u_earth = vec_u_eff
 
     return vec_u_earth
-
-def get_local_air_velocity_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
-    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
-
-    if aero_coeff_ref_velocity == 'app':
-        vec_u = get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture,
-                                                    parameters)
-    elif aero_coeff_ref_velocity == 'eff':
-        vec_u = get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture)
-
-    return vec_u
 
 
 def get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture):
@@ -155,14 +167,12 @@ def get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, arch
 
 
 
-def get_u_app_alone_in_body_frame(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
+def get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs):
     if (options['induction_model'] == 'not_in_use'):
         u_app = get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture)
 
     else:
-        u_app = get_u_app_alone_in_body_frame_with_induction(options, variables, atmos, wind,
-                                                                                     kite, kite_dcm, architecture,
-                                                                                     parameters)
+        u_app = get_u_app_alone_in_body_frame_with_induction(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs)
 
     return u_app
 
@@ -187,37 +197,27 @@ def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_
 
 
 
-def get_u_app_alone_in_body_frame_with_induction(options, variables, atmos, wind, kite, kite_dcm, architecture, parameters):
-    parent = architecture.parent_map[kite]
-    q = variables['xd']['q' + str(kite) + str(parent)]
-    rho = atmos.get_density(q[2])
+def get_u_app_alone_in_body_frame_with_induction(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs):
 
     vec_u_eff_mawes_in_earth_frame = get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, architecture)
     vec_u_eff_mawes_in_body_frame = frames.from_earth_to_body(kite_dcm, vec_u_eff_mawes_in_earth_frame)
 
     vec_u_eff_alone_in_body_frame = vec_u_eff_mawes_in_body_frame
 
-    vec_u_ind_alone_in_body_frame = get_u_ind_alone_in_body_frame(vec_u_eff_alone_in_body_frame, rho, variables, kite, parent, parameters, options)
+    vec_u_ind_alone_in_body_frame = get_u_ind_alone_in_body_frame(vec_u_eff_alone_in_body_frame, kite, parameters, outputs)
 
     vec_u_app_alone_in_body_frame = vec_u_eff_alone_in_body_frame - vec_u_ind_alone_in_body_frame
 
     return vec_u_app_alone_in_body_frame
 
 
-def get_u_ind_alone_in_body_frame(vec_u_eff_in_body_frame, rho, variables, kite, parent, parameters, options):
+def get_u_ind_alone_in_body_frame(vec_u_eff_in_body_frame, kite, parameters, outputs):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-
-    f_aero_var = get_f_aero_var(variables, kite, parent)
     dcm_body_frame = cas.DM.eye(3)
-
-    ehat2 = dcm_body_frame[:, 1]
-
     alpha_eff = indicators.get_alpha(vec_u_eff_in_body_frame, dcm_body_frame)
-    beta_eff = indicators.get_beta(vec_u_eff_in_body_frame, dcm_body_frame)
 
-    ue_cross_e2 = vect_op.cross(vec_u_eff_in_body_frame, ehat2)
-    gamma = cas.mtimes(f_aero_var.T, ue_cross_e2) / b_ref / rho / cas.mtimes(ue_cross_e2.T, ue_cross_e2)
+    gamma = outputs['aerodynamics']['circulation' + str(kite)]
 
     u_ind_x = (gamma / np.pi / b_ref) * alpha_eff
     u_ind_y = 0
