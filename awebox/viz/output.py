@@ -123,12 +123,8 @@ def plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_outputs(plot_dict, cosmetics, fig_name, 'model_equalities', fig_num, epigraph=0.)
 
 def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
-
-    try:
+    if len(plot_dict['outputs']['model_inequalities'].keys()) > 0:
         plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
-    except:
-        message = 'something went wrong when plotting the model inequalities. skipping that plot'
-        awelogger.logger.warning(message)
 
     plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
 

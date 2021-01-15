@@ -36,7 +36,6 @@ import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
-import pdb
 
 def list_filament_observer_and_normal_info(point_obs, filament_list, options, n_hat=None):
     # join the vortex_list to the observation data

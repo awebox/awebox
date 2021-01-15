@@ -60,14 +60,16 @@ def get_center_velocity(model_options, parent, variables, parameters, architectu
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
-    if number_children > 1:
+    if (parent > 0) and (number_children > 1):
         dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
-    else:
+    elif (parent > 0):
         # dcenter = path_based.approx_center_velocity(model_options, children, variables, architecture)
-
         n_hat_var = general_geom.get_n_hat_var(variables, parent)
         dq = variables['xd']['dq' + str(children[0]) + str(parent)]
         dcenter = cas.mtimes(dq.T, n_hat_var) * n_hat_var
+    else:
+        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
+        dcenter = dq
 
     return dcenter
 

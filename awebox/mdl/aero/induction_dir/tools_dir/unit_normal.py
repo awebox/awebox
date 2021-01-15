@@ -66,6 +66,9 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
     elif model == 'default' and number_children == 1:
         n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
 
+    elif model == 'xhat':
+        n_vec = vect_op.xhat()
+
     else:
         message = 'kite-plane normal-vector model-type not supported. Consider checking the number of kites per layer.'
         awelogger.logger.error(message)

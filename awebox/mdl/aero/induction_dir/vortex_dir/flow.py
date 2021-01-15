@@ -40,7 +40,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
-import pdb
 
 #
 def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
