@@ -200,6 +200,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([1., 150.]),  ('airspeed limits [m/s]', None),'s'),
         ('model',   'model_bounds', 'aero_validity', 'include',              True,       ('include orientation bounds on alpha and beta (not possible in 3dof mode)', [True, False]),'x'),
         ('model',   'model_bounds', 'aero_validity', 'scaling',              1.,         ('tightness scaling for aero_validity inequalities', None),'x'),
+        ('model',   'model_bounds', 'aero_validity', 'CD_min',               0.,         ('minimum allowed drag coefficient - included in aero validity constraints', None), 'x'),
         ('model',   'model_bounds', 'anticollision', 'safety_factor',        5.,         ('safety margin for anticollision constraint [m]', None),'x'),
         ('model',   'model_bounds', 'anticollision', 'include',              True,       ('include a minimum distance anticollision inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
