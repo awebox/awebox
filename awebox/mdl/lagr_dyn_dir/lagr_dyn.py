@@ -34,7 +34,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # lagrangian
     # --------------------------------
 
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses_si, system_variables['SI'], architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
