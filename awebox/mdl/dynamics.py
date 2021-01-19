@@ -414,7 +414,7 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
         categories = {'q' + label: str(n)}
 
         if n == 1:
-            categories['groundstation'] = 'groundstation1'
+            categories['ground_station'] = 'groundstation1'
 
         for cat in categories.keys():
 
