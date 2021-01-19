@@ -148,6 +148,19 @@ class Architecture:
 
         return level_siblings
 
+    def node_label(self, node):
+        return str(node) + str(self.__parent_map[node])
+
+    def parent_label(self, node):
+
+        parent = self.__parent_map[node]
+        if node > 1:
+            grandparent = self.__parent_map[parent]
+        else:
+            grandparent = 0
+
+        return str(parent) + str(grandparent)
+        
     @property
     def parent_map(self):
         """parent node map"""
