@@ -33,8 +33,6 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
-
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -51,8 +49,8 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture):
         outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture)
         outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture)
 
-    outputs = add_groundstation_kinetic(options, variables_si, parameters, outputs)
-    outputs = add_groundstation_potential(outputs)
+    outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs)
+    outputs = add_ground_station_potential(outputs)
 
     return outputs
 
@@ -122,16 +120,16 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     return outputs
 
 
-def add_groundstation_potential(outputs):
+def add_ground_station_potential(outputs):
     # the winch is at ground level
     e_potential = cas.DM(0.)
-    outputs['e_potential']['groundstation'] = e_potential
+    outputs['e_potential']['ground_station'] = e_potential
     return outputs
 
 
-def add_groundstation_kinetic(options, variables_si, parameters, outputs):
+def add_ground_station_kinetic(options, variables_si, parameters, outputs):
 
-    # E_kinetic_groundstation
+    # E_kinetic_ground_station
     # = 1/2 J omega_gen^2, with no-slip condition
     # = 1/2 (1/2 m r^2) omega^2
     # = 1/4 m dl_t^2
@@ -143,10 +141,10 @@ def add_groundstation_kinetic(options, variables_si, parameters, outputs):
     q10 = variables_si['xd']['q10']
     l_t = variables_si['xd']['l_t']
 
-    speed_groundstation = cas.mtimes(dq10.T, q10) / l_t
+    speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
 
-    e_kinetic = 0.25 * total_groundstation_mass * speed_groundstation ** 2.
+    e_kinetic = 0.25 * total_ground_station_mass * speed_ground_station ** 2.
 
-    outputs['e_kinetic']['groundstation'] = e_kinetic
+    outputs['e_kinetic']['ground_station'] = e_kinetic
 
     return outputs
