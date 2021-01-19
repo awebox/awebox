@@ -41,9 +41,9 @@ def energy_outputs(options, parameters, outputs, node_masses_si, variables_si, a
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
-    for type in energy_types:
-        if type not in list(outputs.keys()):
-            outputs[type] = {}
+    for etype in energy_types:
+        if etype not in list(outputs.keys()):
+            outputs[etype] = {}
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
