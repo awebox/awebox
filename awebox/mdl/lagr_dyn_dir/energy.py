@@ -67,8 +67,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     node_has_rotational_energy = node_has_a_kite and kites_have_6dof
 
     # add tether translational kinetic energy
-    seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=node)
-    m_t = seg_props['seg_mass']
+    m_t = outputs['masses']['m_tether{}'.format(node)]
     dq_n = variables_si['xd']['dq' + label]
     if node == 1:
         dq_parent = cas.DM.zeros((3, 1))
@@ -106,8 +105,7 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
 
     gravity = parameters['theta0', 'atmosphere', 'g']
 
-    seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=node)
-    m_t = seg_props['seg_mass']
+    m_t = outputs['masses']['m_tether{}'.format(node)]
     q_n = variables_si['xd']['q' + label]
     if node == 1:
         q_parent = cas.DM.zeros((3,1))
@@ -139,14 +137,7 @@ def add_groundstation_kinetic(options, variables_si, parameters, outputs):
     # = 1/4 m dl_t^2
     # add mass of first half of main tether, and the mass of wound tether.
 
-    total_groundstation_mass = parameters['theta0', 'ground_station', 'm_gen']
-
-    if options['tether']['use_wound_tether']:
-        main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
-        wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
-        wound_mass = main_props['cross_section_area'] * \
-            parameters['theta0', 'tether', 'rho'] * wound_length
-        total_groundstation_mass += wound_mass
+    total_ground_station_mass = outputs['masses']['ground_station']
 
     dq10 = variables_si['xd']['dq10']
     q10 = variables_si['xd']['q10']

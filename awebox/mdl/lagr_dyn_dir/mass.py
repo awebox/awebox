@@ -38,28 +38,38 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.lagr_dyn_dir.tools as tools
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
-def generate_m_nodes(options, variables, outputs, parameters, architecture):
-    # system architecture (see zanon2013a)
-    number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
+# ======================
+# MASS OUTPUTS CREATION
+# ======================
 
-    node_masses = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, 'vals')
+def generate_mass_outputs(options, variables, outputs, parameters, architecture):
 
-    # save some space in the outputs for the node masses
     if 'masses' not in list(outputs.keys()):
         outputs['masses'] = {}
 
-    # save the each node's responsible mass into the outputs
-    for node in range(1, number_of_nodes):
-        parent = parent_map[node]
-        outputs['masses']['m' + str(node) + str(parent)] = node_masses['m' + str(node) + str(parent)]
+    for node in range(1, architecture.number_of_nodes):
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=node)
+        outputs['masses']['m_tether{}'.format(node)] = seg_props['seg_mass']
 
+    outputs['masses']['ground_station'] = get_ground_station_mass(node, options, architecture, variables, parameters) 
+
+    return outputs
+
+def get_ground_station_mass(node, options, architecture, variables, parameters):
+
+    ground_station_mass = parameters['theta0', 'ground_station', 'm_gen']
     if options['tether']['use_wound_tether']:
-        outputs['masses']['m00'] = node_masses['m00']
+        main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
+        wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
+        wound_mass = main_props['cross_section_area'] * \
+            parameters['theta0', 'tether', 'rho'] * wound_length
+        ground_station_mass += wound_mass
 
-    return node_masses, outputs
+    return ground_station_mass
 
-
+# =====================
+#  MASS SCALING METHODS
+# =====================
 
 def generate_m_nodes_scaling(options, variables, outputs, parameters, architecture):
     # system architecture (see zanon2013a)
