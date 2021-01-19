@@ -74,10 +74,8 @@ def get_ground_station_mass(node, options, architecture, variables, parameters):
 def generate_m_nodes_scaling(options, variables, outputs, parameters, architecture):
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
 
-    node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture,
-                                                                 'scaling')
+    node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture)
 
     # this will be used to scale the forces,
     # so we need to repeat the scaling forces 3x, once per dimension for force.
@@ -85,8 +83,7 @@ def generate_m_nodes_scaling(options, variables, outputs, parameters, architectu
 
     node_masses_scaling_stacked = []
     for node in range(1, number_of_nodes):
-        parent = parent_map[node]
-        mass = node_masses_scaling['m' + str(node) + str(parent)]
+        mass = node_masses_scaling['m' + architecture.node_label(node)]
 
         node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, mass, mass, mass)
 
@@ -103,15 +100,13 @@ def remove_wound_tether_entry(node_masses):
 def initialize_mass_dictionary(options, architecture):
 
     number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
 
     empty = cas.DM.zeros((1, 1))
 
     # initialize dictionary
     node_masses = {}
     for node in range(1, number_of_nodes):
-        parent = parent_map[node]
-        node_masses['m' + str(node) + str(parent)] = empty
+        node_masses['m' + architecture.node_label(node)] = empty
 
     node_masses['m00'] = empty  # mass added to the ground-station
     node_masses['groundstation'] = empty
@@ -119,7 +114,7 @@ def initialize_mass_dictionary(options, architecture):
     return node_masses
 
 
-def generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, vals_or_scaling):
+def generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture):
 
     number_of_nodes = architecture.number_of_nodes
     kite_nodes = architecture.kite_nodes
@@ -131,11 +126,10 @@ def generate_mass_dictionary_for_all_nodes(options, variables, parameters, archi
     upper_nodes_of_above_ground_segments = range(1, number_of_nodes)
     for upper_node in upper_nodes_of_above_ground_segments:
         node_masses = add_above_ground_tether_segment_mass(upper_node, node_masses, options,
-                                                           architecture, variables, parameters,
-                                                           vals_or_scaling)
+                                                           architecture, variables, parameters)
 
     if use_wound_tether:
-        node_masses = add_wound_tether_mass(node_masses, options, architecture, variables, parameters, vals_or_scaling)
+        node_masses = add_wound_tether_mass(node_masses, options, architecture, variables, parameters)
 
     for kite in kite_nodes:
         node_masses = add_kite_mass(kite, node_masses, architecture, parameters)
@@ -155,17 +149,11 @@ def add_groundstation_mass(node_masses, parameters):
     return node_masses
 
 
-def add_wound_tether_mass(node_masses, options, architecture, variables, parameters, vals_or_scaling):
+def add_wound_tether_mass(node_masses, options, architecture, variables, parameters):
 
     main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
-    if vals_or_scaling == 'vals':
-        wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
-        wound_cross_section = main_props['cross_section_area']
-    elif vals_or_scaling == 'scaling':
-        wound_length = options['scaling']['theta']['l_t_full'] - main_props['scaling_length']
-        wound_cross_section = main_props['scaling_area']
-    else:
-        awelogger.logger.error('unknown option in mass dictionary generation')
+    wound_length = options['scaling']['theta']['l_t_full'] - main_props['scaling_length']
+    wound_cross_section = main_props['scaling_area']
 
     wound_mass = wound_cross_section * parameters['theta0', 'tether', 'rho'] * wound_length
     node_masses['m00'] += wound_mass
@@ -173,43 +161,25 @@ def add_wound_tether_mass(node_masses, options, architecture, variables, paramet
     return node_masses
 
 
-def add_above_ground_tether_segment_mass(upper_node, node_masses, options, architecture, variables, parameters, vals_or_scaling):
-
-    parent_map = architecture.parent_map
-
-    parent = parent_map[upper_node]
-    if parent == 0:
-        grandparent = 0
-    else:
-        grandparent = parent_map[parent]
+def add_above_ground_tether_segment_mass(upper_node, node_masses, options, architecture, variables, parameters):
 
     seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=upper_node)
-    if vals_or_scaling == 'vals':
-        seg_mass = seg_props['seg_mass']
-    elif vals_or_scaling == 'scaling':
-        seg_mass = seg_props['scaling_mass']
-    else:
-        awelogger.logger.error('unknown option in mass dictionary generation')
-
+    seg_mass = seg_props['scaling_mass']
     top_mass_alloc_frac = options['tether']['top_mass_alloc_frac']
 
     # attribute (the fraction of the segment mass that belong to the top node) to the top node
-    node_masses['m' + str(upper_node) + str(parent)] += top_mass_alloc_frac * seg_mass
+    node_masses['m' + architecture.node_label(upper_node)] += top_mass_alloc_frac * seg_mass
 
     # attribute (the fraction of the segment mass that doesn't belong to the top node) to the bottom node
-    node_masses['m' + str(parent) + str(grandparent)] += (1. - top_mass_alloc_frac) * seg_mass
+    node_masses['m' + architecture.parent_label(upper_node)] += (1. - top_mass_alloc_frac) * seg_mass
 
     return node_masses
 
 
 def add_kite_mass(node, node_masses, architecture, parameters):
 
-    parent = architecture.parent_map[node]
-    kite_nodes = architecture.kite_nodes
-
     kite_mass = parameters['theta0', 'geometry', 'm_k']
-
-    if node in kite_nodes:
-        node_masses['m' + str(node) + str(parent)] += kite_mass
+    if node in architecture.kite_nodes:
+        node_masses['m' + architecture.node_label(node)] += kite_mass
 
     return node_masses
