@@ -1094,7 +1094,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     tether_name = '{}{}'.format(kites[k], kites[(k + 1) % len(kites)])
                     tether_name2 = '{}{}'.format(kites[(k + 1) % len(kites)], kites[k])
 
-                    if options['tether']['cross_tether']['attachment'] is not 'wing_tip':
+                    if options['tether']['cross_tether']['attachment'] != 'wing_tip':
 
                         # get roll and pitch expressions at each end of the cross-tether
                         rotation_angles = cas.vertcat(
