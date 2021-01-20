@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 import sys
 print(sys.version_info)
 
-if sys.version_info < (3,5):
+if sys.version_info < (3.5):
     sys.exit('Python version 3.5 or later required. Exiting.')
 
 setup(name='awebox',
