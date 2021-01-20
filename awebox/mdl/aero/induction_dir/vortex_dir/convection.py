@@ -33,7 +33,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.tools.print_operations as print_op
 
-def get_convection_residual(options, wind, variables_si, architecture):
+def get_state_repr_convection_residual(options, wind, variables_si, architecture):
 
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']

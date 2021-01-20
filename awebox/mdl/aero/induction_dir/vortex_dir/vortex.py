@@ -41,8 +41,10 @@ import awebox.tools.vector_operations as vect_op
 
 def get_residual(options, wind, variables_si, outputs, architecture):
 
-    # no self-induction! rigid wake convection only!
-    resi = convection.get_convection_residual(options, wind, variables_si, architecture)
+    vortex_representation = options['aero']['vortex']['representation']
+
+    if vortex_representation == 'state':
+        resi = convection.get_state_repr_convection_residual(options, wind, variables_si, architecture)
 
     # induced velocity residuals
     columnized_list = outputs['vortex']['filament_list']

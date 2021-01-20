@@ -42,7 +42,20 @@ import awebox.tools.constraint_operations as cstr_op
 
 ################# define the actual constraint
 
-def get_fixing_constraint(options, V, Outputs, model):
+def get_fixing_constraint(options, V, Outputs, model, time_grids):
+
+    vortex_representation = options['induction']['vortex_representation']
+
+    if vortex_representation == 'state':
+        return get_state_repr_fixing_constraint(options, V, Outputs, model)
+    elif vortex_representation == 'alg':
+        return get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids)
+    else:
+        message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def get_state_repr_fixing_constraint(options, V, Outputs, model):
 
     n_k = options['n_k']
 
@@ -114,3 +127,41 @@ def get_fixing_constraint(options, V, Outputs, model):
     return cstr_list
 
 
+def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
+
+    n_k = options['n_k']
+
+    comparison_labels = options['induction']['comparison_labels']
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+
+    cstr_list = cstr_op.ConstraintList()
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+
+        for ndx in range(n_k + 1):
+
+            current_time = time_grids['x'][ndx]
+
+            for kite in kite_nodes:
+                for tip in wingtips:
+                    for wake_node in range(wake_nodes):
+                        local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
+
+                        # if wake_node = 0, then shed at ndx
+                        # if wake_node = 1, then shed at ndx - 1
+                        # .... if shedding_ndx is 1, then shedding_ndx -> 1
+                        # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
+                        # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
+                        # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k)
+                        shedding_ndx = np.mod(ndx - wake_node, n_k)
+
+                        # shedding_time =
+
+
+
+    return cstr_list

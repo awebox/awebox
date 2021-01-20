@@ -35,6 +35,8 @@ import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import copy
 import awebox.tools.print_operations as print_op
+from awebox.logger.logger import Logger as awelogger
+
 
 def generate_structure(options, architecture):
 
@@ -220,6 +222,8 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     rings = wake_nodes - 1
     filaments = wake_nodes * 3 * len(architecture.kite_nodes)
 
+    vortex_representation = options['aero']['vortex']['representation']
+
     for kite in architecture.kite_nodes:
         for ring in range(rings):
             gamma_name = 'wg_' + str(kite) + '_' + str(ring)
@@ -227,8 +231,16 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
         for wake_node in range(wake_nodes):
             for tip in wingtips:
                 coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-                system_states.extend([(coord_name, (3, 1))])
-                system_states.extend([('d' + coord_name, (3, 1))])
+
+                if vortex_representation == 'state':
+                    system_states.extend([(coord_name, (3, 1))])
+                    system_states.extend([('d' + coord_name, (3, 1))])
+                elif vortex_representation == 'alg':
+                    system_lifted.extend([(coord_name, (3, 1))])
+                else:
+                    message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
+                    awelogger.logger.error(message)
+                    raise Exception(message)
 
     for kite_obs in architecture.kite_nodes:
         for fdx in range(filaments):
