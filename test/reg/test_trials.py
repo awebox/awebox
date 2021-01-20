@@ -166,7 +166,7 @@ def generate_options_dict():
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
-    dual_kite_6_dof_options['quality']['test_param']['ddc_max'] = 1e2
+    dual_kite_6_dof_options['quality']['test_param']['ddc_max'] = 5e2
  
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
