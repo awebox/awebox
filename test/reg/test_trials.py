@@ -65,13 +65,13 @@ def test_dual_kite_6_dof():
     
     return None
     
-def test_small_dual_kite():
+# def test_small_dual_kite():
 
-    options_dict = generate_options_dict()
-    trial_name = 'small_dual_kite_trial'
-    solve_and_check(options_dict[trial_name], trial_name)
+#     options_dict = generate_options_dict()
+#     trial_name = 'small_dual_kite_trial'
+#     solve_and_check(options_dict[trial_name], trial_name)
     
-    return None
+#     return None
     
 def test_actuator_qaxi():
 
@@ -124,7 +124,7 @@ def test_dual_kite_tracking():
 def test_dual_kite_tracking_winch():
 
     options_dict = generate_options_dict()
-    trial_name = 'dual_kite_tracking_trial_winch'
+    trial_name = 'dual_kite_tracking_winch_trial'
     solve_and_check(options_dict[trial_name], trial_name)
     
     return None
@@ -166,7 +166,8 @@ def generate_options_dict():
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
-
+    dual_kite_6_dof_options['quality']['test_param']['ddc_max'] = 1e2
+ 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
     small_dual_kite_options['params']['ground_station']['r_gen'] = 0.1
