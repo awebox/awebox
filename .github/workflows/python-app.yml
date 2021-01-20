@@ -24,6 +24,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         pip3 install flake8 pytest
+        apt-get install tk-dev libagg-dev
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install package
       run: |
