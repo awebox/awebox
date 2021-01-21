@@ -171,7 +171,12 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
                         subtracted_ndx = ndx - ring
                         shedding_ndx = np.mod(subtracted_ndx, n_k)
 
-                        gamma_val = Outputs['coll_outputs', shedding_ndx, ddx, 'aerodynamics', 'circulation' + str(kite)]
+                        if ring == 0:
+                            shedding_ddx = ddx
+                        else:
+                            shedding_ddx = -1
+
+                        gamma_val = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'circulation' + str(kite)]
 
                         local_resi = (wg_local - gamma_val) / tools.get_strength_scale(model.variables_dict, model.scaling)
 
