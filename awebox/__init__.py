@@ -23,8 +23,8 @@
 #
 #
 # Import main interface classes
-from .trial import Trial
 from .sweep import Sweep
+from .trial import Trial
 from .opts.options import Options
 from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
 
