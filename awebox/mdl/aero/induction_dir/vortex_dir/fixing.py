@@ -39,6 +39,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.ocp.var_struct as var_struct
 
 import awebox.tools.constraint_operations as cstr_op
+import pdb
 
 ################# define the actual constraint
 
@@ -89,7 +90,7 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                         variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables,
                                                                             reverse_index, -1)
 
-                        wx_local = tools.get_wake_node_position_si(variables_at_shed, kite, tip, wake_node, model.scaling)
+                        wx_local = tools.get_wake_node_position_si(options, variables_at_shed, kite, tip, wake_node, model.scaling)
                         wingtip_pos = Outputs[
                             'coll_outputs', reverse_index, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
@@ -115,8 +116,8 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                         variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)
 
                         upstream_node = wake_node - n_k
-                        wx_local = tools.get_wake_node_position_si(variables_at_initial, kite, tip, wake_node, model.scaling)
-                        wx_upstream = tools.get_wake_node_position_si(variables_at_final, kite, tip, upstream_node, model.scaling)
+                        wx_local = tools.get_wake_node_position_si(options, variables_at_initial, kite, tip, wake_node, model.scaling)
+                        wx_upstream = tools.get_wake_node_position_si(options, variables_at_final, kite, tip, upstream_node, model.scaling)
 
                         local_resi = wx_local - wx_upstream
                         local_cstr = cstr_op.Constraint(expr = local_resi,
@@ -130,6 +131,10 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
 def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
 
     n_k = options['n_k']
+    d = options['collocation']['d']
+
+    t_f = V['theta', 't_f']
+    tgrid = time_grids['coll'](t_f)
 
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
@@ -143,25 +148,43 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
 
-        for ndx in range(n_k + 1):
+        for ndx in range(n_k):
+            for ddx in range(d):
+                current_time = tgrid[ndx, ddx]
 
-            current_time = time_grids['x'][ndx]
+                for kite in kite_nodes:
+                    for tip in wingtips:
+                        for wake_node in range(wake_nodes):
 
-            for kite in kite_nodes:
-                for tip in wingtips:
-                    for wake_node in range(wake_nodes):
-                        local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
+                            local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx) + ',' + str(ddx)
 
-                        # if wake_node = 0, then shed at ndx
-                        # if wake_node = 1, then shed at ndx - 1
-                        # .... if shedding_ndx is 1, then shedding_ndx -> 1
-                        # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
-                        # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
-                        # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k)
-                        shedding_ndx = np.mod(ndx - wake_node, n_k)
+                            local_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
+                            wx_local = tools.get_wake_node_position_si(options, local_variables, kite, tip, wake_node, model.scaling)
 
-                        # shedding_time =
+                            # if wake_node = 0, then shed at ndx
+                            # if wake_node = 1, then shed at ndx - 1
+                            # .... if shedding_ndx is 1, then shedding_ndx -> 1
+                            # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
+                            # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
+                            # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k)
+                            subtracted_ndx = ndx - wake_node
+                            shedding_ndx = np.mod(subtracted_ndx, n_k)
+                            periods_passed = np.floor(subtracted_ndx / n_k)
 
+                            wingtip_pos = Outputs['coll_outputs', shedding_ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+
+                            u_local = model.wind.get_velocity(wingtip_pos[2])
+                            shedding_time = t_f[1] * periods_passed + tgrid[shedding_ndx, ddx]
+                            delta_t = current_time - shedding_time
+
+                            wx_found = wingtip_pos + delta_t * u_local
+
+                            local_resi = wx_local - wx_found
+
+                            local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                            name = local_name,
+                                                            cstr_type='eq')
+                            cstr_list.append(local_cstr)
 
 
     return cstr_list

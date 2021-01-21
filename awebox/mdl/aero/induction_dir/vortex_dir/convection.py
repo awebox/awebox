@@ -44,8 +44,8 @@ def get_state_repr_convection_residual(options, wind, variables_si, architecture
         for tip in wingtips:
             for wake_node in range(wake_nodes):
 
-                wx_local = tools.get_wake_node_position_si(variables_si, kite, tip, wake_node)
-                dwx_local = tools.get_wake_node_velocity_si(variables_si, kite, tip, wake_node)
+                wx_local = tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
+                dwx_local = tools.get_wake_node_velocity_si(options, variables_si, kite, tip, wake_node)
 
                 altitude = cas.mtimes(wx_local.T, vect_op.zhat())
                 u_infty = wind.get_velocity(altitude)

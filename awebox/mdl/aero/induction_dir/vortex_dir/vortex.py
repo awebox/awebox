@@ -43,8 +43,11 @@ def get_residual(options, wind, variables_si, outputs, architecture):
 
     vortex_representation = options['aero']['vortex']['representation']
 
+    resi = []
+
     if vortex_representation == 'state':
-        resi = convection.get_state_repr_convection_residual(options, wind, variables_si, architecture)
+        state_conv_resi = convection.get_state_repr_convection_residual(options, wind, variables_si, architecture)
+        resi = cas.vertcat(resi, state_conv_resi)
 
     # induced velocity residuals
     columnized_list = outputs['vortex']['filament_list']

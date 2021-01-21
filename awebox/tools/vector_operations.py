@@ -36,7 +36,7 @@ import scipy.sparse as sps
 import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-
+import pdb
 
 def cross(a, b):
     vi = xhat() * (a[1] * b[2] - a[2] * b[1])
@@ -68,7 +68,10 @@ def abs(a):
 
 def smooth_abs(arg, epsilon=1e-8):
 
-    if hasattr(arg, 'shape') and (len(arg.shape) > 0):
+    if hasattr(arg, 'shape') and (arg.shape == (1,1)):
+        abs = smooth_sqrt(arg ** 2., epsilon)
+
+    elif hasattr(arg, 'shape') and (len(arg.shape) > 0):
         abs = []
         for idx in range(arg.shape[0]):
             local = smooth_sqrt(arg[idx] ** 2., epsilon)
@@ -85,8 +88,8 @@ def smooth_abs(arg, epsilon=1e-8):
 
     return abs
 
-def smooth_sqrt(a, epsilon=1e-8):
-    sqrt = (a + epsilon ** 2.) ** 0.5
+def smooth_sqrt(arg, epsilon=1e-8):
+    sqrt = (arg + epsilon ** 2.) ** 0.5
     return sqrt
 
 def normalize(a):

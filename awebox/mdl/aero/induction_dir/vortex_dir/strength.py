@@ -41,7 +41,21 @@ import awebox.tools.constraint_operations as cstr_op
 
 ################ actually define the constriants
 
+
 def get_strength_constraint(options, V, Outputs, model):
+
+    vortex_representation = options['induction']['vortex_representation']
+
+    if vortex_representation == 'state':
+        return get_state_repr_strength_constraint(options, V, Outputs, model)
+    elif vortex_representation == 'alg':
+        return get_alg_repr_strength_constraint(options, V, Outputs, model)
+    else:
+        message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def get_state_repr_strength_constraint(options, V, Outputs, model):
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -121,5 +135,50 @@ def get_strength_constraint(options, V, Outputs, model):
                                                         name = local_name,
                                                         cstr_type='eq')
                         cstr_list.append(local_cstr)
+
+    return cstr_list
+
+
+def get_alg_repr_strength_constraint(options, V, Outputs, model):
+
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    comparison_labels = options['induction']['comparison_labels']
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+    rings = wake_nodes - 1
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+
+    cstr_list = cstr_op.ConstraintList()
+
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+
+        for ndx in range(n_k):
+            for ddx in range(d):
+
+                for kite in kite_nodes:
+                    for ring in range(rings):
+
+                        local_name = 'wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + ',' + str(ddx)
+
+                        local_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
+                        wg_local = tools.get_ring_strength_si(local_variables, kite, ring, model.scaling)
+
+                        subtracted_ndx = ndx - ring
+                        shedding_ndx = np.mod(subtracted_ndx, n_k)
+
+                        gamma_val = Outputs['coll_outputs', shedding_ndx, ddx, 'aerodynamics', 'circulation' + str(kite)]
+
+                        local_resi = (wg_local - gamma_val) / tools.get_strength_scale(model.variables_dict, model.scaling)
+
+                        local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                        name = local_name,
+                                                        cstr_type='eq')
+                        cstr_list.append(local_cstr)
+
 
     return cstr_list
