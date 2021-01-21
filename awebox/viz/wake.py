@@ -35,8 +35,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament
 import awebox.mdl.wind as wind
 
 import matplotlib
-matplotlib.use('TkAgg')
-
 
 def plot_wake(plot_dict, cosmetics, fig_name, side):
 
