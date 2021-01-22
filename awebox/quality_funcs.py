@@ -274,7 +274,7 @@ def test_power_balance(trial, test_param_dict, results):
     balance['total'] = scaled_norm_system_net_power
 
     for node in list(balance.keys()):
-        if balance[node] > test_param_dict['power_balance_thresh']:
+        if node == 'total' and balance[node] > test_param_dict['power_balance_thresh']:
             message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
                       + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
             awelogger.logger.warning(message)
