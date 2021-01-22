@@ -56,6 +56,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
 
@@ -115,14 +116,18 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the inequality constraints
     # --------------------------------------------
 
-    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-    cstr_list.append(stress_cstr)
 
     wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'])
     cstr_list.append(wound_length_cstr)
 
+    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
+    cstr_list.append(stress_cstr)
+
     airspeed_cstr = airspeed_inequality(options, outputs, parameters, architecture)
     cstr_list.append(airspeed_cstr)
+
+    aero_validity_cstr = aero_validity_inequality(options, outputs)
+    cstr_list.append(aero_validity_cstr)
 
     anticollision_cstr = anticollision_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(anticollision_cstr)
@@ -130,17 +135,17 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     acceleration_cstr = acceleration_inequality(options, system_variables['SI'])
     cstr_list.append(acceleration_cstr)
 
-    omega_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(omega_cstr)
+    angular_velocity_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
+    cstr_list.append(angular_velocity_cstr)
+
+    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(rotation_cstr)
 
     dcoeff_cstr = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(dcoeff_cstr)
 
     coeff_cstr = coeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(coeff_cstr)
-
-    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
-    cstr_list.append(rotation_cstr)
 
     # ----------------------------------------
     #  construct outputs structure
@@ -238,6 +243,7 @@ def manage_power_integration(options, power, system_variables, parameters):
 
     return integral_outputs_fun, integral_outputs_struct, integral_scaling, cstr_list
 
+
 def make_output_structure(outputs, system_variables, parameters):
     outputs_vec = []
     full_list = []
@@ -269,31 +275,6 @@ def make_output_structure(outputs, system_variables, parameters):
     return [out_struct, outputs_fun, outputs_dict]
 
 
-def make_output_constraint_structure(options, outputs, system_variables, parameters):
-    constraint_vec = []
-
-    represented_constraints = list(options['model_bounds'].keys())
-
-    full_list = []
-    for output_type in list(outputs.keys()):
-
-        if (output_type in set(represented_constraints)) and (options['model_bounds'][output_type]['include']):
-
-            local_list = []
-            for name in list(outputs[output_type].keys()):
-                local_list += [cas.entry(name, shape=outputs[output_type][name].shape)]
-
-                constraint_vec = cas.vertcat(constraint_vec, outputs[output_type][name])
-
-            local_output = cas.struct_symMX(local_list)
-
-            full_list += [cas.entry(output_type, struct=local_output)]
-
-    constraint_struct = cas.struct_symMX(full_list)
-    constraints = constraint_struct(constraint_vec)
-    constraint_fun = cas.Function('constraint_out_fun', [system_variables['scaled'], parameters], [constraints])
-
-    return [constraint_struct, constraint_fun]
 
 
 
@@ -650,6 +631,21 @@ def airspeed_inequality(options, outputs, parameters, architecture):
 
     return cstr_list
 
+
+def aero_validity_inequality(options, outputs):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    if options['model_bounds']['aero_validity']['include']:
+        for name in outputs['aero_validity'].keys():
+
+            ineq = outputs['aero_validity'][name]
+            valid_cstr = cstr_op.Constraint(expr=ineq,
+                                            name=name,
+                                            cstr_type='ineq')
+            cstr_list.append(valid_cstr)
+
+    return cstr_list
 
 def angular_velocity_inequality(options, variables, parameters, architecture):
 
