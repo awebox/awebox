@@ -27,11 +27,11 @@ def test_singe_kite():
 
     return None
 
-def test_drag_mode():
-
-    options_dict = generate_options_dict()
-    trial_name = 'drag_mode_trial'
-    solve_and_check(options_dict[trial_name], trial_name)
+# def test_drag_mode():
+#
+#     options_dict = generate_options_dict()
+#     trial_name = 'drag_mode_trial'
+#     solve_and_check(options_dict[trial_name], trial_name)
 
 def test_save_trial():
 
