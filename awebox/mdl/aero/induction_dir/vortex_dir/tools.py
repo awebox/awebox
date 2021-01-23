@@ -34,14 +34,24 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
+import pdb
 
-def get_wake_node_position_si(variables, kite, tip, wake_node, scaling=None):
+def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=None):
+
+    vortex_representation = options['induction']['vortex_representation']
+    if vortex_representation == 'state':
+        var_type = 'xd'
+    elif vortex_representation == 'alg':
+        var_type = 'xl'
+    else:
+        message = 'unexpected vortex representation'
+        raise Exception(message)
 
     coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
+    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, coord_name)
 
     if scaling is not None:
-        return struct_op.var_scaled_to_si('xd', coord_name, dwx_local, scaling)
+        return struct_op.var_scaled_to_si(var_type, coord_name, dwx_local, scaling)
 
     return dwx_local
 
