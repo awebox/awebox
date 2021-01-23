@@ -121,7 +121,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
         ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
-        ('model', 'aero', 'vortex',     'representation',       'state',    ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
+        ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
         ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite per wingtip', None), 'x'),
         ('model', 'aero', 'vortex',     'far_convection_time',  120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
         ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.1,        ('the ratio between the vortex core radius and the airfoil chord, [-]', None), 'x'),

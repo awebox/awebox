@@ -134,7 +134,6 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
     d = options['collocation']['d']
 
     t_f = V['theta', 't_f']
-    tgrid = time_grids['coll'](t_f)
 
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
@@ -147,6 +146,8 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
+
+        tgrid = time_grids['coll'](t_f)
 
         for ndx in range(n_k):
             for ddx in range(d):
