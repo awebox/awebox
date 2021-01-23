@@ -306,7 +306,7 @@ class Collocation(object):
         g_continuity = V['xd', kdx + 1] - xf_k
 
         cstr = cstr_op.Constraint(expr=g_continuity,
-                                  name='continuity' + str(kdx),
+                                  name='continuity_{}'.format(kdx),
                                   cstr_type='eq')
 
         return cstr
@@ -326,6 +326,9 @@ class Collocation(object):
         """ Generate collocation and path constraints on all nodes, provide integral outputs and
             integral constraints on all nodes
         """
+        # construct list of all shooting node variables and parameters
+        shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
+        shooting_params = struct_op.get_shooting_params(options, V, P, model)
 
         # construct list of all collocation node variables and parameters
         coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
@@ -340,6 +343,9 @@ class Collocation(object):
 
         # evaluate functions in for loop
         for kdx in range(self.__n_k):
+
+            coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
+
             for ddx in range(self.__d):
                 idx = ddx + kdx * self.__d
 

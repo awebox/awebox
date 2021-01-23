@@ -26,7 +26,6 @@ options['user_options']['induction_model'] = 'not_in_use'
 options['nlp']['n_k'] = 40
 options['nlp']['collocation']['d'] = 4
 options['nlp']['discretization'] = 'direct_collocation'
-options['nlp']['parallelization']['overwrite'] = True
 options['nlp']['cost']['output_quadrature'] = False
 
 # solver options

@@ -25,16 +25,16 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     generalized_coordinates['scaled'] = generate_generalized_coordinates(system_variables['scaled'], system_gc)
     generalized_coordinates['SI'] = generate_generalized_coordinates(system_variables['SI'], system_gc)
 
-    # -------------------------------
-    # mass distribution in the system
-    # -------------------------------
-    node_masses_si, outputs = mass_comp.generate_m_nodes(options, system_variables['SI'], outputs, parameters, architecture)
+    # --------------------------------
+    # tether and ground station masses
+    # --------------------------------
+    outputs = mass_comp.generate_mass_outputs(options, system_variables['SI'], outputs, parameters, architecture)
 
     # --------------------------------
     # lagrangian
     # --------------------------------
 
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses_si, system_variables['SI'], architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
@@ -77,7 +77,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     if options['tether']['use_wound_tether']:
         lagrangian_momentum_correction = 0.
     else:
-        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses_si,
+        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
                                                          outputs, architecture)
 
     # rhs of lagrange equations
@@ -96,12 +96,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                              cstr_type='eq',
                                                              name='dynamics_translation')
     cstr_list.append(dynamics_translation_cstr)
-
-    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
-    dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
-                                                cstr_type='eq',
-                                                name='dynamics_constraint')
-    cstr_list.append(dynamics_constraint_cstr)
 
 
     # --------------------------------
@@ -133,11 +127,20 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                 name='trivial_' + name)
             cstr_list.append(trivial_dyn_cstr)
 
+    # ---------------------------
+    # holonomic constraints
+    # ---------------------------
+    dynamics_constraints = (lagrangian_lhs_constraints - lagrangian_rhs_constraints) / holonomic_scaling
+    dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints,
+                                                cstr_type='eq',
+                                                name='dynamics_constraint')
+    cstr_list.append(dynamics_constraint_cstr)
+
     return cstr_list, outputs
 
 
 
-def momentum_correction(options, generalized_coordinates, system_variables, node_masses, outputs, architecture):
+def momentum_correction(options, generalized_coordinates, system_variables, outputs, architecture):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
@@ -157,7 +160,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
 
         for node in range(1, architecture.number_of_nodes):
             label = str(node) + str(architecture.parent_map[node])
-            mass = node_masses['m' + label]
+            mass = outputs['masses']['m_tether{}'.format(node)]
             mass_flow = tools.time_derivative(mass, system_variables, architecture)
 
             # velocity of the mass particles leaving the system

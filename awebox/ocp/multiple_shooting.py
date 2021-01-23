@@ -57,7 +57,7 @@ class Multiple_shooting(object):
         return None
 
     def discretize_constraints(self, options, model, formulation, V, P):
-        """Discretize dynamics and path constraints in a (possibly) parallelizable fashion
+        """Discretize dynamics and path constraints in a parallelizable fashion
 
         @param options nlp options
         @param model awebox model
@@ -72,41 +72,22 @@ class Multiple_shooting(object):
         # implicit values of algebraic variables at interval nodes
         ms_z0 = self.__ms_z0
 
-        # evaluate dynamics and constraint functions on all intervals
-        if options['parallelization']['include']:
+        # use function map for parallellization
+        parallellization = options['parallelization']['type']
+        F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
+        path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
+        outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
 
-            # use function map for parallellization
-            parallellization = options['parallelization']['type']
-            F_map = self.__F.map('F_map', parallellization, self.__n_k, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, self.__n_k, [], []) # notice that these are the model inequality constraints
-            outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, self.__n_k, [], [])
+        # integrate
+        ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
+        ms_xf = ms_dynamics['xf']
+        ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
+        ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
+        ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
 
-            # integrate
-            ms_dynamics = F_map(x0= self.__ms_x, z0 = self.__ms_z, p = self.__ms_p)
-            ms_xf = ms_dynamics['xf']
-            ms_qf = cas.horzcat(np.zeros(self.__dae.dae['quad'].size()), ms_dynamics['qf'])
-            ms_constraints = path_constraints_fun(self.__ms_vars, self.__ms_params) # evaluate the model ineqs. at
-            ms_outputs = outputs_fun(self.__ms_vars, self.__ms_params)
-
-            # integrate quadrature outputs
-            for i in range(self.__n_k):
-                ms_qf[:,i+1] = ms_qf[:,i+1] + ms_qf[:,i]
-
-        else:
-
-            # initialize function evaluations
-            ms_xf = []
-            ms_qf = np.zeros(self.__dae.dae['quad'].size())
-            ms_constraints = []
-            ms_outputs = []
-
-            # evaluate functions in for loop
-            for i in range(self.__n_k):
-                ms_dynamics = self.__F(x0 = self.__ms_x[:,i], z0 = self.__ms_z[:,i], p = self.__ms_p[:,i])
-                ms_xf = cas.horzcat(ms_xf, ms_dynamics['xf'])
-                ms_qf = cas.horzcat(ms_qf, ms_qf[:,-1]+ms_dynamics['qf'])
-                ms_constraints = cas.horzcat(ms_constraints, model.constraints_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
-                ms_outputs = cas.horzcat(ms_outputs, model.outputs_fun(self.__ms_vars[:,i],self.__ms_params[:,i]))
+        # integrate quadrature outputs
+        for i in range(self.__n_k):
+            ms_qf[:,i+1] = ms_qf[:,i+1] + ms_qf[:,i]
 
         # integral outputs and constraints
         Integral_outputs_list = self.__build_integral_outputs(ms_qf, model.integral_outputs)
@@ -131,16 +112,11 @@ class Multiple_shooting(object):
         param_at_time = model.parameters(cas.vertcat(P['theta0'], V['phi']))
         ms_params = cas.repmat(param_at_time, 1, self.__n_k)
 
-        if options['parallelization']['include']:
-            # use function map for rootfinder parallellization
-            G_map = self.__dae.rootfinder.map('G_map', options['parallelization']['type'], self.__n_k, [], [])
-            x_root = []
-            z_root = []
-            p_root = []
-
-        else:
-            # compute implicit vars in for loop
-            z_implicit = []
+        # use function map for rootfinder parallellization
+        G_map = self.__dae.rootfinder.map('G_map', options['parallelization']['type'], self.__n_k, [], [])
+        x_root = []
+        z_root = []
+        p_root = []
 
         # compute explicit values of implicit variables
         ms_vars0 = []
@@ -151,44 +127,39 @@ class Multiple_shooting(object):
             # get dae vars at time
             x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
 
-            if not options['parallelization']['include']:
-                # compute implicit vars in for loop
-                z_at_time = self.__dae.z(self.__dae.rootfinder(z,x,p))
-                z_implicit = cas.horzcat(z_implicit, z_at_time)
-            else:
-                # store vars for parallelization
-                x_root = cas.horzcat(x_root, x)
-                z_root = cas.horzcat(z_root, z)
-                p_root = cas.horzcat(p_root, p)
+ 
+            # store vars for parallelization
+            x_root = cas.horzcat(x_root, x)
+            z_root = cas.horzcat(z_root, z)
+            p_root = cas.horzcat(p_root, p)
 
-        if options['parallelization']['include']:
-            # compute implicit vars in parallel fashion
-            z_implicit = G_map(z_root, x_root, p_root)
+        # compute implicit vars in parallel fashion
+        z_implicit = G_map(z_root, x_root, p_root)
 
         # construct list of all interval variables
-        ms_vars = []
-        ms_x = []
-        ms_z = []
-        ms_p = []
+        # ms_vars = []
+        # ms_x = []
+        # ms_z = []
+        # ms_p = []
 
-        for kdx in range(self.__n_k):
-            # fill in non-lifted vars
-            var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
-            # update dae vars at time
-            x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
+        # for kdx in range(self.__n_k):
+        #     # fill in non-lifted vars (not applicable)
+        #     #var_at_time = self.__set_implicit_variables(options, ms_vars0[kdx], param_at_time, self.__dae.z(z_implicit[:,kdx]))
+        #     # update dae vars at time
+        #     x, z, p = self.__dae.fill_in_dae_variables(var_at_time, param_at_time)
 
-            # store result
-            ms_vars = cas.horzcat(ms_vars, var_at_time)
-            ms_x = cas.horzcat(ms_x, x)
-            ms_z = cas.horzcat(ms_z, z)
-            ms_p = cas.horzcat(ms_p, p)
+        #     # store result
+        #     ms_vars = cas.horzcat(ms_vars, var_at_time)
+        #     ms_x = cas.horzcat(ms_x, x)
+        #     ms_z = cas.horzcat(ms_z, z)
+        #     ms_p = cas.horzcat(ms_p, p)
 
         self.__ms_params = ms_params
-        self.__ms_vars = ms_vars
-        self.__ms_x = ms_x
-        self.__ms_z = ms_z
+        self.__ms_vars = cas.horzcat(*ms_vars0)
+        self.__ms_x = x_root
+        self.__ms_z = z_root
         self.__ms_z0 = z_implicit
-        self.__ms_p = ms_p
+        self.__ms_p = p_root
 
         return None
 
@@ -255,7 +226,7 @@ class Multiple_shooting(object):
         g_continuity = V['xd', kdx + 1] - ms_xf[:,kdx]
 
         cont_cstr = cstr_op.Constraint(expr=g_continuity,
-                                  name='ms_continuity_' + str(kdx),
+                                  name='continuity_{}'.format(kdx),
                                   cstr_type='eq')
         return cont_cstr
 

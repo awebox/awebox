@@ -34,41 +34,51 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-
 from awebox.logger.logger import Logger as awelogger
 
-def energy_outputs(options, parameters, outputs, node_masses_si, variables_si, architecture):
+def energy_outputs(options, parameters, outputs, variables_si, architecture):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
-    for type in energy_types:
-        if type not in list(outputs.keys()):
-            outputs[type] = {}
+    for etype in energy_types:
+        if etype not in list(outputs.keys()):
+            outputs[etype] = {}
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
-        outputs = add_node_kinetic(node, options, node_masses_si, variables_si, parameters, outputs, architecture)
-        outputs = add_node_potential(node, node_masses_si, variables_si, parameters, outputs, architecture)
+        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture)
+        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture)
 
-    outputs = add_groundstation_kinetic(options, node_masses_si, variables_si, outputs)
-    outputs = add_groundstation_potential(outputs)
+    outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs)
+    outputs = add_ground_station_potential(outputs)
 
     return outputs
 
 
-def add_node_kinetic(node, options, node_masses_si, variables_si, parameters, outputs, architecture):
+def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture):
 
-    parent = architecture.parent_map[node]
-    label = str(node) + str(parent)
+    label = architecture.node_label(node)
+    parent_label = architecture.parent_label(node)
 
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
     node_has_rotational_energy = node_has_a_kite and kites_have_6dof
 
-    mass = node_masses_si['m' + label]
-    dq = variables_si['xd']['dq' + label]
-    e_kin_trans = 0.5 * mass * cas.mtimes(dq.T, dq)
+    # add tether translational kinetic energy
+    m_t = outputs['masses']['m_tether{}'.format(node)]
+    dq_n = variables_si['xd']['dq' + label]
+    if node == 1:
+        dq_parent = cas.DM.zeros((3, 1))
+    else:
+        dq_parent = variables_si['xd']['dq' + parent_label]
+    e_kin_trans = 0.5 * m_t/3 * (cas.mtimes(dq_n.T, dq_n) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_n.T, dq_parent))
+    
+    # add kite translational kinetic energy
+    if node_has_a_kite:
+        mass = parameters['theta0', 'geometry', 'm_k']
+        e_kin_trans += 0.5 * mass * cas.mtimes(dq_n.T, dq_n)
 
+    # add kite rotational energy
     if node_has_rotational_energy:
         omega = variables_si['xd']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
@@ -84,49 +94,57 @@ def add_node_kinetic(node, options, node_masses_si, variables_si, parameters, ou
     return outputs
 
 
-def add_node_potential(node, node_masses_si, variables_si, parameters, outputs, architecture):
+def add_node_potential(node, options, variables_si, parameters, outputs, architecture):
 
-    parent = architecture.parent_map[node]
-    label = str(node) + str(parent)
+    label = architecture.node_label(node)
+    parent_label = architecture.parent_label(node)
+
+    node_has_a_kite = node in architecture.kite_nodes
 
     gravity = parameters['theta0', 'atmosphere', 'g']
-    mass = node_masses_si['m' + label]
-    q = variables_si['xd']['q' + label]
 
-    e_potential = gravity * mass * q[2]
+    m_t = outputs['masses']['m_tether{}'.format(node)]
+    q_n = variables_si['xd']['q' + label]
+    if node == 1:
+        q_parent = cas.DM.zeros((3,1))
+    else:
+        q_parent = variables_si['xd']['q'+label]
+    e_potential = gravity * m_t/2 *(q_n[2] + q_parent[2])
+
+    if node_has_a_kite:
+        mass = parameters['theta0', 'geometry', 'm_k']
+        e_potential = gravity * mass * q_n[2]
+
     outputs['e_potential']['q' + label] = e_potential
 
     return outputs
 
 
-def add_groundstation_potential(outputs):
+def add_ground_station_potential(outputs):
     # the winch is at ground level
     e_potential = cas.DM(0.)
-    outputs['e_potential']['groundstation'] = e_potential
+    outputs['e_potential']['ground_station'] = e_potential
     return outputs
 
 
-def add_groundstation_kinetic(options, node_masses_si, variables_si, outputs):
+def add_ground_station_kinetic(options, variables_si, parameters, outputs):
 
-    # E_kinetic_groundstation
+    # E_kinetic_ground_station
     # = 1/2 J omega_gen^2, with no-slip condition
     # = 1/2 (1/2 m r^2) omega^2
     # = 1/4 m dl_t^2
     # add mass of first half of main tether, and the mass of wound tether.
 
-    total_groundstation_mass = node_masses_si['groundstation']
-
-    if options['tether']['use_wound_tether']:
-        total_groundstation_mass += node_masses_si['m00']
+    total_ground_station_mass = outputs['masses']['ground_station']
 
     dq10 = variables_si['xd']['dq10']
     q10 = variables_si['xd']['q10']
     l_t = variables_si['xd']['l_t']
 
-    speed_groundstation = cas.mtimes(dq10.T, q10) / l_t
+    speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
 
-    e_kinetic = 0.25 * total_groundstation_mass * speed_groundstation ** 2.
+    e_kinetic = 0.25 * total_ground_station_mass * speed_ground_station ** 2.
 
-    outputs['e_kinetic']['groundstation'] = e_kinetic
+    outputs['e_kinetic']['ground_station'] = e_kinetic
 
     return outputs

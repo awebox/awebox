@@ -36,14 +36,16 @@ import awebox.ocp.collocation as collocation
 
 
 
-def setup_nlp_v(nlp_numerics_options, model, Collocation=None):
+def setup_nlp_v(nlp_options, model, Collocation=None):
 
     # extract necessary inputs
     variables_dict = model.variables_dict
-    nk = nlp_numerics_options['n_k']
+    nk = nlp_options['n_k']
+    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
 
     # check if phase fix and adjust theta accordingly
-    if nlp_numerics_options['phase_fix']:
+    if nlp_options['phase_fix'] == 'single_reelout':
         theta = get_phase_fix_theta(variables_dict)
     else:
         theta = variables_dict['theta']
@@ -54,48 +56,31 @@ def setup_nlp_v(nlp_numerics_options, model, Collocation=None):
         )
 
     # add additional variables according to provided options
-    if nlp_numerics_options['discretization'] == 'direct_collocation':
+    if multiple_shooting or nlp_options['collocation']['u_param'] == 'zoh':
+        entry_tuple += (
+            cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
+        )
 
-        if nlp_numerics_options['collocation']['u_param'] == 'zoh':
-            entry_tuple += (
-                cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
-            )
+    # add state derivative variables at interval
+    entry_tuple += (
+        cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']),
+    )
 
-        # add algebraic variables at interval except for radau case
-        if nlp_numerics_options['collocation']['scheme'] != 'radau':
-            if nlp_numerics_options['lift_xddot']:
-                entry_tuple += (
-                    cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']), # depends on implementation (e.g. not present for radau collocation)
-                )
-            if nlp_numerics_options['lift_xa']:
-                entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),) # depends on implementation (e.g. not present for radau collocation)
-                if 'xl' in list(variables_dict.keys()):
-                    entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
+    # add algebraic variables at shooting nodes for constraint evaluation
+    entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),)
+    if 'xl' in list(variables_dict.keys()):
+        entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)
+
+    if direct_collocation:
 
         # add collocation node variables
         if Collocation is None:
             message = 'a None instance of Collocation was passed to the NLP variable structure generator'
             raise Exception(message)
 
-        d = nlp_numerics_options['collocation']['d'] # interpolating polynomial order
-        coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_numerics_options['collocation']['u_param'])
+        d = nlp_options['collocation']['d'] # interpolating polynomial order
+        coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_options['collocation']['u_param'])
         entry_tuple += (cas.entry('coll_var', struct = coll_var, repeat= [nk,d]),)
-
-    elif nlp_numerics_options['discretization'] == 'multiple_shooting':
-
-        entry_tuple += (
-            cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
-        )
-
-        # multiple shooting: add algebraic variables at interval if lifted
-        if nlp_numerics_options['lift_xddot']:
-            entry_tuple += (
-                cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']), # depends on implementation (e.g. not present for radau collocation)
-            )
-        if nlp_numerics_options['lift_xa']:
-            entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),) # depends on implementation (e.g. not present for radau collocation)
-            if 'xl' in list(variables_dict.keys()):
-                entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)  # depends on implementation (e.g. not present for radau collocation)
 
     # add global entries
     # when the global variables are before the discretized variables, it leads to prettier kkt matrix spy plots

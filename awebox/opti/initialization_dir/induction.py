@@ -93,9 +93,14 @@ def set_wu_ind(init_options, nlp, model, V_init):
     rings = wake_nodes - 1
 
     for kdx in range(n_k):
-        for ddx in range(d):
+
+        for ddx in range(d+1):
             # remember that V_init is in si coords, ie. not yet scaled
-            variables_si = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx)
+            if ddx == 0:
+                ddx_arg = None
+            else:
+                ddx_arg = ddx-1
+            variables_si = struct_op.get_variables_at_time(init_options, V_init, None, model.variables, kdx, ddx=ddx_arg)
             filament_list = vortex_filament_list.get_list(init_options, variables_si, model.architecture)
             filaments = filament_list.shape[1]
 
@@ -103,7 +108,11 @@ def set_wu_ind(init_options, nlp, model, V_init):
                 u_ind_kite = vortex_flow.get_induced_velocity_at_kite(init_options, filament_list, variables_si, model.architecture,
                                                                kite_obs)
                 ind_name = 'wu_ind_' + str(kite_obs)
-                V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
+
+                if ddx == 0:
+                    V_init['xl', kdx, ind_name] = u_ind_kite
+                else:
+                    V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
 
                 for fdx in range(filaments):
                     # biot-savart of filament induction
@@ -112,7 +121,11 @@ def set_wu_ind(init_options, nlp, model, V_init):
                                                                kite_obs)
 
                     ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-                    V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_fil
+
+                    if ddx == 0:
+                        V_init['xl', kdx, ind_name] = u_ind_fil
+                    else:
+                        V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_fil
 
 
     return V_init
@@ -163,6 +176,7 @@ def set_wake_strengths(init_options, nlp, model, V_init):
             var_name = 'wg' + '_' + str(kite) + '_' + str(ring)
 
             for ndx in range(n_k):
+                V_init['xl',ndx,var_name] = wake_gamma
                 for ddx in range(d):
                     V_init['coll_var', ndx, ddx, 'xl', var_name] = wake_gamma
 
@@ -248,7 +262,7 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
 
                 for ndx in range(n_k):
                     for ddx in range(d):
-                        t_local_coll = tgrid_coll[ndx, ddx]
+                        t_local_coll = tgrid_coll_x[ndx, ddx]
                         q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, init_options,
                                                                       model, kite, b_ref, sign, U_ref)
                         dict_coll[kite][tip][wake_node][ndx][ddx] = q_convected_coll
@@ -312,16 +326,16 @@ def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
 
     return V_init
 
-def set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
 
     if 'cos' in name:
-        V_init = set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
     elif 'sin' in name:
-        V_init = set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
     elif 'dpsi' in name:
         V_init = set_dpsi_variables(V_init, name, init_options)
     else:
-        V_init = set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+        V_init = set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
 
     return V_init
 
@@ -360,36 +374,41 @@ def set_dpsi_variables(V_init, name, init_options):
     return V_init
 
 
-def set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
     kite_parent = name[6:]
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
     idx = 0
     for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
-            t = tgrid_coll[nn, dd]
+        for dd in range(nlp.d+1):
+            t = tgrid_coll_x[nn*(nlp.d+1) + dd]
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
             init_val = np.sin(psi)
-            V_init['coll_var', nn, dd, 'xl', name] = init_val
+            if dd == 0:
+                V_init['xl', nn, name] = init_val
+            else:
+                V_init['coll_var', nn, dd-1, 'xl', name] = init_val
 
             idx = idx + 1
 
     return V_init
 
-def set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
+def set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
     kite_parent = name[6:]
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
     idx = 0
     for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
-            t = tgrid_coll[nn, dd]
+        for dd in range(nlp.d+1):
+            t = tgrid_coll_x[nn*(nlp.d+1) + dd]
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
             init_val = np.cos(psi)
-            V_init['coll_var', nn, dd, 'xl', name] = init_val
-
+            if dd == 0:
+                V_init['xl', nn, name] = init_val
+            else:
+                V_init['coll_var', nn, dd-1, 'xl', name] = init_val
             idx = idx + 1
 
     return V_init
@@ -404,7 +423,7 @@ def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
     time_final = init_options['precompute']['time_final']
     omega_norm = init_options['precompute']['angular_speed']
 
-    tgrid_coll = nlp.time_grids['coll'](time_final)
+    tgrid_coll_x = nlp.time_grids['x_coll'](time_final)
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
@@ -442,7 +461,7 @@ def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if 'psi' in name_stripped:
-            V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
+            V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
 
         elif name_stripped in dict.keys():
             V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)

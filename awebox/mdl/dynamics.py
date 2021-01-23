@@ -104,7 +104,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
-    power = get_power(options, system_variables['SI'], outputs, architecture)
+    power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
     integral_outputs_fun, integral_outputs_struct, integral_scaling, energy_cstr = manage_power_integration(options,
                                                                                                                 power,
                                                                                                                 system_variables,
@@ -165,7 +165,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # add other relevant outputs
     outputs = xddot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,
-                                    architecture)  # this must be after tether stress inequality
+                                    parameters, architecture)  # this must be after tether stress inequality
 
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
@@ -282,20 +282,21 @@ def make_output_structure(outputs, system_variables, parameters):
 
 
 
-def get_drag_power_from_kite(kite, variables_si, outputs, architecture):
+def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture):
     parent = architecture.parent_map[kite]
-    kite_drag_power = -1. * cas.mtimes(
-        variables_si['xd']['dq{}{}'.format(kite, parent)].T,
-        outputs['aerodynamics']['f_gen{}'.format(kite)]
-    )
+    kite_drag_power = parameters['theta0', 'aero', 'turbine_efficiency'] * \
+        cas.mtimes(
+            outputs['aerodynamics']['air_velocity{}'.format(kite)].T,
+            outputs['aerodynamics']['f_gen{}'.format(kite)]
+        )
     return kite_drag_power
 
 
-def get_power(options, variables_si, outputs, architecture):
+def get_power(options, variables_si, parameters, outputs, architecture):
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
-            power += get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+            power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
     else:
         power = variables_si['xa']['lambda10'] * variables_si['xd']['l_t'] * variables_si['xd']['dl_t']
 
@@ -303,23 +304,23 @@ def get_power(options, variables_si, outputs, architecture):
 
 
 
-def drag_mode_outputs(variables_si, outputs, architecture):
+def drag_mode_outputs(variables_si, parameters, outputs, architecture):
     for kite in architecture.kite_nodes:
-        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
 
     return outputs
 
 
 
 
-def power_balance_outputs(options, outputs, system_variables, architecture):
+def power_balance_outputs(options, outputs, system_variables, parameters, architecture):
     variables_si = system_variables['SI']
 
     # all aerodynamic forces have already been added to power balance, by this point.
     # outputs['power_balance'] is not empty!
 
     if options['trajectory']['system_type'] == 'drag_mode':
-        outputs = drag_mode_outputs(variables_si, outputs, architecture)
+        outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
     outputs = kinetic_power_outputs(options, outputs, system_variables, architecture)
@@ -395,7 +396,7 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
         categories = {'q' + label: str(n)}
 
         if n == 1:
-            categories['groundstation'] = 'groundstation1'
+            categories['ground_station'] = 'groundstation1'
 
         for cat in categories.keys():
 

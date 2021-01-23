@@ -160,6 +160,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         else:
             phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
+    options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
 
     n_k = options['nlp']['n_k']
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
@@ -179,16 +180,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('nlp', 'system_model', None, 'kite_dof', user_options['system_model']['kite_dof'], ('???', None),'x'))
 
-    # parallelize function evaluations in NLP
-    if options['nlp']['parallelization']['overwrite'] is not None:
-        parallelize = options['nlp']['parallelization']['overwrite']
-    else:
-        if architecture.layers == 1:
-            parallelize = False
-        else:
-            # parallelization starts to become effective from two layers on
-            parallelize = True
-
     options_tree.append(('nlp', 'jit_code_gen', None, 'include', options['model']['jit_code_gen']['include'],  ('????', None),'x'))
     options_tree.append(('nlp', 'jit_code_gen', None, 'compiler', options['model']['jit_code_gen']['compiler'], ('????', None), 'x'))
 
@@ -206,9 +197,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_coll'],  ('number of internal integrator steps', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'rk4root':
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_rk4root'],  ('number of internal integrator steps', (True, False)),'x'))
-
-    options_tree.append(('nlp', 'parallelization', None, 'include', parallelize,  ('parallelize functions in nlp', (True, False)),'x'))
-
 
     return options_tree, phase_fix
 

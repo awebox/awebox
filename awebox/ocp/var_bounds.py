@@ -46,6 +46,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
     distinct_variables = struct_op.get_distinct_V_indices(V)
 
+    n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
     periodic = perf_op.determine_if_periodic(nlp_options)
@@ -54,29 +55,22 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     for canonical in distinct_variables:
 
         [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
-        use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx > 0)) or (not periodic))
+        use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
         if (var_type == 'xd') and (not var_is_coll_var):
 
             if use_depending_on_periodicity:
-                # apply the bounds at all kdx except the first, because those area already pinned by periodicity
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-                [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
-                                                             var_type, kdx, ddx, name)
+            [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
+                                                            var_type, kdx, ddx, name)
 
         elif (var_type in {'xl', 'xa', 'u'}):
-            if (var_type in V.keys()) and (not var_is_coll_var) and use_depending_on_periodicity:
+            if (var_type in V.keys()) and (not var_is_coll_var):
 
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
-
-            elif (not var_type in V.keys()) and (var_is_coll_var) and (ddx == (d -1)):
-                # only apply inequalities at control nodes to prevent LICQ violation when these bounds become active
-
-                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
         elif (var_type == 'theta'):
             vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
@@ -90,26 +84,39 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
+    # drag-mode phase fixing: fix y-speed of first system node
+    if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (nlp_options['system_type'] == 'drag_mode'):
+        vars_lb[var_type, 0, name, 1] = 0.0
+        vars_ub[var_type, 0, name, 1] = 0.0
+
+    # lift-mode phase fixing
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
     in_out_phase = (kdx < switch_kdx)
 
     n_k = nlp_options['n_k']
 
-    if name == 'dl_t' and nlp_options['phase_fix']:
+    if name == 'dl_t':
 
-        if (var_type == 'xd') and (not coll_flag):
-            if kdx == (n_k):
-                vars_lb[var_type, kdx, name] = 0.0
-                vars_ub[var_type, kdx, name] = 0.0
+        if nlp_options['phase_fix'] == 'single_reelout':
 
-            elif in_out_phase:
-                vars_lb[var_type, kdx, name] = 0.0
-                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+            if (var_type == 'xd') and (not coll_flag):
+                if kdx == (n_k):
+                    vars_lb[var_type, kdx, name] = 0.0
+                    vars_ub[var_type, kdx, name] = 0.0
+
+                elif in_out_phase:
+                    vars_lb[var_type, kdx, name] = 0.0
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                else:
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = 0.0
             else:
-                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                vars_ub[var_type, kdx, name] = 0.0
-        else:
-            32. # do nothing
+                32. # do nothing
+
+        elif nlp_options['phase_fix'] == 'simple' and (kdx == 0) and (not coll_flag):
+
+            vars_lb[var_type, kdx, name] = 0.0
+            vars_ub[var_type, kdx, name] = 0.0
 
     pumping_range = nlp_options['pumping_range']
     if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
