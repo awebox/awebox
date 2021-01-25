@@ -72,6 +72,11 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
+            elif (var_type == 'u') and var_is_coll_var:
+                import ipdb; ipdb.set_trace()
+                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
+
         elif (var_type == 'theta'):
             vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
             vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
