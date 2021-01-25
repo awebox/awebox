@@ -247,6 +247,7 @@ class Pmpc(object):
         R = np.eye(self.__trial.model.variables['u'].shape[0])
         Z = np.eye(self.__trial.model.variables['xa'].shape[0])
         L = np.eye(self.__trial.model.variables['xl'].shape[0])
+        P = np.eye(self.__trial.model.variables['xd'].shape[0])
 
         # create tracking function
         from scipy.linalg import block_diag
@@ -265,6 +266,10 @@ class Pmpc(object):
 
         # integrate tracking cost function
         f = ct.mtimes(ct.vertcat(*quad_weights).T, cost_map(*cost_args).T)/self.__N
+
+        # terminal cost
+        dxN = self.__trial.nlp.V['xd',-1] - self.__p['ref','xd',-1]
+        f += ct.mtimes(ct.mtimes((dxN.T, P),dxN)
 
         return f
 
@@ -547,7 +552,15 @@ class Pmpc(object):
         w = ct.SX.sym('w',W.shape[0])
         w_ref = ct.SX.sym('w_ref', W.shape[0])
 
-        return ct.Function('tracking_cost', [w, w_ref], [ct.mtimes((w-w_ref).T,(w-w_ref))])
+        f_t = ct.mtimes(
+                ct.mtimes(
+                    (w-w_ref).T,
+                    W
+                ),
+                (w-w_ref)
+        )
+
+        return ct.Function('tracking_cost', [w, w_ref], [f_t])
 
     @property
     def trial(self):
