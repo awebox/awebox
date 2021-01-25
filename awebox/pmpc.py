@@ -119,7 +119,7 @@ class Pmpc(object):
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
-                g_ub['stage_constraints',0,:,'path_constraints','inequality',constr] = np.inf
+                g_ub['path',0,constr] = np.inf
         self.__trial.nlp.g_bounds['ub'] = g_ub.cat
 
         return None

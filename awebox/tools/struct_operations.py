@@ -59,14 +59,7 @@ def subkeys(casadi_struct, key):
     return subkey_list
 
 def count_shooting_nodes(nlp_options):
-    n_k = nlp_options['n_k']
-    periodic = perf_op.determine_if_periodic(nlp_options)
-    if periodic:
-        shooting_nodes = n_k
-    else:
-        shooting_nodes = n_k + 1
-
-    return shooting_nodes
+    return nlp_options['n_k']
 
 def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
