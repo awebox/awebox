@@ -27,11 +27,11 @@ def test_singe_kite():
 
     return None
 
-# def test_drag_mode():
-#
-#     options_dict = generate_options_dict()
-#     trial_name = 'drag_mode_trial'
-#     solve_and_check(options_dict[trial_name], trial_name)
+def test_drag_mode():
+
+    options_dict = generate_options_dict()
+    trial_name = 'drag_mode_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
 
 def test_save_trial():
 
@@ -81,7 +81,7 @@ def test_actuator_qaxi():
 
     return None
 
-def test_actuator_uaxi_options():
+def test_actuator_uaxi():
 
     options_dict = generate_options_dict()
     trial_name = 'actuator_uaxi_trial'
@@ -175,7 +175,7 @@ def generate_options_dict():
     actuator_qaxi_options = options.Options(internal_access=True)
     actuator_qaxi_options['user_options']['system_model']['architecture'] = {1: 0, 2: 1, 3: 1}
     actuator_qaxi_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 3
+    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 6
     actuator_qaxi_options['user_options']['tether_drag_model'] = 'split'
     actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
@@ -242,7 +242,7 @@ def generate_options_dict():
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
     options_dict['actuator_qasym_trial'] = actuator_qasym_options
     options_dict['actuator_uasym_trial'] = actuator_uasym_options
-    options_dict['actuator_comparison_trial'] = actuator_comparison_options
+    # options_dict['actuator_comparison_trial'] = actuator_comparison_options
     options_dict['vortex_trial'] = vortex_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
@@ -251,22 +251,6 @@ def generate_options_dict():
 
     return options_dict
 
-
-def test_trials():
-    """
-    Test all trials that are defined in options_dict
-    :return: None
-    """
-
-    # generate options_dict
-    options_dict = generate_options_dict()
-
-    # loop over trials
-    for trial_name in list(options_dict.keys()):
-        trial_options = options_dict[trial_name]
-        solve_and_check(trial_options, trial_name)
-
-    return None
 
 def solve_and_check(trial_options, trial_name):
     """
@@ -304,3 +288,5 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+test_drag_mode()
