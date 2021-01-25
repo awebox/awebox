@@ -243,15 +243,21 @@ class Pmpc(object):
         f = 0.0
 
         # weighting matrices
-        Q = np.eye(self.__trial.model.variables['xd'].shape[0])
-        R = np.eye(self.__trial.model.variables['u'].shape[0])
-        Z = np.eye(self.__trial.model.variables['xa'].shape[0])
-        L = np.eye(self.__trial.model.variables['xl'].shape[0])
-        P = np.eye(self.__trial.model.variables['xd'].shape[0])
+        weights = {}
+        for weight in ['Q', 'R', 'P']:
+            if weight in self.__mpc_options.keys():
+                weights[weight] = self.__mpc_options[weight]
+            else:
+                if weight in ['Q', 'P']:
+                    weights[weight] = np.eye(self.__nx)
+                elif weight == 'R':
+                    weights[weight] = np.eye(self.__nu)
+        weights['Z'] = np.zeros((self.__nz, self.__nz))
+        weights['L'] = np.zeros((self.__nl, self.__nl))
 
         # create tracking function
         from scipy.linalg import block_diag
-        tracking_cost = self.__create_tracking_cost_fun(block_diag(Q,R,Z,L))
+        tracking_cost = self.__create_tracking_cost_fun(block_diag(weights['Q'],weights['R'],weights['Z'],weights['L']))
         cost_map = tracking_cost.map(self.__N)
 
         # cost function arguments
@@ -269,7 +275,7 @@ class Pmpc(object):
 
         # terminal cost
         dxN = self.__trial.nlp.V['xd',-1] - self.__p['ref','xd',-1]
-        f += ct.mtimes(ct.mtimes((dxN.T, P),dxN)
+        f += ct.mtimes(ct.mtimes((dxN.T, weights['P'])),dxN)
 
         return f
 
