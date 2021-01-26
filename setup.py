@@ -22,11 +22,35 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# Import main interface classes
-from .sweep import Sweep
-from .trial import Trial
-from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
 
-# Visualization classes
-from .viz.visualization import Visualization
+from setuptools import setup, find_packages
+
+import sys
+print(sys.version_info)
+
+if sys.version_info < (3,5):
+    sys.exit('Python version 3.5 or later required. Exiting.')
+
+setup(name='awebox',
+   version='0.1.0',
+   python_requires='>=3.5, <3.8',
+   description='Modeling and optimal control of sinlge- and multi-kite systems',
+   url='https://github.com/awebox/awebox',
+   author='Jochem De Schutter, Rachel Leuthold, Thilo Bronnenmeyer, Elena Malz, Sebastien Gros, Moritz Diehl',
+   author_email='jochem.de.schutter@imtek.de',
+   license='LGPLv3.0',
+   packages = find_packages(),
+   include_package_data = True,
+   # setup_requires=['setuptools_scm'],
+   # use_scm_version={
+   #   "fallback_version": "0.1-local",
+   #   "root": "../..",
+   #   "relative_to": __file__
+   # },
+   install_requires=[
+      'numpy',
+      'scipy',
+      'casadi==3.5.1',
+      'matplotlib',
+   ],
+)

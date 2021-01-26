@@ -102,7 +102,7 @@ class Dae(object):
         # set options
         opts =  {'tf': time_step,'jit': options['jit'],'expand':True}
 
-        if options['type'] is not 'rk4root':
+        if options['type'] != 'rk4root':
 
             # collocation options
             if options['type'] == 'collocation':

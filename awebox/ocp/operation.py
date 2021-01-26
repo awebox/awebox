@@ -192,7 +192,7 @@ def get_vortex_strength_constraints(options, variables, model):
     return vortex_strength_constraints, vortex_strength_constraints_fun
 
 
-def get_wake_fix_constraints(options, variables, model):
+def get_wake_fix_constraints(options, variables, model, Collocation):
     # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
 
     ineqs_dict = {}

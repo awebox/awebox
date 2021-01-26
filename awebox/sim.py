@@ -150,7 +150,7 @@ class Simulation:
                 self.__trial.optimization.V_opt)
             T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
             t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
-            self.__t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+            self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
             for name in list(self.__trial.model.variables_dict['u'].keys()):
                 for j in range(self.__trial.variables_dict['u'][name].shape[0]):
                     values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
