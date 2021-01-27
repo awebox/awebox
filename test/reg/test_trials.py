@@ -110,13 +110,13 @@ def test_actuator_uasym():
 
     return None
 
-def test_actuator_comparison():
-
-    options_dict = generate_options_dict()
-    trial_name = 'actuator_comparison_trial'
-    solve_and_check(options_dict[trial_name], trial_name)
-
-    return None
+# def test_actuator_comparison():
+#
+#     options_dict = generate_options_dict()
+#     trial_name = 'actuator_comparison_trial'
+#     solve_and_check(options_dict[trial_name], trial_name)
+#
+#     return None
 
 def test_dual_kite_tracking():
 

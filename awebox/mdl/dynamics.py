@@ -56,7 +56,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def make_dynamics(options, atmos, wind, parameters, architecture):
 

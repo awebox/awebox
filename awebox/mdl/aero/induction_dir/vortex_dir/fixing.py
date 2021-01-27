@@ -39,7 +39,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.ocp.var_struct as var_struct
 
 import awebox.tools.constraint_operations as cstr_op
-import pdb
 
 ################# define the actual constraint
 

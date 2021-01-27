@@ -45,8 +45,6 @@ import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
 
-import copy
-import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
@@ -195,12 +193,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         )
 
         # path constraints on shooting nodes
-        cstr_list.append(cstr_op.Constraint(
-            expr= ocp_ineqs_expr[:,kdx],
-            name='path_{}'.format(kdx),
-            cstr_type='ineq'
+        if (ocp_ineqs_expr.shape != (0, 0)):
+            cstr_list.append(cstr_op.Constraint(
+                expr= ocp_ineqs_expr[:,kdx],
+                name='path_{}'.format(kdx),
+                cstr_type='ineq'
+                )
             )
-        )
 
         # collocation constraints
         for jdx in range(d):

@@ -34,7 +34,6 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
-import pdb
 
 def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=None):
 

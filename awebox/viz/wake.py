@@ -37,8 +37,6 @@ import awebox.mdl.wind as wind
 import matplotlib
 matplotlib.use('TkAgg')
 
-import pdb
-
 def plot_wake(plot_dict, cosmetics, fig_name, side):
 
     fig = plt.figure()

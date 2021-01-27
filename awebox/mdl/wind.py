@@ -33,7 +33,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.lagr_interpol as lagr_interpol
-import pdb
+
 
 class Wind:
     def __init__(self, wind_model_options, params):
