@@ -262,7 +262,7 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
 
                 for ndx in range(n_k):
                     for ddx in range(d):
-                        t_local_coll = tgrid_coll_x[ndx, ddx]
+                        t_local_coll = tgrid_coll[ndx, ddx]
                         q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, init_options,
                                                                       model, kite, b_ref, sign, U_ref)
                         dict_coll[kite][tip][wake_node][ndx][ddx] = q_convected_coll

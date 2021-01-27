@@ -46,6 +46,7 @@ import awebox.tools.performance_operations as perf_op
 from awebox.logger.logger import Logger as awelogger
 
 import copy
+import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
@@ -60,14 +61,15 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     # model constraints structs
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
-    
+    ####### check if entries same.
+    ####### double check if vortex model constraints
+
+
     # get discretization information
     nk = nlp_options['n_k']
     
-    # size of algebraic variables on interval nodes
-    nz = model.variables['xa'].shape[0]
-    if 'xl' in list(model.variables.keys()):
-        nz += model.variables['xl'].shape[0]
+    # number of algebraic variables that are restricted by model equalities (dynamics)
+    nz = model.constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
 
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
@@ -132,7 +134,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
     ocp_cstr_list.append(vortex_strength_cstr)
     if len(vortex_strength_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape =  vortex_strength_cstr.get_expression_list('all').shape))
+        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape = vortex_strength_cstr.get_expression_list('all').shape))
 
     if direct_collocation:
         integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)

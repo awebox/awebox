@@ -17,7 +17,12 @@ import awebox.opts.options as options
 import awebox.trial as awe_trial
 import awebox.tools.print_operations as print_op
 
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
+
+
+logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
 def test_singe_kite():
 
@@ -27,11 +32,11 @@ def test_singe_kite():
 
     return None
 
-# def test_drag_mode():
-#
-#     options_dict = generate_options_dict()
-#     trial_name = 'drag_mode_trial'
-#     solve_and_check(options_dict[trial_name], trial_name)
+def test_drag_mode():
+
+    options_dict = generate_options_dict()
+    trial_name = 'drag_mode_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
 
 def test_save_trial():
 
@@ -154,6 +159,7 @@ def generate_options_dict():
 
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options']['trajectory']['system_type'] = 'drag_mode'
+    drag_mode_options['quality']['test_param']['power_balance_thresh'] = 2.
 
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver']['save_trial'] = True
@@ -166,7 +172,6 @@ def generate_options_dict():
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
-    dual_kite_6_dof_options['quality']['test_param']['ddc_max'] = 5e2
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
