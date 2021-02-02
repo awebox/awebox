@@ -40,6 +40,7 @@ import awebox.tools.print_operations as print_op
 
 
 from awebox.logger.logger import Logger as awelogger
+import pdb
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
@@ -482,8 +483,7 @@ def collect_type_constraints(nlp, cstr_type):
     ocp_cstr_list = nlp.ocp_cstr_list
 
     name_list = ocp_cstr_list.get_name_list('all')
-
-    g = nlp.g
+    g = ocp_cstr_list.get_expression_list('all')
     g_sym = cas.SX.sym('g_sym', g.shape)
 
     for cstr in ocp_cstr_list.get_list('all'):

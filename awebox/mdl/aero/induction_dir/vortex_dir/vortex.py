@@ -93,29 +93,31 @@ def get_induction_trivial_residual(options, wind, variables_si, outputs, archite
 
 
 def get_induction_final_residual(options, wind, variables_si, outputs, architecture):
-    resi = []
+    return get_induction_trivial_residual(options, wind, variables_si, outputs, architecture)
 
-    # induced velocity residuals
-    columnized_list = outputs['vortex']['filament_list']
-    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
-    filaments = filament_list.shape[1]
-    u_ref = wind.get_velocity_ref()
-
-    for kite_obs in architecture.kite_nodes:
-
-        for fdx in range(filaments):
-            # biot-savart of filament induction
-            filament = filament_list[:, fdx]
-
-            u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
-
-            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
-
-            local_resi = (local_var - u_ind_fil) / u_ref
-            resi = cas.vertcat(resi, local_resi)
-
-    return resi
+    # resi = []
+    #
+    # # induced velocity residuals
+    # columnized_list = outputs['vortex']['filament_list']
+    # filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    # filaments = filament_list.shape[1]
+    # u_ref = wind.get_velocity_ref()
+    #
+    # for kite_obs in architecture.kite_nodes:
+    #
+    #     for fdx in range(filaments):
+    #         # biot-savart of filament induction
+    #         filament = filament_list[:, fdx]
+    #
+    #         u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
+    #
+    #         ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+    #         local_var = variables_si['xl'][ind_name]
+    #
+    #         local_resi = (local_var - u_ind_fil) / u_ref
+    #         resi = cas.vertcat(resi, local_resi)
+    #
+    # return resi
 
 def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
 

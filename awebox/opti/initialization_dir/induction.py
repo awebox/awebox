@@ -71,14 +71,19 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
         awelogger.logger.error(message)
         raise Exception(message)
 
-    # create the dictionaries
-    dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+    if init_options['induction']['vortex_representation'] == 'state':
 
-    # save values into dictionaries
-    dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
-                                                                        model, V_init)
-    # set dictionary values into V_init
-    V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+        # create the dictionaries
+        dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+
+        # save values into dictionaries
+        dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
+                                                                            model, V_init)
+        # set dictionary values into V_init
+        V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+
+    else:
+        32.0
 
     V_init = set_wake_strengths(init_options, nlp, model, V_init)
 
@@ -198,21 +203,16 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
             for wake_node in range(wake_nodes):
                 var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
-                if init_options['induction']['vortex_representation'] == 'state':
+                for ndx in range(n_k + 1):
+                    wx_local = dict_xd[kite][tip][wake_node][ndx]
+                    V_init['xd', ndx, var_name] = wx_local
+                    V_init['xd', ndx, 'd' + var_name] = U_ref
 
-                    for ndx in range(n_k + 1):
-                        wx_local = dict_xd[kite][tip][wake_node][ndx]
-                        V_init['xd', ndx, var_name] = wx_local
-                        V_init['xd', ndx, 'd' + var_name] = U_ref
-
-                    for ndx in range(n_k):
-                        for ddx in range(d):
-                            wx_local = dict_coll[kite][tip][wake_node][ndx][ddx]
-                            V_init['coll_var', ndx, ddx, 'xd', var_name] = wx_local
-                            V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = U_ref
-
-                else:
-                    print_op.warn_about_temporary_funcationality_removal(location='init.induction')
+                for ndx in range(n_k):
+                    for ddx in range(d):
+                        wx_local = dict_coll[kite][tip][wake_node][ndx][ddx]
+                        V_init['coll_var', ndx, ddx, 'xd', var_name] = wx_local
+                        V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = U_ref
 
     return V_init
 

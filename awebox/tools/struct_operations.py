@@ -168,11 +168,18 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
+def no_available_var_info(variables, var_type):
+    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
+    awelogger.logger.warning(message)
+    return np.zeros(variables[var_type].shape)
+
+
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
     if (ddx is None):
         return V[var_type, kdx]
     else:
+        print('get alg')
         return V['coll_var', kdx, ddx, var_type]
 
 

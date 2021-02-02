@@ -38,6 +38,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import awebox.ocp.var_struct as var_struct
 
+import pdb
+
 import awebox.tools.constraint_operations as cstr_op
 
 ################# define the actual constraint
@@ -148,42 +150,52 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
 
         tgrid = time_grids['coll'](t_f)
 
+        print_op.warn_about_temporary_funcationality_removal(location='fixing')
         for ndx in range(n_k):
             for ddx in range(d):
+
                 current_time = tgrid[ndx, ddx]
 
                 for kite in kite_nodes:
                     for tip in wingtips:
                         for wake_node in range(wake_nodes):
 
+                            # if (ndx != (n_k - 1)) and (ddx != (d - 1)):
+
                             local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx) + ',' + str(ddx)
 
-                            local_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
-                            wx_local = tools.get_wake_node_position_si(options, local_variables, kite, tip, wake_node, model.scaling)
+                            # local_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx=ddx)
+                            # wx_local = tools.get_wake_node_position_si(options, local_variables, kite, tip, wake_node, model.scaling)
 
-                            # if wake_node = 0, then shed at ndx
-                            # if wake_node = 1, then shed at (ndx - 1) ---- > corresponds to (ndx - 2), ddx = -1
-                            # .... if shedding_ndx is 1, then shedding_ndx -> 1
-                            # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
-                            # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
-                            # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k) -----> np.mod(ndx - wake_node - 1, n_k), ddx=-1
-                            subtracted_ndx = ndx - wake_node
-                            shedding_ndx = np.mod(subtracted_ndx, n_k)
-                            periods_passed = np.floor(subtracted_ndx / n_k)
+                            var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+                            wx_local = V['coll_var', ndx, ddx, 'xl', var_name]
 
+                            print(wx_local)
+                            print(wx_local.shape)
 
-                            if wake_node == 0:
-                                shedding_ddx = ddx
-                            else:
-                                shedding_ddx = -1
-
-                            wingtip_pos = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-
-                            u_local = model.wind.get_velocity(wingtip_pos[2])
-                            shedding_time = t_f[1] * periods_passed + tgrid[shedding_ndx, shedding_ddx]
-                            delta_t = current_time - shedding_time
-
-                            wx_found = wingtip_pos + delta_t * u_local
+                            # # if wake_node = 0, then shed at ndx
+                            # # if wake_node = 1, then shed at (ndx - 1) ---- > corresponds to (ndx - 2), ddx = -1
+                            # # .... if shedding_ndx is 1, then shedding_ndx -> 1
+                            # # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
+                            # # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
+                            # # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k) -----> np.mod(ndx - wake_node - 1, n_k), ddx=-1
+                            # subtracted_ndx = ndx - wake_node
+                            # shedding_ndx = np.mod(subtracted_ndx, n_k)
+                            # periods_passed = np.floor(subtracted_ndx / n_k)
+                            #
+                            # if wake_node == 0:
+                            #     shedding_ddx = ddx
+                            # else:
+                            #     shedding_ddx = -1
+                            #
+                            # wingtip_pos = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                            #
+                            # u_local = model.wind.get_velocity(wingtip_pos[2])
+                            # shedding_time = t_f[1] * periods_passed + tgrid[shedding_ndx, shedding_ddx]
+                            # delta_t = current_time - shedding_time
+                            #
+                            # wx_found = wingtip_pos + delta_t * u_local
+                            wx_found = cas.DM((100., 0., 0.))
 
                             local_resi = wx_local - wx_found
 

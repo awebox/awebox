@@ -147,7 +147,6 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
     rings = wake_nodes - 1
 
     Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
