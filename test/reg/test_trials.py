@@ -134,13 +134,22 @@ def test_dual_kite_tracking_winch():
 
     return None
 
-def test_vortex_trial():
+def test_vortex():
 
     options_dict = generate_options_dict()
     trial_name = 'vortex_trial'
     solve_trial(options_dict[trial_name], trial_name)
 
     return None
+
+def test_basic_health():
+
+    options_dict = generate_options_dict()
+    trial_name = 'basic_health_trial'
+    solve_trial(options_dict[trial_name], trial_name)
+
+    return None
+
 
 def generate_options_dict():
     """
@@ -234,6 +243,13 @@ def generate_options_dict():
     compromised_landing_options['user_options']['trajectory']['compromised_landing']['emergency_scenario'] = ('broken_roll', 2)
     compromised_landing_options['user_options']['trajectory']['compromised_landing']['xi_0_initial'] = 0.8
 
+    basic_health_options = copy.deepcopy(single_kite_options)
+    basic_health_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    basic_health_options['nlp']['n_k'] = 10
+    basic_health_options['solver']['health_check']['when']['failure'] = True
+    basic_health_options['solver']['health_check']['when']['final'] = True
+    basic_health_options['solver']['health_check']['raise_exception'] = True
+
     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
@@ -253,6 +269,7 @@ def generate_options_dict():
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
     # options_dict['compromised_landing_trial'] = compromised_landing_options
+    options_dict['basic_health_trial'] = basic_health_options
 
     return options_dict
 

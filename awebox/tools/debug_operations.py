@@ -106,6 +106,9 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         message = 'OCP appears to be unhealthy'
         awelogger.logger.info(message)
 
+        if health_solver_options['raise_exception']:
+            raise Exception(message)
+
     return problem_is_healthy
 
 
