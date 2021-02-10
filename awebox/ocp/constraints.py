@@ -44,7 +44,7 @@ import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
-
+import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
@@ -59,6 +59,8 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     # model constraints structs
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
+
+
     ####### check if entries same.
     ####### double check if vortex model constraints
 
@@ -174,23 +176,28 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
-    mdl_eq_map_shooting = mdl_eq_fun.map('mdl_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
     ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    ocp_eqs_shooting_expr = mdl_eq_map_shooting(shooting_vars, shooting_params)
 
-    # sort constraints to obtain desired sparsity structure
-    for kdx in range(n_k):
+    periodic, _, _, _, _, _ = operation.get_operation_conditions(nlp_options)
+    if not periodic:
+        initial_vars = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx=0)
+        initial_params = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=0)
+        initial_equalities = mdl_eq_fun(initial_vars, initial_params)
 
         # algebraic constraints on shooting nodes
         cstr_list.append(cstr_op.Constraint(
-            expr = ocp_eqs_shooting_expr[:,kdx],
-            name = 'algebraic_{}'.format(kdx),
+            expr = initial_equalities,
+            name = 'dynamics_0',
             cstr_type = 'eq'
             )
         )
+
+
+    # sort constraints to obtain desired sparsity structure
+    for kdx in range(n_k):
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):
@@ -205,7 +212,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         for jdx in range(d):
             cstr_list.append(cstr_op.Constraint(
                 expr = ocp_eqs_expr[:,kdx*d+jdx],
-                name = 'collocation_{}_{}'.format(kdx,jdx),
+                name = 'dynamics_{}_{}'.format(kdx,jdx),
                 cstr_type = 'eq'
                 )
             )

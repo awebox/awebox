@@ -179,7 +179,6 @@ def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=N
     if (ddx is None):
         return V[var_type, kdx]
     else:
-        print('get alg')
         return V['coll_var', kdx, ddx, var_type]
 
 

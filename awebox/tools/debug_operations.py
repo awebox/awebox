@@ -57,6 +57,9 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     reduced_hessian = get_reduced_hessian(health_solver_options, cstr_jacobian_eval, lagr_hessian_eval)
 
+    identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+    identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+
     if health_solver_options['spy_matrices']:
         vect_op.spy(np.absolute(np.array(kkt_matrix)), title='KKT Matrix')
         vect_op.spy(np.absolute(np.array(lagr_hessian_eval)), title='Hessian of the Lagrangian')
@@ -71,6 +74,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
         awelogger.logger.info(message)
+        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
@@ -78,6 +82,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
         awelogger.logger.error(message)
+        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
@@ -239,14 +244,14 @@ def is_matrix_full_rank(matrix, health_solver_options, tol=None):
     return (required_rank == matrix_rank)
 
 
-def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
-
+def identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
     message = '... largest absolute jacobian entry occurs at: '
     awelogger.logger.info(message)
     max_cdx = np.where(np.absolute(cstr_jacobian_eval) == np.amax(np.absolute(cstr_jacobian_eval)))[0][0]
     print_cstr_info(cstr_jacobian_eval, cstr_labels, max_cdx, nlp)
+    return None
 
-
+def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
 
@@ -371,6 +376,7 @@ def get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
     p_fix_num = nlp.P(arg['p'])
 
     relevant_constraints = cstr_fun(V, P, arg['lbx'], arg['ubx'])
+    # relevant_constraints_eval = np.array(cstr_fun(V(solution['x']), p_fix_num, arg['lbx'], arg['ubx']))
 
     cstr_jacobian = cas.jacobian(relevant_constraints, V)
     cstr_jacobian_fun = cas.Function('cstr_jacobian_fun', [V, P], [cstr_jacobian])

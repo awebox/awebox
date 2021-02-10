@@ -629,7 +629,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
     u_ref = get_u_ref(options['user_options'])
-    vortex_position_scale = 2. * u_ref
+    # vortex_position_scale = 2. * u_ref
+    vortex_position_scale = 1.
     for kite in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
             for tip in wingtips:
@@ -648,6 +649,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
         ind_name = 'wu_ind_' + str(kite_obs)
         options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'xl', 'ui', u_ind, ('descript', None), 'x'))
 
 
 

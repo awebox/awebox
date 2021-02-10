@@ -161,17 +161,22 @@ def columnize(filament_list):
     return columnized_list
 
 def decolumnize(options, architecture, columnized_list):
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    number_kites = architecture.number_of_kites
-    rings = wake_nodes - 1
-
     entries = columnized_list.shape[0]
-    filaments = 3 * (rings + 1) * number_kites
+    filaments = expected_number_of_filaments(options, architecture)
     arguments = int(float(entries) / float(filaments))
 
     filament_list = cas.reshape(columnized_list, (arguments, filaments))
 
     return filament_list
+
+def expected_number_of_filaments(options, architecture):
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    number_kites = architecture.number_of_kites
+    rings = wake_nodes - 1
+    filaments = 3 * (rings + 1) * number_kites
+
+    return filaments
+
 
 def test():
 

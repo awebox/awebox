@@ -33,10 +33,11 @@ python-3.5 / casadi 3.0.0
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
-
+import pdb
 
 def generate_structure(options, architecture):
 
@@ -220,8 +221,8 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
     rings = wake_nodes - 1
-    filaments = wake_nodes * 3 * len(architecture.kite_nodes)
 
+    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     vortex_representation = options['aero']['vortex']['representation']
 
     for kite in architecture.kite_nodes:

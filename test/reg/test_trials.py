@@ -220,6 +220,8 @@ def generate_options_dict():
     vortex_options['nlp']['n_k'] = 8
     vortex_options['model']['aero']['vortex']['wake_nodes'] = 10
     vortex_options['model']['aero']['vortex']['representation'] = 'alg'
+    vortex_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
+    vortex_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
