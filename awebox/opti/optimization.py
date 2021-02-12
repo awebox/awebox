@@ -359,14 +359,48 @@ class Optimization(object):
             self.__arg['ubx'] = self.__V_bounds['ub']
             self.__arg['lbx'] = self.__V_bounds['lb']
 
-            # solve
-            self.__solution = solver(**self.__arg)
-            self.__stats = solver.stats()
+            phi_name = None
+            for phi in list(model.parameters_dict['phi'].keys()):
+                ub = self.__V_bounds['ub']['phi',phi]
+                lb = self.__V_bounds['lb']['phi',phi]
+                if ub != lb:
+                    phi_name = phi
 
-            # add up iterations of multi-step homotopies
-            if step_name not in list(self.__iterations.keys()):
-                self.__iterations[step_name] = 0.
-            self.__iterations[step_name] += self.__stats['iter_count']
+            # solve
+            if options['classical_continuation'] and (counter == 0) and (phi_name != None):
+                
+                test = int(1/options['homotopy_step'])
+                from numpy import linspace
+                parameter_path = linspace(1-options['homotopy_step'], options['homotopy_step'], int(1/options['homotopy_step'])-1)
+                self.__p_fix_num['cost', phi_name] = 0.0
+                self.__arg['p'] = self.__p_fix_num
+                for phij in parameter_path:
+                    self.__V_bounds['ub']['phi',phi_name] = phij
+                    self.__V_bounds['lb']['phi',phi_name] = phij
+                    self.__arg['ubx'] = self.__V_bounds['ub']
+                    self.__arg['lbx'] = self.__V_bounds['lb']
+                    self.__solution = solver(**self.__arg)
+                    self.__stats = solver.stats()
+                    self.__arg['lam_x0'] = self.__solution['lam_x']
+                    self.__arg['lam_g0'] = self.__solution['lam_g']
+                    self.__arg['x0'] = self.__solution['x']
+
+                    # add up iterations of multi-step homotopies
+                    if step_name not in list(self.__iterations.keys()):
+                        self.__iterations[step_name] = 0.
+                    self.__iterations[step_name] += self.__stats['iter_count']
+
+                self.__V_bounds['ub']['phi',phi_name] = 0
+                self.__V_bounds['lb']['phi',phi_name] = 0
+            else:
+
+                self.__solution = solver(**self.__arg)
+                self.__stats = solver.stats()
+
+                # add up iterations of multi-step homotopies
+                if step_name not in list(self.__iterations.keys()):
+                    self.__iterations[step_name] = 0.
+                self.__iterations[step_name] += self.__stats['iter_count']
 
             self.generate_outputs(nlp, self.__solution)
 
