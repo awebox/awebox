@@ -52,12 +52,24 @@ class awebox_callback(cas.Callback):
               for dim in range(self.model.variables_dict['xd'][x].shape[0]):
                 x_dict[x+'_'+str(dim)] = []
 
+            u_dict = collections.OrderedDict()
+            for u in self.model.variables_dict['u'].keys():
+              for dim in range(self.model.variables_dict['u'][u].shape[0]):
+                u_dict[u+'_'+str(dim)] = []
+
+            theta_dict = collections.OrderedDict()
+            for th in self.model.variables_dict['theta'].keys():
+              for dim in range(self.model.variables_dict['theta'][th].shape[0]):
+                theta_dict[th+'_'+str(dim)] = []
+
             t_dict = collections.OrderedDict()
             for t in self.nlp.time_grids.keys():
               t_dict[t] = []
 
             self.phi_dict = phi_dict
             self.x_dict = x_dict
+            self.u_dict = u_dict
+            self.theta_dict = theta_dict
             self.t_dict = t_dict
             self.avg_power = []
 
@@ -96,6 +108,14 @@ class awebox_callback(cas.Callback):
           for dim in range(self.model.variables_dict['xd'][x].shape[0]):
             self.x_dict[x+'_'+str(dim)].append(self.extract_x_vals(V, x, dim))
         
+        for u in list(self.model.variables_dict['u'].keys()):
+          for dim in range(self.model.variables_dict['u'][u].shape[0]):
+            self.u_dict[u+'_'+str(dim)].append(self.extract_u_vals(V, u, dim))
+
+        for theta in list(self.model.variables_dict['theta'].keys()):
+          for dim in range(self.model.variables_dict['theta'][theta].shape[0]):
+            self.theta_dict[theta+'_'+str(dim)].append(V['theta',theta, dim])
+
         for t in list(self.t_dict.keys()):
           self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
 
@@ -105,7 +125,6 @@ class awebox_callback(cas.Callback):
         return [0]
 
     def extract_x_vals(self, V, name, dim):
-
       x_vals = []
       for k in range(self.nlp.n_k+1):
           # add interval values
@@ -115,6 +134,15 @@ class awebox_callback(cas.Callback):
             x_vals += V['coll_var',k, :, 'xd', name,dim]
       return x_vals
     
+    def extract_u_vals(self, V, name, dim):
+      u_vals = []
+      for k in range(self.nlp.n_k):
+        if 'u' in V.keys():
+          u_vals.append(V['u',k,name,dim])
+        else:
+          u_vals += V['coll_var',k, :, 'u', name, dim]
+      return u_vals
+
     def update_P(self, P):
       self.__P = P
       return None
