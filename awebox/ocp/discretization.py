@@ -123,7 +123,7 @@ def setup_nlp_cost():
     cost = cas.struct_symSX([(
         cas.entry('tracking'),
         cas.entry('u_regularisation'),
-        cas.entry('ddq_regularisation'),
+        cas.entry('xddot_regularisation'),
         cas.entry('gamma'),
         cas.entry('iota'),
         cas.entry('psi'),

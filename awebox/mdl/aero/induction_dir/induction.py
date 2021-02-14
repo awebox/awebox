@@ -49,9 +49,8 @@ def get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs
     ind_resi = get_general_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(location='induction.trivial')
-    # spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    # resi = cas.vertcat(resi, spec_resi)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
@@ -62,9 +61,8 @@ def get_final_residual(options, atmos, wind, variables_si, parameters, outputs, 
     ind_resi = get_general_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
     resi = cas.vertcat(resi, ind_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(location='induction.final')
-    # spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    # resi = cas.vertcat(resi, spec_resi)
+    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
+    resi = cas.vertcat(resi, spec_resi)
 
     return resi
 
@@ -77,12 +75,11 @@ def get_general_trivial_residual(options, atmos, wind, variables_si, parameters,
         ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
         resi = cas.vertcat(resi, ind_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(location='general_trivial')
-    # comparison_labels = options['aero']['induction']['comparison_labels']
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     vortex_resi = vortex.get_induction_trivial_residual(options, wind, variables_si, outputs, architecture)
-    #     resi = cas.vertcat(resi, vortex_resi)
+    comparison_labels = options['aero']['induction']['comparison_labels']
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        vortex_resi = vortex.get_induction_trivial_residual(options, wind, variables_si, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
 
     return resi
 
@@ -95,15 +92,14 @@ def get_general_final_residual(options, atmos, wind, variables_si, parameters, o
         ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
         resi = cas.vertcat(resi, ind_resi)
 
-    print_op.warn_about_temporary_funcationality_removal(location='general_final')
-    # comparison_labels = options['aero']['induction']['comparison_labels']
-    # any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    # if any_vor:
-    #     vortex_resi = vortex.get_induction_final_residual(options, wind, variables_si, outputs, architecture)
-    #     resi = cas.vertcat(resi, vortex_resi)
-
+    comparison_labels = options['aero']['induction']['comparison_labels']
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
+        vortex_resi = vortex.get_induction_final_residual(options, wind, variables_si, outputs, architecture)
+        resi = cas.vertcat(resi, vortex_resi)
 
     return resi
+
 
 def get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture):
     resi = []

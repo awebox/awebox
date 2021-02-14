@@ -33,7 +33,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.ocp.collocation as collocation
-
+import awebox.tools.print_operations as print_op
 
 
 def setup_nlp_v(nlp_options, model, Collocation=None):
@@ -65,6 +65,8 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     entry_tuple += (
         cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']),
     )
+
+    print_op.warn_about_temporary_funcationality_removal(location='is xddot periodic? ocp.var_struct')
 
     # add algebraic variables at shooting nodes for constraint evaluation
     entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),)

@@ -263,6 +263,7 @@ def variable_does_not_belong_to_unselected_induction_model(name, options):
 def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
+
     for name in struct_op.subkeys(initial_model_variables, 'xd'):
 
         not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)

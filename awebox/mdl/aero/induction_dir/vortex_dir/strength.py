@@ -149,8 +149,6 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
     kite_nodes = model.architecture.kite_nodes
     rings = wake_nodes - 1
 
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
     cstr_list = cstr_op.ConstraintList()
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
@@ -164,8 +162,9 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
 
                         local_name = 'wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + ',' + str(ddx)
 
-                        local_variables = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
-                        wg_local = tools.get_ring_strength_si(local_variables, kite, ring, model.scaling)
+                        var_name = 'wg_' + str(kite) + '_' + str(ring)
+                        wg_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+                        wg_local = struct_op.var_scaled_to_si('xl', var_name, wg_local_scaled, model.scaling)
 
                         subtracted_ndx = ndx - ring
                         shedding_ndx = np.mod(subtracted_ndx, n_k)
@@ -177,7 +176,8 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
 
                         gamma_val = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'circulation' + str(kite)]
 
-                        local_resi = (wg_local - gamma_val) / tools.get_strength_scale(model.variables_dict, model.scaling)
+                        local_resi_si = (wg_local - gamma_val)
+                        local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
 
                         local_cstr = cstr_op.Constraint(expr = local_resi,
                                                         name = local_name,

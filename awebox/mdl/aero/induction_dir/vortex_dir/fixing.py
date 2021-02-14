@@ -183,7 +183,6 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
                             else:
                                 shedding_ddx = -1
 
-                            # rela: here!
                             wingtip_pos = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                             u_local = model.wind.get_velocity(wingtip_pos[2])

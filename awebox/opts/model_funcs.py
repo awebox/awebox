@@ -621,6 +621,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     filaments = wake_nodes * 3 * len(architecture.kite_nodes)
     wingtips = ['ext', 'int']
 
+
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
     for kite in architecture.kite_nodes:
         for ring in range(rings):
