@@ -51,6 +51,7 @@ class Optimization(object):
         self.__V_opt = None
         self.__timings = {}
         self.__iterations = {}
+        self.__t_wall = {}
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
@@ -159,7 +160,8 @@ class Optimization(object):
     def reset_timings_and_counters(self):
 
         self.__timings['optimization'] = 0.
-        self.__iterations['optimization'] = 0
+        self.__iterations['optimization'] = 0.
+        self.__t_wall['optimization'] = 0.
         self.__return_status_numeric['optimization'] = 17
 
         for step in self.__timings.keys():
@@ -169,6 +171,7 @@ class Optimization(object):
         for step in self.__iterations.keys():
             if not (step == 'setup'):
                 self.__iterations[step] = 0.
+                self.__t_wall[step] = 0.
 
         for step in self.__return_status_numeric.keys():
             if not (step == 'setup'):
@@ -205,6 +208,7 @@ class Optimization(object):
             self.__iterations[step_name] = 0.
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
+        self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
 
@@ -388,7 +392,12 @@ class Optimization(object):
                     # add up iterations of multi-step homotopies
                     if step_name not in list(self.__iterations.keys()):
                         self.__iterations[step_name] = 0.
+                        self.__t_wall[step_name] = 0.
                     self.__iterations[step_name] += self.__stats['iter_count']
+                    self.__t_wall[step_name] += self.__stats['t_wall_total']
+                    if 't_wall_callback_fun' in self.__stats.keys():
+                        self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
+
 
                 self.__V_bounds['ub']['phi',phi_name] = 0
                 self.__V_bounds['lb']['phi',phi_name] = 0
@@ -400,7 +409,11 @@ class Optimization(object):
                 # add up iterations of multi-step homotopies
                 if step_name not in list(self.__iterations.keys()):
                     self.__iterations[step_name] = 0.
+                    self.__t_wall[step_name] = 0.
                 self.__iterations[step_name] += self.__stats['iter_count']
+                self.__t_wall[step_name] += self.__stats['t_wall_total']
+                if 't_wall_callback_fun' in self.__stats.keys():
+                    self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
 
             self.generate_outputs(nlp, self.__solution)
 
@@ -832,6 +845,14 @@ class Optimization(object):
     @iterations.setter
     def iterations(self, value):
         awelogger.logger.warning('Cannot set iterations object.')
+
+    @property
+    def t_wall(self):
+        return self.__t_wall
+
+    @t_wall.setter
+    def t_wall(self, value):
+        awelogger.logger.warning('Cannot set t_wall object.')
 
     @property
     def return_status_numeric(self):
