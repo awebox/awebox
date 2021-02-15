@@ -177,6 +177,8 @@ class Optimization(object):
             if not (step == 'setup'):
                 self.__return_status_numeric[step] = 17
 
+        self.__awe_callback.reset()
+
         return None
 
 
