@@ -37,6 +37,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 
 import awebox.ocp.operation as operation
 import awebox.ocp.ocp_constraint as ocp_constraint
+import awebox.mdl.mdl_constraint as mdl_constraint
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
@@ -55,6 +56,12 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     ocp_cstr_list = ocp_constraint.OcpConstraintList()
     ocp_cstr_entry_list = []
+
+    # get discretization information
+    nk = nlp_options['n_k']
+
+    # number of algebraic variables that are restricted by model equalities (dynamics)
+    nz = model.constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
 
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
@@ -122,14 +129,31 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     cstr_list = ocp_constraint.OcpConstraintList()
     entry_tuple = ()     # entry tuple for nested constraints
 
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
     model_variables = model.variables
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
-    mdl_path_constraints = model.constraints_dict['inequality']
-    mdl_dyn_constraints = model.constraints_dict['equality']
 
-    n_k = nlp_options['n_k']
-    d = nlp_options['collocation']['d']
+    relevant_shooting_vars = cas.vertcat(model_variables['u'], model_variables['xddot']) #cas.vertcat(model_variables['xd'], model_variables['xddot'])
+    mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
+    for cstr in model_constraints_list.get_list('eq'):
+        cstr_expr = cstr.expr
+        cstr_jac = cas.jacobian(cstr_expr, relevant_shooting_vars)
+
+        should_add_to_sublist = (cstr_jac.nnz() > 0)
+        if should_add_to_sublist:
+            mdl_shooting_cstr_sublist.append(cstr)
+
+        print(cstr.name + ': ' + str(should_add_to_sublist))
+
+    pdb.set_trace()
+
+    n_z = mdl_shooting_cstr_sublist.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
+    entry_tuple += (cas.entry('dynamics', repeat = [n_k], struct = model.variables_dict['xd']),)
+    entry_tuple += (cas.entry('algebraic', repeat = [n_k], shape = (n_z,1)),)
+
 
     parallellization = nlp_options['parallelization']['type']
 
@@ -149,65 +173,24 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
 
+    mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+
     # evaluate constraint functions
     ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-
-
-    entry_tuple = ()
-    entry_tuple += (cas.entry('dynamics', repeat=[nk], struct=model.variables_dict['xd']),)
-
-    initial_variables = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, 0)
-    initial_parameters = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, 0)
-    # #
-    # # periodic, _, _, _, _, _ = operation.get_operation_conditions(nlp_options)
-    # # if not periodic:
-    # #     dynamics_subset = mdl_eq_fun(initial_variables, initial_parameters)
-    # # else:
-    # #     dynamics_subset = []
-    # #     dyn_translation_fun = model_constraints_list.get_constraint_by_name('dynamics_translation').get_function(model_variables, model_parameters)
-    # #     dynamics_subset = cas.vertcat(dynamics_subset, dyn_translation_fun(initial_variables, initial_parameters))
-    # #
-    # #     unconstrained_subset = set(model.variables_dict['xddot'].keys()) - set(model.variables_dict['xd'].keys())
-    # #     for local_var in unconstrained_subset:
-    # #         possible_constraint_name = 'trivial_' + local_var
-    # #         if possible_constraint_name in model_constraints_list.get_name_list('eq'):
-    # #             dyn_trivial_fun = model_constraints_list.get_constraint_by_name(possible_constraint_name).get_function(model_variables, model_parameters)
-    # #             dynamics_subset = cas.vertcat(dynamics_subset, dyn_trivial_fun(initial_variables, initial_parameters))
-    # #
-    # #     dyn_constraint_fun = model_constraints_list.get_constraint_by_name('dynamics_constraint').get_function(model_variables, model_parameters)
-    # #     dynamics_subset = cas.vertcat(dynamics_subset, dyn_constraint_fun(initial_variables, initial_parameters))
-    # #
-    # #     # pdb.set_trace()
-    # #
-    # #     # if 'dddl_t' in model.variables_dict['u'].keys():
-    # #     #     dyn_trivial_fun = model_constraints_list.get_constraint_by_name('trivial_dddl_t').get_function(model_variables, model_parameters)
-    # #     # else:
-    # #     #     dyn_trivial_fun = model_constraints_list.get_constraint_by_name('trivial_ddl_t').get_function(model_variables, model_parameters)
-    # #     # dynamics_subset = cas.vertcat(dynamics_subset, dyn_trivial_fun(initial_variables, initial_parameters))
-    # #
-    # #     if model.kite_dof == 6:
-    # #         for kite in model.architecture.kite_nodes:
-    # #             dyn_rotation_fun = model_constraints_list.get_constraint_by_name('rotation_dynamics' + str(kite)).get_function(model_variables, model_parameters)
-    # #             dynamics_subset = cas.vertcat(dynamics_subset, dyn_rotation_fun(initial_variables, initial_parameters))
-    # #
-    # #             ref_frame_fun = model_constraints_list.get_constraint_by_name('ref_frame_deriv' + str(kite)).get_function(model_variables, model_parameters)
-    # #             dynamics_subset = cas.vertcat(dynamics_subset, ref_frame_fun(initial_variables, initial_parameters))
-    # #
-    # #
-    #
-    #
-    # initial_dynamics_cstr = cstr_op.Constraint(
-    #     expr=dynamics_subset,
-    #     name='initial_dynamics',
-    #     cstr_type='eq'
-    # )
-    # cstr_list.append(initial_dynamics_cstr)
-    # entry_tuple += (cas.entry('initial_dynamics', shape=dynamics_subset.shape),)
-
+    ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
 
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
+
+        # algebraic constraints on shooting nodes
+        cstr_list.append(cstr_op.Constraint(
+            expr = ocp_eqs_shooting_expr[:,kdx],
+            name = 'shooting_{}'.format(kdx),
+            cstr_type = 'eq'
+            )
+        )
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):
@@ -230,12 +213,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         # continuity constraints
         cstr_list.append(Collocation.get_continuity_constraint(V, kdx))
 
+    mdl_path_constraints = model.constraints_dict['inequality']
+    mdl_dyn_constraints = model.constraints_dict['equality']
     entry_tuple += (
         cas.entry('path',        repeat = [n_k],    struct = mdl_path_constraints),
         cas.entry('collocation', repeat = [n_k, d], struct = mdl_dyn_constraints),
         cas.entry('continuity', repeat = [n_k], struct = model.variables_dict['xd']),
     )
-
 
     return cstr_list, entry_tuple
 
