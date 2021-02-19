@@ -136,21 +136,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
 
-    relevant_shooting_vars = cas.vertcat(model_variables['u'], model_variables['xddot']) #cas.vertcat(model_variables['xd'], model_variables['xddot'])
-    mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
-    for cstr in model_constraints_list.get_list('eq'):
-        cstr_expr = cstr.expr
-        cstr_jac = cas.jacobian(cstr_expr, relevant_shooting_vars)
-
-        should_add_to_sublist = (cstr_jac.nnz() > 0)
-        if should_add_to_sublist:
-            mdl_shooting_cstr_sublist.append(cstr)
-
-        print(cstr.name + ': ' + str(should_add_to_sublist))
-
-    pdb.set_trace()
-
-    n_z = mdl_shooting_cstr_sublist.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
+    n_z = model_constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
     entry_tuple += (cas.entry('dynamics', repeat = [n_k], struct = model.variables_dict['xd']),)
     entry_tuple += (cas.entry('algebraic', repeat = [n_k], shape = (n_z,1)),)
 
@@ -173,7 +159,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
 
-    mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_shooting_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions

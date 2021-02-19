@@ -38,6 +38,7 @@ import awebox.tools.print_operations as print_op
 import awebox.ocp.collocation as collocation
 import awebox.ocp.var_struct as var_struct
 import awebox.tools.constraint_operations as cstr_op
+import pdb
 
 ################ actually define the constriants
 
@@ -156,33 +157,62 @@ def get_alg_repr_strength_constraint(options, V, Outputs, model):
 
         for ndx in range(n_k):
             for ddx in range(d):
-
                 for kite in kite_nodes:
                     for ring in range(rings):
-
-                        local_name = 'wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + ',' + str(ddx)
-
-                        var_name = 'wg_' + str(kite) + '_' + str(ring)
-                        wg_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-                        wg_local = struct_op.var_scaled_to_si('xl', var_name, wg_local_scaled, model.scaling)
-
-                        subtracted_ndx = ndx - ring
-                        shedding_ndx = np.mod(subtracted_ndx, n_k)
-
-                        if ring == 0:
-                            shedding_ddx = ddx
-                        else:
-                            shedding_ddx = -1
-
-                        gamma_val = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'circulation' + str(kite)]
-
-                        local_resi_si = (wg_local - gamma_val)
-                        local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
-
-                        local_cstr = cstr_op.Constraint(expr = local_resi,
-                                                        name = local_name,
-                                                        cstr_type='eq')
+                        local_cstr = get_local_alg_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx, ddx)
                         cstr_list.append(local_cstr)
 
+        for ndx in range(n_k):
+            for kite in kite_nodes:
+                for ring in range(rings):
+                    local_cstr = get_local_alg_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx)
+                    cstr_list.append(local_cstr)
 
     return cstr_list
+
+def get_local_alg_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx, ddx=None):
+
+    if ddx is None:
+        shooting_or_collocation = 'shooting'
+    else:
+        shooting_or_collocation = 'collocation'
+
+    n_k = options['n_k']
+
+    local_name = 'wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx)
+    if shooting_or_collocation == 'collocation':
+        local_name += ',' + str(ddx)
+
+    var_name = 'wg_' + str(kite) + '_' + str(ring)
+
+    if shooting_or_collocation == 'collocation':
+        wg_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+    else:
+        wg_local_scaled = V['xl', ndx, var_name]
+
+    wg_local = struct_op.var_scaled_to_si('xl', var_name, wg_local_scaled, model.scaling)
+
+    if shooting_or_collocation == 'shooting':
+        collocation_ndx = ndx - 1
+        collocation_ddx = -1
+    else:
+        collocation_ndx = ndx
+        collocation_ddx = ddx
+
+    subtracted_ndx = collocation_ndx - ring
+    shedding_ndx = np.mod(subtracted_ndx, n_k)
+    if ring == 0:
+        shedding_ddx = collocation_ddx
+    else:
+        shedding_ddx = -1
+
+    gamma_val = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'circulation' + str(kite)]
+
+    local_resi_si = (wg_local - gamma_val)
+    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+
+    local_cstr = cstr_op.Constraint(expr=local_resi,
+                                    name=local_name,
+                                    cstr_type='eq')
+
+    return local_cstr
