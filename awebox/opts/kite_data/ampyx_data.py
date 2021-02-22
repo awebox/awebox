@@ -235,10 +235,10 @@ def aero():
     # aero_validity['beta_max_deg'] = 15.
     # aero_validity['beta_min_deg'] = -15.0
 
-    aero_validity['alpha_max_deg'] = 10.
-    aero_validity['alpha_min_deg'] = -5.
-    aero_validity['beta_max_deg'] = 3.
-    aero_validity['beta_min_deg'] = -3.
+    aero_validity['alpha_max_deg'] = 9.
+    aero_validity['alpha_min_deg'] = -6.
+    aero_validity['beta_max_deg'] = 20.
+    aero_validity['beta_min_deg'] = -20.
 
 
     return stab_derivs, aero_validity
