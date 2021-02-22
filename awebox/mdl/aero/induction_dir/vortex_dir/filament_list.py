@@ -79,10 +79,10 @@ def get_list_by_ring(options, variables_si, kite, ring):
 
     wake_node = ring
 
-    TENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node + 1)
-    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node)
-    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node)
-    TEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node + 1)
+    TENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', wake_node + 1)
+    LENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', wake_node)
+    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', wake_node)
+    TEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', wake_node + 1)
 
     strength = tools.get_ring_strength_si(variables_si, kite, ring)
 
@@ -118,8 +118,8 @@ def get_list_from_last_ring(options, variables_si, architecture, kite):
     far_convection_time = options['induction']['vortex_far_convection_time']
     u_ref = options['induction']['vortex_u_ref']
 
-    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', last_tracked_wake_node)
-    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', last_tracked_wake_node)
+    LENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', last_tracked_wake_node)
+    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', last_tracked_wake_node)
 
     TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
     TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
@@ -183,6 +183,7 @@ def test():
     options['induction']['vortex_far_convection_time'] = 1.
     options['induction']['vortex_u_ref'] = 1.
     options['induction']['vortex_position_scale'] = 1.
+    options['induction']['vortex_representation'] = 'state'
 
     kite = architecture.kite_nodes[0]
 

@@ -310,7 +310,7 @@ def discretize(nlp_options, model, formulation):
 
     if direct_collocation:
         for kdx in range(nk):
-            
+
             Outputs_list.append(coll_outputs[:,kdx*(d+1)])
 
             # add outputs on collocation nodes
@@ -337,7 +337,7 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs)
+            ms_vars, ms_params, Outputs, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
