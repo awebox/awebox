@@ -30,23 +30,22 @@ import collections
 class awebox_callback(cas.Callback):
     def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
 
-        if options['callback']:
-            cas.Callback.__init__(self)
+        cas.Callback.__init__(self)
 
-            self.nx = nx
-            self.ng = ng
-            self.np = np
+        self.nx = nx
+        self.ng = ng
+        self.np = np
 
-            self.V = V
-            self.P = P
-            self.model = model
-            self.nlp = nlp
-            [self.Out, self.Out_fun] = nlp.output_components
+        self.V = V
+        self.P = P
+        self.model = model
+        self.nlp = nlp
+        [self.Out, self.Out_fun] = nlp.output_components
 
-            self.__init_dicts()
+        self.__init_dicts()
 
-            # Initialize internal objects
-            self.construct(name, opts)
+        # Initialize internal objects
+        self.construct(name, opts)
 
     def get_n_in(self): return cas.nlpsol_n_out()
     def get_n_out(self): return 1
@@ -151,6 +150,7 @@ class awebox_callback(cas.Callback):
 
     def reset(self):
       self.__init_dicts()
+      return None
 
     def update_P(self, P):
       self.P = P
