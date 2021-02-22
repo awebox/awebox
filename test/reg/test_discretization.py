@@ -132,3 +132,5 @@ def test_integrators():
     assert(err_rk_x < 1e-2)
     assert(err_rk_z < 1e-2)
     assert(err_rk_q < 2e-2)
+
+test_integrators()

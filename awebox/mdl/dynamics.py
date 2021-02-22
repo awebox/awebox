@@ -103,7 +103,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
-    power = get_power(options, system_variables['SI'], outputs, architecture)
+    power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
     integral_outputs_fun, integral_outputs_struct, integral_scaling, energy_cstr = manage_power_integration(options,
                                                                                                                 power,
                                                                                                                 system_variables,
@@ -115,14 +115,18 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the inequality constraints
     # --------------------------------------------
 
-    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-    cstr_list.append(stress_cstr)
 
     wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'])
     cstr_list.append(wound_length_cstr)
 
+    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
+    cstr_list.append(stress_cstr)
+
     airspeed_cstr = airspeed_inequality(options, outputs, parameters, architecture)
     cstr_list.append(airspeed_cstr)
+
+    aero_validity_cstr = aero_validity_inequality(options, outputs)
+    cstr_list.append(aero_validity_cstr)
 
     anticollision_cstr = anticollision_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(anticollision_cstr)
@@ -130,17 +134,17 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     acceleration_cstr = acceleration_inequality(options, system_variables['SI'])
     cstr_list.append(acceleration_cstr)
 
-    omega_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(omega_cstr)
+    angular_velocity_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
+    cstr_list.append(angular_velocity_cstr)
+
+    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(rotation_cstr)
 
     dcoeff_cstr = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(dcoeff_cstr)
 
     coeff_cstr = coeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(coeff_cstr)
-
-    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
-    cstr_list.append(rotation_cstr)
 
     # ----------------------------------------
     #  construct outputs structure
@@ -160,7 +164,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # add other relevant outputs
     outputs = xddot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,
-                                    architecture)  # this must be after tether stress inequality
+                                    parameters, architecture)  # power balance must be after tether stress inequality
 
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
@@ -238,6 +242,7 @@ def manage_power_integration(options, power, system_variables, parameters):
 
     return integral_outputs_fun, integral_outputs_struct, integral_scaling, cstr_list
 
+
 def make_output_structure(outputs, system_variables, parameters):
     outputs_vec = []
     full_list = []
@@ -269,31 +274,6 @@ def make_output_structure(outputs, system_variables, parameters):
     return [out_struct, outputs_fun, outputs_dict]
 
 
-def make_output_constraint_structure(options, outputs, system_variables, parameters):
-    constraint_vec = []
-
-    represented_constraints = list(options['model_bounds'].keys())
-
-    full_list = []
-    for output_type in list(outputs.keys()):
-
-        if (output_type in set(represented_constraints)) and (options['model_bounds'][output_type]['include']):
-
-            local_list = []
-            for name in list(outputs[output_type].keys()):
-                local_list += [cas.entry(name, shape=outputs[output_type][name].shape)]
-
-                constraint_vec = cas.vertcat(constraint_vec, outputs[output_type][name])
-
-            local_output = cas.struct_symMX(local_list)
-
-            full_list += [cas.entry(output_type, struct=local_output)]
-
-    constraint_struct = cas.struct_symMX(full_list)
-    constraints = constraint_struct(constraint_vec)
-    constraint_fun = cas.Function('constraint_out_fun', [system_variables['scaled'], parameters], [constraints])
-
-    return [constraint_struct, constraint_fun]
 
 
 
@@ -301,20 +281,21 @@ def make_output_constraint_structure(options, outputs, system_variables, paramet
 
 
 
-def get_drag_power_from_kite(kite, variables_si, outputs, architecture):
+def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture):
     parent = architecture.parent_map[kite]
-    kite_drag_power = -1. * cas.mtimes(
-        variables_si['xd']['dq{}{}'.format(kite, parent)].T,
-        outputs['aerodynamics']['f_gen{}'.format(kite)]
-    )
+    kite_drag_power = parameters['theta0', 'aero', 'turbine_efficiency'] * \
+        cas.mtimes(
+            outputs['aerodynamics']['air_velocity{}'.format(kite)].T,
+            outputs['aerodynamics']['f_gen{}'.format(kite)]
+        )
     return kite_drag_power
 
 
-def get_power(options, variables_si, outputs, architecture):
+def get_power(options, variables_si, parameters, outputs, architecture):
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
-            power += get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+            power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
     else:
         power = variables_si['xa']['lambda10'] * variables_si['xd']['l_t'] * variables_si['xd']['dl_t']
 
@@ -322,23 +303,23 @@ def get_power(options, variables_si, outputs, architecture):
 
 
 
-def drag_mode_outputs(variables_si, outputs, architecture):
+def drag_mode_outputs(variables_si, parameters, outputs, architecture):
     for kite in architecture.kite_nodes:
-        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
 
     return outputs
 
 
 
 
-def power_balance_outputs(options, outputs, system_variables, architecture):
+def power_balance_outputs(options, outputs, system_variables, parameters, architecture):
     variables_si = system_variables['SI']
 
     # all aerodynamic forces have already been added to power balance, by this point.
     # outputs['power_balance'] is not empty!
 
     if options['trajectory']['system_type'] == 'drag_mode':
-        outputs = drag_mode_outputs(variables_si, outputs, architecture)
+        outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
     outputs = kinetic_power_outputs(options, outputs, system_variables, architecture)
@@ -414,7 +395,7 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
         categories = {'q' + label: str(n)}
 
         if n == 1:
-            categories['groundstation'] = 'groundstation1'
+            categories['ground_station'] = 'groundstation1'
 
         for cat in categories.keys():
 
@@ -650,6 +631,21 @@ def airspeed_inequality(options, outputs, parameters, architecture):
 
     return cstr_list
 
+
+def aero_validity_inequality(options, outputs):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    if options['model_bounds']['aero_validity']['include']:
+        for name in outputs['aero_validity'].keys():
+
+            ineq = outputs['aero_validity'][name]
+            valid_cstr = cstr_op.Constraint(expr=ineq,
+                                            name=name,
+                                            cstr_type='ineq')
+            cstr_list.append(valid_cstr)
+
+    return cstr_list
 
 def angular_velocity_inequality(options, variables, parameters, architecture):
 

@@ -34,6 +34,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.lagr_interpol as lagr_interpol
 
+
 class Wind:
     def __init__(self, wind_model_options, params):
         self.__options = wind_model_options
@@ -50,13 +51,24 @@ class Wind:
 
         xhat = vect_op.xhat_np()
 
-        u_ref = params['u_ref']
-        z_ref = params['z_ref']
-        z0_air = params['log_wind', 'z0_air']
-        exp_ref = params['power_wind', 'exp_ref']
+        if isinstance(zz, cas.SX):
+            u_ref = params['u_ref']
+            z_ref = params['z_ref']
+            z0_air = params['log_wind', 'z0_air']
+            exp_ref = params['power_wind', 'exp_ref']
+        else:
+            u_ref = options['u_ref']
+            z_ref = options['z_ref']
+            z0_air = options['log_wind']['z0_air']
+            exp_ref = options['power_wind']['exp_ref']
+
+            message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
+                      'directly from options. this may interfere with expected operation, especially in sweeps.'
+            awelogger.logger.warning(message)
 
         if model in ['log_wind', 'power', 'uniform']:
-            u = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz) * xhat
+            u_val = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
+            u = u_val * xhat
 
         elif model == 'datafile':
             u = self.get_velocity_from_datafile(zz)
@@ -155,7 +167,8 @@ class Wind:
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 
     # approximates the maximum of (zz vs. 0)
-    z_cropped = vect_op.smooth_abs(zz, epsilon=z0_air)
+    epsilon = 1.
+    z_cropped = vect_op.smooth_abs(zz, epsilon=epsilon)
 
     if model == 'log_wind':
 
