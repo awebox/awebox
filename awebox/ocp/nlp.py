@@ -36,6 +36,7 @@ from . import discretization
 from . import objective
 from . import var_bounds
 import time
+import pdb
 
 class NLP(object):
 
@@ -108,6 +109,8 @@ class NLP(object):
         self.__time_grids = time_grids
         self.__Collocation = Collocation
         self.__Multiple_shooting = Multiple_shooting
+
+        print_op.print_variable_info('NLP', self.__V)
 
         self.__g = ocp_cstr_struct(ocp_cstr_list.get_expression_list('all'))
         self.__g_fun = ocp_cstr_list.get_function(nlp_options, V, P, 'all')

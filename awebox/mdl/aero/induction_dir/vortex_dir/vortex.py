@@ -93,42 +93,37 @@ def get_induction_trivial_residual(options, wind, variables_si, architecture):
 
 def get_induction_final_residual(options, wind, variables_si, outputs, architecture):
 
-    print_op.warn_about_temporary_funcationality_removal(location='vortex.final')
-    return get_induction_trivial_residual(options, wind, variables_si, architecture)
+    resi = []
 
-    # resi = []
-    #
-    # # induced velocity residuals
-    # columnized_list = outputs['vortex']['filament_list']
-    # filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
-    # filaments = filament_list.shape[1]
-    #
-    # if filaments is not vortex_filament_list.expected_number_of_filaments(options, architecture):
-    #     message = 'unexpected number of filaments'
-    #     awelogger.logger.error(message)
-    #     raise Exception(message)
-    #
-    #
-    #
-    # u_ref = wind.get_velocity_ref()
-    #
-    # for kite_obs in architecture.kite_nodes:
-    #
-    #     for fdx in range(filaments):
-    #         # biot-savart of filament induction
-    #         filament = filament_list[:, fdx]
-    #
-    #         u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
-    #
-    #         ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-    #         local_var = variables_si['xl'][ind_name]
-    #
-    #         scaler = 10.
-    #
-    #         local_resi = (local_var - u_ind_fil) / u_ref / scaler
-    #         resi = cas.vertcat(resi, local_resi)
-    #
-    # return resi
+    # induced velocity residuals
+    columnized_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    filaments = filament_list.shape[1]
+
+    if filaments is not vortex_filament_list.expected_number_of_filaments(options, architecture):
+        message = 'unexpected number of filaments'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    u_ref = wind.get_velocity_ref()
+
+    for kite_obs in architecture.kite_nodes:
+
+        for fdx in range(filaments):
+            # biot-savart of filament induction
+            filament = filament_list[:, fdx]
+
+            u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
+
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            local_var = variables_si['xl'][ind_name]
+
+            scaler = 10.
+
+            local_resi = (local_var - u_ind_fil) / u_ref / scaler
+            resi = cas.vertcat(resi, local_resi)
+
+    return resi
 
 def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
 
