@@ -471,3 +471,16 @@ def initialize_bound_update_counter(model, schedule, formulation):
 
     return bound_update_counter
 
+def find_current_homotopy_parameter(parameters, V_bounds):
+    """ Return 'active' homotopy parameter by identifying which parameter
+    has the bounds [0,1]. If no such parameter is identified, "None" is returned.
+    """
+
+    phi_name = None
+    for phi in list(parameters.keys()):
+        ub = V_bounds['ub']['phi',phi]
+        lb = V_bounds['lb']['phi',phi]
+        if ub != lb:
+            phi_name = phi
+    
+    return phi_name
