@@ -42,7 +42,7 @@ import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import awebox.mdl.aero.induction_dir.induction as induction
-
+import awebox.mdl.aero.induction_dir.vortex_dir.convection as vortex_convection
 import awebox.mdl.aero.indicators as indicators
 
 import awebox.mdl.mdl_constraint as mdl_constraint
@@ -74,6 +74,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     system_variables['SI'], options['scaling'] = generate_si_variables(options['scaling'], system_variables['scaled'])
     scaling = options['scaling']
 
+    variables_to_return_to_model = system_variables['scaled']
+
+    print_op.print_variable_info('model', variables_to_return_to_model)
+
     # -----------------------------------
     # prepare empty constraints list and outputs
     # -----------------------------------
@@ -99,7 +103,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    induction_cstr = get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+    induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
     cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
@@ -174,7 +178,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ----------------------------------------
 
     return [
-        system_variables['scaled'],
+        variables_to_return_to_model,
         variables_dict,
         scaling,
         cstr_list,
@@ -184,27 +188,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         integral_outputs_struct,
         integral_outputs_fun,
         integral_scaling]
-
-
-def get_induction_cstr(options, atmos, wind, variables_si, parameters, outputs, architecture):
-
-    cstr_list = mdl_constraint.MdlConstraintList()
-
-    if not (options['induction_model'] == 'not_in_use'):
-
-        induction_init = induction.get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-        induction_final = induction.get_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-
-        induction_constraint = parameters['phi', 'iota'] * induction_init \
-                               + (1. - parameters['phi', 'iota']) * induction_final
-
-        induction_cstr = cstr_op.Constraint(expr=induction_constraint,
-                                                      name='induction',
-                                                      cstr_type='eq')
-        cstr_list.append(induction_cstr)
-
-    return cstr_list
-
 
 
 def manage_power_integration(options, power, system_variables, parameters):

@@ -55,15 +55,6 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=
     return dwx_local
 
 
-def get_wake_node_velocity_si(variables, kite, tip, wake_node, scaling=None):
-    coord_name = 'dwx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', coord_name)
-
-    if scaling is not None:
-        return struct_op.var_scaled_to_si('xd', coord_name, dwx_local, scaling)
-
-    return dwx_local
-
 
 def get_ring_strength_si(variables, kite, ring, scaling=None):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)

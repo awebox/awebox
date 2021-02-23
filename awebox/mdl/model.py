@@ -125,8 +125,6 @@ class Model(object):
 
         self.__dynamics = self.__constraints_list.get_function(options, self.__variables, self.__parameters, 'eq')
 
-        print_op.print_variable_info('model', self.__variables)
-
         return None
 
 

@@ -178,8 +178,6 @@ def get_local_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids,
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
     wx_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-    # else:
-    #     wx_local_scaled = V['xl', ndx, var_name]
 
     wx_local = struct_op.var_scaled_to_si('xl', var_name, wx_local_scaled, model.scaling)
 
@@ -221,6 +219,7 @@ def get_continuity_fixing_constraint(V, kite, tip, wake_node, ndx):
     local_name = 'continuity_wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx)
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+
     wx_coll = V['coll_var', ndx-1, -1, 'xl', var_name]
     wx_upper = V['xl', ndx, var_name]
 

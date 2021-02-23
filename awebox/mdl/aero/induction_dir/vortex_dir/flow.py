@@ -40,8 +40,36 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
+import awebox.tools.constraint_operations as cstr_op
 
-#
+
+
+def get_superposition_cstr(options, wind, variables_si, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
+
+    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
+    u_ref = wind.get_velocity_ref()
+
+    for kite_obs in architecture.kite_nodes:
+        u_ind_kite = cas.DM.zeros((3, 1))
+        for fdx in range(filaments):
+            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+            local_var = variables_si['xl'][ind_name]
+            u_ind_kite += local_var
+
+        # superposition of filament induced velocities at kite
+        ind_name = 'wu_ind_' + str(kite_obs)
+        local_var = variables_si['xl'][ind_name]
+        local_resi = (local_var - u_ind_kite) / u_ref
+
+        local_cstr = cstr_op.Constraint(expr=local_resi,
+                                        name='superposition_' + str(kite_obs),
+                                        cstr_type='eq')
+        cstr_list.append(local_cstr)
+
+    return cstr_list
+
 def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
     x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
     u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)

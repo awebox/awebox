@@ -33,43 +33,31 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
+
 
 from awebox.logger.logger import Logger as awelogger
 
 import pdb
 
-def get_residual(options, wind, variables_si, architecture):
+def get_vortex_cstr(options, wind, variables_si, architecture):
 
     vortex_representation = options['aero']['vortex']['representation']
-
-    resi = []
+    cstr_list = cstr_op.ConstraintList()
 
     if vortex_representation == 'state':
-        state_conv_resi = convection.get_state_repr_convection_residual(options, wind, variables_si, architecture)
-        resi = cas.vertcat(resi, state_conv_resi)
+        state_conv_cstr = convection.get_state_repr_convection_cstr(options, wind, variables_si, architecture)
+        cstr_list.append(state_conv_cstr)
 
-    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
-    u_ref = wind.get_velocity_ref()
+    superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, architecture)
+    cstr_list.append(superposition_cstr)
 
-    for kite_obs in architecture.kite_nodes:
-        u_ind_kite = cas.DM.zeros((3, 1))
-        for fdx in range(filaments):
-            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
-            u_ind_kite += local_var
-
-        # superposition of filament induced velocities at kite
-        ind_name = 'wu_ind_' + str(kite_obs)
-        local_var = variables_si['xl'][ind_name]
-        local_resi = (local_var - u_ind_kite) / u_ref
-        resi = cas.vertcat(resi, local_resi)
-
-    return resi
+    return cstr_list
 
 def get_induction_trivial_residual(options, wind, variables_si, architecture):
 

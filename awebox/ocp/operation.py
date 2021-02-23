@@ -175,39 +175,6 @@ def get_terminal_constraints(options, terminal_variables, ref_variables, model, 
     return cstr_list
 
 
-
-def get_vortex_strength_constraints(options, variables, model):
-    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
-
-    ineqs_dict = {}
-    eqs_dict, constraint_list = vortex_strength.get_cstr_in_operation_format(options, variables, model)
-
-    # generate initial constraints - empty struct containing both equalities and inequalitiess
-    vortex_strength_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-
-    # fill in struct and create function
-    vortex_strength_constraints = vortex_strength_constraints_struct(cas.vertcat(*constraint_list))
-    vortex_strength_constraints_fun = cas.Function('vortex_strength_constraints_fun', [variables], [vortex_strength_constraints.cat])
-
-    return vortex_strength_constraints, vortex_strength_constraints_fun
-
-
-def get_wake_fix_constraints(options, variables, model):
-    # this function is just the placeholder. For the applied constraint, see constraints.append_wake_fix_constraints()
-
-    ineqs_dict = {}
-    eqs_dict, constraint_list = vortex_fix.get_cstr_in_operation_format(options, variables, model, Collocation)
-
-    # generate initial constraints - empty struct containing both equalities and inequalitiess
-    wake_fix_constraints_struct = make_constraint_struct(eqs_dict, ineqs_dict)
-
-    # fill in struct and create function
-    wake_fix_constraints = wake_fix_constraints_struct(cas.vertcat(*constraint_list))
-    wake_fix_constraints_fun = cas.Function('wake_fix_constraints_fun', [variables], [wake_fix_constraints.cat])
-
-    return wake_fix_constraints, wake_fix_constraints_fun
-
-
 def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
     cstr_list = ocp_constraint.OcpConstraintList()
 

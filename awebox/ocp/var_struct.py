@@ -66,8 +66,6 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
         cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']),
     )
 
-    print_op.warn_about_temporary_funcationality_removal(location='is xddot periodic? ocp.var_struct')
-
     # add algebraic variables at shooting nodes for constraint evaluation
     entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),)
     if 'xl' in list(variables_dict.keys()):
@@ -95,6 +93,8 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
 
     # generate structure
     V = cas.struct_symMX(entry_list)
+
+    print_op.print_variable_info('NLP', V)
 
     return V
 

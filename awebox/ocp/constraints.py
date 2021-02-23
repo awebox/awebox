@@ -57,12 +57,6 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     ocp_cstr_list = ocp_constraint.OcpConstraintList()
     ocp_cstr_entry_list = []
 
-    # get discretization information
-    nk = nlp_options['n_k']
-
-    # number of algebraic variables that are restricted by model equalities (dynamics)
-    nz = model.constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
-
     # add initial constraints
     var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
     var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
@@ -123,6 +117,23 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     return ocp_cstr_list, ocp_cstr_struct
 
+def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
+
+    # todo: figure out an automatic method of sorting out the redundant constraints
+
+    model_constraints_list = model.constraints_list
+    mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
+
+    for cstr in model_constraints_list.get_list('eq'):
+
+        should_add_to_sublist = ('vortex_convection' not in cstr.name)
+        if should_add_to_sublist:
+            refinded_cstr = cstr_op.Constraint(expr=cstr.expr,
+                                               name=cstr.name + '_selected',
+                                               cstr_type='eq')
+            mdl_shooting_cstr_sublist.append(refinded_cstr)
+
+    return mdl_shooting_cstr_sublist
 
 def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
@@ -136,12 +147,18 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
 
-    n_z = model_constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
-    entry_tuple += (cas.entry('dynamics', repeat = [n_k], struct = model.variables_dict['xd']),)
-    entry_tuple += (cas.entry('algebraic', repeat = [n_k], shape = (n_z,1)),)
+    n_starting_cstr = model_constraints_list.get_expression_list('eq').shape[0]
+    entry_tuple += (cas.entry('starting_dynamics', repeat=[1], shape=(n_starting_cstr, 1)),)
 
+    mdl_shooting_cstr_sublist = get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model)
+    n_shooting_cstr = mdl_shooting_cstr_sublist.get_expression_list('eq').shape[0]
+    entry_tuple += (cas.entry('shooting_dynamics', repeat = [n_k-1], shape = (n_shooting_cstr,1)),)
 
     parallellization = nlp_options['parallelization']['type']
+
+    # collect starting variables
+    starting_vars = struct_op.get_variables_at_time(nlp_options, V, Xdot, model_variables, 0)
+    starting_params = struct_op.get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, 0)
 
     # collect shooting variables
     shooting_nodes = struct_op.count_shooting_nodes(nlp_options)
@@ -159,7 +176,9 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
 
-    mdl_shooting_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_starting_expr = mdl_eq_fun(starting_vars, starting_params)
+
+    mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
@@ -170,13 +189,22 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
 
-        # algebraic constraints on shooting nodes
-        cstr_list.append(cstr_op.Constraint(
-            expr = ocp_eqs_shooting_expr[:,kdx],
-            name = 'shooting_{}'.format(kdx),
-            cstr_type = 'eq'
+        if kdx == 0:
+            # dynamics on starting nodes
+            cstr_list.append(cstr_op.Constraint(
+                expr = mdl_starting_expr,
+                name = 'starting_dynamics',
+                cstr_type = 'eq'
+                )
             )
-        )
+        else:
+            # dynamics on shooting nodes
+            cstr_list.append(cstr_op.Constraint(
+                expr = ocp_eqs_shooting_expr[:,kdx],
+                name = 'shooting_{}'.format(kdx),
+                cstr_type = 'eq'
+                )
+            )
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):

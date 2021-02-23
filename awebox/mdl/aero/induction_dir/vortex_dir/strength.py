@@ -68,76 +68,153 @@ def get_state_repr_strength_constraint(options, V, Outputs, model):
     rings = wake_nodes - 1
     kite_nodes = model.architecture.kite_nodes
 
-    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
-
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
 
         for kite in kite_nodes:
             for ring in range(rings):
-                wake_node = ring
 
                 for ndx in range(n_k):
+
+                    if ndx > 0:
+                        cont_cstr = get_continuity_strength_constraint(V, kite, ring, ndx)
+                        cstr_list.append(cont_cstr)
+                    else:
+                        starting_cstr = get_state_starting_strength_constraint(options, V, Outputs, model, kite, ring)
+                        cstr_list.append(starting_cstr)
+
                     for ddx in range(d):
 
-                        local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + '_' + str(ddx)
-
-                        variables_scaled = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
-                        wg_local = tools.get_ring_strength_si(variables_scaled, kite, ring, model.scaling)
-
-                        ndx_shed = n_k - 1 - wake_node
-                        ddx_shed = d - 1
-
-                        # working out:
-                        # n_k = 3
-                        # if ndx = 0 and ddx = 0 -> shed: wn >= n_k
-                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,    period = 0
-                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,    period = 0
-                        #     wn: 2 sheds at ndx = 0, ddx = -1 : unshed,    period = 0
-                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED      period = 1
-                        #     wn: 4 sheds at ndx = -2,                      period = 1
-                        #     wn: 5 sheds at ndx = -3                       period = 1
-                        #     wn: 6 sheds at ndx = -4                       period = 2
-                        # if ndx = 1 and ddx = 0 -> shed: wn >= n_k - ndx
-                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
-                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
-                        #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
-                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
-                        # if ndx = 0 and ddx = -1 -> shed:
-                        #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
-                        #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
-                        #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
-                        #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
-
-                        already_shed = False
-                        if (ndx > ndx_shed):
-                            already_shed = True
-                        elif ((ndx == ndx_shed) and (ddx == ddx_shed)):
-                            already_shed = True
-
-                        if already_shed:
-
-                            # working out:
-                            # n_k = 3
-                            # period_0 -> wn 0, wn 1, wn 2 -> floor(ndx_shed / n_k)
-                            # period_1 -> wn 3, wn 4, wn 5
-
-                            period_number = int(np.floor(float(ndx_shed)/float(n_k)))
-                            ndx_shed_w_periodicity = ndx_shed - period_number * n_k
-
-                            gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'circulation' + str(kite)]
-                            wg_ref = 1. * gamma_val
-                        else:
-                            wg_ref = 0.
-
-                        local_resi = (wg_local - wg_ref) / tools.get_strength_scale(model.variables_dict, model.scaling)
-
-                        local_cstr = cstr_op.Constraint(expr = local_resi,
-                                                        name = local_name,
-                                                        cstr_type='eq')
+                        local_cstr = get_local_state_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx, ddx)
                         cstr_list.append(local_cstr)
 
     return cstr_list
+
+def get_local_state_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx, ddx):
+
+    wake_node = ring
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + '_' + str(ddx)
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+    variables_scaled = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx, ddx)
+    wg_local = tools.get_ring_strength_si(variables_scaled, kite, ring, model.scaling)
+
+    ndx_shed = n_k - 1 - wake_node
+    ddx_shed = d - 1
+
+    # working out:
+    # n_k = 3
+    # if ndx = 0 and ddx = 0 -> shed: wn >= n_k
+    #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,    period = 0
+    #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,    period = 0
+    #     wn: 2 sheds at ndx = 0, ddx = -1 : unshed,    period = 0
+    #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED      period = 1
+    #     wn: 4 sheds at ndx = -2,                      period = 1
+    #     wn: 5 sheds at ndx = -3                       period = 1
+    #     wn: 6 sheds at ndx = -4                       period = 2
+    # if ndx = 1 and ddx = 0 -> shed: wn >= n_k - ndx
+    #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
+    #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
+    #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
+    #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
+    # if ndx = 0 and ddx = -1 -> shed:
+    #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,
+    #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,
+    #     wn: 2 sheds at ndx = 0, ddx = -1 : SHED,
+    #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED
+
+    already_shed = False
+    if (ndx > ndx_shed):
+        already_shed = True
+    elif ((ndx == ndx_shed) and (ddx == ddx_shed)):
+        already_shed = True
+
+    if already_shed:
+
+        # working out:
+        # n_k = 3
+        # period_0 -> wn 0, wn 1, wn 2 -> floor(ndx_shed / n_k)
+        # period_1 -> wn 3, wn 4, wn 5
+
+        period_number = int(np.floor(float(ndx_shed) / float(n_k)))
+        ndx_shed_w_periodicity = ndx_shed - period_number * n_k
+
+        gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'circulation' + str(kite)]
+        wg_ref = 1. * gamma_val
+    else:
+        wg_ref = 0.
+
+    local_resi = (wg_local - wg_ref) / tools.get_strength_scale(model.variables_dict, model.scaling)
+
+    local_cstr = cstr_op.Constraint(expr=local_resi,
+                                    name=local_name,
+                                    cstr_type='eq')
+
+    return  local_cstr
+
+
+def get_state_starting_strength_constraint(options, V, Outputs, model, kite, ring):
+
+    ndx = 0
+
+    wake_node = ring
+    n_k = options['n_k']
+    d = options['collocation']['d']
+
+    ndx_equiv = -1
+    ddx_equiv = d - 1
+
+    local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx)
+
+    Xdot = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+    variables_scaled = struct_op.get_variables_at_time(options, V, Xdot, model.variables, ndx)
+    wg_local = tools.get_ring_strength_si(variables_scaled, kite, ring, model.scaling)
+
+    ndx_shed = n_k - 1 - wake_node
+    ddx_shed = d - 1
+
+    # working out:
+    # n_k = 3
+    # if ndx = -1 and ddx = -1 -> shed: wn >= n_k
+    #     wn: 0 sheds at ndx = 2, ddx = -1 : unshed,    period = 0
+    #     wn: 1 sheds at ndx = 1, ddx = -1 : unshed,    period = 0
+    #     wn: 2 sheds at ndx = 0, ddx = -1 : unshed,    period = 0
+    #     wn: 3 sheds at ndx = -1, ddx = -1 : SHED      period = 1
+    #     wn: 4 sheds at ndx = -2,                      period = 1
+    #     wn: 5 sheds at ndx = -3                       period = 1
+    #     wn: 6 sheds at ndx = -4                       period = 2
+
+    already_shed = False
+    if (ndx_equiv > ndx_shed):
+        already_shed = True
+    elif ((ndx_equiv == ndx_shed) and (ddx_equiv == ddx_shed)):
+        already_shed = True
+
+    if already_shed:
+
+        # working out:
+        # n_k = 3
+        # period_0 -> wn 0, wn 1, wn 2 -> floor(ndx_shed / n_k)
+        # period_1 -> wn 3, wn 4, wn 5
+
+        period_number = int(np.floor(float(ndx_shed) / float(n_k)))
+        ndx_shed_w_periodicity = ndx_shed - period_number * n_k
+
+        gamma_val = Outputs['coll_outputs', ndx_shed_w_periodicity, ddx_shed, 'aerodynamics', 'circulation' + str(kite)]
+        wg_ref = 1. * gamma_val
+    else:
+        wg_ref = 0.
+
+    local_resi = (wg_local - wg_ref) / tools.get_strength_scale(model.variables_dict, model.scaling)
+
+    local_cstr = cstr_op.Constraint(expr=local_resi,
+                                    name=local_name,
+                                    cstr_type='eq')
+
+    return local_cstr
 
 
 def get_alg_repr_strength_constraint(options, V, Outputs, model):

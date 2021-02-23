@@ -37,36 +37,32 @@ import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_lineariz
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 import pdb
 
 ### residuals
 
-def get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
-    resi = []
+def get_induction_cstr(options, atmos, wind, variables_si, parameters, outputs, architecture):
 
-    ind_resi = get_general_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    resi = cas.vertcat(resi, ind_resi)
+    cstr_list = cstr_op.ConstraintList()
 
-    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    resi = cas.vertcat(resi, spec_resi)
+    general_trivial = get_general_trivial_residual(options, wind, variables_si, architecture)
+    general_final = get_general_final_residual(options, wind, variables_si, parameters, outputs, architecture)
+    general_homotopy = parameters['phi', 'iota'] * general_trivial + (1. - parameters['phi', 'iota']) * general_final
+    general_cstr = cstr_op.Constraint(expr=general_homotopy,
+                                      name='induction_general',
+                                      cstr_type='eq')
+    cstr_list.append(general_cstr)
 
-    return resi
+    specific_cstr = get_specific_cstr(options, atmos, wind, variables_si, parameters, outputs, architecture)
+    cstr_list.append(specific_cstr)
+
+    return cstr_list
 
 
-def get_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
-    resi = []
-
-    ind_resi = get_general_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    resi = cas.vertcat(resi, ind_resi)
-
-    spec_resi = get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture)
-    resi = cas.vertcat(resi, spec_resi)
-
-    return resi
-
-def get_general_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
+def get_general_trivial_residual(options, wind, variables_si, architecture):
     resi = []
 
     for kite in architecture.kite_nodes:
@@ -83,7 +79,7 @@ def get_general_trivial_residual(options, atmos, wind, variables_si, parameters,
 
     return resi
 
-def get_general_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture):
+def get_general_final_residual(options, wind, variables_si, parameters, outputs, architecture):
     resi = []
 
     for kite in architecture.kite_nodes:
@@ -101,8 +97,9 @@ def get_general_final_residual(options, atmos, wind, variables_si, parameters, o
     return resi
 
 
-def get_specific_residuals(options, atmos, wind, variables_si, parameters, outputs, architecture):
-    resi = []
+def get_specific_cstr(options, atmos, wind, variables_si, parameters, outputs, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
@@ -110,15 +107,17 @@ def get_specific_residuals(options, atmos, wind, variables_si, parameters, outpu
     if any_act:
         actuator_resi = actuator.get_residual(options, atmos, wind, variables_si, parameters, outputs,
                                               architecture)
-        resi = cas.vertcat(resi, actuator_resi)
+        actuator_cstr = cstr_op.Constraint(expr=actuator_resi,
+                                           name='actuator_specific',
+                                           cstr_type='eq')
+        cstr_list.append(actuator_cstr)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        vortex_resi = vortex.get_residual(options, wind, variables_si, architecture)
-        resi = cas.vertcat(resi, vortex_resi)
+        vortex_cstr = vortex.get_vortex_cstr(options, wind, variables_si, architecture)
+        cstr_list.append(vortex_cstr)
 
-
-    return resi
+    return cstr_list
 
 
 ## velocities
