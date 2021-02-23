@@ -72,11 +72,12 @@ class Optimization(object):
         elif nlp.status == 'I am an NLP.':
 
             timer = time.time()
+
             # prepare callback
-            awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
+            self.__awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
 
             # generate solvers
-            self.generate_solvers(model, nlp, formulation, options, awe_callback)
+            self.generate_solvers(model, nlp, formulation, options, self.__awe_callback)
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
@@ -352,6 +353,7 @@ class Optimization(object):
 
             # hand over the parameters to the solver
             self.__arg['p'] = self.__p_fix_num
+            self.__awe_callback.update_P(self.__p_fix_num)
 
             # bounds on x
             self.__arg['ubx'] = self.__V_bounds['ub']
@@ -836,3 +838,11 @@ class Optimization(object):
     @integral_outputs_opt.setter
     def integral_outputs_opt(self, value):
         awelogger.logger.warning('Cannot set integral_outputs_opt object.')
+
+    @property
+    def awe_callback(self):
+        return self.__awe_callback
+
+    @awe_callback.setter
+    def awe_callback(self, value):
+        awelogger.logger.warning('Cannot set awe_callback object.')
