@@ -270,8 +270,8 @@ def get_inverse_equivalence_matrix(tether_length):
     # a + d = Fx
     # b + e = Fy
     # c + f = Fz
-    # L (a - d) = My
-    # L (a - e) = Mx
+    # L (a - d) / 2 = My
+    # L (b - e) / 2 = Mx
     # c - f = 0
 
     # A [a, b, c, d, e, f].T = [Fx, Fy, Fz, Mx, My, 0].T
@@ -283,11 +283,11 @@ def get_inverse_equivalence_matrix(tether_length):
     half = 0.5
     nalf = -0.5
 
-    Ainv_row1 = cas.horzcat(half, 0., 0., over, 0., 0.)
-    Ainv_row2 = cas.horzcat(0., half, 0., 0., over, 0.)
+    Ainv_row1 = cas.horzcat(half, 0., 0., 0., over, 0.)
+    Ainv_row2 = cas.horzcat(0., half, 0., over, 0., 0.)
     Ainv_row3 = cas.horzcat(0., 0., half, 0., 0., half)
-    Ainv_row4 = cas.horzcat(half, 0., 0., nver, 0., 0.)
-    Ainv_row5 = cas.horzcat(0., half, 0., 0., nver, 0.)
+    Ainv_row4 = cas.horzcat(half, 0., 0., 0., nver, 0.)
+    Ainv_row5 = cas.horzcat(0., half, 0., nver, 0., 0.)
     Ainv_row6 = cas.horzcat(0., 0., half, 0., 0., nalf)
 
     Ainv = cas.vertcat(Ainv_row1,
