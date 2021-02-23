@@ -37,6 +37,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 import awebox.tools.callback as callback
 
+from numpy import linspace
+
 import matplotlib.pyplot as plt
 
 import copy
@@ -365,57 +367,19 @@ class Optimization(object):
             self.__arg['ubx'] = self.__V_bounds['ub']
             self.__arg['lbx'] = self.__V_bounds['lb']
 
-            phi_name = None
-            for phi in list(model.parameters_dict['phi'].keys()):
-                ub = self.__V_bounds['ub']['phi',phi]
-                lb = self.__V_bounds['lb']['phi',phi]
-                if ub != lb:
-                    phi_name = phi
+            # find current homotopy parameter
+            phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
             # solve
             if options['classical_continuation'] and (counter == 0) and (phi_name != None):
                 
-                test = int(1/options['homotopy_step'])
-                from numpy import linspace
-                parameter_path = linspace(1-options['homotopy_step'], options['homotopy_step'], int(1/options['homotopy_step'])-1)
-                self.__p_fix_num['cost', phi_name] = 0.0
-                self.__arg['p'] = self.__p_fix_num
-                for phij in parameter_path:
-                    self.__V_bounds['ub']['phi',phi_name] = phij
-                    self.__V_bounds['lb']['phi',phi_name] = phij
-                    self.__arg['ubx'] = self.__V_bounds['ub']
-                    self.__arg['lbx'] = self.__V_bounds['lb']
-                    self.__solution = solver(**self.__arg)
-                    self.__stats = solver.stats()
-                    self.__arg['lam_x0'] = self.__solution['lam_x']
-                    self.__arg['lam_g0'] = self.__solution['lam_g']
-                    self.__arg['x0'] = self.__solution['x']
+                self.__perform_classic_continuation(step_name, phi_name, options, solver)
 
-                    # add up iterations of multi-step homotopies
-                    if step_name not in list(self.__iterations.keys()):
-                        self.__iterations[step_name] = 0.
-                        self.__t_wall[step_name] = 0.
-                    self.__iterations[step_name] += self.__stats['iter_count']
-                    self.__t_wall[step_name] += self.__stats['t_wall_total']
-                    if 't_wall_callback_fun' in self.__stats.keys():
-                        self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
-
-
-                self.__V_bounds['ub']['phi',phi_name] = 0
-                self.__V_bounds['lb']['phi',phi_name] = 0
             else:
 
                 self.__solution = solver(**self.__arg)
                 self.__stats = solver.stats()
-
-                # add up iterations of multi-step homotopies
-                if step_name not in list(self.__iterations.keys()):
-                    self.__iterations[step_name] = 0.
-                    self.__t_wall[step_name] = 0.
-                self.__iterations[step_name] += self.__stats['iter_count']
-                self.__t_wall[step_name] += self.__stats['t_wall_total']
-                if 't_wall_callback_fun' in self.__stats.keys():
-                    self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
+                self.__save_stats(step_name)
 
             self.generate_outputs(nlp, self.__solution)
 
@@ -432,12 +396,49 @@ class Optimization(object):
         return None
 
 
+    def __perform_classic_continuation(self, step_name, phi_name, options, solver):
 
+        # define parameter path
+        step = options['homotopy_step']
+        parameter_path = linspace(1-step, step, int(1/step)-1)
 
+        # update fixed params
+        self.__p_fix_num['cost', phi_name] = 0.0
+        self.__arg['p'] = self.__p_fix_num
 
+        # follow parameter path
+        for phij in parameter_path:
+            self.__V_bounds['ub']['phi',phi_name] = phij
+            self.__V_bounds['lb']['phi',phi_name] = phij
+            self.__arg['ubx'] = self.__V_bounds['ub']
+            self.__arg['lbx'] = self.__V_bounds['lb']
+            self.__solution = solver(**self.__arg)
+            self.__stats = solver.stats()
+            self.__arg['lam_x0'] = self.__solution['lam_x']
+            self.__arg['lam_g0'] = self.__solution['lam_g']
+            self.__arg['x0'] = self.__solution['x']
 
+            # add up iterations of multi-step homotopies
+            self.__save_stats(step_name)
 
+        # prepare for second part of homotopy step
+        self.__V_bounds['ub']['phi',phi_name] = 0
+        self.__V_bounds['lb']['phi',phi_name] = 0
 
+        return None
+
+    def __save_stats(self, step_name):
+
+        # add up iterations of multi-step homotopies
+        if step_name not in list(self.__iterations.keys()):
+            self.__iterations[step_name] = 0.
+            self.__t_wall[step_name] = 0.
+        self.__iterations[step_name] += self.__stats['iter_count']
+        self.__t_wall[step_name] += self.__stats['t_wall_total']
+        if 't_wall_callback_fun' in self.__stats.keys():
+            self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
+
+        return None
 
 
     ### arguments
