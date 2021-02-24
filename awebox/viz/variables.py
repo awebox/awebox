@@ -72,6 +72,7 @@ def plot_wake_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_
             variables_to_plot = [individual_state]
 
     integral_variables_to_plot = []
+
     plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xd', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
@@ -129,8 +130,8 @@ def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_
         if individual_state in list(variables_dict['xl'].keys()):
             variables_to_plot = [individual_state]
 
-
     integral_variables_to_plot = []
+
     plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xl', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
@@ -271,29 +272,37 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
 
 def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables_to_plot, integral_variables_to_plot, fig_num=None):
 
-    counter = 0
-    for var_name in variables_to_plot:
-        if not is_wake_variable(var_name):
+    if len(variables_to_plot + integral_variables_to_plot) > 0:
+
+        counter = 0
+        for var_name in variables_to_plot:
+            if not is_wake_variable(var_name):
+                counter += 1
+        counter += len(integral_variables_to_plot)
+
+        fig, axes = setup_fig_and_axes(variables_to_plot, integral_variables_to_plot, fig_num)
+
+        counter = 0
+        for var_name in variables_to_plot:
+            ax = plt.axes(axes[counter])
+            plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name)
             counter += 1
-    counter += len(integral_variables_to_plot)
 
-    fig, axes = setup_fig_and_axes(variables_to_plot, integral_variables_to_plot, fig_num)
+        for var_name in integral_variables_to_plot:
+            ax = plt.axes(axes[counter])
+            plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name)
+            counter += 1
 
-    counter = 0
-    for var_name in variables_to_plot:
-        ax = plt.axes(axes[counter])
-        plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name)
-        counter += 1
+        plt.subplots_adjust(wspace=0.3, hspace=2.0)
+        plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
+        plt.suptitle(fig_name)
 
-    for var_name in integral_variables_to_plot:
-        ax = plt.axes(axes[counter])
-        plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name)
-        counter += 1
+    else:
+        message = 'a request to plot variables of type ' + var_type + ' passed an empty list of variable-names.' \
+                                                                      ' as a result, the request was ignored.'
+        awelogger.logger.warning(message)
 
-    plt.subplots_adjust(wspace=0.3, hspace=2.0)
-    plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
-    plt.suptitle(fig_name)
-
+    return None
 
 def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
 

@@ -207,13 +207,11 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
                 for ndx in range(n_k + 1):
                     wx_local = dict_xd[kite][tip][wake_node][ndx]
                     V_init['xd', ndx, var_name] = wx_local
-                    V_init['xd', ndx, 'd' + var_name] = U_ref
 
                 for ndx in range(n_k):
                     for ddx in range(d):
                         wx_local = dict_coll[kite][tip][wake_node][ndx][ddx]
                         V_init['coll_var', ndx, ddx, 'xd', var_name] = wx_local
-                        V_init['coll_var', ndx, ddx, 'xd', 'd' + var_name] = U_ref
 
     return V_init
 

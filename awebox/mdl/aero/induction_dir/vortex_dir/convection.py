@@ -50,7 +50,7 @@ def get_state_repr_convection_cstr(options, wind, variables_si, architecture):
                 wx_local = variables_si['xd'][var_name]
                 u_infty = wind.get_velocity(wx_local[2])
 
-                dwx_local = variables_si['xd']['d' + var_name]
+                dwx_local = variables_si['xddot']['d' + var_name]
 
                 resi_local = (dwx_local - u_infty) / wind.get_velocity_ref()
                 resi = cas.vertcat(resi, resi_local)

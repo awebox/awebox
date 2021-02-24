@@ -233,10 +233,8 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
         for wake_node in range(wake_nodes):
             for tip in wingtips:
                 coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
                 if vortex_representation == 'state':
                     system_states.extend([(coord_name, (3, 1))])
-                    system_states.extend([('d' + coord_name, (3, 1))])
                 elif vortex_representation == 'alg':
                     system_lifted.extend([(coord_name, (3, 1))])
                 else:

@@ -103,8 +103,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
-    cstr_list.append(induction_cstr)
+    if not (options['induction_model'] == 'not_in_use'):
+        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+        cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
     power = get_power(options, system_variables['SI'], parameters, outputs, architecture)

@@ -146,7 +146,6 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     else:
         awelogger.logger.warning('Specified induction model is not supported. Consider checking spelling.')
 
-
     return u_ind_kite
 
 
