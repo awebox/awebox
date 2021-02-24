@@ -62,7 +62,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
-        ('user_options',    None,          None,        'tether_drag_model',     'split',            ('possible options: split drag equally between nodes, get equivalent forces from only one element, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'single', 'multi', 'kite_only', 'not_in_use']),'t'),
+        ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'kite_only', 'not_in_use']),'t'),
         ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
@@ -167,7 +167,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
         ('model',   'tether', None,         'control_var',          'dddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
-        ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
+        ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
