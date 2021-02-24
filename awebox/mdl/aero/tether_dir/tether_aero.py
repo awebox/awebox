@@ -147,8 +147,10 @@ def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_n
 
     tether_model = model_options['tether']['tether_drag']['model_type']
     if tether_model == 'multi':
-        drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
-        drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+        # drag_node = p_dec['tau'] * split_upper + (1. - p_dec['tau']) * multi_upper
+        # drag_parent = p_dec['tau'] * split_lower + (1. - p_dec['tau']) * multi_lower
+        drag_node = multi_upper
+        drag_parent = multi_lower
 
     elif tether_model == 'split':
         drag_node = split_upper
