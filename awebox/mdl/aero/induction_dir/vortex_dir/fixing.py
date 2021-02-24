@@ -82,10 +82,11 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
 
                         # working out:
                         # n_k = 3
-                        # wn:0, n_k-1=2
-                        # wn:1, n_k-2=1
-                        # wn:2=n_k-1, n_k-3=0
-                        # ... switch to periodic fixing
+                        # wn:0 fixed at shooting node 3, corresponds to ndx=2, ddx=-1
+                        # wn:1 fixed at shooting node 2, corresponds to ndx=1, ddx=-1
+                        # wn:2 fixed at shooting node 1, corresponds to ndx=0, ddx=-1
+                        # wn   fixed at shooting node n_k - wn, corresponds to ndx=n_k - wn - 1, ddx=-1
+                        # ... then, switch to periodic fixing
 
                         reverse_index = n_k - 1 - wake_node
                         variables_at_shed = struct_op.get_variables_at_time(options, V, Xdot, model.variables,
@@ -104,14 +105,16 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
 
                     else:
 
-                        # working out:
-                        # n_k = 3
+                        # working out for n_k = 3
                         # wn:0, n_k-1=2
                         # wn:1, n_k-2=1
                         # wn:2=n_k-1, n_k-3=0
                         # ... switch to periodic fixing
                         # wn:3 at ndx = 0 must be equal to -> wn:0 at ndx = -1, ddx = -1
                         # wn:4 at ndx = 0 must be equal to -> wn:1 at ndx = -1, ddx = -1
+                        # wn:5 at ndx = 0 must be equal to -> wn:2 at ndx = -1, ddx = -1
+                        # wn:6 at ndx = 0 must be equal to -> wn:3 at ndx = -1, ddx = -1
+                        # wn:7 at ndx = 0 must be equal to -> wn:4 at ndx = -1, ddx = -1
 
                         variables_at_initial = struct_op.get_variables_at_time(options, V, Xdot, model.variables, 0)
                         variables_at_final = struct_op.get_variables_at_time(options, V, Xdot, model.variables, -1, -1)

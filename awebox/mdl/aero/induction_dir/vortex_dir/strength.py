@@ -75,7 +75,6 @@ def get_state_repr_strength_constraint(options, V, Outputs, model):
             for ring in range(rings):
 
                 for ndx in range(n_k):
-
                     if ndx > 0:
                         cont_cstr = get_continuity_strength_constraint(V, kite, ring, ndx)
                         cstr_list.append(cont_cstr)
@@ -84,7 +83,6 @@ def get_state_repr_strength_constraint(options, V, Outputs, model):
                         cstr_list.append(starting_cstr)
 
                     for ddx in range(d):
-
                         local_cstr = get_local_state_repr_strength_constraint(options, V, Outputs, model, kite, ring, ndx, ddx)
                         cstr_list.append(local_cstr)
 

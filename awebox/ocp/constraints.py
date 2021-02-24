@@ -119,19 +119,34 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
 def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
 
-    # todo: figure out an automatic method of sorting out the redundant constraints
-
     model_constraints_list = model.constraints_list
+    model_variables = model.variables
+
+    # remove those constraints that only depend on 'xd', since continuity will duplicate those...
+    relevant_shooting_vars = []
+    for var_type in (set(model_variables.keys()) - set(['xd'])):
+        relevant_shooting_vars = cas.vertcat(relevant_shooting_vars, model_variables[var_type])
     mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
 
     for cstr in model_constraints_list.get_list('eq'):
 
-        should_add_to_sublist = ('vortex_convection' not in cstr.name)
-        if should_add_to_sublist:
-            refinded_cstr = cstr_op.Constraint(expr=cstr.expr,
+        cstr_expr = cstr.expr
+        selected_expr = []
+
+        for cdx in range(cstr_expr.shape[0]):
+            local_expr = cstr_expr[cdx]
+            local_jac = cas.jacobian(local_expr, relevant_shooting_vars)
+
+            should_add_to_sublist = (local_jac.nnz() > 0)
+            if should_add_to_sublist:
+                selected_expr = cas.vertcat(selected_expr, local_expr)
+
+        # if selected_expr is not still []
+        if not isinstance(selected_expr, list):
+            selected_cstr = cstr_op.Constraint(expr=selected_expr,
                                                name=cstr.name + '_selected',
                                                cstr_type='eq')
-            mdl_shooting_cstr_sublist.append(refinded_cstr)
+            mdl_shooting_cstr_sublist.append(selected_cstr)
 
     return mdl_shooting_cstr_sublist
 
