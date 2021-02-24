@@ -30,12 +30,12 @@ _python-3.5 / casadi-3.4.5
 
 import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
+import numpy as np
 
 import awebox.mdl.aero.tether_dir.element as element
-import awebox.mdl.aero.tether_dir.frames as frames
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 
-def get_segment_drag_and_moment(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun):
+def get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun):
 
     combined_info = []
     for elem in range(n_elements):
@@ -43,80 +43,27 @@ def get_segment_drag_and_moment(n_elements, variables, upper_node, architecture,
         combined_info = cas.horzcat(combined_info, elem_info)
 
     drag_map = element_drag_fun.map(n_elements, 'openmp')
-    all_drag = drag_map(combined_info)
-    drag = cas.sum2(all_drag)
+    
+    combined_drag = drag_map(combined_info)
 
-    moment_map = element_moment_fun.map(n_elements, 'openmp')
-    all_moment = moment_map(combined_info)
-    moment = cas.sum2(all_moment)
+    return combined_drag
 
-    return drag, moment
-
-
-def get_segment_equiv_fun():
-
-    seg_info_sym = cas.SX.sym('seg_info_sym', (12, 1))
-
-    q_upper = seg_info_sym[:3]
-    q_lower = seg_info_sym[3:6]
-    drag_earthfixed = seg_info_sym[6:9]
-    moment_earthfixed = seg_info_sym[9:12]
-
-    tether = q_upper - q_lower
-
-    # frames.test_transforms()
-
-    drag_body = frames.from_earth_to_body(drag_earthfixed, q_upper, q_lower)
-    moment_body = frames.from_earth_to_body(moment_earthfixed, q_upper, q_lower)
-
-    moment_body[2] = 0. # no spin on tether segment
-
-    total_vect = cas.vertcat(drag_body, moment_body)
-
-    Ainv = frames.get_inverse_equivalence_matrix(vect_op.norm(tether))
-
-    equiv_vect = cas.mtimes(Ainv, total_vect)
-
-    equiv_force_upper_body = equiv_vect[0:3]
-    equiv_force_lower_body = equiv_vect[3:6]
-
-    equiv_force_upper_earthfixed = frames.from_body_to_earth(equiv_force_upper_body, q_upper, q_lower)
-    equiv_force_lower_earthfixed = frames.from_body_to_earth(equiv_force_lower_body, q_upper, q_lower)
-
-    equivs = cas.vertcat(equiv_force_upper_earthfixed, equiv_force_lower_earthfixed)
-
-    segment_equiv_fun = cas.Function('segment_equiv_fun', [seg_info_sym], [equivs])
-
-    return segment_equiv_fun
-
-
-def get_segment_half_fun():
-    seg_info_sym = cas.SX.sym('seg_info_sym', (12, 1))
-
-    drag_earthfixed = seg_info_sym[6:9]
-
-    force_upper = drag_earthfixed / 2.
-    force_lower = drag_earthfixed / 2.
-
-    forces = cas.vertcat(force_upper, force_lower)
-
-    segment_half_fun = cas.Function('segment_half_fun', [seg_info_sym], [forces])
-
-    return segment_half_fun
-
-
-def get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun, segment_distribution_fun):
+def get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun):
 
     q_upper, q_lower, _, _ = element.get_upper_and_lower_pos_and_vel(variables, upper_node, architecture)
-    drag_earthfixed, moment_earthfixed = get_segment_drag_and_moment(n_elements, variables, upper_node, architecture, element_drag_fun, element_moment_fun)
+    combined_drag = get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun)
 
-    seg_info = cas.vertcat(q_upper, q_lower, drag_earthfixed, moment_earthfixed)
+    # integration step size
+    ds = 1.0/n_elements
 
-    forces = segment_distribution_fun(seg_info)
-    force_upper = forces[:3]
-    force_lower = forces[3:6]
+    # integration grid (midpoint rule)
+    s_grid = np.linspace(0.5*ds, 1 - 0.5*ds, n_elements)
 
-    return force_upper, force_lower
+    # numerical evaluation of analytic drag force expressions
+    force_upper = sum([s_grid[k]*combined_drag[:, k] for k in range(n_elements)])
+    force_lower = sum([(1-s_grid[k])*combined_drag[:, k] for k in range(n_elements)])
+
+    return force_lower, force_upper
 
 
 def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun):
