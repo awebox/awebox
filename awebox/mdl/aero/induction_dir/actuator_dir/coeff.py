@@ -35,8 +35,6 @@ import casadi.tools as cas
 import numpy as np
 
 
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
@@ -111,7 +109,7 @@ def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, paren
 def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture):
 
     total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
-    y_rotor = general_geom.get_y_rotor_hat_var(variables, parent)
+    y_rotor = actuator_geom.get_y_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, y_rotor)
 
     return moment
@@ -119,7 +117,7 @@ def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, archi
 def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture):
 
     total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
-    z_rotor = general_geom.get_z_rotor_hat_var(variables, parent)
+    z_rotor = actuator_geom.get_z_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, z_rotor)
 
     return moment

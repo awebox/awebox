@@ -267,7 +267,7 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
 
-        system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
         system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
         system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])

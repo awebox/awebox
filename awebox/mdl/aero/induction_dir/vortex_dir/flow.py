@@ -28,18 +28,16 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 """
 
-import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+from awebox.logger.logger import Logger as awelogger
+import casadi.tools as cas
+
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-from awebox.logger.logger import Logger as awelogger
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+
 import awebox.tools.print_operations as print_op
-
 import awebox.tools.vector_operations as vect_op
-
-import casadi.tools as cas
 import awebox.tools.constraint_operations as cstr_op
 
 
@@ -94,7 +92,7 @@ def get_induction_factor_at_kite(options, filament_list, wind, variables, parame
     x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
 
     parent = architecture.parent_map[kite_obs]
-    u_zero_vec = actuator_flow.get_uzero_vec(options, wind, parent, variables, parameters, architecture)
+    u_zero_vec = general_flow.get_uzero_vec(options, wind, parent, variables, architecture)
     u_zero = vect_op.smooth_norm(u_zero_vec)
 
     a_calc = get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=n_hat)

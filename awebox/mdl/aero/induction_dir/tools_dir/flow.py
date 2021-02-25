@@ -29,6 +29,8 @@ _python-3.5 / casadi-3.4.5
 - edit: jochem de schutter, alu-fr 2019
 """
 
+import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+
 def get_kite_apparent_velocity(variables, wind, kite, parent):
 
     q_kite = variables['xd']['q' + str(kite) + str(parent)]
@@ -37,3 +39,19 @@ def get_kite_apparent_velocity(variables, wind, kite, parent):
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
+
+def get_uzero_vec(model_options, wind, parent, variables, architecture):
+
+    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    u_actuator = general_geom.get_center_velocity(parent, variables, architecture)
+
+    u_apparent = u_infty - u_actuator
+
+    return u_apparent
+
+def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
+
+    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    u_infty = wind.get_velocity(center[2])
+
+    return u_infty

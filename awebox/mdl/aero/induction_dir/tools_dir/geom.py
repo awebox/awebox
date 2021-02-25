@@ -23,54 +23,48 @@
 #
 #
 '''
-actuator_disk model of awebox aerodynamics
-sets up the axial-induction actuator disk equation
-currently for untilted rotor with no tcf.
+geometry values needed for general induction modelling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-19
+- author: rachel leuthold, alu-fr 2017-20
 - edit: jochem de schutter, alu-fr 2019
 '''
 
 import casadi.tools as cas
 import numpy as np
+from awebox.logger.logger import Logger as awelogger
 
-import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
+import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
 
+import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.vector_operations as vect_op
-import awebox.tools.print_operations as print_op
 
-
-def get_actuator_force(outputs, parent, architecture):
+def get_center_point(model_options, parent, variables, architecture):
 
     children = architecture.kites_map[parent]
+    number_children = float(len(children))
 
-    total_force_aero = np.zeros((3, 1))
-    for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
+    if number_children > 1:
+        center = multi_kite_geom.approx_center_point(parent, variables, architecture)
+    else:
+        center = path_based_geom.approx_center_point(model_options, children, variables, architecture)
 
-        total_force_aero = total_force_aero + aero_force
+    return center
 
-    return total_force_aero
-
-def get_actuator_moment(model_options, variables, outputs, parent, architecture):
+def get_center_velocity(parent, variables, architecture):
 
     children = architecture.kites_map[parent]
+    number_children = float(len(children))
 
-    total_moment_aero = np.zeros((3, 1))
-    for kite in children:
-        aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-        kite_radius = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
-        aero_moment = vect_op.cross(kite_radius, aero_force)
+    if (parent > 0) and (number_children > 1):
+        dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
+    elif (number_children == 1):
+        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
+        dcenter = dq
+    else:
+        message = 'actuator-center velocity not yet set-up for this architecture'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
-        total_moment_aero = total_moment_aero + aero_moment
-
-    return total_moment_aero
-
-def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
-
-    total_force_aero = get_actuator_force(outputs, parent, architecture)
-    nhat = actuator_geom.get_n_hat_var(variables, parent)
-    thrust = cas.mtimes(total_force_aero.T, nhat)
-
-    return thrust
-
+    return dcenter

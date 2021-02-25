@@ -32,7 +32,6 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 

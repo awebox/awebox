@@ -32,21 +32,23 @@ _python-3.5 / casadi-3.4.5
 """
 
 import casadi.tools as cas
-
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
-import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
+
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
+import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
 
 
 ## variables
 
 def get_local_a_var(variables, kite, parent):
-    local_a = variables['xd']['local_a' + str(kite) + str(parent)]
+    local_a = variables['xl']['local_a' + str(kite) + str(parent)]
     return local_a
 
 def get_a_var(model_options, variables, parent, label):
@@ -148,24 +150,12 @@ def get_g_vec_length_var(variables, parent):
 
 ## residuals
 
-def get_qzero_residual(model_options, parent, atmos, wind, variables, architecture):
-
-    qzero_var = get_qzero_var(atmos, wind, variables, parent)
-    qzero_val = get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
-    resi_unscaled = qzero_var - qzero_val
-
-    qzero_ref = get_qzero_ref(atmos, wind)
-    resi_scaled = resi_unscaled / qzero_ref
-
-    return resi_scaled
-
-
-def get_gamma_residual(model_options, wind, parent, variables, parameters, architecture):
+def get_gamma_cstr(parent, variables):
 
     uzero_hat_var = get_uzero_hat_var(variables, parent)
     vzero_hat_var = get_vzero_hat_var(variables, parent)
 
-    n_hat_var = general_geom.get_n_hat_var(variables, parent)
+    n_hat_var = actuator_geom.get_n_hat_var(variables, parent)
     u_comp = cas.mtimes(n_hat_var.T, uzero_hat_var)
     v_comp = cas.mtimes(n_hat_var.T, vzero_hat_var)
 
@@ -183,7 +173,12 @@ def get_gamma_residual(model_options, wind, parent, variables, parameters, archi
 
     resi = cas.vertcat(f_cos, f_sin, f_cosproj, f_sinproj)
 
-    return resi
+    name = 'actuator_gamma_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
 
 
 
@@ -193,18 +188,23 @@ def get_gamma_residual(model_options, wind, parent, variables, parameters, archi
 
 
 
-def get_uzero_matr_ortho_residual(model_options, parent, variables, parameters, architecture):
+def get_uzero_matr_ortho_cstr(parent, variables):
 
     # rotation matrix is in SO3 = 6 constraints
     rot_matr_var = get_uzero_matr_var(variables, parent)
     ortho_matr = cas.mtimes(rot_matr_var.T, rot_matr_var) - np.eye(3)
     f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
 
-    return f_ortho
+    name = 'actuator_flow_dcm_ortho_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_ortho,
+                              name=name,
+                              cstr_type='eq')
 
-def get_uzero_matr_u_along_uzero_residual(model_options, wind, parent, variables, parameters, architecture):
+    return cstr
 
-    u_vec_val = get_uzero_vec(model_options, wind, parent, variables, parameters, architecture)
+def get_uzero_matr_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture):
+
+    u_vec_val = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
 
     u_vec_length_var = get_uzero_vec_length_var(wind, variables, parent)
@@ -214,48 +214,66 @@ def get_uzero_matr_u_along_uzero_residual(model_options, wind, parent, variables
     u_vec_length_ref = get_uzero_vec_length_ref(wind)
     f_u_vec = u_diff / u_vec_length_ref
 
-    return f_u_vec
+    name = 'actuator_uhat_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_u_vec,
+                              name=name,
+                              cstr_type='eq')
 
-def get_wzero_hat_is_z_rotor_hat_residual(variables, parent):
+    return cstr
+
+def get_wzero_hat_is_z_rotor_hat_cstr(variables, parent):
     w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rot_length = general_geom.get_z_vec_length_var(variables, parent)
-    z_rotor_hat = general_geom.get_z_rotor_hat_var(variables, parent)
+    z_rot_length = actuator_geom.get_z_vec_length_var(variables, parent)
+    z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables, parent)
     f_full = w_hat_var - z_rotor_hat * z_rot_length
+
+    name = 'actuator_zhat_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_full,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
+
 
     return f_full
 
 def get_wzero_parallel_z_rotor_check(variables, parent):
     w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rotor_hat = general_geom.get_z_rotor_hat_var(variables, parent)
+    z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables, parent)
     check = cas.mtimes(w_hat_var.T, z_rotor_hat) - 1.
     return check
 
-def get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture):
+def get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
 
     # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    f_ortho = get_uzero_matr_ortho_residual(model_options, parent, variables, parameters, architecture)
-    f_n_vec = get_uzero_matr_u_along_uzero_residual(model_options, wind, parent, variables, parameters, architecture)
-    f_w = get_wzero_hat_is_z_rotor_hat_residual(variables, parent)
+    cstr_list.append(get_uzero_matr_ortho_cstr(parent, variables))
+    cstr_list.append(get_uzero_matr_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture))
+    cstr_list.append(get_wzero_hat_is_z_rotor_hat_cstr(variables, parent))
 
-    # join the constraints
-    f_combi = cas.vertcat(f_ortho, f_n_vec, f_w)
-
-    return f_combi
+    return cstr_list
 
 
 
-def get_local_a_residual(model_options, variables, kite, parent):
+def get_induction_factor_assignment_cstr(model_options, variables, kite, parent):
     a_var = get_local_a_var(variables, kite, parent)
     label = get_label(model_options)
     a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
     resi = a_var - a_val
-    return resi
+
+    name = 'actuator_a_assignment_' + str(kite)
+    cstr = cstr_op.Constraint(expr=resi,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
 
 ## values
 
 def get_f_val(model_options, wind, parent, variables, architecture):
     dl_t = variables['xd']['dl_t']
-    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    u_infty = general_flow.get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     f_val = dl_t / vect_op.smooth_norm(u_infty)
 
     return f_val
@@ -267,15 +285,15 @@ def get_df_val(model_options, wind, parent, variables, architecture):
     else:
         ddl_t = variables['u']['ddl_t']
 
-    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    u_infty = general_flow.get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     df_val = ddl_t / vect_op.smooth_norm(u_infty)
 
     return df_val
 
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
 
-    uzero = get_uzero_vec(model_options, wind, parent, variables, parameters, architecture)
-    n_vec = general_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
+    uzero = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    n_vec = actuator_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
     gamma = vect_op.angle_between(n_vec, uzero)
     return gamma
 
@@ -328,26 +346,10 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
     return a_local
 
 
-def get_uzero_vec(model_options, wind, parent, variables, parameters, architecture):
-
-    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    u_actuator = actuator_geom.get_center_velocity(model_options, parent, variables, parameters, architecture)
-
-    u_apparent = u_infty - u_actuator
-
-    return u_apparent
-
-def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
-
-    center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
-    u_infty = wind.get_velocity(center[2])
-
-    return u_infty
-
 def get_local_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent, label):
 
     uzero_vec_length = get_uzero_vec_length_var(wind, variables, parent)
-    nhat = general_geom.get_n_hat_var(variables, parent)
+    nhat = actuator_geom.get_n_hat_var(variables, parent)
 
     a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
     u_ind = -1. * a_val * uzero_vec_length * nhat
@@ -370,7 +372,7 @@ def get_kite_effective_velocity(model_options, variables, parameters, architectu
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
-    center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
+    center = general_geom.get_center_point(model_options, parent, variables, architecture)
     rho_infty = atmos.get_density(center[2])
 
     uzero_mag = get_uzero_vec_length_var(wind, variables, parent)

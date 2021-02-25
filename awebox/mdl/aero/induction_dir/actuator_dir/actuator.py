@@ -35,74 +35,81 @@ import casadi as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
-import awebox.tools.print_operations as print_op
-import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
-def get_residual(model_options, atmos, wind, variables, parameters, outputs, architecture):
+import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
 
-    all_residuals = []
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+
+def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
 
     act_comp_labels = actuator_flow.get_actuator_comparison_labels(model_options)
-    any_asym = any('asym' in label for label in act_comp_labels)
-    any_unsteady = any(label[0] == 'u' for label in act_comp_labels)
 
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
 
         for label in act_comp_labels:
-            induction_trivial = get_induction_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
-            all_residuals = cas.vertcat(all_residuals, induction_trivial)
+            induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+            cstr_list.append(induction_factor_cstr)
 
-        rot_matr_residual = general_geom.get_rot_matr_residual(model_options, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, rot_matr_residual)
+        rot_matr_cstr = actuator_geom.get_rot_matr_cstr(model_options, parent, variables, parameters, architecture)
+        cstr_list.append(rot_matr_cstr)
 
-        uzero_matr_resi = actuator_flow.get_uzero_matr_residual(model_options, wind, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, uzero_matr_resi)
+        uzero_matr_cstr = actuator_flow.get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture)
+        cstr_list.append(uzero_matr_cstr)
 
-        gamma_resi = actuator_flow.get_gamma_residual(model_options, wind, parent, variables, parameters, architecture)
-        all_residuals = cas.vertcat(all_residuals, gamma_resi)
+        gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
+        cstr_list.append(gamma_cstr)
 
         children = architecture.kites_map[parent]
         for kite in children:
-            local_a_resi = actuator_flow.get_local_a_residual(model_options, variables, kite, parent)
-            all_residuals = cas.vertcat(all_residuals, local_a_resi)
+            a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
+            cstr_list.append(a_assignment_cstr)
 
-            varrho_resi = actuator_geom.get_varrho_residual(model_options, kite, variables, parameters, architecture)
-            all_residuals = cas.vertcat(all_residuals, varrho_resi)
+            varrho_cstr = actuator_geom.get_varrho_cstr(model_options, kite, variables, parameters, architecture)
+            cstr_list.append(varrho_cstr)
 
-        bar_varrho_resi = actuator_geom.get_bar_varrho_residual(model_options, parent, variables, architecture)
-        all_residuals = cas.vertcat(all_residuals, bar_varrho_resi)
+        bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
+        cstr_list.append(bar_varrho_cstr)
 
-    return all_residuals
+    return cstr_list
 
 
 
-def get_induction_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
+
+def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
 
     if label == 'qaxi':
-        induction_final = get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+        resi = get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     elif label == 'qasym':
-        induction_final = get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label)
+        resi = get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label)
 
     elif label == 'uaxi':
-        induction_final = get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+        resi = get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
     elif label == 'uasym':
-        induction_final = get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent,
+        resi = get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent,
                                                architecture, label)
 
     else:
-        induction_final = []
+        resi = []
         awelogger.logger.error('model not yet implemented.')
 
-    return induction_final
+    name = 'actuator_induction_factor_' + label + '_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
 
 def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
@@ -221,11 +228,11 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
 
         outputs['actuator']['f' + str(parent)] = actuator_flow.get_f_val(model_options, wind, parent, variables, architecture)
 
-        center = actuator_geom.get_center_point(model_options, parent, variables, architecture)
-        velocity = actuator_geom.get_center_velocity(model_options, parent, variables, parameters, architecture)
+        center = general_geom.get_center_point(model_options, parent, variables, architecture)
+        velocity = general_geom.get_center_velocity(parent, variables, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
         avg_radius = actuator_geom.get_average_radius(model_options, variables, parent, architecture, parameters)
-        nhat = general_geom.get_n_hat_var(variables, parent)
+        nhat = actuator_geom.get_n_hat_var(variables, parent)
 
         outputs['actuator']['center' + str(parent)] = center
         outputs['actuator']['velocity' + str(parent)] = velocity
@@ -234,7 +241,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['nhat' + str(parent)] = nhat
         outputs['actuator']['bar_varrho' + str(parent)] = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
 
-        u_a = actuator_flow.get_uzero_vec(model_options, wind, parent, variables, parameters, architecture)
+        u_a = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
         yaw_angle = actuator_flow.get_gamma_var(variables, parent)
         q_app = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 

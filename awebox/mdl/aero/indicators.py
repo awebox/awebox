@@ -32,16 +32,17 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.performance_operations as perf_op
+
+import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+
 import awebox.mdl.aero.kite_dir.frames as frames
+
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
-import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -70,7 +71,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
-        outputs['performance']['actuator_center' + str(parent)] = actuator_geom.get_center_point(options, parent, variables, architecture)
+        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent, variables, architecture)
 
         average_radius = 0.
 

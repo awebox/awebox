@@ -34,8 +34,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.linearization as vortex_linearization
-import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 from awebox.logger.logger import Logger as awelogger
@@ -105,11 +104,8 @@ def get_specific_cstr(options, atmos, wind, variables_si, parameters, outputs, a
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        actuator_resi = actuator.get_residual(options, atmos, wind, variables_si, parameters, outputs,
-                                              architecture)
-        actuator_cstr = cstr_op.Constraint(expr=actuator_resi,
-                                           name='actuator_specific',
-                                           cstr_type='eq')
+        actuator_cstr = actuator.get_actuator_cstr(options, atmos, wind, variables_si, parameters, outputs,
+                                                   architecture)
         cstr_list.append(actuator_cstr)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)

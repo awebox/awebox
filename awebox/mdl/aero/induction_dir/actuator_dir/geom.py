@@ -35,43 +35,13 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
 
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
-
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
 # switches
-
-def get_center_point(model_options, parent, variables, architecture):
-
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if number_children > 1:
-        center = multi_kite_geom.approx_center_point(parent, variables, architecture)
-    else:
-        center = path_based_geom.approx_center_point(model_options, children, variables, architecture)
-
-    return center
-
-def get_center_velocity(model_options, parent, variables, parameters, architecture):
-
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if (parent > 0) and (number_children > 1):
-        dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
-    elif (parent > 0):
-        # dcenter = path_based.approx_center_velocity(model_options, children, variables, architecture)
-        n_hat_var = general_geom.get_n_hat_var(variables, parent)
-        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
-        dcenter = cas.mtimes(dq.T, n_hat_var) * n_hat_var
-    else:
-        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
-        dcenter = dq
-
-    return dcenter
 
 def get_kite_radius_vector(model_options, kite, variables, architecture):
     number_siblings = architecture.get_number_siblings(kite)
@@ -162,19 +132,7 @@ def get_area_ref(model_options, parameters):
 
 # residuals
 
-def get_area_residual(model_options, parent, variables, parameters):
-
-    area_var = get_area_var(model_options, variables, parent, parameters)
-    area_val = get_actuator_area(model_options, parent, variables, parameters)
-    resi_unscaled = area_var - area_val
-
-    area_ref = get_area_ref(model_options, parameters)
-    resi_scaled = resi_unscaled / area_ref
-
-    return resi_scaled
-
-
-def get_bar_varrho_residual(model_options, parent, variables, architecture):
+def get_bar_varrho_cstr(model_options, parent, variables, architecture):
 
     bar_varrho_val = get_bar_varrho_val(model_options, variables, parent, architecture)
     bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
@@ -184,10 +142,14 @@ def get_bar_varrho_residual(model_options, parent, variables, architecture):
     varrho_ref = get_varrho_ref(model_options)
     resi = resi_unscaled / varrho_ref
 
-    return resi
+    name = 'actuator_bar_varrho_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi,
+                              name=name,
+                              cstr_type='eq')
+    return cstr
 
 
-def get_varrho_residual(model_options, kite, variables, parameters, architecture):
+def get_varrho_cstr(model_options, kite, variables, parameters, architecture):
 
     # for positive yaw(turns around +zhat, normal towards +yhat):
     #     rhat = zhat * cos(psi) - yhat * sin(psi)
@@ -201,8 +163,8 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
 
-    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
     y_rotor_comp = cas.mtimes(radius_vec.T, y_rotor_hat_var)
     z_rotor_comp = cas.mtimes(radius_vec.T, z_rotor_hat_var)
@@ -225,7 +187,11 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
 
-    return resi_combi
+    name = 'actuator_varrho_' + str(kite)
+    cstr = cstr_op.Constraint(expr=resi_combi,
+                              name=name,
+                              cstr_type='eq')
+    return cstr
 
 
 
@@ -247,8 +213,8 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
 
     parent = architecture.parent_map[kite]
 
-    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
     psi_var = get_psi_var(variables, kite, parent)
     cospsi_var = get_cospsi_var(variables, kite, parent)
@@ -337,3 +303,80 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
         average_radius = average_radius + radius / number_children
 
     return average_radius
+
+
+
+def get_rot_matr_var(variables, parent):
+    rot_cols = variables['xl']['rot_matr' + str(parent)]
+    rot_matr = cas.reshape(rot_cols, (3, 3))
+
+    return rot_matr
+
+def get_n_hat_var(variables, parent):
+    rot_matr = get_rot_matr_var(variables, parent)
+    n_hat = rot_matr[:, 0]
+    return n_hat
+
+def get_y_rotor_hat_var(variables, parent):
+    rot_matr = get_rot_matr_var(variables, parent)
+    y_hat = rot_matr[:, 1]
+    return y_hat
+
+def get_z_rotor_hat_var(variables, parent):
+    rot_matr = get_rot_matr_var(variables, parent)
+    y_hat = rot_matr[:, 2]
+    return y_hat
+
+def get_z_vec_length_var(variables, parent):
+    len_var = variables['xl']['z_vec_length' + str(parent)]
+    return len_var
+
+
+
+def get_rot_matr_ortho_cstr(parent, variables):
+    # rotation matrix is in SO3 = 6 constraints
+    rot_matr_var = get_rot_matr_var(variables, parent)
+    ortho_matr = cas.mtimes(rot_matr_var.T, rot_matr_var) - np.eye(3)
+    f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
+
+    name = 'actuator_geom_dcm_ortho_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_ortho,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
+
+def get_rot_matr_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
+
+    # n_hat * length equals normal direction = 3 constraints
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+    n_hat_var = get_n_hat_var(variables, parent)
+    n_vec_length_var = unit_normal.get_n_vec_length_var(variables, parent)
+
+    n_diff = n_vec_val - n_hat_var * n_vec_length_var
+
+    n_vec_length_ref = unit_normal.get_n_vec_length_ref(variables, parent)
+    f_n_vec = n_diff / n_vec_length_ref
+
+    name = 'actuator_nhat_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_n_vec,
+                              name=name,
+                              cstr_type='eq')
+
+
+    return cstr
+
+def get_rot_matr_cstr(model_options, parent, variables, parameters, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
+
+    # total number of variables = 10 (9 from rot_matr, 1 lengths)
+    cstr_list.append(get_rot_matr_ortho_cstr(parent, variables))
+    cstr_list.append(get_rot_matr_n_along_normal_cstr(model_options, parent, variables, parameters, architecture))
+
+    return cstr_list
+
+def get_n_vec_val(model_options, parent, variables, parameters, architecture):
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+    return n_vec_val
+

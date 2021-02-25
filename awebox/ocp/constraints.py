@@ -137,7 +137,7 @@ def check_if_model_equalities_will_trigger_licq(model):
 
             will_be_dependent = not (local_jac.nnz() > 0)
             if will_be_dependent:
-                message = 'the ' + cdx + 'th entry of the model ' + cstr.name + ' equality constraint is likely to ' \
+                message = 'the ' + str(cdx) + 'th entry of the model ' + cstr.name + ' equality constraint is likely to ' \
                         'trigger licq violations in direct collocation. we suggest re-considering this constraint formulation'
                 awelogger.logger.warning(message)
 
