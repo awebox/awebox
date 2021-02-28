@@ -56,29 +56,34 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
     layer_parent_map = architecture.layer_nodes
     for parent in layer_parent_map:
 
-        for label in act_comp_labels:
-            induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
-            cstr_list.append(induction_factor_cstr)
 
-        rot_matr_cstr = actuator_geom.get_rot_matr_cstr(model_options, parent, variables, parameters, architecture)
-        cstr_list.append(rot_matr_cstr)
+        print_op.warn_about_temporary_funcationality_removal(location='actuator1')
 
-        uzero_matr_cstr = actuator_flow.get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture)
-        cstr_list.append(uzero_matr_cstr)
-
-        gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
-        cstr_list.append(gamma_cstr)
+        # for label in act_comp_labels:
+        #     induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+        #     cstr_list.append(induction_factor_cstr)
+        #
+        # rot_matr_cstr = actuator_geom.get_rot_matr_cstr(model_options, parent, variables, parameters, architecture)
+        # cstr_list.append(rot_matr_cstr)
+        #
+        # uzero_matr_cstr = actuator_flow.get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture)
+        # cstr_list.append(uzero_matr_cstr)
+        #
+        # gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
+        # cstr_list.append(gamma_cstr)
 
         children = architecture.kites_map[parent]
         for kite in children:
             a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
             cstr_list.append(a_assignment_cstr)
 
-            varrho_cstr = actuator_geom.get_varrho_cstr(model_options, kite, variables, parameters, architecture)
-            cstr_list.append(varrho_cstr)
+            varrho_and_psi_cstr = actuator_geom.get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture)
+            cstr_list.append(varrho_and_psi_cstr)
 
-        bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
-        cstr_list.append(bar_varrho_cstr)
+        print_op.warn_about_temporary_funcationality_removal(location='actuator2')
+        #
+        # bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
+        # cstr_list.append(bar_varrho_cstr)
 
     return cstr_list
 
@@ -114,16 +119,20 @@ def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, pa
 def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
 
-    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
-    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
-    qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+    # thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    # area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    # qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
+    #
+    # corr_val = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+    #
+    # resi_unscaled = 4. * a_var * corr_val * area * qzero - thrust
+    #
+    # thrust_ref = actuator_coeff.get_thrust_ref(model_options, atmos, wind, parameters)
+    # resi = resi_unscaled / thrust_ref
 
-    corr_val = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
-
-    resi_unscaled = 4. * a_var * corr_val * area * qzero - thrust
-
-    thrust_ref = actuator_coeff.get_thrust_ref(model_options, atmos, wind, parameters)
-    resi = resi_unscaled / thrust_ref
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.qaxi')
+    a_val = 1./3.
+    resi = a_var - a_val
 
     return resi
 

@@ -267,42 +267,43 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
 
+        print_op.warn_about_temporary_funcationality_removal(location='system1')
         system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
-        system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
-        system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        # system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
     for layer_node in architecture.layer_nodes:
 
-        for label in actuator_comp_labels:
-            system_states.extend([('a_' + label + str(layer_node), (1, 1))])
-
-            if any_unsteady:
-                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
-
-            if any_asym:
-                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-
-            if any_asym and any_unsteady:
-                system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-                system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
-
-        system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
-        system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
-        system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
-        system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
-        system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
-        system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
+        print_op.warn_about_temporary_funcationality_removal(location='system2')
+        # for label in actuator_comp_labels:
+        #     system_states.extend([('a_' + label + str(layer_node), (1, 1))])
+        #     if any_unsteady:
+        #         system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+        #
+        #     if any_asym:
+        #         system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+        #         system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+        #
+        #     if any_asym and any_unsteady:
+        #         system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
+        #         system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+        #
+        # system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
+        #
+        # system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        # system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+        #
+        # system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
+        # system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+        #
+        # system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+        # system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
 
     return system_lifted, system_states
 

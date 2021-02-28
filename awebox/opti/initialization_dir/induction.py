@@ -32,26 +32,28 @@ _python _version 2.7 / casadi-3.4.5
 
 import numpy as np
 import casadi.tools as cas
-import awebox.tools.vector_operations as vect_op
+import pdb
 from awebox.logger.logger import Logger as awelogger
+
+import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
-import awebox.opti.initialization_dir.tools as tools_init
 import awebox.tools.print_operations as print_op
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
+import awebox.opti.initialization_dir.tools as tools_init
+
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
     comparison_labels = init_options['model']['comparison_labels']
 
     if comparison_labels:
-        V_init = initial_guess_general(init_options, nlp, formulation, model, V_init)
+        V_init = initial_guess_general(V_init)
 
     any_act = any(label[:3] == 'act' for label in comparison_labels)
     if any_act:
-        V_init = initial_guess_actuator(init_options, nlp, formulation, model, V_init)
+        V_init = initial_guess_actuator(init_options, nlp, model, V_init)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
@@ -60,7 +62,7 @@ def initial_guess_induction(init_options, nlp, formulation, model, V_init):
     return V_init
 
 
-def initial_guess_general(init_options, nlp, formulation, model, V_init):
+def initial_guess_general(V_init):
     return V_init
 
 
@@ -82,8 +84,9 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
         # set dictionary values into V_init
         V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
 
-    else:
-        32.0
+    elif init_options['induction']['vortex_representation'] == 'alg':
+        message = 'initialization not yet set-up for algebraic vortex representation. specific vortex variables initialized to zero.'
+        awelogger.logger.warning(message)
 
     V_init = set_wake_strengths(init_options, nlp, model, V_init)
 
@@ -283,28 +286,21 @@ def guess_vortex_node_velocity(init_options):
 
     return U_ref
 
-
-
 def guess_wake_gamma_val(init_options):
     gamma = cas.DM(0.) #init_options['induction']['vortex_gamma_scale']
 
     return gamma
 
 
-def initial_guess_actuator(init_options, nlp, formulation, model, V_init):
-    V_init = initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init)
-    V_init = initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init)
+def initial_guess_actuator(init_options, nlp, model, V_init):
+    V_init = initial_guess_actuator_xd(init_options, model, V_init)
+    V_init = initial_guess_actuator_xl(init_options, model, V_init)
+    V_init = set_azimuth_variables(V_init, init_options, model, nlp)
 
     return V_init
 
 
-def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
-    level_siblings = model.architecture.get_all_level_siblings()
-
-    time_final = init_options['precompute']['time_final']
-    omega_norm = init_options['precompute']['angular_speed']
-
-    tgrid_coll = nlp.time_grids['coll'](time_final)
+def initial_guess_actuator_xd(init_options, model, V_init):
 
     dict = {}
     dict['a'] = cas.DM(init_options['xd']['a'])
@@ -317,59 +313,51 @@ def initial_guess_actuator_xd(init_options, nlp, formulation, model, V_init):
     for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
-        if 'psi' in name_stripped:
-            V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll, level_siblings, omega_norm)
-
-        elif name_stripped in dict.keys():
+        if name_stripped in dict.keys():
             V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
-def set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
+def set_azimuth_variables(V_init, init_options, model, nlp):
 
-    if 'cos' in name:
-        V_init = set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
-    elif 'sin' in name:
-        V_init = set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
-    elif 'dpsi' in name:
-        V_init = set_dpsi_variables(V_init, name, init_options)
-    else:
-        V_init = set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
+    level_siblings = model.architecture.get_all_level_siblings()
+    omega_norm = init_options['precompute']['angular_speed']
+
+    for kite in model.architecture.kite_nodes:
+        parent = model.architecture.parent_map[kite]
+        kite_parent = str(kite) + str(parent)
+        V_init = set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_siblings, omega_norm)
 
     return V_init
 
-def set_psi_variables(init_options, V_init, name, model, nlp, tgrid_coll, level_siblings, omega_norm):
-    kite_parent = name[3:]
+def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_siblings, omega_norm):
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d):
+    time_final = init_options['precompute']['time_final']
+    tgrid_xd = nlp.time_grids['x'](time_final)
+    tgrid_coll = nlp.time_grids['coll'](time_final)
 
-            t = tgrid_coll[nn, dd]
-            psi_scale = get_psi_scale()
+    for ndx in range(nlp.n_k):
+
+        t = tgrid_xd[ndx]
+        psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
+        V_init['xl', ndx, 'psi' + str(kite_parent)] = psi
+
+        if '[xl,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+            V_init['xl', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
+        if '[xl,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+            V_init['xl', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
+
+        for ddx in range(nlp.d):
+            t = tgrid_coll[ndx, ddx]
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
+            V_init['coll_var', ndx, ddx, 'xl', 'psi' + str(kite_parent)] = psi
 
-            init_val = psi / psi_scale
-            V_init['coll_var', nn, dd, 'xd', name] = init_val
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'xl', 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'xl', 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
-            if dd == 0:
-                V_init['xd', nn, name] = init_val
-
-            idx = idx + 1
-
-    return V_init
-
-def get_psi_scale():
-    psi_scale = 2. * np.pi
-    return psi_scale
-
-def set_dpsi_variables(V_init, name, init_options):
-
-    dpsi = tools_init.get_dpsi(init_options)
-    psi_scale = get_psi_scale()
-    dpsi_scaled = dpsi / psi_scale
-    V_init = tools_init.insert_val(V_init, 'xd', name, dpsi_scaled)
     return V_init
 
 
@@ -416,13 +404,7 @@ def set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, l
 
 
 
-def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
-    level_siblings = model.architecture.get_all_level_siblings()
-
-    time_final = init_options['precompute']['time_final']
-    omega_norm = init_options['precompute']['angular_speed']
-
-    tgrid_coll_x = nlp.time_grids['x_coll'](time_final)
+def initial_guess_actuator_xl(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
@@ -459,10 +441,7 @@ def initial_guess_actuator_xl(init_options, nlp, formulation, model, V_init):
     for name in struct_op.subkeys(model.variables, 'xl'):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
-        if 'psi' in name_stripped:
-            V_init = set_azimuth_variables(V_init, init_options, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm)
-
-        elif name_stripped in dict.keys():
+        if name_stripped in dict.keys():
             V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init

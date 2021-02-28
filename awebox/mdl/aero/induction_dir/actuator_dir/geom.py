@@ -36,6 +36,7 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
@@ -97,10 +98,8 @@ def get_varrho_var(model_options, variables, kite, parent):
     return varrho_var
 
 
-
 def get_psi_var(variables, kite, parent):
-    psi_scale = 2. * np.pi
-    psi_var = psi_scale * variables['xd']['psi' + str(kite) + str(parent)]
+    psi_var = variables['xl']['psi' + str(kite) + str(parent)]
     return psi_var
 
 def get_cospsi_var(variables, kite, parent):
@@ -149,7 +148,7 @@ def get_bar_varrho_cstr(model_options, parent, variables, architecture):
     return cstr
 
 
-def get_varrho_cstr(model_options, kite, variables, parameters, architecture):
+def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture):
 
     # for positive yaw(turns around +zhat, normal towards +yhat):
     #     rhat = zhat * cos(psi) - yhat * sin(psi)
@@ -182,12 +181,17 @@ def get_varrho_cstr(model_options, kite, variables, parameters, architecture):
     varrho_ref = get_varrho_ref(model_options)
     radius_ref = b_ref * varrho_ref
 
-    f_cos_proj = (radius * cospsi_var - z_rotor_comp) / radius_ref
-    f_sin_proj = (radius * sinpsi_var + y_rotor_comp) / radius_ref
+    temp1 = psi_var
+    temp2 = varrho_var - 6.
+    resi_combi = cas.vertcat(f_sin, f_cos, temp1, temp2)
 
-    resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.geom.cstr')
+    # f_cos_proj = (radius * cospsi_var - z_rotor_comp) / radius_ref
+    # f_sin_proj = (radius * sinpsi_var + y_rotor_comp) / radius_ref
+    #
+    # resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
 
-    name = 'actuator_varrho_' + str(kite)
+    name = 'actuator_varrho_and_psi_' + str(kite)
     cstr = cstr_op.Constraint(expr=resi_combi,
                               name=name,
                               cstr_type='eq')
@@ -307,8 +311,11 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
 
 
 def get_rot_matr_var(variables, parent):
-    rot_cols = variables['xl']['rot_matr' + str(parent)]
-    rot_matr = cas.reshape(rot_cols, (3, 3))
+    # rot_cols = variables['xl']['rot_matr' + str(parent)]
+    # rot_matr = cas.reshape(rot_cols, (3, 3))
+
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.geom.dcm')
+    rot_matr = cas.DM.eye(3)
 
     return rot_matr
 

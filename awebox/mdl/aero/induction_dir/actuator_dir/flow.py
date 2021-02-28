@@ -139,8 +139,12 @@ def get_singamma_var(variables, parent):
     return singamma_var
 
 def get_uzero_vec_length_var(wind, variables, parent):
-    scale = get_uzero_vec_length_ref(wind)
-    len_var = scale * variables['xl']['u_vec_length' + str(parent)]
+    # scale = get_uzero_vec_length_ref(wind)
+    # len_var = scale * variables['xl']['u_vec_length' + str(parent)]
+
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.flow.uzero_vec_length')
+    len_var = cas.DM(1.)
+
     return len_var
 
 def get_g_vec_length_var(variables, parent):
@@ -258,8 +262,12 @@ def get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, arch
 
 def get_induction_factor_assignment_cstr(model_options, variables, kite, parent):
     a_var = get_local_a_var(variables, kite, parent)
+
     label = get_label(model_options)
-    a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
+    # a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.flow.assigment')
+    a_val = 1./3.
+
     resi = a_var - a_val
 
     name = 'actuator_a_assignment_' + str(kite)
@@ -327,13 +335,13 @@ def get_uzero_vec_length_ref(wind):
 
 def get_local_induction_factor(model_options, variables, kite, parent, label):
 
-    cospsi = actuator_geom.get_cospsi_var(variables, kite, parent)
-    sinpsi = actuator_geom.get_sinpsi_var(variables, kite, parent)
-    mu = actuator_geom.get_mu_radial_ratio(model_options, variables, kite, parent)
-    # mu = 1.
-    # see Suzuki 2000 for motivation for evaluating at the edges of the "annulus"
-
     if 'asym' in label:
+        cospsi = actuator_geom.get_cospsi_var(variables, kite, parent)
+        sinpsi = actuator_geom.get_sinpsi_var(variables, kite, parent)
+        mu = actuator_geom.get_mu_radial_ratio(model_options, variables, kite, parent)
+        # mu = 1.
+        # see Suzuki 2000 for motivation for evaluating at the edges of the "annulus"
+
         a_uni = get_a_var(model_options, variables, parent, label)
         acos = get_acos_var(model_options, variables, parent, label)
         asin = get_asin_var(model_options, variables, parent, label)

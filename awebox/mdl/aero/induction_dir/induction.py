@@ -129,18 +129,21 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     use_vortex_linearization = model_options['aero']['vortex']['use_linearization']
     force_zero = model_options['aero']['vortex']['force_zero']
 
-    if induction_model == 'actuator':
-        u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
-    elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        u_ind_kite = variables['xl']['wu_ind_' + str(kite)]
-    elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
-        u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
-    elif induction_model == 'vortex' and force_zero:
-        u_ind_kite = cas.DM.zeros((3, 1))
-    elif induction_model == 'not_in_use':
-        u_ind_kite = cas.DM.zeros((3, 1))
-    else:
-        awelogger.logger.warning('Specified induction model is not supported. Consider checking spelling.')
+    print_op.warn_about_temporary_funcationality_removal(location='induction.u_ind')
+    u_ind_kite = cas.DM.zeros((3, 1))
+    #
+    # if induction_model == 'actuator':
+    #     u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
+    # elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
+    #     u_ind_kite = variables['xl']['wu_ind_' + str(kite)]
+    # elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
+    #     u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
+    # elif induction_model == 'vortex' and force_zero:
+    #     u_ind_kite = cas.DM.zeros((3, 1))
+    # elif induction_model == 'not_in_use':
+    #     u_ind_kite = cas.DM.zeros((3, 1))
+    # else:
+    #     awelogger.logger.warning('Specified induction model is not supported. Consider checking spelling.')
 
     return u_ind_kite
 
@@ -162,9 +165,10 @@ def collect_outputs(options, atmos, wind, variables_si, outputs, parameters, arc
 
     comparison_labels = options['aero']['induction']['comparison_labels']
 
-    any_act = any(label[:3] == 'act' for label in comparison_labels)
-    if any_act:
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
+    print_op.warn_about_temporary_funcationality_removal(location='induction.outputs')
+    # any_act = any(label[:3] == 'act' for label in comparison_labels)
+    # if any_act:
+    #     outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:

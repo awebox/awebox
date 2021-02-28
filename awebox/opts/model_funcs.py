@@ -442,10 +442,14 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
 
-    allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
-    if not allow_azimuth_jumping:
-        dpsi_max_rate= -np.pi / 4.
-        options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+    print_op.warn_about_temporary_funcationality_removal(location='opts.model_funcs.azimuth_jumping')
+    # allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
+    # if not allow_azimuth_jumping:
+    #     dpsi_max_rate= -np.pi / 4.
+    #     options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+
+    psi_scale = 2. * np.pi
+    options_tree.append(('model', 'scaling', 'xl', 'psi', psi_scale, ('descript', None), 'x'))
 
     return options_tree, fixed_params
 
