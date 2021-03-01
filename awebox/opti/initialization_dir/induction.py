@@ -361,49 +361,6 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
     return V_init
 
 
-def set_sinpsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
-    kite_parent = name[6:]
-    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
-
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d+1):
-            t = tgrid_coll_x[nn*(nlp.d+1) + dd]
-            psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-
-            init_val = np.sin(psi)
-            if dd == 0:
-                V_init['xl', nn, name] = init_val
-            else:
-                V_init['coll_var', nn, dd-1, 'xl', name] = init_val
-
-            idx = idx + 1
-
-    return V_init
-
-def set_cospsi_variables(init_options, V_init, name, model, nlp, tgrid_coll_x, level_siblings, omega_norm):
-    kite_parent = name[6:]
-    kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
-
-    idx = 0
-    for nn in range(nlp.n_k):
-        for dd in range(nlp.d+1):
-            t = tgrid_coll_x[nn*(nlp.d+1) + dd]
-            psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-
-            init_val = np.cos(psi)
-            if dd == 0:
-                V_init['xl', nn, name] = init_val
-            else:
-                V_init['coll_var', nn, dd-1, 'xl', name] = init_val
-            idx = idx + 1
-
-    return V_init
-
-
-
-
-
 def initial_guess_actuator_xl(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)

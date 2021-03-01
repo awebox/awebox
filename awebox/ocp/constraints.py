@@ -117,7 +117,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     return ocp_cstr_list, ocp_cstr_struct
 
-def check_if_model_equalities_will_trigger_licq(model):
+def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
 
     model_constraints_list = model.constraints_list
     model_variables = model.variables
@@ -126,10 +126,12 @@ def check_if_model_equalities_will_trigger_licq(model):
     relevant_shooting_vars = []
     for var_type in (set(model_variables.keys()) - set(['xd'])):
         relevant_shooting_vars = cas.vertcat(relevant_shooting_vars, model_variables[var_type])
+    mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
 
     for cstr in model_constraints_list.get_list('eq'):
 
         cstr_expr = cstr.expr
+        selected_expr = []
 
         for cdx in range(cstr_expr.shape[0]):
             local_expr = cstr_expr[cdx]
@@ -137,11 +139,22 @@ def check_if_model_equalities_will_trigger_licq(model):
 
             will_be_dependent = not (local_jac.nnz() > 0)
             if will_be_dependent:
-                message = 'the ' + str(cdx) + 'th entry of the model ' + cstr.name + ' equality constraint is likely to ' \
-                        'trigger licq violations in direct collocation. we suggest re-considering this constraint formulation'
+                message = 'the ' + str(cdx) + 'th entry of the model ' + cstr.name + ' equality constraint ' \
+                        'would be likely to trigger licq violations in direct collocation, so the conflicting '\
+                        'constraints have not been enforced at the shooting nodes. we suggest re-considering '\
+                        'this constraint formulation.'
                 awelogger.logger.warning(message)
+            else:
+                selected_expr = cas.vertcat(selected_expr, local_expr)
 
-    return None
+        # if selected_expr is not still []
+        if not isinstance(selected_expr, list):
+            selected_cstr = cstr_op.Constraint(expr=selected_expr,
+                                               name=cstr.name + '_selected',
+                                               cstr_type='eq')
+            mdl_shooting_cstr_sublist.append(selected_cstr)
+
+    return mdl_shooting_cstr_sublist
 
 def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
@@ -155,7 +168,9 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
 
-    check_if_model_equalities_will_trigger_licq(model)
+    # todo: sort out influence of periodicity. currently: assume periodic trajectory
+    mdl_shooting_cstr_sublist = get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model)
+    n_shooting_cstr = mdl_shooting_cstr_sublist.get_expression_list('eq').shape[0]
 
     parallellization = nlp_options['parallelization']['type']
 
@@ -175,7 +190,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
 
-    mdl_shooting_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
@@ -218,10 +233,10 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
     entry_tuple += (
-        cas.entry('shooting', repeat=[n_k], struct=mdl_dyn_constraints),
-        cas.entry('path',        repeat = [n_k],    struct = mdl_path_constraints),
-        cas.entry('collocation', repeat = [n_k, d], struct = mdl_dyn_constraints),
-        cas.entry('continuity', repeat = [n_k], struct = model.variables_dict['xd']),
+        cas.entry('shooting',       repeat = [n_k],     shape = mdl_shooting_cstr_sublist.get_expression_list('eq').shape),
+        cas.entry('path',           repeat = [n_k],     struct = mdl_path_constraints),
+        cas.entry('collocation',    repeat = [n_k, d],  struct = mdl_dyn_constraints),
+        cas.entry('continuity',     repeat = [n_k],     struct = model.variables_dict['xd']),
     )
 
     return cstr_list, entry_tuple
