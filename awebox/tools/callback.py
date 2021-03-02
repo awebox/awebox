@@ -30,51 +30,22 @@ import collections
 class awebox_callback(cas.Callback):
     def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
 
-        if options['callback']:
-            cas.Callback.__init__(self)
+        cas.Callback.__init__(self)
 
-            self.nx = nx
-            self.ng = ng
-            self.np = np
+        self.nx = nx
+        self.ng = ng
+        self.np = np
 
-            self.V = V
-            self.P = P
-            self.model = model
-            self.nlp = nlp
-            [self.Out, self.Out_fun] = nlp.output_components
+        self.V = V
+        self.P = P
+        self.model = model
+        self.nlp = nlp
+        [self.Out, self.Out_fun] = nlp.output_components
 
-            phi_dict = collections.OrderedDict()
-            for phi in self.model.parameters_dict['phi'].keys():
-              phi_dict[phi] = []
-            
-            x_dict = collections.OrderedDict()
-            for x in self.model.variables_dict['xd'].keys():
-              for dim in range(self.model.variables_dict['xd'][x].shape[0]):
-                x_dict[x+'_'+str(dim)] = []
+        self.__init_dicts()
 
-            u_dict = collections.OrderedDict()
-            for u in self.model.variables_dict['u'].keys():
-              for dim in range(self.model.variables_dict['u'][u].shape[0]):
-                u_dict[u+'_'+str(dim)] = []
-
-            theta_dict = collections.OrderedDict()
-            for th in self.model.variables_dict['theta'].keys():
-              for dim in range(self.model.variables_dict['theta'][th].shape[0]):
-                theta_dict[th+'_'+str(dim)] = []
-
-            t_dict = collections.OrderedDict()
-            for t in self.nlp.time_grids.keys():
-              t_dict[t] = []
-
-            self.phi_dict = phi_dict
-            self.x_dict = x_dict
-            self.u_dict = u_dict
-            self.theta_dict = theta_dict
-            self.t_dict = t_dict
-            self.avg_power = []
-
-            # Initialize internal objects
-            self.construct(name, opts)
+        # Initialize internal objects
+        self.construct(name, opts)
 
     def get_n_in(self): return cas.nlpsol_n_out()
     def get_n_out(self): return 1
@@ -119,7 +90,7 @@ class awebox_callback(cas.Callback):
         for t in list(self.t_dict.keys()):
           self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
 
-        energy = self.nlp.integral_output_components[1](V, self.P)
+        energy = self.nlp.integral_output_components[1](V, P)
         self.avg_power.append(energy[-1]/self.t_dict['x'][-1][-1])
         # Out = self.Out(self.Out_fun(V, self.P))
         return [0]
@@ -142,7 +113,45 @@ class awebox_callback(cas.Callback):
         else:
           u_vals += V['coll_var',k, :, 'u', name, dim]
       return u_vals
+  
+    def __init_dicts(self):
+      
+      phi_dict = collections.OrderedDict()
+      for phi in self.model.parameters_dict['phi'].keys():
+        phi_dict[phi] = []
+      
+      x_dict = collections.OrderedDict()
+      for x in self.model.variables_dict['xd'].keys():
+        for dim in range(self.model.variables_dict['xd'][x].shape[0]):
+          x_dict[x+'_'+str(dim)] = []
+
+      u_dict = collections.OrderedDict()
+      for u in self.model.variables_dict['u'].keys():
+        for dim in range(self.model.variables_dict['u'][u].shape[0]):
+          u_dict[u+'_'+str(dim)] = []
+
+      theta_dict = collections.OrderedDict()
+      for th in self.model.variables_dict['theta'].keys():
+        for dim in range(self.model.variables_dict['theta'][th].shape[0]):
+          theta_dict[th+'_'+str(dim)] = []
+
+      t_dict = collections.OrderedDict()
+      for t in self.nlp.time_grids.keys():
+        t_dict[t] = []
+
+      self.phi_dict = phi_dict
+      self.x_dict = x_dict
+      self.u_dict = u_dict
+      self.theta_dict = theta_dict
+      self.t_dict = t_dict
+      self.avg_power = []
+      
+      return None
+
+    def reset(self):
+      self.__init_dicts()
+      return None
 
     def update_P(self, P):
-      self.__P = P
+      self.P = P
       return None

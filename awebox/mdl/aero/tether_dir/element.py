@@ -37,13 +37,10 @@ import awebox.mdl.aero.tether_dir.reynolds as reynolds
 
 def get_element_info_column(variables, upper_node, architecture, element, n_elements):
 
-    q_top, q_bottom, _, _ = get_upper_and_lower_pos_and_vel(variables, upper_node, architecture)
-    q_seg_avg = (q_top + q_bottom) / 2.
-
     q_upper, q_lower, dq_upper, dq_lower = get_element_upper_pos_and_vel(variables, upper_node, architecture, element, n_elements)
     diam = get_element_diameter(variables, upper_node, architecture)
 
-    info_column = cas.vertcat(q_upper, q_lower, dq_upper, dq_lower, diam, q_seg_avg)
+    info_column = cas.vertcat(q_upper, q_lower, dq_upper, dq_lower, diam)
 
     return info_column
 
@@ -60,16 +57,15 @@ def get_uapp(q_upper, q_lower, dq_upper, dq_lower, wind):
 
     return ua
 
-def get_element_drag_and_moment_fun(wind, atmos, cd_tether_fun):
+def get_element_drag_fun(wind, atmos, cd_tether_fun):
 
-    info_sym = cas.SX.sym('info_sym', (16, 1))
+    info_sym = cas.SX.sym('info_sym', (13, 1))
 
     q_upper = info_sym[:3]
     q_lower = info_sym[3:6]
     dq_upper = info_sym[6:9]
     dq_lower = info_sym[9:12]
     diam = info_sym[12]
-    q_seg_avg = info_sym[13:16]
 
     q_average = (q_upper + q_lower) / 2.
     zz = q_average[2]
@@ -93,13 +89,9 @@ def get_element_drag_and_moment_fun(wind, atmos, cd_tether_fun):
     density = atmos.get_density(zz)
     drag = cd * 0.5 * density * ua_norm * diam * length_perp_to_wind * ua
 
-    moment_arm = q_average - q_seg_avg
-    moment = vect_op.cross(moment_arm, drag)
-
     element_drag_fun = cas.Function('element_drag_fun', [info_sym], [drag])
-    element_moment_fun = cas.Function('element_moment_fun', [info_sym], [moment])
 
-    return element_drag_fun, element_moment_fun
+    return element_drag_fun
 
 def get_element_diameter(variables, upper_node, architecture):
 
