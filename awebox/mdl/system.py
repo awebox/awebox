@@ -268,20 +268,22 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         parent = architecture.parent_map[kite]
 
         print_op.warn_about_temporary_funcationality_removal(location='system1')
-        system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
-        # system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
+        # system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+        # system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
+        # system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        # # system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
+        # system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
+        # system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
     for layer_node in architecture.layer_nodes:
 
         print_op.warn_about_temporary_funcationality_removal(location='system2')
-        # for label in actuator_comp_labels:
-        #     system_states.extend([('a_' + label + str(layer_node), (1, 1))])
-        #     if any_unsteady:
-        #         system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+        for label in actuator_comp_labels:
+            if label[0] == 'q':
+                system_lifted.extend([('a_' + label + str(layer_node), (1, 1))])
+            elif label[0] == 'u':
+                system_states.extend([('a_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
         #
         #     if any_asym:
         #         system_states.extend([('acos_' + label + str(layer_node), (1, 1))])

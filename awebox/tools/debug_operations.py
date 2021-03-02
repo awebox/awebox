@@ -85,7 +85,8 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
         awelogger.logger.info('')
-        message = 'second order sufficient conditions appear not to be met at solution. please check if n_k is large enough.'
+        message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
+                  'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
         awelogger.logger.error(message)
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)

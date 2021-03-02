@@ -295,7 +295,12 @@ def guess_wake_gamma_val(init_options):
 def initial_guess_actuator(init_options, nlp, model, V_init):
     V_init = initial_guess_actuator_xd(init_options, model, V_init)
     V_init = initial_guess_actuator_xl(init_options, model, V_init)
-    V_init = set_azimuth_variables(V_init, init_options, model, nlp)
+
+    print_op.warn_about_temporary_funcationality_removal(location='initialization.induction')
+    try:
+        V_init = set_azimuth_variables(V_init, init_options, model, nlp)
+    except:
+        32.0
 
     return V_init
 

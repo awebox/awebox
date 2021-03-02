@@ -62,41 +62,19 @@ def get_mu_radial_ratio(model_options, variables, kite, parent):
     return mu
 
 
-def get_var_type(model_options):
-    """ Extract variable type of average induction factor.
-        steady: algebraic variable
-        unsteady: differential state"""
-    steadyness = model_options['aero']['actuator']['steadyness']
-
-    # if steadyness == 'steady':
-    #     var_type = 'xl'
-    # elif steadyness == 'unsteady':
-    #     var_type = 'xd'
-    # else:
-    #     raise ValueError('Invalid steadyness option for actuator disk model chosen')
-
-    var_type = 'xd'
-    return var_type
-
-
 # variables
 
-def get_area_var(model_options, variables, parent, parameters):
-    area_ref = get_area_ref(model_options, parameters)
-    area_var = area_ref * variables['xl']['area' + str(parent)]
+def get_area_var(variables, parent):
+    area_var = variables['xl']['area' + str(parent)]
     return area_var
 
-def get_bar_varrho_var(model_options, variables, parent):
-    type = get_var_type(model_options)
-    varrho_ref = get_varrho_ref(model_options)
-    varrho_var = varrho_ref * variables[type]['bar_varrho' + str(parent)]
+def get_bar_varrho_var(variables, parent):
+    varrho_var = variables['xl']['bar_varrho' + str(parent)]
     return varrho_var
 
-def get_varrho_var(model_options, variables, kite, parent):
-    varrho_ref = get_varrho_ref(model_options)
-    varrho_var = varrho_ref * variables['xl']['varrho' + str(kite) + str(parent)]
+def get_varrho_var(variables, kite, parent):
+    varrho_var = variables['xl']['varrho' + str(kite) + str(parent)]
     return varrho_var
-
 
 def get_psi_var(variables, kite, parent):
     psi_var = variables['xl']['psi' + str(kite) + str(parent)]
@@ -134,7 +112,7 @@ def get_area_ref(model_options, parameters):
 def get_bar_varrho_cstr(model_options, parent, variables, architecture):
 
     bar_varrho_val = get_bar_varrho_val(model_options, variables, parent, architecture)
-    bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     resi_unscaled = bar_varrho_var - bar_varrho_val
 
@@ -204,7 +182,7 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
 def get_actuator_area(model_options, parent, variables, parameters):
 
     b_ref = parameters['theta0','geometry','b_ref']
-    bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     radius = bar_varrho_var * b_ref
     annulus_area = 2. * np.pi * b_ref * radius

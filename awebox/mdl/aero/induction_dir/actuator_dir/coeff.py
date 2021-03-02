@@ -125,10 +125,10 @@ def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, archi
 
 def get_moment_denom(model_options, variables, parent, atmos, wind, parameters):
 
-    qzero_var = actuator_flow.get_qzero_var(atmos, wind, variables, parent)
-    area_var = actuator_geom.get_area_var(model_options, variables, parent, parameters)
+    qzero_var = actuator_flow.get_qzero_var(variables, parent)
+    area_var = actuator_geom.get_area_var(variables, parent)
 
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     radius_bar =  bar_varrho_var * b_ref
 
@@ -192,12 +192,12 @@ def get_moment_ref(model_options, atmos, wind, parameters):
 def get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     t_star_num = b_ref * (bar_varrho_var + 0.5)
     return t_star_num
 
 def get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    uzero_mag = actuator_flow.get_uzero_vec_length_var(wind, variables, parent)
+    uzero_mag = actuator_flow.get_uzero_vec_length_var(variables, parent)
     t_star_den = uzero_mag
     return t_star_den
 
@@ -214,7 +214,7 @@ def get_c_all_components(model_options, atmos, wind, variables, parameters, outp
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     radius_bar =  bar_varrho_var * b_ref
 

@@ -46,10 +46,11 @@ import awebox.ocp.ocp_constraint as ocp_constraint
 
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
-
+import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import pdb
 
 
 def get_operation_conditions(options):
@@ -199,32 +200,18 @@ def make_initial_energy_equality(initial_model_variables, ref_variables):
 
     return initial_energy_eq
 
-def variable_does_not_belong_to_unselected_induction_model(name, options):
-    induction_steadyness = options['induction']['steadyness']
-    induction_symmetry = options['induction']['symmetry']
+def is_induction_variable_from_comparison_model(name, options):
 
-    induction_label = ''
-    if induction_steadyness == 'steady':
-        induction_label += 'q'
-    elif induction_steadyness == 'unsteady':
-        induction_label += 'u'
+    all_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
+    is_induction_variable = any([local_label in name for local_label in all_induction_labels])
 
-    if induction_symmetry == 'axisymmetric':
-        induction_label += 'axi'
-    elif induction_symmetry == 'asymmetric':
-        induction_label += 'asym'
+    induction_label = actuator_flow.get_label(options)
+    is_enforced_model_variable = induction_label in name
 
-    remaining_induction_labels = ['qaxi', 'qasym', 'uaxi', 'uasym']
-    if induction_label in remaining_induction_labels:
-        remaining_induction_labels.remove(induction_label)
-
-    not_unselected = True
-    for label in remaining_induction_labels:
-        if label in name:
-            not_unselected = False
-
-    return not_unselected
-
+    if is_induction_variable and (not is_enforced_model_variable):
+        return True
+    else:
+        return False
 
 
 def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
@@ -233,9 +220,9 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
 
     for name in struct_op.subkeys(initial_model_variables, 'xd'):
 
-        not_unselected_induction_model = variable_does_not_belong_to_unselected_induction_model(name, options)
+        from_comparison_model = is_induction_variable_from_comparison_model(name, options)
 
-        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not name[:3] == 'psi') and not_unselected_induction_model:
+        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not from_comparison_model):
 
             initial_value = vect_op.columnize(initial_model_variables['xd', name])
             final_value = vect_op.columnize(terminal_model_variables['xd', name])

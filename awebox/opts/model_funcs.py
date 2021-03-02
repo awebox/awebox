@@ -442,14 +442,10 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     else:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
 
-    print_op.warn_about_temporary_funcationality_removal(location='opts.model_funcs.azimuth_jumping')
-    # allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
-    # if not allow_azimuth_jumping:
-    #     dpsi_max_rate= -np.pi / 4.
-    #     options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
-
     psi_scale = 2. * np.pi
     options_tree.append(('model', 'scaling', 'xl', 'psi', psi_scale, ('descript', None), 'x'))
+    psi_epsilon = 3. * np.pi / 180.
+    options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -465,6 +461,9 @@ def build_actuator_options(options, options_tree, fixed_params):
     actuator_steadyness = options['model']['aero']['actuator']['steadyness']
     options_tree.append(
         ('solver', 'initialization', 'model', 'actuator_steadyness', actuator_steadyness, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
+
 
     comparison_labels = get_comparison_labels(options, user_options)
     options_tree.append(('model', 'aero', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
@@ -481,8 +480,6 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('nlp', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
-    options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
-
     local_label = get_local_actuator_label(actuator_steadyness, actuator_symmetry)
     options_tree.append(('model', 'system_bounds', 'xl', 'chi_' + local_label, [-np.pi/2., np.pi/2.], ('chi limit', None), 'x')),
 
@@ -490,18 +487,20 @@ def build_actuator_options(options, options_tree, fixed_params):
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
     if (a_ref > a_range[1]) or (a_ref < a_range[0]):
+        # remember that a_range can be symmetric, but we need a positive (non-zero) reference value
         a_ref = a_range[1] / 2.
 
-    # if actuator_symmetry == 'asymmetric':
-    options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
+    a_labels_dict = {'qaxi': 'xl', 'qasym': 'xl', 'uaxi': 'xd', 'uasym' : 'xd'}
+    for label in a_labels_dict.keys():
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'a_' + label, a_ref, ('descript', None), 'x'))
+        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a', a_ref, ('induction factor [-]', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('descript', None), 'x'))
+    options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     if user_options['induction_model'] == 'not_in_use':
         a_ref = None
-
     options_tree.append(('model', 'aero', None, 'a_ref', a_ref, ('reference value for the induction factors. takes values between 0. and 0.4', None),'x'))
-
-    a_var_type = 'xd'
-    options_tree.append(('solver', 'initialization', a_var_type, 'a', a_ref, ('induction factor [-]', None),'x'))
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
     options_tree.append(('model', 'system_bounds', 'xl', 'corr', [0., cas.inf], ('square root sign bounds on glauert correction [-]', None), 'x'))

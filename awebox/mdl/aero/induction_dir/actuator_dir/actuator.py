@@ -59,9 +59,9 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
 
         print_op.warn_about_temporary_funcationality_removal(location='actuator1')
 
-        # for label in act_comp_labels:
-        #     induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
-        #     cstr_list.append(induction_factor_cstr)
+        for label in act_comp_labels:
+            induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
+            cstr_list.append(induction_factor_cstr)
         #
         # rot_matr_cstr = actuator_geom.get_rot_matr_cstr(model_options, parent, variables, parameters, architecture)
         # cstr_list.append(rot_matr_cstr)
@@ -71,16 +71,14 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
         #
         # gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
         # cstr_list.append(gamma_cstr)
-
-        children = architecture.kites_map[parent]
-        for kite in children:
-            a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
-            cstr_list.append(a_assignment_cstr)
-
-            varrho_and_psi_cstr = actuator_geom.get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture)
-            cstr_list.append(varrho_and_psi_cstr)
-
-        print_op.warn_about_temporary_funcationality_removal(location='actuator2')
+        #
+        # children = architecture.kites_map[parent]
+        # for kite in children:
+        #     a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
+        #     cstr_list.append(a_assignment_cstr)
+        #
+        #     varrho_and_psi_cstr = actuator_geom.get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture)
+        #     cstr_list.append(varrho_and_psi_cstr)
         #
         # bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
         # cstr_list.append(bar_varrho_cstr)
@@ -117,7 +115,7 @@ def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, pa
     return cstr
 
 def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
-    a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
+    a_var = actuator_flow.get_a_var(variables, parent, label)
 
     # thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     # area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
@@ -138,8 +136,8 @@ def get_momentum_theory_residual(model_options, atmos, wind, variables, outputs,
 
 def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
 
-    a_var = actuator_flow.get_a_var(model_options, variables, parent, label)
-    da_var = actuator_flow.get_da_var(model_options, variables, parent, label)
+    a_var = actuator_flow.get_a_var(variables, parent, label)
+    da_var = actuator_flow.get_da_var(variables, parent, label)
 
     thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
@@ -165,8 +163,8 @@ def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables,
 
 def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables, parameters, outputs, parent, architecture, label):
 
-    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
-    da_all = actuator_flow.get_da_all_var(model_options, variables, parent, label)
+    a_all = actuator_flow.get_a_all_var(variables, parent, label)
+    da_all = actuator_flow.get_da_all_var(variables, parent, label)
 
     c_all, moment_den = actuator_coeff.get_c_all_components(model_options, atmos, wind, variables, parameters,
                                                               outputs, parent, architecture)
@@ -196,7 +194,7 @@ def get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, 
 
     LL_matr = actuator_coeff.get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
-    a_all = actuator_flow.get_a_all_var(model_options, variables, parent, label)
+    a_all = actuator_flow.get_a_all_var(variables, parent, label)
 
     resi_unscaled = a_all * moment_denom - cas.mtimes(LL_matr, c_all)
 
@@ -233,7 +231,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
     for parent in layer_parents:
 
         for label in act_comp_labels:
-            outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(model_options, variables, parent, label)
+            outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(variables, parent, label)
 
         outputs['actuator']['f' + str(parent)] = actuator_flow.get_f_val(model_options, wind, parent, variables, architecture)
 
@@ -248,7 +246,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['area' + str(parent)] = area
         outputs['actuator']['avg_radius' + str(parent)] = avg_radius
         outputs['actuator']['nhat' + str(parent)] = nhat
-        outputs['actuator']['bar_varrho' + str(parent)] = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+        outputs['actuator']['bar_varrho' + str(parent)] = actuator_geom.get_bar_varrho_var(variables, parent)
 
         u_a = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
         yaw_angle = actuator_flow.get_gamma_var(variables, parent)
