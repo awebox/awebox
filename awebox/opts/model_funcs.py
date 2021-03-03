@@ -444,6 +444,8 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
     psi_scale = 2. * np.pi
     options_tree.append(('model', 'scaling', 'xl', 'psi', psi_scale, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'cospsi', 1., ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'sinpsi', 1., ('descript', None), 'x'))
     psi_epsilon = 3. * np.pi / 180.
     options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
@@ -472,6 +474,8 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('solver', 'initialization', 'model', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    options_tree.append(('model', 'scaling', 'xl', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'bar_varrho', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'model', 'induction_varrho_ref', induction_varrho_ref, ('????', None), 'x')),
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),

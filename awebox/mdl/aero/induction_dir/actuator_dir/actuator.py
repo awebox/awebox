@@ -47,6 +47,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 
+import pdb
+
 def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     cstr_list = cstr_op.ConstraintList()
@@ -62,26 +64,23 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
         for label in act_comp_labels:
             induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
             cstr_list.append(induction_factor_cstr)
-        #
-        # rot_matr_cstr = actuator_geom.get_rot_matr_cstr(model_options, parent, variables, parameters, architecture)
-        # cstr_list.append(rot_matr_cstr)
-        #
-        # uzero_matr_cstr = actuator_flow.get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture)
-        # cstr_list.append(uzero_matr_cstr)
+
+        # actuator_orientation_cstr = get_actuator_orientation_cstr(model_options, wind, parent, variables, parameters, architecture)
+        # cstr_list.append(actuator_orientation_cstr)
         #
         # gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
         # cstr_list.append(gamma_cstr)
         #
-        # children = architecture.kites_map[parent]
-        # for kite in children:
-        #     a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
-        #     cstr_list.append(a_assignment_cstr)
-        #
-        #     varrho_and_psi_cstr = actuator_geom.get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture)
-        #     cstr_list.append(varrho_and_psi_cstr)
-        #
-        # bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
-        # cstr_list.append(bar_varrho_cstr)
+        children = architecture.kites_map[parent]
+        for kite in children:
+            a_assignment_cstr = actuator_flow.get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
+            cstr_list.append(a_assignment_cstr)
+
+            varrho_and_psi_cstr = actuator_geom.get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture)
+            cstr_list.append(varrho_and_psi_cstr)
+
+        bar_varrho_cstr = actuator_geom.get_bar_varrho_cstr(model_options, parent, variables, architecture)
+        cstr_list.append(bar_varrho_cstr)
 
     return cstr_list
 
@@ -204,8 +203,39 @@ def get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, 
 
     return resi
 
+def get_actuator_orientation_cstr(model_options, wind, parent, variables, parameters, architecture):
 
+    #         system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
+    #         system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+    #
+    #         system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
+    #         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+    #         system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+    # --------------------
+    # 9 variables total
+    # --------------------
+    # 21 constraints total
 
+    print_op.warn_about_temporary_funcationality_removal(location='actuator.orientation')
+
+    cstr_list = cstr_op.ConstraintList()
+
+    # act_dcm_cstr = actuator_geom.get_act_dcm_ortho_cstr(parent, variables)
+    # cstr_list.append(act_dcm_cstr) # 6 constraints
+
+    # nhat_cstr = actuator_geom.get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture)
+    # cstr_list.append(nhat_cstr) # 3 constraints
+
+    # wind_dcm_cstr = actuator_flow.get_wind_dcm_ortho_cstr(parent, variables)
+    # cstr_list.append(wind_dcm_cstr) # 6 constraints
+
+    # uhat_cstr = actuator_flow.get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture)
+    # cstr_list.append(uhat_cstr) # 3 constraints
+    #
+    # align_cstr = actuator_flow.get_orientation_z_along_wzero_cstr(variables, parent)
+    # cstr_list.append(align_cstr) # 3 constraints
+
+    return cstr_list
 
 
 

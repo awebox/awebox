@@ -152,6 +152,12 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     cstr_list.append(coeff_cstr)
 
     # ----------------------------------------
+    #  sanity checking
+    # ----------------------------------------
+
+    check_that_all_xddot_vars_are_represented_in_dynamics(cstr_list, variables_dict, system_variables['scaled'])
+
+    # ----------------------------------------
     #  construct outputs structure
     # ----------------------------------------
 
@@ -190,6 +196,17 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         integral_outputs_fun,
         integral_scaling]
 
+
+def check_that_all_xddot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):
+    dynamics = cstr_list.get_expression_list('eq')
+
+    for var_name in variables_dict['xddot'].keys():
+        local_jac = cas.jacobian(dynamics, variables_scaled['xddot', var_name])
+        if not (local_jac.nnz() > 0):
+            message = 'xddot variable ' + str(var_name) + ' does not seem to be constrained in the model dynamics. expect poor sosc behavior.'
+            awelogger.logger.warning(message)
+
+    return None
 
 def manage_power_integration(options, power, system_variables, parameters):
 

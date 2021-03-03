@@ -44,7 +44,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 
-
 ## variables
 
 def get_a_var_type(label):
@@ -116,24 +115,24 @@ def get_qzero_var(variables, parent):
     qzero_val = variables['xl']['qzero' + str(parent)]
     return qzero_val
 
-def get_uzero_matr_var(variables, parent):
-    rot_cols = variables['xl']['uzero_matr' + str(parent)]
-    rot_matr = cas.reshape(rot_cols, (3, 3))
-    return rot_matr
+def get_wind_dcm_var(variables, parent):
+    rot_cols = variables['xl']['wind_dcm' + str(parent)]
+    wind_dcm = cas.reshape(rot_cols, (3, 3))
+    return wind_dcm
 
 def get_uzero_hat_var(variables, parent):
-    rot_matr = get_uzero_matr_var(variables, parent)
-    u_hat = rot_matr[:, 0]
+    wind_dcm = get_wind_dcm_var(variables, parent)
+    u_hat = wind_dcm[:, 0]
     return u_hat
 
 def get_vzero_hat_var(variables, parent):
-    rot_matr = get_uzero_matr_var(variables, parent)
-    v_hat = rot_matr[:, 1]
+    wind_dcm = get_wind_dcm_var(variables, parent)
+    v_hat = wind_dcm[:, 1]
     return v_hat
 
 def get_wzero_hat_var(variables, parent):
-    rot_matr = get_uzero_matr_var(variables, parent)
-    w_hat = rot_matr[:, 2]
+    wind_dcm = get_wind_dcm_var(variables, parent)
+    w_hat = wind_dcm[:, 2]
     return w_hat
 
 def get_gamma_var(variables, parent):
@@ -197,21 +196,23 @@ def get_gamma_cstr(parent, variables):
 
 
 
-def get_uzero_matr_ortho_cstr(parent, variables):
+def get_wind_dcm_ortho_cstr(parent, variables):
 
     # rotation matrix is in SO3 = 6 constraints
-    rot_matr_var = get_uzero_matr_var(variables, parent)
-    ortho_matr = cas.mtimes(rot_matr_var.T, rot_matr_var) - np.eye(3)
+    wind_dcm_var = get_wind_dcm_var(variables, parent)
+    ortho_matr = cas.mtimes(wind_dcm_var.T, wind_dcm_var) - np.eye(3)
     f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
 
-    name = 'actuator_flow_dcm_ortho_' + str(parent)
+    name = 'actuator_wind_dcm_ortho_' + str(parent)
     cstr = cstr_op.Constraint(expr=f_ortho,
                               name=name,
                               cstr_type='eq')
 
     return cstr
 
-def get_uzero_matr_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture):
+def get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture):
+
+    # 3 constraints
 
     u_vec_val = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
@@ -230,7 +231,10 @@ def get_uzero_matr_u_along_uzero_cstr(model_options, wind, parent, variables, pa
 
     return cstr
 
-def get_wzero_hat_is_z_rotor_hat_cstr(variables, parent):
+def get_orientation_z_along_wzero_cstr(variables, parent):
+
+    # 3 constraints
+
     w_hat_var = get_wzero_hat_var(variables, parent)
     z_rot_length = actuator_geom.get_z_vec_length_var(variables, parent)
     z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables, parent)
@@ -252,16 +256,6 @@ def get_wzero_parallel_z_rotor_check(variables, parent):
     check = cas.mtimes(w_hat_var.T, z_rotor_hat) - 1.
     return check
 
-def get_uzero_matr_cstr(model_options, wind, parent, variables, parameters, architecture):
-
-    cstr_list = cstr_op.ConstraintList()
-
-    # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    cstr_list.append(get_uzero_matr_ortho_cstr(parent, variables))
-    cstr_list.append(get_uzero_matr_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture))
-    cstr_list.append(get_wzero_hat_is_z_rotor_hat_cstr(variables, parent))
-
-    return cstr_list
 
 
 
@@ -269,9 +263,7 @@ def get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
     a_var = get_local_a_var(variables, kite, parent)
 
     label = get_label(model_options)
-    # a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
-    print_op.warn_about_temporary_funcationality_removal(location='actuator.flow.assigment')
-    a_val = 1./3.
+    a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
 
     resi = a_var - a_val
 
@@ -343,7 +335,7 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
     if 'asym' in label:
         cospsi = actuator_geom.get_cospsi_var(variables, kite, parent)
         sinpsi = actuator_geom.get_sinpsi_var(variables, kite, parent)
-        mu = actuator_geom.get_mu_radial_ratio(model_options, variables, kite, parent)
+        mu = actuator_geom.get_mu_radial_ratio(variables, kite, parent)
         # mu = 1.
         # see Suzuki 2000 for motivation for evaluating at the edges of the "annulus"
 

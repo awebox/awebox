@@ -143,7 +143,9 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     # elif induction_model == 'not_in_use':
     #     u_ind_kite = cas.DM.zeros((3, 1))
     # else:
-    #     awelogger.logger.warning('Specified induction model is not supported. Consider checking spelling.')
+    #     message = 'specified induction model (' + induction_model + ') is not supported. continuing with ' \
+    #                                                                 'zero induced velocity.'
+    #     awelogger.logger.warning(message)
 
     return u_ind_kite
 

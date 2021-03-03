@@ -42,6 +42,8 @@ import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geo
 import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
+import pdb
+
 # switches
 
 def get_kite_radius_vector(model_options, kite, variables, architecture):
@@ -55,8 +57,8 @@ def get_kite_radius_vector(model_options, kite, variables, architecture):
     return r_vec
 
 
-def get_mu_radial_ratio(model_options, variables, kite, parent):
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+def get_mu_radial_ratio(variables, kite, parent):
+    varrho_var = get_varrho_var(variables, kite, parent)
     mu = varrho_var / (varrho_var + 0.5)
 
     return mu
@@ -69,7 +71,11 @@ def get_area_var(variables, parent):
     return area_var
 
 def get_bar_varrho_var(variables, parent):
-    varrho_var = variables['xl']['bar_varrho' + str(parent)]
+    try:
+        varrho_var = variables['xl']['bar_varrho' + str(parent)]
+    except:
+        pdb.set_trace()
+
     return varrho_var
 
 def get_varrho_var(variables, kite, parent):
@@ -111,7 +117,7 @@ def get_area_ref(model_options, parameters):
 
 def get_bar_varrho_cstr(model_options, parent, variables, architecture):
 
-    bar_varrho_val = get_bar_varrho_val(model_options, variables, parent, architecture)
+    bar_varrho_val = get_bar_varrho_val(variables, parent, architecture)
     bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     resi_unscaled = bar_varrho_var - bar_varrho_val
@@ -153,28 +159,22 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
     f_sin = np.sin(psi_var) - sinpsi_var
     f_cos = np.cos(psi_var) - cospsi_var
 
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+    varrho_var = get_varrho_var(variables, kite, parent)
     radius = varrho_var * b_ref
 
     varrho_ref = get_varrho_ref(model_options)
     radius_ref = b_ref * varrho_ref
 
-    temp1 = psi_var
-    temp2 = varrho_var - 6.
-    resi_combi = cas.vertcat(f_sin, f_cos, temp1, temp2)
+    f_cos_proj = (radius * cospsi_var - z_rotor_comp) / radius_ref
+    f_sin_proj = (radius * sinpsi_var + y_rotor_comp) / radius_ref
 
-    print_op.warn_about_temporary_funcationality_removal(location='actuator.geom.cstr')
-    # f_cos_proj = (radius * cospsi_var - z_rotor_comp) / radius_ref
-    # f_sin_proj = (radius * sinpsi_var + y_rotor_comp) / radius_ref
-    #
-    # resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
+    resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
 
     name = 'actuator_varrho_and_psi_' + str(kite)
     cstr = cstr_op.Constraint(expr=resi_combi,
                               name=name,
                               cstr_type='eq')
     return cstr
-
 
 
 # processing
@@ -230,13 +230,13 @@ def get_average_radius(model_options, variables, parent, architecture, parameter
 
     return average_radius
 
-def get_bar_varrho_val(model_options, variables, parent, architecture):
+def get_bar_varrho_val(variables, parent, architecture):
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
     sum_varrho = 0.
     for kite in children:
-        varrho_kite = get_varrho_var(model_options, variables, kite, parent)
+        varrho_kite = get_varrho_var(variables, kite, parent)
         sum_varrho = sum_varrho + varrho_kite
 
     bar_varrho_val = sum_varrho / number_children
@@ -288,28 +288,27 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
 
 
 
-def get_rot_matr_var(variables, parent):
-    # rot_cols = variables['xl']['rot_matr' + str(parent)]
-    # rot_matr = cas.reshape(rot_cols, (3, 3))
+def get_act_dcm_var(variables, parent):
 
-    print_op.warn_about_temporary_funcationality_removal(location='actuator.geom.dcm')
-    rot_matr = cas.DM.eye(3)
+    name = 'act_dcm' + str(parent)
+    rot_cols = variables['xl'][name]
+    act_dcm = cas.reshape(rot_cols, (3, 3))
 
-    return rot_matr
+    return act_dcm
 
 def get_n_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    n_hat = rot_matr[:, 0]
+    act_dcm = get_act_dcm_var(variables, parent)
+    n_hat = act_dcm[:, 0]
     return n_hat
 
 def get_y_rotor_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    y_hat = rot_matr[:, 1]
+    act_dcm = get_act_dcm_var(variables, parent)
+    y_hat = act_dcm[:, 1]
     return y_hat
 
 def get_z_rotor_hat_var(variables, parent):
-    rot_matr = get_rot_matr_var(variables, parent)
-    y_hat = rot_matr[:, 2]
+    act_dcm = get_act_dcm_var(variables, parent)
+    y_hat = act_dcm[:, 2]
     return y_hat
 
 def get_z_vec_length_var(variables, parent):
@@ -318,10 +317,10 @@ def get_z_vec_length_var(variables, parent):
 
 
 
-def get_rot_matr_ortho_cstr(parent, variables):
+def get_act_dcm_ortho_cstr(parent, variables):
     # rotation matrix is in SO3 = 6 constraints
-    rot_matr_var = get_rot_matr_var(variables, parent)
-    ortho_matr = cas.mtimes(rot_matr_var.T, rot_matr_var) - np.eye(3)
+    act_dcm_var = get_act_dcm_var(variables, parent)
+    ortho_matr = cas.mtimes(act_dcm_var.T, act_dcm_var) - np.eye(3)
     f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
 
     name = 'actuator_geom_dcm_ortho_' + str(parent)
@@ -331,7 +330,7 @@ def get_rot_matr_ortho_cstr(parent, variables):
 
     return cstr
 
-def get_rot_matr_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
+def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
 
     # n_hat * length equals normal direction = 3 constraints
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
@@ -350,16 +349,6 @@ def get_rot_matr_n_along_normal_cstr(model_options, parent, variables, parameter
 
 
     return cstr
-
-def get_rot_matr_cstr(model_options, parent, variables, parameters, architecture):
-
-    cstr_list = cstr_op.ConstraintList()
-
-    # total number of variables = 10 (9 from rot_matr, 1 lengths)
-    cstr_list.append(get_rot_matr_ortho_cstr(parent, variables))
-    cstr_list.append(get_rot_matr_n_along_normal_cstr(model_options, parent, variables, parameters, architecture))
-
-    return cstr_list
 
 def get_n_vec_val(model_options, parent, variables, parameters, architecture):
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)

@@ -307,12 +307,12 @@ def initial_guess_actuator(init_options, nlp, model, V_init):
 
 def initial_guess_actuator_xd(init_options, model, V_init):
 
+    print_op.warn_about_temporary_funcationality_removal(location='init.induction.xd')
     dict = {}
     dict['a'] = cas.DM(init_options['xd']['a'])
     dict['asin'] = cas.DM(0.)
     dict['acos'] = cas.DM(0.)
     dict['ct'] = 4. * dict['a'] * (1. - dict['a'])
-    dict['bar_varrho'] = cas.DM(1.)
 
     var_type = 'xd'
     for name in struct_op.subkeys(model.variables, var_type):
@@ -376,7 +376,10 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
     rot_matr_cols = cas.reshape(rot_matr, (9, 1))
 
+
+    print_op.warn_about_temporary_funcationality_removal(location='init.induction.xl')
     dict = {}
+    dict['a'] = cas.DM(init_options['xl']['a'])
     dict['rot_matr'] = rot_matr_cols
     dict['area'] = cas.DM(1.)
     dict['cmy'] = cas.DM(0.)
@@ -387,6 +390,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['z_vec_length'] = cas.DM(1.)
     dict['u_vec_length'] = cas.DM(1.)
     dict['varrho'] = cas.DM(1.)
+    dict['bar_varrho'] = cas.DM(1.)
     dict['qzero'] = cas.DM(1.)
     dict['gamma'] = get_gamma_angle(init_options)
     dict['cosgamma'] = np.cos(dict['gamma'])
@@ -419,7 +423,8 @@ def get_gamma_angle(init_options):
     return gamma
 
 def get_chi_angle(init_options, var_type):
-    a = init_options['xd']['a']
+
+    a = init_options[var_type]['a']
     gamma = get_gamma_angle(init_options)
     chi = (0.6 * a + 1.) * gamma
     return chi
