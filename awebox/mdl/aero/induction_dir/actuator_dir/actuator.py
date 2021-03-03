@@ -65,11 +65,8 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
             induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
             cstr_list.append(induction_factor_cstr)
 
-        temp_cstr = actuator_geom.get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture)
-        cstr_list.append(temp_cstr)
-
-        # actuator_orientation_cstr = get_actuator_orientation_cstr(model_options, wind, parent, variables, parameters, architecture)
-        # cstr_list.append(actuator_orientation_cstr)
+        actuator_orientation_cstr = get_actuator_orientation_cstr(model_options, wind, parent, variables, parameters, architecture)
+        cstr_list.append(actuator_orientation_cstr)
         #
         # gamma_cstr = actuator_flow.get_gamma_cstr(parent, variables)
         # cstr_list.append(gamma_cstr)
@@ -219,24 +216,22 @@ def get_actuator_orientation_cstr(model_options, wind, parent, variables, parame
     # --------------------
     # 21 constraints total
 
-    print_op.warn_about_temporary_funcationality_removal(location='actuator.orientation')
-
     cstr_list = cstr_op.ConstraintList()
 
-    # act_dcm_cstr = actuator_geom.get_act_dcm_ortho_cstr(parent, variables)
-    # cstr_list.append(act_dcm_cstr) # 6 constraints
+    act_dcm_cstr = actuator_geom.get_act_dcm_ortho_cstr(parent, variables)
+    cstr_list.append(act_dcm_cstr) # 6 constraints
 
-    # nhat_cstr = actuator_geom.get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture)
-    # cstr_list.append(nhat_cstr) # 3 constraints
+    nhat_cstr = actuator_geom.get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture)
+    cstr_list.append(nhat_cstr) # 3 constraints
 
-    # wind_dcm_cstr = actuator_flow.get_wind_dcm_ortho_cstr(parent, variables)
-    # cstr_list.append(wind_dcm_cstr) # 6 constraints
+    wind_dcm_cstr = actuator_flow.get_wind_dcm_ortho_cstr(parent, variables)
+    cstr_list.append(wind_dcm_cstr) # 6 constraints
 
-    # uhat_cstr = actuator_flow.get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture)
-    # cstr_list.append(uhat_cstr) # 3 constraints
-    #
-    # align_cstr = actuator_flow.get_orientation_z_along_wzero_cstr(variables, parent)
-    # cstr_list.append(align_cstr) # 3 constraints
+    uhat_cstr = actuator_flow.get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture)
+    cstr_list.append(uhat_cstr) # 3 constraints
+
+    align_cstr = actuator_flow.get_orientation_z_along_wzero_cstr(variables, parent)
+    cstr_list.append(align_cstr) # 3 constraints
 
     return cstr_list
 

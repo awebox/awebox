@@ -376,32 +376,21 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     act_dcm = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
     act_dcm_cols = cas.reshape(act_dcm, (9, 1))
 
-    print_op.warn_about_temporary_funcationality_removal(location='init.induction.xl')
     dict = {}
     dict['a'] = cas.DM(init_options['xl']['a'])
+    dict['local_a'] = dict['a']
+    dict['ui'] = cas.DM(init_options['sys_params_num']['wind']['u_ref']) * (1. - dict['a'])
+    dict['varrho'] = cas.DM(init_options['induction']['varrho_ref'])
+    dict['bar_varrho'] = cas.DM(init_options['induction']['varrho_ref'])
     dict['act_dcm'] = act_dcm_cols
-    dict['area'] = cas.DM(1.)
-    dict['cmy'] = cas.DM(0.)
-    dict['cmz'] = cas.DM(0.)
+    dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
     dict['wind_dcm'] = wind_dcm_cols
-    dict['g_vec_length'] = cas.DM(1.)
-    dict['n_vec_length'] = cas.DM(1.)
-    dict['nhat'] = cas.DM([1., 0., 0.])
-    dict['z_vec_length'] = cas.DM(1.)
-    dict['u_vec_length'] = cas.DM(1.)
-    dict['varrho'] = cas.DM(1.)
-    dict['bar_varrho'] = cas.DM(1.)
-    dict['qzero'] = cas.DM(1.)
+    dict['z_vec_length'] = cas.DM(init_options['induction']['z_vec_length'])
+    dict['u_vec_length'] = cas.DM(init_options['induction']['u_vec_length'])
     dict['gamma'] = get_gamma_angle(init_options)
+    dict['g_vec_length'] = cas.DM(init_options['induction']['g_vec_length'])
     dict['cosgamma'] = np.cos(dict['gamma'])
     dict['singamma'] = np.sin(dict['gamma'])
-    dict['chi'] = get_chi_angle(init_options, 'xl')
-    dict['coschi'] = np.cos(dict['chi'])
-    dict['sinchi'] = np.sin(dict['chi'])
-    dict['tanhalfchi'] = np.tan(dict['chi'] / 2.)
-    dict['sechalfchi'] = 1. / np.cos(dict['chi'] / 2.)
-    dict['LL'] = cas.DM([0.375, 0., 0., 0., -1., 0., 0., -1., 0.])
-    dict['corr'] = 1. - init_options['xd']['a']
 
     var_type = 'xl'
     for name in struct_op.subkeys(model.variables, var_type):

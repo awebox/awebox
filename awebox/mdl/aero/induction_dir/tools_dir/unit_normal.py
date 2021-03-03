@@ -81,9 +81,8 @@ def get_n_vec_length_var(variables, parent):
     len_var = variables['xl']['n_vec_length' + str(parent)]
     return len_var
 
-def get_n_vec_length_ref(variables, parent):
-    print_op.warn_about_temporary_funcationality_removal(location='ind.tools.unit_normal:NEEDS_LENGTH_SCALING!')
-    return 1.
+def get_n_vec_length_ref(model_options):
+    return model_options['scaling']['xl']['n_vec_length']
 
 
 
@@ -130,12 +129,6 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 
     n_vec = vect_op.cross(arm1, arm2)
 
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    varrho_temp = 8.
-
-    scale = b_ref**2. * varrho_temp**2.
-    n_vec = n_vec / scale
-
     return n_vec
 
 def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture):
@@ -144,17 +137,14 @@ def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
 
     if grandparent == 0:
         name = 'q' + str(parent) + str(grandparent)
-        n_vec_unscaled = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', name)
-        n_vec_scaled = n_vec_unscaled * 1.e-3
+        n_vec = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', name)
     else:
         great_grandparent = architecture.parent_map[grandparent]
         q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
         q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
-        n_vec_unscaled = q_parent - q_grandparent
+        n_vec = q_parent - q_grandparent
 
-        n_vec_scaled = n_vec_unscaled * 1.e-1
-
-    return n_vec_scaled
+    return n_vec
 
 def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture):
 

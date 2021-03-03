@@ -32,13 +32,17 @@ import numpy as np
 import awebox as awe
 import casadi as cas
 import copy
-from awebox.logger.logger import Logger as awelogger
 import pickle
+from awebox.logger.logger import Logger as awelogger
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
+
+import awebox.mdl.wind as wind
+
+import pdb
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -437,17 +441,46 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
     options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
 
-    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.n_factor????')
-    if options['model']['aero']['actuator']['normal_vector_model'] in ['default','tether_parallel']:
-        options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
-    else:
-        options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'act_dcm', 1., ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'wind_dcm', 1., ('descript', None), 'x'))
+
+    z_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
+
+    u_vec_length_ref = get_u_ref(user_options)
+    options_tree.append(('model', 'scaling', 'xl', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
+
+    normal_vector_model = options['model']['aero']['actuator']['normal_vector_model']
+    number_of_kites = architecture.number_of_kites
+    if normal_vector_model == 'least_squares':
+        n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
+    elif normal_vector_model == 'binormal':
+        n_vec_length_ref = number_of_kites * options['model']['scaling']['xd']['l_t']**2.
+    elif (normal_vector_model == 'tether_parallel') and (number_of_kites > 1):
+        n_vec_length_ref = options['model']['scaling']['theta']['l_s']
+    elif (normal_vector_model == 'tether_parallel') and (number_of_kites == 1):
+        n_vec_length_ref = options['model']['scaling']['xd']['l_t']
+    else: # normal_vector_model == 'xhat':
+        n_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
+
+    g_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
 
     psi_scale = 2. * np.pi
     options_tree.append(('model', 'scaling', 'xl', 'psi', psi_scale, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'cospsi', 1., ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'sinpsi', 1., ('descript', None), 'x'))
-    psi_epsilon = 3. * np.pi / 180.
+
+    psi_epsilon = np.pi / 2.
     options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
     return options_tree, fixed_params
@@ -477,7 +510,7 @@ def build_actuator_options(options, options_tree, fixed_params):
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('model', 'scaling', 'xl', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'bar_varrho', induction_varrho_ref, ('descript', None), 'x'))
-    options_tree.append(('solver', 'initialization', 'model', 'induction_varrho_ref', induction_varrho_ref, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'varrho_ref', induction_varrho_ref, ('????', None), 'x')),
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),

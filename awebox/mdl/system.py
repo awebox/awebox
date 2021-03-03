@@ -264,7 +264,6 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
 
-        print_op.warn_about_temporary_funcationality_removal(location='system1')
         system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
@@ -293,16 +292,12 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
         system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
 
-
-
-        # system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
+        system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
         system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
-        system_lifted.extend([('nhat' + str(layer_node), (3, 1))])
-        #
-        #
-        # system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
-        # system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
+        system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
 
         # system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
         # system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
