@@ -369,24 +369,24 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
 def initial_guess_actuator_xl(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
-    uzero_matr = cas.horzcat(u_hat, v_hat, w_hat)
-    uzero_matr_cols = cas.reshape(uzero_matr, (9, 1))
+    wind_dcm = cas.horzcat(u_hat, v_hat, w_hat)
+    wind_dcm_cols = cas.reshape(wind_dcm, (9, 1))
 
     n_rot_hat, y_rot_hat, z_rot_hat = tools_init.get_rotor_reference_frame(init_options)
-    rot_matr = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
-    rot_matr_cols = cas.reshape(rot_matr, (9, 1))
-
+    act_dcm = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
+    act_dcm_cols = cas.reshape(act_dcm, (9, 1))
 
     print_op.warn_about_temporary_funcationality_removal(location='init.induction.xl')
     dict = {}
     dict['a'] = cas.DM(init_options['xl']['a'])
-    dict['rot_matr'] = rot_matr_cols
+    dict['act_dcm'] = act_dcm_cols
     dict['area'] = cas.DM(1.)
     dict['cmy'] = cas.DM(0.)
     dict['cmz'] = cas.DM(0.)
-    dict['uzero_matr'] = uzero_matr_cols
+    dict['wind_dcm'] = wind_dcm_cols
     dict['g_vec_length'] = cas.DM(1.)
     dict['n_vec_length'] = cas.DM(1.)
+    dict['nhat'] = cas.DM([1., 0., 0.])
     dict['z_vec_length'] = cas.DM(1.)
     dict['u_vec_length'] = cas.DM(1.)
     dict['varrho'] = cas.DM(1.)
@@ -404,7 +404,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['corr'] = 1. - init_options['xd']['a']
 
     var_type = 'xl'
-    for name in struct_op.subkeys(model.variables, 'xl'):
+    for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
         if name_stripped in dict.keys():

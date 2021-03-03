@@ -146,8 +146,11 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
 
     radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
 
-    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
+    # y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
+    # z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = vect_op.yhat()
+    z_rotor_hat_var = vect_op.zhat()
+    print_op.warn_about_temporary_funcationality_removal(location='act.geom.psi_cstr')
 
     y_rotor_comp = cas.mtimes(radius_vec.T, y_rotor_hat_var)
     z_rotor_comp = cas.mtimes(radius_vec.T, z_rotor_hat_var)
@@ -297,8 +300,9 @@ def get_act_dcm_var(variables, parent):
     return act_dcm
 
 def get_n_hat_var(variables, parent):
-    act_dcm = get_act_dcm_var(variables, parent)
-    n_hat = act_dcm[:, 0]
+    # act_dcm = get_act_dcm_var(variables, parent)
+    # n_hat = act_dcm[:, 0]
+    n_hat = variables['xl']['nhat' + str(parent)]
     return n_hat
 
 def get_y_rotor_hat_var(variables, parent):
@@ -332,6 +336,8 @@ def get_act_dcm_ortho_cstr(parent, variables):
 
 def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
 
+    cstr_list = cstr_op.ConstraintList()
+
     # n_hat * length equals normal direction = 3 constraints
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
     n_hat_var = get_n_hat_var(variables, parent)
@@ -346,9 +352,16 @@ def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters
     cstr = cstr_op.Constraint(expr=f_n_vec,
                               name=name,
                               cstr_type='eq')
+    cstr_list.append(cstr)
 
+    print_op.warn_about_temporary_funcationality_removal(location='geom.nhat_cstr:ADDITION')
+    norm_expr = cas.mtimes(n_hat_var.T, n_hat_var) - 1.
+    temp_cstr = cstr_op.Constraint(expr=norm_expr,
+                                   name='actuator_nhat_unit_' + str(parent),
+                                   cstr_type='eq')
+    cstr_list.append(temp_cstr)
 
-    return cstr
+    return cstr_list
 
 def get_n_vec_val(model_options, parent, variables, parameters, architecture):
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)

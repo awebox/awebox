@@ -293,8 +293,12 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
         system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
 
-        system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
-        # system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+
+
+        # system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('nhat' + str(layer_node), (3, 1))])
+        #
         #
         # system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
         # system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])

@@ -432,11 +432,12 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], ('????', None), 'x')),
 
-    options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
-                         ('normalization factor for normal vector [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0.1, 2.],
-                         ('normalization factor for normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'u_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
 
+    print_op.warn_about_temporary_funcationality_removal(location='model_funcs.n_factor????')
     if options['model']['aero']['actuator']['normal_vector_model'] in ['default','tether_parallel']:
         options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
     else:
@@ -511,11 +512,6 @@ def build_actuator_options(options, options_tree, fixed_params):
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
-
-    options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0.1, 2.],
-                         ('normalization factor for normal vector [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'u_vec_length', [0.1, cas.inf],
-                         ('normalization factor for normal vector [-]', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'LLinv', [-100., 100.], ('relative radius bounds [-]', None), 'x'))
 

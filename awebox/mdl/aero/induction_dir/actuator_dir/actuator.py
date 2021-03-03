@@ -65,6 +65,9 @@ def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs
             induction_factor_cstr = get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
             cstr_list.append(induction_factor_cstr)
 
+        temp_cstr = actuator_geom.get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture)
+        cstr_list.append(temp_cstr)
+
         # actuator_orientation_cstr = get_actuator_orientation_cstr(model_options, wind, parent, variables, parameters, architecture)
         # cstr_list.append(actuator_orientation_cstr)
         #

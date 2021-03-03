@@ -37,6 +37,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):
@@ -60,57 +61,28 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
     elif model == 'tether_parallel' and number_children == 1:
         n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
 
-    elif model == 'default' and number_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
-
-    elif model == 'default' and number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
-
     elif model == 'xhat':
         n_vec = vect_op.xhat()
 
     else:
-        message = 'kite-plane normal-vector model-type not supported. Consider checking the number of kites per layer.'
-        awelogger.logger.error(message)
-        n_vec = vect_op.xhat_np()
-        raise Exception(message)
+        message = 'kite-plane normal-vector model (' + model + ') not supported. proceeding with normal along xhat.'
+        awelogger.logger.warning(message)
+        n_vec = vect_op.xhat()
 
     return n_vec
-
-
-def get_n_vec_default(model_options, parent, variables, parameters, architecture):
-
-    model = model_options['aero']['actuator']['normal_vector_model']
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if number_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
-
-    elif number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
-
-    else:
-        awelogger.logger.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
-        n_vec = vect_op.xhat_np()
-
-    return n_vec
-
 
 
 def get_n_hat(model_options, parent, variables, parameters, architecture):
-
     n_vec = get_n_vec(model_options, parent, variables, parameters, architecture)
     n_hat = vect_op.normalize(n_vec)
-
     return n_hat
 
 def get_n_vec_length_var(variables, parent):
-    scale = get_n_vec_length_ref(variables, parent)
-    len_var = scale * variables['xl']['n_vec_length' + str(parent)]
+    len_var = variables['xl']['n_vec_length' + str(parent)]
     return len_var
 
 def get_n_vec_length_ref(variables, parent):
+    print_op.warn_about_temporary_funcationality_removal(location='ind.tools.unit_normal:NEEDS_LENGTH_SCALING!')
     return 1.
 
 
