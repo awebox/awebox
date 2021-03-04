@@ -299,10 +299,10 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
         system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
 
-        # system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
-        # system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
+        system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
+        system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
+        system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
 
     return system_lifted, system_states
 

@@ -208,11 +208,11 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
 
     return rhat
 
-def get_kite_radius(model_options, kite, variables, architecture, parameters):
+def get_kite_radius(kite, variables, architecture, parameters):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     parent = architecture.parent_map[kite]
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+    varrho_var = get_varrho_var(variables, kite, parent)
 
     radius = varrho_var * b_ref
 
@@ -224,7 +224,7 @@ def get_average_radius(model_options, variables, parent, architecture, parameter
 
     average_radius = 0.
     for kite in children:
-        radius = get_kite_radius(model_options, kite, variables, architecture, parameters)
+        radius = get_kite_radius(kite, variables, architecture, parameters)
 
         average_radius = average_radius + radius / number_children
 
@@ -261,7 +261,7 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
 
         half_span_proj = b_ref * ehat2_proj_radial / 2.
 
-    radius = get_kite_radius(model_options, kite, variables, architecture, parameters)
+    radius = get_kite_radius(kite, variables, architecture, parameters)
 
     tip_radius = radius
     if ('int' in tip) or (tip == 0):

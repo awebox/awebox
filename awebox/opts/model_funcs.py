@@ -480,8 +480,10 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('model', 'scaling', 'xl', 'cospsi', 1., ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'sinpsi', 1., ('descript', None), 'x'))
 
-    psi_epsilon = np.pi / 2.
+    psi_epsilon = np.pi
     options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+
+
 
     return options_tree, fixed_params
 
@@ -545,6 +547,10 @@ def build_actuator_options(options, options_tree, fixed_params):
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
+    gamma_ref = gamma_range[1]
+    options_tree.append(('model', 'scaling', 'xl', 'gamma', gamma_ref, ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'xl', 'cosgamma', 1., ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'xl', 'singamma', 1., ('tilt angle bounds [rad]', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'LLinv', [-100., 100.], ('relative radius bounds [-]', None), 'x'))
 
