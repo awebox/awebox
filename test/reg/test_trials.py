@@ -195,6 +195,8 @@ def generate_options_dict():
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
     actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    actuator_qaxi_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
+    actuator_qaxi_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
@@ -202,10 +204,9 @@ def generate_options_dict():
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
-    actuator_qasym_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
-    actuator_uasym_options = copy.deepcopy(actuator_qasym_options)
-    actuator_uasym_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
+    actuator_uasym_options = copy.deepcopy(actuator_uaxi_options)
+    actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
     actuator_comparison_options['model']['aero']['actuator']['steadyness_comparison'] = ['q', 'u']

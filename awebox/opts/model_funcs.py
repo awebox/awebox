@@ -40,6 +40,8 @@ import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
+import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+
 import awebox.mdl.wind as wind
 
 import pdb
@@ -534,17 +536,14 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
 
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'acos_' + label, a_ref, ('descript', None), 'x'))
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('???', None), 'x')),
 
-    # if the model is axisymmetric, then each kite on a given layer will have the same local_a, so we should
-    # only bound the local_a of one kite, to prevent licq if the bound is active
-    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('descript', None), 'x'))
+
+    # if the model is axisymmetric, then each kite on a given layer will have the same local_a, so, we cannot
+    # bound *all* local_a, or we will violate licq
     if options['model']['aero']['actuator']['symmetry'] == 'axisymmetric':
-        layer_nodes = architecture.layer_nodes
-        for layer in layer_nodes:
-            first_kite_on_layer = architecture.children_map[layer][0]
-            options_tree.append(
-                ('model', 'system_bounds', 'xl', 'local_a' + str(first_kite_on_layer) + str(layer), a_range, ('local induction factor', None), 'x')),
-
+        local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
+        options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range, ('local induction factor', None), 'x')),
     elif options['model']['aero']['actuator']['symmetry'] == 'asymmetric':
         options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
 
