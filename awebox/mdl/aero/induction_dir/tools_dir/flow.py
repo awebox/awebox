@@ -31,6 +31,9 @@ _python-3.5 / casadi-3.4.5
 
 import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
 
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+
 def get_kite_apparent_velocity(variables, wind, kite, parent):
 
     q_kite = variables['xd']['q' + str(kite) + str(parent)]
@@ -48,6 +51,13 @@ def get_uzero_vec(model_options, wind, parent, variables, architecture):
     u_apparent = u_infty - u_actuator
 
     return u_apparent
+
+def get_f_val(model_options, wind, parent, variables, architecture):
+    dl_t = variables['xd']['dl_t']
+    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    f_val = dl_t / vect_op.smooth_norm(u_infty)
+
+    return f_val
 
 def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
 

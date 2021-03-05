@@ -173,9 +173,5 @@ def collect_outputs(options, atmos, wind, variables_si, outputs, parameters, arc
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
         outputs = vortex.collect_vortex_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
-        if architecture.number_of_kites > 1:
-            outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 1, variables_si, architecture)
-        else:
-            outputs['vortex']['f1'] = actuator_flow.get_f_val(options, wind, 0, variables_si, architecture)
 
     return outputs

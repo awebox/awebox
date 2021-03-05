@@ -198,6 +198,7 @@ def generate_options_dict():
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
+    actuator_uaxi_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'

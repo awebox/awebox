@@ -94,6 +94,11 @@ def get_sinpsi_var(variables, kite, parent):
     sinpsi_var = variables['xl']['sinpsi' + str(kite) + str(parent)]
     return sinpsi_var
 
+def get_n_vec_length_var(variables, parent):
+    len_var = variables['xl']['n_vec_length' + str(parent)]
+    return len_var
+
+
 # references
 
 def get_tstar_ref(parameters, wind):
@@ -101,6 +106,10 @@ def get_tstar_ref(parameters, wind):
     uinfty_ref = wind.get_velocity_ref()
     tstar = b_ref / uinfty_ref
     return tstar
+
+
+def get_n_vec_length_ref(model_options):
+    return model_options['scaling']['xl']['n_vec_length']
 
 def get_varrho_ref(model_options):
     varrho_ref = model_options['aero']['actuator']['varrho_ref']
@@ -335,11 +344,11 @@ def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters
     # n_hat * length equals normal direction = 3 constraints
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
     n_hat_var = get_n_hat_var(variables, parent)
-    n_vec_length_var = unit_normal.get_n_vec_length_var(variables, parent)
+    n_vec_length_var = get_n_vec_length_var(variables, parent)
 
     n_diff = n_vec_val - n_hat_var * n_vec_length_var
 
-    n_vec_length_ref = unit_normal.get_n_vec_length_ref(model_options)
+    n_vec_length_ref = get_n_vec_length_ref(model_options)
     f_n_vec = n_diff / n_vec_length_ref
 
     name = 'actuator_nhat_' + str(parent)

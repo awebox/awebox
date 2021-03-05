@@ -35,10 +35,8 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
-
-import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
@@ -71,7 +69,10 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
-        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent, variables, architecture)
+        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent,
+                                                                                                variables, architecture)
+        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(options, wind, parent, variables,
+                                                                           architecture)
 
         average_radius = 0.
 

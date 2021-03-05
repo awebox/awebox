@@ -272,23 +272,19 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
     for layer_node in architecture.layer_nodes:
 
-        print_op.warn_about_temporary_funcationality_removal(location='system2')
         for label in actuator_comp_labels:
             if label[0] == 'q':
                 system_lifted.extend([('a_' + label + str(layer_node), (1, 1))])
             elif label[0] == 'u':
                 system_states.extend([('a_' + label + str(layer_node), (1, 1))])
-                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
 
-            # if label == 'qasym':
-            #     system_lifted.extend([('acos_' + label + str(layer_node), (1, 1))])
-            #     system_lifted.extend([('asin_' + label + str(layer_node), (1, 1))])
-            #
-            # if label == 'uasym':
-            #     system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
-            #     system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
-            #     system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-            #     system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+            if label == 'qasym':
+                system_lifted.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_lifted.extend([('asin_' + label + str(layer_node), (1, 1))])
+
+            if label == 'uasym':
+                system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
 
         system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
 

@@ -141,8 +141,8 @@ def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables,
     MM = actuator_coeff.get_MM_matrix()
     MM11 = MM[0, 0]
 
-    t_star_num = actuator_coeff.get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-    t_star_den = actuator_coeff.get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+    t_star_num = actuator_coeff.get_t_star_numerator_val(variables, parameters, parent)
+    t_star_den = actuator_coeff.get_t_star_denominator_val(variables, parent)
 
     resi_unscaled = (MM11 * da_var * t_star_num * area * qzero + LLinv11 * a_var * area * qzero * t_star_den - thrust * t_star_den)
 
@@ -164,8 +164,8 @@ def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables
     LL_matr = actuator_coeff.get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
     MM = actuator_coeff.get_MM_matrix()
 
-    t_star_num = actuator_coeff.get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
-    t_star_den = actuator_coeff.get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture)
+    t_star_num = actuator_coeff.get_t_star_numerator_val(variables, parameters, parent)
+    t_star_den = actuator_coeff.get_t_star_denominator_val(variables, parent)
 
     term_1 = cas.mtimes(LL_matr, cas.mtimes(MM, da_all)) * t_star_num * moment_den
     term_2 = a_all * t_star_den * moment_den
@@ -254,8 +254,6 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         for label in act_comp_labels:
             outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(variables, parent, label)
 
-        outputs['actuator']['f' + str(parent)] = actuator_flow.get_f_val(model_options, wind, parent, variables, architecture)
-
         center = general_geom.get_center_point(model_options, parent, variables, architecture)
         velocity = general_geom.get_center_velocity(parent, variables, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
@@ -277,7 +275,6 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['yaw' + str(parent)] = yaw_angle
         outputs['actuator']['yaw_deg' + str(parent)] = yaw_angle * 180. / np.pi
         outputs['actuator']['dyn_pressure' + str(parent)] = q_app
-        outputs['actuator']['df' + str(parent)] = actuator_flow.get_df_val(model_options, wind, parent, variables, architecture)
 
         thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
         ct = actuator_coeff.get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture)

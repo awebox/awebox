@@ -302,12 +302,10 @@ def initial_guess_actuator(init_options, nlp, model, V_init):
 
 def initial_guess_actuator_xd(init_options, model, V_init):
 
-    print_op.warn_about_temporary_funcationality_removal(location='init.induction.xd')
     dict = {}
     dict['a'] = cas.DM(init_options['xd']['a'])
     dict['asin'] = cas.DM(0.)
     dict['acos'] = cas.DM(0.)
-    dict['ct'] = 4. * dict['a'] * (1. - dict['a'])
 
     var_type = 'xd'
     for name in struct_op.subkeys(model.variables, var_type):

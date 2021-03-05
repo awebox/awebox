@@ -70,11 +70,13 @@ def get_a_var(variables, parent, label):
     return a_var
 
 def get_acos_var(variables, parent, label):
-    acos_var = variables['xd']['acos_' + label + str(parent)]
+    var_type = get_a_var_type(label)
+    acos_var = variables[var_type]['acos_' + label + str(parent)]
     return acos_var
 
 def get_asin_var(variables, parent, label):
-    asin_var = variables['xd']['asin_' + label + str(parent)]
+    var_type = get_a_var_type(label)
+    asin_var = variables[var_type]['asin_' + label + str(parent)]
     return asin_var
 
 def get_a_all_var(variables, parent, label):
@@ -89,15 +91,15 @@ def get_a_all_var(variables, parent, label):
     return a_all
 
 def get_da_var(variables, parent, label):
-    da_var = variables['xd']['da_' + label + str(parent)]
+    da_var = variables['xddot']['da_' + label + str(parent)]
     return da_var
 
 def get_dacos_var(variables, parent, label):
-    dacos_var = variables['xd']['dacos_' + label + str(parent)]
+    dacos_var = variables['xddot']['dacos_' + label + str(parent)]
     return dacos_var
 
 def get_dasin_var(variables, parent, label):
-    dasin_var = variables['xd']['dasin_' + label + str(parent)]
+    dasin_var = variables['xddot']['dasin_' + label + str(parent)]
     return dasin_var
 
 def get_da_all_var(variables, parent, label):
@@ -109,11 +111,6 @@ def get_da_all_var(variables, parent, label):
     else:
         da_all = get_da_var(variables, parent, label)
     return da_all
-
-
-def get_qzero_var(variables, parent):
-    qzero_val = variables['xl']['qzero' + str(parent)]
-    return qzero_val
 
 def get_wind_dcm_var(variables, parent):
     rot_cols = variables['xl']['wind_dcm' + str(parent)]
@@ -160,6 +157,8 @@ def get_g_vec_length_var(variables, parent):
 
 def get_gamma_cstr(parent, variables):
 
+    # notice that the correction values are even functions of gamma
+
     uzero_hat_var = get_uzero_hat_var(variables, parent)
     vzero_hat_var = get_vzero_hat_var(variables, parent)
 
@@ -187,13 +186,6 @@ def get_gamma_cstr(parent, variables):
                               cstr_type='eq')
 
     return cstr
-
-
-
-
-
-
-
 
 
 def get_wind_dcm_ortho_cstr(parent, variables):
@@ -265,7 +257,8 @@ def get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
     label = get_label(model_options)
     a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
 
-    resi = a_var - a_val
+    a_ref = model_options['aero']['actuator']['a_ref']
+    resi = (a_var - a_val) / a_ref
 
     name = 'actuator_a_assignment_' + str(kite)
     cstr = cstr_op.Constraint(expr=resi,
@@ -275,25 +268,6 @@ def get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
     return cstr
 
 ## values
-
-def get_f_val(model_options, wind, parent, variables, architecture):
-    dl_t = variables['xd']['dl_t']
-    u_infty = general_flow.get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    f_val = dl_t / vect_op.smooth_norm(u_infty)
-
-    return f_val
-
-def get_df_val(model_options, wind, parent, variables, architecture):
-
-    if 'ddl_t' in variables['xd'].keys():
-        ddl_t = variables['xd']['ddl_t']
-    else:
-        ddl_t = variables['u']['ddl_t']
-
-    u_infty = general_flow.get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    df_val = ddl_t / vect_op.smooth_norm(u_infty)
-
-    return df_val
 
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
 
@@ -311,9 +285,6 @@ def get_gamma_check(model_options, wind, parent, variables, parameters, architec
 
 ## references
 
-def get_uinfty_ref(wind):
-    uinfty_ref = wind.get_velocity_ref()
-    return uinfty_ref
 
 def get_qzero_ref(atmos, wind):
     scale = 5.
@@ -323,7 +294,7 @@ def get_qzero_ref(atmos, wind):
     return qzero_ref
 
 def get_a_ref(model_options):
-    a_ref = model_options['aero']['a_ref']
+    a_ref = model_options['aero']['actuator']['a_ref']
     return a_ref
 
 def get_uzero_vec_length_ref(wind):

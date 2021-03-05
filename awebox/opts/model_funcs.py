@@ -58,7 +58,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     # aerodynamics
     options_tree, fixed_params = build_stability_derivative_options(options, help_options, options_tree, fixed_params)
     options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params, architecture)
 
     # tether
@@ -460,9 +460,7 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
         n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
     elif normal_vector_model == 'binormal':
         n_vec_length_ref = number_of_kites * options['model']['scaling']['xd']['l_t']**2.
-    elif (normal_vector_model == 'tether_parallel') and (number_of_kites > 1):
-        n_vec_length_ref = options['model']['scaling']['theta']['l_s']
-    elif (normal_vector_model == 'tether_parallel') and (number_of_kites == 1):
+    elif normal_vector_model == 'tether_parallel':
         n_vec_length_ref = options['model']['scaling']['xd']['l_t']
     else: # normal_vector_model == 'xhat':
         n_vec_length_ref = 1.
@@ -491,7 +489,7 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
 ######## actuator induction
 
-def build_actuator_options(options, options_tree, fixed_params):
+def build_actuator_options(options, options_tree, fixed_params, architecture):
 
     user_options = options['user_options']
 
@@ -520,34 +518,42 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('nlp', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
-    local_label = get_local_actuator_label(actuator_steadyness, actuator_symmetry)
-    options_tree.append(('model', 'system_bounds', 'xl', 'chi_' + local_label, [-np.pi/2., np.pi/2.], ('chi limit', None), 'x')),
-
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
-    if (a_ref > a_range[1]) or (a_ref < a_range[0]):
-        # remember that a_range can be symmetric, but we need a positive (non-zero) reference value
-        a_ref = a_range[1] / 2.
+    if  (a_ref < a_range[0]) or (a_ref > a_range[1]):
+        a_ref_new = a_range[1] / 2.
+        message = 'reference induction factor (' + str(a_ref) + ') is outside of the allowed range of ' + str(a_range) + '. proceeding with reference value of ' + str(a_ref_new)
+        awelogger.logger.warning(message)
+        a_ref = a_ref_new
 
     a_labels_dict = {'qaxi': 'xl', 'qasym': 'xl', 'uaxi': 'xd', 'uasym' : 'xd'}
     for label in a_labels_dict.keys():
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'a_' + label, a_ref, ('descript', None), 'x'))
         options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a', a_ref, ('induction factor [-]', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('descript', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'acos_' + label, a_ref, ('descript', None), 'x'))
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
 
-    if user_options['induction_model'] == 'not_in_use':
-        a_ref = None
-    options_tree.append(('model', 'aero', None, 'a_ref', a_ref, ('reference value for the induction factors. takes values between 0. and 0.4', None),'x'))
+    # if the model is axisymmetric, then each kite on a given layer will have the same local_a, so we should
+    # only bound the local_a of one kite, to prevent licq if the bound is active
+    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('descript', None), 'x'))
+    if options['model']['aero']['actuator']['symmetry'] == 'axisymmetric':
+        layer_nodes = architecture.layer_nodes
+        for layer in layer_nodes:
+            first_kite_on_layer = architecture.children_map[layer][0]
+            options_tree.append(
+                ('model', 'system_bounds', 'xl', 'local_a' + str(first_kite_on_layer) + str(layer), a_range, ('local induction factor', None), 'x')),
+
+    elif options['model']['aero']['actuator']['symmetry'] == 'asymmetric':
+        options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
     options_tree.append(('model', 'system_bounds', 'xl', 'corr', [0., cas.inf], ('square root sign bounds on glauert correction [-]', None), 'x'))
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
-    gamma_ref = gamma_range[1]
+    gamma_ref = gamma_range[1] / 2.
     options_tree.append(('model', 'scaling', 'xl', 'gamma', gamma_ref, ('tilt angle bounds [rad]', None), 'x')),
     options_tree.append(('model', 'scaling', 'xl', 'cosgamma', 1., ('tilt angle bounds [rad]', None), 'x')),
     options_tree.append(('model', 'scaling', 'xl', 'singamma', 1., ('tilt angle bounds [rad]', None), 'x')),
@@ -591,24 +597,6 @@ def get_comparison_labels(options, user_options):
                 comparison_labels += [new_label]
 
     return comparison_labels
-
-def get_local_actuator_label(actuator_steadyness, actuator_symmetry):
-    local_label = ''
-    if (actuator_steadyness == 'quasi-steady' or actuator_steadyness == 'steady'):
-        if actuator_symmetry == 'axisymmetric':
-            local_label = 'qaxi'
-
-        elif actuator_symmetry == 'asymmetric':
-            local_label = 'qasym'
-
-    elif actuator_steadyness == 'unsteady':
-        if actuator_symmetry == 'axisymmetric':
-            local_label = 'uaxi'
-
-        elif actuator_symmetry == 'asymmetric':
-            local_label = 'uasym'
-
-    return local_label
 
 
 ###### vortex induction

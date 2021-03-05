@@ -42,24 +42,6 @@ import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 
-def get_t_star_var(variables, parent):
-    t_star = variables['xl']['t_star' + str(parent)]
-    return t_star
-
-def get_c_tilde_var(variables, parent, label):
-    c_tilde_var =variables['xl']['c_tilde_' + str(label) + str(parent)]
-    return c_tilde_var
-
-def get_LL_var(variables, parent, label):
-    LL = variables['xl']['LL_' + label + str(parent)]
-    return LL
-
-def get_LL_matrix_var(variables, parent, label):
-    LL_var = get_LL_var(variables, parent, label)
-    LL_matr = cas.reshape(LL_var, (3, 3))
-
-    return LL_matr
-
 def get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     corr = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
     chi = actuator_flow.get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
@@ -123,21 +105,6 @@ def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, archi
     return moment
 
 
-def get_moment_denom(model_options, variables, parent, atmos, wind, parameters):
-
-    qzero_var = actuator_flow.get_qzero_var(variables, parent)
-    area_var = actuator_geom.get_area_var(variables, parent)
-
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    radius_bar =  bar_varrho_var * b_ref
-
-    moment = qzero_var * area_var * radius_bar
-
-    return moment
-
-
-
 
 
 # references
@@ -147,18 +114,6 @@ def get_ct_ref(model_options):
 
     return ct_ref
 
-def get_t_star_ref(model_options, wind, parameters):
-
-    # t_star = geom.get_tstar_ref(parameters, wind)
-    # bar_varrho_var = geom.get_bar_varrho_var(model_options, variables, parent)
-    # dt_dtimescale = t_star * (bar_varrho_var + 0.5)
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    uzero_ref = wind.get_velocity_ref()
-    bar_varrho_ref = actuator_geom.get_varrho_ref(model_options)
-
-    ref = b_ref * (bar_varrho_ref + 0.5) / uzero_ref
-    return ref
 
 def get_thrust_ref(model_options, atmos, wind, parameters):
 
@@ -173,8 +128,6 @@ def get_thrust_ref(model_options, atmos, wind, parameters):
 
     return reference
 
-def get_cm_ref():
-    return 1.e-2
 
 def get_moment_ref(model_options, atmos, wind, parameters):
 
@@ -189,14 +142,13 @@ def get_moment_ref(model_options, atmos, wind, parameters):
     return moment
 
 
-def get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-
+def get_t_star_numerator_val(variables, parameters, parent):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     t_star_num = b_ref * (bar_varrho_var + 0.5)
     return t_star_num
 
-def get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+def get_t_star_denominator_val(variables, parent):
     uzero_mag = actuator_flow.get_uzero_vec_length_var(variables, parent)
     t_star_den = uzero_mag
     return t_star_den

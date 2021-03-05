@@ -39,6 +39,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+import pdb
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):
 
@@ -76,14 +77,6 @@ def get_n_hat(model_options, parent, variables, parameters, architecture):
     n_vec = get_n_vec(model_options, parent, variables, parameters, architecture)
     n_hat = vect_op.normalize(n_vec)
     return n_hat
-
-def get_n_vec_length_var(variables, parent):
-    len_var = variables['xl']['n_vec_length' + str(parent)]
-    return len_var
-
-def get_n_vec_length_ref(model_options):
-    return model_options['scaling']['xl']['n_vec_length']
-
 
 
 def get_least_squares_n_vec(parent, variables, parameters, architecture):
@@ -134,15 +127,15 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture):
 
     grandparent = architecture.parent_map[parent]
+    q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
 
     if grandparent == 0:
-        name = 'q' + str(parent) + str(grandparent)
-        n_vec = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', name)
+        q_grandparent = cas.DM.zeros((3,1))
     else:
         great_grandparent = architecture.parent_map[grandparent]
-        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
         q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
-        n_vec = q_parent - q_grandparent
+
+    n_vec = q_parent - q_grandparent
 
     return n_vec
 
