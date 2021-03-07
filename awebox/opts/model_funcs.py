@@ -493,6 +493,8 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
 def build_actuator_options(options, options_tree, fixed_params, architecture):
 
+    # todo: ensure that system bounds don't get enforced when actuator is only comparison against vortex model
+
     user_options = options['user_options']
 
     actuator_symmetry = options['model']['aero']['actuator']['symmetry']
@@ -538,12 +540,12 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('???', None), 'x')),
 
-
     # if the model is axisymmetric, then each kite on a given layer will have the same local_a, so, we cannot
     # bound *all* local_a, or we will violate licq
     if options['model']['aero']['actuator']['symmetry'] == 'axisymmetric':
         local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
         options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range, ('local induction factor', None), 'x')),
+
     elif options['model']['aero']['actuator']['symmetry'] == 'asymmetric':
         options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
 
@@ -791,7 +793,11 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
                              ('length of the main tether when unrolled [m]', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
-        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
+        l_t_full_to_unwound_ratio = options['solver']['initialization']['l_t_full_to_unwound_ratio']
+        l_t_initial = options['solver']['initialization']['l_t']
+        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_initial * l_t_full_to_unwound_ratio,
+                             ('length of the main tether when unrolled [m]', None), 'x'))
 
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False

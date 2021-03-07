@@ -32,9 +32,13 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 from . import collocation
 from . import performance
-import awebox.tools.struct_operations as struct_op
+
 import time
+
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
+import pdb
 
 def get_general_regularization_function(variables):
 
@@ -149,10 +153,10 @@ def get_regularization_sorting_dict():
     sorting_dict = {}
     sorting_dict['xd'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
     sorting_dict['xddot'] = {'category': 'xddot_regularisation_cost', 'exceptions': {} }
-    sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'ddl_t': None, 'f_fict': 'fictitious_cost', 'm_fict': 'fictitious_cost'} }
+    sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'f_fict': 'fictitious_cost', 'm_fict': 'fictitious_cost'} }
     sorting_dict['xa'] = {'category': 'tracking_cost', 'exceptions': {}}
     sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {}}
-    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {'n_hat_slack': 'slack_cost'} }
+    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {} }
 
     return sorting_dict
 
@@ -394,7 +398,7 @@ def find_general_problem_cost(component_costs):
     xddot_regularisation_cost = component_costs['xddot_regularisation_cost']
     theta_regularisation_cost = component_costs['theta_regularisation_cost']
 
-    general_problem_cost = u_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost + xddot_regularisation_cost
+    general_problem_cost = u_regularisation_cost + xddot_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost
 
     return general_problem_cost
 

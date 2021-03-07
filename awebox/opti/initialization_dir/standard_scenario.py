@@ -38,6 +38,7 @@ import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+import pdb
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -105,6 +106,21 @@ def guess_values_at_time(t, init_options, model):
             velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
             ret['q' + str(node) + str(parent)] = position
             ret['dq' + str(node) + str(parent)] = velocity
+
+            rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+            diam = init_options['theta']['diam_s']
+            cd_tether = init_options['sys_params_num']['tether']['cd']
+            if 'CD' in init_options['sys_params_num']['aero'].keys():
+                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
+            elif 'CX' in init_options['sys_params_num']['aero'].keys():
+                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
+            else:
+                cd_aero = 0.1
+            planform_area = init_options['sys_params_num']['geometry']['s_ref']
+            u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
+            approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
+            ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
+            ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
 
             dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
