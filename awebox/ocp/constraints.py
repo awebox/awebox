@@ -204,12 +204,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     for kdx in range(n_k):
 
         # dynamics on shooting nodes
-        cstr_list.append(cstr_op.Constraint(
-            expr = ocp_eqs_shooting_expr[:,kdx],
-            name = 'shooting_{}'.format(kdx),
-            cstr_type = 'eq'
+        for cdx in range(ocp_eqs_shooting_expr[:, kdx].shape[0]):
+            cstr_list.append(cstr_op.Constraint(
+                expr = ocp_eqs_shooting_expr[cdx,kdx],
+                name = 'shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[cdx] + '_' + str(cdx),
+                cstr_type = 'eq'
+                )
             )
-        )
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):

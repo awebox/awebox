@@ -551,7 +551,6 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'corr', [0., cas.inf], ('square root sign bounds on glauert correction [-]', None), 'x'))
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
