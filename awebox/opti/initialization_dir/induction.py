@@ -304,8 +304,11 @@ def initial_guess_actuator_xd(init_options, model, V_init):
 
     dict = {}
     dict['a'] = cas.DM(init_options['xd']['a'])
-    dict['asin'] = cas.DM(0.)
-    dict['acos'] = cas.DM(0.)
+    dict['asin_uasym'] = cas.DM(0.)
+    dict['acos_uasym'] = cas.DM(0.)
+    dict['a_uaxi'] = dict['a']
+    dict['a_uasym'] = dict['a']
+
 
     var_type = 'xd'
     for name in struct_op.subkeys(model.variables, var_type):
@@ -371,8 +374,12 @@ def initial_guess_actuator_xl(init_options, model, V_init):
 
     dict = {}
     dict['a'] = cas.DM(init_options['xl']['a'])
+    dict['a_qaxi'] = dict['a']
+    dict['a_qasym'] = dict['a']
     dict['local_a'] = dict['a']
-    dict['ui'] = cas.DM(init_options['sys_params_num']['wind']['u_ref']) * (1. - dict['a'])
+    dict['asin_qasym'] = cas.DM(0.)
+    dict['acos_qasym'] = cas.DM(0.)
+    dict['ui'] = cas.DM.zeros((3, 1)) #remember that induction homotopy has not yet begun.
     dict['varrho'] = cas.DM(init_options['induction']['varrho_ref'])
     dict['bar_varrho'] = cas.DM(init_options['induction']['varrho_ref'])
     dict['act_dcm'] = act_dcm_cols

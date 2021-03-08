@@ -198,6 +198,8 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
     ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
 
+    print_op.warn_about_temporary_funcationality_removal(location='ocp.constraints:MAYBE_constraint_individual_names?')
+
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
 
@@ -211,12 +213,14 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):
-            cstr_list.append(cstr_op.Constraint(
-                expr= ocp_ineqs_expr[:,kdx],
-                name='path_{}'.format(kdx),
-                cstr_type='ineq'
+
+            for cdx in range(ocp_ineqs_expr[:,kdx].shape[0]):
+                cstr_list.append(cstr_op.Constraint(
+                    expr = ocp_ineqs_expr[cdx,kdx],
+                    name = 'path_' + str(kdx) + '_' + model_constraints_list.get_name_list('ineq')[cdx],
+                    cstr_type = 'ineq'
+                    )
                 )
-            )
 
         # collocation constraints
         for jdx in range(d):

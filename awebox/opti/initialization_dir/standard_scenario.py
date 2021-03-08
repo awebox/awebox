@@ -122,7 +122,7 @@ def guess_values_at_time(t, init_options, model):
             ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
             ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
 
-            dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
+            dcm = tools.get_kite_dcm(init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)

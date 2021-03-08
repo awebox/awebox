@@ -324,7 +324,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
-        ('solver',  'initialization', None, 'l_t_full_to_unwound_ratio', 1.,    ('initial guess ratio used to set full (main) tether length [-]', None), 'x'),
+        ('solver',  'initialization', None, 'l_t_full_to_unwound_ratio', 1.2,   ('initial guess ratio used to set full (main) tether length [-]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),

@@ -104,6 +104,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     if not problem_is_healthy:
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+        identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp)
 
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
@@ -313,6 +314,36 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
 
 
 ######## spy
+
+
+def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
+
+    smallest_norm = 1.e10
+    smallest_idx = -1
+
+    for idx in range(kkt_matrix.shape[1]):
+        local_norm = vect_op.norm(kkt_matrix[:, idx])
+
+        if local_norm < smallest_norm:
+            smallest_idx = idx
+            smallest_norm = float(local_norm)
+
+    message = '... KKT column (' + str(smallest_idx) + ') with the smallest norm (' + str(smallest_norm) + ') is associated with:'
+    awelogger.logger.info(message)
+
+    number_variables = nlp.V.cat.shape[0]
+    if smallest_idx < number_variables:
+        relevant_variable_index = smallest_idx
+        relevant_variable = nlp.V.getCanonicalIndex(relevant_variable_index)
+        message = '{:>10}: {:>15} '.format('column', 'variable') + str(relevant_variable)
+    else:
+        relevant_multiplier_index = smallest_idx - number_variables
+        relevant_multiplier = cstr_labels[relevant_multiplier_index]
+        message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
+    awelogger.logger.info(message)
+
+    return None
+
 
 def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
     matrA = np.absolute(np.array(kkt_matrix))

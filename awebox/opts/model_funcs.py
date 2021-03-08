@@ -534,6 +534,7 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     a_labels_dict = {'qaxi': 'xl', 'qasym': 'xl', 'uaxi': 'xd', 'uasym' : 'xd'}
     for label in a_labels_dict.keys():
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'a_' + label, a_ref, ('descript', None), 'x'))
+        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a_' + label, a_ref, ('induction factor [-]', None), 'x'))
         options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a', a_ref, ('induction factor [-]', None), 'x'))
 
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'acos_' + label, a_ref, ('descript', None), 'x'))
@@ -795,9 +796,19 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
 
         l_t_full_to_unwound_ratio = options['solver']['initialization']['l_t_full_to_unwound_ratio']
+        wound_tether_safety_factor = options['model']['tether']['wound_tether_safety_factor']
         l_t_initial = options['solver']['initialization']['l_t']
+
+        if l_t_full_to_unwound_ratio < wound_tether_safety_factor:
+            message = 'the initialization ratio of full tether length to unwound tether length is likely to ' \
+                      'lead to constraint violation, given the wound tether safety factor. increasing the ' \
+                      'initialization ratio to match the safety factor.'
+            awelogger.logger.warning(message)
+            l_t_full_to_unwound_ratio = wound_tether_safety_factor
+
         options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_initial * l_t_full_to_unwound_ratio,
                              ('length of the main tether when unrolled [m]', None), 'x'))
+
 
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
