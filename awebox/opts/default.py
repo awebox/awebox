@@ -109,6 +109,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', 'actuator',   'a_ref',        0.33,               ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
         ('model', 'aero', 'actuator',   'a_range',      [0., 0.5],          ('allowed range for induction factors', None),'x'),
+        ('model', 'aero', 'actuator',   'a_fourier_range', [-0.1, 0.1],     ('allowed range for a_cos and a_sin, coefficients in the 1st order fourier summation', None), 'x'),
         ('model', 'aero', 'actuator',   'scaling',      1.,                 ('scaling factor for the actuator-disk residual', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_ref',   6.,                 ('approximation of the relative orbit radius, for normalization of the actuator disk equations', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_range', [0., cas.inf],      ('allowed range for the relative orbit radius, for normalization of the actuator disk equations', None), 'x'),
@@ -118,9 +119,9 @@ def set_default_options(default_user_options, help_options):
 	    ('model', 'aero', 'actuator', 	'symmetry_comparison', 	 [],        ('which symmetry models should we include for comparison', ['axi', 'asym']), 'x'),
         ('model', 'aero', 'actuator',   'actuator_skew',        'simple',   ('which actuator-skew angle correction to apply', ['not_in_use', 'glauert', 'coleman', 'simple']), 'x'),
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
+        ('model', 'aero', 'actuator',   'asym_radial_linearity', False,     ('if true, computes the Fourier coefficients to vary linearly with flight radius; if false, fourier coefficients are explicitly a_cos and a_sin', [True, False]), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
         ('model', 'aero', 'actuator',   'normal_vector_model',  'tether_parallel',  ('selection of estimation method for normal vector', ['least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
-        ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
 
         ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
         ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite per wingtip', None), 'x'),
@@ -274,13 +275,14 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'x'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
-        ('nlp',  'collocation',      None, 'u_param',              'zoh',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'u_param',              'zoh',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
-        ('nlp',  None,               None, 'constraint_scale',     1.,                      ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
+        ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
 
 
         ### Multiple shooting integrator options
@@ -293,6 +295,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'integrator',       None, 'num_steps_overwrite',  None,                   ('number of steps within integrator', None),'t'),
         ('nlp',  'integrator',       None, 'collocation_scheme',   'radau',                ('scheme of collocation integrator', None),'t'),
         ('nlp',  'integrator',       None, 'interpolation_order',  3,                      ('order of interpolating polynomial', None),'t'),
+
 
         ### solver options
         # todo: embed other solvers

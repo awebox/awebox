@@ -198,39 +198,62 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
     ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
 
-    print_op.warn_about_temporary_funcationality_removal(location='ocp.constraints:MAYBE_constraint_individual_names?')
-
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
 
         # dynamics on shooting nodes
-        for cdx in range(ocp_eqs_shooting_expr[:, kdx].shape[0]):
+        if nlp_options['collocation']['name_constraints']:
+            for cdx in range(ocp_eqs_shooting_expr[:, kdx].shape[0]):
+                cstr_list.append(cstr_op.Constraint(
+                    expr = ocp_eqs_shooting_expr[cdx,kdx],
+                    name = 'shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[cdx] + '_' + str(cdx),
+                    cstr_type = 'eq'
+                    )
+                )
+        else:
             cstr_list.append(cstr_op.Constraint(
-                expr = ocp_eqs_shooting_expr[cdx,kdx],
-                name = 'shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[cdx] + '_' + str(cdx),
-                cstr_type = 'eq'
+                expr=ocp_eqs_shooting_expr[:, kdx],
+                name='shooting_{}'.format(kdx),
+                cstr_type='eq'
                 )
             )
 
         # path constraints on shooting nodes
         if (ocp_ineqs_expr.shape != (0, 0)):
-
-            for cdx in range(ocp_ineqs_expr[:,kdx].shape[0]):
+            if nlp_options['collocation']['name_constraints']:
+                for cdx in range(ocp_ineqs_expr[:,kdx].shape[0]):
+                    cstr_list.append(cstr_op.Constraint(
+                        expr = ocp_ineqs_expr[cdx,kdx],
+                        name = 'path_' + str(kdx) + '_' + model_constraints_list.get_name_list('ineq')[cdx] + '_' + str(cdx),
+                        cstr_type = 'ineq'
+                        )
+                    )
+            else:
                 cstr_list.append(cstr_op.Constraint(
-                    expr = ocp_ineqs_expr[cdx,kdx],
-                    name = 'path_' + str(kdx) + '_' + model_constraints_list.get_name_list('ineq')[cdx],
-                    cstr_type = 'ineq'
+                    expr=ocp_ineqs_expr[:, kdx],
+                    name='path_{}'.format(kdx),
+                    cstr_type='ineq'
                     )
                 )
 
         # collocation constraints
         for jdx in range(d):
-            cstr_list.append(cstr_op.Constraint(
-                expr = ocp_eqs_expr[:,kdx*d+jdx],
-                name = 'collocation_{}_{}'.format(kdx,jdx),
-                cstr_type = 'eq'
+            ldx = kdx * d + jdx
+            if nlp_options['collocation']['name_constraints']:
+                for cdx in range(ocp_eqs_expr[:, ldx].shape[0]):
+                    cstr_list.append(cstr_op.Constraint(
+                        expr = ocp_eqs_expr[cdx, ldx],
+                        name = 'collocation_' + str(kdx) + '_' + str(jdx) + '_' + model_constraints_list.get_name_list('eq')[cdx] + '_' + str(cdx),
+                        cstr_type = 'eq'
+                        )
+                    )
+            else:
+                cstr_list.append(cstr_op.Constraint(
+                    expr=ocp_eqs_expr[:, ldx],
+                    name='collocation_{}_{}'.format(kdx, jdx),
+                    cstr_type='eq'
+                    )
                 )
-            )
 
         # continuity constraints
         cstr_list.append(Collocation.get_continuity_constraint(V, kdx))

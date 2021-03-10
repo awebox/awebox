@@ -453,8 +453,6 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
     u_vec_length_ref = get_u_ref(user_options)
     options_tree.append(('model', 'scaling', 'xl', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
-    options_tree.append(
-        ('solver', 'initialization', 'induction', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
 
     normal_vector_model = options['model']['aero']['actuator']['normal_vector_model']
     number_of_kites = architecture.number_of_kites
@@ -525,6 +523,7 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
+    a_fourier_range = options['model']['aero']['actuator']['a_fourier_range']
     if  (a_ref < a_range[0]) or (a_ref > a_range[1]):
         a_ref_new = a_range[1] / 2.
         message = 'reference induction factor (' + str(a_ref) + ') is outside of the allowed range of ' + str(a_range) + '. proceeding with reference value of ' + str(a_ref_new)
@@ -541,14 +540,13 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('???', None), 'x')),
 
-    # if the model is axisymmetric, then each kite on a given layer will have the same local_a, so, we cannot
-    # bound *all* local_a, or we will violate licq
-    if options['model']['aero']['actuator']['symmetry'] == 'axisymmetric':
-        local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
-        options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range, ('local induction factor', None), 'x')),
-
-    elif options['model']['aero']['actuator']['symmetry'] == 'asymmetric':
-        options_tree.append(('model', 'system_bounds', 'xl', 'local_a', a_range, ('local induction factor', None), 'x')),
+    local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range,
+                         ('local induction factor', None), 'x')),
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'acos_' + local_label, a_fourier_range,
+                         ('??', None), 'x')),
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'asin_' + local_label, a_fourier_range,
+                         ('??', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
 

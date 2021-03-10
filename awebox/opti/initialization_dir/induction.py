@@ -372,6 +372,8 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     act_dcm = cas.horzcat(n_rot_hat, y_rot_hat, z_rot_hat)
     act_dcm_cols = cas.reshape(act_dcm, (9, 1))
 
+    b_ref = init_options['sys_params_num']['geometry']['b_ref']
+
     dict = {}
     dict['a'] = cas.DM(init_options['xl']['a'])
     dict['a_qaxi'] = dict['a']
@@ -380,13 +382,13 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['asin_qasym'] = cas.DM(0.)
     dict['acos_qasym'] = cas.DM(0.)
     dict['ui'] = cas.DM.zeros((3, 1)) #remember that induction homotopy has not yet begun.
-    dict['varrho'] = cas.DM(init_options['induction']['varrho_ref'])
-    dict['bar_varrho'] = cas.DM(init_options['induction']['varrho_ref'])
+    dict['varrho'] = cas.DM(init_options['precompute']['radius'] / b_ref)
+    dict['bar_varrho'] = dict['varrho']
     dict['act_dcm'] = act_dcm_cols
     dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
     dict['wind_dcm'] = wind_dcm_cols
     dict['z_vec_length'] = cas.DM(init_options['induction']['z_vec_length'])
-    dict['u_vec_length'] = cas.DM(init_options['induction']['u_vec_length'])
+    dict['u_vec_length'] = vect_op.norm(tools_init.get_wind_speed(init_options, V_init['xd', 0, 'q10'][2]))
     dict['gamma'] = get_gamma_angle(init_options)
     dict['g_vec_length'] = cas.DM(init_options['induction']['g_vec_length'])
     dict['cosgamma'] = np.cos(dict['gamma'])

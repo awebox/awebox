@@ -176,7 +176,8 @@ def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables
     t_star_den_ref = actuator_coeff.get_t_star_denominator_ref(wind)
     moment_ref = actuator_coeff.get_moment_ref(model_options, atmos, wind, parameters)
 
-    resi = resi_unscaled / t_star_den_ref / moment_ref
+    other_scaling = 0.1
+    resi = resi_unscaled / t_star_den_ref / moment_ref * other_scaling
 
     return resi
 
@@ -191,8 +192,9 @@ def get_steady_asym_pitt_peters_residual(model_options, atmos, wind, variables, 
     resi_unscaled = a_all * moment_denom - cas.mtimes(LL_matr, c_all)
 
     moment_ref = actuator_coeff.get_moment_ref(model_options, atmos, wind, parameters)
+    other_scaling = 0.1
 
-    resi = resi_unscaled / moment_ref
+    resi = resi_unscaled / moment_ref * other_scaling
 
     return resi
 

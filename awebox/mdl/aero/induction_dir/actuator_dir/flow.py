@@ -44,6 +44,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 
+import pdb
+
 ## variables
 
 def get_a_var_type(label):
@@ -306,18 +308,29 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
     if 'asym' in label:
         cospsi = actuator_geom.get_cospsi_var(variables, kite, parent)
         sinpsi = actuator_geom.get_sinpsi_var(variables, kite, parent)
-        mu = actuator_geom.get_mu_radial_ratio(variables, kite, parent)
-        # mu = 1.
-        # see Suzuki 2000 for motivation for evaluating at the edges of the "annulus"
+
+        if model_options['aero']['actuator']['asym_radial_linearity']:
+            mu = actuator_geom.get_mu_radial_ratio(variables, kite, parent)
+            # version given in original Kinner / Pitt&Peters / Burton et al.
+        else:
+            mu = 1.
+            # see Suzuki2000 (phd thesis)
+            # Application of Dynamic Inflow Theory to Wind Turbine Rotors
+            # for motivation for evaluating at the edges of the "annulus"
+            # also: seems to lead to less optimizer-trickery.
 
         a_uni = get_a_var(variables, parent, label)
         acos = get_acos_var(variables, parent, label)
         asin = get_asin_var(variables, parent, label)
         a_local = a_uni + acos * cospsi * mu + asin * sinpsi * mu
+
     elif 'axi' in label:
         a_local = get_a_var(variables, parent, label)
+
     else:
-        awelogger.logger.error('induction code not yet implemented.')
+        message = 'an unfamiliar actuator model label was entered when computing the local induction factor'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return a_local
 
