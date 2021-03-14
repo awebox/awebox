@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019
+- author: rachel leuthold, alu-fr 2019-21
 '''
 
 import casadi.tools as cas
@@ -33,50 +33,35 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
-def get_residual(options, wind, variables_si, outputs, architecture):
+
+from awebox.logger.logger import Logger as awelogger
+
+def get_vortex_cstr(options, wind, variables_si, architecture):
 
     vortex_representation = options['aero']['vortex']['representation']
-
-    resi = []
+    cstr_list = cstr_op.ConstraintList()
 
     if vortex_representation == 'state':
-        state_conv_resi = convection.get_state_repr_convection_residual(options, wind, variables_si, architecture)
-        resi = cas.vertcat(resi, state_conv_resi)
+        state_conv_cstr = convection.get_state_repr_convection_cstr(options, wind, variables_si, architecture)
+        cstr_list.append(state_conv_cstr)
 
-    # induced velocity residuals
-    columnized_list = outputs['vortex']['filament_list']
-    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
-    filaments = filament_list.shape[1]
-    u_ref = wind.get_velocity_ref()
+    superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, architecture)
+    cstr_list.append(superposition_cstr)
 
-    for kite_obs in architecture.kite_nodes:
-        u_ind_kite = cas.DM.zeros((3, 1))
-        for fdx in range(filaments):
-            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
-            u_ind_kite += local_var
+    return cstr_list
 
-        # superposition of filament induced velocities at kite
-        ind_name = 'wu_ind_' + str(kite_obs)
-        local_var = variables_si['xl'][ind_name]
-        local_resi = (local_var - u_ind_kite) / u_ref
-        resi = cas.vertcat(resi, local_resi)
+def get_induction_trivial_residual(options, wind, variables_si, architecture):
 
-    return resi
-
-def get_induction_trivial_residual(options, wind, variables_si, outputs, architecture):
     resi = []
 
-    # induced velocity residuals
-    columnized_list = outputs['vortex']['filament_list']
-    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
-    filaments = filament_list.shape[1]
+    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     u_ref = wind.get_velocity_ref()
 
     for kite_obs in architecture.kite_nodes:
@@ -93,12 +78,20 @@ def get_induction_trivial_residual(options, wind, variables_si, outputs, archite
 
 
 def get_induction_final_residual(options, wind, variables_si, outputs, architecture):
+
     resi = []
+
 
     # induced velocity residuals
     columnized_list = outputs['vortex']['filament_list']
     filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
     filaments = filament_list.shape[1]
+
+    if filaments is not vortex_filament_list.expected_number_of_filaments(options, architecture):
+        message = 'unexpected number of filaments'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
     u_ref = wind.get_velocity_ref()
 
     for kite_obs in architecture.kite_nodes:
@@ -112,7 +105,9 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
             local_var = variables_si['xl'][ind_name]
 
-            local_resi = (local_var - u_ind_fil) / u_ref
+            scaler = 10.
+
+            local_resi = (local_var - u_ind_fil) / u_ref / scaler
             resi = cas.vertcat(resi, local_resi)
 
     return resi

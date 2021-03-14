@@ -25,32 +25,39 @@
 '''
 geometry functions for vortex model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019-2020
+- author: rachel leuthold, alu-fr 2019-2021
 '''
 
 import casadi as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.tools.print_operations as print_op
+import awebox.tools.constraint_operations as cstr_op
 
-def get_state_repr_convection_residual(options, wind, variables_si, architecture):
+def get_state_repr_convection_cstr(options, wind, variables_si, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
 
     kite_nodes = architecture.kite_nodes
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
 
-    resi = []
     for kite in kite_nodes:
         for tip in wingtips:
             for wake_node in range(wake_nodes):
 
-                wx_local = tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
-                dwx_local = tools.get_wake_node_velocity_si(variables_si, kite, tip, wake_node)
+                var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
-                altitude = cas.mtimes(wx_local.T, vect_op.zhat())
-                u_infty = wind.get_velocity(altitude)
+                wx_local = variables_si['xd'][var_name]
+                u_infty = wind.get_velocity(wx_local[2])
+
+                dwx_local = variables_si['xddot']['d' + var_name]
 
                 resi_local = (dwx_local - u_infty) / wind.get_velocity_ref()
-                resi = cas.vertcat(resi, resi_local)
 
-    return resi
+                local_cstr = cstr_op.Constraint(expr = resi_local,
+                                                name = 'convection_' + var_name,
+                                                cstr_type = 'eq')
+                cstr_list.append(local_cstr)
+
+    return cstr_list

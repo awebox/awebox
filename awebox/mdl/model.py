@@ -127,6 +127,7 @@ class Model(object):
 
         return None
 
+
     def get_dae(self):
         """Generate DAE object for casadi integrators, rootfinder,...
         """

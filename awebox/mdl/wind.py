@@ -43,6 +43,8 @@ class Wind:
             self.find_u_polynomial_from_datafile()
             # self.find_p_polynomial_from_datafile(params) # pressure is set as constant for now
 
+        self.__type_incompatibility_warning_already_given = False
+
     def get_velocity(self, zz):
         params = self.__params.prefix['theta0','wind']
         options = self.__options
@@ -62,9 +64,11 @@ class Wind:
             z0_air = options['log_wind']['z0_air']
             exp_ref = options['power_wind']['exp_ref']
 
-            message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
-                      'directly from options. this may interfere with expected operation, especially in sweeps.'
-            awelogger.logger.warning(message)
+            if not self.__type_incompatibility_warning_already_given:
+                message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
+                          'directly from options. this may interfere with expected operation, especially in sweeps.'
+                awelogger.logger.warning(message)
+                self.__type_incompatibility_warning_already_given = True
 
         if model in ['log_wind', 'power', 'uniform']:
             u_val = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)

@@ -51,22 +51,42 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
     if options_are_not_empty:
         number_of_opts = len(interesting_outputs)
 
+        if number_of_opts == 1:
+            plot_table_r = 1
+            plot_table_c = 1
+        elif np.mod(number_of_opts, 3) == 0:
+            plot_table_r = 3
+            plot_table_c = int(number_of_opts / plot_table_r)
+        elif np.mod(number_of_opts, 4) == 0:
+            plot_table_r = 4
+            plot_table_c = int(number_of_opts / plot_table_r)
+        elif np.mod(number_of_opts, 5) == 0:
+            plot_table_r = 5
+            plot_table_c = int(number_of_opts / plot_table_r)
+        else:
+            plot_table_r = 3
+            plot_table_c = int(np.ceil(np.float(number_of_opts) / np.float(plot_table_r)))
+
         # create new figure if desired
         if fig_num is not None:
             fig = plt.figure(num=fig_num)
             axes = fig.axes
             if len(axes) == 0:  # if figure does not exist yet
-                fig, axes = plt.subplots(num=fig_num, nrows=number_of_opts, ncols=1)
+                fig, axes = plt.subplots(num=fig_num, nrows=plot_table_r, ncols=plot_table_c)
 
         else:
-            fig, axes = plt.subplots(nrows=number_of_opts, ncols=1)
+            fig, axes = plt.subplots(nrows=plot_table_r, ncols=plot_table_c)
 
-        if number_of_opts == 1:
-            axes.set_xlabel('t [s]')
-        else:
-            axes[-1].set_xlabel('t [s]')
+        # make vertical column array or list of all axes
+        if type(axes) == np.ndarray:
+            axes = axes.reshape(plot_table_r * plot_table_c, )
+        elif type(axes) is not list:
+            axes = [axes]
 
         kite_nodes = architecture.kite_nodes
+
+        for odx in range(number_of_opts):
+            axes[odx].set_xlabel('t [s]')
 
         for odx in range(len(interesting_outputs)):
 
@@ -80,10 +100,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                 data = np.array(outputs[opt[0]][base_name][0])
                 local_color = cosmetics['trajectory']['colors'][0]
 
-                if number_of_opts == 1:
-                    axes.plot(tgrid_ip, data, color=local_color)
-                else:
-                    axes[odx].plot(tgrid_ip, data, color=local_color)
+                axes[odx].plot(tgrid_ip, data, color=local_color)
 
             else:
                 for kite in kite_nodes:
@@ -105,23 +122,13 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
             if 't_switch' in plot_dict['time_grids'].keys():
                 t_switch = float(plot_dict['time_grids']['t_switch'])
 
-                if number_of_opts == 1:
-                    axes.axvline(x=t_switch, color='gray', linestyle='--')
-                else:
-                    axes[odx].axvline(x=t_switch, color='gray', linestyle='--')
+                axes[odx].axvline(x=t_switch, color='gray', linestyle='--')
 
-            if number_of_opts == 1:
-                axes.set_ylabel(opt[1])
-            else:
-                axes[odx].set_ylabel(opt[1])
+            axes[odx].set_ylabel(opt[1])
 
-        if number_of_opts == 1:
-            axes.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-            axes.yaxis.set_major_locator(MaxNLocator(3))
-        else:
-            for adx in range(number_of_opts):
-                axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-                axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+        for adx in range(number_of_opts):
+            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
 
         plt.suptitle(fig_name)
         fig.canvas.draw()
