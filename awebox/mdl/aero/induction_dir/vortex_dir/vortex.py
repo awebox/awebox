@@ -81,14 +81,16 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
 
     resi = []
 
-
     # induced velocity residuals
     columnized_list = outputs['vortex']['filament_list']
     filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
-    filaments = filament_list.shape[1]
+    number_of_filaments = filament_list.shape[1]
 
-    if filaments is not vortex_filament_list.expected_number_of_filaments(options, architecture):
-        message = 'unexpected number of filaments'
+    expected_number_of_filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
+    if number_of_filaments is not expected_number_of_filaments:
+        message = 'construction of vortex induction residual finds a number of filaments (' + \
+                  str(number_of_filaments) + ') that is not the same as the expected ' \
+                  'number of filaments (' + str(expected_number_of_filaments) + ')'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -96,7 +98,7 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
 
     for kite_obs in architecture.kite_nodes:
 
-        for fdx in range(filaments):
+        for fdx in range(number_of_filaments):
             # biot-savart of filament induction
             filament = filament_list[:, fdx]
 
