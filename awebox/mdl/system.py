@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 module that describes the awe system under consideration, geometry, etc.
 python-3.5 / casadi 3.0.0
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, alu-fr 2017-2020
+- edited: rachel leuthold, alu-fr 2017-2021
           jochem de schutter, alu-fr 2017
 
 '''
@@ -37,7 +37,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def generate_structure(options, architecture):
 

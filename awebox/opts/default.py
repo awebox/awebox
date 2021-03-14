@@ -109,7 +109,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', 'actuator',   'a_ref',        0.33,               ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
         ('model', 'aero', 'actuator',   'a_range',      [0., 0.5],          ('allowed range for induction factors', None),'x'),
-        ('model', 'aero', 'actuator',   'a_fourier_range', [-0.1, 0.1],     ('allowed range for a_cos and a_sin, coefficients in the 1st order fourier summation', None), 'x'),
+        ('model', 'aero', 'actuator',   'a_fourier_range', [-0.01, 0.01],   ('allowed range for a_cos and a_sin, coefficients in the 1st order fourier summation', None), 'x'),
         ('model', 'aero', 'actuator',   'scaling',      1.,                 ('scaling factor for the actuator-disk residual', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_ref',   6.,                 ('approximation of the relative orbit radius, for normalization of the actuator disk equations', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_range', [0., cas.inf],      ('allowed range for the relative orbit radius, for normalization of the actuator disk equations', None), 'x'),

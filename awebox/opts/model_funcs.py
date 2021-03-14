@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -44,7 +44,6 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 import awebox.mdl.wind as wind
 
-import pdb
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -556,8 +555,6 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'scaling', 'xl', 'gamma', gamma_ref, ('tilt angle bounds [rad]', None), 'x')),
     options_tree.append(('model', 'scaling', 'xl', 'cosgamma', 1., ('tilt angle bounds [rad]', None), 'x')),
     options_tree.append(('model', 'scaling', 'xl', 'singamma', 1., ('tilt angle bounds [rad]', None), 'x')),
-
-    options_tree.append(('model', 'system_bounds', 'xl', 'LLinv', [-100., 100.], ('relative radius bounds [-]', None), 'x'))
 
     return options_tree, fixed_params
 

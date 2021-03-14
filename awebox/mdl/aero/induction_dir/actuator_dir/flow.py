@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 """
 
@@ -43,8 +43,6 @@ import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
-
-import pdb
 
 ## variables
 

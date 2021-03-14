@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 file to provide debugging operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
-- edit, rachel leuthold 2020
+- edit, rachel leuthold 2018-21
 '''
 
 import casadi.tools as cas
@@ -40,7 +40,6 @@ import awebox.tools.print_operations as print_op
 
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 

@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -43,7 +43,6 @@ import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 import numpy as np
 import awebox.mdl.mdl_constraint as mdl_constraint
-import pdb
 
 def get_forces_and_moments(options, atmos, wind, variables_si, outputs, parameters, architecture):
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)

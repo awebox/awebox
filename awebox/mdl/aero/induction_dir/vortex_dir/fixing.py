@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 constraints to create "intermediate condition" fixing constraints on the positions of the wake nodes,
 to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020
+- author: rachel leuthold, alu-fr 2020-21
 '''
 
 import numpy as np
@@ -37,8 +37,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import awebox.ocp.var_struct as var_struct
-
-import pdb
 
 import awebox.tools.constraint_operations as cstr_op
 

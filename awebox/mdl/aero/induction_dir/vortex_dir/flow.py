@@ -25,7 +25,7 @@
 """
 flow functions for the vortex based model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020
+- author: rachel leuthold, alu-fr 2020-21
 """
 
 from awebox.logger.logger import Logger as awelogger

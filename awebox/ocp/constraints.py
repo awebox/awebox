@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ constraints code of the awebox
 takes model inequalities, generates constraint structures, and defines the nlp constraints
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2019
+- edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2021
 '''
 
 import casadi.tools as cas
@@ -45,7 +45,6 @@ import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
-import pdb
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 

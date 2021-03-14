@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -31,7 +31,7 @@ constraints are divided as initial, terminal and periodic constraints, that are 
 -- function inputs for periodic constraints are (initial variables, final variables)
 
 python-3.5 / casadi-3.4.5
-- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-20
+- authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-21
 '''
 
 import casadi.tools as cas
@@ -50,7 +50,6 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
-import pdb
 
 
 def get_operation_conditions(options):

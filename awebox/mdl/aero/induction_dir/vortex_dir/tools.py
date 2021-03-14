@@ -25,7 +25,7 @@
 '''
 various structural tools for the vortex model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019-2020
+- author: rachel leuthold, alu-fr 2019-2021
 '''
 
 import casadi.tools as cas

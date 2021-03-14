@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ objective code of the awebox
 constructs an objective function from the various fictitious costs.
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: rachel leuthold, jochem de schutter alu-fr 2018-2020
+- edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
 import casadi.tools as cas
 from . import collocation
@@ -38,7 +38,6 @@ import time
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
-import pdb
 
 def get_general_regularization_function(variables):
 

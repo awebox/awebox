@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 """
 induction and local flow manager
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020
+- author: rachel leuthold, alu-fr 2020-21
 """
 
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
@@ -39,7 +39,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
-import pdb
 
 ### residuals
 

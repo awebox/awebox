@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-19
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -142,10 +142,22 @@ def get_moment_ref(model_options, atmos, wind, parameters):
     return moment
 
 
+def get_t_star(variables, parameters, parent):
+    # radius / u_0 = [m] / [m/s]
+    t_star_num = get_t_star_numerator_val(variables, parameters, parent)
+    t_star_den = get_t_star_denominator_val(variables, parent)
+    return t_star_num / t_star_den
+
 def get_t_star_numerator_val(variables, parameters, parent):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     t_star_num = b_ref * (bar_varrho_var + 0.5)
+    return t_star_num
+
+def get_t_star_numerator_ref(model_options, parameters):
+    varrho_ref = actuator_geom.get_varrho_ref(model_options)
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    t_star_num = b_ref * (varrho_ref + 0.5)
     return t_star_num
 
 def get_t_star_denominator_val(variables, parent):

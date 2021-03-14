@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,13 +26,13 @@
 file to provide printing operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
+- edited: rachel leuthold, alu-fr 2018-2021
 '''
 
 from awebox.logger.logger import Logger as awelogger
 import os
 import casadi.tools as cas
 
-import pdb
 
 def print_single_timing(timing):
 

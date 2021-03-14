@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,14 +25,13 @@
 '''
 initialization of induction variables
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
 
 
 
 import numpy as np
 import casadi.tools as cas
-import pdb
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
@@ -197,7 +196,6 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
     n_k = nlp.n_k
     d = nlp.d
     wingtips = ['ext', 'int']
-    U_ref = guess_vortex_node_velocity(init_options)
 
     kite_nodes = model.architecture.kite_nodes
     wake_nodes = init_options['model']['vortex_wake_nodes']
@@ -220,7 +218,8 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
 
 
 def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation, model, V_init):
-    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
+    vec_u_infty = tools_init.get_wind_speed(init_options, V_init['xd', 0, 'q10'][2]) * vect_op.xhat_np()
+
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
     n_k = nlp.n_k
     d = nlp.d
@@ -259,32 +258,27 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
                 for ndx in range(n_k + 1):
                     t_local_xd = tgrid_xd[ndx]
                     q_convected_xd = guess_vortex_node_position(t_shed, t_local_xd, q_kite, init_options, model,
-                                                                kite, b_ref, sign, U_ref)
+                                                                kite, b_ref, sign, vec_u_infty)
                     dict_xd[kite][tip][wake_node][ndx] = q_convected_xd
 
                 for ndx in range(n_k):
                     for ddx in range(d):
                         t_local_coll = tgrid_coll[ndx, ddx]
                         q_convected_coll = guess_vortex_node_position(t_shed, t_local_coll, q_kite, init_options,
-                                                                      model, kite, b_ref, sign, U_ref)
+                                                                      model, kite, b_ref, sign, vec_u_infty)
                         dict_coll[kite][tip][wake_node][ndx][ddx] = q_convected_coll
 
     return dict_xd, dict_coll
 
 
-def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kite, b_ref, sign, U_ref):
+def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kite, b_ref, sign, vec_u_infty):
     ehat_radial = tools_init.get_ehat_radial(t_shed, init_options, model, kite)
     q_tip = q_kite + b_ref * sign * ehat_radial / 2.
 
     time_convected = t_local - t_shed
-    q_convected = q_tip + U_ref * time_convected
+    q_convected = q_tip + vec_u_infty * time_convected
 
     return q_convected
-
-def guess_vortex_node_velocity(init_options):
-    U_ref = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np()
-
-    return U_ref
 
 def guess_wake_gamma_val(init_options):
     gamma = cas.DM(0.) #init_options['induction']['vortex_gamma_scale']

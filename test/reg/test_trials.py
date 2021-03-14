@@ -3,7 +3,7 @@
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 
-- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020
+- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020-21
 """
 
 import collections
@@ -110,13 +110,13 @@ def test_actuator_uasym():
 
     return None
 
-# def test_actuator_comparison():
-#
-#     options_dict = generate_options_dict()
-#     trial_name = 'actuator_comparison_trial'
-#     solve_and_check(options_dict[trial_name], trial_name)
-#
-#     return None
+def test_actuator_comparison():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_comparison_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+
+    return None
 
 def test_dual_kite_tracking():
 
@@ -197,14 +197,17 @@ def generate_options_dict():
     actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
     actuator_qaxi_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
     actuator_qaxi_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
+    actuator_qaxi_options['model']['aero']['overwrite']['beta_max_deg'] = 20.
+    actuator_qaxi_options['model']['aero']['overwrite']['beta_min_deg'] = -20.
+    actuator_qaxi_options['solver']['cost']['fictitious'][0] = 1.e3
     actuator_qaxi_options['nlp']['n_k'] = 15
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
-    actuator_uaxi_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
+    actuator_qasym_options['solver']['cost']['psi'][1] = 1.e1
 
     actuator_uasym_options = copy.deepcopy(actuator_uaxi_options)
     actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
@@ -268,7 +271,7 @@ def generate_options_dict():
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
     options_dict['actuator_qasym_trial'] = actuator_qasym_options
     options_dict['actuator_uasym_trial'] = actuator_uasym_options
-    # options_dict['actuator_comparison_trial'] = actuator_comparison_options
+    options_dict['actuator_comparison_trial'] = actuator_comparison_options
     options_dict['vortex_trial'] = vortex_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
@@ -315,5 +318,3 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
-
-test_actuator_uaxi()
