@@ -139,9 +139,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     acceleration_cstr = acceleration_inequality(options, system_variables['SI'])
     cstr_list.append(acceleration_cstr)
 
-    angular_velocity_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(angular_velocity_cstr)
-
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
 
@@ -647,39 +644,6 @@ def aero_validity_inequality(options, outputs):
             cstr_list.append(valid_cstr)
 
     return cstr_list
-
-def angular_velocity_inequality(options, variables, parameters, architecture):
-
-    cstr_list = mdl_constraint.MdlConstraintList()
-
-    if options['model_bounds']['angular_velocity']['include']:
-
-        kite_nodes = architecture.kite_nodes
-        parent_map = architecture.parent_map
-
-        omega_norm_max_deg = parameters['theta0', 'model_bounds', 'angular_velocity_max']
-        omega_norm_max = omega_norm_max_deg * np.pi / 180.
-
-        kite_has_6dof = (int(options['kite_dof']) == 6)
-        if kite_has_6dof:
-
-            for kite in kite_nodes:
-                parent = parent_map[kite]
-                omega = variables['xd']['omega' + str(kite) + str(parent)]
-
-                # |omega| <= omega_norm_max
-                # omega^\top omega <= omega_norm_max^2
-                # omega^\top omega - omega_norm_max^2 <= 0
-                # (omega^\top omega)/omega_norm_max^2 - 1 <= 0
-
-                ineq = cas.mtimes(omega.T, omega) / omega_norm_max ** 2. - 1.
-                omega_cstr = cstr_op.Constraint(expr=ineq,
-                                              name='angular_velocity' + str(kite) + str(parent),
-                                              cstr_type='ineq')
-                cstr_list.append(omega_cstr)
-
-    return cstr_list
-
 
 def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
 

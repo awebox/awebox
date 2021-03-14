@@ -37,6 +37,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 import awebox.tools.callback as callback
 
+from numpy import linspace
+
 import matplotlib.pyplot as plt
 
 import copy
@@ -51,6 +53,7 @@ class Optimization(object):
         self.__V_opt = None
         self.__timings = {}
         self.__iterations = {}
+        self.__t_wall = {}
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
@@ -72,11 +75,12 @@ class Optimization(object):
         elif nlp.status == 'I am an NLP.':
 
             timer = time.time()
+
             # prepare callback
-            awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
+            self.__awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
 
             # generate solvers
-            self.generate_solvers(model, nlp, formulation, options, awe_callback)
+            self.generate_solvers(model, nlp, formulation, options, self.__awe_callback)
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
@@ -158,7 +162,8 @@ class Optimization(object):
     def reset_timings_and_counters(self):
 
         self.__timings['optimization'] = 0.
-        self.__iterations['optimization'] = 0
+        self.__iterations['optimization'] = 0.
+        self.__t_wall['optimization'] = 0.
         self.__return_status_numeric['optimization'] = 17
 
         for step in self.__timings.keys():
@@ -168,10 +173,13 @@ class Optimization(object):
         for step in self.__iterations.keys():
             if not (step == 'setup'):
                 self.__iterations[step] = 0.
+                self.__t_wall[step] = 0.
 
         for step in self.__return_status_numeric.keys():
             if not (step == 'setup'):
                 self.__return_status_numeric[step] = 17
+
+        self.__awe_callback.reset()
 
         return None
 
@@ -204,6 +212,7 @@ class Optimization(object):
             self.__iterations[step_name] = 0.
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
+        self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
 
@@ -352,19 +361,25 @@ class Optimization(object):
 
             # hand over the parameters to the solver
             self.__arg['p'] = self.__p_fix_num
+            self.__awe_callback.update_P(self.__p_fix_num)
 
             # bounds on x
             self.__arg['ubx'] = self.__V_bounds['ub']
             self.__arg['lbx'] = self.__V_bounds['lb']
 
-            # solve
-            self.__solution = solver(**self.__arg)
-            self.__stats = solver.stats()
+            # find current homotopy parameter
+            phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
-            # add up iterations of multi-step homotopies
-            if step_name not in list(self.__iterations.keys()):
-                self.__iterations[step_name] = 0.
-            self.__iterations[step_name] += self.__stats['iter_count']
+            # solve
+            if options['homotopy_method'] == 'classic' and (counter == 0) and (phi_name != None):
+                
+                self.__perform_classic_continuation(step_name, phi_name, options, solver)
+
+            else:
+
+                self.__solution = solver(**self.__arg)
+                self.__stats = solver.stats()
+                self.__save_stats(step_name)
 
             self.generate_outputs(nlp, self.__solution)
 
@@ -381,12 +396,49 @@ class Optimization(object):
         return None
 
 
+    def __perform_classic_continuation(self, step_name, phi_name, options, solver):
 
+        # define parameter path
+        step = options['homotopy_step']
+        parameter_path = linspace(1-step, step, int(1/step)-1)
 
+        # update fixed params
+        self.__p_fix_num['cost', phi_name] = 0.0
+        self.__arg['p'] = self.__p_fix_num
 
+        # follow parameter path
+        for phij in parameter_path:
+            self.__V_bounds['ub']['phi',phi_name] = phij
+            self.__V_bounds['lb']['phi',phi_name] = phij
+            self.__arg['ubx'] = self.__V_bounds['ub']
+            self.__arg['lbx'] = self.__V_bounds['lb']
+            self.__solution = solver(**self.__arg)
+            self.__stats = solver.stats()
+            self.__arg['lam_x0'] = self.__solution['lam_x']
+            self.__arg['lam_g0'] = self.__solution['lam_g']
+            self.__arg['x0'] = self.__solution['x']
 
+            # add up iterations of multi-step homotopies
+            self.__save_stats(step_name)
 
+        # prepare for second part of homotopy step
+        self.__V_bounds['ub']['phi',phi_name] = 0
+        self.__V_bounds['lb']['phi',phi_name] = 0
 
+        return None
+
+    def __save_stats(self, step_name):
+
+        # add up iterations of multi-step homotopies
+        if step_name not in list(self.__iterations.keys()):
+            self.__iterations[step_name] = 0.
+            self.__t_wall[step_name] = 0.
+        self.__iterations[step_name] += self.__stats['iter_count']
+        self.__t_wall[step_name] += self.__stats['t_wall_total']
+        if 't_wall_callback_fun' in self.__stats.keys():
+            self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
+
+        return None
 
 
     ### arguments
@@ -798,6 +850,14 @@ class Optimization(object):
         awelogger.logger.warning('Cannot set iterations object.')
 
     @property
+    def t_wall(self):
+        return self.__t_wall
+
+    @t_wall.setter
+    def t_wall(self, value):
+        awelogger.logger.warning('Cannot set t_wall object.')
+
+    @property
     def return_status_numeric(self):
         return self.__return_status_numeric
 
@@ -836,3 +896,11 @@ class Optimization(object):
     @integral_outputs_opt.setter
     def integral_outputs_opt(self, value):
         awelogger.logger.warning('Cannot set integral_outputs_opt object.')
+
+    @property
+    def awe_callback(self):
+        return self.__awe_callback
+
+    @awe_callback.setter
+    def awe_callback(self, value):
+        awelogger.logger.warning('Cannot set awe_callback object.')
