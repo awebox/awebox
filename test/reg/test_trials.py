@@ -32,6 +32,16 @@ def test_singe_kite():
 
     return None
 
+
+def test_basic_health():
+
+    options_dict = generate_options_dict()
+    trial_name = 'basic_health_trial'
+    solve_trial(options_dict[trial_name], trial_name)
+
+    return None
+
+
 def test_drag_mode():
 
     options_dict = generate_options_dict()
@@ -141,15 +151,6 @@ def test_vortex():
     solve_trial(options_dict[trial_name], trial_name)
 
     return None
-
-def test_basic_health():
-
-    options_dict = generate_options_dict()
-    trial_name = 'basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name)
-
-    return None
-
 
 def generate_options_dict():
     """

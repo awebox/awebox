@@ -134,17 +134,24 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, pa
     for kite in kite_nodes:
         parent = architecture.parent_map[kite]
 
-        u_ind_vortex = flow.get_induced_velocity_at_kite(model_options, filament_list, variables_si, architecture, kite)
+        u_ind = flow.get_induced_velocity_at_kite(model_options, filament_list, variables_si, architecture, kite)
 
         n_hat = unit_normal.get_n_hat(model_options, parent, variables_si, parameters, architecture)
         local_a = flow.get_induction_factor_at_kite(model_options, filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
 
-        last_ui_norm = vect_op.norm(flow.get_induced_velocity_at_kite(model_options, last_filament_list, variables_si, architecture, kite))
-        last_ui_norm_over_ref = last_ui_norm / wind.get_velocity_ref()
+        last_u_ind = flow.get_induced_velocity_at_kite(model_options, last_filament_list, variables_si, architecture, kite)
+        last_u_ind_norm = vect_op.norm(last_u_ind)
+        last_u_ind_norm_over_ref = last_u_ind_norm / wind.get_velocity_ref()
 
-        outputs['vortex']['u_ind_vortex' + str(kite)] = u_ind_vortex
+        est_truncation_error = (last_u_ind_norm) / vect_op.norm(u_ind)
+
+        outputs['vortex']['u_ind' + str(kite)] = u_ind
         outputs['vortex']['local_a' + str(kite)] = local_a
-        outputs['vortex']['last_ui_norm_over_ref' + str(kite)] = last_ui_norm_over_ref
+
+        outputs['vortex']['last_u_ind' + str(kite)] = last_u_ind
+        outputs['vortex']['last_u_ind_norm_over_ref' + str(kite)] = last_u_ind_norm_over_ref
+
+        outputs['vortex']['est_truncation_error' + str(kite)] = est_truncation_error
 
     return outputs
 
