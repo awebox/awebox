@@ -202,6 +202,7 @@ def generate_options_dict():
     actuator_qaxi_options['model']['aero']['overwrite']['beta_min_deg'] = -20.
     actuator_qaxi_options['solver']['cost']['fictitious'][0] = 1.e3
     actuator_qaxi_options['nlp']['n_k'] = 15
+    actuator_qaxi_options['model']['ground_station']['ddl_t_max'] = 10.
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
@@ -319,3 +320,9 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+# test_actuator_qaxi()
+# test_actuator_uaxi()
+# test_actuator_qasym()
+# test_actuator_uasym()
+test_vortex()

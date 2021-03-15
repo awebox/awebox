@@ -470,7 +470,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'power_balance_thresh', 5e-2,       ('power balance threshold test parameter', None), 'x'),
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 0.01,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
+        ('quality', 'test_param', None, 'vortex_truncation_error_thresh', 0.01,('maximum estimated vortex truncation error', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
     ]

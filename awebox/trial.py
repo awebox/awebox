@@ -271,6 +271,28 @@ class Trial(object):
 
         return solution_dict
 
+    def print_cost_information(self):
+
+        sol = self.optimization.solution
+        V_solution_scaled = self.nlp.V(sol['x'])
+
+        p_fix_num = self.optimization.p_fix_num
+
+        cost_fun = self.nlp.cost_components[0]
+        cost_dict = struct_op.evaluate_cost_dict(cost_fun, V_solution_scaled, p_fix_num)
+
+        message = '... cost components at solution are:'
+        awelogger.logger.info(message)
+
+        print_op.print_dict_as_table(cost_dict)
+
+        awelogger.logger.info('')
+
+        total_dict = {'total_cost': self.nlp.f_fun(V_solution_scaled, p_fix_num)}
+        print_op.print_dict_as_table(total_dict)
+
+        return None
+
     def write_to_csv(self, file_name=None, frequency=30., rotation_representation='euler'):
 
         if file_name is None:

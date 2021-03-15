@@ -164,3 +164,14 @@ def print_variable_info(object_name, variable_struct):
     awelogger.logger.info(message)
 
     return None
+
+def print_dict_as_table(dict):
+    for key in dict.keys():
+        if isinstance(dict[key], float):
+            message = '{:>30}: {:.2e}'.format(key, dict[key])
+            awelogger.logger.info(message)
+        else:
+            message = '{:>30}: '.format(key) + str(dict[key])
+            awelogger.logger.info(message)
+
+    return None

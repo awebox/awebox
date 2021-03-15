@@ -36,7 +36,6 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 import awebox.tools.performance_operations as perf_op
 
 

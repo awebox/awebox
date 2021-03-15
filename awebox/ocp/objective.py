@@ -31,7 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 import casadi.tools as cas
 from . import collocation
-from . import performance
+from . import ocp_outputs
 
 import time
 
@@ -269,8 +269,8 @@ def find_homotopy_parameter_costs(component_costs, V, P):
 
 def find_time_cost(nlp_options, V, P):
 
-    time_period = performance.find_time_period(nlp_options, V)
-    tf_init = performance.find_time_period(nlp_options, P.prefix['p', 'ref'])
+    time_period = ocp_outputs.find_time_period(nlp_options, V)
+    tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
 
     time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
 
@@ -280,7 +280,7 @@ def find_time_cost(nlp_options, V, P):
 def find_power_cost(nlp_options, V, P, Integral_outputs):
 
     # maximization term for average power
-    time_period = performance.find_time_period(nlp_options, V)
+    time_period = ocp_outputs.find_time_period(nlp_options, V)
 
     if not nlp_options['cost']['output_quadrature']:
         average_power = V['xd', -1, 'e'] / time_period
@@ -519,3 +519,5 @@ def extract_discretization_info(nlp_options):
         int_weights = None
 
     return direct_collocation, multiple_shooting, d, scheme, int_weights
+
+
