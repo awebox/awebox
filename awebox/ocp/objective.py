@@ -39,6 +39,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 
+import pdb
+
 def get_general_regularization_function(variables):
 
     weight_sym = cas.SX.sym('weight_sym', variables.cat.shape)
@@ -108,7 +110,6 @@ def get_general_reg_costs_function(variables, V):
                     pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
 
                     reg_costs[exc_category] = reg_costs[exc_category] + pen_loc
-
 
     reg_costs_list = reg_costs.cat
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
@@ -201,7 +202,10 @@ def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
         for ddx in range(d):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
-    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    print_op.warn_about_temporary_funcationality_removal(location='ocp.obj.coll_vars')
+
+    # coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, None, model)
     coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return coll_vars, coll_refs, coll_weights, N_coll

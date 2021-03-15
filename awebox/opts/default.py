@@ -355,7 +355,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
-        ('solver',  'cost',             'xddot_regularisation', 0,  10.,       ('starting cost for xddot regularisation', None),'s'),
+        ('solver',  'cost',             'xddot_regularisation', 0,  1e-1,       ('starting cost for xddot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 'x'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'x'),

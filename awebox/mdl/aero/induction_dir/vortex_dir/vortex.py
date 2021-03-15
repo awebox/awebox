@@ -162,8 +162,7 @@ def compute_global_performance(power_and_performance, plot_dict):
     kite_nodes = plot_dict['architecture'].kite_nodes
 
     max_est_trunc_list = []
-    max_est_discr_from_max_list = []
-    max_est_discr_from_min_list = []
+    max_est_discr_list = []
     last_u_ind_norm_over_ref_list = []
 
     for kite in kite_nodes:
@@ -171,14 +170,11 @@ def compute_global_performance(power_and_performance, plot_dict):
         local_max_est_trunc = np.max(np.array(plot_dict['outputs']['vortex'][trunc_name][0]))
         max_est_trunc_list += [local_max_est_trunc]
 
-        kite_u_ind_norm = np.array(plot_dict['outputs']['vortex']['u_ind_norm' + str(kite)][0])
-        local_max_u_ind_norm = np.max(kite_u_ind_norm)
-        local_min_u_ind_norm = np.min(kite_u_ind_norm)
-        local_max_est_discr_from_max = (local_max_u_ind_norm - local_min_u_ind_norm) / local_max_u_ind_norm
-        local_max_est_discr_from_min = (local_max_u_ind_norm - local_min_u_ind_norm) / local_min_u_ind_norm
-
-        max_est_discr_from_max_list += [local_max_est_discr_from_max]
-        max_est_discr_from_min_list += [local_max_est_discr_from_min]
+        kite_local_a = np.array(plot_dict['outputs']['vortex']['local_a' + str(kite)][0])
+        max_kite_local_a = np.max(kite_local_a)
+        min_kite_local_a = np.min(kite_local_a)
+        local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
+        max_est_discr_list += [local_max_est_discr]
 
         local_last_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['last_u_ind_norm_over_ref' + str(kite)]))
         last_u_ind_norm_over_ref_list += [local_last_u_ind_norm_over_ref]
@@ -189,10 +185,7 @@ def compute_global_performance(power_and_performance, plot_dict):
     max_est_trunc = np.max(np.array(max_est_trunc_list))
     power_and_performance['vortex_max_est_truncation_error'] = max_est_trunc
 
-    max_est_discr_from_max = np.max(np.array(max_est_discr_from_max_list))
-    power_and_performance['vortex_max_est_discretization_error_from_max'] = max_est_discr_from_max
-
-    max_est_discr_from_min = np.max(np.array(max_est_discr_from_min_list))
-    power_and_performance['vortex_max_est_discretization_error_from_min'] = max_est_discr_from_min
+    max_est_discr = np.max(np.array(max_est_discr_list))
+    power_and_performance['vortex_max_est_discretization_error'] = max_est_discr
 
     return power_and_performance
