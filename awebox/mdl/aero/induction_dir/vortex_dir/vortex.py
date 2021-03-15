@@ -87,7 +87,7 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
     number_of_filaments = filament_list.shape[1]
 
     expected_number_of_filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
-    if number_of_filaments is not expected_number_of_filaments:
+    if int(number_of_filaments) != int(expected_number_of_filaments):
         message = 'construction of vortex induction residual finds a number of filaments (' + \
                   str(number_of_filaments) + ') that is not the same as the expected ' \
                   'number of filaments (' + str(expected_number_of_filaments) + ')'
