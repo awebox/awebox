@@ -320,9 +320,3 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
-
-# test_actuator_qaxi()
-# test_actuator_uaxi()
-# test_actuator_qasym()
-# test_actuator_uasym()
-test_vortex()
