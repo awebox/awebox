@@ -114,8 +114,9 @@ class Pmpc(object):
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
         # remove state constraints at k = 0
-        self.__trial.nlp.V_bounds['lb']['xd',0] = - np.inf
-        self.__trial.nlp.V_bounds['ub']['xd',0] = np.inf
+        for var_type in ['xd', 'xa', 'xdot']:
+            self.__trial.nlp.V_bounds['lb'][var_type,0] = - np.inf
+            self.__trial.nlp.V_bounds['ub'][var_type,0] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
