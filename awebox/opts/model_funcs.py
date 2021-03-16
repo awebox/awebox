@@ -597,6 +597,12 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
 
+    vortex_representation = options['model']['aero']['vortex']['representation']
+    options_tree.append(('model', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_representation', vortex_representation, ('????', None), 'x')),
+
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
     r_core = options['model']['aero']['vortex']['core_to_chord_ratio'] * c_ref
@@ -801,8 +807,16 @@ def build_wind_options(options, options_tree, fixed_params):
     u_ref = get_u_ref(options['user_options'])
     options_tree.append(('model', 'wind', None, 'model', options['user_options']['wind']['model'],('wind model', None),'x'))
     options_tree.append(('params', 'wind', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
+    options_tree.append(('model', 'wind', None, 'u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_heightsdata', options['user_options']['wind']['atmosphere_heightsdata'],('data for the heights at this time instant', None),'x'))
     options_tree.append(('model', 'wind', None, 'atmosphere_featuresdata', options['user_options']['wind']['atmosphere_featuresdata'],('data for the features at this time instant', None),'x'))
+
+    z_ref = options['params']['wind']['z_ref']
+    z0_air = options['params']['wind']['log_wind']['z0_air']
+    exp_ref = options['params']['wind']['power_wind']['exp_ref']
+    options_tree.append(('model', 'wind', None, 'z_ref', z_ref, ('?????', None), 'x'))
+    options_tree.append(('model', 'wind', 'log_wind', 'z0_air', z0_air, ('?????', None), 'x'))
+    options_tree.append(('model', 'wind', 'power_wind', 'exp_ref', exp_ref, ('?????', None), 'x'))
 
     options_tree.append(('solver', 'initialization', 'model', 'wind_u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model', 'wind_model', options['user_options']['wind']['model'], ('???', None), 'x'))

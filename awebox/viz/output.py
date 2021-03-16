@@ -61,7 +61,10 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
         else:
             fig, axes = plt.subplots(nrows=number_of_opts, ncols=1)
 
-        axes[-1].set_xlabel('t [s]')
+        if number_of_opts == 1:
+            axes.set_xlabel('t [s]')
+        else:
+            axes[-1].set_xlabel('t [s]')
 
         kite_nodes = architecture.kite_nodes
 
@@ -76,26 +79,49 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
             if output_is_systemwide:
                 data = np.array(outputs[opt[0]][base_name][0])
                 local_color = cosmetics['trajectory']['colors'][0]
-                axes[odx].plot(tgrid_ip, data, color=local_color)
+
+                if number_of_opts == 1:
+                    axes.plot(tgrid_ip, data, color=local_color)
+                else:
+                    axes[odx].plot(tgrid_ip, data, color=local_color)
 
             else:
                 for kite in kite_nodes:
                     data = np.array(outputs[opt[0]][base_name + str(kite)][0])
                     local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-                    axes[odx].plot(tgrid_ip, data, color=local_color)
+
+                    if number_of_opts == 1:
+                        axes.plot(tgrid_ip, data, color=local_color)
+                    else:
+                        axes[odx].plot(tgrid_ip, data, color=local_color)
 
             if (epigraph is not None) and (isinstance(epigraph, float)):
-                axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
+
+                if number_of_opts == 1:
+                    axes.axhline(y=epigraph, color='gray', linestyle='--')
+                else:
+                    axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
 
             if 't_switch' in plot_dict['time_grids'].keys():
                 t_switch = float(plot_dict['time_grids']['t_switch'])
-                axes[odx].axvline(x=t_switch, color='gray', linestyle='--')
 
-            axes[odx].set_ylabel(opt[1])
+                if number_of_opts == 1:
+                    axes.axvline(x=t_switch, color='gray', linestyle='--')
+                else:
+                    axes[odx].axvline(x=t_switch, color='gray', linestyle='--')
 
-        for adx in range(len(axes)):
-            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+            if number_of_opts == 1:
+                axes.set_ylabel(opt[1])
+            else:
+                axes[odx].set_ylabel(opt[1])
+
+        if number_of_opts == 1:
+            axes.yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes.yaxis.set_major_locator(MaxNLocator(3))
+        else:
+            for adx in range(number_of_opts):
+                axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+                axes[adx].yaxis.set_major_locator(MaxNLocator(3))
 
         plt.suptitle(fig_name)
         fig.canvas.draw()
@@ -136,6 +162,16 @@ def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
                            ('performance', 'freelout')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
+
+    interesting_outputs = []
+    for kite in plot_dict['architecture'].kite_nodes:
+        interesting_outputs += [('aerodynamics', 'circulation' + str(kite))]
+    # #
+    # if plot_dict['architecture'].number_of_kites == 1:
+    #     interesting_outputs += [('aerodynamics', 'circulation_cl' + str(kite))]
+
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 
 
