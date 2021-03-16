@@ -39,8 +39,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 
-import pdb
-
 def get_general_regularization_function(variables):
 
     weight_sym = cas.SX.sym('weight_sym', variables.cat.shape)
