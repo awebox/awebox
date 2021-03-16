@@ -33,7 +33,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
-
 def test_opti_success(trial, test_param_dict, results):
     """
     Test whether optimization was successful
@@ -362,28 +361,17 @@ def test_slack_equalities(trial, test_param_dict, results):
 def test_tracked_vortex_periods(trial, test_param_dict, results):
 
     plot_dict = trial.visualization.plot_dict
-    kite_nodes = trial.model.architecture.kite_nodes
 
     if 'vortex' in plot_dict['outputs']:
-        last_vortex_ind_factor_thresh = test_param_dict['last_vortex_ind_factor_thresh']
+        vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        max_last_a = -99999.
-        kite_max_last = -1
-        for kite in kite_nodes:
-            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_ui_norm_over_ref' + str(kite)]))
-            local_max_last_a = np.max(last_a)
-
-            if local_max_last_a > max_last_a:
-                kite_max_last = kite
-                max_last_a = local_max_last_a
-
-        if max_last_a > last_vortex_ind_factor_thresh:
-            message = 'Last vortex ring has large (non-dimensionalized) induced velocity at kite ' + str(kite_max_last) + ': ' \
-                      + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) \
+        max_est_truncation_error = plot_dict['power_and_performance']['vortex_max_est_truncation_error']
+        if max_est_truncation_error > vortex_truncation_error_thresh:
+            message = 'Vortex model estimates a large truncation error' \
+                      + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \
                       + '. We recommend increasing the number of tracked periods.'
             awelogger.logger.warning(message)
-            # slack equalities are not satisfied
-            results['last_vortex_ind_factor'] = False
+            results['vortex_truncation_error'] = False
 
     return results
 
@@ -406,7 +394,7 @@ def generate_test_param_dict(options):
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
     test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
     test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
-    test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
+    test_param_dict['vortex_truncation_error_thresh'] = options['test_param']['vortex_truncation_error_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
 

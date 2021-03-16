@@ -258,16 +258,15 @@ You probably don't have the HSL/COIN solvers installed correctly on your compute
 
 ### Where are the time-varying performance outputs (eg. trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])) actually defined?
 
-Despite the name, these are not defined in ocp/performance, but rather in mdl/aero/indicators.
+These are defined in mdl/aero/indicators.
 
 ### Where are the global performance outputs (eg. 'power_and_performance') actually defined?
 
-Despite the name, these are not defined in ocp/performance, but rather in opti/diagnostics.
+These are defined in opti/diagnostics.
 
 ### My awebox script gets "Killed" unexpectedly. What should I do? 
 
 This error manifests like:
-
 ```
 INFO:	Building optimization...
 INFO:	initialize callback...
@@ -387,17 +386,12 @@ Please note that at least one of the solution quality control tests will automat
 ### How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
 
 ```
-P_loc = trial.optimization.p_fix_num
-V_loc = trial.optimization.V_final
-component_cost_fun, component_cost_struct = trial.nlp.cost_components
-for cost in component_cost_fun.keys():
-    val = component_cost_fun[cost](V_loc, P_loc)
-    print(cost + ': ' + str(val))
+trial.print_cost_information()
 ```
 
 ### How do I test if I've installed the COIN/HSL linear solvers correctly?
 
-----> We suggest running the following tests:
+We suggest running the following tests:
 
 1. Does the casadi example NLP rocket solve in its given form ('mumps' linear solver)?
 https://github.com/casadi/casadi/blob/master/docs/examples/python/rocket.py

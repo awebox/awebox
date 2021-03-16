@@ -31,7 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 import casadi.tools as cas
 from . import collocation
-from . import performance
+from . import ocp_outputs
 
 import time
 
@@ -108,7 +108,6 @@ def get_general_reg_costs_function(variables, V):
                     pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
 
                     reg_costs[exc_category] = reg_costs[exc_category] + pen_loc
-
 
     reg_costs_list = reg_costs.cat
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
@@ -201,8 +200,8 @@ def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
         for ddx in range(d):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
-    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
-    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot, model)
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, None, model)
+    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, None, model)
 
     return coll_vars, coll_refs, coll_weights, N_coll
 
@@ -269,8 +268,8 @@ def find_homotopy_parameter_costs(component_costs, V, P):
 
 def find_time_cost(nlp_options, V, P):
 
-    time_period = performance.find_time_period(nlp_options, V)
-    tf_init = performance.find_time_period(nlp_options, P.prefix['p', 'ref'])
+    time_period = ocp_outputs.find_time_period(nlp_options, V)
+    tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
 
     time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
 
@@ -280,7 +279,7 @@ def find_time_cost(nlp_options, V, P):
 def find_power_cost(nlp_options, V, P, Integral_outputs):
 
     # maximization term for average power
-    time_period = performance.find_time_period(nlp_options, V)
+    time_period = ocp_outputs.find_time_period(nlp_options, V)
 
     if not nlp_options['cost']['output_quadrature']:
         average_power = V['xd', -1, 'e'] / time_period
@@ -519,3 +518,5 @@ def extract_discretization_info(nlp_options):
         int_weights = None
 
     return direct_collocation, multiple_shooting, d, scheme, int_weights
+
+

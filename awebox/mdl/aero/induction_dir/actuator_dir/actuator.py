@@ -158,25 +158,32 @@ def get_unsteady_axi_pitt_peters_residual(model_options, atmos, wind, variables,
     t_star_num_ref = actuator_coeff.get_t_star_numerator_ref(model_options, parameters)
     t_star_den_ref = actuator_coeff.get_t_star_denominator_ref(wind)
 
-    dt_dtstar_num = t_star_den
-    dt_dtstar_den = t_star_num
-    dt_dtstar_den_ref = t_star_num_ref
-    dt_dtstar_num_ref = t_star_den_ref
+    # tau = t / t_star
+    # t = tau t_star
+    # dt/dtau = t_star
+
+    dt_dtau_num = t_star_num
+    dt_dtau_den = t_star_den
+    dt_dtau_num_ref = t_star_num_ref
+    dt_dtau_den_ref = t_star_den_ref
 
     thrust_den = qzero * area
     thrust_ref = actuator_coeff.get_thrust_ref(model_options, atmos, wind, parameters)
 
-    term_1 = MM11 * da_dt * dt_dtstar_num * thrust_den
-    term_2 = LLinv11 * a_var * thrust_den * dt_dtstar_den
-    term_3 = -1. * thrust * dt_dtstar_den
+    LLinv_ref = (4. * (1. - a_ref))
+    da_dt_ref = a_ref
+
+    term_1 = MM11 * da_dt * dt_dtau_num * thrust_den
+    term_2 = LLinv11 * a_var * thrust_den * dt_dtau_den
+    term_3 = -1. * thrust * dt_dtau_den
 
     resi_unscaled = term_1 + term_2 + term_3
 
-    # term_1_ref = MM11 * a_ref * dt_dtstar_num_ref * thrust_ref
-    # term_2_ref = 4. * (1. - a_ref) * a_ref * thrust_ref * dt_dtstar_den_ref
-    term_3_ref = thrust_ref * dt_dtstar_den_ref
+    term_1_ref = MM11 * da_dt_ref * dt_dtau_num_ref * thrust_ref #ATP, 5m32s -- 2e9, ..e-8
+    term_2_ref = LLinv_ref * a_ref * thrust_ref * dt_dtau_den_ref #ATP, 5m26 -- 3e10, 2e-8
+    term_3_ref = thrust_ref * dt_dtau_den_ref
 
-    resi = resi_unscaled / term_3_ref
+    resi = resi_unscaled / term_1_ref
 
     return resi
 
@@ -200,22 +207,29 @@ def get_unsteady_asym_pitt_peters_residual(model_options, atmos, wind, variables
     t_star_num_ref = actuator_coeff.get_t_star_numerator_ref(model_options, parameters)
     t_star_den_ref = actuator_coeff.get_t_star_denominator_ref(wind)
 
-    dt_dtstar_num = t_star_den
-    dt_dtstar_den = t_star_num
-    dt_dtstar_den_ref = t_star_num_ref
-    dt_dtstar_num_ref = t_star_den_ref
+    # tau = t / t_star
+    # t = tau t_star
+    # dt/dtau = t_star
 
-    term_1 = cas.mtimes(LL, cas.mtimes(MM, da_dt)) * dt_dtstar_num * moment_den
-    term_2 = a_all * moment_den * dt_dtstar_den
-    term_3 = -1. * cas.mtimes(LL, c_all) * dt_dtstar_den
+    dt_dtau_num = t_star_num
+    dt_dtau_den = t_star_den
+    dt_dtau_num_ref = t_star_num_ref
+    dt_dtau_den_ref = t_star_den_ref
+
+    LL_ref = 1./ (4. * (1. - a_ref))
+    da_dt_ref = a_ref
+
+    term_1 = cas.mtimes(LL, cas.mtimes(MM, da_dt)) * dt_dtau_num * moment_den
+    term_2 = a_all * moment_den * dt_dtau_den
+    term_3 = -1. * cas.mtimes(LL, c_all) * dt_dtau_den
 
     resi_unscaled = term_1 + term_2 + term_3
 
-    term_1_ref = 1./ (4. * a_ref * (1. - a_ref)) * MM[0, 0] * a_ref * dt_dtstar_num_ref * moment_ref
-    term_2_ref = a_ref * moment_ref * dt_dtstar_den_ref
-    term_3_ref = 1./ (4. * a_ref * (1. - a_ref)) * moment_ref * dt_dtstar_den_ref
+    term_1_ref = LL_ref * MM[0, 0] * da_dt_ref * dt_dtau_num_ref * moment_ref #rest. failed. licq
+    term_2_ref = a_ref * moment_ref * dt_dtau_den_ref # solve. 2e10, 2e-8. 5m?s
+    term_3_ref = LL_ref * moment_ref * dt_dtau_den_ref # solve. licq
 
-    resi = resi_unscaled / term_3_ref
+    resi = resi_unscaled / term_2_ref
 
     return resi
 

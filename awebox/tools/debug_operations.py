@@ -147,14 +147,7 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
     tractability['min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
 
     awelogger.logger.info('tractability indicator report')
-    for item in tractability.keys():
-
-        if isinstance(tractability[item], float):
-            message = '{:>30}: {:.2e}'.format(item, tractability[item])
-            awelogger.logger.info(message)
-        else:
-            message = '{:>30}: '.format(item) + str(tractability[item])
-            awelogger.logger.info(message)
+    print_op.print_dict_as_table(tractability)
 
     return tractability
 

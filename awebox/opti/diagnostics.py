@@ -32,10 +32,12 @@ python-3.5 / casadi-3.4.5
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
-import numpy as np
+
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 from awebox.logger.logger import Logger as awelogger
 import casadi as cas
+import numpy as np
 
 
 def print_homotopy_values(nlp, solution, p_fix_num):
@@ -227,6 +229,133 @@ def compute_tether_tension_indicators(power_and_performance, plot_dict):
 
     return power_and_performance
 
+
+
+def compute_control_frequency(power_and_performance, plot_dict):
+
+    kite_nodes = plot_dict['architecture'].kite_nodes
+
+    first_kite = kite_nodes[0]
+    parent = plot_dict['architecture'].parent_map[first_kite]
+    tentative_var_name = 'delta' + str(first_kite) + str(parent)
+
+    if tentative_var_name in plot_dict['xd'].keys():
+        var_type = 'xd'
+    elif tentative_var_name in plot_dict['u'].keys():
+        var_type = 'u'
+    else:
+        var_type = None
+
+    if (var_type is not None):
+
+        time_period = power_and_performance['time_period']
+
+        number_control_surfaces = len(plot_dict[var_type][tentative_var_name])
+
+        for kite in kite_nodes:
+            parent = plot_dict['architecture'].parent_map[kite]
+
+            frequency_stack = []
+            for cs in range(number_control_surfaces):
+                var_name = 'delta' + str(kite) + str(parent)
+                vals = plot_dict[var_type][var_name][cs]
+                steps = vals.shape[0] - 1
+                dt = time_period / steps
+
+                frequency = vect_op.estimate_1d_frequency(vals, dt=dt)
+                frequency_stack = cas.vertcat(frequency_stack, frequency)
+
+            power_and_performance['control_frequency' + str(kite) + str(parent)] = frequency_stack
+
+    return power_and_performance
+
+
+def compute_windings(power_and_performance, plot_dict):
+
+    n_interpolation = plot_dict['xd']['q10'][0].shape[0]
+    total_steps = float(n_interpolation)
+
+    parent_map = plot_dict['architecture'].parent_map
+    kite_nodes = plot_dict['architecture'].kite_nodes
+
+    ehat_tether_x = 0.
+    ehat_tether_y = 0.
+    ehat_tether_z = 0.
+
+    for idx in range(n_interpolation):
+        q10 = cas.vertcat(plot_dict['xd']['q10'][0][idx], plot_dict['xd']['q10'][1][idx], plot_dict['xd']['q10'][2][idx])
+        local_ehat = vect_op.normalize(q10)
+        ehat_tether_x += local_ehat[0] / total_steps
+        ehat_tether_y += local_ehat[1] / total_steps
+        ehat_tether_z += local_ehat[2] / total_steps
+
+    ehat_tether = vect_op.normalize(cas.vertcat(ehat_tether_x, ehat_tether_y, ehat_tether_z))
+
+    power_and_performance['winding_axis'] = ehat_tether
+
+    ehat_side_a = vect_op.normed_cross(vect_op.yhat_np(), ehat_tether)
+    # right handed coordinate system -> x/re: _a, y/im: _b, z/out: _tether
+    ehat_side_b = vect_op.normed_cross(ehat_tether, ehat_side_a)
+
+    # now project the path onto this plane
+    for n in kite_nodes:
+        parent = parent_map[n]
+
+        theta_start = 0.
+        theta_end = 0.
+
+        # find the origin of the plane
+        origin = np.zeros((3, 1))
+        for idx in range(n_interpolation):
+            name = 'q' + str(n) + str(parent)
+            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
+                              plot_dict['xd'][name][2][idx])
+            q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
+
+            origin = origin + q_in_plane / total_steps
+
+        # recenter the plane about origin
+        for idx in range(n_interpolation-1):
+            name = 'q' + str(n) + str(parent)
+            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
+                              plot_dict['xd'][name][2][idx])
+
+            q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
+            q_recentered = q_in_plane - origin
+
+            q_next = cas.vertcat(plot_dict['xd'][name][0][idx+1], plot_dict['xd'][name][1][idx+1],
+                              plot_dict['xd'][name][2][idx+1])
+            q_next_in_plane = q_next - vect_op.dot(q_next, ehat_tether) * ehat_tether
+            q_next_recentered = q_next_in_plane - origin
+
+            delta_q = q_next_recentered - q_recentered
+
+            x = vect_op.dot(q_recentered, ehat_side_a)
+            y = vect_op.dot(q_recentered, ehat_side_b)
+            r_squared = x**2. + y**2.
+
+            dx = vect_op.dot(delta_q, ehat_side_a)
+            dy = vect_op.dot(delta_q, ehat_side_b)
+
+                # dx = vect_op.dot(dq_in_plane, ehat_side_a)
+                # dy = vect_op.dot(dq_in_plane, ehat_side_b)
+
+            dtheta = (x * dy - y * dx) / (r_squared + 1.0e-4)
+            theta_end += dtheta
+
+        winding = (theta_end - theta_start) / 2. / np.pi
+
+        power_and_performance['winding' + str(n)] = winding
+
+    return power_and_performance
+
+
+
+
+
+
+
+
 def compute_power_and_performance(plot_dict):
     power_and_performance = {}
 
@@ -239,5 +368,12 @@ def compute_power_and_performance(plot_dict):
     power_and_performance = compute_tether_tension_indicators(power_and_performance, plot_dict)
 
     power_and_performance = compute_efficiency_measures(power_and_performance, plot_dict)
+
+    power_and_performance = compute_control_frequency(power_and_performance, plot_dict)
+
+    power_and_performance = compute_windings(power_and_performance, plot_dict)
+
+    if 'vortex' in plot_dict['outputs'].keys():
+        power_and_performance = vortex.compute_global_performance(power_and_performance, plot_dict)
 
     return power_and_performance
