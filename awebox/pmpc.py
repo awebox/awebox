@@ -439,7 +439,7 @@ class Pmpc(object):
                         if var_type in ['xd','xa']:
                             V_list.append(ip_dict[var_type][:,counter_x])
                         else:
-                            V_list.append(np.zeros(self.__nx,1))
+                            V_list.append(np.zeros((self.__nx,1)))
                     counter_x += 1
                 else:
                     for var_type in self.__var_list:
