@@ -57,10 +57,14 @@ class Pmpc(object):
         self.__mpc_options = mpc_options
 
         # store model data
+        self.__var_list = ['xd', 'xa', 'u']
+        if 'xl' in self.__pocp_trial.model.variables_dict.keys():
+            self.__var_list.append('xl')
         self.__nx = trial.model.variables['xd'].shape[0]
         self.__nu = trial.model.variables['u'].shape[0]
         self.__nz = trial.model.variables['xa'].shape[0]
-        self.__nl = trial.model.variables['xl'].shape[0]
+        if 'xl' in self.__var_list:
+            self.__nl = trial.model.variables['xl'].shape[0]
 
         # create mpc trial
         options = copy.deepcopy(trial.options)
@@ -114,7 +118,7 @@ class Pmpc(object):
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
         # remove state constraints at k = 0
-        for var_type in ['xd', 'xa', 'xdot']:
+        for var_type in ['xd', 'xa', 'xddot']:
             self.__trial.nlp.V_bounds['lb'][var_type,0] = - np.inf
             self.__trial.nlp.V_bounds['ub'][var_type,0] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
@@ -253,12 +257,16 @@ class Pmpc(object):
                     weights[weight] = np.eye(self.__nx)
                 elif weight == 'R':
                     weights[weight] = np.eye(self.__nu)
-        weights['Z'] = np.zeros((self.__nz, self.__nz))
-        weights['L'] = np.zeros((self.__nl, self.__nl))
+        weights['Z'] = 1e-5*np.ones((self.__nz, self.__nz))
+
+        from scipy.linalg import block_diag
+        W = block_diag(weights['Q'],weights['R'],weights['Z'])
+        if 'xl' in self.__var_list:
+            weights['L'] = 1e-5*np.ones((self.__nl, self.__nl))
+            W = block_diag(W, weights['L'])
 
         # create tracking function
-        from scipy.linalg import block_diag
-        tracking_cost = self.__create_tracking_cost_fun(block_diag(weights['Q'],weights['R'],weights['Z'],weights['L']))
+        tracking_cost = self.__create_tracking_cost_fun(W)
         cost_map = tracking_cost.map(self.__N)
 
         # cost function arguments
@@ -352,7 +360,7 @@ class Pmpc(object):
         n_points_x = self.__t_grid_x_coll.shape[0]
         self.__spline_dict = {}
 
-        for var_type in ['xd','u','xa','xl']:
+        for var_type in self.__var_list:
             self.__spline_dict[var_type] = {}
             for name in list(variables_dict[var_type].keys()):
                 self.__spline_dict[var_type][name] = {}
@@ -368,7 +376,7 @@ class Pmpc(object):
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
                     elif var_type in ['xa','xl']:
                         values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
-                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
+                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
 
         def spline_interpolator(t_grid, name, j, var_type):
             """ Interpolate reference on specific time grid for specific variable.
@@ -399,11 +407,11 @@ class Pmpc(object):
 
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
-        for var_type in ['xd','u','xa','xl']:
+        for var_type in self.__var_list:
             ip_dict[var_type] = []
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    if var_type == 'xd':
+                    if var_type in ['xd', 'xa']:
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
@@ -415,31 +423,36 @@ class Pmpc(object):
         counter = 0
         counter_x = 0
         V_list = []
-        for k in range(self.__N):
-            for j in range(self.__trial.nlp.d+1):
-                if j == 0:
-                    V_list.append(ip_dict['xd'][:,counter_x])
-                    counter_x += 1
-                else:
-                    for var_type in ['xd','xa','xl','u']:
-                        if var_type == 'xd':
-                            V_list.append(ip_dict[var_type][:,counter_x])
-                            counter_x += 1
-                        else:
-                            V_list.append(ip_dict[var_type][:,counter])
-                    counter += 1
-
-        V_list.append(ip_dict['xd'][:,counter_x])
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
             else:
                 V_list.append(self.__N*self.__ts)
+        V_list.append(np.zeros(V_ref['phi'].shape))
+        V_list.append(np.zeros(V_ref['xi'].shape))
 
-        for var_type in ['phi', 'xi']:
-            V_list.append(np.zeros(self.__trial.nlp.V[var_type].shape))
-        V_ref = self.__trial.nlp.V(ct.vertcat(*V_list))
+        for k in range(self.__N):
+            for j in range(self.__trial.nlp.d+1):
+                if j == 0:
+                    for var_type in ['xd', 'xddot','xa']:
+                        if var_type in ['xd','xa']:
+                            V_list.append(ip_dict[var_type][:,counter_x])
+                        else:
+                            V_list.append(np.zeros(self.__nx,1))
+                    counter_x += 1
+                else:
+                    for var_type in self.__var_list:
+                        if var_type in ['xd','xa']:
+                            V_list.append(ip_dict[var_type][:,counter_x])
+                        else:
+                            V_list.append(ip_dict[var_type][:,counter])
+                    counter_x += 1
+                    counter += 1
+
+        V_list.append(ip_dict['xd'][:,counter_x])
+
+        V_ref = V_ref(ct.vertcat(*V_list))
 
         return V_ref
 
@@ -477,7 +490,8 @@ class Pmpc(object):
             self.__w0['coll_var',k,:,'xd'] = self.__w0['coll_var',k+1,:,'xd']
             self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
             self.__w0['coll_var',k,:,'xa'] = self.__w0['coll_var',k+1,:,'xa']
-            self.__w0['coll_var',k,:,'xl'] = self.__w0['coll_var',k+1,:,'xl']
+            if 'xl' in self.__var_list:
+                self.__w0['coll_var',k,:,'xl'] = self.__w0['coll_var',k+1,:,'xl']
             self.__w0['xd',k] = self.__w0['xd',k+1]
 
         return None
