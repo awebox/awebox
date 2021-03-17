@@ -327,8 +327,9 @@ class Collocation(object):
             integral constraints on all nodes
         """
         # construct list of all shooting node variables and parameters
-        shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
-        shooting_params = struct_op.get_shooting_params(options, V, P, model)
+        if not (options['discretization'] == 'direct_collocation' and options['collocation']['u_param'] == 'poly'):
+            shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
+            shooting_params = struct_op.get_shooting_params(options, V, P, model)
 
         # construct list of all collocation node variables and parameters
         coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
@@ -344,7 +345,8 @@ class Collocation(object):
         # evaluate functions in for loop
         for kdx in range(self.__n_k):
 
-            coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
+            if options['collocation']['u_param'] == 'zoh':
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
 
             for ddx in range(self.__d):
                 idx = ddx + kdx * self.__d
