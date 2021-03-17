@@ -57,9 +57,10 @@ class Pmpc(object):
         self.__mpc_options = mpc_options
 
         # store model data
-        self.__var_list = ['xd', 'xa', 'u']
+        self.__var_list = ['xd', 'xa']
         if 'xl' in self.__pocp_trial.model.variables_dict.keys():
             self.__var_list.append('xl')
+        self.__var_list.append('u')
         self.__nx = trial.model.variables['xd'].shape[0]
         self.__nu = trial.model.variables['u'].shape[0]
         self.__nz = trial.model.variables['xa'].shape[0]
@@ -369,7 +370,7 @@ class Pmpc(object):
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
                     elif var_type in ['u', 'xa', 'xl']:
                         values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
-                        if all(v == 0 for v in values):
+                        if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
