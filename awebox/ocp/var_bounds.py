@@ -57,9 +57,13 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
         use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
-        if (var_type == 'xd') and (not var_is_coll_var):
+        if (var_type == 'xd'):
 
-            if use_depending_on_periodicity:
+            if nlp_options['collocation']['u_param'] == 'poly' and var_is_coll_var:
+                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
+            
+            elif nlp_options['collocation']['u_param'] == 'zoh' and use_depending_on_periodicity  and (not var_is_coll_var):
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
@@ -72,7 +76,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-            elif (var_type == 'u') and var_is_coll_var:
+            elif nlp_options['collocation']['u_param'] == 'poly' and var_is_coll_var:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
@@ -103,7 +107,8 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
         if nlp_options['phase_fix'] == 'single_reelout':
 
-            if (var_type == 'xd') and (not coll_flag):
+            if (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh':
+
                 if kdx == (n_k):
                     vars_lb[var_type, kdx, name] = 0.0
                     vars_ub[var_type, kdx, name] = 0.0
@@ -114,8 +119,19 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 else:
                     vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                     vars_ub[var_type, kdx, name] = 0.0
-            else:
-                32. # do nothing
+
+            elif nlp_options['collocation']['u_param'] == 'poly':
+
+                if kdx in [n_k, switch_kdx] and (not coll_flag):
+                    vars_lb[var_type, kdx, name] = 0.0
+                    vars_ub[var_type, kdx, name] = 0.0
+
+                if in_out_phase and coll_flag:
+                    vars_lb['coll_var', kdx, ddx, var_type, name] = 0.0
+                    vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
+                elif not in_out_phase and coll_flag:
+                    vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
 
         elif nlp_options['phase_fix'] == 'simple' and (kdx == 0) and (not coll_flag):
 
