@@ -173,6 +173,8 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
     return cstr_list
 
 
+
+
 def get_local_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids, kite, tip, wake_node, ndx, ddx):
 
     t_f = V['theta', 't_f']
@@ -221,6 +223,8 @@ def get_local_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids,
     return local_cstr
 
 
+
+
 def get_continuity_fixing_constraint(V, kite, tip, wake_node, ndx):
 
     local_name = 'continuity_wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx)
@@ -238,6 +242,9 @@ def get_continuity_fixing_constraint(V, kite, tip, wake_node, ndx):
 
     return local_cstr
 
+
+
+
 def get_alg_periodic_fixing_constraint(V, kite, tip, wake_node):
 
     local_name = 'periodic_wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
@@ -253,3 +260,4 @@ def get_alg_periodic_fixing_constraint(V, kite, tip, wake_node):
                                     cstr_type='eq')
 
     return local_cstr
+
