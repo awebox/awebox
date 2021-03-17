@@ -767,7 +767,7 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'theta', 't_f', 1, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'theta', 't_f', cas.DM(1.0), ('descript', None), 'x'))
 
 
     return options_tree, fixed_params
