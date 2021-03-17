@@ -394,7 +394,10 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling):
             if use_unit_scaling:
                 return var_si
             else:
-                return var_si / scale
+                var_scaled = var_si / scale
+                if type(var_si) == np.ndarray:
+                    var_scaled = var_scaled.full()
+                return var_scaled
 
         else:
             matrix_factor = cas.inv(cas.diag(scale))
