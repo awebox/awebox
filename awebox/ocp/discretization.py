@@ -210,10 +210,16 @@ def setup_output_structure(nlp_options, model_outputs, form_outputs):
         scheme = nlp_options['collocation']['scheme']
 
         # define outputs on interval and collocation nodes
-        entry_tuple += (
-            cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
-            cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
-        )
+        if nlp_options['collocation']['u_param'] == 'poly':
+            entry_tuple += (
+                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+            )
+
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            entry_tuple += (
+                cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
+                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+            )
 
     elif nlp_options['discretization'] == 'multiple_shooting':
 
@@ -310,14 +316,18 @@ def discretize(nlp_options, model, formulation):
 
     if direct_collocation:
         for kdx in range(nk):
-
-            Outputs_list.append(coll_outputs[:,kdx*(d+1)])
+            
+            if nlp_options['collocation']['u_param'] == 'zoh':
+                Outputs_list.append(coll_outputs[:,kdx*(d+1)])
 
             # add outputs on collocation nodes
             for ddx in range(d):
-                # compute outputs for this time interval
-                Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
 
+                # compute outputs for this time interval
+                if nlp_options['collocation']['u_param'] == 'zoh':
+                    Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
+                elif nlp_options['collocation']['u_param'] == 'poly':
+                    Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
     Outputs_list.append(form_outputs_fun(V, P))
 
     # Create Outputs struct and function
