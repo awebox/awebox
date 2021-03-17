@@ -164,7 +164,10 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
     if (ddx is None):
-        return V[var_type, kdx]
+        if var_type in list(V.keys()):
+            return V[var_type, kdx]
+        else:
+            return V['coll_var', kdx, 0, var_type]
     else:
         return V['coll_var', kdx, ddx, var_type]
 
