@@ -79,8 +79,10 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     # entry tuple for nested constraints
     entry_tuple = ()
-    entry_tuple += (cas.entry('dynamics', repeat = [nk], struct = model.variables_dict['xd']),)
-    entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
+
+    if multiple_shooting or nlp_options['collocation']['u_param'] == 'zoh':
+        entry_tuple += (cas.entry('dynamics', repeat = [nk], struct = model.variables_dict['xd']),)
+        entry_tuple += (cas.entry('algebraic', repeat = [nk], shape = (nz,1)),)
 
     # add the path constraints.
     if multiple_shooting:
@@ -92,9 +94,16 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         coll_cstr = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation)
         ocp_cstr_list.append(coll_cstr)
         d = nlp_options['collocation']['d']
+
+        # for poly control parametrization, include path constraints on collocation nodes
+        if nlp_options['collocation']['u_param'] == 'poly':
+            path_constr_repeat = [nk, d]
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            path_constr_repeat = [nk]
+
         entry_tuple += (
-            cas.entry('path',        repeat = [nk],    struct = mdl_path_constraints),
-            cas.entry('collocation', repeat = [nk, d], struct = mdl_dyn_constraints),
+                cas.entry('path',        repeat = path_constr_repeat, struct = mdl_path_constraints),
+                cas.entry('collocation', repeat = [nk, d], struct = mdl_dyn_constraints),
             )
 
     else:
@@ -165,44 +174,63 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     shooting_params = struct_op.get_shooting_params(nlp_options, V, P, model)
 
     # collect collocation variables
+    coll_nodes = n_k*d
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
     # create maps of relevant functions
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+    if nlp_options['collocation']['u_param'] == 'poly':
+        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
+    elif nlp_options['collocation']['u_param'] == 'zoh':
+        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, n_k * d, [], [])
+    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
     mdl_eq_map_shooting = mdl_eq_fun.map('mdl_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
-    ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
+    if nlp_options['collocation']['u_param'] == 'poly':
+        ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
+    elif nlp_options['collocation']['u_param'] == 'zoh':
+        ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
     ocp_eqs_shooting_expr = mdl_eq_map_shooting(shooting_vars, shooting_params)
 
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
 
-        # algebraic constraints on shooting nodes
-        cstr_list.append(cstr_op.Constraint(
-            expr = ocp_eqs_shooting_expr[:,kdx],
-            name = 'algebraic_{}'.format(kdx),
-            cstr_type = 'eq'
-            )
-        )
+        if nlp_options['collocation']['u_param'] == 'zoh':
 
-        # path constraints on shooting nodes
-        if (ocp_ineqs_expr.shape != (0, 0)):
+            # algebraic constraints on shooting nodes
             cstr_list.append(cstr_op.Constraint(
-                expr= ocp_ineqs_expr[:,kdx],
-                name='path_{}'.format(kdx),
-                cstr_type='ineq'
+                expr = ocp_eqs_shooting_expr[:,kdx],
+                name = 'algebraic_{}'.format(kdx),
+                cstr_type = 'eq'
                 )
             )
 
+            # path constraints on shooting nodes
+            if (ocp_ineqs_expr.shape != (0, 0)):
+                cstr_list.append(cstr_op.Constraint(
+                    expr= ocp_ineqs_expr[:,kdx],
+                    name='path_{}'.format(kdx),
+                    cstr_type='ineq'
+                    )
+                )
+
         # collocation constraints
         for jdx in range(d):
+
+            if nlp_options['collocation']['u_param'] == 'poly':
+
+                cstr_list.append(cstr_op.Constraint(
+                    expr = ocp_ineqs_expr[:,kdx*d+jdx],
+                    name = 'path_{}_{}'.format(kdx,jdx),
+                    cstr_type = 'ineq'
+                    )
+                )
+
             cstr_list.append(cstr_op.Constraint(
                 expr = ocp_eqs_expr[:,kdx*d+jdx],
                 name = 'collocation_{}_{}'.format(kdx,jdx),
