@@ -73,3 +73,5 @@ def test_animation():
 
     trial.plot('animation')
     os.remove('trial1.mp4')
+
+test_animation()

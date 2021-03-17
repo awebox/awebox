@@ -84,8 +84,8 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
         V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
 
     elif init_options['induction']['vortex_representation'] == 'alg':
-        message = 'initialization not yet set-up for algebraic vortex representation. specific vortex variables initialized to zero.'
-        awelogger.logger.warning(message)
+
+        V_init = get_alg_repr_fixing_initialization(init_options, nlp, model, V_init)
 
     V_init = set_wake_strengths(init_options, nlp, model, V_init)
 
@@ -96,7 +96,7 @@ def set_wu_ind(init_options, nlp, model, V_init):
 
     n_k = nlp.n_k
     d = nlp.d
-    wake_nodes = init_options['aero']['vortex']['wake_nodes']
+    wake_nodes = init_options['model']['vortex_wake_nodes']
     rings = wake_nodes - 1
 
     for kdx in range(n_k):
@@ -426,3 +426,87 @@ def get_local_wind_reference_frame(init_options):
         w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
         v_hat = vect_op.normed_cross(w_hat, u_hat)
     return u_hat, v_hat, w_hat
+
+
+def get_alg_repr_fixing_initialization(init_options, nlp, model, V_init):
+
+    n_k = nlp.n_k
+    d = nlp.d
+
+    wake_nodes = init_options['model']['vortex_wake_nodes']
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    for kite in kite_nodes:
+        for tip in wingtips:
+            for wake_node in range(wake_nodes):
+
+                for ndx in range(n_k):
+
+                    for ddx in range(d):
+                        V_init = get_local_alg_repr_fixing_initialization(init_options, V_init, nlp, model,
+                                                                          kite, tip, wake_node, ndx, ddx)
+
+                    if ndx > 0:
+                        V_init = get_continuity_fixing_initialization(V_init, kite, tip, wake_node, ndx)
+
+                    else:
+                        V_init = get_alg_periodic_fixing_initialization(V_init, kite, tip, wake_node)
+
+
+    return V_init
+
+
+def get_local_alg_repr_fixing_initialization(init_options, V_init, nlp, model, kite, tip, wake_node, ndx, ddx):
+    if tip == 'exit':
+        sign = +1.
+    else:
+        sign = -1.
+
+    parent = model.architecture.parent_map[kite]
+
+    b_ref = init_options['sys_params_num']['geometry']['b_ref']
+
+    time_final = init_options['precompute']['time_final']
+    tgrid = nlp.time_grids['coll'](time_final)
+    current_time = tgrid[ndx, ddx]
+
+    n_k = nlp.n_k
+
+    # # if wake_node = 0, then shed at ndx
+    # # if wake_node = 1, then shed at (ndx - 1) ---- > corresponds to (ndx - 2), ddx = -1
+    # # .... if shedding_ndx is 1, then shedding_ndx -> 1
+    # # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
+    # # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
+    # # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k) -----> np.mod(ndx - wake_node - 1, n_k), ddx=-1
+    subtracted_ndx = ndx - wake_node
+    shedding_ndx = np.mod(subtracted_ndx, n_k)
+    periods_passed = np.floor(subtracted_ndx / n_k)
+
+    if wake_node == 0:
+        shedding_ddx = ddx
+    else:
+        shedding_ddx = -1
+
+    shedding_time = time_final * periods_passed + tgrid[shedding_ndx, shedding_ddx]
+
+    q_kite = V_init['coll_var', shedding_ndx, shedding_ddx, 'xd', 'q' + str(kite) + str(parent)]
+    vec_u_infty = tools_init.get_wind_speed(init_options, q_kite[2]) * vect_op.xhat_np()
+
+    wx_found = guess_vortex_node_position(shedding_time, current_time, q_kite, init_options, model, kite,
+                                                     b_ref, sign, vec_u_infty)
+
+    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+    V_init['coll_var', ndx, ddx, 'xl', var_name] = wx_found
+
+    return V_init
+
+def get_continuity_fixing_initialization(V_init, kite, tip, wake_node, ndx):
+    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+    V_init['xl', ndx, var_name] = V_init['coll_var', ndx-1, -1, 'xl', var_name]
+    return V_init
+
+def get_alg_periodic_fixing_initialization(V_init, kite, tip, wake_node):
+    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+    V_init['xl', 0, var_name] = V_init['coll_var', -1, -1, 'xl', var_name]
+    return V_init
