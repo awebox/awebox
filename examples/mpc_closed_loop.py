@@ -62,6 +62,6 @@ options['sim']['sys_params']['wind']['u_ref'] = 0.9*options['sim']['sys_params']
 # make simulator
 closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, options)
 closed_loop_sim.run(N_sim)
-closed_loop_sim.plot(['states','controls','algebraic_variables','constraints','invariants','quad', 'outputs:performance:freelout'])
+closed_loop_sim.plot(['states','controls','algebraic_variables','constraints','invariants','quad'])
 import matplotlib.pyplot as plt
 plt.show()

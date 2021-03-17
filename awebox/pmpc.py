@@ -555,7 +555,21 @@ class Pmpc(object):
 
             else:
                 pp['theta0',param_type] = param_options[param_type]
-        p_sym = self.__trial.nlp.P(ct.vertcat(self.__p['x0'],pp.cat[self.__nx:]))
+
+        # fill in x0 in right spot
+        p_param = ct.vertcat(
+            pp['p','ref','theta'],
+            pp['p','ref','phi'],
+            pp['p','ref','xi']
+        )
+
+        p_sym = self.__trial.nlp.P(
+            ct.vertcat(
+                p_param,
+                self.__p['x0'],
+                pp.cat[self.__nx + p_param.shape[0]:]
+            )
+        )
         self.__P_fun = ct.Function('P_fun',[self.__p], [p_sym])
 
     def __create_tracking_cost_fun(self, W):
