@@ -118,13 +118,12 @@ class Pmpc(object):
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
         # remove state constraints at k = 0
-        for var_type in ['xd', 'xa', 'xddot']:
-            self.__trial.nlp.V_bounds['lb'][var_type,0] = - np.inf
-            self.__trial.nlp.V_bounds['ub'][var_type,0] = np.inf
+        self.__trial.nlp.V_bounds['lb']['xd',0] = - np.inf
+        self.__trial.nlp.V_bounds['ub']['xd',0] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
-                g_ub['path',0,constr] = np.inf
+                g_ub['path',0,:,constr] = np.inf
         self.__trial.nlp.g_bounds['ub'] = g_ub.cat
 
         return None
@@ -368,15 +367,12 @@ class Pmpc(object):
                     if var_type == 'xd':
                         values, time_grid = viz_tools.merge_xd_values(V_opt, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
-                    elif var_type == 'u':
+                    elif var_type in ['u', 'xa', 'xl']:
                         values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values):
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
-                    elif var_type in ['xa','xl']:
-                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
-                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
 
         def spline_interpolator(t_grid, name, j, var_type):
             """ Interpolate reference on specific time grid for specific variable.
@@ -411,7 +407,7 @@ class Pmpc(object):
             ip_dict[var_type] = []
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    if var_type in ['xd', 'xa']:
+                    if var_type == 'xd':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
@@ -435,19 +431,15 @@ class Pmpc(object):
         for k in range(self.__N):
             for j in range(self.__trial.nlp.d+1):
                 if j == 0:
-                    for var_type in ['xd', 'xddot','xa']:
-                        if var_type in ['xd','xa']:
-                            V_list.append(ip_dict[var_type][:,counter_x])
-                        else:
-                            V_list.append(np.zeros((self.__nx,1)))
+                    V_list.append(ip_dict['xd'][:,counter_x])
                     counter_x += 1
                 else:
                     for var_type in self.__var_list:
-                        if var_type in ['xd','xa']:
+                        if var_type == 'xd':
                             V_list.append(ip_dict[var_type][:,counter_x])
+                            counter_x += 1
                         else:
                             V_list.append(ip_dict[var_type][:,counter])
-                    counter_x += 1
                     counter += 1
 
         V_list.append(ip_dict['xd'][:,counter_x])
