@@ -57,7 +57,7 @@ class NLP(object):
 
             timer = time.time()
             self.__generate_discretization(nlp_options, model,formulation)
-            self.__generate_variable_bounds(nlp_options, model)
+            self.generate_variable_bounds(nlp_options, model)
             self.__generate_objective(nlp_options, model)
 
             self.__status = 'I am an NLP.'
@@ -116,7 +116,7 @@ class NLP(object):
 
         return None
 
-    def __generate_variable_bounds(self, nlp_options, model):
+    def generate_variable_bounds(self, nlp_options, model):
 
         awelogger.logger.info('generate variable bounds...')
 
