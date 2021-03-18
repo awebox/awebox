@@ -326,6 +326,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
+        ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
         ('solver',  'initialization', None, 'l_t_full_to_unwound_ratio', 1.2,   ('initial guess ratio used to set full (main) tether length [-]', None), 'x'),

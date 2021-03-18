@@ -168,15 +168,34 @@ def get_kite_dcm(init_options, model, node, ret):
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
 
-    vec_u_infty = get_wind_speed(init_options, position[2])
-    vec_u_app = vec_u_infty - velocity
-
     normal_vector = ret['q10']
     ehat_normal = vect_op.normalize(normal_vector)
 
-    ehat1 = vect_op.normalize(vec_u_app)
-    ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
-    ehat3 = vect_op.normed_cross(ehat1, ehat2)
+    kite_dcm_setting_method = init_options['kite_dcm']
+    if kite_dcm_setting_method == 'aero_validity':
+
+        position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
+        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
+
+        vec_u_infty = get_wind_speed(init_options, position[2])
+        vec_u_app = vec_u_infty - velocity
+
+        ehat1 = vect_op.normalize(vec_u_app)
+        ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
+        ehat3 = vect_op.normed_cross(ehat1, ehat2)
+
+    elif kite_dcm_setting_method == 'circular':
+
+        ehat_forwards = vect_op.normalize(velocity)
+
+        ehat1 = -1. * ehat_forwards
+        ehat3 = ehat_normal
+        ehat2 = vect_op.normed_cross(ehat3, ehat1)
+
+    else:
+        message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
