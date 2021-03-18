@@ -228,6 +228,9 @@ class Pmpc(object):
             self.__plot(flags,self.__trial.nlp.V(sol['x']))
 
         self.__extract_solver_stats(sol)
+
+        # shift solution
+        self.__w0 = self.__trial.nlp.V(sol['x'])
         self.__shift_solution()
 
         # return zoh control
