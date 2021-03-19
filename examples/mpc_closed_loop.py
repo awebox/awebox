@@ -9,6 +9,9 @@ import casadi as ca
 import pickle
 import copy
 
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
 # make default options object
 options = awe.Options(True)
 
@@ -20,13 +23,15 @@ options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 # trajectory should be a single pumping cycle with initial number of five windings
 options['user_options']['trajectory']['type'] = 'power_cycle'
 options['user_options']['trajectory']['system_type'] = 'lift_mode'
-options['user_options']['trajectory']['lift_mode']['windings'] = 6
+options['user_options']['trajectory']['lift_mode']['windings'] = 2
 
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
 options['user_options']['tether_drag_model'] = 'split'
+options['model']['tether']['lift_tether_force'] = False
+options['model']['aero']['lift_aero_force'] = False
 
-options['nlp']['n_k'] = 80
+options['nlp']['n_k'] = 40
 options['nlp']['collocation']['u_param'] = 'poly'
 
 # initialize and optimize trial
@@ -36,7 +41,7 @@ trial.optimize()
 
 # set-up closed-loop simulation
 N_mpc = 10 # MPC horizon
-N_sim = 2000  # closed-loop simulation steps
+N_sim = 1000  # closed-loop simulation steps
 ts = 0.1 # sampling time
 
 # MPC options
@@ -51,6 +56,7 @@ options['mpc']['max_cpu_time'] = 2000
 options['mpc']['N'] = N_mpc
 options['mpc']['plot_flag'] = False
 options['mpc']['ref_interpolator'] = 'spline'
+options['mpc']['u_param'] = 'zoh'
 
 # simulation options
 options['sim']['number_of_finite_elements'] = 20 # integrator steps within one sampling time
