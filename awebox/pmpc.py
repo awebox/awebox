@@ -142,7 +142,8 @@ class Pmpc(object):
 
             # parameters
             self.__p = ct.struct_symMX([
-                ct.entry('x0', shape = (self.__nx,1))
+                ct.entry('x0', shape = (self.__nx,1)),
+                ct.entry('u_ref', shape = (1,1))
             ])
 
         if self.__cost_type == 'tracking':
@@ -150,7 +151,8 @@ class Pmpc(object):
             # parameters
             self.__p = ct.struct_symMX([
                 ct.entry('x0',  shape = (self.__nx,)),
-                ct.entry('ref', struct = self.__trial.nlp.V)
+                ct.entry('ref', struct = self.__trial.nlp.V),
+                ct.entry('u_ref', shape = (1,1))
             ])
 
         # create P evaluator for use in NLP arguments
@@ -201,7 +203,7 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0, plot_flag = False):
+    def step(self, x0, plot_flag = False, u_ref = None):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
@@ -212,9 +214,16 @@ class Pmpc(object):
         self.__p0 = self.__p(0.0)
         self.__p0['x0'] = x0
 
+        # update reference
         if self.__cost_type == 'tracking':
             ref = self.get_reference(*self.__compute_time_grids(self.__index))
             self.__p0['ref'] = ref
+
+        # update model wind speed
+        if u_ref == None:
+            self.__p0['u_ref'] = self.__trial.options['solver']['initialization']['sys_params_num']['wind']['u_ref']
+        else:
+            self.__p0['u_ref'] = u_ref
 
         self.__p_fix_num = self.__P_fun(self.__p0)
 
@@ -594,37 +603,39 @@ class Pmpc(object):
         """
 
         # initialize
-        pp = self.__trial.nlp.P(0.0)
+        import awebox.opti.preparation as prep
+        V_dummy = self.__trial.nlp.V(0.0)
+        p_fix_num = prep.set_p_fix_num(V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
+        x0 = self.__trial.model.variables_dict['xd'](self.__p['x0'])
 
-        # fill in system parameters
-        param_options = self.__trial.options['solver']['initialization']['sys_params_num']
-        for param_type in list(param_options.keys()):
-            if isinstance(param_options[param_type],dict):
-                for param in list(param_options[param_type].keys()):
-                    if isinstance(param_options[param_type][param],dict):
-                        for subparam in list(param_options[param_type][param].keys()):
-                            pp['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
+        # fill in P
+        p_list = []
+        for k in range(self.__trial.nlp.P.shape[0]):
 
-                    else:
-                        pp['theta0',param_type,param] = param_options[param_type][param]
+            canonical = self.__trial.nlp.P.getCanonicalIndex(k)
+            
+            if canonical[0] == 'p' and canonical[1] == 'ref' and canonical[2] == 'xd' and canonical[3] == 0:
+                name = canonical[4]
+                dim = canonical[5]
+                p_list.append(x0[name, dim])
+            
+            # fill in params
+            elif canonical[0] == 'theta0':
+
+                if canonical[1] == 'wind' and canonical[2] == 'u_ref':
+                    p_list.append(self.__p['u_ref'])
+                    import ipdb; ipdb.set_trace()
+                elif len(canonical) == 4:
+                    p_list.append(p_fix_num[canonical[0],canonical[1],canonical[2],canonical[3]])
+                elif len(canonical) == 5:
+                    p_list.append(p_fix_num[canonical[0],canonical[1],canonical[2],canonical[3],canonical[4]])
+                elif len(canonical) == 3:
+                    p_list.append(p_fix_num[canonical[0],canonical[1],canonical[2]])
 
             else:
-                pp['theta0',param_type] = param_options[param_type]
+                p_list.append(0.0)
 
-        # fill in x0 in right spot
-        p_param = ct.vertcat(
-            pp['p','ref','theta'],
-            pp['p','ref','phi'],
-            pp['p','ref','xi']
-        )
-
-        p_sym = self.__trial.nlp.P(
-            ct.vertcat(
-                p_param,
-                self.__p['x0'],
-                pp.cat[self.__nx + p_param.shape[0]:]
-            )
-        )
+        p_sym = self.__trial.nlp.P(ct.vertcat(*p_list))
         self.__P_fun = ct.Function('P_fun',[self.__p], [p_sym])
 
     def __create_tracking_cost_fun(self, W):
