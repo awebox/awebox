@@ -246,9 +246,9 @@ class Pmpc(object):
             u0 = self.__trial.nlp.V(sol['x'])['u',0]
 
         # initial guess for higher level simulation
-        xa0 = self.__trial.nlp.V(sol['x'])['coll_var',0,-1,'xa']
+        xa0 = self.__trial.nlp.V(sol['x'])['coll_var',0,0,'xa']
         xdot0 = self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['xd',0]
-        self.z0 = ct.vertcat(xdot0, xa0)
+        self.__z0 = ct.vertcat(xdot0, xa0)
 
         # shift solution (note: after control assignment!)
         self.__shift_solution()
@@ -723,3 +723,13 @@ class Pmpc(object):
     @interpolator.setter
     def interpolator(self, value):
         awelogger.logger.info('Cannot set interpolator object.')
+
+    @property
+    def z0(self):
+        """ algebraic dae variables initial guess
+        """
+        return self.__z0
+
+    @z0.setter
+    def z0(self, value):
+        awelogger.logger.info('Cannot set z0 object.')

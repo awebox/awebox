@@ -124,7 +124,7 @@ class Simulation:
                 u0 = self.__u_sim[:,i]
 
             # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__z0)
+            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
             self.__store_results(x0, u0, var_next['qf'])
 
             # shift initial state
