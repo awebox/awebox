@@ -74,7 +74,7 @@ class Pmpc(object):
         options['nlp']['n_k'] = self.__N
         options['nlp']['d'] = self.__d
         options['nlp']['scheme'] = self.__scheme
-        options['nlp']['collocation']['u_param'] = 'poly'
+        options['nlp']['collocation']['u_param'] = self.__mpc_options['u_param']
         options['visualization']['cosmetics']['plot_ref'] = True
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
@@ -124,7 +124,10 @@ class Pmpc(object):
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
-                g_ub['path',0,:,constr] = np.inf
+                if self.__mpc_options['u_param'] == 'poly':
+                    g_ub['path',0,:,constr] = np.inf
+                else:
+                    g_ub['path',0, constr] = np.inf
         self.__trial.nlp.g_bounds['ub'] = g_ub.cat
 
         return None
@@ -169,8 +172,12 @@ class Pmpc(object):
 
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
-                self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
-                self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
+                if self.__mpc_options['u_param'] == 'poly':
+                    self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
+                elif self.__mpc_options['u_param'] == 'zoh':
+                    self.__trial.nlp.V_bounds['lb']['u',:,name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['u',:,name] = 0.0
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']
@@ -220,7 +227,7 @@ class Pmpc(object):
             ubg = self.__ubg,
             p   = self.__p0
             )
-
+        self.__w0 = self.__trial.nlp.V(sol['x'])
         self.__index += 1
 
         if plot_flag == True:
@@ -229,15 +236,22 @@ class Pmpc(object):
 
         self.__extract_solver_stats(sol)
 
-        # shift solution
-        self.__w0 = self.__trial.nlp.V(sol['x'])
-        self.__shift_solution()
-
         # return zoh control
-        u0 = ct.mtimes(
-                self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
-                ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T
-                )
+        if self.__mpc_options['u_param'] == 'poly':
+            u0 = ct.mtimes(
+                    self.__trial.nlp.Collocation.quad_weights[np.newaxis,:],
+                    ct.horzcat(*self.__trial.nlp.V(sol['x'])['coll_var',0,:,'u']).T
+                    )
+        elif self.__mpc_options['u_param'] == 'zoh':
+            u0 = self.__trial.nlp.V(sol['x'])['u',0]
+
+        # initial guess for higher level simulation
+        xa0 = self.__trial.nlp.V(sol['x'])['coll_var',0,-1,'xa']
+        xdot0 = self.__trial.nlp.Xdot(self.__trial.nlp.Xdot_fun(sol['x']))['xd',0]
+        self.z0 = ct.vertcat(xdot0, xa0)
+
+        # shift solution (note: after control assignment!)
+        self.__shift_solution()
 
         return u0
 
@@ -260,13 +274,14 @@ class Pmpc(object):
                     weights[weight] = np.eye(self.__nx)
                 elif weight == 'R':
                     weights[weight] = np.eye(self.__nu)
-        weights['Z'] = 1e-5*np.ones((self.__nz, self.__nz))
+        weights['Z'] = np.eye(self.__nz)
 
         from scipy.linalg import block_diag
-        W = block_diag(weights['Q'],weights['R'],weights['Z'])
+        W = block_diag(weights['Q'],weights['Z'])
         if 'xl' in self.__var_list:
-            weights['L'] = 1e-5*np.ones((self.__nl, self.__nl))
+            weights['L'] = 1e-5*np.eye(self.__nl)
             W = block_diag(W, weights['L'])
+        W = block_diag(W, weights['R'])
 
         # create tracking function
         tracking_cost = self.__create_tracking_cost_fun(W)
@@ -274,9 +289,19 @@ class Pmpc(object):
 
         # cost function arguments
         cost_args = []
-        V_list = [ct.horzcat(*self.__trial.nlp.V['coll_var',k,:]) for k in range(self.__N)]
+        if self.__mpc_options['u_param'] == 'poly':
+            V_list = [ct.horzcat(*self.__trial.nlp.V['coll_var',k,:]) for k in range(self.__N)]
+            V_ref_list = [ct.horzcat(*self.__p['ref','coll_var',k,:]) for k in range(self.__N)]
+
+        elif self.__mpc_options['u_param'] == 'zoh':
+            V_list = []
+            V_ref_list = []
+            for k in range(self.__N):
+                for d in range(self.__d):
+                    V_list.append(ct.vertcat(self.__trial.nlp.V['coll_var',k,d],self.__trial.nlp.V['u',k]))
+                    V_ref_list.append(ct.vertcat(self.__p['ref','coll_var',k,d],self.__p['ref','u',k]))
+
         cost_args += [ct.horzcat(*V_list)]
-        V_ref_list = [ct.horzcat(*self.__p['ref','coll_var',k,:]) for k in range(self.__N)]
         cost_args += [ct.horzcat(*V_ref_list)]
 
         # quadrature weights
@@ -303,7 +328,10 @@ class Pmpc(object):
         self.__log['V_opt'].append(self.__trial.nlp.V(sol['x']))
         self.__log['lam_x'].append(sol['lam_x'])
         self.__log['lam_g'].append(sol['lam_g'])
-        self.__log['u0'].append(self.__trial.nlp.V(sol['x'])['coll_var',0,0,'u'])
+        if self.__mpc_options['u_param'] == 'poly':
+            self.__log['u0'].append(self.__trial.nlp.V(sol['x'])['coll_var',0,0,'u'])
+        else:
+            self.__log['u0'].append(self.__trial.nlp.V(sol['x'])['u',0])
 
         return None
 
@@ -340,6 +368,8 @@ class Pmpc(object):
         self.__t_grid_coll = ct.reshape(self.__t_grid_coll.T, self.__t_grid_coll.numel(),1).full()
         self.__t_grid_x_coll = self.__trial.nlp.time_grids['x_coll'](self.__N*self.__ts)
         self.__t_grid_x_coll = ct.reshape(self.__t_grid_x_coll.T, self.__t_grid_x_coll.numel(),1).full()
+        self.__t_grid_u = self.__trial.nlp.time_grids['u'](self.__N*self.__ts)
+        self.__t_grid_u = ct.reshape(self.__t_grid_u.T, self.__t_grid_u.numel(),1).full()
 
         # interpolate steady state solution
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
@@ -371,12 +401,18 @@ class Pmpc(object):
                     if var_type == 'xd':
                         values, time_grid = viz_tools.merge_xd_values(V_opt, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
-                    elif var_type in ['u', 'xa', 'xl']:
+                    elif var_type in ['xa', 'xl'] or (var_type == 'u' and self.__mpc_options['u_param'] == 'poly'):
                         values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
+                    elif var_type == 'u' and self.__mpc_options['u_param'] == 'zoh':
+                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        if all(v == 0 for v in values) or 'fict' in name:
+                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
+                        else:
+                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(self.__N)
 
         def spline_interpolator(t_grid, name, j, var_type):
             """ Interpolate reference on specific time grid for specific variable.
@@ -399,9 +435,12 @@ class Pmpc(object):
         t_grid_x = self.__t_grid_x_coll + index*self.__ts
         t_grid_x = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
 
-        return t_grid, t_grid_x
+        t_grid_u = self.__t_grid_u + index*self.__ts
+        t_grid_u = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
 
-    def get_reference(self, t_grid, t_grid_x):
+        return t_grid, t_grid_x, t_grid_u
+
+    def get_reference(self, t_grid, t_grid_x, t_grid_u):
         """ Interpolate reference on NLP time grids.
         """
 
@@ -413,6 +452,8 @@ class Pmpc(object):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
                     if var_type == 'xd':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
+                    elif (var_type == 'u') and self.__mpc_options['u_param']:
+                        ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim,var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
             if self.__mpc_options['ref_interpolator'] == 'poly':
@@ -422,6 +463,7 @@ class Pmpc(object):
 
         counter = 0
         counter_x = 0
+        counter_u = 0
         V_list = []
 
         for name in self.__trial.model.variables_dict['theta'].keys():
@@ -437,12 +479,18 @@ class Pmpc(object):
                 if j == 0:
                     V_list.append(ip_dict['xd'][:,counter_x])
                     counter_x += 1
+
+                    if self.__mpc_options['u_param'] == 'zoh':
+                        V_list.append(ip_dict['u'][:, counter_u])
+                        V_list.append(np.zeros((self.__nx, 1)))
+                        V_list.append(np.zeros((self.__nz, 1)))
+                        counter_u += 1
                 else:
                     for var_type in self.__var_list:
                         if var_type == 'xd':
                             V_list.append(ip_dict[var_type][:,counter_x])
                             counter_x += 1
-                        else:
+                        elif var_type in ['xa','xl'] or (var_type == 'u' and self.__mpc_options['u_param']=='poly'):
                             V_list.append(ip_dict[var_type][:,counter])
                     counter += 1
 
@@ -484,7 +532,10 @@ class Pmpc(object):
 
         for k in range(self.__N-1):
             self.__w0['coll_var',k,:,'xd'] = self.__w0['coll_var',k+1,:,'xd']
-            self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
+            if self.__mpc_options['u_param'] == 'poly':
+                self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
+            elif self.__mpc_options['u_param'] == 'zoh':
+                self.__w0['u',k] = self.__w0['u',k+1]
             self.__w0['coll_var',k,:,'xa'] = self.__w0['coll_var',k+1,:,'xa']
             if 'xl' in self.__var_list:
                 self.__w0['coll_var',k,:,'xl'] = self.__w0['coll_var',k+1,:,'xl']
