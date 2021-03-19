@@ -705,6 +705,16 @@ class Pmpc(object):
         awelogger.logger.info('Cannot set t_grid_coll object.')
 
     @property
+    def t_grid_u(self):
+        """ ZOH control grid time vector
+        """
+        return self.__t_grid_u
+
+    @t_grid_u.setter
+    def t_grid_u(self, value):
+        awelogger.logger.info('Cannot set t_grid_u object.')
+
+    @property
     def t_grid_x_coll(self):
         """ Collocation grid time vector
         """
