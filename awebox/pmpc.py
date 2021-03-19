@@ -143,7 +143,10 @@ class Pmpc(object):
             # parameters
             self.__p = ct.struct_symMX([
                 ct.entry('x0', shape = (self.__nx,1)),
-                ct.entry('u_ref', shape = (1,1))
+                ct.entry('u_ref', shape = (1,1)),
+                ct.entry('Q', shape = (self.__nx, 1)),
+                ct.entry('R', shape = (self.__nu, 1)),
+                ct.entry('P', shape = (self.__nx, 1))
             ])
 
         if self.__cost_type == 'tracking':
@@ -152,7 +155,10 @@ class Pmpc(object):
             self.__p = ct.struct_symMX([
                 ct.entry('x0',  shape = (self.__nx,)),
                 ct.entry('ref', struct = self.__trial.nlp.V),
-                ct.entry('u_ref', shape = (1,1))
+                ct.entry('u_ref', shape = (1,1)),
+                ct.entry('Q', shape = (self.__nx, 1)),
+                ct.entry('R', shape = (self.__nu, 1)),
+                ct.entry('P', shape = (self.__nx, 1))
             ])
 
         # create P evaluator for use in NLP arguments
@@ -203,7 +209,7 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0, plot_flag = False, u_ref = None):
+    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
@@ -225,7 +231,13 @@ class Pmpc(object):
         else:
             self.__p0['u_ref'] = u_ref
 
-        self.__p_fix_num = self.__P_fun(self.__p0)
+        # update tracking weights
+        if Q == None:
+            self.__p0['Q'] = self.__weights['Q']
+        if R == None:
+            self.__p0['R'] = self.__weights['R']
+        if P == None:
+            self.__p0['P'] = self.__weights['P']
 
         # MPC problem
         sol = self.__solver(
@@ -236,6 +248,7 @@ class Pmpc(object):
             ubg = self.__ubg,
             p   = self.__p0
             )
+
         self.__w0 = self.__trial.nlp.V(sol['x'])
         self.__index += 1
 
@@ -280,20 +293,16 @@ class Pmpc(object):
                 weights[weight] = self.__mpc_options[weight]
             else:
                 if weight in ['Q', 'P']:
-                    weights[weight] = np.eye(self.__nx)
+                    weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
-                    weights[weight] = np.eye(self.__nu)
-        weights['Z'] = np.eye(self.__nz)
-
-        from scipy.linalg import block_diag
-        W = block_diag(weights['Q'],weights['Z'])
+                    weights[weight] = np.ones((self.__nu,1))
+        weights['Z'] = np.ones((self.__nz,1))
         if 'xl' in self.__var_list:
-            weights['L'] = 1e-5*np.eye(self.__nl)
-            W = block_diag(W, weights['L'])
-        W = block_diag(W, weights['R'])
+            weights['L'] = 1e-5*np.ones((self.__nl,1))
+        self.__weights = weights
 
         # create tracking function
-        tracking_cost = self.__create_tracking_cost_fun(W)
+        tracking_cost = self.__create_tracking_cost_fun()
         cost_map = tracking_cost.map(self.__N)
 
         # cost function arguments
@@ -312,6 +321,7 @@ class Pmpc(object):
 
         cost_args += [ct.horzcat(*V_list)]
         cost_args += [ct.horzcat(*V_ref_list)]
+        cost_args += [ct.vertcat(self.__p['Q'], self.__weights['Z'], self.__p['R'])]
 
         # quadrature weights
         quad_weights = list(self.__trial.nlp.Collocation.quad_weights)*self.__N
@@ -321,7 +331,7 @@ class Pmpc(object):
 
         # terminal cost
         dxN = self.__trial.nlp.V['xd',-1] - self.__p['ref','xd',-1]
-        f += ct.mtimes(ct.mtimes((dxN.T, weights['P'])),dxN)
+        f += ct.mtimes(ct.mtimes((dxN.T, ct.diag(self.__p['P']))),dxN)
 
         return f
 
@@ -624,7 +634,6 @@ class Pmpc(object):
 
                 if canonical[1] == 'wind' and canonical[2] == 'u_ref':
                     p_list.append(self.__p['u_ref'])
-                    import ipdb; ipdb.set_trace()
                 elif len(canonical) == 4:
                     p_list.append(p_fix_num[canonical[0],canonical[1],canonical[2],canonical[3]])
                 elif len(canonical) == 5:
@@ -638,22 +647,22 @@ class Pmpc(object):
         p_sym = self.__trial.nlp.P(ct.vertcat(*p_list))
         self.__P_fun = ct.Function('P_fun',[self.__p], [p_sym])
 
-    def __create_tracking_cost_fun(self, W):
+    def __create_tracking_cost_fun(self):
         """ Create casadi.Function to compute tracking cost at one time instant.
         """
 
-        w = ct.SX.sym('w',W.shape[0])
-        w_ref = ct.SX.sym('w_ref', W.shape[0])
-
+        w = ct.SX.sym('w', self.__nx+self.__nu+self.__nz)
+        w_ref = ct.SX.sym('w_ref', self.__nx+self.__nu+self.__nz)
+        W = ct.SX.sym('W', self.__nx+self.__nu+self.__nz)
         f_t = ct.mtimes(
                 ct.mtimes(
                     (w-w_ref).T,
-                    W
+                    ct.diag(W)
                 ),
                 (w-w_ref)
         )
 
-        return ct.Function('tracking_cost', [w, w_ref], [f_t])
+        return ct.Function('tracking_cost', [w, w_ref, W], [f_t])
 
     @property
     def trial(self):
