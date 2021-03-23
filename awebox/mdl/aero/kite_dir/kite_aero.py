@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -29,7 +29,7 @@ dependent on the position of the kite.
 _aerodynamic coefficients are assumptions.
 _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, jochem de schutter alu-fr 2017-2020
+- edited: rachel leuthold, jochem de schutter alu-fr 2017-2021
 '''
 
 import awebox.mdl.aero.induction_dir.induction as induction
@@ -152,6 +152,14 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         Cm = CM[1]
         Cn = CM[2]
 
+        if options['aero']['lift_aero_force']:
+            f_aero_name = 'f_aero' + str(kite) + str(architecture.parent_map[kite])
+            f_aero_var = variables_si['xl'][f_aero_name]
+            f_aero_var_in_wind = frames.from_earth_to_wind(vec_u_eff, kite_dcm, f_aero_var)
+            CD_var = f_aero_var_in_wind[0]
+            CS_var = f_aero_var_in_wind[1]
+            CL_var = f_aero_var_in_wind[2]
+
         aero_coefficients = {}
         aero_coefficients['CD'] = CD
         aero_coefficients['CS'] = CS
@@ -163,6 +171,9 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         aero_coefficients['Cm'] = Cm
         aero_coefficients['Cn'] = Cn
         aero_coefficients['LoverD'] = CL/CD
+        aero_coefficients['CD_var'] = CD_var
+        aero_coefficients['CS_var'] = CS_var
+        aero_coefficients['CL_var'] = CL_var
 
         base_aerodynamic_quantities = {}
         base_aerodynamic_quantities['kite'] = kite

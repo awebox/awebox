@@ -34,8 +34,6 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
-
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 
 import awebox.tools.vector_operations as vect_op
@@ -71,7 +69,7 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
 def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
 
     total_force_aero = get_actuator_force(outputs, parent, architecture)
-    nhat = general_geom.get_n_hat_var(variables, parent)
+    nhat = actuator_geom.get_n_hat_var(variables, parent)
     thrust = cas.mtimes(total_force_aero.T, nhat)
 
     return thrust

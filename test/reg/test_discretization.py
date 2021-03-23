@@ -30,7 +30,8 @@ def test_integrators():
     base_options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
     base_options['user_options']['tether_drag_model'] = 'split'
     base_options['user_options']['induction_model'] = 'not_in_use'
-    
+    base_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+
     # specify direct collocation options
     base_options['nlp']['n_k'] = 40
     base_options['nlp']['discretization'] = 'direct_collocation'
@@ -97,9 +98,9 @@ def test_integrators():
     tolerance = 1e-8
 
     # values should match up to nlp solver accuracy
-    assert(err_coll_x < tolerance)
-    assert(err_coll_z < tolerance)
-    assert(err_coll_q < tolerance)
+    assert(err_coll_x < tolerance), 'err_coll_x: ' + str(err_coll_x)
+    assert(err_coll_z < tolerance), 'err_coll_z: ' + str(err_coll_z)
+    assert(err_coll_q < tolerance), 'err_coll_q: ' + str(err_coll_q)
 
     # ===================================
     # TEST RK4-ROOT INTEGRATOR

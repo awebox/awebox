@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -32,13 +32,18 @@ import numpy as np
 import awebox as awe
 import casadi as cas
 import copy
-from awebox.logger.logger import Logger as awelogger
 import pickle
+from awebox.logger.logger import Logger as awelogger
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.wind as wind
 import awebox.tools.vector_operations as vect_op
+
+import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
+
+import awebox.mdl.wind as wind
+
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
@@ -54,7 +59,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     # aerodynamics
     options_tree, fixed_params = build_stability_derivative_options(options, help_options, options_tree, fixed_params)
     options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params, architecture)
 
     # tether
@@ -432,20 +437,50 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], ('????', None), 'x')),
 
-    options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf],
-                         ('normalization factor for normal vector [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0.1, 2.],
-                         ('normalization factor for normal vector [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'n_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'u_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'z_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
 
-    if options['model']['aero']['actuator']['normal_vector_model'] in ['default','tether_parallel']:
-        options_tree.append(('solver', 'initialization', None, 'n_factor', 'tether_length', ('induction factor [-]', None),'x'))
-    else:
-        options_tree.append(('solver', 'initialization', None, 'n_factor', 'unit_length', ('induction factor [-]', None),'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'act_dcm', 1., ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'wind_dcm', 1., ('descript', None), 'x'))
 
-    allow_azimuth_jumping = options['model']['aero']['actuator']['allow_azimuth_jumping']
-    if not allow_azimuth_jumping:
-        dpsi_max_rate= -np.pi / 4.
-        options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-1. * dpsi_max_rate, dpsi_max_rate], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+    z_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
+
+    u_vec_length_ref = get_u_ref(user_options)
+    options_tree.append(('model', 'scaling', 'xl', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
+
+    normal_vector_model = options['model']['aero']['actuator']['normal_vector_model']
+    number_of_kites = architecture.number_of_kites
+    if normal_vector_model == 'least_squares':
+        n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
+    elif normal_vector_model == 'binormal':
+        n_vec_length_ref = number_of_kites * options['model']['scaling']['xd']['l_t']**2.
+    elif normal_vector_model == 'tether_parallel':
+        n_vec_length_ref = options['model']['scaling']['xd']['l_t']
+    else: # normal_vector_model == 'xhat':
+        n_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
+
+    g_vec_length_ref = 1.
+    options_tree.append(('model', 'scaling', 'xl', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
+
+    psi_scale = 2. * np.pi
+    options_tree.append(('model', 'scaling', 'xl', 'psi', psi_scale, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'cospsi', 1., ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'sinpsi', 1., ('descript', None), 'x'))
+
+    psi_epsilon = np.pi
+    options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
+
+
 
     return options_tree, fixed_params
 
@@ -453,7 +488,9 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
 ######## actuator induction
 
-def build_actuator_options(options, options_tree, fixed_params):
+def build_actuator_options(options, options_tree, fixed_params, architecture):
+
+    # todo: ensure that system bounds don't get enforced when actuator is only comparison against vortex model
 
     user_options = options['user_options']
 
@@ -461,6 +498,9 @@ def build_actuator_options(options, options_tree, fixed_params):
     actuator_steadyness = options['model']['aero']['actuator']['steadyness']
     options_tree.append(
         ('solver', 'initialization', 'model', 'actuator_steadyness', actuator_steadyness, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
+
 
     comparison_labels = get_comparison_labels(options, user_options)
     options_tree.append(('model', 'aero', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
@@ -469,7 +509,9 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('solver', 'initialization', 'model', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    options_tree.append(('solver', 'initialization', 'model', 'induction_varrho_ref', induction_varrho_ref, ('????', None), 'x')),
+    options_tree.append(('model', 'scaling', 'xl', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'bar_varrho', induction_varrho_ref, ('descript', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'induction', 'varrho_ref', induction_varrho_ref, ('????', None), 'x')),
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
@@ -477,40 +519,42 @@ def build_actuator_options(options, options_tree, fixed_params):
     options_tree.append(('nlp', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
-    options_tree.append(('model', 'system_bounds', 'xd', 'dpsi', [-2., 2.], ('forwards-only', None), 'x')),  # no jumps... smoothen out psi
-
-    local_label = get_local_actuator_label(actuator_steadyness, actuator_symmetry)
-    options_tree.append(('model', 'system_bounds', 'xl', 'chi_' + local_label, [-np.pi/2., np.pi/2.], ('chi limit', None), 'x')),
-
     ## actuator-disk induction
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
-    if (a_ref > a_range[1]) or (a_ref < a_range[0]):
-        a_ref = a_range[1] / 2.
+    a_fourier_range = options['model']['aero']['actuator']['a_fourier_range']
+    if  (a_ref < a_range[0]) or (a_ref > a_range[1]):
+        a_ref_new = a_range[1] / 2.
+        message = 'reference induction factor (' + str(a_ref) + ') is outside of the allowed range of ' + str(a_range) + '. proceeding with reference value of ' + str(a_ref_new)
+        awelogger.logger.warning(message)
+        a_ref = a_ref_new
 
-    # if actuator_symmetry == 'asymmetric':
-    options_tree.append(('model', 'system_bounds', 'xd', 'local_a', a_range, ('local induction factor', None), 'x')),
+    a_labels_dict = {'qaxi': 'xl', 'qasym': 'xl', 'uaxi': 'xd', 'uasym' : 'xd'}
+    for label in a_labels_dict.keys():
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'a_' + label, a_ref, ('descript', None), 'x'))
+        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a_' + label, a_ref, ('induction factor [-]', None), 'x'))
+        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a', a_ref, ('induction factor [-]', None), 'x'))
 
-    if user_options['induction_model'] == 'not_in_use':
-        a_ref = None
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'acos_' + label, a_ref, ('descript', None), 'x'))
+        options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'xl', 'local_a', a_ref, ('???', None), 'x')),
 
-    options_tree.append(('model', 'aero', None, 'a_ref', a_ref, ('reference value for the induction factors. takes values between 0. and 0.4', None),'x'))
-
-    a_var_type = 'xd'
-    options_tree.append(('solver', 'initialization', a_var_type, 'a', a_ref, ('induction factor [-]', None),'x'))
+    local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range,
+                         ('local induction factor', None), 'x')),
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'acos_' + local_label, a_fourier_range,
+                         ('??', None), 'x')),
+    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'asin_' + local_label, a_fourier_range,
+                         ('??', None), 'x')),
 
     options_tree.append(('model', 'system_bounds', 'xl', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'xl', 'corr', [0., cas.inf], ('square root sign bounds on glauert correction [-]', None), 'x'))
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'xl', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
-
-    options_tree.append(('model', 'system_bounds', 'xl', 'g_vec_length', [0.1, 2.],
-                         ('normalization factor for normal vector [-]', None), 'x')),
-    options_tree.append(('model', 'system_bounds', 'xl', 'u_vec_length', [0.1, cas.inf],
-                         ('normalization factor for normal vector [-]', None), 'x')),
-
-    options_tree.append(('model', 'system_bounds', 'xl', 'LLinv', [-100., 100.], ('relative radius bounds [-]', None), 'x'))
+    gamma_ref = gamma_range[1] / 2.
+    options_tree.append(('model', 'scaling', 'xl', 'gamma', gamma_ref, ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'xl', 'cosgamma', 1., ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'xl', 'singamma', 1., ('tilt angle bounds [rad]', None), 'x')),
 
     return options_tree, fixed_params
 
@@ -549,24 +593,6 @@ def get_comparison_labels(options, user_options):
                 comparison_labels += [new_label]
 
     return comparison_labels
-
-def get_local_actuator_label(actuator_steadyness, actuator_symmetry):
-    local_label = ''
-    if (actuator_steadyness == 'quasi-steady' or actuator_steadyness == 'steady'):
-        if actuator_symmetry == 'axisymmetric':
-            local_label = 'qaxi'
-
-        elif actuator_symmetry == 'asymmetric':
-            local_label = 'qasym'
-
-    elif actuator_steadyness == 'unsteady':
-        if actuator_symmetry == 'axisymmetric':
-            local_label = 'uaxi'
-
-        elif actuator_symmetry == 'asymmetric':
-            local_label = 'uasym'
-
-    return local_label
 
 
 ###### vortex induction
@@ -621,6 +647,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     filaments = wake_nodes * 3 * len(architecture.kite_nodes)
     wingtips = ['ext', 'int']
 
+
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
     for kite in architecture.kite_nodes:
         for ring in range(rings):
@@ -629,7 +656,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
     u_ref = get_u_ref(options['user_options'])
-    vortex_position_scale = 2. * u_ref
+    # vortex_position_scale = 2. * u_ref
+    vortex_position_scale = 1.
     for kite in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
             for tip in wingtips:
@@ -648,6 +676,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
         ind_name = 'wu_ind_' + str(kite_obs)
         options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'xl', 'ui', u_ind, ('descript', None), 'x'))
 
 
 
@@ -758,7 +788,21 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
                              ('length of the main tether when unrolled [m]', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
-        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_scaling, ('length of the main tether when unrolled [m]', None), 'x'))
+
+        l_t_full_to_unwound_ratio = options['solver']['initialization']['l_t_full_to_unwound_ratio']
+        wound_tether_safety_factor = options['model']['tether']['wound_tether_safety_factor']
+        l_t_initial = options['solver']['initialization']['l_t']
+
+        if l_t_full_to_unwound_ratio < wound_tether_safety_factor:
+            message = 'the initialization ratio of full tether length to unwound tether length is likely to ' \
+                      'lead to constraint violation, given the wound tether safety factor. increasing the ' \
+                      'initialization ratio to match the safety factor.'
+            awelogger.logger.warning(message)
+            l_t_full_to_unwound_ratio = wound_tether_safety_factor
+
+        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_initial * l_t_full_to_unwound_ratio,
+                             ('length of the main tether when unrolled [m]', None), 'x'))
+
 
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False

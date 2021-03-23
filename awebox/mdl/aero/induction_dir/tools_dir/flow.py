@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,9 +25,14 @@
 """
 general flow functions for the induction model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 """
+
+import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
 
@@ -37,3 +42,26 @@ def get_kite_apparent_velocity(variables, wind, kite, parent):
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
+
+def get_uzero_vec(model_options, wind, parent, variables, architecture):
+
+    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    u_actuator = general_geom.get_center_velocity(parent, variables, architecture)
+
+    u_apparent = u_infty - u_actuator
+
+    return u_apparent
+
+def get_f_val(model_options, wind, parent, variables, architecture):
+    dl_t = variables['xd']['dl_t']
+    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
+    f_val = dl_t / vect_op.smooth_norm(u_infty)
+
+    return f_val
+
+def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
+
+    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    u_infty = wind.get_velocity(center[2])
+
+    return u_infty
