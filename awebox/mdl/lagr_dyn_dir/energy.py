@@ -68,7 +68,10 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     m_t = outputs['masses']['m_tether{}'.format(node)]
     dq_n = variables_si['xd']['dq' + label]
     if node == 1:
-        dq_parent = cas.DM.zeros((3, 1))
+        q10 = variables_si['xd']['q10']
+        l_t = variables_si['xd']['l_t']
+        e_t = q10/l_t
+        dq_parent = cas.mtimes(e_t, cas.mtimes(dq_n.T, e_t))
     else:
         dq_parent = variables_si['xd']['dq' + parent_label]
     e_kin_trans = 0.5 * m_t/3 * (cas.mtimes(dq_n.T, dq_n) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_n.T, dq_parent))
