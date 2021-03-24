@@ -146,7 +146,7 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs):
 
     speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
 
-    e_kinetic = 0.25 * total_ground_station_mass * speed_ground_station ** 2.
+    e_kinetic = 0.5 * total_ground_station_mass * speed_ground_station ** 2.
 
     outputs['e_kinetic']['ground_station'] = e_kinetic
 
