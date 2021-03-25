@@ -133,10 +133,10 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                     vars_lb[var_type, kdx, name] = 0.0
                     vars_ub[var_type, kdx, name] = 0.0
 
-                if in_out_phase and coll_flag:
+                if in_reelout_phase and coll_flag:
                     vars_lb['coll_var', kdx, ddx, var_type, name] = 0.0
                     vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
-                elif not in_out_phase and coll_flag:
+                elif not in_reelout_phase and coll_flag:
                     vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                     vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
 
