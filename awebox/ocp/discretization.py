@@ -118,7 +118,7 @@ def construct_time_grids(nlp_options):
 
 def setup_nlp_cost():
 
-    cost = cas.struct_symSX([(
+    cost = cas.struct_symMX([(
         cas.entry('tracking'),
         cas.entry('u_regularisation'),
         cas.entry('xddot_regularisation'),
@@ -145,7 +145,7 @@ def setup_nlp_cost():
 def setup_nlp_p_fix(V, model):
 
     # fixed system parameters
-    p_fix = cas.struct_symSX([(
+    p_fix = cas.struct_symMX([(
         cas.entry('ref', struct=V),     # tracking reference for cost function
         cas.entry('weights', struct=model.variables)  # weights for cost function
     )])
@@ -220,7 +220,7 @@ def setup_output_structure(nlp_options, model_outputs, global_outputs):
             cas.entry('outputs', repeat = [nk], struct = model_outputs),
         )
 
-    Outputs = cas.struct_symSX([entry_tuple]
+    Outputs = cas.struct_symMX([entry_tuple]
                            + [cas.entry('final', struct=global_outputs)])
 
     return Outputs
