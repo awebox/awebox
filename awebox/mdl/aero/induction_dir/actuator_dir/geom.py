@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -35,43 +35,14 @@ import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
-
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
 # switches
-
-def get_center_point(model_options, parent, variables, architecture):
-
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if number_children > 1:
-        center = multi_kite_geom.approx_center_point(parent, variables, architecture)
-    else:
-        center = path_based_geom.approx_center_point(model_options, children, variables, architecture)
-
-    return center
-
-def get_center_velocity(model_options, parent, variables, parameters, architecture):
-
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if (parent > 0) and (number_children > 1):
-        dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
-    elif (parent > 0):
-        # dcenter = path_based.approx_center_velocity(model_options, children, variables, architecture)
-        n_hat_var = general_geom.get_n_hat_var(variables, parent)
-        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
-        dcenter = cas.mtimes(dq.T, n_hat_var) * n_hat_var
-    else:
-        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
-        dcenter = dq
-
-    return dcenter
 
 def get_kite_radius_vector(model_options, kite, variables, architecture):
     number_siblings = architecture.get_number_siblings(kite)
@@ -84,53 +55,29 @@ def get_kite_radius_vector(model_options, kite, variables, architecture):
     return r_vec
 
 
-def get_mu_radial_ratio(model_options, variables, kite, parent):
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+def get_mu_radial_ratio(variables, kite, parent):
+    varrho_var = get_varrho_var(variables, kite, parent)
     mu = varrho_var / (varrho_var + 0.5)
 
     return mu
 
 
-def get_var_type(model_options):
-    """ Extract variable type of average induction factor.
-        steady: algebraic variable
-        unsteady: differential state"""
-    steadyness = model_options['aero']['actuator']['steadyness']
-
-    # if steadyness == 'steady':
-    #     var_type = 'xl'
-    # elif steadyness == 'unsteady':
-    #     var_type = 'xd'
-    # else:
-    #     raise ValueError('Invalid steadyness option for actuator disk model chosen')
-
-    var_type = 'xd'
-    return var_type
-
-
 # variables
 
-def get_area_var(model_options, variables, parent, parameters):
-    area_ref = get_area_ref(model_options, parameters)
-    area_var = area_ref * variables['xl']['area' + str(parent)]
+def get_area_var(variables, parent):
+    area_var = variables['xl']['area' + str(parent)]
     return area_var
 
-def get_bar_varrho_var(model_options, variables, parent):
-    type = get_var_type(model_options)
-    varrho_ref = get_varrho_ref(model_options)
-    varrho_var = varrho_ref * variables[type]['bar_varrho' + str(parent)]
+def get_bar_varrho_var(variables, parent):
+    varrho_var = variables['xl']['bar_varrho' + str(parent)]
     return varrho_var
 
-def get_varrho_var(model_options, variables, kite, parent):
-    varrho_ref = get_varrho_ref(model_options)
-    varrho_var = varrho_ref * variables['xl']['varrho' + str(kite) + str(parent)]
+def get_varrho_var(variables, kite, parent):
+    varrho_var = variables['xl']['varrho' + str(kite) + str(parent)]
     return varrho_var
-
-
 
 def get_psi_var(variables, kite, parent):
-    psi_scale = 2. * np.pi
-    psi_var = psi_scale * variables['xd']['psi' + str(kite) + str(parent)]
+    psi_var = variables['xl']['psi' + str(kite) + str(parent)]
     return psi_var
 
 def get_cospsi_var(variables, kite, parent):
@@ -141,6 +88,11 @@ def get_sinpsi_var(variables, kite, parent):
     sinpsi_var = variables['xl']['sinpsi' + str(kite) + str(parent)]
     return sinpsi_var
 
+def get_n_vec_length_var(variables, parent):
+    len_var = variables['xl']['n_vec_length' + str(parent)]
+    return len_var
+
+
 # references
 
 def get_tstar_ref(parameters, wind):
@@ -148,6 +100,10 @@ def get_tstar_ref(parameters, wind):
     uinfty_ref = wind.get_velocity_ref()
     tstar = b_ref / uinfty_ref
     return tstar
+
+
+def get_n_vec_length_ref(model_options):
+    return model_options['scaling']['xl']['n_vec_length']
 
 def get_varrho_ref(model_options):
     varrho_ref = model_options['aero']['actuator']['varrho_ref']
@@ -162,32 +118,24 @@ def get_area_ref(model_options, parameters):
 
 # residuals
 
-def get_area_residual(model_options, parent, variables, parameters):
+def get_bar_varrho_cstr(model_options, parent, variables, architecture):
 
-    area_var = get_area_var(model_options, variables, parent, parameters)
-    area_val = get_actuator_area(model_options, parent, variables, parameters)
-    resi_unscaled = area_var - area_val
-
-    area_ref = get_area_ref(model_options, parameters)
-    resi_scaled = resi_unscaled / area_ref
-
-    return resi_scaled
-
-
-def get_bar_varrho_residual(model_options, parent, variables, architecture):
-
-    bar_varrho_val = get_bar_varrho_val(model_options, variables, parent, architecture)
-    bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_val = get_bar_varrho_val(variables, parent, architecture)
+    bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     resi_unscaled = bar_varrho_var - bar_varrho_val
 
     varrho_ref = get_varrho_ref(model_options)
     resi = resi_unscaled / varrho_ref
 
-    return resi
+    name = 'actuator_bar_varrho_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi,
+                              name=name,
+                              cstr_type='eq')
+    return cstr
 
 
-def get_varrho_residual(model_options, kite, variables, parameters, architecture):
+def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architecture):
 
     # for positive yaw(turns around +zhat, normal towards +yhat):
     #     rhat = zhat * cos(psi) - yhat * sin(psi)
@@ -201,8 +149,8 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
 
-    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
     y_rotor_comp = cas.mtimes(radius_vec.T, y_rotor_hat_var)
     z_rotor_comp = cas.mtimes(radius_vec.T, z_rotor_hat_var)
@@ -214,7 +162,7 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
     f_sin = np.sin(psi_var) - sinpsi_var
     f_cos = np.cos(psi_var) - cospsi_var
 
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+    varrho_var = get_varrho_var(variables, kite, parent)
     radius = varrho_var * b_ref
 
     varrho_ref = get_varrho_ref(model_options)
@@ -225,8 +173,11 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 
     resi_combi = cas.vertcat(f_cos, f_sin, f_cos_proj, f_sin_proj)
 
-    return resi_combi
-
+    name = 'actuator_varrho_and_psi_' + str(kite)
+    cstr = cstr_op.Constraint(expr=resi_combi,
+                              name=name,
+                              cstr_type='eq')
+    return cstr
 
 
 # processing
@@ -234,7 +185,7 @@ def get_varrho_residual(model_options, kite, variables, parameters, architecture
 def get_actuator_area(model_options, parent, variables, parameters):
 
     b_ref = parameters['theta0','geometry','b_ref']
-    bar_varrho_var = get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     radius = bar_varrho_var * b_ref
     annulus_area = 2. * np.pi * b_ref * radius
@@ -247,8 +198,8 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
 
     parent = architecture.parent_map[kite]
 
-    y_rotor_hat_var = general_geom.get_y_rotor_hat_var(variables, parent)
-    z_rotor_hat_var = general_geom.get_z_rotor_hat_var(variables, parent)
+    y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
+    z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
     psi_var = get_psi_var(variables, kite, parent)
     cospsi_var = get_cospsi_var(variables, kite, parent)
@@ -260,11 +211,11 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
 
     return rhat
 
-def get_kite_radius(model_options, kite, variables, architecture, parameters):
+def get_kite_radius(kite, variables, architecture, parameters):
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     parent = architecture.parent_map[kite]
-    varrho_var = get_varrho_var(model_options, variables, kite, parent)
+    varrho_var = get_varrho_var(variables, kite, parent)
 
     radius = varrho_var * b_ref
 
@@ -276,19 +227,19 @@ def get_average_radius(model_options, variables, parent, architecture, parameter
 
     average_radius = 0.
     for kite in children:
-        radius = get_kite_radius(model_options, kite, variables, architecture, parameters)
+        radius = get_kite_radius(kite, variables, architecture, parameters)
 
         average_radius = average_radius + radius / number_children
 
     return average_radius
 
-def get_bar_varrho_val(model_options, variables, parent, architecture):
+def get_bar_varrho_val(variables, parent, architecture):
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
     sum_varrho = 0.
     for kite in children:
-        varrho_kite = get_varrho_var(model_options, variables, kite, parent)
+        varrho_kite = get_varrho_var(variables, kite, parent)
         sum_varrho = sum_varrho + varrho_kite
 
     bar_varrho_val = sum_varrho / number_children
@@ -313,7 +264,7 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
 
         half_span_proj = b_ref * ehat2_proj_radial / 2.
 
-    radius = get_kite_radius(model_options, kite, variables, architecture, parameters)
+    radius = get_kite_radius(kite, variables, architecture, parameters)
 
     tip_radius = radius
     if ('int' in tip) or (tip == 0):
@@ -337,3 +288,71 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
         average_radius = average_radius + radius / number_children
 
     return average_radius
+
+
+
+def get_act_dcm_var(variables, parent):
+
+    name = 'act_dcm' + str(parent)
+    rot_cols = variables['xl'][name]
+    act_dcm = cas.reshape(rot_cols, (3, 3))
+
+    return act_dcm
+
+def get_n_hat_var(variables, parent):
+    act_dcm = get_act_dcm_var(variables, parent)
+    n_hat = act_dcm[:, 0]
+    return n_hat
+
+def get_y_rotor_hat_var(variables, parent):
+    act_dcm = get_act_dcm_var(variables, parent)
+    y_hat = act_dcm[:, 1]
+    return y_hat
+
+def get_z_rotor_hat_var(variables, parent):
+    act_dcm = get_act_dcm_var(variables, parent)
+    y_hat = act_dcm[:, 2]
+    return y_hat
+
+def get_z_vec_length_var(variables, parent):
+    len_var = variables['xl']['z_vec_length' + str(parent)]
+    return len_var
+
+
+
+def get_act_dcm_ortho_cstr(parent, variables):
+    # rotation matrix is in SO3 = 6 constraints
+    act_dcm_var = get_act_dcm_var(variables, parent)
+    ortho_matr = cas.mtimes(act_dcm_var.T, act_dcm_var) - np.eye(3)
+    f_ortho = vect_op.upper_triangular_inclusive(ortho_matr)
+
+    name = 'actuator_geom_dcm_ortho_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_ortho,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
+
+def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
+
+    # n_hat * length equals normal direction = 3 constraints
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+    n_hat_var = get_n_hat_var(variables, parent)
+    n_vec_length_var = get_n_vec_length_var(variables, parent)
+
+    n_diff = n_vec_val - n_hat_var * n_vec_length_var
+
+    n_vec_length_ref = get_n_vec_length_ref(model_options)
+    f_n_vec = n_diff / n_vec_length_ref
+
+    name = 'actuator_nhat_' + str(parent)
+    cstr = cstr_op.Constraint(expr=f_n_vec,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
+
+def get_n_vec_val(model_options, parent, variables, parameters, architecture):
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+    return n_vec_val
+

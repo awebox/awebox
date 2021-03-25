@@ -37,6 +37,7 @@ import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.ocp.operation as operation
 
 def get_scaled_variable_bounds(nlp_options, V, model):
 
@@ -99,21 +100,27 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
     # lift-mode phase fixing
     switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
-    in_out_phase = (kdx < switch_kdx)
+    in_reelout_phase = (kdx < switch_kdx)
 
     n_k = nlp_options['n_k']
+
+    periodic, _, _, _, _, _ = operation.get_operation_conditions(nlp_options)
 
     if name == 'dl_t':
 
         if nlp_options['phase_fix'] == 'single_reelout':
 
-            if (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh':
+            # we cannot constraint ALL THREE OF kdx == 0 and kdx == n_k and periodicity.
+            condition = (var_type == 'xd') and (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh'
+            if periodic:
+                condition = (condition and (kdx > 0))
 
+            if condition:
                 if kdx == (n_k):
                     vars_lb[var_type, kdx, name] = 0.0
                     vars_ub[var_type, kdx, name] = 0.0
 
-                elif in_out_phase:
+                elif in_reelout_phase:
                     vars_lb[var_type, kdx, name] = 0.0
                     vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
                 else:

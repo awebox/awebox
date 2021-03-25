@@ -27,7 +27,7 @@ discretization code (direct collocation or multiple shooting)
 creates nlp variables and outputs, and gets discretized constraints
 python-3.5 / casadi-3.4.5
 - authors: elena malz 2016
-           rachel leuthold, jochem de schutter alu-fr 2017-20
+           rachel leuthold, jochem de schutter alu-fr 2017-21
 '''
 
 import casadi.tools as cas
@@ -35,12 +35,10 @@ import casadi.tools as cas
 import awebox.ocp.constraints as constraints
 import awebox.ocp.collocation as coll_module
 import awebox.ocp.multiple_shooting as ms_module
-
-from . import performance
-from . import var_struct
+import awebox.ocp.ocp_outputs as ocp_outputs
+import awebox.ocp.var_struct as var_struct
 
 import awebox.tools.struct_operations as struct_op
-
 import awebox.tools.print_operations as print_op
 
 def construct_time_grids(nlp_options):
@@ -123,7 +121,7 @@ def setup_nlp_cost():
     cost = cas.struct_symSX([(
         cas.entry('tracking'),
         cas.entry('u_regularisation'),
-        cas.entry('ddq_regularisation'),
+        cas.entry('xddot_regularisation'),
         cas.entry('gamma'),
         cas.entry('iota'),
         cas.entry('psi'),
@@ -197,7 +195,7 @@ def setup_integral_output_structure(nlp_options, integral_outputs):
 
     return Integral_outputs_struct
 
-def setup_output_structure(nlp_options, model_outputs, form_outputs):
+def setup_output_structure(nlp_options, model_outputs, global_outputs):
 
     # create outputs
     nk = nlp_options['n_k']
@@ -229,7 +227,7 @@ def setup_output_structure(nlp_options, model_outputs, form_outputs):
         )
 
     Outputs = cas.struct_symSX([entry_tuple]
-                           + [cas.entry('final', struct=form_outputs)])
+                           + [cas.entry('final', struct=global_outputs)])
 
     return Outputs
 
@@ -294,12 +292,12 @@ def discretize(nlp_options, model, formulation):
     # ---------------------------------------
     # PREPARE OUTPUTS STRUCTURE
     # ---------------------------------------
-    outputs = model.outputs
+    mdl_outputs = model.outputs
 
-    form_outputs, _ = performance.collect_performance_outputs(nlp_options, model, V)
-    form_outputs_fun = cas.Function('form_outputs_fun', [V, P], [form_outputs.cat])
+    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
+    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
-    Outputs_struct = setup_output_structure(nlp_options, outputs, form_outputs)
+    Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
 
     #-------------------------------------------
     # COLLOCATE OUTPUTS
@@ -328,7 +326,7 @@ def discretize(nlp_options, model, formulation):
                     Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
                 elif nlp_options['collocation']['u_param'] == 'poly':
                     Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
-    Outputs_list.append(form_outputs_fun(V, P))
+    Outputs_list.append(global_outputs_fun(V, P))
 
     # Create Outputs struct and function
     Outputs = Outputs_struct(cas.vertcat(*Outputs_list))

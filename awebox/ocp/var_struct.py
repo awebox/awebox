@@ -33,7 +33,7 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.ocp.collocation as collocation
-
+import awebox.tools.print_operations as print_op
 
 
 def setup_nlp_v(nlp_options, model, Collocation=None):
@@ -93,6 +93,8 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
 
     # generate structure
     V = cas.struct_symMX(entry_list)
+
+    print_op.print_variable_info('NLP', V)
 
     return V
 

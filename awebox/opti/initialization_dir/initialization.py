@@ -160,23 +160,27 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
     d = nlp.d
     n_k = nlp.n_k
 
-    for k in range(n_k + 1):
+    for ndx in range(n_k + 1):
 
-        t = tgrid_xd[k]
+        t = tgrid_xd[ndx]
 
         ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-        for name in struct_op.subkeys(model.variables, 'xd'):
-            V_init['xd', k, name] = ret[name]
+        for var_type in ['xd', 'xl']:
+            for name in struct_op.subkeys(model.variables, var_type):
+                if (name in ret.keys()) and (var_type == 'xd' or ndx < n_k):
+                    V_init[var_type, ndx, name] = ret[name]
 
-        if nlp.discretization == 'direct_collocation' and (k < n_k):
-            for j in range(d):
-                t = tgrid_coll[k, j]
+        if nlp.discretization == 'direct_collocation' and (ndx < n_k):
+            for ddx in range(d):
+                t = tgrid_coll[ndx, ddx]
 
                 ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-                for name in struct_op.subkeys(model.variables, 'xd'):
-                    V_init['coll_var', k, j, 'xd', name] = ret[name]
+                for var_type in ['xd', 'xl']:
+                    for name in struct_op.subkeys(model.variables, var_type):
+                        if name in ret.keys():
+                            V_init['coll_var', ndx, ddx, var_type, name] = ret[name]
 
     return V_init
 

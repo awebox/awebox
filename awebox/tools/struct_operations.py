@@ -36,7 +36,6 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 import awebox.tools.performance_operations as perf_op
 
 
@@ -161,6 +160,12 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
+def no_available_var_info(variables, var_type):
+    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
+    awelogger.logger.warning(message)
+    return np.zeros(variables[var_type].shape)
+
+
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
     if (ddx is None):
@@ -238,8 +243,8 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     elif passed_Xdot_is_meaningful:
         return Xdot['coll_xd', kdx, ddx]
     else:
-        return no_available_var_info(model_variables, var_type)
-
+        return np.zeros(model_variables[var_type].shape)
+        # return no_available_var_info(model_variables, var_type)
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 

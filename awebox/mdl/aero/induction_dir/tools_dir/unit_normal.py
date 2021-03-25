@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -24,10 +24,9 @@
 #
 '''
 actuator_disk model of awebox aerodynamics
-sets up the axial-induction actuator disk equation
-currently for untilted rotor with no tcf.
+sets up the axial-induction actuator disk equation (no tcf)
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-20
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -37,7 +36,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
-
+import awebox.tools.print_operations as print_op
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):
 
@@ -60,59 +59,21 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
     elif model == 'tether_parallel' and number_children == 1:
         n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
 
-    elif model == 'default' and number_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
-
-    elif model == 'default' and number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
-
     elif model == 'xhat':
         n_vec = vect_op.xhat()
 
     else:
-        message = 'kite-plane normal-vector model-type not supported. Consider checking the number of kites per layer.'
-        awelogger.logger.error(message)
-        n_vec = vect_op.xhat_np()
-        raise Exception(message)
+        message = 'kite-plane normal-vector model (' + model + ') not supported. proceeding with normal along xhat.'
+        awelogger.logger.warning(message)
+        n_vec = vect_op.xhat()
 
     return n_vec
-
-
-def get_n_vec_default(model_options, parent, variables, parameters, architecture):
-
-    model = model_options['aero']['actuator']['normal_vector_model']
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
-
-    if number_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
-
-    elif number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
-
-    else:
-        awelogger.logger.warning('normal-vector model-type (for actuator disk) not supported. Consider checking the number of kites per layer.')
-        n_vec = vect_op.xhat_np()
-
-    return n_vec
-
 
 
 def get_n_hat(model_options, parent, variables, parameters, architecture):
-
     n_vec = get_n_vec(model_options, parent, variables, parameters, architecture)
     n_hat = vect_op.normalize(n_vec)
-
     return n_hat
-
-def get_n_vec_length_var(variables, parent):
-    scale = get_n_vec_length_ref(variables, parent)
-    len_var = scale * variables['xl']['n_vec_length' + str(parent)]
-    return len_var
-
-def get_n_vec_length_ref(variables, parent):
-    return 1.
-
 
 
 def get_least_squares_n_vec(parent, variables, parameters, architecture):
@@ -158,31 +119,22 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 
     n_vec = vect_op.cross(arm1, arm2)
 
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    varrho_temp = 8.
-
-    scale = b_ref**2. * varrho_temp**2.
-    n_vec = n_vec / scale
-
     return n_vec
 
 def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture):
 
     grandparent = architecture.parent_map[parent]
+    q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
 
     if grandparent == 0:
-        name = 'q' + str(parent) + str(grandparent)
-        n_vec_unscaled = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', name)
-        n_vec_scaled = n_vec_unscaled * 1.e-3
+        q_grandparent = cas.DM.zeros((3,1))
     else:
         great_grandparent = architecture.parent_map[grandparent]
-        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
         q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
-        n_vec_unscaled = q_parent - q_grandparent
 
-        n_vec_scaled = n_vec_unscaled * 1.e-1
+    n_vec = q_parent - q_grandparent
 
-    return n_vec_scaled
+    return n_vec
 
 def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture):
 

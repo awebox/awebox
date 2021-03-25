@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 repeated tools to make initialization smoother
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
 
 
@@ -34,7 +34,6 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.wind as wind
-
 
 def get_ehat_tether(init_options):
     inclination = init_options['inclination_deg'] * np.pi / 180.
@@ -139,6 +138,10 @@ def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_nor
 
     psi = psi0 + omega_norm * t
 
+    psi = cas.mod(psi, 2. * np.pi)
+    if psi < 0:
+        psi += 2. * np.pi
+
     return psi
 
 def get_velocity_vector(t, init_options, model, node, ret):
@@ -160,18 +163,39 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
-def get_kite_dcm(t, init_options, model, node, ret):
+def get_kite_dcm(init_options, model, node, ret):
 
-    velocity = get_velocity_vector(t, init_options, model, node, ret)
-    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
+    velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
 
-    forwards_speed = cas.mtimes(velocity.T, ehat_tangential)
-    forwards_sign = forwards_speed / vect_op.norm(forwards_speed)
-    ehat_forwards = forwards_sign * ehat_tangential
+    normal_vector = ret['q10']
+    ehat_normal = vect_op.normalize(normal_vector)
 
-    ehat1 = -1. * ehat_forwards
-    ehat3 = ehat_normal
-    ehat2 = vect_op.normed_cross(ehat3, ehat1)
+    kite_dcm_setting_method = init_options['kite_dcm']
+    if kite_dcm_setting_method == 'aero_validity':
+
+        position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
+        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
+
+        vec_u_infty = get_wind_speed(init_options, position[2])
+        vec_u_app = vec_u_infty - velocity
+
+        ehat1 = vect_op.normalize(vec_u_app)
+        ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
+        ehat3 = vect_op.normed_cross(ehat1, ehat2)
+
+    elif kite_dcm_setting_method == 'circular':
+
+        ehat_forwards = vect_op.normalize(velocity)
+
+        ehat1 = -1. * ehat_forwards
+        ehat3 = ehat_normal
+        ehat2 = vect_op.normed_cross(ehat3, ehat1)
+
+    else:
+        message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
@@ -186,6 +210,17 @@ def find_airspeed(init_options, groundspeed, psi):
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
+    uu = get_wind_speed(init_options, zz)
+    u_app = dq_kite - uu
+    airspeed = float(vect_op.norm(u_app))
+
+    return airspeed
+
+def get_wind_speed(init_options, zz):
+    l_t = init_options['xd']['l_t']
+    ehat_tether = get_ehat_tether(init_options)
+    zz = l_t * ehat_tether[2]
+
     wind_model = init_options['model']['wind_model']
     u_ref = init_options['model']['wind_u_ref']
     z_ref = init_options['model']['wind_z_ref']
@@ -194,15 +229,7 @@ def find_airspeed(init_options, groundspeed, psi):
 
     uu = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, zz) * vect_op.xhat_np()
 
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
-
-    return airspeed
-
-
-
-
-
+    return uu
 
 def insert_dict(dict, var_type, name, name_stripped, V_init):
     init_val = dict[name_stripped]

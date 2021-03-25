@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,7 +25,7 @@
 '''
 initialization functions specific to the standard path scenario
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
 
 import numpy as np
@@ -106,7 +106,22 @@ def guess_values_at_time(t, init_options, model):
             ret['q' + str(node) + str(parent)] = position
             ret['dq' + str(node) + str(parent)] = velocity
 
-            dcm = tools.get_kite_dcm(t, init_options, model, node, ret)
+            rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+            diam = init_options['theta']['diam_s']
+            cd_tether = init_options['sys_params_num']['tether']['cd']
+            if 'CD' in init_options['sys_params_num']['aero'].keys():
+                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
+            elif 'CX' in init_options['sys_params_num']['aero'].keys():
+                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
+            else:
+                cd_aero = 0.1
+            planform_area = init_options['sys_params_num']['geometry']['s_ref']
+            u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
+            approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
+            ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
+            ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
+
+            dcm = tools.get_kite_dcm(init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)

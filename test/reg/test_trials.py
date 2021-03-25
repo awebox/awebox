@@ -3,7 +3,7 @@
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 
-- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020
+- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020-21
 """
 
 import collections
@@ -31,6 +31,16 @@ def test_singe_kite():
     solve_and_check(options_dict[trial_name], trial_name)
 
     return None
+
+
+def test_basic_health():
+
+    options_dict = generate_options_dict()
+    trial_name = 'basic_health_trial'
+    solve_trial(options_dict[trial_name], trial_name)
+
+    return None
+
 
 def test_drag_mode():
 
@@ -134,7 +144,7 @@ def test_dual_kite_tracking_winch():
 
     return None
 
-def test_vortex_trial():
+def test_vortex():
 
     options_dict = generate_options_dict()
     trial_name = 'vortex_trial'
@@ -186,16 +196,27 @@ def generate_options_dict():
     actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
     actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    actuator_qaxi_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
+    actuator_qaxi_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
+    actuator_qaxi_options['model']['aero']['overwrite']['beta_max_deg'] = 20.
+    actuator_qaxi_options['model']['aero']['overwrite']['beta_min_deg'] = -20.
+    actuator_qaxi_options['model']['model_bounds']['tether_stress']['scaling'] = 10.
+    actuator_qaxi_options['solver']['cost']['fictitious'][0] = 1.e3
+    actuator_qaxi_options['nlp']['n_k'] = 15
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
+    actuator_uaxi_options['model']['model_bounds']['tether_stress']['scaling'] = 10.
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
-    actuator_qasym_options['model']['aero']['actuator']['a_range'] = [-0.06, 0.06]
+    actuator_qasym_options['solver']['cost']['psi'][1] = 1.e1
 
-    actuator_uasym_options = copy.deepcopy(actuator_qasym_options)
-    actuator_uasym_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
+    actuator_uasym_options = copy.deepcopy(actuator_qaxi_options)
+    actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
+    actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
+    actuator_uasym_options['solver']['cost']['psi'][1] = 1.e1
+
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
     actuator_comparison_options['model']['aero']['actuator']['steadyness_comparison'] = ['q', 'u']
@@ -211,6 +232,8 @@ def generate_options_dict():
     vortex_options['nlp']['n_k'] = 8
     vortex_options['model']['aero']['vortex']['wake_nodes'] = 10
     vortex_options['model']['aero']['vortex']['representation'] = 'alg'
+    vortex_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
+    vortex_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
@@ -234,6 +257,13 @@ def generate_options_dict():
     compromised_landing_options['user_options']['trajectory']['compromised_landing']['emergency_scenario'] = ('broken_roll', 2)
     compromised_landing_options['user_options']['trajectory']['compromised_landing']['xi_0_initial'] = 0.8
 
+    basic_health_options = copy.deepcopy(single_kite_options)
+    basic_health_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    basic_health_options['nlp']['n_k'] = 10
+    basic_health_options['solver']['health_check']['when']['failure'] = True
+    basic_health_options['solver']['health_check']['when']['final'] = True
+    basic_health_options['solver']['health_check']['raise_exception'] = True
+
     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
@@ -247,12 +277,13 @@ def generate_options_dict():
     options_dict['actuator_uaxi_trial'] = actuator_uaxi_options
     options_dict['actuator_qasym_trial'] = actuator_qasym_options
     options_dict['actuator_uasym_trial'] = actuator_uasym_options
-    # options_dict['actuator_comparison_trial'] = actuator_comparison_options
+    options_dict['actuator_comparison_trial'] = actuator_comparison_options
     options_dict['vortex_trial'] = vortex_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
     # options_dict['compromised_landing_trial'] = compromised_landing_options
+    options_dict['basic_health_trial'] = basic_health_options
 
     return options_dict
 
@@ -293,3 +324,5 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+test_actuator_uasym()

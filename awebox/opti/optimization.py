@@ -708,7 +708,6 @@ class Optimization(object):
 
         return integral_outputs_si
 
-
     @property
     def status(self):
         return self.__status

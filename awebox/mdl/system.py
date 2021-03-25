@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,17 +26,17 @@
 module that describes the awe system under consideration, geometry, etc.
 python-3.5 / casadi 3.0.0
 - author: elena malz, chalmers 2016
-- edited: rachel leuthold, alu-fr 2017-2020
+- edited: rachel leuthold, alu-fr 2017-2021
           jochem de schutter, alu-fr 2017
 
 '''
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
-
 
 def generate_structure(options, architecture):
 
@@ -220,21 +220,20 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
     rings = wake_nodes - 1
-    filaments = wake_nodes * 3 * len(architecture.kite_nodes)
 
+    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     vortex_representation = options['aero']['vortex']['representation']
 
     for kite in architecture.kite_nodes:
         for ring in range(rings):
             gamma_name = 'wg_' + str(kite) + '_' + str(ring)
             system_lifted.extend([(gamma_name, (1, 1))])
+
         for wake_node in range(wake_nodes):
             for tip in wingtips:
                 coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
                 if vortex_representation == 'state':
                     system_states.extend([(coord_name, (3, 1))])
-                    system_states.extend([('d' + coord_name, (3, 1))])
                 elif vortex_representation == 'alg':
                     system_lifted.extend([(coord_name, (3, 1))])
                 else:
@@ -261,41 +260,37 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
         if label[:3] == 'act':
             actuator_comp_labels += [label[4:]]
 
-    any_asym = any('asym' in label for label in actuator_comp_labels)
-    any_unsteady = any(label[0] == 'u' for label in actuator_comp_labels)
-
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
 
-        system_states.extend([('local_a' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
-        system_states.extend([('psi' + str(kite) + str(parent), (1, 1))])
-        system_states.extend([('dpsi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
         system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
     for layer_node in architecture.layer_nodes:
 
         for label in actuator_comp_labels:
-            system_states.extend([('a_' + label + str(layer_node), (1, 1))])
+            if label[0] == 'q':
+                system_lifted.extend([('a_' + label + str(layer_node), (1, 1))])
+            elif label[0] == 'u':
+                system_states.extend([('a_' + label + str(layer_node), (1, 1))])
 
-            if any_unsteady:
-                system_states.extend([('da_' + label + str(layer_node), (1, 1))])
+            if label == 'qasym':
+                system_lifted.extend([('acos_' + label + str(layer_node), (1, 1))])
+                system_lifted.extend([('asin_' + label + str(layer_node), (1, 1))])
 
-            if any_asym:
+            if label == 'uasym':
                 system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
                 system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
 
-            if any_asym and any_unsteady:
-                system_states.extend([('dacos_' + label + str(layer_node), (1, 1))])
-                system_states.extend([('dasin_' + label + str(layer_node), (1, 1))])
+        system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
 
-        system_states.extend([('bar_varrho' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('rot_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
         system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
 
-        system_lifted.extend([('uzero_matr' + str(layer_node), (9, 1))])
+        system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
         system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
         system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
 
