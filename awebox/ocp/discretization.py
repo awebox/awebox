@@ -319,6 +319,8 @@ def discretize(nlp_options, model, formulation):
     Outputs_list.append(global_outputs_fun(V, P))
 
     # Create Outputs struct and function
+    if nlp_options['induction']['induction_model'] == 'vortex': # outputs are need for vortex constraint construction
+        Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
 
     # Create Integral outputs struct and function
