@@ -324,8 +324,7 @@ def discretize(nlp_options, model, formulation):
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
-    Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
-    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs.cat])
+    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
     Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
