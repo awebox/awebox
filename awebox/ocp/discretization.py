@@ -319,14 +319,13 @@ def discretize(nlp_options, model, formulation):
     Outputs_list.append(global_outputs_fun(V, P))
 
     # Create Outputs struct and function
-    Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
-    Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
+    Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
+    Xdot_struct = Xdot
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     # -------------------------------------------
@@ -334,7 +333,7 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs, time_grids)
+            ms_vars, ms_params, Outputs_struct, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 
