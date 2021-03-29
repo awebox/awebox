@@ -244,15 +244,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
                         )
                 )
 
-            # path constraints on shooting nodes
-            if (ocp_ineqs_expr.shape != (0, 0)):
-                cstr_list.append(cstr_op.Constraint(
-                    expr= ocp_ineqs_expr[:,kdx],
-                    name='path_{}'.format(kdx),
-                    cstr_type='ineq'
-                    )
-                )
-
         # collocation constraints
         for jdx in range(d):
             ldx = kdx * d + jdx
