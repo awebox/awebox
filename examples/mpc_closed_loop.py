@@ -57,6 +57,7 @@ options['mpc']['N'] = N_mpc
 options['mpc']['plot_flag'] = False
 options['mpc']['ref_interpolator'] = 'spline'
 options['mpc']['u_param'] = 'zoh'
+options['mpc']['homotopy_warmstart'] = True
 
 # simulation options
 options['sim']['number_of_finite_elements'] = 20 # integrator steps within one sampling time
