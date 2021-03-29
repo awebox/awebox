@@ -180,10 +180,19 @@ class Pmpc(object):
         opts['ipopt.max_cpu_time'] = self.__mpc_options['max_cpu_time']
         opts['jit'] = self.__mpc_options['jit']
         opts['record_time'] = 1
-
+        opts['ipopt.tol'] = 1e-6
         if awelogger.logger.level > 10:
             opts['ipopt.print_level'] = 0
             opts['print_time'] = 0
+
+        if self.__mpc_options['homotopy_warmstart']:
+            opts['ipopt.mu_init'] = 1e-3
+            homotopy_opts = copy.deepcopy(opts)
+            homotopy_opts['ipopt.mu_target'] = 1e-3
+            homotopy_opts['ipopt.tol'] = 1e-4
+            homotopy_opts['ipopt.max_iter'] = 2
+
+            self.__homotopy_solver = ct.nlpsol('solver', 'ipopt', nlp, homotopy_opts)
 
         self.__solver = ct.nlpsol('solver', 'ipopt', nlp, opts)
 
@@ -206,6 +215,18 @@ class Pmpc(object):
 
         self.__p_fix_num = self.__P_fun(self.__p0)
 
+        if self.__mpc_options['homotopy_warmstart']:
+            sol = self.__homotopy_solver(
+                x0  = self.__w0,
+                lbx = self.__lbw,
+                ubx = self.__ubw,
+                lbg = self.__lbg,
+                ubg = self.__ubg,
+                p   = self.__p0
+                )
+
+            self.__w0 = self.__trial.nlp.V(sol['x'])
+
         # MPC problem
         sol = self.__solver(
             x0  = self.__w0,
@@ -216,6 +237,12 @@ class Pmpc(object):
             p   = self.__p0
             )
 
+<<<<<<< Updated upstream
+=======
+        if not self.__mpc_options['homotopy_warmstart']:
+            self.__w0 = self.__trial.nlp.V(sol['x'])
+
+>>>>>>> Stashed changes
         self.__index += 1
 
         if plot_flag == True:
@@ -273,8 +300,14 @@ class Pmpc(object):
         """
 
         info = self.__solver.stats()
-        self.__log['cpu'].append(info['t_wall_total'])
-        self.__log['iter'].append(info['iter_count'])
+
+        if self.__mpc_options['homotopy_warmstart']:
+            info_homotopy = self.__homotopy_solver.stats()
+            self.__log['cpu'].append(info['t_wall_total']+info_homotopy['t_wall_total'])
+            self.__log['iter'].append(info['iter_count']+info_homotopy['iter_count'])
+        else:
+            self.__log['cpu'].append(info['t_wall_total'])
+            self.__log['iter'].append(info['iter_count'])
         self.__log['status'].append(info['return_status'])
         self.__log['f'].append(sol['f'])
         self.__log['V_opt'].append(self.__trial.nlp.V(sol['x']))
