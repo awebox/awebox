@@ -75,6 +75,7 @@ class Pmpc(object):
         options['nlp']['d'] = self.__d
         options['nlp']['scheme'] = self.__scheme
         options['nlp']['collocation']['u_param'] = self.__mpc_options['u_param']
+        options['formulation']['mpc']['terminal_point_constr'] = self.__mpc_options['terminal_point_constr']
         options['visualization']['cosmetics']['plot_ref'] = True
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
@@ -121,6 +122,9 @@ class Pmpc(object):
         # remove state constraints at k = 0
         self.__trial.nlp.V_bounds['lb']['xd',0] = - np.inf
         self.__trial.nlp.V_bounds['ub']['xd',0] = np.inf
+        if self.__mpc_options['terminal_point_constr']:
+            self.__trial.nlp.V_bounds['lb']['xd',-1] = - np.inf
+            self.__trial.nlp.V_bounds['ub']['xd',-1] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
@@ -276,6 +280,7 @@ class Pmpc(object):
         self.__index += 1
 
         if plot_flag == True:
+            self.__p_fix_num = self.__P_fun(self.__p0)
             flags = ['states','controls','constraints']
             self.__plot(flags,self.__trial.nlp.V(sol['x']))
 
@@ -646,6 +651,7 @@ class Pmpc(object):
         V_dummy = self.__trial.nlp.V(0.0)
         p_fix_num = prep.set_p_fix_num(V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
         x0 = self.__trial.model.variables_dict['xd'](self.__p['x0'])
+        xN = self.__trial.model.variables_dict['xd'](self.__trial.nlp.V(self.__p['ref'])['xd',-1])
 
         # fill in P
         p_list = []
@@ -653,10 +659,17 @@ class Pmpc(object):
 
             canonical = self.__trial.nlp.P.getCanonicalIndex(k)
             
-            if canonical[0] == 'p' and canonical[1] == 'ref' and canonical[2] == 'xd' and canonical[3] == 0:
-                name = canonical[4]
-                dim = canonical[5]
-                p_list.append(x0[name, dim])
+            if canonical[0] == 'p' and canonical[1] == 'ref' and canonical[2] == 'xd':
+                if canonical[3] == 0:
+                    name = canonical[4]
+                    dim = canonical[5]
+                    p_list.append(x0[name, dim])
+                elif canonical[3] == self.__N:
+                    name = canonical[4]
+                    dim = canonical[5]
+                    p_list.append(xN[name, dim])
+                else:
+                    p_list.append(0.0)
             
             # fill in params
             elif canonical[0] == 'theta0':
