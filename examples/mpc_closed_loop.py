@@ -23,7 +23,7 @@ options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
 # trajectory should be a single pumping cycle with initial number of five windings
 options['user_options']['trajectory']['type'] = 'power_cycle'
 options['user_options']['trajectory']['system_type'] = 'lift_mode'
-options['user_options']['trajectory']['lift_mode']['windings'] = 2
+options['user_options']['trajectory']['lift_mode']['windings'] = 1
 
 # don't include induction effects, use simple tether drag
 options['user_options']['induction_model'] = 'not_in_use'
@@ -40,7 +40,7 @@ trial.build()
 trial.optimize()
 
 # set-up closed-loop simulation
-N_mpc = 10 # MPC horizon
+N_mpc = 15 # MPC horizon
 N_sim = 1000  # closed-loop simulation steps
 ts = 0.1 # sampling time
 
@@ -58,6 +58,7 @@ options['mpc']['plot_flag'] = False
 options['mpc']['ref_interpolator'] = 'spline'
 options['mpc']['u_param'] = 'zoh'
 options['mpc']['homotopy_warmstart'] = True
+options['mpc']['terminal_point_constr'] = False
 
 # simulation options
 options['sim']['number_of_finite_elements'] = 20 # integrator steps within one sampling time
