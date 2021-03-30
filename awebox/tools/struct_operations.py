@@ -287,9 +287,11 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
     radau_collocation = (direct_collocation and scheme == 'radau')
     other_collocation = (direct_collocation and (not scheme == 'radau'))
 
-    if radau_collocation:
+    terminal_constraint = nlp_options['mpc']['terminal_point_constr']
+
+    if radau_collocation and not terminal_constraint:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
-    elif other_collocation or multiple_shooting:
+    elif direct_collocation or multiple_shooting:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
