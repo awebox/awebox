@@ -268,6 +268,9 @@ def set_default_options(default_user_options, help_options):
         ('formulation', 'compromised_landing', 'battery', 'power_electronics', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'charge_fraction', None, ('???', None), 'x'),
 
+        #### mpc
+        ('formulation',  'mpc',      None, 'terminal_point_constr', False,                ('use terminal point constraint', None), 't'),
+
         ## numerics
         #### NLP options
         ('nlp',  None,               None, 'n_k',                  40,                     ('control discretization [int]', None),'t'),
@@ -426,6 +429,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'plot_flag',    False,              ('MPC plot solution for each step', None), 'x'),
         ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart', True,         ('periodic reference interpolation method', None), 'x'),
+        ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
