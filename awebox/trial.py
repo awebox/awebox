@@ -42,6 +42,7 @@ import awebox.opts.options as options
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 import copy
+import pdb
 
 class Trial(object):
     __isfrozen = False
@@ -165,18 +166,24 @@ class Trial(object):
 
     def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
 
+        trial_name = self.__name
+
+        if not hasattr(self, 'solution_dict'):
+            self.generate_solution_dict()
+
         if V_plot is None:
             V_plot = self.__solution_dict['V_opt']
         if parametric_options is None:
             parametric_options = self.__options
-        if output_vals == None:
+        if (output_vals == None) and ('output_vals' in self.__solution_dict.keys()):
             output_vals = self.__solution_dict['output_vals']
-        if cost == None:
+
+        if (cost == None) and ('cost' in self.__solution_dict.keys()):
             cost = self.__solution_dict['cost']
+
         time_grids = self.__solution_dict['time_grids']
         integral_outputs_final = self.__solution_dict['integral_outputs_final']
         V_ref = self.__solution_dict['V_ref']
-        trial_name = self.__solution_dict['name']
 
         self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, 'plot',fig_num)
 
@@ -246,28 +253,45 @@ class Trial(object):
         solution_dict['name'] = self.__name
 
         # parametric sweep data
-        solution_dict['V_opt'] = self.__optimization.V_opt
-        solution_dict['V_final'] = self.__optimization.V_final
-        solution_dict['V_ref'] = self.__optimization.V_ref
+        if hasattr(self.__optimization, 'V_opt'):
+            solution_dict['V_opt'] = self.__optimization.V_opt
+        if hasattr(self.__optimization, 'V_final'):
+            solution_dict['V_final'] = self.__optimization.V_final
+        if hasattr(self.__optimization, 'V_ref'):
+            solution_dict['V_ref'] = self.__optimization.V_ref
+
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = [
             copy.deepcopy(self.__optimization.output_vals[0]),
             copy.deepcopy(self.__optimization.output_vals[1]),
             copy.deepcopy(self.__optimization.output_vals[2])
         ]
-        solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
-        solution_dict['stats'] = self.__optimization.stats
-        solution_dict['iterations'] = self.__optimization.iterations
-        solution_dict['timings'] = self.__optimization.timings
-        cost_fun = self.__nlp.cost_components[0]
-        cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
-        solution_dict['cost'] = cost
+
+        if hasattr(self.__optimization, 'integral_outputs_final'):
+            solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
+
+        if hasattr(self.__optimization, 'stats'):
+            solution_dict['stats'] = self.__optimization.stats
+
+        if hasattr(self.__optimization, 'iterations'):
+            solution_dict['iterations'] = self.__optimization.iterations
+
+        if hasattr(self.__optimization, 'timings'):
+            solution_dict['timings'] = self.__optimization.timings
+
+        if hasattr(self.__optimization, 'V_opt') and hasattr(self.__optimization, 'p_fix_num'):
+            cost_fun = self.__nlp.cost_components[0]
+            cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
+            solution_dict['cost'] = cost
+            solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
+            solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
 
         # warmstart data
-        solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
-        solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
-        solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
-        solution_dict['opt_arg'] = self.__optimization.arg
+        if hasattr(self.__optimization, 'final_homotopy_step'):
+            solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
+
+        if hasattr(self.__optimization, 'arg'):
+            solution_dict['opt_arg'] = self.__optimization.arg
 
         return solution_dict
 

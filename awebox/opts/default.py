@@ -298,6 +298,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         # todo: embed other solvers
+        ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
         ('solver',  None,   None,   'linear_solver',        'ma57',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
         ('solver',  None,   None,   'max_iter',             2000,       ('maximum ipopt iterations [int]', None),'x'),

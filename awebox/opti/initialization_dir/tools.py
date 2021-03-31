@@ -163,10 +163,17 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
-def get_kite_dcm(init_options, model, node, ret):
+def get_air_velocity(init_options, model, node, ret):
 
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
+
+    vec_u_infty = get_wind_speed(init_options, position[2])
+    vec_u_app = vec_u_infty - velocity
+
+    return vec_u_app
+
+def get_kite_dcm(init_options, model, node, ret):
 
     normal_vector = ret['q10']
     ehat_normal = vect_op.normalize(normal_vector)
@@ -174,11 +181,7 @@ def get_kite_dcm(init_options, model, node, ret):
     kite_dcm_setting_method = init_options['kite_dcm']
     if kite_dcm_setting_method == 'aero_validity':
 
-        position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
-        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
-
-        vec_u_infty = get_wind_speed(init_options, position[2])
-        vec_u_app = vec_u_infty - velocity
+        vec_u_app = get_air_velocity(init_options, model, node, ret)
 
         ehat1 = vect_op.normalize(vec_u_app)
         ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
@@ -186,6 +189,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     elif kite_dcm_setting_method == 'circular':
 
+        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
         ehat_forwards = vect_op.normalize(velocity)
 
         ehat1 = -1. * ehat_forwards

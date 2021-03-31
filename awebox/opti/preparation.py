@@ -41,6 +41,15 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
+def get_time_grids(nlp, V_final, V_ref=None):
+    time_grids = {'ref': {}}
+    for grid in nlp.time_grids:
+        time_grids[grid] = nlp.time_grids[grid](V_final['theta', 't_f'])
+        if V_ref is not None:
+            time_grids['ref'][grid] = nlp.time_grids[grid](V_ref['theta', 't_f'])
+    return time_grids
+
+
 def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
     # V_init = initialization.get_initial_guess(nlp, model, formulation, options)

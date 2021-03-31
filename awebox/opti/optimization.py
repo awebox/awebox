@@ -80,7 +80,8 @@ class Optimization(object):
             self.__awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
 
             # generate solvers
-            self.generate_solvers(model, nlp, formulation, options, self.__awe_callback)
+            if options['generate_solvers']:
+                self.generate_solvers(model, nlp, formulation, options, self.__awe_callback)
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
@@ -642,7 +643,6 @@ class Optimization(object):
 
     def __generate_outputs_from_V(self, nlp, V_final):
 
-        # V_initial = nlp.V(self.__arg['x0']) # todo: needed elsewhere?
         V_initial = self.__V_init
 
         # general outputs

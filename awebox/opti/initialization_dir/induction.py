@@ -43,6 +43,8 @@ import awebox.opti.initialization_dir.tools as tools_init
 import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 
+import pdb
+
 def initial_guess_induction(init_options, nlp, formulation, model, V_init):
 
     comparison_labels = init_options['model']['comparison_labels']
@@ -172,7 +174,7 @@ def set_wake_strengths(init_options, nlp, model, V_init):
     n_k = nlp.n_k
     d = nlp.d
 
-    wake_gamma = guess_wake_gamma_val(init_options)
+    wake_gamma = guess_wake_gamma_val(init_options, model, V_init)
 
     kite_nodes = model.architecture.kite_nodes
     wake_nodes = init_options['model']['vortex_wake_nodes']
@@ -280,8 +282,24 @@ def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kit
 
     return q_convected
 
-def guess_wake_gamma_val(init_options):
-    gamma = cas.DM(0.) #init_options['induction']['vortex_gamma_scale']
+def guess_wake_gamma_val(init_options, model, V_init):
+    gamma = init_options['induction']['vortex_gamma_scale']
+
+    if 'f_lift_earth' in init_options['induction'].keys():
+
+        f_lift_earth = init_options['induction']['f_lift_earth']
+        b_ref = init_options['sys_params_num']['geometry']['b_ref']
+        rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+
+        node = model.architecture.kite_nodes[0]
+        parent = model.architecture.parent_map[node]
+        ret = {}
+        for local in ['q10', 'q' + str(node) + str(parent), 'dq' + str(node) + str(parent)]:
+            ret[local] = V_init['xd', 0, local]
+
+        air_velocity = tools_init.get_air_velocity(init_options, model, node, ret)
+        ehat_span = tools_init.get_kite_dcm(init_options, model, node, ret)[:, 1]
+        gamma = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
 
     return gamma
 

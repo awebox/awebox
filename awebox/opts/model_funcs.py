@@ -655,6 +655,10 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
             options_tree.append(('model', 'scaling', 'xl', gamma_name, gamma_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
+    f_lift_earth = options['model']['aero']['overwrite']['f_lift_earth']
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'f_lift_earth', f_lift_earth, ('????', None), 'x')),
+
     u_ref = get_u_ref(options['user_options'])
     # vortex_position_scale = 2. * u_ref
     vortex_position_scale = 1.
