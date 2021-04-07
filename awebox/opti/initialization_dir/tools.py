@@ -168,7 +168,7 @@ def get_air_velocity(init_options, model, node, ret):
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
 
-    vec_u_infty = get_wind_speed(init_options, position[2])
+    vec_u_infty = get_wind_velocity(init_options, position[2])
     vec_u_app = vec_u_infty - velocity
 
     return vec_u_app
@@ -214,13 +214,13 @@ def find_airspeed(init_options, groundspeed, psi):
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
-    uu = get_wind_speed(init_options, zz)
+    uu = get_wind_velocity(init_options, zz)
     u_app = dq_kite - uu
     airspeed = float(vect_op.norm(u_app))
 
     return airspeed
 
-def get_wind_speed(init_options, zz):
+def get_wind_velocity(init_options, zz):
     l_t = init_options['xd']['l_t']
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]

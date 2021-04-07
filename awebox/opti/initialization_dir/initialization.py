@@ -27,7 +27,7 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
 
 import numpy as np
@@ -40,8 +40,8 @@ import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
 
-def get_initial_guess(nlp, model, formulation, init_options):
-    V_init_si = build_si_initial_guess(nlp, model, formulation, init_options)
+def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
+    V_init_si = build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num)
 
     if True in np.isnan(np.array(V_init_si.cat)):
         raise ValueError('NaN detected in V_init_si')
@@ -59,7 +59,7 @@ def initialize_multipliers_to_nonzero(V_init):
     return V_init
 
 
-def build_si_initial_guess(nlp, model, formulation, init_options):
+def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     awelogger.logger.info('build si initial guess...')
 
     V = nlp.V
@@ -78,7 +78,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
 
     V_init = extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict)
 
-    V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init)
+    V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init, p_fix_num)
 
     V_init = set_xddot(V_init, nlp)
 

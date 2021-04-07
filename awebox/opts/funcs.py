@@ -252,6 +252,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     options_tree.append(('solver',  'initialization', 'xd', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
 
+    options_tree.append(
+        ('solver', 'initialization', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
@@ -274,6 +277,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     if options['solver']['homotopy_method'] not in ['penalty', 'classic']:
         awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
+
+    options_tree.append(('solver', 'initialization', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
 
     return options_tree
 

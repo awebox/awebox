@@ -41,20 +41,14 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
-def get_time_grids(nlp, V_final, V_ref=None):
-    time_grids = {'ref': {}}
-    for grid in nlp.time_grids:
-        time_grids[grid] = nlp.time_grids[grid](V_final['theta', 't_f'])
-        if V_ref is not None:
-            time_grids['ref'][grid] = nlp.time_grids[grid](V_ref['theta', 't_f'])
-    return time_grids
-
 
 def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
+    p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
+
     # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
     if options['initialization']['initialization_type'] == 'default':
-        V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'])
+        V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'], p_fix_num)
     elif options['initialization']['initialization_type'] == 'modular':
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
@@ -69,7 +63,7 @@ def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = N
 
     V_ref = reference.get_reference(nlp, model, V_init, options)
 
-    p_fix_num = set_p_fix_num(V_ref, nlp, model, V_init, options)
+    p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
 
     [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
 
@@ -90,7 +84,9 @@ def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = N
 
     return arg
 
-def set_p_fix_num(V_ref, nlp, model, V_init, options):
+
+
+def initialize_opti_parameters_with_model_parameters(nlp, options):
     # --------------------
     # parameter values
     # --------------------
@@ -99,6 +95,28 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     awelogger.logger.info('generate OCP parameter values...')
     P = nlp.P
     p_fix_num = P(0.)
+
+    # system parameters
+    param_options = options['initialization']['sys_params_num']
+    for param_type in list(param_options.keys()):
+        if isinstance(param_options[param_type],dict):
+            for param in list(param_options[param_type].keys()):
+                if isinstance(param_options[param_type][param],dict):
+                    for subparam in list(param_options[param_type][param].keys()):
+                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
+
+                else:
+                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
+
+        else:
+            p_fix_num['theta0',param_type] = param_options[param_type]
+
+    return p_fix_num
+
+
+
+def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options):
+
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
@@ -132,22 +150,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
                 if 'coll_var' in list(V_ref.keys()):
                     p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
 
-    # system parameters
-    param_options = options['initialization']['sys_params_num']
-    for param_type in list(param_options.keys()):
-        if isinstance(param_options[param_type],dict):
-            for param in list(param_options[param_type].keys()):
-                if isinstance(param_options[param_type][param],dict):
-                    for subparam in list(param_options[param_type][param].keys()):
-                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
-
-                else:
-                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
-
-        else:
-            p_fix_num['theta0',param_type] = param_options[param_type]
-
-    use_vortex_linearization = 'lin' in P.keys()
+    use_vortex_linearization = 'lin' in nlp.P.keys()
     if use_vortex_linearization:
         p_fix_num['lin'] = V_init
 

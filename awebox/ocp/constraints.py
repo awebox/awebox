@@ -48,68 +48,69 @@ from awebox.logger.logger import Logger as awelogger
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
-    awelogger.logger.info('generate constraints...')
-
-    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
-    multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
-
     ocp_cstr_list = ocp_constraint.OcpConstraintList()
     ocp_cstr_entry_list = []
 
-    # add initial constraints
-    var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
-    var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
-    init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
-    ocp_cstr_list.append(init_cstr)
-    if len(init_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.get_expression_list('all').shape))
+    if nlp_options['generate_constraints']:
+        awelogger.logger.info('generate constraints...')
 
-    # add the path constraints.
-    if multiple_shooting:
-        ms_cstr, entry_tuple = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
-        ocp_cstr_list.append(ms_cstr)
+        direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+        multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
 
-    elif direct_collocation:
-        coll_cstr, entry_tuple = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation)
-        ocp_cstr_list.append(coll_cstr)
+        # add initial constraints
+        var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
+        var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
+        init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
+        ocp_cstr_list.append(init_cstr)
+        if len(init_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.get_expression_list('all').shape))
 
-    else:
-        message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
-        awelogger.logger.error(message)
-        raise Exception(message)
+        # add the path constraints.
+        if multiple_shooting:
+            ms_cstr, entry_tuple = expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params)
+            ocp_cstr_list.append(ms_cstr)
 
-    # add stage and continuity constraints to list
-    ocp_cstr_entry_list.append(entry_tuple)
+        elif direct_collocation:
+            coll_cstr, entry_tuple = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation)
+            ocp_cstr_list.append(coll_cstr)
 
-    # add terminal constraints
-    var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
-    var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
-    terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
-    ocp_cstr_list.append(terminal_cstr)
-    if len(terminal_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.get_expression_list('all').shape))
+        else:
+            message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
+            awelogger.logger.error(message)
+            raise Exception(message)
 
-    # add periodic constraints
-    periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
-    ocp_cstr_list.append(periodic_cstr)
-    if len(periodic_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.get_expression_list('all').shape))
+        # add stage and continuity constraints to list
+        ocp_cstr_entry_list.append(entry_tuple)
 
-    vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model, time_grids)
-    ocp_cstr_list.append(vortex_fixing_cstr)
-    if len(vortex_fixing_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.get_expression_list('all').shape))
+        # add terminal constraints
+        var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
+        var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
+        terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
+        ocp_cstr_list.append(terminal_cstr)
+        if len(terminal_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.get_expression_list('all').shape))
 
-    vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
-    ocp_cstr_list.append(vortex_strength_cstr)
-    if len(vortex_strength_cstr.eq_list) != 0:
-        ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape = vortex_strength_cstr.get_expression_list('all').shape))
+        # add periodic constraints
+        periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
+        ocp_cstr_list.append(periodic_cstr)
+        if len(periodic_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.get_expression_list('all').shape))
 
-    if direct_collocation:
-        integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
-        ocp_cstr_list.append(integral_cstr)
-        if len(integral_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
+        vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model, time_grids)
+        ocp_cstr_list.append(vortex_fixing_cstr)
+        if len(vortex_fixing_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.get_expression_list('all').shape))
+
+        vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
+        ocp_cstr_list.append(vortex_strength_cstr)
+        if len(vortex_strength_cstr.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape = vortex_strength_cstr.get_expression_list('all').shape))
+
+        if direct_collocation:
+            integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
+            ocp_cstr_list.append(integral_cstr)
+            if len(integral_cstr.eq_list) != 0:
+                ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
 
     # Constraints structure
     ocp_cstr_struct = cas.struct_symSX(ocp_cstr_entry_list)(ocp_cstr_list.get_expression_list('all'))

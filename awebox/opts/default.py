@@ -282,7 +282,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
-
+        ('nlp',  None,               None, 'generate_constraints', True,                   ('trial.nlp should generate the constraints', [True, False]), 'x'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),

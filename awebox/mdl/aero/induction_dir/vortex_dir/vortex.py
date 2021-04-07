@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+from multiprocessing import Pool
 
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
@@ -43,6 +44,7 @@ import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
 import numpy as np
+import pdb
 
 def get_vortex_cstr(options, wind, variables_si, architecture):
 
@@ -159,6 +161,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, pa
 
 def compute_global_performance(power_and_performance, plot_dict):
 
+
     kite_nodes = plot_dict['architecture'].kite_nodes
 
     max_est_trunc_list = []
@@ -166,6 +169,7 @@ def compute_global_performance(power_and_performance, plot_dict):
     last_u_ind_norm_over_ref_list = []
 
     for kite in kite_nodes:
+
         trunc_name = 'est_truncation_error' + str(kite)
         local_max_est_trunc = np.max(np.array(plot_dict['outputs']['vortex'][trunc_name][0]))
         max_est_trunc_list += [local_max_est_trunc]
