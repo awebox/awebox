@@ -28,6 +28,7 @@ to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 '''
+import pdb
 
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
@@ -243,7 +244,8 @@ def get_local_algebraic_repr_collocation_position_value(options, V, Outputs, mod
     wingtip_pos = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
     u_local = model.wind.get_velocity(wingtip_pos[2])
-    shedding_time = t_f[1] * periods_passed + tgrid[shedding_ndx, shedding_ddx]
+    t_period = tgrid[-1, -1]
+    shedding_time = t_period * periods_passed + tgrid[shedding_ndx, shedding_ddx]
     delta_t = current_time - shedding_time
 
     wx_found = wingtip_pos + delta_t * u_local
