@@ -168,13 +168,20 @@ def compute_global_performance(power_and_performance, plot_dict):
     max_est_discr_list = []
     last_u_ind_norm_over_ref_list = []
 
+    all_local_a = None
+
     for kite in kite_nodes:
 
         trunc_name = 'est_truncation_error' + str(kite)
         local_max_est_trunc = np.max(np.array(plot_dict['outputs']['vortex'][trunc_name][0]))
         max_est_trunc_list += [local_max_est_trunc]
 
-        kite_local_a = np.array(plot_dict['outputs']['vortex']['local_a' + str(kite)][0])
+        kite_local_a = np.ndarray.flatten(np.array(plot_dict['outputs']['vortex']['local_a' + str(kite)][0]))
+        if all_local_a is None:
+            all_local_a = kite_local_a
+        else:
+            all_local_a = np.vstack([all_local_a, kite_local_a])
+
         max_kite_local_a = np.max(kite_local_a)
         min_kite_local_a = np.min(kite_local_a)
         local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
@@ -182,6 +189,12 @@ def compute_global_performance(power_and_performance, plot_dict):
 
         local_last_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['last_u_ind_norm_over_ref' + str(kite)]))
         last_u_ind_norm_over_ref_list += [local_last_u_ind_norm_over_ref]
+
+    average_local_a = np.average(all_local_a)
+    power_and_performance['vortex_average_local_a'] = average_local_a
+
+    stdev_local_a = np.std(all_local_a)
+    power_and_performance['vortex_stdev_local_a'] = stdev_local_a
 
     max_last_u_ind_norm_over_ref = np.max(np.array(last_u_ind_norm_over_ref_list))
     power_and_performance['vortex_max_last_u_ind_norm_over_ref'] = max_last_u_ind_norm_over_ref
