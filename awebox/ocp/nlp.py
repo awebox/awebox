@@ -112,7 +112,6 @@ class NLP(object):
 
         self.__g = ocp_cstr_struct(ocp_cstr_list.get_expression_list('all'))
         self.__g_fun = ocp_cstr_list.get_function(nlp_options, V, P, 'all')
-        self.__g_jacobian_fun = cas.Function('g_jacobian_fun',[V,P], [cas.jacobian(self.__g, V)])
         self.__g_bounds = {'lb': ocp_cstr_list.get_lb('all'), 'ub': ocp_cstr_list.get_ub('all')}
 
         return None
@@ -229,15 +228,6 @@ class NLP(object):
     @f_fun.setter
     def f_fun(self, value):
         awelogger.logger.warning('Cannot set f_fun object.')
-
-
-    @property
-    def g_jacobian_fun(self):
-        return [self.__g_fun, self.__g_jacobian_fun]
-
-    @g_jacobian_fun.setter
-    def g_jacobian_fun(self, value):
-        awelogger.logger.warning('Cannot set g_jacobian_fun object.')
 
     @property
     def n_k(self):
