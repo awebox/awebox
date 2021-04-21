@@ -24,6 +24,7 @@
 #
 
 import numpy as np
+import copy
 from awebox.logger.logger import Logger as awelogger
 import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
@@ -132,7 +133,7 @@ def share_trajectory_type(options, options_tree=[]):
                          ('user input for maximum main tether length', None),'x'))
 
         if user_options['trajectory']['lift_mode']['pumping_range']:
-            pumping_range = user_options['trajectory']['lift_mode']['pumping_range']
+            pumping_range = copy.copy(user_options['trajectory']['lift_mode']['pumping_range'])
             for i in range(len(pumping_range)):
                 if pumping_range[i]:
                     pumping_range[i] = pumping_range[i]/options['model']['scaling']['xd']['l_t']

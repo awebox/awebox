@@ -118,6 +118,14 @@ class Trial(object):
 
         if not options:
             options = self.__options
+        else:
+            # regenerate nlp bounds for parametric sweeps
+            architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
+            options.build(architecture)
+            import awebox.mdl.dynamics as dyn
+            _, options['model']['scaling'] = dyn.generate_si_variables(options['model']['scaling'], self.__model.variables)
+            self.__model.generate_scaled_variable_bounds(options['model'])
+            self.__nlp.generate_variable_bounds(options['nlp'], self.__model)
 
         # get save_flag
         self.__save_flag = save_flag
