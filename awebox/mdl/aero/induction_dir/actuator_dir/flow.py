@@ -289,7 +289,7 @@ def get_gamma_check(model_options, wind, parent, variables, parameters, architec
 def get_qzero_ref(atmos, wind):
     scale = 5.
     rho_ref = atmos.get_density_ref()
-    uinfty_ref = wind.get_velocity_ref()
+    uinfty_ref = wind.get_speed_ref()
     qzero_ref = .5 * rho_ref * uinfty_ref**2. * scale
     return qzero_ref
 
@@ -298,7 +298,7 @@ def get_a_ref(model_options):
     return a_ref
 
 def get_uzero_vec_length_ref(wind):
-    return wind.get_velocity_ref()
+    return wind.get_speed_ref()
 
 
 def get_local_induction_factor(model_options, variables, kite, parent, label):

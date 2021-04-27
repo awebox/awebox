@@ -97,7 +97,7 @@ def get_n_vec_length_var(variables, parent):
 
 def get_tstar_ref(parameters, wind):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    uinfty_ref = wind.get_velocity_ref()
+    uinfty_ref = wind.get_speed_ref()
     tstar = b_ref / uinfty_ref
     return tstar
 

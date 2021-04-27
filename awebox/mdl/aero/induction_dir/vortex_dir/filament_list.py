@@ -27,6 +27,7 @@ constructs the filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
+import pdb
 
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
@@ -105,15 +106,15 @@ def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev):
 def get_list_from_last_ring(options, variables_si, architecture, kite):
 
     wake_nodes = options['induction']['vortex_wake_nodes']
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
-    if rings < 1:
+    if rings < 0:
         message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
         awelogger.logger.error(message)
-        return []
+        raise Exception(message)
 
     last_tracked_wake_node = wake_nodes - 1
-    ring = rings
+    ring = rings - 1 # remember: indexing starts at 0.
 
     far_convection_time = options['induction']['vortex_far_convection_time']
     u_ref = options['induction']['vortex_u_ref']
@@ -121,11 +122,23 @@ def get_list_from_last_ring(options, variables_si, architecture, kite):
     LENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', last_tracked_wake_node)
     LEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', last_tracked_wake_node)
 
-    TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
-    TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
+    farwake_name = 'wu_farwake_' + str(kite) + '_'
+    if isinstance(variables_si, cas.structure3.DMStruct):
+        velocity_PE = variables_si['xl', farwake_name + 'ext']
+        velocity_NE = variables_si['xl', farwake_name + 'int']
+    else:
+        velocity_PE = variables_si['xl'][farwake_name + 'ext']
+        velocity_NE = variables_si['xl'][farwake_name + 'int']
 
-    strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
-    strength = strength_prev
+    TENE = LENE + far_convection_time * velocity_NE
+    TEPE = LEPE + far_convection_time * velocity_PE
+
+    strength = tools.get_ring_strength_si(variables_si, kite, ring)
+
+    if ring == 0:
+        strength_prev = cas.DM.zeros((1, 1))
+    else:
+        strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
 
     filament_list = make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev)
     return filament_list
@@ -172,8 +185,8 @@ def decolumnize(options, architecture, columnized_list):
 def expected_number_of_filaments(options, architecture):
     wake_nodes = options['induction']['vortex_wake_nodes']
     number_kites = architecture.number_of_kites
-    rings = wake_nodes - 1
-    filaments = 3 * (rings + 1) * number_kites
+    rings = wake_nodes
+    filaments = 3 * (rings) * number_kites
 
     return filaments
 
@@ -184,7 +197,7 @@ def test():
 
     options = {}
     options['induction'] = {}
-    options['induction']['vortex_wake_nodes'] = 2
+    options['induction']['vortex_wake_nodes'] = 1
     options['induction']['vortex_far_convection_time'] = 1.
     options['induction']['vortex_u_ref'] = 1.
     options['induction']['vortex_position_scale'] = 1.
@@ -199,7 +212,9 @@ def test():
         cas.entry("wx_" + str(kite) + "_int_1", shape=(3, 1))
     ])
     xl_struct = cas.struct([
-        cas.entry("wg_" + str(kite) + "_0")
+        cas.entry("wg_" + str(kite) + "_0"),
+        cas.entry('wu_farwake_' + str(kite) + '_int', shape=(3, 1)),
+        cas.entry('wu_farwake_' + str(kite) + '_ext', shape=(3, 1))
     ])
     var_struct = cas.struct_symSX([
         cas.entry('xd', struct=xd_struct),
@@ -209,15 +224,15 @@ def test():
     variables_si = var_struct(0.)
     variables_si['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
     variables_si['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_ext_1'] = variables_si['xd', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_int_1'] = variables_si['xd', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
     variables_si['xl', 'wg_' + str(kite) + '_0'] = 1.
+    variables_si['xl', 'wu_farwake_' + str(kite) + '_ext'] = vect_op.xhat_np()
+    variables_si['xl', 'wu_farwake_' + str(kite) + '_int'] = vect_op.xhat_np()
 
     test_list = get_list(options, variables_si, architecture)
 
     filaments = test_list.shape[1]
 
-    filament_count_test = filaments - 6
+    filament_count_test = filaments - 3
     if not (filament_count_test == 0):
         message = 'filament list does not work as expected. difference in number of filaments in test_list = ' + str(filament_count_test)
         awelogger.logger.error(message)

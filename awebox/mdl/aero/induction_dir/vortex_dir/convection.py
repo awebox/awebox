@@ -53,7 +53,7 @@ def get_state_repr_convection_cstr(options, wind, variables_si, architecture):
 
                 dwx_local = variables_si['xddot']['d' + var_name]
 
-                resi_local = (dwx_local - u_infty) / wind.get_velocity_ref()
+                resi_local = (dwx_local - u_infty) / wind.get_speed_ref()
 
                 local_cstr = cstr_op.Constraint(expr = resi_local,
                                                 name = 'convection_' + var_name,

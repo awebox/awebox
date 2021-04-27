@@ -65,7 +65,7 @@ def get_induction_trivial_residual(options, wind, variables_si, architecture):
     resi = []
 
     filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
-    u_ref = wind.get_velocity_ref()
+    u_ref = wind.get_speed_ref()
 
     for kite_obs in architecture.kite_nodes:
 
@@ -97,7 +97,7 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
         awelogger.logger.error(message)
         raise Exception(message)
 
-    u_ref = wind.get_velocity_ref()
+    u_ref = wind.get_speed_ref()
 
     for kite_obs in architecture.kite_nodes:
 
@@ -144,7 +144,7 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, pa
 
         last_u_ind = flow.get_induced_velocity_at_kite(model_options, last_filament_list, variables_si, architecture, kite)
         last_u_ind_norm = vect_op.norm(last_u_ind)
-        last_u_ind_norm_over_ref = last_u_ind_norm / wind.get_velocity_ref()
+        last_u_ind_norm_over_ref = last_u_ind_norm / wind.get_speed_ref()
 
         est_truncation_error = (last_u_ind_norm) / vect_op.norm(u_ind)
 

@@ -77,6 +77,8 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
         awelogger.logger.error(message)
         raise Exception(message)
 
+    V_init = set_farwake_convection_velocity_initialization(init_options, V_init, model)
+
     if init_options['induction']['vortex_representation'] == 'state':
 
         V_init = set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
@@ -250,6 +252,32 @@ def get_local_wind_reference_frame(init_options):
 
 ######################## vortex
 
+def set_farwake_convection_velocity_initialization(init_options, V_init, model):
+
+    n_k = init_options['n_k']
+
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    V_init_si = copy.deepcopy(V_init)
+    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
+
+    for kite in kite_nodes:
+        for tip in wingtips:
+            var_name = 'wu_farwake_' + str(kite) + '_' + tip
+
+            for ndx in range(n_k):
+
+                velocity = vortex_fixing.get_far_wake_velocity_val(init_options, V_init_scaled, model, kite, ndx)
+                V_init['xl', ndx, var_name] = velocity
+
+                for ddx in range(init_options['collocation']['d']):
+                    velocity = vortex_fixing.get_far_wake_velocity_val(init_options, V_init_scaled, model, kite, ndx, ddx)
+                    V_init['coll_var', ndx, ddx, 'xl', var_name] = velocity
+
+    return V_init
+
+
 def set_algebraic_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num):
 
     n_k = nlp.n_k
@@ -360,7 +388,7 @@ def set_algebraic_vortex_repr_strength_initialization(init_options, nlp, model, 
 
     wake_nodes = init_options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
     V_init_si = copy.deepcopy(V_init)
     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
@@ -400,7 +428,7 @@ def set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_in
 
     wake_nodes = init_options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
     V_init_si = copy.deepcopy(V_init)
     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
@@ -438,3 +466,4 @@ def set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_in
                     V_init['xl', ndx, var_name] = gamma_val
 
     return V_init
+

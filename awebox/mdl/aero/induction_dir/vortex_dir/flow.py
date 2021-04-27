@@ -27,6 +27,7 @@ flow functions for the vortex based model
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 """
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
@@ -47,7 +48,7 @@ def get_superposition_cstr(options, wind, variables_si, architecture):
     cstr_list = cstr_op.ConstraintList()
 
     filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
-    u_ref = wind.get_velocity_ref()
+    u_ref = wind.get_speed_ref()
 
     for kite_obs in architecture.kite_nodes:
         u_ind_kite = cas.DM.zeros((3, 1))
@@ -164,7 +165,7 @@ def test(test_list):
         raise Exception(message)
 
     calculated_norm = vect_op.norm(u_ind)
-    expected_norm = 0.752133
+    expected_norm = 0.675237 #0.752133
     norm_comparison = (calculated_norm - expected_norm)**2.
     if not (norm_comparison < 1.e-8):
         message = 'induced velocity at observer does not work as expected. ' \

@@ -30,6 +30,7 @@ python-3.5 / casadi 3.0.0
           jochem de schutter, alu-fr 2017
 
 '''
+import pdb
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
@@ -219,7 +220,7 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
     filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     vortex_representation = options['aero']['vortex']['representation']
@@ -240,6 +241,12 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
                     message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
                     awelogger.logger.error(message)
                     raise Exception(message)
+
+    if 'filament' in options['aero']['vortex']['far_wake_model']:
+        for kite in architecture.kite_nodes:
+            for tip in wingtips:
+                far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip
+                system_lifted.extend([(far_wake_name, (3, 1))])
 
     for kite_obs in architecture.kite_nodes:
         for fdx in range(filaments):

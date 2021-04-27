@@ -45,17 +45,26 @@ import awebox.tools.constraint_operations as cstr_op
 
 def get_fixing_constraint(options, V, Outputs, model, time_grids):
 
-    vortex_representation = options['induction']['vortex_representation']
+    comparison_labels = options['induction']['comparison_labels']
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    if any_vor:
 
-    if vortex_representation == 'state':
-        return get_state_repr_fixing_constraint(options, V, Outputs, model)
-    elif vortex_representation == 'alg':
-        return get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids)
-    else:
-        message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        cstr_list = cstr_op.ConstraintList()
 
+        vortex_representation = options['induction']['vortex_representation']
+
+        if vortex_representation == 'state':
+            cstr_list.append(get_state_repr_fixing_constraint(options, V, Outputs, model))
+        elif vortex_representation == 'alg':
+            cstr_list.append(get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids))
+        else:
+            message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+    cstr_list.append(get_farwake_convection_velocity_constraint(options, V, model))
+
+    return cstr_list
 
 ############# state representation
 
@@ -63,69 +72,65 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
 
     n_k = options['n_k']
 
-    comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
     wingtips = ['ext', 'int']
 
     cstr_list = cstr_op.ConstraintList()
 
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
+    for kite in kite_nodes:
+        for tip in wingtips:
+            for wake_node in range(wake_nodes):
+                local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
 
-        for kite in kite_nodes:
-            for tip in wingtips:
-                for wake_node in range(wake_nodes):
-                    local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
+                if wake_node < n_k:
 
-                    if wake_node < n_k:
+                    # working out:
+                    # n_k = 3
+                    # wn:0 fixed at shooting node 3, corresponds to ndx=2, ddx=-1
+                    # wn:1 fixed at shooting node 2, corresponds to ndx=1, ddx=-1
+                    # wn:2 fixed at shooting node 1, corresponds to ndx=0, ddx=-1
+                    # wn   fixed at shooting node n_k - wn, corresponds to ndx=n_k - wn - 1, ddx=-1
+                    # ... then, switch to periodic fixing
 
-                        # working out:
-                        # n_k = 3
-                        # wn:0 fixed at shooting node 3, corresponds to ndx=2, ddx=-1
-                        # wn:1 fixed at shooting node 2, corresponds to ndx=1, ddx=-1
-                        # wn:2 fixed at shooting node 1, corresponds to ndx=0, ddx=-1
-                        # wn   fixed at shooting node n_k - wn, corresponds to ndx=n_k - wn - 1, ddx=-1
-                        # ... then, switch to periodic fixing
+                    shooting_ndx = n_k - wake_node
+                    collocation_ndx = shooting_ndx - 1
 
-                        shooting_ndx = n_k - wake_node
-                        collocation_ndx = shooting_ndx - 1
+                    var_name = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
+                    wx_scaled = V['xd', shooting_ndx, var_name]
+                    wx_si = struct_op.var_scaled_to_si('xd', var_name, wx_scaled, model.scaling)
 
-                        var_name = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-                        wx_scaled = V['xd', shooting_ndx, var_name]
-                        wx_si = struct_op.var_scaled_to_si('xd', var_name, wx_scaled, model.scaling)
+                    wingtip_pos_si = Outputs['coll_outputs', collocation_ndx, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
-                        wingtip_pos_si = Outputs['coll_outputs', collocation_ndx, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                    local_resi_si = wx_si - wingtip_pos_si
+                    local_resi = struct_op.var_si_to_scaled('xd', var_name, local_resi_si, model.scaling)
 
-                        local_resi_si = wx_si - wingtip_pos_si
-                        local_resi = struct_op.var_si_to_scaled('xd', var_name, local_resi_si, model.scaling)
+                else:
 
-                    else:
+                    # working out for n_k = 3
+                    # wn:0, n_k-1=2
+                    # wn:1, n_k-2=1
+                    # wn:2=n_k-1, n_k-3=0
+                    # ... switch to periodic fixing
+                    # wn:3 at t_0 must be equal to -> wn:0 at t_final
+                    # wn:4 at t_0 must be equal to -> wn:1 at t_final
+                    # wn:5 at t_0 must be equal to -> wn:2 at t_final
+                    # wn:6 at t_0 must be equal to -> wn:3 at t_final
+                    # wn:7 at t_0 must be equal to -> wn:4 at t_final
 
-                        # working out for n_k = 3
-                        # wn:0, n_k-1=2
-                        # wn:1, n_k-2=1
-                        # wn:2=n_k-1, n_k-3=0
-                        # ... switch to periodic fixing
-                        # wn:3 at t_0 must be equal to -> wn:0 at t_final
-                        # wn:4 at t_0 must be equal to -> wn:1 at t_final
-                        # wn:5 at t_0 must be equal to -> wn:2 at t_final
-                        # wn:6 at t_0 must be equal to -> wn:3 at t_final
-                        # wn:7 at t_0 must be equal to -> wn:4 at t_final
+                    var_name_local = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
+                    wx_local = V['xd', 0, var_name_local]
 
-                        var_name_local = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-                        wx_local = V['xd', 0, var_name_local]
+                    wake_node_upstream = wake_node - n_k
+                    var_name_upsteam = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node_upstream)
+                    wx_upstream = V['xd', -1, var_name_upsteam]
 
-                        wake_node_upstream = wake_node - n_k
-                        var_name_upsteam = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node_upstream)
-                        wx_upstream = V['xd', -1, var_name_upsteam]
+                    local_resi = wx_local - wx_upstream
 
-                        local_resi = wx_local - wx_upstream
-
-                    local_cstr = cstr_op.Constraint(expr = local_resi,
-                                                    name = local_name,
-                                                    cstr_type='eq')
-                    cstr_list.append(local_cstr)
+                local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                name = local_name,
+                                                cstr_type='eq')
+                cstr_list.append(local_cstr)
 
     return cstr_list
 
@@ -146,22 +151,19 @@ def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
 
     cstr_list = cstr_op.ConstraintList()
 
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
+    for kite in kite_nodes:
+        for tip in wingtips:
+            for wake_node in range(wake_nodes):
 
-        for kite in kite_nodes:
-            for tip in wingtips:
-                for wake_node in range(wake_nodes):
+                for ndx in range(n_k):
 
-                    for ndx in range(n_k):
+                    shooting_cstr = get_local_algebraic_repr_shooting_position_constraint(V, model, kite, tip, wake_node, ndx)
+                    cstr_list.append(shooting_cstr)
 
-                        shooting_cstr = get_local_algebraic_repr_shooting_position_constraint(V, model, kite, tip, wake_node, ndx)
-                        cstr_list.append(shooting_cstr)
-
-                        for ddx in range(d):
-                            local_cstr = get_local_algebraic_repr_collocation_position_constraint(options, V, Outputs, model, time_grids,
-                                                                                                  kite, tip, wake_node, ndx, ddx)
-                            cstr_list.append(local_cstr)
+                    for ddx in range(d):
+                        local_cstr = get_local_algebraic_repr_collocation_position_constraint(options, V, Outputs, model, time_grids,
+                                                                                              kite, tip, wake_node, ndx, ddx)
+                        cstr_list.append(local_cstr)
 
 
     return cstr_list
@@ -251,3 +253,119 @@ def get_local_algebraic_repr_collocation_position_value(options, V, Outputs, mod
     wx_found = wingtip_pos + delta_t * u_local
 
     return wx_found
+
+################ farwake
+
+def get_farwake_convection_velocity_constraint(options, V, model):
+
+    n_k = options['n_k']
+
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    cstr_list = cstr_op.ConstraintList()
+
+    for kite in kite_nodes:
+        for tip in wingtips:
+            var_name = 'wu_farwake_' + str(kite) + '_' + tip
+
+            for ndx in range(n_k):
+
+                local_name = 'far_wake_convection_velocity_' + str(kite) + '_' + str(tip) + '_' + str(ndx)
+
+                wu_scaled = V['xl', ndx, var_name]
+                wu_si = struct_op.var_scaled_to_si('xd', var_name, wu_scaled, model.scaling)
+
+                velocity = get_far_wake_velocity_val(options, V, model, kite, ndx)
+
+                local_resi_si = wu_si - velocity
+                local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+
+                local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                name = local_name,
+                                                cstr_type='eq')
+                cstr_list.append(local_cstr)
+
+                for ddx in range(options['collocation']['d']):
+                    local_name = 'far_wake_convection_velocity_' + str(kite) + '_' + str(tip) + '_' + str(ndx) + ',' + str(ddx)
+
+                    wu_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+                    wu_si = struct_op.var_scaled_to_si('xl', var_name, wu_scaled, model.scaling)
+
+                    velocity = get_far_wake_velocity_val(options, V, model, kite, ndx, ddx)
+
+                    local_resi_si = wu_si - velocity
+                    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+
+                    local_cstr = cstr_op.Constraint(expr=local_resi,
+                                                    name=local_name,
+                                                    cstr_type='eq')
+                    cstr_list.append(local_cstr)
+
+    return cstr_list
+
+def get_far_wake_velocity_val(options, V, model, kite, ndx, ddx=None):
+
+    parent = model.architecture.parent_map[kite]
+
+    vortex_far_wake_model = options['induction']['vortex_far_wake_model']
+    vortex_representation = options['induction']['vortex_representation']
+
+    n_k = options['n_k']
+
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    wake_node = wake_nodes - 1
+
+    if vortex_far_wake_model == 'freestream_filament':
+        velocity = model.wind.get_speed_ref(from_parameters=False) * vect_op.xhat()
+
+    elif (vortex_far_wake_model == 'pathwise_filament') and (vortex_representation == 'state'):
+        shooting_ndx = n_k - wake_node
+        collocation_ndx = shooting_ndx - 1
+        modular_ndx = np.mod(collocation_ndx, n_k)
+
+        q_kite_scaled = V['coll_var', modular_ndx, -1, 'xd', 'q' + str(kite) + str(parent)]
+        q_kite = struct_op.var_scaled_to_si('xd', 'q' + str(kite) + str(parent), q_kite_scaled,
+                                            model.scaling)
+        u_infty = model.wind.get_velocity(q_kite[2])
+
+        dq_kite_scaled = V['coll_var', modular_ndx, -1, 'xd', 'dq' + str(kite) + str(parent)]
+        dq_kite = struct_op.var_scaled_to_si('xd', 'dq' + str(kite) + str(parent), dq_kite_scaled,
+                                             model.scaling)
+
+        velocity = u_infty - dq_kite
+
+    elif (vortex_far_wake_model == 'pathwise_filament') and (vortex_representation == 'alg'):
+
+        if ddx is None:
+            ndx_collocation = ndx - 1
+            ddx_collocation = -1
+        else:
+            ndx_collocation = ndx
+            ddx_collocation = ddx
+
+        subtracted_ndx = ndx_collocation - wake_node
+        shedding_ndx = np.mod(subtracted_ndx, n_k)
+
+        if wake_node == 0:
+            shedding_ddx = ddx_collocation
+        else:
+            shedding_ddx = -1
+
+        q_kite_scaled = V['coll_var', shedding_ndx, shedding_ddx, 'xd', 'q' + str(kite) + str(parent)]
+        q_kite = struct_op.var_scaled_to_si('xd', 'q' + str(kite) + str(parent), q_kite_scaled,
+                                            model.scaling)
+        u_infty = model.wind.get_velocity(q_kite[2])
+
+        dq_kite_scaled = V['coll_var', shedding_ndx, shedding_ddx, 'xd', 'dq' + str(kite) + str(parent)]
+        dq_kite = struct_op.var_scaled_to_si('xd', 'dq' + str(kite) + str(parent), dq_kite_scaled,
+                                             model.scaling)
+
+        velocity = u_infty - dq_kite
+
+    else:
+        message = 'unknown vortex far wake model specified: ' + vortex_far_wake_model
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return velocity

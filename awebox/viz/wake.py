@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
@@ -126,7 +128,7 @@ def get_gamma_extrema(plot_dict):
     kite_nodes = plot_dict['architecture'].kite_nodes
     wake_nodes = plot_dict['options']['model']['aero']['vortex']['wake_nodes']
 
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
     gamma_max = -1.e5
     gamma_min = 1.e5
@@ -143,8 +145,13 @@ def get_gamma_extrema(plot_dict):
                     gamma_min = np.min(np.array(cas.vertcat(gamma_min, var)))
 
     # so that gamma = 0 vortex filaments will be drawn in white...
-    gamma_max = np.max(np.array([gamma_max, -1. * gamma_min]))
+    gamma_max = np.max(np.array([np.abs(gamma_max), np.abs(gamma_min)]))
     gamma_min = -1. * gamma_max
+
+    if gamma_min > gamma_max:
+        message = 'something went wrong when finding the wake strength extrema (plotting).'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return gamma_min, gamma_max
 

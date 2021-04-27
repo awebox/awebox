@@ -70,7 +70,7 @@ def get_state_repr_strength_constraint(options, V, Outputs, model):
 
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
-    rings = wake_nodes - 1
+    rings = wake_nodes
     kite_nodes = model.architecture.kite_nodes
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
@@ -122,7 +122,7 @@ def get_local_state_repr_collocation_strength_constraint(options, V, Outputs, mo
     local_name = 'vortex_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + '_' + str(ddx)
     var_name = 'wg_' + str(kite) + '_' + str(ring)
 
-    wg_local_scaled = V['coll_vars', ndx, ddx, 'xl', var_name]
+    wg_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
     wg_local = struct_op.var_scaled_to_si('xl', var_name, wg_local_scaled, model.scaling)
 
 
@@ -236,7 +236,7 @@ def get_algebraic_repr_strength_constraint(options, V, Outputs, model):
     comparison_labels = options['induction']['comparison_labels']
     wake_nodes = options['induction']['vortex_wake_nodes']
     kite_nodes = model.architecture.kite_nodes
-    rings = wake_nodes - 1
+    rings = wake_nodes
 
     cstr_list = cstr_op.ConstraintList()
 

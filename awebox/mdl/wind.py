@@ -83,9 +83,18 @@ class Wind:
         return u
 
 
-    def get_velocity_ref(self):
-        params = self.__params.prefix['theta0','wind']
-        u_ref = params['u_ref']
+    def get_speed_ref(self, from_parameters=True):
+        if from_parameters:
+            params = self.__params.prefix['theta0','wind']
+            u_ref = params['u_ref']
+        else:
+            u_ref = self.__options['u_ref']
+            if not self.__type_incompatibility_warning_already_given:
+                message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
+                          'directly from options. this may interfere with expected operation, especially in sweeps.'
+                awelogger.logger.warning(message)
+                self.__type_incompatibility_warning_already_given = True
+
 
         return u_ref
 

@@ -66,7 +66,7 @@ def get_general_trivial_residual(options, wind, variables_si, architecture):
     for kite in architecture.kite_nodes:
         ind_val = cas.DM.zeros((3, 1))
         ind_var = get_kite_induced_velocity_var(variables_si, wind, kite)
-        ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
+        ind_resi = (ind_val - ind_var) / wind.get_speed_ref()
         resi = cas.vertcat(resi, ind_resi)
 
     comparison_labels = options['aero']['induction']['comparison_labels']
@@ -83,7 +83,7 @@ def get_general_final_residual(options, wind, variables_si, parameters, outputs,
     for kite in architecture.kite_nodes:
         ind_val = get_kite_induced_velocity_val(options, wind, variables_si, kite, architecture, parameters, outputs)
         ind_var = get_kite_induced_velocity_var(variables_si, wind, kite)
-        ind_resi = (ind_val - ind_var) / wind.get_velocity_ref()
+        ind_resi = (ind_val - ind_var) / wind.get_speed_ref()
         resi = cas.vertcat(resi, ind_resi)
 
     comparison_labels = options['aero']['induction']['comparison_labels']
@@ -118,7 +118,7 @@ def get_specific_cstr(options, atmos, wind, variables_si, parameters, outputs, a
 ## velocities
 
 def get_kite_induced_velocity_var(variables, wind, kite):
-    ind_var = variables['xl']['ui' + str(kite)] * wind.get_velocity_ref()
+    ind_var = variables['xl']['ui' + str(kite)] * wind.get_speed_ref()
     return ind_var
 
 def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters, outputs):
