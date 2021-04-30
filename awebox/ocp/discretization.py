@@ -118,7 +118,7 @@ def construct_time_grids(nlp_options):
 
 def setup_nlp_cost():
 
-    cost = cas.struct_symSX([(
+    cost = cas.struct_symMX([(
         cas.entry('tracking'),
         cas.entry('u_regularisation'),
         cas.entry('xddot_regularisation'),
@@ -145,7 +145,7 @@ def setup_nlp_cost():
 def setup_nlp_p_fix(V, model):
 
     # fixed system parameters
-    p_fix = cas.struct_symSX([(
+    p_fix = cas.struct_symMX([(
         cas.entry('ref', struct=V),     # tracking reference for cost function
         cas.entry('weights', struct=model.variables)  # weights for cost function
     )])
@@ -226,7 +226,7 @@ def setup_output_structure(nlp_options, model_outputs, global_outputs):
             cas.entry('outputs', repeat = [nk], struct = model_outputs),
         )
 
-    Outputs = cas.struct_symSX([entry_tuple]
+    Outputs = cas.struct_symMX([entry_tuple]
                            + [cas.entry('final', struct=global_outputs)])
 
     return Outputs
@@ -329,15 +329,15 @@ def discretize(nlp_options, model, formulation):
     Outputs_list.append(global_outputs_fun(V, P))
 
     # Create Outputs struct and function
-    Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
-    Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
+    if nlp_options['induction']['induction_model'] == 'vortex': # outputs are need for vortex constraint construction
+        Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
+    Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
-    Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
-    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs.cat])
+    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
+    Xdot_struct = Xdot
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     # -------------------------------------------
@@ -345,7 +345,7 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs, time_grids)
+            ms_vars, ms_params, Outputs_struct, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 

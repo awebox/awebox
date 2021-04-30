@@ -112,7 +112,13 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
             ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
 
     # Constraints structure
-    ocp_cstr_struct = cas.struct_symSX(ocp_cstr_entry_list)(ocp_cstr_list.get_expression_list('all'))
+    ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
+
+    # test constraints structure dimension with constraints list
+    struct_length = ocp_cstr_struct.shape[0]
+    vec_length = ocp_cstr_list.get_expression_list('all').shape[0]
+    test_shapes = (struct_length == vec_length)
+    assert test_shapes, f'Mismatch in dimension between constraint vector ({vec_length}) and constraint structure ({struct_length})!'
 
     return ocp_cstr_list, ocp_cstr_struct
 
