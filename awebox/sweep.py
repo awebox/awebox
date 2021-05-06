@@ -39,6 +39,7 @@ import awebox.tools.save_operations as save_op
 import matplotlib.pyplot as plt
 import awebox.viz.comparison as comparison
 import awebox.viz.tools as tools
+import awebox.opts.options as opts
 
 
 class Sweep:
@@ -46,33 +47,19 @@ class Sweep:
 
         print_op.log_license_info()
 
-        if type(seed) == list:
+        default_options = opts.Options()
+        [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(default_options, seed)
 
-            [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(options, seed)
-
-            self.__trials_opts = trials_opts
-            self.__params_opts = params_opts
-            self.__name = name
-            self.__type = 'Sweep'
-            self.__base_options = options
-            self.__trial_dict = OrderedDict()
-            self.__param_dict = OrderedDict()
-            self.__sweep_dict = OrderedDict()
-            self.__sweep_labels = OrderedDict()
-            self.__plot_dict = OrderedDict()
-
-        elif type(seed) == dict and options == None:
-
-            self.__plot_dict = seed['plot_dict']
-            self.__sweep_dict = seed['sweep_dict']
-            self.__param_dict = seed['param_dict']
-            self.__name = seed['name']
-            self.__generate_plot_logic_dict()
-
-        else:
-            error_str = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
-            awelogger.logger.error(error_str)
-            raise TypeError(error_str)
+        self.__trials_opts = trials_opts
+        self.__params_opts = params_opts
+        self.__name = name
+        self.__type = 'Sweep'
+        self.__base_options = options
+        self.__trial_dict = OrderedDict()
+        self.__param_dict = OrderedDict()
+        self.__sweep_dict = OrderedDict()
+        self.__sweep_labels = OrderedDict()
+        self.__plot_dict = OrderedDict()
 
     def build(self):
 

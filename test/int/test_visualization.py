@@ -36,7 +36,7 @@ def test_visualization():
     trial.plot(trial_flags)
 
     # build sweep and run
-    sweep_opts = [(['user_options','wind','u_ref'], [5.,5.5])]
+    sweep_opts = [('user_options.wind.u_ref', [5.,5.5])]
     sweep = awe.Sweep(name = 'sweep_viz_test', options = options, seed = sweep_opts)
     sweep.build()
     sweep.run(final_homotopy_step='initial', debug_flags='all')
