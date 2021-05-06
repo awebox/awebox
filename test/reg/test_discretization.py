@@ -56,7 +56,7 @@ def test_integrators():
     dae     = model.get_dae()
 
     # build dae variables for t = 0 within first shooting interval
-    variables0 = struct_op.get_variables_at_time(base_options['nlp'], V_final, None, model.variables, 0)
+    variables0 = struct_op.get_variables_at_time(trial.options['nlp'], V_final, None, model.variables, 0)
     parameters = model.parameters(vertcat(P['theta0'], V_final['phi']))
     x0, z0, p  = dae.fill_in_dae_variables(variables0, parameters)
 
