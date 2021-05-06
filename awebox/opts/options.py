@@ -30,15 +30,14 @@ from . import default
 from . import funcs
 
 class Options:
-    def __init__(self, internal_access=False):
+    def __init__(self):
 
-        default_user_options, help_options = default.set_default_user_options(internal_access)
+        default_user_options, help_options = default.set_default_user_options()
         default_options, help_options = default.set_default_options(default_user_options, help_options)
 
         self.__options_dict = default_options
         self.__help_dict = help_options
         self.__keys_list = list(self.__options_dict.keys())
-        self.__internal_access = internal_access
 
     def __setitem__(self, key, value):
         category_key, sub_category_key, sub_sub_category_key, option_key, help_flag = get_keys(key)

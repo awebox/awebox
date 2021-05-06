@@ -30,7 +30,7 @@ import numpy as np
 from . import funcs
 import casadi as cas
 
-def set_default_user_options(internal_access = False):
+def set_default_user_options():
 
     ## notation for dict tree:
     ## (category, sub_categroy, sub_sub_category, parameter name, default value, (tooltip, tooltip list), sweep_type)
@@ -63,7 +63,6 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
         ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'kite_only', 'not_in_use']),'t'),
-        ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
     default_user_options, help_options = funcs.assemble_options_tree(default_user_options_tree, {}, {})
