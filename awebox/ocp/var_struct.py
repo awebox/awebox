@@ -61,13 +61,13 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
             cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
         )
 
-    # add state derivative variables at interval
-    entry_tuple += (
-        cas.entry('xdot', repeat = [nk], struct= variables_dict['xdot']),
-    )
+        # add state derivative variables at interval
+        entry_tuple += (
+            cas.entry('xdot', repeat = [nk], struct= variables_dict['xdot']),
+        )
 
-    # add algebraic variables at shooting nodes for constraint evaluation
-    entry_tuple += (cas.entry('z', repeat = [nk],   struct= variables_dict['z']),)
+        # add algebraic variables at shooting nodes for constraint evaluation
+        entry_tuple += (cas.entry('z', repeat = [nk],   struct= variables_dict['z']),)
 
     if direct_collocation:
 

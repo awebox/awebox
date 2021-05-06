@@ -58,14 +58,7 @@ def subkeys(casadi_struct, key):
     return subkey_list
 
 def count_shooting_nodes(nlp_options):
-    n_k = nlp_options['n_k']
-    periodic = perf_op.determine_if_periodic(nlp_options)
-    if periodic:
-        shooting_nodes = n_k
-    else:
-        shooting_nodes = n_k + 1
-
-    return shooting_nodes
+    return nlp_options['n_k']
 
 def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
@@ -176,7 +169,10 @@ def no_available_var_info(variables, var_type):
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
     if (ddx is None):
-        return V[var_type, kdx]
+        if var_type in list(V.keys()):
+            return V[var_type, kdx]
+        else:
+            return V['coll_var', kdx, 0, var_type]
     else:
         return V['coll_var', kdx, ddx, var_type]
 
@@ -291,9 +287,11 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
     radau_collocation = (direct_collocation and scheme == 'radau')
     other_collocation = (direct_collocation and (not scheme == 'radau'))
 
-    if radau_collocation:
+    terminal_constraint = nlp_options['mpc']['terminal_point_constr']
+
+    if radau_collocation and not terminal_constraint:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
-    elif other_collocation or multiple_shooting:
+    elif direct_collocation or multiple_shooting:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
@@ -403,7 +401,10 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling):
             if use_unit_scaling:
                 return var_si
             else:
-                return var_si / scale
+                var_scaled = var_si / scale
+                if type(var_si) == np.ndarray:
+                    var_scaled = var_scaled.full()
+                return var_scaled
 
         else:
             matrix_factor = cas.inv(cas.diag(scale))

@@ -289,6 +289,7 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
     outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
+
     CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
     CD_min = options['model_bounds']['aero_validity']['CD_min']
     drag_lb = CD_min - CD
