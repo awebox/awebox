@@ -193,15 +193,15 @@ def make_terminal_point_constraint(terminal_variables, ref_variables, model):
 
     terminal_point_constr = []
     # leave out invariants
-    for state in model.variables_dict['xd'].keys():
+    for state in model.variables_dict['x'].keys():
         state_name, _ = struct_op.split_name_and_node_identifier(state)
         if state_name in ['q', 'dq']:
-            terminal_point_constr.append(terminal_variables['xd',state,:2] - ref_variables['xd',state,:2])
+            terminal_point_constr.append(terminal_variables['x',state,:2] - ref_variables['x',state,:2])
         elif state_name == 'r':
-            terminal_point_constr.append(terminal_variables['xd',state,:2] - ref_variables['xd',state,:2])
-            terminal_point_constr.append(terminal_variables['xd',state,3] - ref_variables['xd',state,3])
+            terminal_point_constr.append(terminal_variables['x',state,:2] - ref_variables['x',state,:2])
+            terminal_point_constr.append(terminal_variables['x',state,3] - ref_variables['x',state,3])
         else:
-            terminal_point_constr.append(terminal_variables['xd',state] - ref_variables['xd',state])
+            terminal_point_constr.append(terminal_variables['x',state] - ref_variables['x',state])
 
     return cas.vertcat(*terminal_point_constr)
 
