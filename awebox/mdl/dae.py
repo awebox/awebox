@@ -64,7 +64,7 @@ class Dae(object):
 
         # model equations
         alg = dynamics(variables, parameters)
-        ode = variables['theta','t_f']*variables['xot']
+        ode = variables['theta','t_f']*variables['xdot']
         quad = variables['theta','t_f']*integral_outputs_fun(variables, parameters)
 
         # create dae dictionary
@@ -132,7 +132,7 @@ class Dae(object):
 
         # differential states
         x = cas.struct_SX([cas.entry('x', expr = variables['x'])])
-        z = cas.struct_SX([cas.entry('xot', expr = variables['xot']), # state derivatives
+        z = cas.struct_SX([cas.entry('xdot', expr = variables['xdot']), # state derivatives
                     cas.entry('z', expr = variables['z']), # algebraic variables
                 ])
 
@@ -150,7 +150,7 @@ class Dae(object):
 
         x = self.__x(variables['x'])
 
-        z = self.__z(cas.vertcat(variables['xot'],
+        z = self.__z(cas.vertcat(variables['xdot'],
                     variables['z']))
 
         p = self.__p(cas.vertcat(

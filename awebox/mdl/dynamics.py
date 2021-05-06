@@ -197,8 +197,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):
     dynamics = cstr_list.get_expression_list('eq')
 
-    for var_name in variables_dict['xot'].keys():
-        local_jac = cas.jacobian(dynamics, variables_scaled['xot', var_name])
+    for var_name in variables_dict['xdot'].keys():
+        local_jac = cas.jacobian(dynamics, variables_scaled['xdot', var_name])
         if not (local_jac.nnz() > 0):
             message = 'xdot variable ' + str(var_name) + ' does not seem to be constrained in the model dynamics. expect poor sosc behavior.'
             awelogger.logger.warning(message)
@@ -222,7 +222,7 @@ def manage_power_integration(options, power, system_variables, parameters):
         integral_scaling['e'] = options['scaling']['x']['e']
 
     else:
-        energy_resi = (system_variables['SI']['xot']['de'] - power) / options['scaling']['x']['e']
+        energy_resi = (system_variables['SI']['xdot']['de'] - power) / options['scaling']['x']['e']
 
         energy_cstr = cstr_op.Constraint(expr=energy_resi,
                                        name='energy',
@@ -435,7 +435,7 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
 
 
 def xdot_outputs(variables, outputs):
-    outputs['xdot_from_var'] = variables['xot']
+    outputs['xdot_from_var'] = variables['xdot']
     return outputs
 
 
@@ -576,12 +576,12 @@ def acceleration_inequality(options, variables):
 
         acc_max = options['model_bounds']['acceleration']['acc_max'] * options['scaling']['other']['g']
 
-        for name in list(variables['xot'].keys()):
+        for name in list(variables['xdot'].keys()):
 
             var_name, var_label = struct_op.split_name_and_node_identifier(name)
 
             if var_name == 'ddq':
-                acc = variables['xot'][name]
+                acc = variables['xdot'][name]
                 acc_sq = cas.mtimes(acc.T, acc)
                 acc_sq_norm = acc_sq / acc_max ** 2.
 
@@ -788,8 +788,8 @@ def generate_si_variables(scaling_options, variables):
 
     prepared_x_names = scaling_options['x'].keys()
 
-    if 'xot' not in scaling_options.keys():
-        scaling_options['xot'] = {}
+    if 'xdot' not in scaling_options.keys():
+        scaling_options['xdot'] = {}
 
     for var_type in variables.keys():
         scaling[var_type] = {}

@@ -105,7 +105,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
 
                 outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
 
-                dr_dt = variables['SI']['xot']['dr' + str(node) + str(parent)]
+                dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
                 dr_dt = cas.reshape(dr_dt, (3, 3))
                 omega = variables['SI']['x']['omega' + str(node) + str(parent)]
                 omega_skew = vect_op.skew(omega)

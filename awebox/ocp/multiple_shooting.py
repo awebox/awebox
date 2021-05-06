@@ -237,12 +237,12 @@ class Multiple_shooting(object):
         @return Xdot state derivatives at interval nodes
         """
 
-        xot = []
+        xdot = []
         for i in range(self.__ms_z[1,:].shape[1]):
             z_at_time = self.__dae.z(self.__ms_z[:,i])
-            xot = cas.vertcat(xot, z_at_time['xdot'])
+            xdot = cas.vertcat(xdot, z_at_time['xdot'])
 
-        Xdot = Xdot(xot)
+        Xdot = Xdot(xdot)
 
         return Xdot
 

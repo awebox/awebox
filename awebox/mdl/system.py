@@ -198,7 +198,7 @@ def generate_structure(options, architecture):
 
     # store variables in dict
     system_variables_list = {'x':system_states,
-                             'xot':system_derivatives,
+                             'xdot':system_derivatives,
                              'u':system_controls,
                              'z':system_multipliers+system_lifted,
                              'theta':system_parameters}

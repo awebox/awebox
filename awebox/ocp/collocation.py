@@ -183,7 +183,7 @@ class Collocation(object):
 
         return None
 
-    def get_xot(self, nlp_numerics_options, V, model):
+    def get_xdot(self, nlp_numerics_options, V, model):
         """ Get state derivates on all collocation nodes based on polynomials
         """
 
@@ -206,8 +206,8 @@ class Collocation(object):
                 # get an expression for the state derivative at the collocation point
                 xp_jk = self.__calculate_collocation_deriv(V, k, j)
 
-                xot = xp_jk / h / tf
-                store_derivatives = cas.vertcat(store_derivatives, xot)
+                xdot = xp_jk / h / tf
+                store_derivatives = cas.vertcat(store_derivatives, xdot)
 
         Xdot = Vdot(store_derivatives)
 

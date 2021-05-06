@@ -23,7 +23,7 @@ def time_derivative(expr, variables, architecture):
     deriv = 0.
 
     # (partial f/partial xi) for variables with trivial derivatives
-    deriv_vars = struct_op.subkeys(vars_scaled, 'xot')
+    deriv_vars = struct_op.subkeys(vars_scaled, 'xdot')
     for deriv_name in deriv_vars:
 
         deriv_type = struct_op.get_variable_type(variables['SI'], deriv_name)

@@ -246,7 +246,7 @@ def discretize(nlp_options, model, formulation):
         V = var_struct.setup_nlp_v(nlp_options, model, Collocation)
         P = setup_nlp_p(V, model)
 
-        Xdot = Collocation.get_xot(nlp_options, V, model)
+        Xdot = Collocation.get_xdot(nlp_options, V, model)
         [coll_outputs,
         Integral_outputs_list,
         Integral_constraint_list] = Collocation.collocate_outputs_and_integrals(nlp_options, model, formulation, V, P, Xdot)

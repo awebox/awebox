@@ -425,9 +425,9 @@ def find_objective(component_costs, V):
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xot, outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
 
-    component_costs = find_general_regularisation(nlp_options, V, P, xot, model)
+    component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
@@ -469,9 +469,9 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xot, outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xot, outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)
