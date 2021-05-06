@@ -249,6 +249,8 @@ def test_tether_moments():
     options['user_options']['tether_drag_model'] = 'split'
     options['user_options']['trajectory']['system_type'] = 'drag_mode'
     options['model']['tether']['use_wound_tether'] = False
+    options['model']['tether']['lift_tether_force'] = False
+    options['model']['aero']['lift_aero_force'] = False
 
     # tether attachment
     r_tether = np.array([0.0, 0.0, -0.1])
