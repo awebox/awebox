@@ -71,8 +71,8 @@ def test_sweep_serial():
     options['solver.max_iter'] = 0
 
     # set-up sweep options
-    sweep_opts = [(['nlp.discretization'], ['direct_collocation','multiple_shooting'])] # trial sweep
-    sweep_opts = [(['user_options.wind.u_ref'], [5.,5.5])] # parametric sweep
+    sweep_opts = [('nlp.discretization', ['direct_collocation','multiple_shooting'])] # trial sweep
+    sweep_opts = [('user_options.wind.u_ref', [5.,5.5])] # parametric sweep
 
     # build, run and save sweep
     sweep = awe.Sweep(name = 'serial_test', options = options, seed = sweep_opts)
