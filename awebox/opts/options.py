@@ -95,6 +95,8 @@ class Options:
                 self.__options_dict[keys[0]][keys[1]][keys[2]] = value
             elif len(keys) == 4:
                 assert keys[2] in self.__options_dict[keys[0]][keys[1]], err_msg
+                if keys[3].isdigit():
+                    keys[3] = int(keys[3])
                 assert keys[3] in self.__options_dict[keys[0]][keys[1]][keys[2]], err_msg
                 self.__options_dict[keys[0]][keys[1]][keys[2]][keys[3]] = value
 
