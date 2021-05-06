@@ -184,7 +184,7 @@ class Multiple_shooting(object):
                         var_list.append(z_at_time['xdot'])
                     else:
                         var_list.append(variables['xdot'])
-                elif var_type in set(['z','z']):
+                elif var_type == 'z':
                     if not options['lift_z']:
                         var_list.append(z_at_time[var_type])
                     else:

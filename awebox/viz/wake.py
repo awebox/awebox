@@ -44,28 +44,28 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
     if side == 'xy':
         ax = plt.subplot(1, 1, 1)
         plt.axis('equal')
-        ax.set_zabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('y [m]', **cosmetics['trajectory']['axisfont'])
 
     elif side == 'xz':
         ax = plt.subplot(1, 1, 1)
         plt.axis('equal')
-        ax.set_zabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
 
     elif side == 'yz':
         ax = plt.subplot(1, 1, 1)
         plt.axis('equal')
-        ax.set_zabel('y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
 
     elif side == 'isometric':
         ax = plt.subplot(111, projection='3d')
         draw_wake_nodes(ax, 'isometric', plot_dict, -1)
-        ax.set_zabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
-        ax.zxis._axinfo['label']['space_factor'] = 2.8
+        ax.xaxis._axinfo['label']['space_factor'] = 2.8
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
         ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
@@ -307,7 +307,7 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         add_annulus_background(ax_points, mu_min_by_path, mu_max_by_path)
         plt.grid(True)
         plt.title('induction factors over the kite plane')
-        plt.zabel("y/r [-]")
+        plt.xlabel("y/r [-]")
         plt.ylabel("z/r [-]")
         ax_points.set_aspect(1.)
 
@@ -325,7 +325,7 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
         plt.grid(True)
         plt.title('induction factors over the kite plane')
-        plt.zabel("y/r [-]")
+        plt.xlabel("y/r [-]")
         plt.ylabel("z/r [-]")
         ax_contour.set_aspect(1.)
 
@@ -354,11 +354,11 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
             # plt.legend(loc='lower right')
 
-        ax_points.set_zim([-1. * max_axes, max_axes])
+        ax_points.set_xlim([-1. * max_axes, max_axes])
         ax_points.set_ylim([-1. * max_axes, max_axes])
         fig_points.savefig('points.pdf')
 
-        ax_contour.set_zim([-1. * max_axes, max_axes])
+        ax_contour.set_xlim([-1. * max_axes, max_axes])
         ax_contour.set_ylim([-1. * max_axes, max_axes])
         fig_contour.savefig('contour.pdf')
 

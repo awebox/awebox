@@ -123,7 +123,7 @@ def test_drag_mode_model():
     model.build(options['model'], architecture)
 
     # extract model info
-    states = model.variables_dict['xd']
+    states = model.variables_dict['x']
     controls = model.variables_dict['u']
     outputs = model.outputs_dict
 
@@ -144,22 +144,22 @@ def test_drag_mode_model():
 
     # test dynamics
     dynamics = model.dynamics(model.variables, model.parameters)
-    assert(cas.jacobian(dynamics,model.variables['xd','kappa21']).nnz()!=0)
-    assert(cas.jacobian(dynamics,model.variables['xd','kappa31']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['x','kappa21']).nnz()!=0)
+    assert(cas.jacobian(dynamics,model.variables['x','kappa31']).nnz()!=0)
     assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
     assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
 
     # test power expression
     integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
-    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa21']).nnz()!=0)
-    assert(cas.jacobian(integral_outputs,model.variables['xd','kappa31']).nnz()!=0)
-    assert(cas.jacobian(integral_outputs,model.variables['xd','l_t']).nnz()==0)
-    assert(cas.jacobian(integral_outputs,model.variables['xd','dl_t']).nnz()==0)
-    assert(cas.jacobian(integral_outputs,model.variables['xa','lambda10']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['x','kappa21']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['x','kappa31']).nnz()!=0)
+    assert(cas.jacobian(integral_outputs,model.variables['x','l_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['x','dl_t']).nnz()==0)
+    assert(cas.jacobian(integral_outputs,model.variables['z','lambda10']).nnz()==0)
 
     # test variable bounds
-    lb = options['model']['system_bounds']['u']['dkappa'][0]/options['model']['scaling']['xd']['kappa']
-    ub = options['model']['system_bounds']['u']['dkappa'][1]/options['model']['scaling']['xd']['kappa']
+    lb = options['model']['system_bounds']['u']['dkappa'][0]/options['model']['scaling']['x']['kappa']
+    ub = options['model']['system_bounds']['u']['dkappa'][1]/options['model']['scaling']['x']['kappa']
 
     assert(model.variable_bounds['u']['dkappa21']['lb'] == lb)
     assert(model.variable_bounds['u']['dkappa31']['lb'] == lb)
@@ -174,10 +174,10 @@ def test_drag_mode_model():
         assert(model.variable_bounds['u']['ddl_t']['ub'] == 0.0)
 
     # test scaling
-    assert(model.scaling['xd']['kappa21'] == options['model']['scaling']['xd']['kappa'])
-    assert(model.scaling['xd']['kappa31'] == options['model']['scaling']['xd']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['xd']['kappa'])
+    assert(model.scaling['x']['kappa21'] == options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['x']['kappa31'] == options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['x']['kappa'])
 
     return None
 
@@ -206,7 +206,7 @@ def test_cross_tether_model():
     model.build(options['model'], architecture)
 
     # extract model info
-    algvars = model.variables_dict['xa']
+    algvars = model.variables_dict['z']
     theta   = model.variables_dict['theta']
     outputs = model.outputs_dict
     constraints = model.constraints_dict
@@ -264,21 +264,21 @@ def test_tether_moments():
     # si variables
     var_si = model.variables(0.0)
 
-    var_si['xd', 'q10'] = np.array([130.644, 24.5223, 74.2863])
-    var_si['xd', 'dq10'] = np.array([-16.3061, -27.0514, 37.5959])
-    var_si['xd', 'omega10'] = np.array([-0.0181481, 0.275884, 1.5743])
-    var_si['xd', 'r10'] = np.array([0.271805, 0.334641, -0.902295,
+    var_si['x', 'q10'] = np.array([130.644, 24.5223, 74.2863])
+    var_si['x', 'dq10'] = np.array([-16.3061, -27.0514, 37.5959])
+    var_si['x', 'omega10'] = np.array([-0.0181481, 0.275884, 1.5743])
+    var_si['x', 'r10'] = np.array([0.271805, 0.334641, -0.902295,
                              0.0595685, 0.929945, 0.362839,
                              0.960506, -0.15237, 0.23283])
-    var_si['xd', 'delta10'] = np.array([0.0693676, 0.261684, -0.258425])
-    var_si['xd', 'kappa10'] = -0.146057
-    var_si['xd', 'l_t'] = 152.184
-    var_si['xd', 'dl_t'] = 7.26866e-12
+    var_si['x', 'delta10'] = np.array([0.0693676, 0.261684, -0.258425])
+    var_si['x', 'kappa10'] = -0.146057
+    var_si['x', 'l_t'] = 152.184
+    var_si['x', 'dl_t'] = 7.26866e-12
 
-    if '[xd,ddl_t,0]' in var_si.labels():
-        var_si['xd', 'ddl_t'] = 9.49347e-13
+    if '[x,ddl_t,0]' in var_si.labels():
+        var_si['x', 'ddl_t'] = 9.49347e-13
 
-    var_si['xa'] = 45.024
+    var_si['z'] = 45.024
     var_si['theta'] = np.array([50, 100, 0.005, 0.00492276, 3.93805])
 
     # scaled variables
@@ -292,8 +292,8 @@ def test_tether_moments():
     tether_moment = outputs['tether_moments', 'n10']
 
     # analytic expression
-    dcm = cas.reshape(var_si['xd', 'r10'],(3,3))
-    tether_moment_true = var_si['xa','lambda10'] * cas.cross(r_tether, cas.mtimes(dcm.T, var_si['xd','q10']))
+    dcm = cas.reshape(var_si['x', 'r10'],(3,3))
+    tether_moment_true = var_si['z','lambda10'] * cas.cross(r_tether, cas.mtimes(dcm.T, var_si['x','q10']))
 
     # test implementation
     msg = 'Incorrect tether moment contribution for single kite systems'

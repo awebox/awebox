@@ -155,7 +155,7 @@ class Collocation(object):
                 if var_type == 'x':
                     poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
-                elif var_type in ['u', 'z', 'z']:
+                elif var_type in ['u', 'z']:
                     poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
@@ -233,9 +233,6 @@ class Collocation(object):
             cas.entry('x', struct = variables_dict['x']),
             cas.entry('z', struct = variables_dict['z'])
         ]
-
-        if 'z' in list(variables_dict.keys()):
-            entry_list += [cas.entry('z', struct = variables_dict['z'])]
 
         if u_param == 'poly':
             entry_list += [cas.entry('u', struct = variables_dict['u'])]

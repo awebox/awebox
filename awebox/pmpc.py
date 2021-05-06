@@ -60,7 +60,6 @@ class Pmpc(object):
         self.__nx = trial.model.variables['x'].shape[0]
         self.__nu = trial.model.variables['u'].shape[0]
         self.__nz = trial.model.variables['z'].shape[0]
-        self.__nl = trial.model.variables['z'].shape[0]
 
         # create mpc trial
         options = copy.deepcopy(trial.options)
@@ -246,11 +245,10 @@ class Pmpc(object):
         Q = np.eye(self.__trial.model.variables['x'].shape[0])
         R = np.eye(self.__trial.model.variables['u'].shape[0])
         Z = np.eye(self.__trial.model.variables['z'].shape[0])
-        L = np.eye(self.__trial.model.variables['z'].shape[0])
 
         # create tracking function
         from scipy.linalg import block_diag
-        tracking_cost = self.__create_tracking_cost_fun(block_diag(Q,R,Z,L))
+        tracking_cost = self.__create_tracking_cost_fun(block_diag(Q,R,Z))
         cost_map = tracking_cost.map(self.__N)
 
         # cost function arguments
@@ -340,7 +338,7 @@ class Pmpc(object):
         n_points_x = self.__t_grid_x_coll.shape[0]
         self.__spline_dict = {}
 
-        for var_type in ['x','u','z','z']:
+        for var_type in ['x','u','z']:
             self.__spline_dict[var_type] = {}
             for name in list(variables_dict[var_type].keys()):
                 self.__spline_dict[var_type][name] = {}
@@ -354,7 +352,7 @@ class Pmpc(object):
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
-                    elif var_type in ['z','z']:
+                    elif var_type == 'z':
                         values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
 
@@ -387,7 +385,7 @@ class Pmpc(object):
 
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
-        for var_type in ['x','u','z','z']:
+        for var_type in ['x','u','z']:
             ip_dict[var_type] = []
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
@@ -409,7 +407,7 @@ class Pmpc(object):
                     V_list.append(ip_dict['x'][:,counter_x])
                     counter_x += 1
                 else:
-                    for var_type in ['x','z','z','u']:
+                    for var_type in ['x','z','u']:
                         if var_type == 'x':
                             V_list.append(ip_dict[var_type][:,counter_x])
                             counter_x += 1
@@ -464,7 +462,6 @@ class Pmpc(object):
         for k in range(self.__N-1):
             self.__w0['coll_var',k,:,'x'] = self.__w0['coll_var',k+1,:,'x']
             self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
-            self.__w0['coll_var',k,:,'z'] = self.__w0['coll_var',k+1,:,'z']
             self.__w0['coll_var',k,:,'z'] = self.__w0['coll_var',k+1,:,'z']
             self.__w0['x',k] = self.__w0['x',k+1]
 

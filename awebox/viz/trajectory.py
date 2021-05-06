@@ -62,44 +62,44 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         tools.plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors, label=label)
 
     if side == 'isometric':
-        ax.set_zabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
 
         ax.zaxis.set_major_locator(MaxNLocator(4))
 
-        ax.zxis._axinfo['label']['space_factor'] = 2.8
+        ax.xaxis._axinfo['label']['space_factor'] = 2.8
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
         ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
     elif side == 'quad':
-        ax_xy.zxis.tick_top()
-        ax_xy.zxis.set_label_position('top')
-        ax_xy.set_zabel(r'x [m]')
+        ax_xy.xaxis.tick_top()
+        ax_xy.xaxis.set_label_position('top')
+        ax_xy.set_xlabel(r'x [m]')
         ax_xy.set_ylabel(r'y [m]')
 
-        ax_xz.zxis.tick_top()
+        ax_xz.xaxis.tick_top()
         ax_xz.yaxis.tick_right()
-        ax_xz.zxis.set_label_position('top')
+        ax_xz.xaxis.set_label_position('top')
         ax_xz.yaxis.set_label_position('right')
-        ax_xz.set_zabel(r'x [m]')
+        ax_xz.set_xlabel(r'x [m]')
         ax_xz.set_ylabel(r'z [m]')
 
-        ax_yz.set_zabel(r'y [m]')
+        ax_yz.set_xlabel(r'y [m]')
         ax_yz.set_ylabel(r'z [m]')
 
-        ax_iso.set_zabel(r'x [m]')
+        ax_iso.set_xlabel(r'x [m]')
         ax_iso.set_ylabel(r'y [m]')
         ax_iso.set_zlabel(r'z [m]')
 
     else:
-        ax.set_zabel(side[0] + ' [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_xlabel(side[0] + ' [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel(side[1] + ' [m]', **cosmetics['trajectory']['axisfont'])
 
     if side != 'quad':
         ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
 
-        ax.zxis.set_major_locator(MaxNLocator(4))
+        ax.xaxis.set_major_locator(MaxNLocator(4))
         ax.yaxis.set_major_locator(MaxNLocator(4))
         ax.legend(loc = 'upper right')
     plt.suptitle(fig_name)
@@ -113,7 +113,7 @@ def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, rel
 
     # read in inputs
     wind = solution_dict['wind']
-    mazim = reload_dict['mazim']
+    maxlim = reload_dict['maxlim']
 
     plt.ion()
 
@@ -123,28 +123,28 @@ def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, rel
     ax = fig.add_subplot(1, 1, 1)
     ax2 = ax.twiny()
 
-    h = list(range(1, int(mazim)))
+    h = list(range(1, int(maxlim)))
     ax2.plot([float(wind.get_velocity(zz)[0])
               for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
     # tools.plot_trajectory_contents(ax, trial, vars_init, 'xz', bool(True), bool(False))
 
-    ax.set_zim([0, mazim])
-    ax.set_ylim([0, mazim])
-    # ax2.set_zim([0, 30])
+    ax.set_xlim([0, maxlim])
+    ax.set_ylim([0, maxlim])
+    # ax2.set_xlim([0, 30])
 
-    ax.set_zabel('x [m]', **cosmetics['trajectory']['axisfont'])
+    ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
     ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
-    ax2.set_zabel('x component of wind velocity [m/s]', color='b', **cosmetics['trajectory']['axisfont'])
+    ax2.set_xlabel('x component of wind velocity [m/s]', color='b', **cosmetics['trajectory']['axisfont'])
     ax2.tick_params('x', colors='b')
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     ax2.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
 
-    ax.zxis.set_major_locator(MaxNLocator(5))
+    ax.xaxis.set_major_locator(MaxNLocator(5))
     ax.yaxis.set_major_locator(MaxNLocator(5))
-    ax2.zxis.set_major_locator(MaxNLocator(5))
+    ax2.xaxis.set_major_locator(MaxNLocator(5))
 
     ax.grid()
 
@@ -154,7 +154,7 @@ def plot_trajectory_against_wind_shear(solution_dict, cosmetics, fig_num, reload
 
     # read in inputs
     wind = solution_dict['wind']
-    mazim = reload_dict['mazim']
+    maxlim = reload_dict['maxlim']
 
     plt.ion()
 
@@ -164,27 +164,27 @@ def plot_trajectory_against_wind_shear(solution_dict, cosmetics, fig_num, reload
     ax = fig.add_subplot(1, 1, 1)
     ax2 = ax.twiny()
 
-    h = list(range(1, int(mazim)))
+    h = list(range(1, int(maxlim)))
     ax2.plot([float(wind.get_velocity(zz)[1]) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'yz', reload_dict, bool(False), bool(False))
     # tools.plot_trajectory_contents(ax, trial, vars_init, 'yz', bool(True), bool(False))
 
-    ax.set_zim([- mazim/2., mazim/2.])
-    ax.set_ylim([0, mazim])
-    # ax2.set_zim([-10., 10.])
+    ax.set_xlim([- maxlim/2., maxlim/2.])
+    ax.set_ylim([0, maxlim])
+    # ax2.set_xlim([-10., 10.])
     #
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     ax2.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
 
-    ax.set_zabel('y [m]', **cosmetics['trajectory']['axisfont'])
+    ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
     ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
-    ax2.set_zabel('y component of wind velocity [m/s]', color='b', **cosmetics['trajectory']['axisfont'])
+    ax2.set_xlabel('y component of wind velocity [m/s]', color='b', **cosmetics['trajectory']['axisfont'])
     ax2.tick_params('x', colors='b')
 
-    ax.zxis.set_major_locator(MaxNLocator(5))
+    ax.xaxis.set_major_locator(MaxNLocator(5))
     ax.yaxis.set_major_locator(MaxNLocator(5))
-    ax2.zxis.set_major_locator(MaxNLocator(5))
+    ax2.xaxis.set_major_locator(MaxNLocator(5))
 
     ax.grid()
 
@@ -194,7 +194,7 @@ def plot_trajectory_against_wind_power(solution_dict, cosmetics, fig_num, reload
 
     # read in inputs
     atmos = solution_dict['atmos']
-    mazim = reload_dict['mazim']
+    maxlim = reload_dict['maxlim']
 
     plt.ion()
 
@@ -204,27 +204,27 @@ def plot_trajectory_against_wind_power(solution_dict, cosmetics, fig_num, reload
     ax = fig.add_subplot(1, 1, 1)
     ax2 = ax.twiny()
 
-    h = list(range(1, int(mazim)))
+    h = list(range(1, int(maxlim)))
     ax2.plot([float(atmos.get_density(zz)) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
     # tools.plot_trajectory_contents(ax, params, vars_init, 'xz', bool(True), bool(False))
 
-    ax.set_zim([0, mazim])
-    ax.set_ylim([0, mazim])
-    # ax2.set_zim([0, 800])
+    ax.set_xlim([0, maxlim])
+    ax.set_ylim([0, maxlim])
+    # ax2.set_xlim([0, 800])
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     ax2.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
 
-    ax.set_zabel('x [m]', **cosmetics['trajectory']['axisfont'])
+    ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
     ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
-    ax2.set_zabel('wind power density [W/m^2]', color='b', **cosmetics['trajectory']['axisfont'])
+    ax2.set_xlabel('wind power density [W/m^2]', color='b', **cosmetics['trajectory']['axisfont'])
     ax2.tick_params('x', colors='b')
 
-    ax.zxis.set_major_locator(MaxNLocator(5))
+    ax.xaxis.set_major_locator(MaxNLocator(5))
     ax.yaxis.set_major_locator(MaxNLocator(5))
-    ax2.zxis.set_major_locator(MaxNLocator(5))
+    ax2.xaxis.set_major_locator(MaxNLocator(5))
 
     ax.grid()
 
@@ -244,17 +244,17 @@ def plot_trajectory_along_elevation(solution_dict, cosmetics, fig_num):
 
     ax.view_init(0., angle)
 
-    ax.zxis.set_major_locator(MaxNLocator(2))
+    ax.xaxis.set_major_locator(MaxNLocator(2))
     ax.yaxis.set_major_locator(MaxNLocator(4))
     ax.zaxis.set_major_locator(MaxNLocator(4))
 
-    ax.set_zabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+    ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
     ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
     ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
 
-    ax.zxis._axinfo['label']['space_factor'] = 2.8
+    ax.xaxis._axinfo['label']['space_factor'] = 2.8
     ax.yaxis._axinfo['label']['space_factor'] = 2.8
     ax.zaxis._axinfo['label']['space_factor'] = 2.8
 

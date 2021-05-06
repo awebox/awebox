@@ -256,7 +256,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     # make list of variables at specific time
     for var_type in model_variables.keys():
 
-        if var_type in {'z', 'z'}:
+        if var_type == 'z':
             local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
 
         elif var_type == 'x':
@@ -763,7 +763,7 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['x','theta','phi','xi','z','z','xdot']):
+            for var_type in set(['x','theta','phi','xi','z','xdot']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
 

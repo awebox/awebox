@@ -337,7 +337,7 @@ def update_final_bounds(bound_name, V_bounds, nlp, update):
         else:
             V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = nlp.V_bounds[bound_type]['coll_var', :, :, var_type, bound_name]
 
-    if var_type in {'z', 'z', 'x'}:
+    if var_type in {'z', 'x'}:
 
         if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
             V_bounds[bound_type][var_type, :, bound_name] = nlp.V_bounds[bound_type][var_type, :, bound_name]
@@ -367,7 +367,7 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
             else:
                 V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
 
-        if var_type in {'z', 'z', 'x'}:
+        if var_type in {'z', 'x'}:
             if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
                 V_bounds[bound_type][var_type, :, bound_name] = scaled_value
 

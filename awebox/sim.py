@@ -199,8 +199,6 @@ class Simulation:
         z0 = self.__dae.dae['z'](self.__dae.rootfinder(z, x, p))
 
         variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
-        if 'z' in list(variables.keys()):
-            variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
         variables['xdot'] = self.__trial.model.variables_dict['xdot'](z0['xdot'])
 
         # evaluate system outputs

@@ -93,7 +93,7 @@ def plot_bar_x(ax, values, trial_labels, comparison_label, rgb_tuple_colors):
     ax.set_ylabel(comparison_label)
 
     plt.setp(ax, xticks=index+bar_width/2., xticklabels=stripped_labels)
-    plt.setp(ax.zxis.get_majorticklabels(), rotation=70)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=70)
 
 def strip_trial_labels(trial_labels):
 

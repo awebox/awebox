@@ -68,8 +68,6 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
 
     # add algebraic variables at shooting nodes for constraint evaluation
     entry_tuple += (cas.entry('z', repeat = [nk],   struct= variables_dict['z']),)
-    if 'z' in list(variables_dict.keys()):
-        entry_tuple += (cas.entry('z', repeat = [nk],   struct= variables_dict['z']),)
 
     if direct_collocation:
 

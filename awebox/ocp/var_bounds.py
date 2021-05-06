@@ -67,7 +67,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
             [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
                                                             var_type, kdx, ddx, name)
 
-        elif (var_type in {'z', 'z', 'u'}):
+        elif (var_type in {'z', 'u'}):
             if (var_type in V.keys()) and (not var_is_coll_var):
 
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']

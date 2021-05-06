@@ -161,28 +161,28 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     for dim in dims:
         ax = 'ax_' + dim
 
-        xim = dim[0]
+        xdim = dim[0]
         ydim = dim[1]
 
-        axes[ax].set_zim(q_limits[xim])
+        axes[ax].set_xlim(q_limits[xim])
         axes[ax].set_ylim(q_limits[ydim])
         axes[ax].set_aspect('equal', adjustable='box')
 
-        axes[ax].set_zabel(xim + ' [m]')
+        axes[ax].set_xlabel(xim + ' [m]')
         axes[ax].set_ylabel(ydim + ' [m]')
 
     # flip x-axis to get "upstream" view
-    axes['ax_yz'].invert_zxis()
+    axes['ax_yz'].invert_xaxis()
 
     # move axes out of way of three-view
     axes['ax_yz'].yaxis.set_label_position("right")
     axes['ax_yz'].yaxis.tick_right()
 
-    axes['ax_yz'].zxis.set_label_position("top")
-    axes['ax_yz'].zxis.tick_top()
+    axes['ax_yz'].xaxis.set_label_position("top")
+    axes['ax_yz'].xaxis.tick_top()
 
-    axes['ax_xz'].zxis.set_label_position("top")
-    axes['ax_xz'].zxis.tick_top()
+    axes['ax_xz'].xaxis.set_label_position("top")
+    axes['ax_xz'].xaxis.tick_top()
 
     plt.tight_layout(w_pad=-11, h_pad=1, rect=[0, 0, 1, 0.95]) #pad=2.5)
 

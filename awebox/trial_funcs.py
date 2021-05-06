@@ -72,7 +72,7 @@ def init_write_csv_dict(plot_dict):
     write_csv_dict = collections.OrderedDict()
 
     # create empty entries corresponding to the structure of plot_dict
-    for variable_type in ['x', 'z', 'z', 'u', 'outputs']:
+    for variable_type in ['x', 'z', 'u', 'outputs']:
         for variable in list(plot_dict[variable_type].keys()):
 
             # check for sub_variables in case there are some
@@ -141,7 +141,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
     """
 
     # loop over variables
-    for variable_type in ['x', 'z', 'z', 'u', 'outputs']:
+    for variable_type in ['x', 'z', 'u', 'outputs']:
         for variable in list(plot_dict[variable_type].keys()):
 
             # check whether sub_variables exist

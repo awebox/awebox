@@ -52,12 +52,12 @@ def get_naca_airfoil_coordinates(s, m, p, t):
     theta = np.arctan(dycdx)
 
     xu = s - yt * np.sin(theta)
-    z = s + yt * np.sin(theta)
+    xl = s + yt * np.sin(theta)
 
     yu = yc + yt * np.cos(theta)
     yl = yc - yt * np.cos(theta)
 
-    return xu, z, yu, yl
+    return xu, xl, yu, yl
 
 def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
@@ -71,10 +71,10 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
     x_lower = []
 
     for s in s_list:
-        [xu, z, yu, yl] = get_naca_airfoil_coordinates(s, m, p, t)
+        [xu, xl, yu, yl] = get_naca_airfoil_coordinates(s, m, p, t)
 
         new_x_upper = xu * vect_op.xhat_np() + yu * vect_op.zhat_np()
-        new_x_lower = z * vect_op.xhat_np() + yl * vect_op.zhat_np()
+        new_x_lower = xl * vect_op.xhat_np() + yl * vect_op.zhat_np()
 
         if center_at_quarter_chord:
             new_x_upper = new_x_upper - vect_op.xhat_np() / 4.
@@ -827,7 +827,6 @@ def interpolate_data(plot_dict, cosmetics):
     # add states and outputs to plotting dict
     plot_dict['x'] = {}
     plot_dict['z'] = {}
-    plot_dict['z'] = {}
     plot_dict['u'] = {}
     plot_dict['outputs'] = {}
     plot_dict['integral_outputs'] = {}
@@ -918,7 +917,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
         u_param = 'zoh'
 
     # add states and outputs to plotting dict
-    plot_dict['ref'] = {'x': {},'u':{},'z':{},'z':{},'time_grids':{},'outputs':{}}
+    plot_dict['ref'] = {'x': {},'u':{},'z':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
     plot_dict['time_grids']['ref']['ip'] =  plot_dict['time_grids']['ip']
@@ -1054,13 +1053,13 @@ def set_layer_plot_titles(axes, nrows, title):
         axes[0].set_title(title)
     return axes
 
-def set_layer_plot_axes(axes, nrows, zabel, ylabel, ldx = 0):
+def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
     if nrows == 1:
         axes.set_ylabel(ylabel)
-        axes.set_zabel(zabel)
+        axes.set_xlabel(xlabel)
     else:
         axes[ldx].set_ylabel(ylabel)
-        axes[ldx].set_zabel(zabel)
+        axes[ldx].set_xlabel(xlabel)
     return axes
 
 def set_layer_plot_legend(axes, nrows, ldx = 0):
