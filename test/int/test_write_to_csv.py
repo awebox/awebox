@@ -14,18 +14,16 @@ logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)
 
 def test_write_to_csv():
 
-    options = awe_options.Options(True)
-
     # basic options
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    options['user_options']['trajectory']['type'] = 'power_cycle'
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
-    options['nlp']['n_k'] = 2
-    options['solver']['max_iter'] = 0
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['user_options.kite_standard'] = ampyx_data.data_dict()
+    options['user_options.trajectory.type'] = 'power_cycle'
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.induction_model'] = 'not_in_use'
+    options['nlp.n_k'] = 2
+    options['solver.max_iter'] = 0
 
 
     # build trial and optimize

@@ -14,19 +14,17 @@ logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)
 
 def test_visualization():
 
-    options = awe.Options(True)
-
     # basic options
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['trajectory']['type'] = 'lift_mode'
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
-    options['nlp']['n_k'] = 2
-    options['solver']['max_iter'] = 0
-    options['visualization']['cosmetics']['plot_ref'] = True
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.type'] = 'lift_mode'
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.induction_model'] = 'not_in_use'
+    options['nlp.n_k'] = 2
+    options['solver.max_iter'] = 0
+    options['visualization.cosmetics.plot_ref'] = True
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')
@@ -49,22 +47,22 @@ def test_visualization():
 
 def test_animation():
 
-    options = awe.Options(True)
 
     # basic options
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['trajectory']['type'] = 'power_cycle'
-    options['user_options']['trajectory']['system_type'] = 'lift_mode'
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
-    options['nlp']['n_k'] = 2
-    options['solver']['max_iter'] = 0
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.type'] = 'power_cycle'
+    options['user_options.trajectory.system_type'] = 'lift_mode'
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = 'split'
+    options['nlp.n_k'] = 2
+    options['solver.max_iter'] = 0
 
-    options['visualization']['cosmetics']['trajectory']['kite_bodies'] = True
-    options['visualization']['cosmetics']['interpolation']['N'] = 2
+    options['visualization.cosmetics.trajectory.kite_bodies'] = True
+    options['visualization.cosmetics.interpolation.N'] = 2
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')
