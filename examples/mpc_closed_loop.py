@@ -9,10 +9,8 @@ import casadi as ca
 import pickle
 import copy
 
-# make default options object
-options = awe.Options(True)
-
 # single kite with point-mass model
+options = {}
 options['user_options.system_model.architecture'] = {1:0}
 options['user_options.system_model.kite_dof'] = 3
 options['user_options.kite_standard'] = awe.ampyx_data.data_dict()

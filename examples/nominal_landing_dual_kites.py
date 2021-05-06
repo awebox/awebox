@@ -4,18 +4,8 @@ import awebox as awe
 import matplotlib.pyplot as plt
 import copy
 
-
-
-##########################
-# GENERATE TRIAL OPTIONS #
-##########################
-
-## PUMPING TRIAL
-
-# make pumping options object
-pumping_options = awe.Options(True)
-
 # dual kite with  point-mass model
+pumping_options = {}
 pumping_options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
 pumping_options['user_options.system_model.kite_dof'] = 3
 pumping_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
