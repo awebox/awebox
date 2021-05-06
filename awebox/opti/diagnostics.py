@@ -100,7 +100,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     if 'e' in plot_dict['integral_variables']:
         e_final = plot_dict['integral_outputs_final']['int_out',-1,'e']
     else:
-        e_final = plot_dict['xd']['e'][0][-1]
+        e_final = plot_dict['x']['e'][0][-1]
 
     time_period = plot_dict['output_vals'][1]['final', 'time_period', 'val']
     avg_power = e_final / time_period
@@ -115,8 +115,8 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    l_t_max = np.amax(plot_dict['xd']['l_t'][0])
-    z_av = np.mean(plot_dict['xd']['q10'][2])
+    l_t_max = np.amax(plot_dict['x']['l_t'][0])
+    z_av = np.mean(plot_dict['x']['q10'][2])
 
     power_and_performance['l_t_max'] = l_t_max
     power_and_performance['z_av'] = z_av
@@ -172,7 +172,7 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
 def compute_position_indicators(power_and_performance, plot_dict):
 
     # elevation angle
-    q10 = plot_dict['xd']['q10']
+    q10 = plot_dict['x']['q10']
     elevation = []
     for i in range(q10[0].shape[0]):
         elevation += [np.arccos(np.linalg.norm(np.array([q10[0][i], q10[1][i], 0.0])) / np.linalg.norm(np.array([q10[0][i], q10[1][i], q10[2][i]])))]
@@ -185,7 +185,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     dq_final = 0.
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
-        dq = plot_dict['xd']['dq' + str(node) + str(parent)]
+        dq = plot_dict['x']['dq' + str(node) + str(parent)]
         parent = parent_map[node]
         dq_array = cas.vertcat(dq[0][-1], dq[1][-1], dq[2][-1])
         dq_norm_float = float(vect_op.norm(dq_array))
@@ -195,7 +195,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     power_and_performance['dq_final'] = dq_final
 
     # average connex-point velocity
-    dq10 = plot_dict['xd']['dq10']
+    dq10 = plot_dict['x']['dq10']
     dq10hat = []
     for i in range(dq10[0].shape[0]):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
@@ -239,8 +239,8 @@ def compute_control_frequency(power_and_performance, plot_dict):
     parent = plot_dict['architecture'].parent_map[first_kite]
     tentative_var_name = 'delta' + str(first_kite) + str(parent)
 
-    if tentative_var_name in plot_dict['xd'].keys():
-        var_type = 'xd'
+    if tentative_var_name in plot_dict['x'].keys():
+        var_type = 'x'
     elif tentative_var_name in plot_dict['u'].keys():
         var_type = 'u'
     else:
@@ -272,7 +272,7 @@ def compute_control_frequency(power_and_performance, plot_dict):
 
 def compute_windings(power_and_performance, plot_dict):
 
-    n_interpolation = plot_dict['xd']['q10'][0].shape[0]
+    n_interpolation = plot_dict['x']['q10'][0].shape[0]
     total_steps = float(n_interpolation)
 
     parent_map = plot_dict['architecture'].parent_map
@@ -283,7 +283,7 @@ def compute_windings(power_and_performance, plot_dict):
     ehat_tether_z = 0.
 
     for idx in range(n_interpolation):
-        q10 = cas.vertcat(plot_dict['xd']['q10'][0][idx], plot_dict['xd']['q10'][1][idx], plot_dict['xd']['q10'][2][idx])
+        q10 = cas.vertcat(plot_dict['x']['q10'][0][idx], plot_dict['x']['q10'][1][idx], plot_dict['x']['q10'][2][idx])
         local_ehat = vect_op.normalize(q10)
         ehat_tether_x += local_ehat[0] / total_steps
         ehat_tether_y += local_ehat[1] / total_steps
@@ -308,8 +308,8 @@ def compute_windings(power_and_performance, plot_dict):
         origin = np.zeros((3, 1))
         for idx in range(n_interpolation):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
-                              plot_dict['xd'][name][2][idx])
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
 
             origin = origin + q_in_plane / total_steps
@@ -317,14 +317,14 @@ def compute_windings(power_and_performance, plot_dict):
         # recenter the plane about origin
         for idx in range(n_interpolation-1):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
-                              plot_dict['xd'][name][2][idx])
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
 
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
             q_recentered = q_in_plane - origin
 
-            q_next = cas.vertcat(plot_dict['xd'][name][0][idx+1], plot_dict['xd'][name][1][idx+1],
-                              plot_dict['xd'][name][2][idx+1])
+            q_next = cas.vertcat(plot_dict['x'][name][0][idx+1], plot_dict['x'][name][1][idx+1],
+                              plot_dict['x'][name][2][idx+1])
             q_next_in_plane = q_next - vect_op.dot(q_next, ehat_tether) * ehat_tether
             q_next_recentered = q_next_in_plane - origin
 

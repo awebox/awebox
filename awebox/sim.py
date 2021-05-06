@@ -83,7 +83,7 @@ class Simulation:
         #  initialize and build visualization
         self.__visualization = visualization.Visualization()
         self.__visualization.build(self.__trial.model, self.__trial.nlp, 'simulation', self.__trial.options)
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
             self.__visualization.plot_dict[var_type] = {}
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 self.__visualization.plot_dict[var_type][name] = []
@@ -140,7 +140,7 @@ class Simulation:
 
         # take first state of optimization trial
         if x0 is None:
-            x0 = self.__trial.optimization.V_opt['xd',0]
+            x0 = self.__trial.optimization.V_opt['x',0]
 
         # set-up open loop controls
         if self.__sim_type == 'open_loop':
@@ -190,25 +190,25 @@ class Simulation:
 
     def __store_results(self, x0, u0, qf):
 
-        x = self.__trial.model.variables_dict['xd'](x0)
+        x = self.__trial.model.variables_dict['x'](x0)
         variables = self.__trial.model.variables(0.1)
-        variables['xd'] = x0
+        variables['x'] = x0
         variables['u']  = u0
         variables['theta'] = self.__theta
         x, z, p = self.__dae.fill_in_dae_variables(variables, self.__parameters_num)
         z0 = self.__dae.dae['z'](self.__dae.rootfinder(z, x, p))
 
-        variables['xa'] = self.__trial.model.variables_dict['xa'](z0['xa'])
-        if 'xl' in list(variables.keys()):
-            variables['xl'] = self.__trial.model.variables_dict['xl'](z0['xl'])
-        variables['xddot'] = self.__trial.model.variables_dict['xddot'](z0['xddot'])
+        variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
+        if 'z' in list(variables.keys()):
+            variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
+        variables['xdot'] = self.__trial.model.variables_dict['xdot'](z0['xdot'])
 
         # evaluate system outputs
         outputs = self.__trial.model.outputs(self.__trial.model.outputs_fun(variables, self.__parameters_num))
         qf = self.__trial.model.integral_outputs(qf)
 
         # store results
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
                     self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim]*self.__trial.model.scaling[var_type][name])
@@ -237,7 +237,7 @@ class Simulation:
         """
 
         # vectorize result lists for plotting
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
                     self.__visualization.plot_dict[var_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict[var_type][name][dim])

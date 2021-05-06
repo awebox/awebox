@@ -107,7 +107,7 @@ class Wind:
         # k = options['atmosphere_dataseries'] ## NOTE: What's that??? the number of pressure points?
 
         # create x and y wind component
-        k = 0 # example for time stamp 1
+        k = 0 # ezmple for time stamp 1
         xwind = [w * np.abs(np.cos(-a)) for w, a in featuresdata[:, k, :]]
         ywind = [w * np.sin(-a) for w, a in featuresdata[:, k, :]]
         xwind = np.array(xwind, dtype=float)

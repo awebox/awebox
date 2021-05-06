@@ -183,7 +183,7 @@ def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=N
 
 def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
-    var_type = 'xd'
+    var_type = 'x'
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     at_control_node = (ddx is None)
@@ -228,7 +228,7 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
 def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
-    var_type = 'xddot'
+    var_type = 'xdot'
 
     at_control_node = (ddx is None)
     lifted_derivs = (var_type in list(V.keys()))
@@ -243,9 +243,9 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         if lifted_derivs:
             return V[var_type, kdx]
         elif passed_Xdot_is_meaningful:
-            return Xdot['xd', kdx]
+            return Xdot['x', kdx]
     elif passed_Xdot_is_meaningful:
-        return Xdot['coll_xd', kdx, ddx]
+        return Xdot['coll_x', kdx, ddx]
     else:
         return np.zeros(model_variables[var_type].shape)
         # return no_available_var_info(model_variables, var_type)
@@ -256,10 +256,10 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     # make list of variables at specific time
     for var_type in model_variables.keys():
 
-        if var_type in {'xl', 'xa'}:
+        if var_type in {'z', 'z'}:
             local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
 
-        elif var_type == 'xd':
+        elif var_type == 'x':
             local_var = get_states_at_time(nlp_options, V, model_variables, kdx, ddx)
 
         elif var_type == 'u':
@@ -268,7 +268,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         elif var_type == 'theta':
             local_var = get_V_theta(V, nlp_options, kdx)
 
-        elif var_type == 'xddot':
+        elif var_type == 'xdot':
             local_var = get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx)
 
         else:
@@ -548,12 +548,12 @@ def get_variable_type(model, name):
     elif model.type == 'Model':
         variables_dict = model.variables_dict
 
-    for variable_type in set(variables_dict.keys()) - set(['xddot']):
+    for variable_type in set(variables_dict.keys()) - set(['xdot']):
         if name in list(variables_dict[variable_type].keys()):
             return variable_type
 
-    if name in list(variables_dict['xddot'].keys()):
-        return 'xddot'
+    if name in list(variables_dict['xdot'].keys()):
+        return 'xdot'
 
     message = 'variable ' + name + ' not found in variables dictionary'
     awelogger.logger.error(message)
@@ -658,15 +658,15 @@ def construct_Xdot_struct(nlp_options, variables_dict):
 
     # extract information
     nk = nlp_options['n_k']
-    xd = variables_dict['xd']
+    x = variables_dict['x']
 
     # derivatives at interval nodes
-    entry_tuple = (cas.entry('xd', repeat=[nk], struct=xd),)
+    entry_tuple = (cas.entry('x', repeat=[nk], struct=x),)
 
     # add derivatives on collocation nodes
     if nlp_options['discretization'] == 'direct_collocation':
         d = nlp_options['collocation']['d']
-        entry_tuple += (cas.entry('coll_xd', repeat=[nk,d], struct=xd),)
+        entry_tuple += (cas.entry('coll_x', repeat=[nk,d], struct=x),)
 
     # make new symbolic structure
     Xdot = cas.struct_symMX([entry_tuple])
@@ -763,7 +763,7 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['xd','theta','phi','xi','xa','xl','xddot']):
+            for var_type in set(['x','theta','phi','xi','z','z','xdot']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
 

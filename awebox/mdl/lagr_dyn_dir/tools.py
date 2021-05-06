@@ -23,7 +23,7 @@ def time_derivative(expr, variables, architecture):
     deriv = 0.
 
     # (partial f/partial xi) for variables with trivial derivatives
-    deriv_vars = struct_op.subkeys(vars_scaled, 'xddot')
+    deriv_vars = struct_op.subkeys(vars_scaled, 'xot')
     for deriv_name in deriv_vars:
 
         deriv_type = struct_op.get_variable_type(variables['SI'], deriv_name)
@@ -42,12 +42,12 @@ def time_derivative(expr, variables, architecture):
         parent = architecture.parent_map[kite]
 
         r_name = 'r{}{}'.format(kite, parent)
-        kite_has_6dof = r_name in struct_op.subkeys(vars_scaled, 'xd')
+        kite_has_6dof = r_name in struct_op.subkeys(vars_scaled, 'x')
         if kite_has_6dof:
-            r_kite = vars_scaled['xd', r_name]
+            r_kite = vars_scaled['x', r_name]
             dcm_kite = cas.reshape(r_kite, (3, 3))
 
-            omega = vars_scaled['xd', 'omega{}{}'.format(kite, parent)]
+            omega = vars_scaled['x', 'omega{}{}'.format(kite, parent)]
 
             dexpr_dr = cas.jacobian(expr, r_kite)
             dr_dt = cas.reshape(cas.mtimes(vect_op.skew(omega), cas.inv(dcm_kite.T)), (9, 1))

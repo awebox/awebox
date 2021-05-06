@@ -65,10 +65,10 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
 
-    exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
-    if not exact_licq_holds:
+    ezct_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
+    if not ezct_licq_holds:
         awelogger.logger.info('')
-        message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
+        message = 'linear independent constraint qualification is not satisfied at solution, with an ezct computation'
         awelogger.logger.info(message)
         identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)

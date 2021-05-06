@@ -197,14 +197,11 @@ def generate_structure(options, architecture):
             )
 
     # store variables in dict
-    system_variables_list = {'xd':system_states,
-                             'xddot':system_derivatives,
+    system_variables_list = {'x':system_states,
+                             'xot':system_derivatives,
                              'u':system_controls,
-                             'xa':system_multipliers,
+                             'z':system_multipliers+system_lifted,
                              'theta':system_parameters}
-
-    if not system_lifted == []:
-        system_variables_list['xl'] = system_lifted
 
     return system_variables_list, system_gc
 

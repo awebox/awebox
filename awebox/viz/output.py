@@ -86,7 +86,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
         kite_nodes = architecture.kite_nodes
 
         for odx in range(number_of_opts):
-            axes[odx].set_xlabel('t [s]')
+            axes[odx].set_zabel('t [s]')
 
         for odx in range(len(interesting_outputs)):
 
@@ -264,9 +264,9 @@ def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_ki
                 line, = axes.plot(x_vals, y_vals, color=color_vals, linestyle=line_style, label=line_label)
                 line.set_dashes(dash_style)
 
-        xlabel = x_var_name + ' ' + x_var_latex
+        zabel = x_var_name + ' ' + x_var_latex
         ylabel = y_var_name + ' ' + y_var_latex
-        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
+        axes = tools.set_layer_plot_axes(axes, nrows, zabel, ylabel, ldx)
         axes = tools.set_layer_plot_legend(axes, nrows, ldx)
 
         ldx += 1

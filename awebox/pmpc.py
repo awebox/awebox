@@ -57,10 +57,10 @@ class Pmpc(object):
         self.__mpc_options = mpc_options
 
         # store model data
-        self.__nx = trial.model.variables['xd'].shape[0]
+        self.__nx = trial.model.variables['x'].shape[0]
         self.__nu = trial.model.variables['u'].shape[0]
-        self.__nz = trial.model.variables['xa'].shape[0]
-        self.__nl = trial.model.variables['xl'].shape[0]
+        self.__nz = trial.model.variables['z'].shape[0]
+        self.__nl = trial.model.variables['z'].shape[0]
 
         # create mpc trial
         options = copy.deepcopy(trial.options)
@@ -114,8 +114,8 @@ class Pmpc(object):
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
         # remove state constraints at k = 0
-        self.__trial.nlp.V_bounds['lb']['xd',0] = - np.inf
-        self.__trial.nlp.V_bounds['ub']['xd',0] = np.inf
+        self.__trial.nlp.V_bounds['lb']['x',0] = - np.inf
+        self.__trial.nlp.V_bounds['ub']['x',0] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
             if constr != 'dcoeff_actuation':
@@ -243,10 +243,10 @@ class Pmpc(object):
         f = 0.0
 
         # weighting matrices
-        Q = np.eye(self.__trial.model.variables['xd'].shape[0])
+        Q = np.eye(self.__trial.model.variables['x'].shape[0])
         R = np.eye(self.__trial.model.variables['u'].shape[0])
-        Z = np.eye(self.__trial.model.variables['xa'].shape[0])
-        L = np.eye(self.__trial.model.variables['xl'].shape[0])
+        Z = np.eye(self.__trial.model.variables['z'].shape[0])
+        L = np.eye(self.__trial.model.variables['z'].shape[0])
 
         # create tracking function
         from scipy.linalg import block_diag
@@ -340,22 +340,22 @@ class Pmpc(object):
         n_points_x = self.__t_grid_x_coll.shape[0]
         self.__spline_dict = {}
 
-        for var_type in ['xd','u','xa','xl']:
+        for var_type in ['x','u','z','z']:
             self.__spline_dict[var_type] = {}
             for name in list(variables_dict[var_type].keys()):
                 self.__spline_dict[var_type][name] = {}
                 for j in range(variables_dict[var_type][name].shape[0]):
-                    if var_type == 'xd':
-                        values, time_grid = viz_tools.merge_xd_values(V_opt, name, j, plot_dict, cosmetics)
+                    if var_type == 'x':
+                        values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
                     elif var_type == 'u':
-                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values):
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
-                    elif var_type in ['xa','xl']:
-                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                    elif var_type in ['z','z']:
+                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
 
         def spline_interpolator(t_grid, name, j, var_type):
@@ -387,11 +387,11 @@ class Pmpc(object):
 
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
-        for var_type in ['xd','u','xa','xl']:
+        for var_type in ['x','u','z','z']:
             ip_dict[var_type] = []
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    if var_type == 'xd':
+                    if var_type == 'x':
                         ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
                     else:
                         ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
@@ -406,18 +406,18 @@ class Pmpc(object):
         for k in range(self.__N):
             for j in range(self.__trial.nlp.d+1):
                 if j == 0:
-                    V_list.append(ip_dict['xd'][:,counter_x])
+                    V_list.append(ip_dict['x'][:,counter_x])
                     counter_x += 1
                 else:
-                    for var_type in ['xd','xa','xl','u']:
-                        if var_type == 'xd':
+                    for var_type in ['x','z','z','u']:
+                        if var_type == 'x':
                             V_list.append(ip_dict[var_type][:,counter_x])
                             counter_x += 1
                         else:
                             V_list.append(ip_dict[var_type][:,counter])
                     counter += 1
 
-        V_list.append(ip_dict['xd'][:,counter_x])
+        V_list.append(ip_dict['x'][:,counter_x])
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
@@ -462,11 +462,11 @@ class Pmpc(object):
         """
 
         for k in range(self.__N-1):
-            self.__w0['coll_var',k,:,'xd'] = self.__w0['coll_var',k+1,:,'xd']
+            self.__w0['coll_var',k,:,'x'] = self.__w0['coll_var',k+1,:,'x']
             self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
-            self.__w0['coll_var',k,:,'xa'] = self.__w0['coll_var',k+1,:,'xa']
-            self.__w0['coll_var',k,:,'xl'] = self.__w0['coll_var',k+1,:,'xl']
-            self.__w0['xd',k] = self.__w0['xd',k+1]
+            self.__w0['coll_var',k,:,'z'] = self.__w0['coll_var',k+1,:,'z']
+            self.__w0['coll_var',k,:,'z'] = self.__w0['coll_var',k+1,:,'z']
+            self.__w0['x',k] = self.__w0['x',k+1]
 
         return None
 

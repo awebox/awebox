@@ -147,9 +147,9 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
             local_color = init_colors
 
         parent = parent_map[n]
-        vertically_stacked_kite_locations = cas.horzcat(plot_dict['xd']['q' + str(n) + str(parent)][0],
-                                                        plot_dict['xd']['q' + str(n) + str(parent)][1],
-                                                        plot_dict['xd']['q' + str(n) + str(parent)][2])
+        vertically_stacked_kite_locations = cas.horzcat(plot_dict['x']['q' + str(n) + str(parent)][0],
+                                                        plot_dict['x']['q' + str(n) + str(parent)][1],
+                                                        plot_dict['x']['q' + str(n) + str(parent)][2])
 
         for dim in dims:
             ax = 'ax_' + dim
@@ -161,28 +161,28 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     for dim in dims:
         ax = 'ax_' + dim
 
-        xdim = dim[0]
+        xim = dim[0]
         ydim = dim[1]
 
-        axes[ax].set_xlim(q_limits[xdim])
+        axes[ax].set_zim(q_limits[xim])
         axes[ax].set_ylim(q_limits[ydim])
         axes[ax].set_aspect('equal', adjustable='box')
 
-        axes[ax].set_xlabel(xdim + ' [m]')
+        axes[ax].set_zabel(xim + ' [m]')
         axes[ax].set_ylabel(ydim + ' [m]')
 
     # flip x-axis to get "upstream" view
-    axes['ax_yz'].invert_xaxis()
+    axes['ax_yz'].invert_zxis()
 
     # move axes out of way of three-view
     axes['ax_yz'].yaxis.set_label_position("right")
     axes['ax_yz'].yaxis.tick_right()
 
-    axes['ax_yz'].xaxis.set_label_position("top")
-    axes['ax_yz'].xaxis.tick_top()
+    axes['ax_yz'].zxis.set_label_position("top")
+    axes['ax_yz'].zxis.tick_top()
 
-    axes['ax_xz'].xaxis.set_label_position("top")
-    axes['ax_xz'].xaxis.tick_top()
+    axes['ax_xz'].zxis.set_label_position("top")
+    axes['ax_xz'].zxis.tick_top()
 
     plt.tight_layout(w_pad=-11, h_pad=1, rect=[0, 0, 1, 0.95]) #pad=2.5)
 
@@ -205,7 +205,7 @@ def fill_in_dashboard(fig, plot_dict,index):
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    dl_t = plot_dict['xd']['dl_t'][0][index].toarray().round(1)[0][0]
+    dl_t = plot_dict['x']['dl_t'][0][index].toarray().round(1)[0][0]
     global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
 
 

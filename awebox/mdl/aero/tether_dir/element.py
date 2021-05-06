@@ -116,16 +116,16 @@ def get_upper_and_lower_pos_and_vel(variables, upper_node, architecture):
     parent_map = architecture.parent_map
     
     lower_node = parent_map[upper_node]
-    q_upper = variables['xd']['q' + str(upper_node) + str(lower_node)]
-    dq_upper = variables['xd']['dq' + str(upper_node) + str(lower_node)]
+    q_upper = variables['x']['q' + str(upper_node) + str(lower_node)]
+    dq_upper = variables['x']['dq' + str(upper_node) + str(lower_node)]
 
     if lower_node == 0:
         q_lower = cas.DM.zeros((3, 1))
         dq_lower = cas.DM.zeros((3, 1))
     else:
         grandparent = parent_map[lower_node]
-        q_lower = variables['xd']['q' + str(lower_node) + str(grandparent)]
-        dq_lower = variables['xd']['dq' + str(lower_node) + str(grandparent)]
+        q_lower = variables['x']['q' + str(lower_node) + str(grandparent)]
+        dq_lower = variables['x']['dq' + str(lower_node) + str(grandparent)]
         
     return q_upper, q_lower, dq_upper, dq_lower
 

@@ -413,7 +413,7 @@ class Trial(object):
         print('Cannot set return_status_numeric object.')
 
 def generate_initial_state(model, V_init):
-    x0 = model.struct_list['xd'](0.)
-    for name in list(model.struct_list['xd'].keys()):
-        x0[name] = V_init['xd',0,0,name]
+    x0 = model.struct_list['x'](0.)
+    for name in list(model.struct_list['x'].keys()):
+        x0[name] = V_init['x',0,0,name]
     return x0

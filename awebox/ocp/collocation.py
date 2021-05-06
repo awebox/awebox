@@ -145,17 +145,17 @@ class Collocation(object):
             """Interpolating function
 
             @param time_grid list with time points
-            @param name xd variable name
-            @param dim xd variable dimension index
+            @param name x variable name
+            @param dim x variable dimension index
             """
 
             vals = []
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
-                if var_type == 'xd':
-                    poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
+                if var_type == 'x':
+                    poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
-                elif var_type in ['u', 'xa', 'xl']:
+                elif var_type in ['u', 'z', 'z']:
                     poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
@@ -183,7 +183,7 @@ class Collocation(object):
 
         return None
 
-    def get_xdot(self, nlp_numerics_options, V, model):
+    def get_xot(self, nlp_numerics_options, V, model):
         """ Get state derivates on all collocation nodes based on polynomials
         """
 
@@ -206,8 +206,8 @@ class Collocation(object):
                 # get an expression for the state derivative at the collocation point
                 xp_jk = self.__calculate_collocation_deriv(V, k, j)
 
-                xdot = xp_jk / h / tf
-                store_derivatives = cas.vertcat(store_derivatives, xdot)
+                xot = xp_jk / h / tf
+                store_derivatives = cas.vertcat(store_derivatives, xot)
 
         Xdot = Vdot(store_derivatives)
 
@@ -221,21 +221,21 @@ class Collocation(object):
         xp_jk = 0
         for r in range(self.__d + 1):
             if r == 0:
-                xp_jk += self.__coeff_collocation[r, j] * V['xd', k]
+                xp_jk += self.__coeff_collocation[r, j] * V['x', k]
             else:
-                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'xd']
+                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
 
         return xp_jk
 
     def get_collocation_variables_struct(self, variables_dict, u_param):
 
         entry_list = [
-            cas.entry('xd', struct = variables_dict['xd']),
-            cas.entry('xa', struct = variables_dict['xa'])
+            cas.entry('x', struct = variables_dict['x']),
+            cas.entry('z', struct = variables_dict['z'])
         ]
 
-        if 'xl' in list(variables_dict.keys()):
-            entry_list += [cas.entry('xl', struct = variables_dict['xl'])]
+        if 'z' in list(variables_dict.keys()):
+            entry_list += [cas.entry('z', struct = variables_dict['z'])]
 
         if u_param == 'poly':
             entry_list += [cas.entry('u', struct = variables_dict['u'])]
@@ -298,12 +298,12 @@ class Collocation(object):
         xf_k = 0
         for ddx in range(self.__d + 1):
             if ddx == 0:
-                xf_k += self.__coeff_continuity[ddx] * V['xd', kdx]
+                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
             else:
-                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'xd']
+                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
 
         # pin the end of the control interval to the start of the new control interval
-        g_continuity = V['xd', kdx + 1] - xf_k
+        g_continuity = V['x', kdx + 1] - xf_k
 
         cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity_{}'.format(kdx),
