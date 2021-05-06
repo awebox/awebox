@@ -38,7 +38,7 @@ import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
 import awebox.tools.save_operations as data_tools
-import awebox.opts.options as options
+import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 import copy
@@ -56,7 +56,7 @@ class Trial(object):
     def __init__(self, seed, name = 'trial'):
 
         self.__options_seed   = seed
-        self.__options        = options.Options()
+        self.__options        = opts.Options()
         self.__options.fill_in_seed(self.__options_seed)
         self.__model          = model.Model()
         self.__formulation    = formulation.Formulation()
@@ -109,7 +109,7 @@ class Trial(object):
             options = self.__options
         else:
             # regenerate nlp bounds for parametric sweeps
-            options = options.Options()
+            options = opts.Options()
             options.fill_in_seed(options_seed)
             architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
             options.build(architecture)
