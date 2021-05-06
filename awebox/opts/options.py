@@ -78,6 +78,28 @@ class Options:
         else:
             return dict[category_key][sub_category_key][sub_sub_category_key][option_key]
 
+    def fill_in_seed(self, seed):
+
+        assert type(seed) == dict, 'User-provided options should be of type "dict"!'
+
+        for key, value in seed.items():
+            keys = key.split(".")
+            err_msg = f'Unknown option: {key}'
+            assert len(keys) in [2,3,4], err_msg
+            assert keys[0] in self.__keys_list, err_msg
+            assert keys[1] in self.__options_dict[keys[0]], err_msg
+            if len(keys) == 2:
+                self.__options_dict[keys[0]][keys[1]] = value
+            elif len(keys) == 3:
+                assert keys[2] in self.__options_dict[keys[0]][keys[1]], err_msg
+                self.__options_dict[keys[0]][keys[1]][keys[2]] = value
+            elif len(keys) == 4:
+                assert keys[2] in self.__options_dict[keys[0]][keys[1]], err_msg
+                assert keys[3] in self.__options_dict[keys[0]][keys[1]][keys[2]], err_msg
+                self.__options_dict[keys[0]][keys[1]][keys[2]][keys[3]] = value
+
+        return None
+
     def keys(self):
         return self.__keys_list
 

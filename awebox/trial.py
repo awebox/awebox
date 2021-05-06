@@ -55,36 +55,25 @@ class Trial(object):
 
     def __init__(self, seed, name = 'trial'):
 
-        # check if constructed with dict
-        if type(seed) == dict:
+        self.__options_seed   = seed
+        self.__options        = options.Options()
+        self.__options.fill_in_seed(self.__options_seed)
+        self.__model          = model.Model()
+        self.__formulation    = formulation.Formulation()
+        self.__nlp            = nlp.NLP()
+        self.__optimization   = optimization.Optimization()
+        self.__visualization  = visualization.Visualization()
+        self.__quality        = quality.Quality()
+        self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
+        self.__type           = 'Trial'
+        self.__status         = None
+        self.__timings        = {}
+        self.__solution_dict  = {}
+        self.__save_flag      = False
 
-            self.__solution_dict = seed['solution_dict']
-            self.__visualization = visualization.Visualization()
-            self.__visualization.options = seed['solution_dict']['options']
-            self.__visualization.plot_dict = seed['plot_dict']
-            self.__visualization.create_plot_logic_dict()
-            self.__options = seed['solution_dict']['options']
+        self.__return_status_numeric = -1
 
-        # check if constructed with options
-        elif type(seed) == options.Options:
-
-            self.__options        = seed
-            self.__model          = model.Model()
-            self.__formulation    = formulation.Formulation()
-            self.__nlp            = nlp.NLP()
-            self.__optimization   = optimization.Optimization()
-            self.__visualization  = visualization.Visualization()
-            self.__quality        = quality.Quality()
-            self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
-            self.__type           = 'Trial'
-            self.__status         = None
-            self.__timings        = {}
-            self.__solution_dict  = {}
-            self.__save_flag      = False
-
-            self.__return_status_numeric = -1
-
-            self._freeze()
+        self._freeze()
 
     def build(self, is_standalone_trial=True):
 
