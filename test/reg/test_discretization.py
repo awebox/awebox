@@ -106,7 +106,7 @@ def test_integrators():
 
     # set discretization to multiple shooting
     base_options['nlp.integrator.type'] = 'rk4root'
-    base_options['nlp.integrator.num_steps'] = 20
+    base_options['nlp.integrator.num_steps_overwrite'] = 20
 
     # build MS trial
     trialRK = awe.Trial(name = 'testRK', seed = base_options)
