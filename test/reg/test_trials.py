@@ -201,7 +201,7 @@ def generate_options_dict():
     actuator_qaxi_options['model.aero.overwrite.beta_max_deg'] = 20.
     actuator_qaxi_options['model.aero.overwrite.beta_min_deg'] = -20.
     actuator_qaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
-    actuator_qaxi_options['solver.cost.fictitious'][0] = 1.e3
+    actuator_qaxi_options['solver.cost.fictitious.0'] = 1.e3
     actuator_qaxi_options['nlp.n_k'] = 15
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
@@ -210,12 +210,12 @@ def generate_options_dict():
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
-    actuator_qasym_options['solver.cost.psi'][1] = 1.e1
+    actuator_qasym_options['solver.cost.psi.1'] = 1.e1
 
     actuator_uasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
     actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
-    actuator_uasym_options['solver.cost.psi'][1] = 1.e1
+    actuator_uasym_options['solver.cost.psi.1'] = 1.e1
 
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
