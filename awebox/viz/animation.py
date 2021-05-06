@@ -164,11 +164,11 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
         xdim = dim[0]
         ydim = dim[1]
 
-        axes[ax].set_xlim(q_limits[xim])
+        axes[ax].set_xlim(q_limits[xdim])
         axes[ax].set_ylim(q_limits[ydim])
         axes[ax].set_aspect('equal', adjustable='box')
 
-        axes[ax].set_xlabel(xim + ' [m]')
+        axes[ax].set_xlabel(xdim + ' [m]')
         axes[ax].set_ylabel(ydim + ' [m]')
 
     # flip x-axis to get "upstream" view
