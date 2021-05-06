@@ -69,7 +69,7 @@ def test_integrators():
     base_options['nlp.integrator.type'] = 'collocation'
     base_options['nlp.integrator.collocation_scheme'] = base_options['nlp.collocation.scheme']
     base_options['nlp.integrator.interpolation_order'] = base_options['nlp.collocation.d']
-    base_options['nlp.integrator.num_steps'] = 1
+    base_options['nlp.integrator.num_steps_overwrite'] = 1
 
     # switch off expand to allow for use of integrator in NLP
     base_options['solver.expand_overwrite'] = False
