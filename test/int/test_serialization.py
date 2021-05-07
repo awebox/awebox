@@ -14,15 +14,14 @@ logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=l
 def test_trial_serial():
 
     # set-up trial options
-    options = awe.Options(True) # True refers to internal access switch
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'split'
-    options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['nlp']['n_k'] = 2
-    options['solver']['max_iter'] = 0
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['user_options.induction_model'] = 'not_in_use'
+    options['nlp.n_k'] = 2
+    options['solver.max_iter'] = 0
 
     # build collocation trial
     trial = awe.Trial(name = 'serial_test', seed = options)
@@ -40,8 +39,8 @@ def test_trial_serial():
     trial_test.plot('all')
 
     # set-up ms trial options
-    options['nlp']['discretization'] = 'multiple_shooting'
-    options['nlp']['n_k'] = 10
+    options['nlp.discretization'] = 'multiple_shooting'
+    options['nlp.n_k'] = 10
 
     # build multiple shooting trial
     trialMS = awe.Trial(name = 'serial_test_MS', seed = options)
@@ -62,19 +61,18 @@ def test_trial_serial():
 def test_sweep_serial():
 
     # set-up trial options
-    options = awe.Options(True) # True refers to internal access switch
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['tether_drag_model'] = 'split'
-    options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['nlp']['n_k'] = 2
-    options['solver']['max_iter'] = 0
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['user_options.induction_model'] = 'not_in_use'
+    options['nlp.n_k'] = 2
+    options['solver.max_iter'] = 0
 
     # set-up sweep options
-    sweep_opts = [(['nlp','discretization'], ['direct_collocation','multiple_shooting'])] # trial sweep
-    sweep_opts = [(['user_options','wind','u_ref'], [5.,5.5])] # parametric sweep
+    sweep_opts = [('nlp.discretization', ['direct_collocation','multiple_shooting'])] # trial sweep
+    sweep_opts = [('user_options.wind.u_ref', [5.,5.5])] # parametric sweep
 
     # build, run and save sweep
     sweep = awe.Sweep(name = 'serial_test', options = options, seed = sweep_opts)

@@ -30,15 +30,14 @@ from . import default
 from . import funcs
 
 class Options:
-    def __init__(self, internal_access=False):
+    def __init__(self):
 
-        default_user_options, help_options = default.set_default_user_options(internal_access)
+        default_user_options, help_options = default.set_default_user_options()
         default_options, help_options = default.set_default_options(default_user_options, help_options)
 
         self.__options_dict = default_options
         self.__help_dict = help_options
         self.__keys_list = list(self.__options_dict.keys())
-        self.__internal_access = internal_access
 
     def __setitem__(self, key, value):
         category_key, sub_category_key, sub_sub_category_key, option_key, help_flag = get_keys(key)
@@ -78,6 +77,30 @@ class Options:
             return dict[category_key][sub_category_key][option_key]
         else:
             return dict[category_key][sub_category_key][sub_sub_category_key][option_key]
+
+    def fill_in_seed(self, seed):
+
+        assert type(seed) == dict, 'User-provided options should be of type "dict"!'
+
+        for key, value in seed.items():
+            keys = key.split(".")
+            err_msg = f'Unknown option: {key}'
+            assert len(keys) in [2,3,4], err_msg
+            assert keys[0] in self.__keys_list, err_msg
+            assert keys[1] in self.__options_dict[keys[0]], err_msg
+            if len(keys) == 2:
+                self.__options_dict[keys[0]][keys[1]] = value
+            elif len(keys) == 3:
+                assert keys[2] in self.__options_dict[keys[0]][keys[1]], err_msg
+                self.__options_dict[keys[0]][keys[1]][keys[2]] = value
+            elif len(keys) == 4:
+                assert keys[2] in self.__options_dict[keys[0]][keys[1]], err_msg
+                if keys[3].isdigit():
+                    keys[3] = int(keys[3])
+                assert keys[3] in self.__options_dict[keys[0]][keys[1]][keys[2]], err_msg
+                self.__options_dict[keys[0]][keys[1]][keys[2]][keys[3]] = value
+
+        return None
 
     def keys(self):
         return self.__keys_list

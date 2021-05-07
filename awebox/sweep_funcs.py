@@ -43,7 +43,7 @@ def process_sweep_opts(options, sweep_opts):
     for sweep_option in sweep_opts:
 
         # get keys
-        keys = sweep_option[0]
+        keys = sweep_option[0].split('.')
         sweep_type = struct_op.get_from_dict(options.help_dict, keys)[1]
 
         # sort sweep_opts to parameter and trial options
@@ -71,11 +71,13 @@ def set_single_trial_options(base_options, sweep_options, name):
     # set specific trial options
     for i in range(len(sweep_options)):
         # get keys and value for single option
-        keys = sweep_options[i][0]
+        key = sweep_options[i][0]
         value = sweep_options[i][1]
         # assign single option
-        struct_op.set_in_dict(options, keys, value)
+        options[key] = value
+
         # append option to name
+        keys = key.split('.')
         if type(keys[-1]) == str:
             keyname = keys[-1]
         else:

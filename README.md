@@ -43,19 +43,6 @@ To run one of the examples from the `awebox` root folder:
 python3 examples/single_kite_lift_mode_simple.py
 ```
 
-## Options
-
-For an overview of the available options, first have a look at the different examples.  
-An exhaustive overview can be found in `awebox/opts/default.py`.
-In order to alter non-user options: generate the `Options`-object with internal access rights switched on:
-
-```python
-import awebox as awe
-options = awe.Options(internal_access = True)
-```
-
-and set the according fields in the `Options`-subdicts to the desired values.
-
 ## Acknowledgments
 
 This software has been developed in collaboration with the company [Kiteswarms Ltd](http://www.kiteswarms.com). The company has also supported the project through research funding.
