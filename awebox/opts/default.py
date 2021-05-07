@@ -58,7 +58,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
-        ('user_options',    None,          None,        'induction_model',       'actuator',         ('possible options', ['not_in_use', 'actuator']),'x'),
+        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator']),'x'),
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
@@ -102,7 +102,7 @@ def set_default_options(default_user_options, help_options):
         ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
-        ('model', 'aero', None,         'lift_aero_force',      True,        ('lift the aero force into the decision variables', [True, False]), 'x'),
+        ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
@@ -176,7 +176,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
         ('model',   'tether', None,         'wound_tether_safety_factor', 1.1,  ('wound tether safety factor', None),'x'),
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
-        ('model',   'tether', None,         'lift_tether_force',    True,       ('lift the tether force into the decision variables', [True, False]), 'x'),
+        ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -277,7 +277,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'x'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
-        ('nlp',  'collocation',      None, 'u_param',              'zoh',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'u_param',              'poly',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
         ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
@@ -301,7 +301,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         # todo: embed other solvers
-        ('solver',  None,   None,   'linear_solver',        'ma57',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
+        ('solver',  None,   None,   'linear_solver',        'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
         ('solver',  None,   None,   'max_iter',             2000,       ('maximum ipopt iterations [int]', None),'x'),
         ('solver',  None,   None,   'max_cpu_time',         1.e4,       ('maximum cpu time (seconds) ipopt can spend in one stage of the homotopy', None), 'x'),
