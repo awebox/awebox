@@ -199,6 +199,8 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     elif options['nlp']['integrator']['type'] == 'rk4root':
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_rk4root'],  ('number of internal integrator steps', (True, False)),'x'))
 
+    options_tree.append(('nlp', 'mpc', None, 'terminal_point_constr', options['formulation']['mpc']['terminal_point_constr'], ('????', None), 'x'))
+
     return options_tree, phase_fix
 
 

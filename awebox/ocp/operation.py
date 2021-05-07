@@ -60,8 +60,16 @@ def get_operation_conditions(options):
     param_terminal_conditions = determine_if_param_terminal_conditions(options)
     terminal_inequalities = determine_if_terminal_inequalities(options)
     integral_constraints = determine_if_integral_constraints(options)
+    terminal_conditions = determine_if_terminal_conditions(options)
 
-    return [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints]
+    return [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions]
+
+
+def determine_if_terminal_conditions(options):
+    mpc = options['trajectory']['type'] == 'mpc'
+    terminal_point = options['mpc']['terminal_point_constr']
+    
+    return (mpc and terminal_point)
 
 def determine_if_integral_constraints(options):
     compromised_landing = (options['trajectory']['type'] == 'compromised_landing')
@@ -93,7 +101,7 @@ def get_initial_constraints(options, initial_variables, ref_variables, model, xi
                                     cstr_type='eq')
         cstr_list.append(init_energy_cstr)
 
-    _, initial_conditions, param_initial_conditions, _, _, _ = get_operation_conditions(options)
+    _, initial_conditions, param_initial_conditions, _, _, _, _ = get_operation_conditions(options)
 
     if param_initial_conditions:
         init_param_eq = make_param_initial_conditions(initial_variables, ref_variables, xi_dict, model, options)
@@ -122,7 +130,7 @@ def generate_integral_constraints(options, variables, parameters, model):
     eqs_list = []
     ineqs_constants_dict = {}
 
-    [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = get_operation_conditions(options)
+    [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints, _] = get_operation_conditions(options)
 
     if integral_constraints:
         ineqs_dict['terminal_battery'] = make_terminal_battery_integrand(options, variables, parameters, model)
@@ -156,7 +164,7 @@ def get_terminal_constraints(options, terminal_variables, ref_variables, model, 
 
     cstr_list = ocp_constraint.OcpConstraintList()
 
-    _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints = get_operation_conditions(options)
+    _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions = get_operation_conditions(options)
 
     if param_terminal_conditions:
         terminal_param_eq = make_param_terminal_conditions(terminal_variables, ref_variables, xi_dict, model, options)
@@ -172,13 +180,35 @@ def get_terminal_constraints(options, terminal_variables, ref_variables, model, 
                                     cstr_type='ineq')
         cstr_list.append(terminal_ineq_cstr)
 
+    if terminal_conditions:
+        terminal_eq = make_terminal_point_constraint(terminal_variables, ref_variables, model)
+        terminal_eq_cstr = cstr_op.Constraint(expr=terminal_eq,
+                                    name='terminal_equalities',
+                                    cstr_type='eq')
+        cstr_list.append(terminal_eq_cstr)
+
     return cstr_list
 
+def make_terminal_point_constraint(terminal_variables, ref_variables, model):
+
+    terminal_point_constr = []
+    # leave out invariants
+    for state in model.variables_dict['xd'].keys():
+        state_name, _ = struct_op.split_name_and_node_identifier(state)
+        if state_name in ['q', 'dq']:
+            terminal_point_constr.append(terminal_variables['xd',state,:2] - ref_variables['xd',state,:2])
+        elif state_name == 'r':
+            terminal_point_constr.append(terminal_variables['xd',state,:2] - ref_variables['xd',state,:2])
+            terminal_point_constr.append(terminal_variables['xd',state,3] - ref_variables['xd',state,3])
+        else:
+            terminal_point_constr.append(terminal_variables['xd',state] - ref_variables['xd',state])
+
+    return cas.vertcat(*terminal_point_constr)
 
 def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
     cstr_list = ocp_constraint.OcpConstraintList()
 
-    periodic, _, _, _, _, _ = get_operation_conditions(options)
+    periodic, _, _, _, _, _, _ = get_operation_conditions(options)
 
     # list all periodic equalities ==> put SX expressions in dict
     if periodic:
