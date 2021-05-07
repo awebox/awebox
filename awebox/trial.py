@@ -108,7 +108,7 @@ class Trial(object):
         self.__visualization.build(self.__model, self.__nlp, self.__name, self.__options)
         self.__quality.build(self.__options['quality'], self.__name)
         self.set_timings('construction')
-        awelogger.logger.info('Trial (%s) built.', self.__name)
+        awelogger.logger.info('Trial "%s" built.', self.__name)
         awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
         awelogger.logger.info('')
 
@@ -133,8 +133,11 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Optimize method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        awelogger.logger.info('Optimizing trial (%s) ...', self.__name)
+        awelogger.logger.info(60*'=')
+        awelogger.logger.info(12*' '+'Optimizing trial "%s" ...', self.__name)
+        awelogger.logger.info(60*'=')
         awelogger.logger.info('')
+
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
