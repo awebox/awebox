@@ -811,8 +811,10 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     q_scaling = 1.
     options_tree.append(('model', 'scaling', 'xd', 'q', q_scaling, ('descript', None), 'x'))
 
+    initialization_theta = options['solver']['initialization']['theta']
+    for param in initialization_theta.keys():
+        options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'theta', 't_f', cas.DM(1.0), ('descript', None), 'x'))
-
 
     return options_tree, fixed_params
 
@@ -981,9 +983,9 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     layers = architecture.layers
 
     # extract length scaling information
-    l_s_scaling = options['model']['scaling']['theta']['l_s']
+    l_s_scaling = options['solver']['initialization']['theta']['l_s']
     l_t_scaling = options['model']['scaling']['xd']['l_t']
-    l_i_scaling = options['model']['scaling']['theta']['l_i']
+    l_i_scaling = options['solver']['initialization']['theta']['l_i']
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling
