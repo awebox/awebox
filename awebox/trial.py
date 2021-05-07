@@ -94,9 +94,9 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Build method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        awelogger.logger.info('')
-
-        awelogger.logger.info('Building trial (%s) ...', self.__name)
+        awelogger.logger.info(60*'=')
+        awelogger.logger.info(12*' '+'Building trial "%s" ...', self.__name)
+        awelogger.logger.info(60*'=')
         awelogger.logger.info('')
 
         architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
