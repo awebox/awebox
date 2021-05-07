@@ -206,7 +206,7 @@ def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
 
-    l_t = init_options['xd']['l_t']
+    l_t = init_options['x']['l_t']
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
@@ -217,7 +217,7 @@ def find_airspeed(init_options, groundspeed, psi):
     return airspeed
 
 def get_wind_speed(init_options, zz):
-    l_t = init_options['xd']['l_t']
+    l_t = init_options['x']['l_t']
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
@@ -245,7 +245,7 @@ def insert_val(V_init, var_type, name, init_val, idx = 0):
     # initialize on collocation nodes
     V_init['coll_var', :, :, var_type, name, idx] = init_val
 
-    if var_type in ['xd', 'xl','xa']:
+    if var_type in ['x', 'z']:
         # initialize on interval nodes
         # V_init[var_type, :, :, name] = init_val
 

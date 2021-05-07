@@ -192,26 +192,26 @@ def test():
 
     kite = architecture.kite_nodes[0]
 
-    xd_struct = cas.struct([
+    x_struct = cas.struct([
         cas.entry("wx_" + str(kite) + "_ext_0", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_ext_1", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_int_0", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_int_1", shape=(3, 1))
     ])
-    xl_struct = cas.struct([
+    z_struct = cas.struct([
         cas.entry("wg_" + str(kite) + "_0")
     ])
     var_struct = cas.struct_symSX([
-        cas.entry('xd', struct=xd_struct),
-        cas.entry('xl', struct=xl_struct)
+        cas.entry('x', struct=x_struct),
+        cas.entry('z', struct=z_struct)
     ])
 
     variables_si = var_struct(0.)
-    variables_si['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_ext_1'] = variables_si['xd', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_int_1'] = variables_si['xd', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
-    variables_si['xl', 'wg_' + str(kite) + '_0'] = 1.
+    variables_si['x', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_ext_1'] = variables_si['x', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_int_1'] = variables_si['x', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
+    variables_si['z', 'wg_' + str(kite) + '_0'] = 1.
 
     test_list = get_list(options, variables_si, architecture)
 
