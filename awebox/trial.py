@@ -151,7 +151,7 @@ class Trial(object):
         self.__return_status_numeric = self.__optimization.return_status_numeric['optimization']
 
         if self.__optimization.solve_succeeded:
-            awelogger.logger.info('Trial (%s) optimized.', self.__name)
+            awelogger.logger.info('Trial "%s" optimized.', self.__name)
             awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
 
         else:
