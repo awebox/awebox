@@ -228,11 +228,11 @@ def rotation(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
-def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
+def jacobian_dcm(expr, x_si, variables_scaled, kite, parent):
     """ Differentiate expression w.r.t. kite direct cosine matrix"""
 
-    dcm_si = xd_si['r{}{}'.format(kite, parent)]
-    dcm_scaled = variables_scaled['xd', 'r{}{}'.format(kite, parent)]
+    dcm_si = x_si['r{}{}'.format(kite, parent)]
+    dcm_scaled = variables_scaled['x', 'r{}{}'.format(kite, parent)]
 
     jac_dcm = rotation(
             cas.reshape(dcm_si, (3,3)),

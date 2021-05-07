@@ -77,8 +77,8 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                     local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
 
                     # var_name = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-                    # wx_scaled = V['xd', 0, var_name]
-                    # wx_local = struct_op.var_scaled_to_si('xd', var_name, wx_scaled, model.scaling)
+                    # wx_scaled = V['x', 0, var_name]
+                    # wx_local = struct_op.var_scaled_to_si('x', var_name, wx_scaled, model.scaling)
                     #
                     # wingtip_pos = Outputs['coll_outputs', 0, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
                     #
@@ -98,13 +98,13 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                         collocation_ndx = shooting_ndx - 1
 
                         var_name = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-                        wx_scaled = V['xd', shooting_ndx, var_name]
-                        wx_si = struct_op.var_scaled_to_si('xd', var_name, wx_scaled, model.scaling)
+                        wx_scaled = V['x', shooting_ndx, var_name]
+                        wx_si = struct_op.var_scaled_to_si('x', var_name, wx_scaled, model.scaling)
 
                         wingtip_pos_si = Outputs['coll_outputs', collocation_ndx, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
 
                         local_resi_si = wx_si - wingtip_pos_si
-                        local_resi = struct_op.var_si_to_scaled('xd', var_name, local_resi_si, model.scaling)
+                        local_resi = struct_op.var_si_to_scaled('x', var_name, local_resi_si, model.scaling)
 
                     else:
 
@@ -120,11 +120,11 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                         # wn:7 at t_0 must be equal to -> wn:4 at t_final
 
                         var_name_local = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-                        wx_local = V['xd', 0, var_name_local]
+                        wx_local = V['x', 0, var_name_local]
 
                         wake_node_upstream = wake_node - n_k
                         var_name_upsteam = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node_upstream)
-                        wx_upstream = V['xd', -1, var_name_upsteam]
+                        wx_upstream = V['x', -1, var_name_upsteam]
 
                         local_resi = wx_local - wx_upstream
 
@@ -186,9 +186,9 @@ def get_local_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids,
     local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx) + ',' + str(ddx)
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    wx_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+    wx_local_scaled = V['coll_var', ndx, ddx, 'z', var_name]
 
-    wx_local = struct_op.var_scaled_to_si('xl', var_name, wx_local_scaled, model.scaling)
+    wx_local = struct_op.var_scaled_to_si('z', var_name, wx_local_scaled, model.scaling)
 
     # # if wake_node = 0, then shed at ndx
     # # if wake_node = 1, then shed at (ndx - 1) ---- > corresponds to (ndx - 2), ddx = -1
@@ -214,7 +214,7 @@ def get_local_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids,
     wx_found = wingtip_pos + delta_t * u_local
 
     local_resi_si = wx_local - wx_found
-    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+    local_resi = struct_op.var_si_to_scaled('z', var_name, local_resi_si, model.scaling)
 
     local_cstr = cstr_op.Constraint(expr=local_resi,
                                     name=local_name,
@@ -231,8 +231,8 @@ def get_continuity_fixing_constraint(V, kite, tip, wake_node, ndx):
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
-    wx_coll = V['coll_var', ndx-1, -1, 'xl', var_name]
-    wx_upper = V['xl', ndx, var_name]
+    wx_coll = V['coll_var', ndx-1, -1, 'z', var_name]
+    wx_upper = V['z', ndx, var_name]
 
     local_resi = wx_coll - wx_upper
 
@@ -250,8 +250,8 @@ def get_alg_periodic_fixing_constraint(V, kite, tip, wake_node):
     local_name = 'periodic_wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    wx_coll = V['coll_var', -1, -1, 'xl', var_name]
-    wx_upper = V['xl', 0, var_name]
+    wx_coll = V['coll_var', -1, -1, 'z', var_name]
+    wx_upper = V['z', 0, var_name]
 
     local_resi = wx_coll - wx_upper
 

@@ -41,12 +41,12 @@ def get_normalized_time_param_dict(ntp_dict, formulation):
     d = ntp_dict['d']
 
     V_0 = formulation.xi_dict['V_pickle_initial']
-    min_dl_t_0_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
+    min_dl_t_0_arg = np.argmin(np.array(V_0['coll_var', :, :, 'x', 'dl_t']))
     n_min_0 = min_dl_t_0_arg / (d + 1)
     d_min_0 = min_dl_t_0_arg - min_dl_t_0_arg / (d + 1) * (d + 1)
 
     V_f = formulation.xi_dict['V_pickle_terminal']
-    min_dl_t_f_arg = np.argmin(np.array(V_f['coll_var', :, :, 'xd', 'dl_t']))
+    min_dl_t_f_arg = np.argmin(np.array(V_f['coll_var', :, :, 'x', 'dl_t']))
     n_min_f = min_dl_t_f_arg / (d + 1)
     d_min_f = min_dl_t_f_arg - min_dl_t_f_arg / (d + 1) * (d + 1)
 
@@ -64,12 +64,12 @@ def get_normalized_time_param_dict(ntp_dict, formulation):
 
 def set_normalized_time_params(formulation, V_init):
     V_0 = formulation.xi_dict['V_pickle_initial']
-    min_dl_t_0_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
-    xi_0_init = min_dl_t_0_arg / float(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']).size)
+    min_dl_t_0_arg = np.argmin(np.array(V_0['coll_var', :, :, 'x', 'dl_t']))
+    xi_0_init = min_dl_t_0_arg / float(np.array(V_0['coll_var', :, :, 'x', 'dl_t']).size)
 
     V_f = formulation.xi_dict['V_pickle_terminal']
-    min_dl_t_f_arg = np.argmin(np.array(V_f['coll_var', :, :, 'xd', 'dl_t']))
-    xi_f_init = min_dl_t_f_arg / float(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']).size)
+    min_dl_t_f_arg = np.argmin(np.array(V_f['coll_var', :, :, 'x', 'dl_t']))
+    xi_f_init = min_dl_t_f_arg / float(np.array(V_0['coll_var', :, :, 'x', 'dl_t']).size)
 
     V_init['xi', 'xi_0'] = xi_0_init
     V_init['xi', 'xi_f'] = xi_f_init
@@ -91,7 +91,7 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     l_i = model.variable_bounds['theta']['l_i']['lb'] * init_options['theta']['l_i']
 
     ret = {}
-    for name in struct_op.subkeys(model.variables,'xd'):
+    for name in struct_op.subkeys(model.variables,'x'):
         ret[name] = 0.0
 
     parent_map = model.architecture.parent_map
@@ -114,10 +114,10 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     x_t_f = {}
     dq_n = {}
 
-    dl_0 = formulation.xi_dict['V_pickle_initial']['coll_var',n_min_0,d_min_0,'xd','dl_t'] * init_options['xd']['l_t']
-    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var',n_min_0,d_min_0,'xd','l_t'] * init_options['xd']['l_t']
-    l_f = formulation.xi_dict['V_pickle_terminal']['coll_var',n_min_f,d_min_f,'xd','l_t'] * init_options['xd']['l_t']
-    dl_f = formulation.xi_dict['V_pickle_terminal']['coll_var',n_min_f,d_min_f,'xd','dl_t'] * init_options['xd']['l_t']
+    dl_0 = formulation.xi_dict['V_pickle_initial']['coll_var',n_min_0,d_min_0,'x','dl_t'] * init_options['x']['l_t']
+    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var',n_min_0,d_min_0,'x','l_t'] * init_options['x']['l_t']
+    l_f = formulation.xi_dict['V_pickle_terminal']['coll_var',n_min_f,d_min_f,'x','l_t'] * init_options['x']['l_t']
+    dl_f = formulation.xi_dict['V_pickle_terminal']['coll_var',n_min_f,d_min_f,'x','dl_t'] * init_options['x']['l_t']
 
     c1 = (l_f - l_0 - 0.5*tf_guess*dl_0 - 0.5*tf_guess*dl_f)/(1./6.*tf_guess**3 - 0.25*tf_guess**3)
     c2 = (dl_f - dl_0 - 0.5*tf_guess**2*c1)/tf_guess
@@ -133,8 +133,8 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     for node in range(1,number_of_nodes):
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
-        q_0[node_str] = V_0['coll_var',n_min_0,d_min_0,'xd',node_str]
-        q_f[node_str] = V_f['coll_var',n_min_f,d_min_f,'xd',node_str]
+        q_0[node_str] = V_0['coll_var',n_min_0,d_min_0,'x',node_str]
+        q_f[node_str] = V_f['coll_var',n_min_f,d_min_f,'x',node_str]
 
     for node in range(1,number_of_nodes):
         parent = parent_map[node]

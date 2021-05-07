@@ -118,7 +118,7 @@ def get_specific_cstr(options, atmos, wind, variables_si, parameters, outputs, a
 ## velocities
 
 def get_kite_induced_velocity_var(variables, wind, kite):
-    ind_var = variables['xl']['ui' + str(kite)] * wind.get_velocity_ref()
+    ind_var = variables['z']['ui' + str(kite)] * wind.get_velocity_ref()
     return ind_var
 
 def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters, outputs):
@@ -131,7 +131,7 @@ def get_kite_induced_velocity_val(model_options, wind, variables, kite, architec
     if induction_model == 'actuator':
         u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
     elif induction_model == 'vortex' and not use_vortex_linearization and not force_zero:
-        u_ind_kite = variables['xl']['wu_ind_' + str(kite)]
+        u_ind_kite = variables['z']['wu_ind_' + str(kite)]
     elif induction_model == 'vortex' and use_vortex_linearization and not force_zero:
         u_ind_kite = vortex_linearization.get_induced_velocity_at_kite(model_options, variables, parameters, architecture, kite, outputs)
     elif induction_model == 'vortex' and force_zero:

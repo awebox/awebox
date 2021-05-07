@@ -35,20 +35,20 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     if individual_state == None:
         variables_to_plot = []
-        for var_name in variables_dict['xd'].keys():
+        for var_name in variables_dict['x'].keys():
             if not is_wake_variable(var_name):
                 variables_to_plot += [var_name]
         integral_variables_to_plot = integral_variables
 
     else:
-        if individual_state in list(variables_dict['xd'].keys()):
+        if individual_state in list(variables_dict['x'].keys()):
             variables_to_plot = [individual_state]
             integral_variables_to_plot = []
         elif individual_state in integral_variables:
             variables_to_plot = []
             integral_variables_to_plot = [individual_state]
 
-    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xd', variables_to_plot, integral_variables_to_plot, fig_num)
+    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'x', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
 
@@ -63,17 +63,17 @@ def plot_wake_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_
 
     if individual_state == None:
         variables_to_plot = []
-        for var_name in variables_dict['xd'].keys():
+        for var_name in variables_dict['x'].keys():
             if is_wake_variable(var_name):
                 variables_to_plot += [var_name]
 
     else:
-        if individual_state in list(variables_dict['xd'].keys()):
+        if individual_state in list(variables_dict['x'].keys()):
             variables_to_plot = [individual_state]
 
     integral_variables_to_plot = []
 
-    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xd', variables_to_plot, integral_variables_to_plot, fig_num)
+    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'x', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
 
@@ -85,26 +85,26 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
     integral_variables = plot_dict['integral_variables']
 
     # check if lifted variables exist
-    if 'xl' not in variables_dict.keys():
+    if 'z' not in variables_dict.keys():
         awelogger.logger.warning('Plot for lifted variables requested, but no lifted variables found. Ignoring request.')
         return None
 
     if individual_state == None:
         variables_to_plot = []
-        for var_name in variables_dict['xl'].keys():
+        for var_name in variables_dict['z'].keys():
             if not is_wake_variable(var_name):
                 variables_to_plot += [var_name]
         integral_variables_to_plot = integral_variables
 
     else:
-        if individual_state in list(variables_dict['xl'].keys()):
+        if individual_state in list(variables_dict['z'].keys()):
             variables_to_plot = [individual_state]
             integral_variables_to_plot = []
         elif individual_state in integral_variables:
             variables_to_plot = []
             integral_variables_to_plot = [individual_state]
 
-    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xl', variables_to_plot, integral_variables_to_plot, fig_num)
+    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'z', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
 
@@ -117,22 +117,22 @@ def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_
     tgrid_ip = plot_dict['time_grids']['ip']
 
     # check if lifted variables exist
-    if 'xl' not in variables_dict.keys():
+    if 'z' not in variables_dict.keys():
         awelogger.logger.warning('Plot for lifted varibles requested, but no lifted variables found. Ignoring request.')
         return None
 
     if individual_state == None:
         variables_to_plot = []
-        for var_name in variables_dict['xl'].keys():
+        for var_name in variables_dict['z'].keys():
             if is_wake_variable(var_name):
                 variables_to_plot += [var_name]
     else:
-        if individual_state in list(variables_dict['xl'].keys()):
+        if individual_state in list(variables_dict['z'].keys()):
             variables_to_plot = [individual_state]
 
     integral_variables_to_plot = []
 
-    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'xl', variables_to_plot, integral_variables_to_plot, fig_num)
+    plot_variables_from_list(plot_dict, cosmetics, fig_name, 'z', variables_to_plot, integral_variables_to_plot, fig_num)
 
     return None
 
@@ -227,12 +227,12 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
         lam_name = 'lambda' + str(n) + str(parent)
-        lambdavec = plot_dict['xa'][lam_name]
+        lambdavec = plot_dict['z'][lam_name]
         p = plt.plot(tgrid_ip, lambdavec[0])
         if cosmetics['plot_bounds']:
-            tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
+            tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['xa'][lam_name][0],
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['z'][lam_name][0],
                      linestyle='--', color=p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
 
@@ -241,28 +241,28 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
             kites = plot_dict['architecture'].kites_map[l]
             if len(kites) == 2:
                 lam_name = 'lambda{}{}'.format(kites[0], kites[1])
-                lambdavec = plot_dict['xa'][lam_name]
+                lambdavec = plot_dict['z'][lam_name]
                 p = plt.plot(tgrid_ip, lambdavec[0])
                 if cosmetics['plot_bounds']:
-                    tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
+                    tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
                 if cosmetics['plot_ref']:
                     plt.plot(
                         plot_dict['time_grids']['ref']['ip'],
-                        plot_dict['ref']['xa'][lam_name][0],
+                        plot_dict['ref']['z'][lam_name][0],
                         linestyle='--', color=p[-1].get_color()
                     )
                 legend_names.append(lam_name)
             else:
                 for k in range(len(kites)):
                     lam_name = 'lambda{}{}'.format(kites[k], kites[(k + 1) % len(kites)])
-                    lambdavec = plot_dict['xa'][lam_name]
+                    lambdavec = plot_dict['z'][lam_name]
                     p = plt.plot(tgrid_ip, lambdavec[0])
                     if cosmetics['plot_bounds']:
-                        tools.plot_bounds(plot_dict, 'xa', lam_name, 0, tgrid_ip, p)
+                        tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
                     if cosmetics['plot_ref']:
                         plt.plot(
                             plot_dict['time_grids']['ref']['ip'],
-                            plot_dict['ref']['xa'][lam_name][0],
+                            plot_dict['ref']['z'][lam_name][0],
                             linestyle='--', color=p[-1].get_color()
                         )
                     legend_names.append(lam_name)

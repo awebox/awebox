@@ -337,9 +337,9 @@ def update_final_bounds(bound_name, V_bounds, nlp, update):
         else:
             V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = nlp.V_bounds[bound_type]['coll_var', :, :, var_type, bound_name]
 
-    if var_type in {'xl', 'xa', 'xd'}:
+    if var_type in {'z', 'x'}:
 
-        if var_type in list(nlp.V.keys()): # not the case for xa and xl in radau collocation
+        if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
             V_bounds[bound_type][var_type, :, bound_name] = nlp.V_bounds[bound_type][var_type, :, bound_name]
 
         if 'coll_var' in list(nlp.V.keys()): # not the case for multiple shooting
@@ -367,8 +367,8 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
             else:
                 V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
 
-        if var_type in {'xl', 'xa', 'xd'}:
-            if var_type in list(nlp.V.keys()): # not the case for xa and xl in radau collocation
+        if var_type in {'z', 'x'}:
+            if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
                 V_bounds[bound_type][var_type, :, bound_name] = scaled_value
 
             if 'coll_var' in list(nlp.V.keys()): # not the case for multiple shooting
@@ -424,11 +424,11 @@ def define_bound_update_schedule(model, nlp, formulation):
         bound_schedule['dddl_t'][1] = ['lb', 'u', 'final']
         bound_schedule['dddl_t'][2] = ['ub', 'u', 'final']
     if 'dl_t' in list(bound_schedule.keys()):
-        bound_schedule['dl_t'][1] = ['lb','xd','final']
-        bound_schedule['dl_t'][2] = ['ub','xd','final']
+        bound_schedule['dl_t'][1] = ['lb','x','final']
+        bound_schedule['dl_t'][2] = ['ub','x','final']
     if 'l_t' in list(bound_schedule.keys()):
-        bound_schedule['l_t'][1] = ['lb','xd','final']
-        bound_schedule['l_t'][2] = ['ub','xd','final']
+        bound_schedule['l_t'][1] = ['lb','x','final']
+        bound_schedule['l_t'][2] = ['ub','x','final']
 
     return bound_schedule
 

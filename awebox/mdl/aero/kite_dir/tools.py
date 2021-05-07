@@ -42,7 +42,7 @@ from awebox.logger.logger import Logger as awelogger
 
 def get_f_aero_var(variables, kite, parent):
 
-    var_type = 'xl'
+    var_type = 'z'
     var_name = 'f_aero' + str(kite) + str(parent)
 
     if var_name in variables[var_type].keys():
@@ -54,7 +54,7 @@ def get_f_aero_var(variables, kite, parent):
 
 def get_m_aero_var(variables, kite, parent):
 
-    var_type = 'xl'
+    var_type = 'z'
     var_name = 'm_aero' + str(kite) + str(parent)
 
     if var_name in variables[var_type].keys():
@@ -71,11 +71,11 @@ def moment_variable_frame():
     return 'body'
 
 def get_f_scale(parameters, options):
-    scale = options['scaling']['xl']['f_aero']
+    scale = options['scaling']['z']['f_aero']
     return scale
 
 def get_m_scale(parameters, options):
-    m_scale = options['scaling']['xl']['m_aero']
+    m_scale = options['scaling']['z']['m_aero']
     return m_scale
 
 
@@ -180,8 +180,8 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, arch
 
     parent = architecture.parent_map[kite]
 
-    q = variables['xd']['q' + str(kite) + str(parent)]
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
+    dq = variables['x']['dq' + str(kite) + str(parent)]
 
     uw_infty = wind.get_velocity(q[2])
 

@@ -75,8 +75,8 @@ class awebox_callback(cas.Callback):
         for phi in list(self.phi_dict.keys()):
           self.phi_dict[phi].append(V['phi', phi])
         
-        for x in list(self.model.variables_dict['xd'].keys()):
-          for dim in range(self.model.variables_dict['xd'][x].shape[0]):
+        for x in list(self.model.variables_dict['x'].keys()):
+          for dim in range(self.model.variables_dict['x'][x].shape[0]):
             self.x_dict[x+'_'+str(dim)].append(self.extract_x_vals(V, x, dim))
         
         for u in list(self.model.variables_dict['u'].keys()):
@@ -99,10 +99,10 @@ class awebox_callback(cas.Callback):
       x_vals = []
       for k in range(self.nlp.n_k+1):
           # add interval values
-          x_vals.append(V['xd',k,name,dim])
+          x_vals.append(V['x',k,name,dim])
           if k < self.nlp.n_k:
             # add node values
-            x_vals += V['coll_var',k, :, 'xd', name,dim]
+            x_vals += V['coll_var',k, :, 'x', name,dim]
       return x_vals
     
     def extract_u_vals(self, V, name, dim):
@@ -121,8 +121,8 @@ class awebox_callback(cas.Callback):
         phi_dict[phi] = []
       
       x_dict = collections.OrderedDict()
-      for x in self.model.variables_dict['xd'].keys():
-        for dim in range(self.model.variables_dict['xd'][x].shape[0]):
+      for x in self.model.variables_dict['x'].keys():
+        for dim in range(self.model.variables_dict['x'][x].shape[0]):
           x_dict[x+'_'+str(dim)] = []
 
       u_dict = collections.OrderedDict()

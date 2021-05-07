@@ -58,7 +58,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
         use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
-        if (var_type == 'xd'):
+        if (var_type == 'x'):
 
             if nlp_options['collocation']['u_param'] == 'poly' and var_is_coll_var:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
@@ -71,7 +71,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
             [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
                                                             var_type, kdx, ddx, name)
 
-        elif (var_type in {'xl', 'xa', 'u'}):
+        elif (var_type in {'z', 'u'}):
             if (var_type in V.keys()) and (not var_is_coll_var):
 
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
@@ -111,7 +111,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
         if nlp_options['phase_fix'] == 'single_reelout':
 
             # we cannot constraint ALL THREE OF kdx == 0 and kdx == n_k and periodicity.
-            condition = (var_type == 'xd') and (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh'
+            condition = (var_type == 'x') and (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh'
             if periodic:
                 condition = (condition and (kdx > 0))
 
@@ -148,8 +148,8 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
     pumping_range = nlp_options['pumping_range']
     if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
 
-        pumping_range_0_scaled = struct_op.var_si_to_scaled('xd', 'l_t', nlp_options['pumping_range'][0], model.scaling)
-        pumping_range_1_scaled = struct_op.var_si_to_scaled('xd', 'l_t', nlp_options['pumping_range'][1], model.scaling)
+        pumping_range_0_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][0], model.scaling)
+        pumping_range_1_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][1], model.scaling)
 
         if kdx == 0 and (not coll_flag) and nlp_options['pumping_range'][0]:
             vars_lb[var_type, 0, name] = pumping_range_0_scaled

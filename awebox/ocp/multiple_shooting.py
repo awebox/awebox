@@ -164,7 +164,7 @@ class Multiple_shooting(object):
         return None
 
     def __set_implicit_variables(self, options, variables, parameters, z_at_time):
-        """Set non-lifted implicit variables xa, xl and xddot to value computed
+        """Set non-lifted implicit variables z, z and xdot to value computed
         using rootfinder
 
         @param options nlp options
@@ -174,18 +174,18 @@ class Multiple_shooting(object):
         @return variables variables struct containing implicit variable values
         """
 
-        if (not options['lift_xddot'] or not options['lift_xa']):
+        if (not options['lift_xdot'] or not options['lift_z']):
 
             # fill in result if not lifted
             var_list = []
             for var_type in list(variables.keys()):
-                if var_type == 'xddot':
-                    if not options['lift_xddot']:
-                        var_list.append(z_at_time['xddot'])
+                if var_type == 'xdot':
+                    if not options['lift_xdot']:
+                        var_list.append(z_at_time['xdot'])
                     else:
-                        var_list.append(variables['xddot'])
-                elif var_type in set(['xa','xl']):
-                    if not options['lift_xa']:
+                        var_list.append(variables['xdot'])
+                elif var_type == 'z':
+                    if not options['lift_z']:
                         var_list.append(z_at_time[var_type])
                     else:
                         var_list.append(variables[var_type])
@@ -223,7 +223,7 @@ class Multiple_shooting(object):
         """
 
         # add continuity equation to nlp
-        g_continuity = V['xd', kdx + 1] - ms_xf[:,kdx]
+        g_continuity = V['x', kdx + 1] - ms_xf[:,kdx]
 
         cont_cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity_{}'.format(kdx),
@@ -240,7 +240,7 @@ class Multiple_shooting(object):
         xdot = []
         for i in range(self.__ms_z[1,:].shape[1]):
             z_at_time = self.__dae.z(self.__ms_z[:,i])
-            xdot = cas.vertcat(xdot, z_at_time['xddot'])
+            xdot = cas.vertcat(xdot, z_at_time['xdot'])
 
         Xdot = Xdot(xdot)
 
