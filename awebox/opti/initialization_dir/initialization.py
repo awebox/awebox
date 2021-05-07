@@ -168,7 +168,7 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
 
         for var_type in ['xd', 'xl']:
             for name in struct_op.subkeys(model.variables, var_type):
-                if (name in ret.keys()) and (var_type == 'xd' or ndx < n_k):
+                if (name in ret.keys()) and (var_type == 'xd' or ndx < n_k) and var_type in V_init.keys():
                     V_init[var_type, ndx, name] = ret[name]
 
         if nlp.discretization == 'direct_collocation' and (ndx < n_k):

@@ -80,7 +80,7 @@ class Formulation(object):
 
     def determine_operation_conditions(self, options):
 
-        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
+        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions] = operation.get_operation_conditions(options)
 
         self.__induction_model = options['induction']['induction_model']
         self.__traj_type = options['trajectory']['type']
@@ -91,6 +91,7 @@ class Formulation(object):
         self.__enforce_initial_conditions = initial_conditions
         self.__enforce_param_initial_conditions = param_initial_conditions
         self.__enforce_param_terminal_conditions = param_terminal_conditions
+        self.__enforce_terminal_conditions = terminal_conditions
 
         return None
 
@@ -151,7 +152,7 @@ class Formulation(object):
 
     def generate_parameterization_settings(self, options):
 
-        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
+        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints,_] = operation.get_operation_conditions(options)
 
         xi = var_struct.get_xi_struct()
         xi_bounds = {}
