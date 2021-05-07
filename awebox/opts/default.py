@@ -218,12 +218,6 @@ def set_default_options(default_user_options, help_options):
 
         #### scaling
         ('model',  'scaling', 'xd',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'l_i',      100.,     ('intermediate tether natural length [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'l_s',      50.,      ('secondary tether natural length [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'l_c',      100.,     ('cross-tether natural length [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'diam_t',   5e-3,     ('main tether natural diameter [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
-        ('model',  'scaling', 'theta',  'diam_c',   5e-3,     ('cross-tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
@@ -337,6 +331,13 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
+
+        ('solver',  'initialization', 'theta',  'l_i',      100.,     ('intermediate tether initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'l_c',      100.,     ('cross-tether initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'diam_t',   5e-3,     ('main tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'diam_s',   5e-3,     ('secondary tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 1.,       ('factor used in generating the power cost [-]', None), 'x'),
