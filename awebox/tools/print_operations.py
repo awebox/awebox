@@ -161,7 +161,7 @@ def print_variable_info(object_name, variable_struct):
 
     message = preface + message[1:]
 
-    awelogger.logger.info(message)
+    awelogger.logger.debug(message)
 
     return None
 
