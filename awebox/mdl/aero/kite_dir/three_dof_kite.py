@@ -88,8 +88,8 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     parent = architecture.parent_map[kite]
 
     # get relevant variables for kite n
-    q = variables['xd']['q' + str(kite) + str(parent)]
-    coeff = variables['xd']['coeff' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
 
     # wind parameters
     rho_infty = atmos.get_density(q[2])
@@ -134,12 +134,12 @@ def get_planar_dmc(vec_u_eff, variables, kite, architecture):
     parent = architecture.parent_map[kite]
 
     # get relevant variables for kite n
-    q = variables['xd']['q' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
 
     # in kite body:
     if parent > 0:
         grandparent = architecture.parent_map[parent]
-        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+        q_parent = variables['x']['q' + str(parent) + str(grandparent)]
     else:
         q_parent = np.array([0., 0., 0.])
 
@@ -164,7 +164,7 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
 
     # roll angle
-    coeff = variables['xd']['coeff' + str(kite) + str(parent)]
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
     psi = coeff[1]
 
     planar_dcm = get_planar_dmc(vec_u_eff, variables, kite, architecture)
@@ -186,7 +186,7 @@ def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
     aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
 
     parent_map = model.architecture.parent_map
-    xd = model.variables_dict['xd'](variables['xd'])
+    x = model.variables_dict['x'](variables['x'])
 
     if ext_int == 'ext':
         span_sign = 1.
@@ -197,7 +197,7 @@ def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
 
     parent = parent_map[kite]
 
-    q = xd['q' + str(kite) + str(parent)]
+    q = x['q' + str(kite) + str(parent)]
 
     kite_dcm = get_kite_dcm(options, variables, model.wind, kite, model.architecture)
     ehat_span = kite_dcm[:, 1]

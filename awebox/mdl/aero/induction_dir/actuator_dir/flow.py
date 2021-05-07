@@ -52,16 +52,16 @@ def get_a_var_type(label):
         unsteady: differential state"""
 
     if label[0] == 'q':
-        var_type = 'xl'
+        var_type = 'z'
     elif label[0] == 'u':
-        var_type = 'xd'
+        var_type = 'x'
     else:
         raise Exception('Invalid steadyness option for actuator disk model chosen')
 
     return var_type
 
 def get_local_a_var(variables, kite, parent):
-    local_a = variables['xl']['local_a' + str(kite) + str(parent)]
+    local_a = variables['z']['local_a' + str(kite) + str(parent)]
     return local_a
 
 def get_a_var(variables, parent, label):
@@ -91,15 +91,15 @@ def get_a_all_var(variables, parent, label):
     return a_all
 
 def get_da_var(variables, parent, label):
-    da_var = variables['xddot']['da_' + label + str(parent)]
+    da_var = variables['xdot']['da_' + label + str(parent)]
     return da_var
 
 def get_dacos_var(variables, parent, label):
-    dacos_var = variables['xddot']['dacos_' + label + str(parent)]
+    dacos_var = variables['xdot']['dacos_' + label + str(parent)]
     return dacos_var
 
 def get_dasin_var(variables, parent, label):
-    dasin_var = variables['xddot']['dasin_' + label + str(parent)]
+    dasin_var = variables['xdot']['dasin_' + label + str(parent)]
     return dasin_var
 
 def get_da_all_var(variables, parent, label):
@@ -113,7 +113,7 @@ def get_da_all_var(variables, parent, label):
     return da_all
 
 def get_wind_dcm_var(variables, parent):
-    rot_cols = variables['xl']['wind_dcm' + str(parent)]
+    rot_cols = variables['z']['wind_dcm' + str(parent)]
     wind_dcm = cas.reshape(rot_cols, (3, 3))
     return wind_dcm
 
@@ -133,23 +133,23 @@ def get_wzero_hat_var(variables, parent):
     return w_hat
 
 def get_gamma_var(variables, parent):
-    gamma_var = variables['xl']['gamma' + str(parent)]
+    gamma_var = variables['z']['gamma' + str(parent)]
     return gamma_var
 
 def get_cosgamma_var(variables, parent):
-    cosgamma_var = variables['xl']['cosgamma' + str(parent)]
+    cosgamma_var = variables['z']['cosgamma' + str(parent)]
     return cosgamma_var
 
 def get_singamma_var(variables, parent):
-    singamma_var = variables['xl']['singamma' + str(parent)]
+    singamma_var = variables['z']['singamma' + str(parent)]
     return singamma_var
 
 def get_uzero_vec_length_var(variables, parent):
-    len_var = variables['xl']['u_vec_length' + str(parent)]
+    len_var = variables['z']['u_vec_length' + str(parent)]
     return len_var
 
 def get_g_vec_length_var(variables, parent):
-    len_var = variables['xl']['g_vec_length' + str(parent)]
+    len_var = variables['z']['g_vec_length' + str(parent)]
     return len_var
 
 

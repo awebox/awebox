@@ -36,9 +36,9 @@ import awebox.tools.print_operations as print_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
 
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
+    q_kite = variables['x']['q' + str(kite) + str(parent)]
     u_infty = wind.get_velocity(q_kite[2])
-    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
+    u_kite = variables['x']['dq' + str(kite) + str(parent)]
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
@@ -53,7 +53,7 @@ def get_uzero_vec(model_options, wind, parent, variables, architecture):
     return u_apparent
 
 def get_f_val(model_options, wind, parent, variables, architecture):
-    dl_t = variables['xd']['dl_t']
+    dl_t = variables['x']['dl_t']
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     f_val = dl_t / vect_op.smooth_norm(u_infty)
 

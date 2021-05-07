@@ -64,7 +64,7 @@ class Dae(object):
 
         # model equations
         alg = dynamics(variables, parameters)
-        ode = variables['theta','t_f']*variables['xddot']
+        ode = variables['theta','t_f']*variables['xdot']
         quad = variables['theta','t_f']*integral_outputs_fun(variables, parameters)
 
         # create dae dictionary
@@ -131,18 +131,10 @@ class Dae(object):
         """
 
         # differential states
-        x = cas.struct_SX([cas.entry('xd', expr = variables['xd'])])
-
-        # algebraic variables
-        if 'xl' in list(variables.keys()):
-            z = cas.struct_SX([cas.entry('xddot', expr = variables['xddot']), # state derivatives
-                            cas.entry('xa', expr = variables['xa']), # algebraic variables
-                            cas.entry('xl', expr = variables['xl']), # lifted variables
-                            ])
-        else:
-            z = cas.struct_SX([cas.entry('xddot', expr = variables['xddot']), # state derivatives
-                        cas.entry('xa', expr = variables['xa']), # algebraic variables
-                    ])
+        x = cas.struct_SX([cas.entry('x', expr = variables['x'])])
+        z = cas.struct_SX([cas.entry('xdot', expr = variables['xdot']), # state derivatives
+                    cas.entry('z', expr = variables['z']), # algebraic variables
+                ])
 
         # parameters
         if param == 'sym':
@@ -156,15 +148,10 @@ class Dae(object):
 
     def fill_in_dae_variables(self, variables, parameters):
 
-        x = self.__x(variables['xd'])
+        x = self.__x(variables['x'])
 
-        if 'xl' in list(variables.keys()):
-            z = self.__z(cas.vertcat(variables['xddot'],
-                        variables['xa'],
-                        variables['xl']))
-        else:
-            z = self.__z(cas.vertcat(variables['xddot'],
-                        variables['xa']))
+        z = self.__z(cas.vertcat(variables['xdot'],
+                    variables['z']))
 
         p = self.__p(cas.vertcat(
                 variables['u'], variables['theta'], parameters.cat

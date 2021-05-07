@@ -66,7 +66,7 @@ def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, pa
 
     parent_obs = architecture.parent_map[kite_obs]
 
-    point_obs = variables['xd']['q' + str(kite_obs) + str(parent_obs)]
+    point_obs = variables['x']['q' + str(kite_obs) + str(parent_obs)]
 
     seg_list = list_filament_observer_and_normal_info(point_obs, filament_list, options)
 

@@ -253,8 +253,8 @@ def get_local_alg_repr_strength_constraint(options, V, Outputs, model, kite, rin
     local_name = 'wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx) + ',' + str(ddx)
 
     var_name = 'wg_' + str(kite) + '_' + str(ring)
-    wg_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-    wg_local = struct_op.var_scaled_to_si('xl', var_name, wg_local_scaled, model.scaling)
+    wg_local_scaled = V['coll_var', ndx, ddx, 'z', var_name]
+    wg_local = struct_op.var_scaled_to_si('z', var_name, wg_local_scaled, model.scaling)
 
     subtracted_ndx = ndx - ring
     shedding_ndx = np.mod(subtracted_ndx, n_k)
@@ -266,7 +266,7 @@ def get_local_alg_repr_strength_constraint(options, V, Outputs, model, kite, rin
     gamma_val = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'circulation' + str(kite)]
 
     local_resi_si = (wg_local - gamma_val)
-    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+    local_resi = struct_op.var_si_to_scaled('z', var_name, local_resi_si, model.scaling)
 
     local_cstr = cstr_op.Constraint(expr=local_resi,
                                     name=local_name,
@@ -280,8 +280,8 @@ def get_continuity_strength_constraint(V, kite, ring, ndx):
     local_name = 'continuity_wake_strength_' + str(kite) + '_' + str(ring) + '_' + str(ndx)
 
     var_name = 'wg_' + str(kite) + '_' + str(ring)
-    wx_coll = V['coll_var', ndx-1, -1, 'xl', var_name]
-    wx_upper = V['xl', ndx, var_name]
+    wx_coll = V['coll_var', ndx-1, -1, 'z', var_name]
+    wx_upper = V['z', ndx, var_name]
 
     local_resi = wx_coll - wx_upper
 
@@ -296,8 +296,8 @@ def get_alg_periodic_strength_constraint(V, kite, ring):
     local_name = 'periodic_wake_fixing_' + str(kite) + '_' + str(ring)
 
     var_name = 'wg_' + str(kite) + '_' + str(ring)
-    wx_coll = V['coll_var', -1, -1, 'xl', var_name]
-    wx_upper = V['xl', 0, var_name]
+    wx_coll = V['coll_var', -1, -1, 'z', var_name]
+    wx_upper = V['z', 0, var_name]
 
     local_resi = wx_coll - wx_upper
 

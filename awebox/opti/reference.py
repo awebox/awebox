@@ -54,14 +54,14 @@ def get_reference(nlp, model, V_init, options):
     for k in range(nk):
 
         # first node
-        V_ref['xd',k,'q10'] += get_stagger_distance(options, model, V_init['xd',k,'q10'], np.zeros(3), 1, 0)
+        V_ref['x',k,'q10'] += get_stagger_distance(options, model, V_init['x',k,'q10'], np.zeros(3), 1, 0)
         # other nodes
         for n in range(2, model.architecture.number_of_nodes):
             parent = model.architecture.parent_map[n]
             grandparent = model.architecture.parent_map[parent]
-            V_ref['xd',k,'q' + str(n) + str(parent)] += get_stagger_distance(options, model,
-                                                                        V_init['xd', k, 'q' + str(n) + str(parent)],
-                                                                        V_init['xd', k, 'q' + str(parent) + str(grandparent)],
+            V_ref['x',k,'q' + str(n) + str(parent)] += get_stagger_distance(options, model,
+                                                                        V_init['x', k, 'q' + str(n) + str(parent)],
+                                                                        V_init['x', k, 'q' + str(parent) + str(grandparent)],
                                                                         n, parent)
 
 
@@ -70,14 +70,14 @@ def get_reference(nlp, model, V_init, options):
             for j in range(d):
 
                 # first node
-                V_ref['coll_var',k,j, 'xd','q10'] += get_stagger_distance(options, model, V_init['coll_var',k,j, 'xd','q10'], np.zeros(3), 1, 0)
+                V_ref['coll_var',k,j, 'x','q10'] += get_stagger_distance(options, model, V_init['coll_var',k,j, 'x','q10'], np.zeros(3), 1, 0)
                 # other nodes
                 for n in range(2, model.architecture.number_of_nodes):
                     parent = model.architecture.parent_map[n]
                     grandparent = model.architecture.parent_map[parent]
-                    V_ref['coll_var',k,j, 'xd','q' + str(n) + str(parent)] += get_stagger_distance(options, model,
-                                                                                V_init['coll_var',k,j, 'xd','q' + str(n) + str(parent)],
-                                                                                V_init['coll_var',k,j, 'xd','q' + str(parent) + str(grandparent)],
+                    V_ref['coll_var',k,j, 'x','q' + str(n) + str(parent)] += get_stagger_distance(options, model,
+                                                                                V_init['coll_var',k,j, 'x','q' + str(n) + str(parent)],
+                                                                                V_init['coll_var',k,j, 'x','q' + str(parent) + str(grandparent)],
                                                                                 n, parent)
 
     return V_ref
@@ -86,7 +86,7 @@ def get_stagger_distance(options, model, q_init, q_parent, n, parent):
 
     ehat_l_init = vect_op.normalize(q_init - q_parent)
 
-    scale_stagger = model.scaling['xd']['q'+str(n)+str(parent)]
+    scale_stagger = model.scaling['x']['q'+str(n)+str(parent)]
     stagger = options['tracking']['stagger_distance'] / scale_stagger
 
     if parent == 0:

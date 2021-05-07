@@ -39,8 +39,8 @@ import awebox.opti.initialization_dir.tools as tools_init
 def guess_final_time(initialization_options, formulation, ntp_dict):
     n_min = ntp_dict['n_min']
     d_min = ntp_dict['d_min']
-    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'l_t'] * \
-          initialization_options['xd']['l_t']
+    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'x', 'l_t'] * \
+          initialization_options['x']['l_t']
     tf_guess = l_0 / initialization_options['landing_velocity']
     return tf_guess
 
@@ -52,7 +52,7 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     l_i = model.variable_bounds['theta']['l_i']['lb'] * init_options['theta']['l_i']
 
     ret = {}
-    for name in struct_op.subkeys(model.variables, 'xd'):
+    for name in struct_op.subkeys(model.variables, 'x'):
         ret[name] = 0.0
 
     kite_nodes = model.architecture.kite_nodes
@@ -69,7 +69,7 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
-        q_0[node_str] = V_0['coll_var', n_min, d_min, 'xd', node_str]
+        q_0[node_str] = V_0['coll_var', n_min, d_min, 'x', node_str]
 
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
@@ -78,9 +78,9 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
         x_t[tether_str] = vect_op.normalize(
             q_0['q' + str(node) + str(parent)] - q_0['q' + str(parent) + str(grandparent)])
 
-    dl_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'dl_t'] * init_options['xd']['l_t']
-    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'xd', 'l_t'] * init_options['xd']['l_t']
-    l_f = model.variable_bounds['xd']['q10']['lb'][2] / x_t['t10'][2]
+    dl_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'x', 'dl_t'] * init_options['x']['l_t']
+    l_0 = formulation.xi_dict['V_pickle_initial']['coll_var', n_min, d_min, 'x', 'l_t'] * init_options['x']['l_t']
+    l_f = model.variable_bounds['x']['q10']['lb'][2] / x_t['t10'][2]
     dl_f = 0
 
     c1 = (l_f - l_0 - 0.5 * tf_guess * dl_0 - 0.5 * tf_guess * dl_f) / (1. / 6. * tf_guess ** 3 - 0.25 * tf_guess ** 3)
@@ -125,8 +125,8 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
 
 def get_compromised_landing_normalized_time_param_dict(ntp_dict, formulation):
     xi_0_init = formulation.xi_dict['xi_bounds']['xi_0'][0]
-    nk_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', :, :, 'xd'])
-    d_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', 0, :, 'xd'])
+    nk_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', :, :, 'x'])
+    d_xi = len(formulation.xi_dict['V_pickle_initial']['coll_var', 0, :, 'x'])
     n_min = int(xi_0_init * nk_xi)
     d_min = int((xi_0_init * nk_xi - int(xi_0_init * nk_xi)) * (d_xi))
 
@@ -146,9 +146,9 @@ def set_compromised_landing_normalized_time_params(formulation, V_init):
 
 def get_nominal_landing_normalized_time_param_dict(ntp_dict, formulation):
     V_0 = formulation.xi_dict['V_pickle_initial']
-    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
-    n0 = len(V_0['coll_var', :, :, 'xd'])
-    d0 = len(V_0['coll_var', 0, :, 'xd']) - 1
+    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'x', 'dl_t']))
+    n0 = len(V_0['coll_var', :, :, 'x'])
+    d0 = len(V_0['coll_var', 0, :, 'x']) - 1
     n_min = min_dl_t_arg / (d0 + 1)
     d_min = min_dl_t_arg - min_dl_t_arg / (d0 + 1) * (d0 + 1)
 
@@ -160,8 +160,8 @@ def get_nominal_landing_normalized_time_param_dict(ntp_dict, formulation):
 
 def set_nominal_landing_normalized_time_params(formulation, V_init):
     V_0 = formulation.xi_dict['V_pickle_initial']
-    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']))
-    xi_0_init = min_dl_t_arg / float(np.array(V_0['coll_var', :, :, 'xd', 'dl_t']).size)
+    min_dl_t_arg = np.argmin(np.array(V_0['coll_var', :, :, 'x', 'dl_t']))
+    xi_0_init = min_dl_t_arg / float(np.array(V_0['coll_var', :, :, 'x', 'dl_t']).size)
     xi_f_init = 0.0
     V_init['xi', 'xi_0'] = xi_0_init
     V_init['xi', 'xi_f'] = xi_f_init

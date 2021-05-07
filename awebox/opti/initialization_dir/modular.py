@@ -89,7 +89,7 @@ def __check_configuration_feasibility(configuration, options, configuration_type
         # get parameters
         angular_looping_velocity = configuration['angular_looping_velocity']
         if options['model']['architecture'] == (1,1): #todo: still correct?
-            tether_length = options['xd']['l_t']
+            tether_length = options['x']['l_t']
         else:
             tether_length = options['theta']['l_s']
         cone_angle = configuration['cone_angle']
@@ -167,14 +167,14 @@ def __set_primitives(options, model):
         # set rest of parameters
         normed_times = (0, 1)
         if options['model']['architecture'] == (1,1):
-            tether_length = options['xd']['l_t']
+            tether_length = options['x']['l_t']
         else:
             tether_length = options['theta']['l_s']
         radius = np.sin(cone_angle) * tether_length
         angular_looping_velocity = groundspeed/radius
 
         initial_configuration = {}
-        initial_configuration['l_t'] = options['xd']['l_t']
+        initial_configuration['l_t'] = options['x']['l_t']
         initial_configuration['inclination'] = inclination
         initial_configuration['cone_angle'] = cone_angle
         initial_configuration['angular_looping_velocity'] = angular_looping_velocity
@@ -352,11 +352,11 @@ def __generate_guess_from_schedule(initial_guess_schedule, primitives, nlp, mode
     # read out estimate for final time
     t_f = initial_guess_schedule['t_f']
 
-    # add xa to initial guess
-    if 'xa' in list(V_init.keys()):
-        V_init['xa', :] = 1.
+    # add z to initial guess
+    if 'z' in list(V_init.keys()):
+        V_init['z', :] = 1.
     if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var',:,:,'xa'] = 1.
+        V_init['coll_var',:,:,'z'] = 1.
 
     # add specified initial values for system parameters to initial guess
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
@@ -871,17 +871,17 @@ def __set_state_in_nconf(nconf, plot_dict, parameterization_dict, state, node_st
 
     # read in inputs
     param_constraint_index = parameterization_dict['param_constraint_index']
-    xd = plot_dict['xd']
-    xddot = plot_dict['outputs']['xddot_from_var']
+    x = plot_dict['x']
+    xdot = plot_dict['outputs']['xdot_from_var']
 
     #get state dimensions
     state_dim = nconf['var', state + node_str].shape[0]
 
     # read in state
     for dim in range(state_dim):
-        nconf['var', state + node_str, dim] = xd[state + node_str][dim][param_constraint_index]
-        nconf['dvar','d' + state + node_str, dim] = xd['d' + state + node_str][dim][param_constraint_index]
-        nconf['ddvar','dd' + state + node_str, dim] = xddot['dd' + state + node_str][dim][param_constraint_index]
+        nconf['var', state + node_str, dim] = x[state + node_str][dim][param_constraint_index]
+        nconf['dvar','d' + state + node_str, dim] = x['d' + state + node_str][dim][param_constraint_index]
+        nconf['ddvar','dd' + state + node_str, dim] = xdot['dd' + state + node_str][dim][param_constraint_index]
 
     return nconf
 
@@ -937,7 +937,7 @@ def __get_best_transition_point(plot_dict, model):
     number_of_nodes = model.architecture.number_of_nodes
 
     # compute main tether direction
-    main_node_position = plot_dict['xd']['q10']
+    main_node_position = plot_dict['x']['q10']
     main_tether_direction = __list_DM_to_array(main_node_position)
     for i in range(main_tether_direction.shape[0]):
         main_tether_direction[i] = - vect_op.normalize(main_tether_direction[i])
@@ -948,7 +948,7 @@ def __get_best_transition_point(plot_dict, model):
         parent = parent_map[node]
         node_str = str(node) + str(parent)
         projected_node_velocity['dq' + node_str] = []
-        node_velocity = plot_dict['xd']['dq' + node_str]
+        node_velocity = plot_dict['x']['dq' + node_str]
         node_velocity = __list_DM_to_array(node_velocity)
         for i in range(node_velocity.shape[0]):
             projected_node_velocity['dq' + node_str] += [np.inner(node_velocity[i], main_tether_direction[i])]
@@ -1000,14 +1000,14 @@ def __generate_time_grid_parameters(t_f, primitive, nlp):
     :return: dictionary of time grid parameters
     """
 
-    tgrid_xd = nlp.time_grids['x'](t_f)
+    tgrid_x = nlp.time_grids['x'](t_f)
     normed_duration = primitive['normed_times'][1] - primitive['normed_times'][0]
     tgrid_u = nlp.time_grids['u'](t_f)
     tgrid_s_curve = [(t_f * normed_duration) / 7. * segment for segment in range(1, 8)]
 
     time_grid_parameters = {}
     time_grid_parameters['n_k'] = nlp.n_k
-    time_grid_parameters['tgrid_xd'] = tgrid_xd
+    time_grid_parameters['tgrid_x'] = tgrid_x
     time_grid_parameters['tgrid_u'] = tgrid_u
     time_grid_parameters['tgrid_s_curve'] = tgrid_s_curve
 
@@ -1045,7 +1045,7 @@ def __get_indeces(primitives, nlp):
 
 def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpolation_parameters, interpolation_scheme, options):
     """
-    Generate values for xd, u, xa, theta and phi and place them into initial guess
+    Generate values for x, u, z, theta and phi and place them into initial guess
     :param V_init: partly assembled initial guess
     :param primitive: arguments describing motion primitive
     :param nlp: NLP formulation
@@ -1057,7 +1057,7 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
 
     n_max = time_grid_parameters['n_max']
     n_current = time_grid_parameters['n_current']
-    tgrid_xd = time_grid_parameters['tgrid_xd']
+    tgrid_x = time_grid_parameters['tgrid_x']
 
     if nlp.discretization == 'direct_collocation':
         d_max = time_grid_parameters['d_max']
@@ -1070,10 +1070,10 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
     if options['type'] in ['launch']:
         V_init['xi','xi_0'] = interpolation_parameters['configurations']['conf_f']['parameterization_dict']['xi_terminal']
     for k in range(n_max + 1):
-        t_xd = tgrid_xd[k]
-        continuous_guess, interpolation_variables = __get_continuous_guess(t_xd, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
-        for name in struct_op.subkeys(model.variables, 'xd'):
-            V_init['xd', k, name] = continuous_guess[name]
+        t_x = tgrid_x[k]
+        continuous_guess, interpolation_variables = __get_continuous_guess(t_x, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
+        for name in struct_op.subkeys(model.variables, 'x'):
+            V_init['x', k, name] = continuous_guess[name]
         if k < (n_max):
             if model.options['tether']['control_var'] == 'ddl_t':
                 if 'u' in V_init.keys():
@@ -1086,8 +1086,8 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
             for j in range(d_vals):
                 t_coll = tgrid_coll[k, j]
                 continuous_guess, interpolation_variables = __get_continuous_guess(t_coll, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
-                for name in struct_op.subkeys(model.variables, 'xd'):
-                    V_init['coll_var', k, j, 'xd', name] = continuous_guess[name]
+                for name in struct_op.subkeys(model.variables, 'x'):
+                    V_init['coll_var', k, j, 'x', name] = continuous_guess[name]
                 if model.options['tether']['control_var'] == 'ddl_t':
                     if 'u' in V_init.keys():
                         V_init['coll_var', k, j, 'u', 'ddl_t'] = continuous_guess['ddl_t']

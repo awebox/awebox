@@ -49,17 +49,17 @@ def get_splines(variables, xi_dict, initial_or_terminal):
     # interpolate data
     plot_dict = viz_tools.interpolate_data(plot_dict, cosmetics)
 
-    # merge xd values
-    for variable in struct_op.subkeys(variables, 'xd'):
-        for j in range(variables['xd', variable].shape[0]):
-            xd_values = plot_dict['xd'][variable][j]
-            xd_values = xd_values.full().reshape(xd_values.shape[0],).tolist()
+    # merge x values
+    for variable in struct_op.subkeys(variables, 'x'):
+        for j in range(variables['x', variable].shape[0]):
+            x_values = plot_dict['x'][variable][j]
+            x_values = x_values.full().reshape(x_values.shape[0],).tolist()
             time_grid = plot_dict['time_grids']['ip']
             theta_grid = [t / time_grid[-1] for t in time_grid]
             awelogger.logger.info('Approximating ' + variable + '_' + str(j) + '...')
-            if all(v == 0 for v in xd_values):
+            if all(v == 0 for v in x_values):
                 raise ValueError('Cannot approximate constant 0 function with spline!')
-            spline = cas.interpolant(variable + '_' + str(j), 'bspline', [theta_grid], xd_values, interpolant_options)
+            spline = cas.interpolant(variable + '_' + str(j), 'bspline', [theta_grid], x_values, interpolant_options)
             spline_list.append(spline)
 
     # build dict

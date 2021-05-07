@@ -75,13 +75,13 @@ def initial_guess_vortex(init_options, nlp, formulation, model, V_init):
     if init_options['induction']['vortex_representation'] == 'state':
 
         # create the dictionaries
-        dict_xd, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
+        dict_x, dict_coll = reserve_space_in_wake_node_position_dicts(init_options, nlp, model)
 
         # save values into dictionaries
-        dict_xd, dict_coll = save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation,
+        dict_x, dict_coll = save_regular_wake_node_position_into_dicts(dict_x, dict_coll, init_options, nlp, formulation,
                                                                             model, V_init)
         # set dictionary values into V_init
-        V_init = set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init)
+        V_init = set_wake_node_positions_from_dict(dict_x, dict_coll, init_options, nlp, model, V_init)
 
     elif init_options['induction']['vortex_representation'] == 'alg':
 
@@ -117,9 +117,9 @@ def set_wu_ind(init_options, nlp, model, V_init):
                 ind_name = 'wu_ind_' + str(kite_obs)
 
                 if ddx == 0:
-                    V_init['xl', kdx, ind_name] = u_ind_kite
+                    V_init['z', kdx, ind_name] = u_ind_kite
                 else:
-                    V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_kite
+                    V_init['coll_var', kdx, ddx, 'z', ind_name] = u_ind_kite
 
                 for fdx in range(filaments):
                     # biot-savart of filament induction
@@ -130,9 +130,9 @@ def set_wu_ind(init_options, nlp, model, V_init):
                     ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
 
                     if ddx == 0:
-                        V_init['xl', kdx, ind_name] = u_ind_fil
+                        V_init['z', kdx, ind_name] = u_ind_fil
                     else:
-                        V_init['coll_var', kdx, ddx, 'xl', ind_name] = u_ind_fil
+                        V_init['coll_var', kdx, ddx, 'z', ind_name] = u_ind_fil
 
 
     return V_init
@@ -146,26 +146,26 @@ def reserve_space_in_wake_node_position_dicts(init_options, nlp, model):
 
     # create space for vortex nodes
     dict_coll = {}
-    dict_xd = {}
+    dict_x = {}
     for kite in kite_nodes:
         dict_coll[kite] = {}
-        dict_xd[kite] = {}
+        dict_x[kite] = {}
         for tip in wingtips:
             dict_coll[kite][tip] = {}
-            dict_xd[kite][tip] = {}
+            dict_x[kite][tip] = {}
 
             for wake_node in range(wake_nodes):
                 dict_coll[kite][tip][wake_node] = {}
-                dict_xd[kite][tip][wake_node] = {}
+                dict_x[kite][tip][wake_node] = {}
 
                 for ndx in range(n_k+1):
-                    dict_xd[kite][tip][wake_node][ndx] = np.zeros((3, 1))
+                    dict_x[kite][tip][wake_node][ndx] = np.zeros((3, 1))
 
                     dict_coll[kite][tip][wake_node][ndx] = {}
                     for ddx in range(d):
                         dict_coll[kite][tip][wake_node][ndx][ddx] = np.zeros((3, 1))
 
-    return dict_xd, dict_coll
+    return dict_x, dict_coll
 
 
 def set_wake_strengths(init_options, nlp, model, V_init):
@@ -183,16 +183,16 @@ def set_wake_strengths(init_options, nlp, model, V_init):
             var_name = 'wg' + '_' + str(kite) + '_' + str(ring)
 
             for ndx in range(n_k):
-                V_init['xl',ndx,var_name] = wake_gamma
+                V_init['z',ndx,var_name] = wake_gamma
                 for ddx in range(d):
-                    V_init['coll_var', ndx, ddx, 'xl', var_name] = wake_gamma
+                    V_init['coll_var', ndx, ddx, 'z', var_name] = wake_gamma
 
     return V_init
 
 
 
 
-def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, model, V_init):
+def set_wake_node_positions_from_dict(dict_x, dict_coll, init_options, nlp, model, V_init):
     n_k = nlp.n_k
     d = nlp.d
     wingtips = ['ext', 'int']
@@ -206,19 +206,19 @@ def set_wake_node_positions_from_dict(dict_xd, dict_coll, init_options, nlp, mod
                 var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
 
                 for ndx in range(n_k + 1):
-                    wx_local = dict_xd[kite][tip][wake_node][ndx]
-                    V_init['xd', ndx, var_name] = wx_local
+                    wx_local = dict_x[kite][tip][wake_node][ndx]
+                    V_init['x', ndx, var_name] = wx_local
 
                 for ndx in range(n_k):
                     for ddx in range(d):
                         wx_local = dict_coll[kite][tip][wake_node][ndx][ddx]
-                        V_init['coll_var', ndx, ddx, 'xd', var_name] = wx_local
+                        V_init['coll_var', ndx, ddx, 'x', var_name] = wx_local
 
     return V_init
 
 
-def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options, nlp, formulation, model, V_init):
-    vec_u_infty = tools_init.get_wind_speed(init_options, V_init['xd', 0, 'q10'][2]) * vect_op.xhat_np()
+def save_regular_wake_node_position_into_dicts(dict_x, dict_coll, init_options, nlp, formulation, model, V_init):
+    vec_u_infty = tools_init.get_wind_speed(init_options, V_init['x', 0, 'q10'][2]) * vect_op.xhat_np()
 
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
     n_k = nlp.n_k
@@ -235,7 +235,7 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
 
 
     time_final = init_options['precompute']['time_final']
-    tgrid_xd = nlp.time_grids['x'](time_final)
+    tgrid_x = nlp.time_grids['x'](time_final)
     tgrid_coll = nlp.time_grids['coll'](time_final)
 
     for kite in kite_nodes:
@@ -251,15 +251,15 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
                 period = int(np.floor(index / (n_k)))
                 leftover = np.mod(index, (n_k))
 
-                q_kite = V_init['coll_var', leftover-1, -1, 'xd', 'q' + str(kite) + str(parent)]
+                q_kite = V_init['coll_var', leftover-1, -1, 'x', 'q' + str(kite) + str(parent)]
 
-                t_shed = period * time_final + tgrid_xd[leftover]
+                t_shed = period * time_final + tgrid_x[leftover]
 
                 for ndx in range(n_k + 1):
-                    t_local_xd = tgrid_xd[ndx]
-                    q_convected_xd = guess_vortex_node_position(t_shed, t_local_xd, q_kite, init_options, model,
+                    t_local_x = tgrid_x[ndx]
+                    q_convected_x = guess_vortex_node_position(t_shed, t_local_x, q_kite, init_options, model,
                                                                 kite, b_ref, sign, vec_u_infty)
-                    dict_xd[kite][tip][wake_node][ndx] = q_convected_xd
+                    dict_x[kite][tip][wake_node][ndx] = q_convected_x
 
                 for ndx in range(n_k):
                     for ddx in range(d):
@@ -268,7 +268,7 @@ def save_regular_wake_node_position_into_dicts(dict_xd, dict_coll, init_options,
                                                                       model, kite, b_ref, sign, vec_u_infty)
                         dict_coll[kite][tip][wake_node][ndx][ddx] = q_convected_coll
 
-    return dict_xd, dict_coll
+    return dict_x, dict_coll
 
 
 def guess_vortex_node_position(t_shed, t_local, q_kite, init_options, model, kite, b_ref, sign, vec_u_infty):
@@ -287,24 +287,24 @@ def guess_wake_gamma_val(init_options):
 
 
 def initial_guess_actuator(init_options, nlp, model, V_init):
-    V_init = initial_guess_actuator_xd(init_options, model, V_init)
-    V_init = initial_guess_actuator_xl(init_options, model, V_init)
+    V_init = initial_guess_actuator_x(init_options, model, V_init)
+    V_init = initial_guess_actuator_z(init_options, model, V_init)
     V_init = set_azimuth_variables(V_init, init_options, model, nlp)
 
     return V_init
 
 
-def initial_guess_actuator_xd(init_options, model, V_init):
+def initial_guess_actuator_x(init_options, model, V_init):
 
     dict = {}
-    dict['a'] = cas.DM(init_options['xd']['a'])
+    dict['a'] = cas.DM(init_options['x']['a'])
     dict['asin_uasym'] = cas.DM(0.)
     dict['acos_uasym'] = cas.DM(0.)
     dict['a_uaxi'] = dict['a']
     dict['a_uasym'] = dict['a']
 
 
-    var_type = 'xd'
+    var_type = 'x'
     for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
@@ -329,34 +329,34 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
     time_final = init_options['precompute']['time_final']
-    tgrid_xd = nlp.time_grids['x'](time_final)
+    tgrid_x = nlp.time_grids['x'](time_final)
     tgrid_coll = nlp.time_grids['coll'](time_final)
 
     for ndx in range(nlp.n_k):
 
-        t = tgrid_xd[ndx]
+        t = tgrid_x[ndx]
         psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-        V_init['xl', ndx, 'psi' + str(kite_parent)] = psi
+        V_init['z', ndx, 'psi' + str(kite_parent)] = psi
 
-        if '[xl,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['xl', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
-        if '[xl,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['xl', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
+        if '[z,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+            V_init['z', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
+        if '[z,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+            V_init['z', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
         for ddx in range(nlp.d):
             t = tgrid_coll[ndx, ddx]
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-            V_init['coll_var', ndx, ddx, 'xl', 'psi' + str(kite_parent)] = psi
+            V_init['coll_var', ndx, ddx, 'z', 'psi' + str(kite_parent)] = psi
 
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'xl', 'cospsi' + str(kite_parent)] = np.cos(psi)
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'xl', 'sinpsi' + str(kite_parent)] = np.sin(psi)
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'z', 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'z', 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
     return V_init
 
 
-def initial_guess_actuator_xl(init_options, model, V_init):
+def initial_guess_actuator_z(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     wind_dcm = cas.horzcat(u_hat, v_hat, w_hat)
@@ -369,7 +369,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
 
     dict = {}
-    dict['a'] = cas.DM(init_options['xl']['a'])
+    dict['a'] = cas.DM(init_options['z']['a'])
     dict['a_qaxi'] = dict['a']
     dict['a_qasym'] = dict['a']
     dict['local_a'] = dict['a']
@@ -382,13 +382,13 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
     dict['wind_dcm'] = wind_dcm_cols
     dict['z_vec_length'] = cas.DM(init_options['induction']['z_vec_length'])
-    dict['u_vec_length'] = vect_op.norm(tools_init.get_wind_speed(init_options, V_init['xd', 0, 'q10'][2]))
+    dict['u_vec_length'] = vect_op.norm(tools_init.get_wind_speed(init_options, V_init['x', 0, 'q10'][2]))
     dict['gamma'] = get_gamma_angle(init_options)
     dict['g_vec_length'] = cas.DM(init_options['induction']['g_vec_length'])
     dict['cosgamma'] = np.cos(dict['gamma'])
     dict['singamma'] = np.sin(dict['gamma'])
 
-    var_type = 'xl'
+    var_type = 'z'
     for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
@@ -490,23 +490,23 @@ def get_local_alg_repr_fixing_initialization(init_options, V_init, nlp, model, k
 
     shedding_time = time_final * periods_passed + tgrid[shedding_ndx, shedding_ddx]
 
-    q_kite = V_init['coll_var', shedding_ndx, shedding_ddx, 'xd', 'q' + str(kite) + str(parent)]
+    q_kite = V_init['coll_var', shedding_ndx, shedding_ddx, 'x', 'q' + str(kite) + str(parent)]
     vec_u_infty = tools_init.get_wind_speed(init_options, q_kite[2]) * vect_op.xhat_np()
 
     wx_found = guess_vortex_node_position(shedding_time, current_time, q_kite, init_options, model, kite,
                                                      b_ref, sign, vec_u_infty)
 
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    V_init['coll_var', ndx, ddx, 'xl', var_name] = wx_found
+    V_init['coll_var', ndx, ddx, 'z', var_name] = wx_found
 
     return V_init
 
 def get_continuity_fixing_initialization(V_init, kite, tip, wake_node, ndx):
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    V_init['xl', ndx, var_name] = V_init['coll_var', ndx-1, -1, 'xl', var_name]
+    V_init['z', ndx, var_name] = V_init['coll_var', ndx-1, -1, 'z', var_name]
     return V_init
 
 def get_alg_periodic_fixing_initialization(V_init, kite, tip, wake_node):
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    V_init['xl', 0, var_name] = V_init['coll_var', -1, -1, 'xl', var_name]
+    V_init['z', 0, var_name] = V_init['coll_var', -1, -1, 'z', var_name]
     return V_init

@@ -67,11 +67,11 @@ def guess_final_time(init_options, model):
 
 def guess_values_at_time(t, init_options, model):
     ret = {}
-    for name in struct_op.subkeys(model.variables, 'xd'):
+    for name in struct_op.subkeys(model.variables, 'x'):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    ret['l_t'] = init_options['xd']['l_t']
+    ret['l_t'] = init_options['x']['l_t']
     ret['dl_t'] = 0.0
 
     number_of_nodes = model.architecture.number_of_nodes
@@ -190,7 +190,7 @@ def precompute_path_parameters(init_options, model):
 def set_fixed_hypotenuse(init_options, model):
     number_kites = model.architecture.number_of_kites
     if number_kites == 1:
-        hypotenuse = init_options['xd']['l_t']
+        hypotenuse = init_options['x']['l_t']
     else:
         hypotenuse = init_options['theta']['l_s']
 

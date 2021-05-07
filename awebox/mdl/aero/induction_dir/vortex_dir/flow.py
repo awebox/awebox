@@ -53,12 +53,12 @@ def get_superposition_cstr(options, wind, variables_si, architecture):
         u_ind_kite = cas.DM.zeros((3, 1))
         for fdx in range(filaments):
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
+            local_var = variables_si['z'][ind_name]
             u_ind_kite += local_var
 
         # superposition of filament induced velocities at kite
         ind_name = 'wu_ind_' + str(kite_obs)
-        local_var = variables_si['xl'][ind_name]
+        local_var = variables_si['z'][ind_name]
         local_resi = (local_var - u_ind_kite) / u_ref
 
         local_cstr = cstr_op.Constraint(expr=local_resi,
@@ -69,7 +69,7 @@ def get_superposition_cstr(options, wind, variables_si, architecture):
     return cstr_list
 
 def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
-    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
+    x_obs = variables['x']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
     u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
     return u_ind
 
@@ -89,7 +89,7 @@ def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
 def get_induction_factor_at_kite(options, filament_list, wind, variables, parameters, architecture, kite_obs, n_hat=vect_op.xhat()):
 
-    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
+    x_obs = variables['x']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
 
     parent = architecture.parent_map[kite_obs]
     u_zero_vec = general_flow.get_uzero_vec(options, wind, parent, variables, architecture)

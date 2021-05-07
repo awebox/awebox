@@ -93,7 +93,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
-    for variable_type in set(model.variables.keys()) - set(['xddot']):
+    for variable_type in set(model.variables.keys()) - set(['xdot']):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
             var_name, _ = struct_op.split_name_and_node_identifier(name)
@@ -117,7 +117,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
 
             elif variable_type == 'theta':
                 p_fix_num['p', 'ref', variable_type, name] = V_ref[variable_type, name]
-            elif variable_type in {'xd','xl','xa'}:
+            elif variable_type in {'x','z'}:
                 if variable_type in list(V_ref.keys()):
                     p_fix_num['p', 'ref', variable_type, :, name] = V_ref[variable_type, :, name]
                 if 'coll_var' in list(V_ref.keys()):
@@ -189,17 +189,17 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta','t_f'].shape[0] > 1:
-        V_bounds['lb']['xd',:,'dl_t'] = model.variable_bounds['xd']['dl_t']['lb']
-        V_bounds['ub']['xd',:,'dl_t'] = model.variable_bounds['xd']['dl_t']['ub']
+        V_bounds['lb']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['lb']
+        V_bounds['ub']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['ub']
 
         # make sure that pumping range fixing bounds are not imposed initially
         # TODO: write if test.....
-        V_bounds['lb']['xd',:,'l_t'] = V_bounds['lb']['xd',1,'l_t']
-        V_bounds['ub']['xd',:,'l_t'] = V_bounds['ub']['xd',1,'l_t']
+        V_bounds['lb']['x',:,'l_t'] = V_bounds['lb']['x',1,'l_t']
+        V_bounds['ub']['x',:,'l_t'] = V_bounds['ub']['x',1,'l_t']
 
         if 'coll_var' in list(nlp.V.keys()):
-            V_bounds['lb']['coll_var',:,:,'xd','dl_t'] = model.variable_bounds['xd']['dl_t']['lb']
-            V_bounds['ub']['coll_var',:,:,'xd','dl_t'] = model.variable_bounds['xd']['dl_t']['ub']
+            V_bounds['lb']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['lb']
+            V_bounds['ub']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['ub']
 
     return V_bounds, g_bounds
 
@@ -280,19 +280,19 @@ def fix_q_and_r_values_if_necessary(solver_options, nlp, model, V_bounds, V_init
 
     if solver_options['fixed_q_r_values']:
 
-        indices = nlp.V.f['xd', :, 'q10'] + nlp.V.f['xd', 0, 0, 'dq10']
+        indices = nlp.V.f['x', :, 'q10'] + nlp.V.f['x', 0, 0, 'dq10']
         for idx in indices:
             V_bounds['lb'].cat[idx] = V_init.cat[idx]
             V_bounds['ub'].cat[idx] = V_init.cat[idx]
 
         if model.kite_dof == 6:
-            indices = nlp.V.f['xd', 0, 'omega10'] + nlp.V.f['xd', 0, 'r10']
+            indices = nlp.V.f['x', 0, 'omega10'] + nlp.V.f['x', 0, 'r10']
             for idx in indices:
                 V_bounds['lb'].cat[idx] = V_init.cat[idx]
                 V_bounds['ub'].cat[idx] = V_init.cat[idx]
 
             # lower triangular elements
-            indices = nlp.V.f['xd', 1:, 'r10', 1] + nlp.V.f['xd', 1:, 'r10', 2] + nlp.V.f['xd', 1:, 'r10', 5]
+            indices = nlp.V.f['x', 1:, 'r10', 1] + nlp.V.f['x', 1:, 'r10', 2] + nlp.V.f['x', 1:, 'r10', 5]
             for idx in indices:
                 V_bounds['lb'].cat[idx] = V_init.cat[idx]
                 V_bounds['ub'].cat[idx] = V_init.cat[idx]

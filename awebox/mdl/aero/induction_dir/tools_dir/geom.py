@@ -60,7 +60,7 @@ def get_center_velocity(parent, variables, architecture):
     if (parent > 0) and (number_children > 1):
         dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
     elif (number_children == 1):
-        dq = variables['xd']['dq' + str(children[0]) + str(parent)]
+        dq = variables['x']['dq' + str(children[0]) + str(parent)]
         dcenter = dq
     else:
         message = 'actuator-center velocity not yet set-up for this architecture'
