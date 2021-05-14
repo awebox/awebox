@@ -215,10 +215,12 @@ class Collocation(object):
                 xdot = xp_jk / h / tf
                 store_derivatives = cas.vertcat(store_derivatives, xdot)
 
+            for j in range(1,self.__d+1):
                 if j > 0:
                     zp_jk = self.__calculate_collocation_deriv_u(V, k, j, 'z')
                     zdot = zp_jk / h / tf
                     store_derivatives = cas.vertcat(store_derivatives, zdot)
+
         Xdot = Vdot(store_derivatives)
 
         return Xdot
