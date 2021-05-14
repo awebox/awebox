@@ -101,26 +101,27 @@ def test_drag_mode_model():
     """ Test drag mode construction routines
     """
 
-    # make default options object
-    options = awe.Options(True)
 
     # single kite with point-mass model
-    options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['trajectory']['type'] = 'power_cycle'
-    options['user_options']['trajectory']['system_type'] = 'drag_mode'
-    options['model']['tether']['use_wound_tether'] = False
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.type'] = 'power_cycle'
+    options['user_options.trajectory.system_type'] = 'drag_mode'
+    options['model.tether.use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = 'split'
 
     # build model
-    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
-    options.build(architecture)
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(options['user_options.system_model.architecture'])
+    trial_options.build(architecture)
     model = awe.mdl.model.Model()
-    model.build(options['model'], architecture)
+    model.build(trial_options['model'], architecture)
 
     # extract model info
     states = model.variables_dict['x']
@@ -158,8 +159,8 @@ def test_drag_mode_model():
     assert(cas.jacobian(integral_outputs,model.variables['z','lambda10']).nnz()==0)
 
     # test variable bounds
-    lb = options['model']['system_bounds']['u']['dkappa'][0]/options['model']['scaling']['x']['kappa']
-    ub = options['model']['system_bounds']['u']['dkappa'][1]/options['model']['scaling']['x']['kappa']
+    lb = trial_options['model']['system_bounds']['u']['dkappa'][0]/trial_options['model']['scaling']['x']['kappa']
+    ub = trial_options['model']['system_bounds']['u']['dkappa'][1]/trial_options['model']['scaling']['x']['kappa']
 
     assert(model.variable_bounds['u']['dkappa21']['lb'] == lb)
     assert(model.variable_bounds['u']['dkappa31']['lb'] == lb)
@@ -174,10 +175,10 @@ def test_drag_mode_model():
         assert(model.variable_bounds['u']['ddl_t']['ub'] == 0.0)
 
     # test scaling
-    assert(model.scaling['x']['kappa21'] == options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['x']['kappa31'] == options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['x']['kappa21'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['x']['kappa31'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['u']['dkappa21'] == trial_options['model']['scaling']['x']['kappa'])
 
     return None
 
@@ -185,25 +186,25 @@ def test_cross_tether_model():
     """ Test cross-tether construction routines
     """
 
-    # make default options object
-    options = awe.Options(True)
-
     # single kite with point-mass model
-    options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
-    options['user_options']['system_model']['kite_dof'] = 3
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['system_model']['cross_tether'] = True
-    options['model']['tether']['use_wound_tether'] = False
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.system_model.cross_tether'] = True
+    options['model.tether.use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = 'split'
 
     # build model
-    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
-    options.build(architecture)
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(trial_options['user_options']['system_model']['architecture'])
+    trial_options.build(architecture)
     model = awe.mdl.model.Model()
-    model.build(options['model'], architecture)
+    model.build(trial_options['model'], architecture)
 
     # extract model info
     algvars = model.variables_dict['z']
@@ -239,29 +240,32 @@ def test_cross_tether_model():
 
 def test_tether_moments():
     """ Test moment contribution due to holonomic constraints """
-    options = awe.Options(True)
 
     # single kite with point-mass model
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['system_model']['kite_dof'] = 6
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
-    options['user_options']['trajectory']['system_type'] = 'drag_mode'
-    options['model']['tether']['use_wound_tether'] = False
-    options['model']['tether']['lift_tether_force'] = False
-    options['model']['aero']['lift_aero_force'] = False
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.system_model.kite_dof'] = 6
+    options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = 'split'
+    options['user_options.trajectory.system_type'] = 'drag_mode'
+    options['model.tether.use_wound_tether'] = False
+    options['model.tether.use_wound_tether'] = False
+    options['model.tether.lift_tether_force'] = False
+    options['model.aero.lift_aero_force'] = False
 
     # tether attachment
     r_tether = np.array([0.0, 0.0, -0.1])
-    options['model']['tether']['attachment'] = 'stick'
-    options['model']['geometry']['overwrite']['r_tether'] = r_tether
+    options['model.tether.attachment'] = 'stick'
+    options['model.geometry.overwrite.r_tether'] = r_tether
 
     # build model
-    architecture = archi.Architecture(options['user_options']['system_model']['architecture'])
-    options.build(architecture)
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(trial_options['user_options']['system_model']['architecture'])
+    trial_options.build(architecture)
     model = awe.mdl.model.Model()
-    model.build(options['model'], architecture)
+    model.build(trial_options['model'], architecture)
 
     # si variables
     var_si = model.variables(0.0)
