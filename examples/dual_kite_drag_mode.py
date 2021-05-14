@@ -22,11 +22,7 @@ options['user_options.induction_model'] = 'not_in_use'
 options['user_options.tether_drag_model'] = 'split'
 
 # bounds on tether length
-<<<<<<< HEAD
-options['model']['system_bounds']['x']['l_t'] = [1.0e-2, 1.0e3]
-=======
 options['model.system_bounds.xd.l_t'] = [1.0e-2, 1.0e3]
->>>>>>> feature/options_interface
 
 # choose coarser grid (single-loop trajectory)
 # options['nlp']['n_k'] = 20
