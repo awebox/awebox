@@ -132,6 +132,7 @@ def get_costs_struct(V):
         cas.entry("compromised_battery_cost"),
         cas.entry("tracking_problem_cost"),
         cas.entry("power_problem_cost"),
+        cas.entry("power_derivative_cost"),
         cas.entry("general_problem_cost"),
         cas.entry("objective")
         ])
@@ -289,6 +290,31 @@ def find_power_cost(nlp_options, V, P, Integral_outputs):
 
     return power_cost
 
+def find_power_derivative_cost(nlp_options, V, P, Xdot):
+
+    if nlp_options['system_type'] == 'lift_mode':
+        if nlp_options['phase_fix'] == 'single_reelout':
+            nk_power_der = round(nlp_options['n_k']*nlp_options['phase_fix_reelout'])
+        else:
+            nk_power_der = nlp_options['n_k']
+        
+        power_derivative_sq = 0.0
+        for k in range(nk_power_der):
+            for j in range(nlp_options['collocation']['d']):
+                lam = V['coll_var', k, j, 'z', 'lambda10']
+                dlam = Xdot['coll_z', k, j, 'lambda10']
+                l_t = V['coll_var', k, j, 'x', 'l_t']
+                dl_t = V['coll_var', k, j, 'x', 'dl_t']
+                ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
+                power_der = dlam*l_t*dl_t + lam*dl_t*dl_t + lam*l_t*ddl_t
+                power_derivative_sq += power_der**2
+
+        power_derivative_cost = P['cost', 'power_derivative']*power_derivative_sq
+
+    else:
+        power_derivative_cost = 0.0
+
+    return power_derivative_cost
 
 def find_nominal_landing_cost(V, P, variables, nlp_options):
     pos_weight = nlp_options['landing']['cost']['position_weight']
@@ -370,8 +396,9 @@ def find_tracking_problem_cost(component_costs):
 def find_power_problem_cost(component_costs):
 
     power_cost = component_costs['power_cost']
+    power_derivative_cost = component_costs['power_derivative_cost']
 
-    power_problem_cost = power_cost
+    power_problem_cost = power_cost + power_derivative_cost
 
     return power_problem_cost
 
@@ -432,7 +459,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
     component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
-
+    component_costs['power_derivative_cost'] = find_power_derivative_cost(nlp_options, V, P, xdot)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_options, V, P, model)
