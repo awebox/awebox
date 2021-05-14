@@ -44,6 +44,8 @@ def process_sweep_opts(options, sweep_opts):
 
         # get keys
         keys = sweep_option[0].split('.')
+        if keys[-1].isdigit():
+            keys[-1] = int(keys[-1])
         sweep_type = struct_op.get_from_dict(options.help_dict, keys)[1]
 
         # sort sweep_opts to parameter and trial options
