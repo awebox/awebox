@@ -76,6 +76,7 @@ class Collocation(object):
 
         # coefficients of the collocation equation
         coeff_collocation = np.zeros((d + 1, d + 1))
+        coeff_collocation_u = np.zeros((d, d))
 
         # coefficients of the continuity equation
         coeff_continuity = np.zeros(d + 1)
@@ -119,7 +120,11 @@ class Collocation(object):
                 for r in range(1,d+1):
                     if r != j:
                         l *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                lfcn = cas.Function('lfcn', [tau], [l])
                 ls_u = cas.vertcat(ls_u, l)
+                tfcn = cas.Function('lfcntan',[tau],[cas.jacobian(l,tau)])
+                for r in range(1,d+1):
+                    coeff_collocation_u[j-1][r-1] = tfcn(tau_root[r])
 
         # interpolating function for all polynomials
         lfcns = cas.Function('lfcns',[tau],[ls])
@@ -127,6 +132,7 @@ class Collocation(object):
 
         self.__coeff_continuity = coeff_continuity
         self.__coeff_collocation = coeff_collocation
+        self.__coeff_collocation_u = coeff_collocation_u
         self.__coeff_fun = lfcns
         self.__coeff_fun_u = lfcns_u
 
@@ -209,8 +215,12 @@ class Collocation(object):
                 xdot = xp_jk / h / tf
                 store_derivatives = cas.vertcat(store_derivatives, xdot)
 
+                if j > 0:
+                    zp_jk = self.__calculate_collocation_deriv_u(V, k, j, 'z')
+                    zdot = zp_jk / h / tf
+                    store_derivatives = cas.vertcat(store_derivatives, zdot)
         Xdot = Vdot(store_derivatives)
-
+        import ipdb; ipdb.set_trace()
         return Xdot
 
 
@@ -226,6 +236,14 @@ class Collocation(object):
                 xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
 
         return xp_jk
+
+    def __calculate_collocation_deriv_u(self, V, k, j, var_type):
+
+        zp_jk = 0
+        for r in range(1,self.__d+1):
+            zp_jk += self.__coeff_collocation_u[r-1, j-1] * V['coll_var', k, r-1, var_type]
+
+        return zp_jk
 
     def get_collocation_variables_struct(self, variables_dict, u_param):
 
