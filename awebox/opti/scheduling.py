@@ -115,7 +115,7 @@ def define_costs_to_update(P, formulation):
     tether_release_updates[0] = []
 
     power_updates = {}
-    power_updates[0] = ['power', 'psi', 'fictitious']
+    power_updates[0] = ['power', 'psi', 'fictitious', 'power_derivative']
     power_updates[1] = ['tracking']
 
     nominal_landing_updates = {}
