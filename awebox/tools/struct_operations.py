@@ -660,6 +660,7 @@ def construct_Xdot_struct(nlp_options, variables_dict):
     # extract information
     nk = nlp_options['n_k']
     x = variables_dict['x']
+    z = variables_dict['z']
 
     # derivatives at interval nodes
     entry_tuple = (cas.entry('x', repeat=[nk], struct=x),)
@@ -668,6 +669,7 @@ def construct_Xdot_struct(nlp_options, variables_dict):
     if nlp_options['discretization'] == 'direct_collocation':
         d = nlp_options['collocation']['d']
         entry_tuple += (cas.entry('coll_x', repeat=[nk,d], struct=x),)
+        entry_tuple += (cas.entry('coll_z', repeat=[nk,d], struct=z))
 
     # make new symbolic structure
     Xdot = cas.struct_symMX([entry_tuple])
