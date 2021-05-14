@@ -220,7 +220,7 @@ class Collocation(object):
                     zdot = zp_jk / h / tf
                     store_derivatives = cas.vertcat(store_derivatives, zdot)
         Xdot = Vdot(store_derivatives)
-        import ipdb; ipdb.set_trace()
+
         return Xdot
 
 
@@ -397,3 +397,11 @@ class Collocation(object):
     @coeff_collocation.setter
     def coeff_collocation(self, value):
         awelogger.logger.warning('Cannot set coeff_collocation object.')
+
+    @property
+    def coeff_collocation_u(self):
+        return self.__coeff_collocation_u
+
+    @coeff_collocation_u.setter
+    def coeff_collocation_u(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation_u object.')
