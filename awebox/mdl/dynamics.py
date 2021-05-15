@@ -217,6 +217,7 @@ def manage_power_integration(options, power, outputs, system_variables, paramete
 
         if options['trajectory']['system_type'] == 'drag_mode':
             entry_list += [cas.entry('power_derivative_sq', expr= outputs['performance']['power_derivative']**2)]
+            integral_scaling['power_derivative_sq'] = 1.0
 
         integral_outputs = cas.struct_SX(entry_list)
 
