@@ -38,7 +38,7 @@ import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
 import awebox.tools.save_operations as data_tools
-import awebox.opts.options as options
+import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 import copy
@@ -55,8 +55,8 @@ class Trial(object):
 
     def __init__(self, seed, name = 'trial'):
 
-        # check if constructed with dict
-        if type(seed) == dict:
+        # check if constructed with solved trial dict
+        if 'solution_dict' in seed.keys():
 
             self.__solution_dict = seed['solution_dict']
             self.__visualization = visualization.Visualization()
@@ -65,10 +65,11 @@ class Trial(object):
             self.__visualization.create_plot_logic_dict()
             self.__options = seed['solution_dict']['options']
 
-        # check if constructed with options
-        elif type(seed) == options.Options:
+        else:
 
-            self.__options        = seed
+            self.__options_seed   = seed
+            self.__options        = opts.Options()
+            self.__options.fill_in_seed(self.__options_seed)
             self.__model          = model.Model()
             self.__formulation    = formulation.Formulation()
             self.__nlp            = nlp.NLP()
@@ -112,14 +113,16 @@ class Trial(object):
         awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
         awelogger.logger.info('')
 
-    def optimize(self, options = [], final_homotopy_step = 'final',
+    def optimize(self, options_seed = [], final_homotopy_step = 'final',
                  warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
                  debug_locations = [], save_flag = False):
 
-        if not options:
+        if not options_seed:
             options = self.__options
         else:
             # regenerate nlp bounds for parametric sweeps
+            options = opts.Options()
+            options.fill_in_seed(options_seed)
             architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
             options.build(architecture)
             import awebox.mdl.dynamics as dyn
