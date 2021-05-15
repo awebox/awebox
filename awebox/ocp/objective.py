@@ -298,6 +298,7 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
         else:
             nk_power_der = nlp_options['n_k']
         
+        int_weights = find_int_weights(nlp_options)
         power_derivative_sq = 0.0
         for k in range(nk_power_der):
             for j in range(nlp_options['collocation']['d']):
@@ -307,7 +308,7 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
                 dl_t = V['coll_var', k, j, 'x', 'dl_t']
                 ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
                 power_der = dlam*l_t*dl_t + lam*dl_t*dl_t + lam*l_t*ddl_t
-                power_derivative_sq += power_der**2
+                power_derivative_sq += int_weights[j]*power_der**2
 
         power_derivative_cost = P['cost', 'power_derivative']*power_derivative_sq
 
