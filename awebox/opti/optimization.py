@@ -593,7 +593,7 @@ class Optimization(object):
                 self.arg_initial['lam_x0'] = self.__arg['lam_x0']
                 self.arg_initial['lam_g0'] = self.__arg['lam_g0']
             except:
-                awelogger.logger.info('no initial multipliers to be stored.')
+                32.0
 
             # retrieve and update
             self.__arg['lam_x0'] = self.__solution['lam_x']

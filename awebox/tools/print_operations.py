@@ -75,16 +75,16 @@ def get_display_timing(timing):
     return [days, hours, minutes, seconds]
 
 def hline(charact):
-    return (80 * charact)
+    return (60 * charact)
 
 def get_awebox_license_info():
     license_info = []
-    license_info += [hline('+')]
+    license_info += [80*'+']
     license_info += ['This is awebox, a modeling and optimization framework for multi-kite AWE systems.']
     license_info += ['awebox is free software; you can redistribute it and/or modify it under the terms']
     license_info += ['of the GNU Lesser General Public License as published by the Free Software']
     license_info += ['Foundation license. More information can be found at http://github.com/awebox.']
-    license_info += [hline('+')]
+    license_info += [80*'+']
     return license_info
 
 def log_license_info():
