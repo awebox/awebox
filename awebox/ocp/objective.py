@@ -290,7 +290,7 @@ def find_power_cost(nlp_options, V, P, Integral_outputs):
 
     return power_cost
 
-def find_power_derivative_cost(nlp_options, V, P, Xdot):
+def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
 
     if nlp_options['system_type'] == 'lift_mode':
         if nlp_options['phase_fix'] == 'single_reelout':
@@ -312,7 +312,8 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot):
         power_derivative_cost = P['cost', 'power_derivative']*power_derivative_sq
 
     else:
-        power_derivative_cost = 0.0
+        power_derivative_sq = Integral_outputs['int_out',-1,'power_derivative_sq']
+        power_derivative_cost =  P['cost', 'power_derivative']*power_derivative_sq
 
     return power_derivative_cost
 
@@ -459,7 +460,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
     component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
-    component_costs['power_derivative_cost'] = find_power_derivative_cost(nlp_options, V, P, xdot)
+    component_costs['power_derivative_cost'] = find_power_derivative_cost(nlp_options, V, P, xdot, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_options, V, P, model)
