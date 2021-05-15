@@ -65,14 +65,16 @@ class Optimization(object):
 
     def build(self, options, nlp, model, formulation, name):
 
-        awelogger.logger.info('Building optimization...')
+        awelogger.logger.info('Building NLP solver...')
 
         self.__name = name
 
         if self.__status == 'I am an optimization.':
-            awelogger.logger.info('Optimization already built.')
             return None
         elif nlp.status == 'I am an NLP.':
+
+            self.__options = options
+            self.print_optimization_info()
 
             timer = time.time()
 
@@ -86,8 +88,6 @@ class Optimization(object):
             self.__timings['setup'] = time.time() - timer
 
             self.__status = 'I am an optimization.'
-            awelogger.logger.info('Optimization built.')
-            awelogger.logger.info('Optimization construction time: %s', print_op.print_single_timing(self.__timings['setup']))
             awelogger.logger.info('')
 
         else:
@@ -106,7 +106,6 @@ class Optimization(object):
             self.__debug_locations = debug_locations
 
         if self.__status in ['I am an optimization.','I am a solved optimization.', 'I am a failed optimization.']:
-            awelogger.logger.info('Solving optimization...')
 
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
@@ -218,8 +217,6 @@ class Optimization(object):
 
     def initialize_callback(self, name, nlp, model, options):
 
-        awelogger.logger.info('initialize callback...')
-
         V = nlp.V
         P = nlp.P
 
@@ -237,17 +234,12 @@ class Optimization(object):
 
     def generate_solvers(self, model, nlp, formulation, options, awe_callback):
 
-        awelogger.logger.info('generate solvers...')
-
         self.__solvers = preparation.generate_solvers(awe_callback, model, nlp, formulation, options)
 
         return None
 
 
     def solve_from_warmstart(self, nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization):
-
-        awelogger.logger.info('solve from warmstart...')
-        awelogger.logger.info('')
 
         self.__solve_succeeded = True
 
@@ -274,9 +266,6 @@ class Optimization(object):
 
     def solve_with_vortex_linearization_setup(self, nlp, model, options, final_homotopy_step, visualization):
 
-        awelogger.logger.info('solve set-up problem with vortex linearization...')
-        awelogger.logger.info('')
-
         self.__solve_succeeded = True
 
         # solve set-up problem with homotopy (omitting the induction steps)
@@ -287,9 +276,6 @@ class Optimization(object):
         return None
 
     def solve_with_vortex_linearization_iterative(self, nlp, formulation, model, options, vortex_linearization_file, final_homotopy_step, visualization):
-
-        awelogger.logger.info('solve iterative problem with vortex linearization...')
-        awelogger.logger.info('')
 
         self.__solve_succeeded = True
 
@@ -306,8 +292,6 @@ class Optimization(object):
 
     def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
 
-        awelogger.logger.info('solve with homotopy procedure...')
-        awelogger.logger.info('')
 
         # do not consider homotopy steps after specified final_homotopy_step
         final_index = self.__schedule['homotopy'].index(final_homotopy_step)
@@ -445,8 +429,6 @@ class Optimization(object):
 
     def define_standard_args(self, nlp, formulation, model, options, visualization, warmstart_solution_dict = None):
 
-        awelogger.logger.info('define args...')
-
         self.__arg = preparation.initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = warmstart_solution_dict)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
@@ -471,8 +453,6 @@ class Optimization(object):
         return None
 
     def modify_args_for_warmstart(self, nlp, formulation, model, options, visualization, warmstart_solution_dict):
-
-        awelogger.logger.info('modify args for warmstart...')
 
         use_vortex_linearization = 'lin' in nlp.P.keys()
 
@@ -521,13 +501,11 @@ class Optimization(object):
     ### scheduling
 
     def define_homotopy_update_schedule(self, model, formulation, nlp, cost_options):
-        awelogger.logger.info('define homotopy update schedule...')
+
         self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options)
         return None
 
     def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_solution_dict, nlp, model):
-
-        awelogger.logger.info('modify schedule for warmstart...')
 
         # final homotopy step of warmstart file
         warmstart_step = warmstart_solution_dict['final_homotopy_step']
@@ -556,8 +534,6 @@ class Optimization(object):
         return None
 
     def modify_schedule_for_vortex_linearization_iterative(self, final_homotopy_step, nlp, model):
-
-        awelogger.logger.info('modify schedule for vortex linearization iterative problem...')
 
         # starting homotopy step for iterative problem
         initial_step = 'final'
@@ -617,7 +593,7 @@ class Optimization(object):
                 self.arg_initial['lam_x0'] = self.__arg['lam_x0']
                 self.arg_initial['lam_g0'] = self.__arg['lam_g0']
             except:
-                awelogger.logger.info('no initial multipliers to be stored.')
+                32.0
 
             # retrieve and update
             self.__arg['lam_x0'] = self.__solution['lam_x']
@@ -707,6 +683,22 @@ class Optimization(object):
                         integral_outputs_si['coll_int_out',k,j,name] = self.__integral_outputs_opt['coll_int_out',k,j,name]*model.integral_scaling[name]
 
         return integral_outputs_si
+
+    def print_optimization_info(self):
+
+        awelogger.logger.info('')
+        awelogger.logger.info('Solver options:')
+        awelogger.logger.info('')
+        awelogger.logger.info('NLP solver'+14*'.'+': {}'.format('IPOPT'))
+        awelogger.logger.info('Linear solver'+11*'.'+': {}'.format(self.__options['linear_solver']))
+        awelogger.logger.info('Max. iterations'+9*'.'+': {}'.format(self.__options['max_iter']))
+        awelogger.logger.info('Homotopy method'+9*'.'+': {}'.format(self.__options['homotopy_method']))
+        if self.__options['homotopy_method'] == 'classic':
+            awelogger.logger.info('Homotopy step'+11*'.'+': {}'.format(self.__options['homotopy_step']))
+        awelogger.logger.info('Homotopy barrier param'+2*'.'+': {}'.format(self.__options['mu_hippo']))   
+        awelogger.logger.info('')
+
+        return None
 
     @property
     def status(self):

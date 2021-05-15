@@ -60,9 +60,9 @@ def print_homotopy_values(nlp, solution, p_fix_num):
 def print_runtime_values(stats):
     awelogger.logger.debug('')
 
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Solver return status', stats['return_status']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Number of iterations', stats['iter_count']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Total wall time', str(stats['t_wall_total'])+'s'))
 
     awelogger.logger.info('')
 

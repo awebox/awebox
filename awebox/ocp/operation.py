@@ -267,7 +267,6 @@ def make_periodicity_equality(initial_model_variables, terminal_model_variables,
 def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    awelogger.logger.info('Parameterizing initial constraint...')
     xi_0 = xi_dict['xi']['xi_0']
     initial_splines = parameterization.get_splines(initial_model_variables, xi_dict, 'initial')
 
@@ -302,8 +301,6 @@ def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dic
 def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, model,options):
     initial_states = initial_model_variables
 
-    awelogger.logger.info('Introducing initial constraint...')
-
     x_struct = model.variables_dict['x']
 
     # initializate lists
@@ -322,7 +319,6 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
 def make_param_terminal_conditions(terminal_model_variables, ref_variables, xi_dict, model, options):
     terminal_states = terminal_model_variables
 
-    awelogger.logger.info('Parameterizing terminal constraint...')
     xi_f = xi_dict['xi']['xi_f']
     terminal_splines = parameterization.get_splines(terminal_model_variables, xi_dict, 'terminal')
 

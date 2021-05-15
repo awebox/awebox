@@ -57,23 +57,23 @@ class NLP(object):
         elif model.status == 'I am a model.' and formulation.status == 'I am a formulation.':
 
             timer = time.time()
+            self.__options = nlp_options
+            self.print_nlp_info()
             self.__generate_discretization(nlp_options, model,formulation)
             self.generate_variable_bounds(nlp_options, model)
             self.__generate_objective(nlp_options, model)
 
             self.__status = 'I am an NLP.'
 
-            awelogger.logger.info('NLP built.')
             self.__timings['overall'] = time.time()-timer
-            awelogger.logger.info('NLP construction time: %s', print_op.print_single_timing(self.__timings['overall']))
-            awelogger.logger.info('')
+
+            self.print_nlp_dimensions()
+
         else:
 
             raise ValueError('Cannot build NLP without first building model and formulation.')
 
     def __generate_discretization(self, nlp_options, model, formulation):
-
-        awelogger.logger.info('discretize problem... ')
 
         timer = time.time()
         [V,
@@ -104,7 +104,6 @@ class NLP(object):
         self.__Integral_outputs_fun = Integral_outputs_fun
         self.__n_k = nlp_options['n_k']
         self.__d = nlp_options['collocation']['d']
-        self.__options = nlp_options
         self.__discretization = nlp_options['discretization']
         self.__time_grids = time_grids
         self.__Collocation = Collocation
@@ -118,8 +117,6 @@ class NLP(object):
 
     def generate_variable_bounds(self, nlp_options, model):
 
-        awelogger.logger.info('generate variable bounds...')
-
         # notice that these must be in scaled units.
         [vars_lb, vars_ub] = var_bounds.get_scaled_variable_bounds(nlp_options, self.__V, model)
 
@@ -129,7 +126,6 @@ class NLP(object):
 
     def __generate_objective(self, nlp_options, model):
 
-        awelogger.logger.info('generate objective... ')
         timer = time.time()
 
         [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), model.outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
@@ -156,6 +152,35 @@ class NLP(object):
     def get_f_jacobian_fun(self):
         return objective.get_cost_derivatives(self.__V, self.__P, self.__f_fun)
 
+    def print_nlp_info(self):
+
+        awelogger.logger.info('')
+        awelogger.logger.info('NLP options:')
+        awelogger.logger.info('')
+        awelogger.logger.info('Number of intervals'+7*'.'+': {}'.format(self.__options['n_k']))
+        awelogger.logger.info('Discretization method'+5*'.'+': {}'.format(self.__options['discretization']))
+        if self.__options['discretization'] == 'direct_collocation':
+            awelogger.logger.info('Collocation scheme'+8*'.'+': {}'.format(self.__options['collocation']['scheme']))
+            awelogger.logger.info('Collocation order'+9*'.'+': {}'.format(self.__options['collocation']['d']))
+            awelogger.logger.info('Control parameterization'+2*'.'+': {}'.format(self.__options['collocation']['u_param']))
+        if self.__options['system_type'] == 'lift_mode':
+            awelogger.logger.info('Phase-fix strategy'+8*'.'+': {}'.format(self.__options['phase_fix']))
+
+        return None
+
+    def print_nlp_dimensions(self):
+
+        awelogger.logger.info('')
+        awelogger.logger.info('NLP dimensions:')
+        awelogger.logger.info('')
+
+        awelogger.logger.info('n_var....: {}'.format(self.__V.shape[0]))
+        awelogger.logger.info('n_param..: {}'.format(self.__P.shape[0]))
+        awelogger.logger.info('n_eq.....: {}'.format(self.ocp_cstr_list.get_expression_list('eq').shape[0]))
+        awelogger.logger.info('n_ineq...: {}'.format(self.ocp_cstr_list.get_expression_list('ineq').shape[0]))
+        awelogger.logger.info('')
+
+        return None
 
     @property
     def status(self):
