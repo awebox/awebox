@@ -119,7 +119,7 @@ def get_costs_struct(V):
 
     costs_struct = cas.struct_symSX([
         cas.entry("tracking_cost"),
-        cas.entry("xddot_regularisation_cost"),
+        cas.entry("xdot_regularisation_cost"),
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
@@ -149,12 +149,11 @@ def get_regularization_sorting_dict():
     # NOTE!!! for category "slack_cost", linearized penalities are applied rather than L2 regularization.
 
     sorting_dict = {}
-    sorting_dict['xd'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
-    sorting_dict['xddot'] = {'category': 'xddot_regularisation_cost', 'exceptions': {} }
+    sorting_dict['x'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
+    sorting_dict['xdot'] = {'category': 'xdot_regularisation_cost', 'exceptions': {} }
     sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'f_fict': 'fictitious_cost', 'm_fict': 'fictitious_cost'} }
-    sorting_dict['xa'] = {'category': 'tracking_cost', 'exceptions': {}}
+    sorting_dict['z'] = {'category': 'tracking_cost', 'exceptions': {}}
     sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {}}
-    sorting_dict['xl'] = {'category': 'tracking_cost', 'exceptions': {} }
 
     return sorting_dict
 
@@ -282,7 +281,7 @@ def find_power_cost(nlp_options, V, P, Integral_outputs):
     time_period = ocp_outputs.find_time_period(nlp_options, V)
 
     if not nlp_options['cost']['output_quadrature']:
-        average_power = V['xd', -1, 'e'] / time_period
+        average_power = V['x', -1, 'e'] / time_period
     else:
         average_power = Integral_outputs['int_out',-1,'e'] / time_period
 
@@ -297,11 +296,11 @@ def find_nominal_landing_cost(V, P, variables, nlp_options):
 
     q_end = {}
     dq_end = {}
-    for name in struct_op.subkeys(variables, 'xd'):
+    for name in struct_op.subkeys(variables, 'x'):
         if name[0] == 'q':
-            q_end[name] = V['xd',-1,name]
+            q_end[name] = V['x',-1,name]
         elif name[:2] == 'dq':
-            dq_end[name] = V['xd',-1,name]
+            dq_end[name] = V['x',-1,name]
 
     velocity_end = 0.0
     position_end = 0.0
@@ -350,10 +349,10 @@ def find_compromised_battery_problem_cost(nlp_options, V, P, model):
 
 def find_transition_problem_cost(component_costs, P):
 
-    xddot_regularisation = component_costs['xddot_regularisation_cost']
+    xdot_regularisation = component_costs['xdot_regularisation_cost']
     u_regularisation = component_costs['u_regularisation_cost']
 
-    transition_cost = xddot_regularisation + u_regularisation
+    transition_cost = xdot_regularisation + u_regularisation
     transition_cost = P['cost','transition'] * transition_cost
 
     return transition_cost
@@ -393,10 +392,10 @@ def find_general_problem_cost(component_costs):
     upsilon_cost = component_costs['upsilon_cost']
 
     u_regularisation_cost = component_costs['u_regularisation_cost']
-    xddot_regularisation_cost = component_costs['xddot_regularisation_cost']
+    xdot_regularisation_cost = component_costs['xdot_regularisation_cost']
     theta_regularisation_cost = component_costs['theta_regularisation_cost']
 
-    general_problem_cost = u_regularisation_cost + xddot_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost
+    general_problem_cost = u_regularisation_cost + xdot_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost
 
     return general_problem_cost
 

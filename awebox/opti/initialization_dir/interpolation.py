@@ -576,7 +576,7 @@ def collect_guess(interpolation_variables, states, model):
     parent_nodes = model.architecture.parent_map
 
     continuous_guess = {}
-    for name in struct_op.subkeys(model.variables, 'xd'):
+    for name in struct_op.subkeys(model.variables, 'x'):
         continuous_guess[name] = 0.0
     continuous_guess['e'] = 0.0
 

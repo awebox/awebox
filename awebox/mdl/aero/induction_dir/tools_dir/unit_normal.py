@@ -83,7 +83,7 @@ def get_least_squares_n_vec(parent, variables, parameters, architecture):
     matrix = []
     rhs = []
     for kite in children:
-        qk = variables['xd']['q' + str(kite) + str(parent)]
+        qk = variables['x']['q' + str(kite) + str(parent)]
         newline = cas.horzcat(qk[[1]], qk[[2]], 1)
         matrix = cas.vertcat(matrix, newline)
 
@@ -110,9 +110,9 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
     if (kite0 > kite1) or (kite1 > kite2):
         awelogger.logger.warning('based on assignment order of kites, normal vector (by cross product) may point in reverse.')
 
-    qkite0 = variables['xd']['q' + str(kite0) + str(parent)]
-    qkite1 = variables['xd']['q' + str(kite1) + str(parent)]
-    qkite2 = variables['xd']['q' + str(kite2) + str(parent)]
+    qkite0 = variables['x']['q' + str(kite0) + str(parent)]
+    qkite1 = variables['x']['q' + str(kite1) + str(parent)]
+    qkite2 = variables['x']['q' + str(kite2) + str(parent)]
 
     arm1 = qkite1 - qkite0
     arm2 = qkite2 - qkite0
@@ -124,13 +124,13 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture):
 
     grandparent = architecture.parent_map[parent]
-    q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+    q_parent = variables['x']['q' + str(parent) + str(grandparent)]
 
     if grandparent == 0:
         q_grandparent = cas.DM.zeros((3,1))
     else:
         great_grandparent = architecture.parent_map[grandparent]
-        q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
+        q_grandparent = variables['x']['q' + str(grandparent) + str(great_grandparent)]
 
     n_vec = q_parent - q_grandparent
 
@@ -139,7 +139,7 @@ def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
 def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture):
 
     kite = architecture.children_map[parent][0]
-    n_vec = variables['xd']['q' + str(kite) + str(parent)]
+    n_vec = variables['x']['q' + str(kite) + str(parent)]
 
     n_vec = n_vec * 1.e-3
 
@@ -151,8 +151,8 @@ def get_binormal_n_vec(parent, variables, parameters, architecture):
 
     n_vec = np.zeros((3,1))
     for kite in children:
-        dqk = variables['xddot']['dq' + str(kite) + str(parent)]
-        ddqk = variables['xddot']['ddq' + str(kite) + str(parent)]
+        dqk = variables['xdot']['dq' + str(kite) + str(parent)]
+        ddqk = variables['xdot']['ddq' + str(kite) + str(parent)]
 
         binormal_dim = vect_op.cross(dqk, ddqk)
 

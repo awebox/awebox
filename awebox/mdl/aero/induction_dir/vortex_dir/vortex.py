@@ -71,7 +71,7 @@ def get_induction_trivial_residual(options, wind, variables_si, architecture):
             u_ind_fil = cas.DM.zeros((3, 1))
 
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
+            local_var = variables_si['z'][ind_name]
             local_resi = (local_var - u_ind_fil) / u_ref
             resi = cas.vertcat(resi, local_resi)
 
@@ -106,7 +106,7 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
             u_ind_fil = flow.get_induced_velocity_at_kite(options, filament, variables_si, architecture, kite_obs)
 
             ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
+            local_var = variables_si['z'][ind_name]
 
             scaler = 10.
 

@@ -127,9 +127,9 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
     model_constraints_list = model.constraints_list
     model_variables = model.variables
 
-    # remove those constraints that only depend on 'xd', since continuity will duplicate those...
+    # remove those constraints that only depend on 'x', since continuity will duplicate those...
     relevant_shooting_vars = []
-    for var_type in (set(model_variables.keys()) - set(['xd'])):
+    for var_type in (set(model_variables.keys()) - set(['x'])):
         relevant_shooting_vars = cas.vertcat(relevant_shooting_vars, model_variables[var_type])
     mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
 
@@ -297,7 +297,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     entry_tuple += (
         cas.entry('collocation',    repeat = [n_k, d],  struct = mdl_dyn_constraints),
-        cas.entry('continuity',     repeat = [n_k],     struct = model.variables_dict['xd']),
+        cas.entry('continuity',     repeat = [n_k],     struct = model.variables_dict['x']),
     )
 
     return cstr_list, entry_tuple
@@ -307,12 +307,12 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     n_k = nlp_options['n_k']
 
     # number of algebraic variables that are restricted by model equalities (dynamics)
-    nz = model.constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['xd'].shape[0]
+    nz = model.constraints_list.get_expression_list('eq').shape[0] - model.variables_dict['x'].shape[0]
 
     # entry tuple for nested constraints
     entry_tuple = ()
 
-    entry_tuple += (cas.entry('dynamics', repeat=[n_k], struct=model.variables_dict['xd']),)
+    entry_tuple += (cas.entry('dynamics', repeat=[n_k], struct=model.variables_dict['x']),)
     entry_tuple += (cas.entry('algebraic', repeat=[n_k], shape=(nz, 1)),)
 
     cstr_list = ocp_constraint.OcpConstraintList()
@@ -326,9 +326,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     # algebraic constraints
     z_from_V = []
     for kdx in range(n_k):
-        local_z_from_V = cas.vertcat(V['xddot',kdx], V['xa', kdx])
-        if 'xl' in V.keys():
-            local_z_from_V = cas.vertcat(local_z_from_V, V['xl', kdx])
+        local_z_from_V = cas.vertcat(V['xdot',kdx], V['z', kdx])
         z_from_V = cas.horzcat(z_from_V, local_z_from_V)
 
     z_at_time_sym = cas.MX.sym('z_at_time_sym',dae.z.shape)
@@ -368,7 +366,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     mdl_path_constraints = model.constraints_dict['inequality']
     entry_tuple += (
         cas.entry('path', repeat=[n_k], struct=mdl_path_constraints),
-        cas.entry('continuity', repeat = [n_k], struct = model.variables_dict['xd']),
+        cas.entry('continuity', repeat = [n_k], struct = model.variables_dict['x']),
     )
 
 

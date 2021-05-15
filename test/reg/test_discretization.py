@@ -88,9 +88,9 @@ def test_integrators():
     qf = Ff['qf']
 
     # evaluate integration error
-    err_coll_x = np.max(np.abs(np.divide((xf - V_final['xd',1]), V_final['xd',1]).full()))
-    xa = dae.z(zf)['xa']
-    err_coll_z = np.max(np.abs(np.divide(dae.z(zf)['xa'] - V_final['coll_var',0, -1, 'xa'], V_final['coll_var',0, -1, 'xa']).full()))
+    err_coll_x = np.max(np.abs(np.divide((xf - V_final['x',1]), V_final['x',1]).full()))
+    z = dae.z(zf)['z']
+    err_coll_z = np.max(np.abs(np.divide(dae.z(zf)['z'] - V_final['coll_var',0, -1, 'z'], V_final['coll_var',0, -1, 'z']).full()))
     err_coll_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
 
     tolerance = 1e-8
@@ -122,9 +122,9 @@ def test_integrators():
     qf = Ff['qf']
 
     # evaluate 
-    err_rk_x = np.max(np.abs(np.divide((xf - V_final['xd',1]), V_final['xd',1]).full()))
-    xa = dae.z(zf)['xa']
-    err_rk_z = np.max(np.abs(np.divide(dae.z(zf)['xa'] - V_final['coll_var',0, -1, 'xa'], V_final['coll_var',0, -1, 'xa']).full()))
+    err_rk_x = np.max(np.abs(np.divide((xf - V_final['x',1]), V_final['x',1]).full()))
+    z = dae.z(zf)['z']
+    err_rk_z = np.max(np.abs(np.divide(dae.z(zf)['z'] - V_final['coll_var',0, -1, 'z'], V_final['coll_var',0, -1, 'z']).full()))
     err_rk_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
 
     # error should be below 1%

@@ -39,9 +39,9 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=
 
     vortex_representation = options['induction']['vortex_representation']
     if vortex_representation == 'state':
-        var_type = 'xd'
+        var_type = 'x'
     elif vortex_representation == 'alg':
-        var_type = 'xl'
+        var_type = 'z'
     else:
         message = 'unexpected vortex representation'
         raise Exception(message)
@@ -58,10 +58,10 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=
 
 def get_ring_strength_si(variables, kite, ring, scaling=None):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
-    wg_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xl', coord_name)
+    wg_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'z', coord_name)
 
     if scaling is not None:
-        return struct_op.var_scaled_to_si('xl', coord_name, wg_local, scaling)
+        return struct_op.var_scaled_to_si('z', coord_name, wg_local, scaling)
 
     return wg_local
 
@@ -76,7 +76,7 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     return total
 
 def get_strength_scale(variables_dict, scaling):
-    var_type = 'xl'
+    var_type = 'z'
     for var_name in variables_dict[var_type].labels():
         if 'wg' == var_name[:2]:
             wg_scale = struct_op.var_scaled_to_si(var_type, var_name, 1., scaling)
