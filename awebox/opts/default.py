@@ -182,6 +182,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'dl_t',          [-30.0, 30.0],                                                   ('main tether speed bounds [m/s]', None),'x'),
+        ('model',  'system_bounds', 'x',          'ddl_t',         [-100.0, 100.0],                                                   ('main tether acceleration bounds [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_s',          [1.0e-2, 1.0e3],                                                                 ('secondary tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                                  ('intermediate tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
@@ -192,6 +194,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
+        ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
