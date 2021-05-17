@@ -87,7 +87,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     # --------------------
     # build reference parameters, references of cost function should match the
     # initial guess
-    awelogger.logger.info('generate OCP parameter values...')
+
     P = nlp.P
     p_fix_num = P(0.)
     p_fix_num['p', 'weights'] = 1.0e-8

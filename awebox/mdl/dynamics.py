@@ -76,7 +76,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     variables_to_return_to_model = system_variables['scaled']
 
-    print_op.print_variable_info('model', variables_to_return_to_model)
 
     # -----------------------------------
     # prepare empty constraints list and outputs

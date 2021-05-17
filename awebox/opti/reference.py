@@ -41,7 +41,7 @@ def get_reference(nlp, model, V_init, options):
     # -------------------
     # generate tracking reference
     # -------------------
-    awelogger.logger.info('generate tracking reference...')
+
     nk = nlp.n_k
     if nlp.discretization == 'direct_collocation':
         direct_collocation = True

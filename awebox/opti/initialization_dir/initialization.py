@@ -60,7 +60,6 @@ def initialize_multipliers_to_nonzero(V_init):
 
 
 def build_si_initial_guess(nlp, model, formulation, init_options):
-    awelogger.logger.info('build si initial guess...')
 
     V = nlp.V
     V_init = V(0.0)
