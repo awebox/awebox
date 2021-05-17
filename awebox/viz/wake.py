@@ -137,7 +137,7 @@ def get_gamma_extrema(plot_dict):
                 for ddx in range(d):
 
                     gamma_name = 'wg' + '_' + str(kite) + '_' + str(ring)
-                    var = plot_dict['V_plot']['coll_var', ndx, ddx, 'xl', gamma_name]
+                    var = plot_dict['V_plot']['coll_var', ndx, ddx, 'z', gamma_name]
 
                     gamma_max = np.max(np.array(cas.vertcat(gamma_max, var)))
                     gamma_min = np.min(np.array(cas.vertcat(gamma_min, var)))

@@ -30,7 +30,7 @@ import numpy as np
 from . import funcs
 import casadi as cas
 
-def set_default_user_options(internal_access = False):
+def set_default_user_options():
 
     ## notation for dict tree:
     ## (category, sub_categroy, sub_sub_category, parameter name, default value, (tooltip, tooltip list), sweep_type)
@@ -63,7 +63,6 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
         ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'kite_only', 'not_in_use']),'t'),
-        ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
     ]
 
     default_user_options, help_options = funcs.assemble_options_tree(default_user_options_tree, {}, {})
@@ -182,16 +181,16 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_s',          [1.0e-2, 1.0e3],                                                                 ('secondary tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                                  ('intermediate tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'omega',        [np.array([-50.0, -50.0, -50.0]), np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
-        ('model',  'system_bounds', 'xd',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
-        ('model',  'system_bounds', 'xd',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'omega',        [np.array([-50.0, -50.0, -50.0]), np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
+        ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
-        ('model',  'system_bounds', 'xa',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
@@ -217,10 +216,10 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'coeff_actuation',  'include',          True,       ('include a bound on coeff', None), 'x'),
 
         #### scaling
-        ('model',  'scaling', 'xd',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
-        ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
+        ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
+        ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
-        ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
+        ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
@@ -268,7 +267,7 @@ def set_default_options(default_user_options, help_options):
         ## numerics
         #### NLP options
         ('nlp',  None,               None, 'n_k',                  40,                     ('control discretization [int]', None),'t'),
-        ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'x'),
+        ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'t'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
         ('nlp',  'collocation',      None, 'u_param',              'poly',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
@@ -360,7 +359,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
-        ('solver',  'cost',             'xddot_regularisation', 0,  1e-1,       ('starting cost for xddot regularisation', None),'s'),
+        ('solver',  'cost',             'xdot_regularisation', 0,  1e-1,       ('starting cost for xdot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 'x'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'x'),

@@ -66,8 +66,8 @@ def approx_kite_radius_vector(model_options, variables, kite, parent):
 
 def get_radius_of_curvature(variables, kite, parent):
 
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
+    dq = variables['x']['dq' + str(kite) + str(parent)]
+    ddq = variables['xdot']['ddq' + str(kite) + str(parent)]
 
     gamma_dot = dq
     gamma_ddot = ddq
@@ -100,8 +100,8 @@ def get_radius_inequality(model_options, variables, kite, parent, parameters):
     # half_span - radius < 0
     # half_span * den - num < 0
 
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
+    dq = variables['x']['dq' + str(kite) + str(parent)]
+    ddq = variables['xdot']['ddq' + str(kite) + str(parent)]
 
     gamma_dot = cas.vertcat(0., dq[1], dq[2])
     gamma_ddot = cas.vertcat(0., ddq[1], ddq[2])
@@ -117,12 +117,12 @@ def get_radius_inequality(model_options, variables, kite, parent, parameters):
 
 
 def get_trajectory_tangent(variables, kite, parent):
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
+    dq = variables['x']['dq' + str(kite) + str(parent)]
     tangent = vect_op.smooth_normalize(dq)
     return tangent
 
 def get_trajectory_normal(variables, kite, parent):
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
+    ddq = variables['xdot']['ddq' + str(kite) + str(parent)]
     normal = vect_op.smooth_normalize(ddq)
     return normal
 
@@ -157,7 +157,7 @@ def radial_extrapolation_to_center(model_options, kite, variables, architecture)
     parent_map = architecture.parent_map
     parent = parent_map[kite]
 
-    q = variables['xd']['q' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
 
     radius = get_radius_of_curvature(variables, kite, parent)
     radial = get_trajectory_normal(variables, kite, parent)
@@ -171,7 +171,7 @@ def present_location_extrapolation_to_center(model_options, kite, variables, arc
     parent_map = architecture.parent_map
     parent = parent_map[kite]
 
-    q = variables['xd']['q' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
     approx_center = q
 
     return approx_center
@@ -180,11 +180,11 @@ def present_location_extrapolation_to_center(model_options, kite, variables, arc
 def get_tether_vector(model_options, variables, kite, parent, architecture):
 
     parent_map = architecture.parent_map
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
+    q_kite = variables['x']['q' + str(kite) + str(parent)]
 
     if parent > 0:
         grandparent = parent_map[parent]
-        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+        q_parent = variables['x']['q' + str(parent) + str(grandparent)]
     else:
         q_parent = np.zeros((3, 1))
 
@@ -198,7 +198,7 @@ def get_parent_velocity(model_options, variables, parent, architecture):
 
     if parent > 0:
         grandparent = parent_map[parent]
-        dq_parent = variables['xd']['dq' + str(parent) + str(grandparent)]
+        dq_parent = variables['x']['dq' + str(parent) + str(grandparent)]
     else:
         dq_parent = np.zeros((3, 1))
 
