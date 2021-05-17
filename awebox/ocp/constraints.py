@@ -48,8 +48,6 @@ from awebox.logger.logger import Logger as awelogger
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
-    awelogger.logger.info('generate constraints...')
-
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
 
