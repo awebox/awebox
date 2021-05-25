@@ -144,10 +144,14 @@ def plot_controls(plot_dict, cosmetics, fig_name, individual_control=None, fig_n
     variables_dict = plot_dict['variables_dict']
 
     if individual_control == None:
-        plot_table_r = 4
-        plot_table_c = int(len(list(variables_dict['u'].keys())) / plot_table_r) + 1 * \
-                                                    (not np.mod(len(list(variables_dict['u'].keys())), plot_table_r) == 0)
-        controls_to_plot = list(variables_dict['u'].keys())
+        plot_table_r = 2
+        control_keys = list(variables_dict['u'].keys())
+        controls_to_plot = []
+        for ctrl in control_keys:
+            if 'fict' not in ctrl:
+                controls_to_plot.append(ctrl)
+        plot_table_c = int(len(controls_to_plot) / plot_table_r) + 1 * \
+                                                    (not np.mod(len(controls_to_plot), plot_table_r) == 0)
     else:
         controls_to_plot = [individual_control]
         plot_table_r = len(controls_to_plot)
@@ -319,6 +323,8 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
                      linestyle='--', color=p[-1].get_color())
 
     plt.title(var_name)
+    plt.autoscale(enable=True, axis = 'x', tight = True)
+    plt.grid(True)
     ax.tick_params(axis='both', which='major')
 
     return None
@@ -337,6 +343,8 @@ def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name):
         p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][var_name][0])
 
     plt.title(var_name)
+    plt.autoscale(enable=True, axis = 'x', tight = True)
+    plt.grid(True)
     ax.tick_params(axis='both', which='major')
 
     return None
