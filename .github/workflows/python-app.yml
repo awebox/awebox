@@ -17,8 +17,8 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip3 install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python3 -m pip install flake8 pytest
+        if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
     - name: Install package
       run: |
         python3 setup.py install
