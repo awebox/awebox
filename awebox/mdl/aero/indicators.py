@@ -384,7 +384,7 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
 def get_elevation_angle(xd):
     length_along_ground = (xd['q10'][0] ** 2. + xd['q10'][1] ** 2.) ** 0.5
-    elevation_angle = np.arctan2(xd['q10'][2], length_along_ground)
+    elevation_angle = cas.arctan2(xd['q10'][2], length_along_ground)
 
     return elevation_angle
 
