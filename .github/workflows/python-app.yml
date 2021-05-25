@@ -31,7 +31,7 @@ jobs:
     - name: Env
       shell: bash
       run: |
-        echo "MPLBACKEND=TKAgg" >> $GITHUB_ENV
+        echo "MPLBACKEND=Agg" >> $GITHUB_ENV
     - name: Test with pytest
       run: |
         pytest test/units
