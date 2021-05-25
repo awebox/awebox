@@ -656,6 +656,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
                     linestyle =  '--', color = p[-1].get_color())
     plt.grid(True)
     plt.title(name)
+    plt.autoscale(enable=True, axis= 'x', tight = True)
 
 def get_sweep_colors(number_of_trials):
 
