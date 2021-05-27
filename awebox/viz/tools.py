@@ -98,6 +98,8 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
 
     if side == 'isometric':
         ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
+        for kk in range(int(vsa.shape[0]/5)-1):
+            ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
     else:
         side_num = ''
         for sdx in side:
@@ -112,6 +114,8 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
         jdx = int(side_num[1])
 
         ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
+        for kk in range(int(vsa.shape[0]/5)-1):
+            ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
 
     return None
 
@@ -520,7 +524,6 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
                                                     kite_locations[kdx][1],
                                                     kite_locations[kdx][2])
 
-
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
 
             pdx = 0
@@ -547,7 +550,6 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
             make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
 
         old_label = label
-
 
 def get_q_limits(plot_dict, cosmetics):
     dims = ['x', 'y', 'z']
