@@ -164,7 +164,7 @@ def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
         # but, the values will be smaller in base 10 (since we're describing
         # altitude differences), which makes convergence nicer.
         # u = u_ref * np.log10(zz / z0_air) / np.log10(z_ref / z0_air)
-        u = u_ref * np.log10(z_cropped / z0_air) / np.log10(z_ref / z0_air)
+        u = u_ref * cas.log10(z_cropped / z0_air) / cas.log10(z_ref / z0_air)
 
     elif model == 'power':
         # u = u_ref * (zz / z_ref) ** exp_ref
