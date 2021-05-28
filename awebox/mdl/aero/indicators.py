@@ -352,7 +352,7 @@ def get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevatio
     s_ref = parameters['theta0','geometry','s_ref']
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
-    speed_loyd = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
+    speed_loyd = 2. * CR / 3. / CD * windspeed * cas.cos(elevation_angle)
 
     return [CR, phf_loyd, p_loyd, speed_loyd]
 
