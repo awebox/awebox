@@ -3,17 +3,11 @@
 
 name: Python application
 
-on:
-  push:
-    branches: [ master, develop ]
-  pull_request:
-    branches: [ master, develop ]
+on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.6
@@ -23,8 +17,8 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        pip3 install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        python3 -m pip install flake8 pytest
+        if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
     - name: Install package
       run: |
         python3 setup.py install
@@ -34,6 +28,10 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Env
+      shell: bash
+      run: |
+        echo "MPLBACKEND=Agg" >> $GITHUB_ENV
     - name: Test with pytest
       run: |
         pytest test/units
