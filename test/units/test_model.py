@@ -242,17 +242,6 @@ def test_tether_moments():
     """ Test moment contribution due to holonomic constraints """
 
     # single kite with point-mass model
-<<<<<<< HEAD
-    options['user_options']['system_model']['architecture'] = {1:0}
-    options['user_options']['system_model']['kite_dof'] = 6
-    options['user_options']['kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options']['induction_model'] = 'not_in_use'
-    options['user_options']['tether_drag_model'] = 'split'
-    options['user_options']['trajectory']['system_type'] = 'drag_mode'
-    options['model']['tether']['use_wound_tether'] = False
-    options['model']['tether']['lift_tether_force'] = False
-    options['model']['aero']['lift_aero_force'] = False
-=======
     options = {}
     options['user_options.system_model.architecture'] = {1:0}
     options['user_options.system_model.kite_dof'] = 6
@@ -261,7 +250,8 @@ def test_tether_moments():
     options['user_options.tether_drag_model'] = 'split'
     options['user_options.trajectory.system_type'] = 'drag_mode'
     options['model.tether.use_wound_tether'] = False
->>>>>>> develop
+    options['model.tether.lift_tether_force'] = False
+    options['model.aero.lift_aero_force'] = False
 
     # tether attachment
     r_tether = np.array([0.0, 0.0, -0.1])

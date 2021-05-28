@@ -361,7 +361,7 @@ def get_loyd_comparison(atmos, wind, x, n, parent, CL, CD, parameters, elevation
     s_ref = parameters['theta0','geometry','s_ref']
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
-    speed_loyd = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
+    speed_loyd = 2. * CR / 3. / CD * windspeed * cas.cos(elevation_angle)
 
     return [CR, phf_loyd, p_loyd, speed_loyd]
 
@@ -393,7 +393,7 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
 def get_elevation_angle(x):
     length_along_ground = (x['q10'][0] ** 2. + x['q10'][1] ** 2.) ** 0.5
-    elevation_angle = np.arctan2(x['q10'][2], length_along_ground)
+    elevation_angle = cas.arctan2(x['q10'][2], length_along_ground)
 
     return elevation_angle
 
