@@ -173,8 +173,8 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     what = planar_dcm[:, 2]
 
     ehat1 = uhat
-    ehat2 = np.cos(psi) * vhat + np.sin(psi) * what
-    ehat3 = np.cos(psi) * what - np.sin(psi) * vhat
+    ehat2 = cas.cos(psi) * vhat + cas.sin(psi) * what
+    ehat3 = cas.cos(psi) * what - cas.sin(psi) * vhat
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
