@@ -156,9 +156,10 @@ class Visualization(object):
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})
+        plot_logic_dict['circulation'] = (output.plot_circulation, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
-        for variable in list(variables_dict['xd'].keys()) + integral_variables:
+        for variable in list(variables_dict['x'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})
         plot_logic_dict['controls'] = (variables.plot_controls, None)
         for control in list(variables_dict['u'].keys()):

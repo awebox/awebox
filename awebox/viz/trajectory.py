@@ -276,7 +276,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
         # construct local q
         q_node = []
         for j in range(3):
-            q_node = cas.vertcat(q_node, plot_dict['xd']['q'+str(node)+str(parent)][j][index])
+            q_node = cas.vertcat(q_node, plot_dict['x']['q'+str(node)+str(parent)][j][index])
 
         # construct local parent
         if node == 1:
@@ -285,7 +285,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
             grandparent = parent_map[parent]
             q_parent = []
             for j in range(3):
-                q_parent = cas.vertcat(q_parent, plot_dict['xd']['q'+str(parent)+str(grandparent)][j][index])
+                q_parent = cas.vertcat(q_parent, plot_dict['x']['q'+str(parent)+str(grandparent)][j][index])
 
         # stack node + parent vertically
         vert_stack = cas.vertcat(q_node.T, q_parent.T)
@@ -307,7 +307,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
             # kite position information
             q_kite = []
             for j in range(3):
-                q_kite = cas.vertcat(q_kite, plot_dict['xd']['q'+str(kite)+str(parent)][j][index])
+                q_kite = cas.vertcat(q_kite, plot_dict['x']['q'+str(kite)+str(parent)][j][index])
 
             # dcm information
             r_dcm = []

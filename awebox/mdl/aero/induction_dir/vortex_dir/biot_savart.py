@@ -25,14 +25,13 @@
 '''
 vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020
+- author: rachel leuthold, alu-fr 2021
 '''
 
 import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 
@@ -67,7 +66,7 @@ def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, pa
 
     parent_obs = architecture.parent_map[kite_obs]
 
-    point_obs = variables['xd']['q' + str(kite_obs) + str(parent_obs)]
+    point_obs = variables['x']['q' + str(kite_obs) + str(parent_obs)]
 
     seg_list = list_filament_observer_and_normal_info(point_obs, filament_list, options)
 

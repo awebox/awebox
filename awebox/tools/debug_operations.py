@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -26,7 +26,7 @@
 file to provide debugging operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
-- edit, rachel leuthold 2020
+- edit, rachel leuthold 2018-21
 '''
 
 import casadi.tools as cas
@@ -70,6 +70,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
         awelogger.logger.info(message)
+        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
@@ -77,12 +78,14 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
         awelogger.logger.error(message)
+        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
     if not sosc_holds:
         awelogger.logger.info('')
-        message = 'second order sufficient conditions appear not to be met at solution. please check if n_k is large enough.'
+        message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
+                  'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
         awelogger.logger.error(message)
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
@@ -100,10 +103,14 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     if not problem_is_healthy:
         identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+        identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp)
 
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
         awelogger.logger.info(message)
+
+        if health_solver_options['raise_exception']:
+            raise Exception(message)
 
     return problem_is_healthy
 
@@ -140,14 +147,7 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
     tractability['min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
 
     awelogger.logger.info('tractability indicator report')
-    for item in tractability.keys():
-
-        if isinstance(tractability[item], float):
-            message = '{:>30}: {:.2e}'.format(item, tractability[item])
-            awelogger.logger.info(message)
-        else:
-            message = '{:>30}: '.format(item) + str(tractability[item])
-            awelogger.logger.info(message)
+    print_op.print_dict_as_table(tractability)
 
     return tractability
 
@@ -235,14 +235,14 @@ def is_matrix_full_rank(matrix, health_solver_options, tol=None):
     return (required_rank == matrix_rank)
 
 
-def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
-
+def identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
     message = '... largest absolute jacobian entry occurs at: '
     awelogger.logger.info(message)
     max_cdx = np.where(np.absolute(cstr_jacobian_eval) == np.amax(np.absolute(cstr_jacobian_eval)))[0][0]
     print_cstr_info(cstr_jacobian_eval, cstr_labels, max_cdx, nlp)
+    return None
 
-
+def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
 
@@ -307,6 +307,36 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
 
 ######## spy
 
+
+def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
+
+    smallest_norm = 1.e10
+    smallest_idx = -1
+
+    for idx in range(kkt_matrix.shape[1]):
+        local_norm = vect_op.norm(kkt_matrix[:, idx])
+
+        if local_norm < smallest_norm:
+            smallest_idx = idx
+            smallest_norm = float(local_norm)
+
+    message = '... KKT column (' + str(smallest_idx) + ') with the smallest norm (' + str(smallest_norm) + ') is associated with:'
+    awelogger.logger.info(message)
+
+    number_variables = nlp.V.cat.shape[0]
+    if smallest_idx < number_variables:
+        relevant_variable_index = smallest_idx
+        relevant_variable = nlp.V.getCanonicalIndex(relevant_variable_index)
+        message = '{:>10}: {:>15} '.format('column', 'variable') + str(relevant_variable)
+    else:
+        relevant_multiplier_index = smallest_idx - number_variables
+        relevant_multiplier = cstr_labels[relevant_multiplier_index]
+        message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
+    awelogger.logger.info(message)
+
+    return None
+
+
 def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
     matrA = np.absolute(np.array(kkt_matrix))
 
@@ -367,6 +397,7 @@ def get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
     p_fix_num = nlp.P(arg['p'])
 
     relevant_constraints = cstr_fun(V, P, arg['lbx'], arg['ubx'])
+    # relevant_constraints_eval = np.array(cstr_fun(V(solution['x']), p_fix_num, arg['lbx'], arg['ubx']))
 
     cstr_jacobian = cas.jacobian(relevant_constraints, V)
     cstr_jacobian_fun = cas.Function('cstr_jacobian_fun', [V, P], [cstr_jacobian])
@@ -482,8 +513,7 @@ def collect_type_constraints(nlp, cstr_type):
     ocp_cstr_list = nlp.ocp_cstr_list
 
     name_list = ocp_cstr_list.get_name_list('all')
-
-    g = nlp.g
+    g = ocp_cstr_list.get_expression_list('all')
     g_sym = cas.SX.sym('g_sym', g.shape)
 
     for cstr in ocp_cstr_list.get_list('all'):

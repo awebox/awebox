@@ -33,7 +33,6 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
-
 def test_opti_success(trial, test_param_dict, results):
     """
     Test whether optimization was successful
@@ -170,8 +169,8 @@ def test_outputs(trial, test_param_dict, results):
 
     # check if maximum tether stress is sensible
     max_tension = test_param_dict['max_tension']
-    l_t = trial.visualization.plot_dict['xd']['l_t']
-    lambda10 = trial.visualization.plot_dict['xa']['lambda10']
+    l_t = trial.visualization.plot_dict['x']['l_t']
+    lambda10 = trial.visualization.plot_dict['z']['lambda10']
     main_tension = l_t[0] * lambda10[0]
     tension = np.max(main_tension)
     if tension > max_tension:
@@ -203,12 +202,12 @@ def test_variables(trial, test_param_dict, results):
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
-        heights_xd = np.array(V_final['xd',:,node_str,2])
+        heights_x = np.array(V_final['x',:,node_str,2])
         if discretization == 'direct_collocation':
-            heights_coll_var = np.array(V_final['coll_var',:,:,'xd',node_str,2])
+            heights_coll_var = np.array(V_final['coll_var',:,:,'x',node_str,2])
             if np.min(heights_coll_var) < 0.:
                 coll_height_flag = True
-        if np.min(heights_xd) < 0.:
+        if np.min(heights_x) < 0.:
             awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
             results['min_node_height'] = False
         if discretization == 'direct_collocation':
@@ -274,7 +273,7 @@ def test_power_balance(trial, test_param_dict, results):
     balance['total'] = scaled_norm_system_net_power
 
     for node in list(balance.keys()):
-        if balance[node] > test_param_dict['power_balance_thresh']:
+        if node == 'total' and balance[node] > test_param_dict['power_balance_thresh']:
             message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
                       + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
             awelogger.logger.warning(message)
@@ -323,17 +322,17 @@ def power_balance_key_belongs_to_node(keyname, node):
 
 def test_slack_equalities(trial, test_param_dict, results):
 
-    if 'xl' in trial.model.variables.keys():
+    if 'z' in trial.model.variables.keys():
 
         V_final = trial.optimization.V_final
-        xl_vars = trial.model.variables['xl']
+        z_vars = trial.model.variables['z']
         epsilon = test_param_dict['slacks_thresh']
 
         discretization = trial.options['nlp']['discretization']
         if discretization == 'direct_collocation':
 
-            for idx in range(xl_vars.shape[0]):
-                var_name = str(xl_vars[idx])
+            for idx in range(z_vars.shape[0]):
+                var_name = str(z_vars[idx])
 
                 if 'slack' in var_name:
                     slack_name = var_name[3:-2]
@@ -343,7 +342,7 @@ def test_slack_equalities(trial, test_param_dict, results):
                     for ndx in range(trial.nlp.n_k):
                         for ddx in range(trial.nlp.d):
 
-                            data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
+                            data = np.array(V_final['coll_var', ndx, ddx, 'z', slack_name])
                             max_val = np.max([np.max(data), max_val])
 
                     if max_val < epsilon:
@@ -362,28 +361,17 @@ def test_slack_equalities(trial, test_param_dict, results):
 def test_tracked_vortex_periods(trial, test_param_dict, results):
 
     plot_dict = trial.visualization.plot_dict
-    kite_nodes = trial.model.architecture.kite_nodes
 
     if 'vortex' in plot_dict['outputs']:
-        last_vortex_ind_factor_thresh = test_param_dict['last_vortex_ind_factor_thresh']
+        vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        max_last_a = -99999.
-        kite_max_last = -1
-        for kite in kite_nodes:
-            last_a = np.abs(np.array(plot_dict['outputs']['vortex']['last_ui_norm_over_ref' + str(kite)]))
-            local_max_last_a = np.max(last_a)
-
-            if local_max_last_a > max_last_a:
-                kite_max_last = kite
-                max_last_a = local_max_last_a
-
-        if max_last_a > last_vortex_ind_factor_thresh:
-            message = 'Last vortex ring has large (non-dimensionalized) induced velocity at kite ' + str(kite_max_last) + ': ' \
-                      + str(max_last_a) + ' > ' + str(last_vortex_ind_factor_thresh) \
+        max_est_truncation_error = plot_dict['power_and_performance']['vortex_max_est_truncation_error']
+        if max_est_truncation_error > vortex_truncation_error_thresh:
+            message = 'Vortex model estimates a large truncation error' \
+                      + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \
                       + '. We recommend increasing the number of tracked periods.'
             awelogger.logger.warning(message)
-            # slack equalities are not satisfied
-            results['last_vortex_ind_factor'] = False
+            results['vortex_truncation_error'] = False
 
     return results
 
@@ -406,7 +394,7 @@ def generate_test_param_dict(options):
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
     test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
     test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
-    test_param_dict['last_vortex_ind_factor_thresh'] = options['test_param']['last_vortex_ind_factor_thresh']
+    test_param_dict['vortex_truncation_error_thresh'] = options['test_param']['vortex_truncation_error_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
 

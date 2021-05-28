@@ -43,7 +43,7 @@ def approx_center_point(parent, variables, architecture):
     center = np.zeros((3, 1))
     for kite in children:
 
-        q_kite = variables['xd']['q' + str(kite) + str(parent)]
+        q_kite = variables['x']['q' + str(kite) + str(parent)]
         center = center + q_kite / number_children
 
     return center
@@ -56,7 +56,7 @@ def approx_center_velocity(parent, variables, architecture):
     dcenter = np.zeros((3, 1))
     for kite in children:
 
-        dq_kite = variables['xd']['dq' + str(kite) + str(parent)]
+        dq_kite = variables['x']['dq' + str(kite) + str(parent)]
         dcenter = dcenter + dq_kite / number_children
 
     return dcenter
@@ -65,7 +65,7 @@ def approx_kite_radius_vector(variables, architecture, kite):
 
     parent = architecture.parent_map[kite]
 
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
+    q_kite = variables['x']['q' + str(kite) + str(parent)]
     center = approx_center_point(parent, variables, architecture)
 
     radius_vec = q_kite - center
@@ -77,11 +77,11 @@ def tether_vector(variables, architecture, parent):
     parent_map = architecture.parent_map
     grandparent = parent_map[parent]
 
-    q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
+    q_parent = variables['x']['q' + str(parent) + str(grandparent)]
 
     if grandparent in parent_map.keys():
         great_grandparent = parent_map[grandparent]
-        q_grandparent = variables['xd']['q' + str(grandparent) + str(great_grandparent)]
+        q_grandparent = variables['x']['q' + str(grandparent) + str(great_grandparent)]
     else:
         q_grandparent = np.zeros((3, 1))
 

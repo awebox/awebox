@@ -32,10 +32,12 @@ python-3.5 / casadi-3.4.5
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
-import numpy as np
+
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 from awebox.logger.logger import Logger as awelogger
 import casadi as cas
+import numpy as np
 
 
 def print_homotopy_values(nlp, solution, p_fix_num):
@@ -58,9 +60,9 @@ def print_homotopy_values(nlp, solution, p_fix_num):
 def print_runtime_values(stats):
     awelogger.logger.debug('')
 
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Solver return status', stats['return_status']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Number of iterations', stats['iter_count']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Total wall time', str(stats['t_wall_total'])+'s'))
 
     awelogger.logger.info('')
 
@@ -98,7 +100,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     if 'e' in plot_dict['integral_variables']:
         e_final = plot_dict['integral_outputs_final']['int_out',-1,'e']
     else:
-        e_final = plot_dict['xd']['e'][0][-1]
+        e_final = plot_dict['x']['e'][0][-1]
 
     time_period = plot_dict['output_vals'][1]['final', 'time_period', 'val']
     avg_power = e_final / time_period
@@ -113,8 +115,8 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    l_t_max = np.amax(plot_dict['xd']['l_t'][0])
-    z_av = np.mean(plot_dict['xd']['q10'][2])
+    l_t_max = np.amax(plot_dict['x']['l_t'][0])
+    z_av = np.mean(plot_dict['x']['q10'][2])
 
     power_and_performance['l_t_max'] = l_t_max
     power_and_performance['z_av'] = z_av
@@ -170,7 +172,7 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
 def compute_position_indicators(power_and_performance, plot_dict):
 
     # elevation angle
-    q10 = plot_dict['xd']['q10']
+    q10 = plot_dict['x']['q10']
     elevation = []
     for i in range(q10[0].shape[0]):
         elevation += [np.arccos(np.linalg.norm(np.array([q10[0][i], q10[1][i], 0.0])) / np.linalg.norm(np.array([q10[0][i], q10[1][i], q10[2][i]])))]
@@ -183,7 +185,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     dq_final = 0.
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
-        dq = plot_dict['xd']['dq' + str(node) + str(parent)]
+        dq = plot_dict['x']['dq' + str(node) + str(parent)]
         parent = parent_map[node]
         dq_array = cas.vertcat(dq[0][-1], dq[1][-1], dq[2][-1])
         dq_norm_float = float(vect_op.norm(dq_array))
@@ -193,7 +195,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     power_and_performance['dq_final'] = dq_final
 
     # average connex-point velocity
-    dq10 = plot_dict['xd']['dq10']
+    dq10 = plot_dict['x']['dq10']
     dq10hat = []
     for i in range(dq10[0].shape[0]):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
@@ -227,6 +229,133 @@ def compute_tether_tension_indicators(power_and_performance, plot_dict):
 
     return power_and_performance
 
+
+
+def compute_control_frequency(power_and_performance, plot_dict):
+
+    kite_nodes = plot_dict['architecture'].kite_nodes
+
+    first_kite = kite_nodes[0]
+    parent = plot_dict['architecture'].parent_map[first_kite]
+    tentative_var_name = 'delta' + str(first_kite) + str(parent)
+
+    if tentative_var_name in plot_dict['x'].keys():
+        var_type = 'x'
+    elif tentative_var_name in plot_dict['u'].keys():
+        var_type = 'u'
+    else:
+        var_type = None
+
+    if (var_type is not None):
+
+        time_period = power_and_performance['time_period']
+
+        number_control_surfaces = len(plot_dict[var_type][tentative_var_name])
+
+        for kite in kite_nodes:
+            parent = plot_dict['architecture'].parent_map[kite]
+
+            frequency_stack = []
+            for cs in range(number_control_surfaces):
+                var_name = 'delta' + str(kite) + str(parent)
+                vals = plot_dict[var_type][var_name][cs]
+                steps = vals.shape[0] - 1
+                dt = time_period / steps
+
+                frequency = vect_op.estimate_1d_frequency(vals, dt=dt)
+                frequency_stack = cas.vertcat(frequency_stack, frequency)
+
+            power_and_performance['control_frequency' + str(kite) + str(parent)] = frequency_stack
+
+    return power_and_performance
+
+
+def compute_windings(power_and_performance, plot_dict):
+
+    n_interpolation = plot_dict['x']['q10'][0].shape[0]
+    total_steps = float(n_interpolation)
+
+    parent_map = plot_dict['architecture'].parent_map
+    kite_nodes = plot_dict['architecture'].kite_nodes
+
+    ehat_tether_x = 0.
+    ehat_tether_y = 0.
+    ehat_tether_z = 0.
+
+    for idx in range(n_interpolation):
+        q10 = cas.vertcat(plot_dict['x']['q10'][0][idx], plot_dict['x']['q10'][1][idx], plot_dict['x']['q10'][2][idx])
+        local_ehat = vect_op.normalize(q10)
+        ehat_tether_x += local_ehat[0] / total_steps
+        ehat_tether_y += local_ehat[1] / total_steps
+        ehat_tether_z += local_ehat[2] / total_steps
+
+    ehat_tether = vect_op.normalize(cas.vertcat(ehat_tether_x, ehat_tether_y, ehat_tether_z))
+
+    power_and_performance['winding_axis'] = ehat_tether
+
+    ehat_side_a = vect_op.normed_cross(vect_op.yhat_np(), ehat_tether)
+    # right handed coordinate system -> x/re: _a, y/im: _b, z/out: _tether
+    ehat_side_b = vect_op.normed_cross(ehat_tether, ehat_side_a)
+
+    # now project the path onto this plane
+    for n in kite_nodes:
+        parent = parent_map[n]
+
+        theta_start = 0.
+        theta_end = 0.
+
+        # find the origin of the plane
+        origin = np.zeros((3, 1))
+        for idx in range(n_interpolation):
+            name = 'q' + str(n) + str(parent)
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
+            q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
+
+            origin = origin + q_in_plane / total_steps
+
+        # recenter the plane about origin
+        for idx in range(n_interpolation-1):
+            name = 'q' + str(n) + str(parent)
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
+
+            q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
+            q_recentered = q_in_plane - origin
+
+            q_next = cas.vertcat(plot_dict['x'][name][0][idx+1], plot_dict['x'][name][1][idx+1],
+                              plot_dict['x'][name][2][idx+1])
+            q_next_in_plane = q_next - vect_op.dot(q_next, ehat_tether) * ehat_tether
+            q_next_recentered = q_next_in_plane - origin
+
+            delta_q = q_next_recentered - q_recentered
+
+            x = vect_op.dot(q_recentered, ehat_side_a)
+            y = vect_op.dot(q_recentered, ehat_side_b)
+            r_squared = x**2. + y**2.
+
+            dx = vect_op.dot(delta_q, ehat_side_a)
+            dy = vect_op.dot(delta_q, ehat_side_b)
+
+                # dx = vect_op.dot(dq_in_plane, ehat_side_a)
+                # dy = vect_op.dot(dq_in_plane, ehat_side_b)
+
+            dtheta = (x * dy - y * dx) / (r_squared + 1.0e-4)
+            theta_end += dtheta
+
+        winding = (theta_end - theta_start) / 2. / np.pi
+
+        power_and_performance['winding' + str(n)] = winding
+
+    return power_and_performance
+
+
+
+
+
+
+
+
 def compute_power_and_performance(plot_dict):
     power_and_performance = {}
 
@@ -239,5 +368,12 @@ def compute_power_and_performance(plot_dict):
     power_and_performance = compute_tether_tension_indicators(power_and_performance, plot_dict)
 
     power_and_performance = compute_efficiency_measures(power_and_performance, plot_dict)
+
+    power_and_performance = compute_control_frequency(power_and_performance, plot_dict)
+
+    power_and_performance = compute_windings(power_and_performance, plot_dict)
+
+    if 'vortex' in plot_dict['outputs'].keys():
+        power_and_performance = vortex.compute_global_performance(power_and_performance, plot_dict)
 
     return power_and_performance

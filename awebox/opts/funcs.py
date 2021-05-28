@@ -24,6 +24,7 @@
 #
 
 import numpy as np
+import copy
 from awebox.logger.logger import Logger as awelogger
 import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
@@ -127,15 +128,15 @@ def share_trajectory_type(options, options_tree=[]):
     if trajectory_type in ['power_cycle', 'tracking']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
-            options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],
+            options_tree.append(('model', 'system_bounds', 'x', 'l_t', [options['model']['system_bounds']['x']['l_t'][0],
                          user_options['trajectory']['lift_mode']['max_l_t']],
                          ('user input for maximum main tether length', None),'x'))
 
         if user_options['trajectory']['lift_mode']['pumping_range']:
-            pumping_range = user_options['trajectory']['lift_mode']['pumping_range']
+            pumping_range = copy.copy(user_options['trajectory']['lift_mode']['pumping_range'])
             for i in range(len(pumping_range)):
                 if pumping_range[i]:
-                    pumping_range[i] = pumping_range[i]/options['model']['scaling']['xd']['l_t']
+                    pumping_range[i] = pumping_range[i]/options['model']['scaling']['x']['l_t']
             options_tree.append(('nlp',None,None,'pumping_range', pumping_range, ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'))
 
     if trajectory_type in ['transition','nominal_landing','compromised_landing']:
@@ -166,7 +167,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'ddq_regularisation',   n_k,             ('ddq_regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation', n_k,             ('xdot_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
 
@@ -197,6 +198,8 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_coll'],  ('number of internal integrator steps', (True, False)),'x'))
     elif options['nlp']['integrator']['type'] == 'rk4root':
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_rk4root'],  ('number of internal integrator steps', (True, False)),'x'))
+
+    options_tree.append(('nlp', 'mpc', None, 'terminal_point_constr', options['formulation']['mpc']['terminal_point_constr'], ('????', None), 'x'))
 
     return options_tree, phase_fix
 
@@ -234,7 +237,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     # solver weights:
     if options['solver']['weights_overwrite']['dddl_t'] is None:
         jerk_scale = 1.e-3 #1.e1
-        jerk_weight = jerk_scale * options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
+        jerk_weight = jerk_scale * options['model']['scaling']['x']['l_t']**2 # make independent of tether length scaling
     else:
         jerk_weight = options['solver']['weights_overwrite']['dddl_t']
     options_tree.append(('solver', 'weights', None, 'dddl_t', jerk_weight,('optimization weight for control variable dddl_t [-]', None),'s'))
@@ -250,7 +253,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
-    options_tree.append(('solver',  'initialization', 'xd', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+    options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
 
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
@@ -271,6 +274,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
         options['solver']['initialization']['fix_tether_length'] = True
+
+    if options['solver']['homotopy_method'] not in ['penalty', 'classic']:
+        awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
 
     return options_tree
 

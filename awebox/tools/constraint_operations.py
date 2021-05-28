@@ -308,6 +308,16 @@ class ConstraintList:
         # create function
         return cas.Function('cstr_fun', [relevant_variables, relevant_parameters], [expr_list], opts)
 
+    def get_constraint_by_name(self, name):
+        for cstr in self.__all_list:
+            if cstr.name == name:
+                return cstr
+
+        message = 'no constraint found with searched name. returning None object'
+        awelogger.logger.warning(message)
+
+        return None
+
     def scale(self, scaling):
 
         cstr_type_list = ['eq', 'ineq', 'all']

@@ -68,7 +68,10 @@ def abs(a):
 
 def smooth_abs(arg, epsilon=1e-8):
 
-    if hasattr(arg, 'shape') and (len(arg.shape) > 0):
+    if hasattr(arg, 'shape') and (arg.shape == (1,1)):
+        abs = smooth_sqrt(arg ** 2., epsilon)
+
+    elif hasattr(arg, 'shape') and (len(arg.shape) > 0):
         abs = []
         for idx in range(arg.shape[0]):
             local = smooth_sqrt(arg[idx] ** 2., epsilon)
@@ -85,8 +88,8 @@ def smooth_abs(arg, epsilon=1e-8):
 
     return abs
 
-def smooth_sqrt(a, epsilon=1e-8):
-    sqrt = (a + epsilon ** 2.) ** 0.5
+def smooth_sqrt(arg, epsilon=1e-8):
+    sqrt = (arg + epsilon ** 2.) ** 0.5
     return sqrt
 
 def normalize(a):
@@ -225,11 +228,11 @@ def rotation(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
-def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
+def jacobian_dcm(expr, x_si, variables_scaled, kite, parent):
     """ Differentiate expression w.r.t. kite direct cosine matrix"""
 
-    dcm_si = xd_si['r{}{}'.format(kite, parent)]
-    dcm_scaled = variables_scaled['xd', 'r{}{}'.format(kite, parent)]
+    dcm_si = x_si['r{}{}'.format(kite, parent)]
+    dcm_scaled = variables_scaled['x', 'r{}{}'.format(kite, parent)]
 
     jac_dcm = rotation(
             cas.reshape(dcm_si, (3,3)),

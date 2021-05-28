@@ -42,7 +42,7 @@ import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import awebox.mdl.aero.induction_dir.induction as induction
-
+import awebox.mdl.aero.induction_dir.vortex_dir.convection as vortex_convection
 import awebox.mdl.aero.indicators as indicators
 
 import awebox.mdl.mdl_constraint as mdl_constraint
@@ -74,6 +74,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     system_variables['SI'], options['scaling'] = generate_si_variables(options['scaling'], system_variables['scaled'])
     scaling = options['scaling']
 
+    variables_to_return_to_model = system_variables['scaled']
+
+
     # -----------------------------------
     # prepare empty constraints list and outputs
     # -----------------------------------
@@ -99,11 +102,12 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    induction_cstr = get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
-    cstr_list.append(induction_cstr)
+    if not (options['induction_model'] == 'not_in_use'):
+        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+        cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
-    power = get_power(options, system_variables['SI'], outputs, architecture)
+    power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
     integral_outputs_fun, integral_outputs_struct, integral_scaling, energy_cstr = manage_power_integration(options,
                                                                                                                 power,
                                                                                                                 system_variables,
@@ -115,14 +119,18 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the inequality constraints
     # --------------------------------------------
 
-    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
-    cstr_list.append(stress_cstr)
 
     wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'])
     cstr_list.append(wound_length_cstr)
 
+    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
+    cstr_list.append(stress_cstr)
+
     airspeed_cstr = airspeed_inequality(options, outputs, parameters, architecture)
     cstr_list.append(airspeed_cstr)
+
+    aero_validity_cstr = aero_validity_inequality(options, outputs)
+    cstr_list.append(aero_validity_cstr)
 
     anticollision_cstr = anticollision_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(anticollision_cstr)
@@ -130,8 +138,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     acceleration_cstr = acceleration_inequality(options, system_variables['SI'])
     cstr_list.append(acceleration_cstr)
 
-    omega_cstr = angular_velocity_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(omega_cstr)
+    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(rotation_cstr)
 
     dcoeff_cstr = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(dcoeff_cstr)
@@ -139,8 +147,11 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     coeff_cstr = coeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
     cstr_list.append(coeff_cstr)
 
-    outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
-    cstr_list.append(rotation_cstr)
+    # ----------------------------------------
+    #  sanity checking
+    # ----------------------------------------
+
+    check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, system_variables['scaled'])
 
     # ----------------------------------------
     #  construct outputs structure
@@ -158,9 +169,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
 
     # add other relevant outputs
-    outputs = xddot_outputs(system_variables['SI'], outputs)
+    outputs = xdot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,
-                                    architecture)  # this must be after tether stress inequality
+                                    parameters, architecture)  # power balance must be after tether stress inequality
 
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
@@ -170,7 +181,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # ----------------------------------------
 
     return [
-        system_variables['scaled'],
+        variables_to_return_to_model,
         variables_dict,
         scaling,
         cstr_list,
@@ -182,26 +193,16 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         integral_scaling]
 
 
-def get_induction_cstr(options, atmos, wind, variables_si, parameters, outputs, architecture):
+def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):
+    dynamics = cstr_list.get_expression_list('eq')
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    for var_name in variables_dict['xdot'].keys():
+        local_jac = cas.jacobian(dynamics, variables_scaled['xdot', var_name])
+        if not (local_jac.nnz() > 0):
+            message = 'xdot variable ' + str(var_name) + ' does not seem to be constrained in the model dynamics. expect poor sosc behavior.'
+            awelogger.logger.warning(message)
 
-    if not (options['induction_model'] == 'not_in_use'):
-
-        induction_init = induction.get_trivial_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-        induction_final = induction.get_final_residual(options, atmos, wind, variables_si, parameters, outputs, architecture)
-
-        induction_constraint = parameters['phi', 'iota'] * induction_init \
-                               + (1. - parameters['phi', 'iota']) * induction_final
-
-        induction_cstr = cstr_op.Constraint(expr=induction_constraint,
-                                                      name='induction',
-                                                      cstr_type='eq')
-        cstr_list.append(induction_cstr)
-
-    return cstr_list
-
-
+    return None
 
 def manage_power_integration(options, power, system_variables, parameters):
 
@@ -214,13 +215,13 @@ def manage_power_integration(options, power, system_variables, parameters):
     integral_scaling = {}
 
     if options['integral_outputs']:
-        integral_outputs = cas.struct_SX([cas.entry('e', expr=power / options['scaling']['xd']['e'])])
+        integral_outputs = cas.struct_SX([cas.entry('e', expr=power / options['scaling']['x']['e'])])
         integral_outputs_struct = cas.struct_symSX([cas.entry('e')])
 
-        integral_scaling['e'] = options['scaling']['xd']['e']
+        integral_scaling['e'] = options['scaling']['x']['e']
 
     else:
-        energy_resi = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
+        energy_resi = (system_variables['SI']['xdot']['de'] - power) / options['scaling']['x']['e']
 
         energy_cstr = cstr_op.Constraint(expr=energy_resi,
                                        name='energy',
@@ -237,6 +238,7 @@ def manage_power_integration(options, power, system_variables, parameters):
                                         [integral_outputs], opts)
 
     return integral_outputs_fun, integral_outputs_struct, integral_scaling, cstr_list
+
 
 def make_output_structure(outputs, system_variables, parameters):
     outputs_vec = []
@@ -269,31 +271,6 @@ def make_output_structure(outputs, system_variables, parameters):
     return [out_struct, outputs_fun, outputs_dict]
 
 
-def make_output_constraint_structure(options, outputs, system_variables, parameters):
-    constraint_vec = []
-
-    represented_constraints = list(options['model_bounds'].keys())
-
-    full_list = []
-    for output_type in list(outputs.keys()):
-
-        if (output_type in set(represented_constraints)) and (options['model_bounds'][output_type]['include']):
-
-            local_list = []
-            for name in list(outputs[output_type].keys()):
-                local_list += [cas.entry(name, shape=outputs[output_type][name].shape)]
-
-                constraint_vec = cas.vertcat(constraint_vec, outputs[output_type][name])
-
-            local_output = cas.struct_symMX(local_list)
-
-            full_list += [cas.entry(output_type, struct=local_output)]
-
-    constraint_struct = cas.struct_symMX(full_list)
-    constraints = constraint_struct(constraint_vec)
-    constraint_fun = cas.Function('constraint_out_fun', [system_variables['scaled'], parameters], [constraints])
-
-    return [constraint_struct, constraint_fun]
 
 
 
@@ -301,44 +278,45 @@ def make_output_constraint_structure(options, outputs, system_variables, paramet
 
 
 
-def get_drag_power_from_kite(kite, variables_si, outputs, architecture):
+def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture):
     parent = architecture.parent_map[kite]
-    kite_drag_power = -1. * cas.mtimes(
-        variables_si['xd']['dq{}{}'.format(kite, parent)].T,
-        outputs['aerodynamics']['f_gen{}'.format(kite)]
-    )
+    kite_drag_power = parameters['theta0', 'aero', 'turbine_efficiency'] * \
+        cas.mtimes(
+            outputs['aerodynamics']['air_velocity{}'.format(kite)].T,
+            outputs['aerodynamics']['f_gen{}'.format(kite)]
+        )
     return kite_drag_power
 
 
-def get_power(options, variables_si, outputs, architecture):
+def get_power(options, variables_si, parameters, outputs, architecture):
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
-            power += get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+            power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
     else:
-        power = variables_si['xa']['lambda10'] * variables_si['xd']['l_t'] * variables_si['xd']['dl_t']
+        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
 
     return power
 
 
 
-def drag_mode_outputs(variables_si, outputs, architecture):
+def drag_mode_outputs(variables_si, parameters, outputs, architecture):
     for kite in architecture.kite_nodes:
-        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, outputs, architecture)
+        outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
 
     return outputs
 
 
 
 
-def power_balance_outputs(options, outputs, system_variables, architecture):
+def power_balance_outputs(options, outputs, system_variables, parameters, architecture):
     variables_si = system_variables['SI']
 
     # all aerodynamic forces have already been added to power balance, by this point.
     # outputs['power_balance'] is not empty!
 
     if options['trajectory']['system_type'] == 'drag_mode':
-        outputs = drag_mode_outputs(variables_si, outputs, architecture)
+        outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
     outputs = kinetic_power_outputs(options, outputs, system_variables, architecture)
@@ -379,15 +357,15 @@ def tether_power_outputs(variables_si, outputs, architecture):
         parent = architecture.parent_map[n]
 
         # node positions
-        q_n = variables_si['xd']['q' + str(n) + str(parent)]
+        q_n = variables_si['x']['q' + str(n) + str(parent)]
         if n > 1:
             grandparent = architecture.parent_map[parent]
-            q_p = variables_si['xd']['q' + str(parent) + str(grandparent)]
+            q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
             q_p = cas.SX.zeros((3, 1))
 
         # node velocity
-        dq_n = variables_si['xd']['dq' + str(n) + str(parent)]
+        dq_n = variables_si['x']['dq' + str(n) + str(parent)]
         # force and direction
         tether_force = outputs['local_performance']['tether_force' + str(n) + str(parent)]
         tether_direction = vect_op.normalize(q_n - q_p)
@@ -414,7 +392,7 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
         categories = {'q' + label: str(n)}
 
         if n == 1:
-            categories['groundstation'] = 'groundstation1'
+            categories['ground_station'] = 'groundstation1'
 
         for cat in categories.keys():
 
@@ -455,8 +433,8 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
 
 
 
-def xddot_outputs(variables, outputs):
-    outputs['xddot_from_var'] = variables['xddot']
+def xdot_outputs(variables, outputs):
+    outputs['xdot_from_var'] = variables['xdot']
     return outputs
 
 
@@ -478,7 +456,7 @@ def anticollision_inequality(options, variables, parameters, architecture):
             kite_b = kite_pair[1]
             parent_a = parent_map[kite_a]
             parent_b = parent_map[kite_b]
-            dist = variables['xd']['q' + str(kite_a) + str(parent_a)] - variables['xd']['q' + str(kite_b) + str(parent_b)]
+            dist = variables['x']['q' + str(kite_a) + str(parent_a)] - variables['x']['q' + str(kite_b) + str(parent_b)]
             dist_inequality = 1 - (cas.mtimes(dist.T, dist) / dist_min ** 2)
 
             anticollision_cstr = cstr_op.Constraint(expr=dist_inequality,
@@ -545,8 +523,8 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
 
     if options['model_bounds']['coeff_actuation']['include']:
 
-        # nu*xd_max + (1 - nu)*u_compromised_max > xd
-        # xd - nu*xd_max + (1 - nu)*xd_compromised_max < 0
+        # nu*x_max + (1 - nu)*u_compromised_max > x
+        # x - nu*x_max + (1 - nu)*x_compromised_max < 0
         if int(options['kite_dof']) != 3:
             return cstr_list
 
@@ -557,12 +535,12 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
         coeff_compromised_min = parameters['theta0', 'model_bounds', 'coeff_compromised_min']
         traj_type = options['trajectory']['type']
 
-        for variable in list(variables_si['xd'].keys()):
+        for variable in list(variables_si['x'].keys()):
 
             var_name, kiteparent = struct_op.split_name_and_node_identifier(variable)
             if var_name == 'coeff':
 
-                coeff = variables_si['xd'][variable]
+                coeff = variables_si['x'][variable]
                 scenario, broken_kite = options['compromised_landing']['emergency_scenario']
                 kite, parent = struct_op.split_kite_and_parent(kiteparent, architecture)
 
@@ -597,12 +575,12 @@ def acceleration_inequality(options, variables):
 
         acc_max = options['model_bounds']['acceleration']['acc_max'] * options['scaling']['other']['g']
 
-        for name in list(variables['xddot'].keys()):
+        for name in list(variables['xdot'].keys()):
 
             var_name, var_label = struct_op.split_name_and_node_identifier(name)
 
             if var_name == 'ddq':
-                acc = variables['xddot'][name]
+                acc = variables['xdot'][name]
                 acc_sq = cas.mtimes(acc.T, acc)
                 acc_sq_norm = acc_sq / acc_max ** 2.
 
@@ -651,38 +629,20 @@ def airspeed_inequality(options, outputs, parameters, architecture):
     return cstr_list
 
 
-def angular_velocity_inequality(options, variables, parameters, architecture):
+def aero_validity_inequality(options, outputs):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
-    if options['model_bounds']['angular_velocity']['include']:
+    if options['model_bounds']['aero_validity']['include']:
+        for name in outputs['aero_validity'].keys():
 
-        kite_nodes = architecture.kite_nodes
-        parent_map = architecture.parent_map
-
-        omega_norm_max_deg = parameters['theta0', 'model_bounds', 'angular_velocity_max']
-        omega_norm_max = omega_norm_max_deg * np.pi / 180.
-
-        kite_has_6dof = (int(options['kite_dof']) == 6)
-        if kite_has_6dof:
-
-            for kite in kite_nodes:
-                parent = parent_map[kite]
-                omega = variables['xd']['omega' + str(kite) + str(parent)]
-
-                # |omega| <= omega_norm_max
-                # omega^\top omega <= omega_norm_max^2
-                # omega^\top omega - omega_norm_max^2 <= 0
-                # (omega^\top omega)/omega_norm_max^2 - 1 <= 0
-
-                ineq = cas.mtimes(omega.T, omega) / omega_norm_max ** 2. - 1.
-                omega_cstr = cstr_op.Constraint(expr=ineq,
-                                              name='angular_velocity' + str(kite) + str(parent),
-                                              cstr_type='ineq')
-                cstr_list.append(omega_cstr)
+            ineq = outputs['aero_validity'][name]
+            valid_cstr = cstr_op.Constraint(expr=ineq,
+                                            name=name,
+                                            cstr_type='ineq')
+            cstr_list.append(valid_cstr)
 
     return cstr_list
-
 
 def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
 
@@ -693,7 +653,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
     parent_map = architecture.parent_map
 
     # system (scaled) variables
-    xa = variables_si['xa']
+    z = variables_si['z']
     theta = variables_si['theta']
 
     tightness = options['model_bounds']['tether_stress']['scaling']
@@ -713,7 +673,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
 
-        tension = xa['lambda' + str(n) + str(parent)] * seg_length
+        tension = z['lambda' + str(n) + str(parent)] * seg_length
 
         min_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][0]
         max_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][1]
@@ -767,7 +727,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
             max_tension_from_stress = maximum_allowed_stress * cross_section_max
 
             if len(kites) == 2:
-                tension = xa['lambda{}{}'.format(kites[0], kites[1])] * seg_length
+                tension = z['lambda{}{}'.format(kites[0], kites[1])] * seg_length
                 outputs['local_performance']['tether_stress{}{}'.format(kites[0], kites[1])] = tension / cross_section
 
                 stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
@@ -783,7 +743,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
                     cdx = (kdx + 1) % len(kites)
                     label = '{}{}'.format(kites[kdx], kites[cdx])
 
-                    tension = xa['lambda' + label] * seg_length
+                    tension = z['lambda' + label] * seg_length
                     outputs['local_performance']['tether_stress' + label] = tension / cross_section
 
                     stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
@@ -805,11 +765,11 @@ def wound_tether_length_inequality(options, variables):
 
     if options['model_bounds']['wound_tether_length']['include']:
 
-        length_scaling = options['scaling']['xd']['l_t']
+        length_scaling = options['scaling']['x']['l_t']
 
         if options['tether']['use_wound_tether']:
             l_t_full = variables['theta']['l_t_full'] / options['tether']['wound_tether_safety_factor']
-            l_t = variables['xd']['l_t']
+            l_t = variables['x']['l_t']
 
             expr = (l_t - l_t_full) / length_scaling
 
@@ -825,10 +785,10 @@ def generate_si_variables(scaling_options, variables):
 
     scaling = {}
 
-    prepared_xd_names = scaling_options['xd'].keys()
+    prepared_x_names = scaling_options['x'].keys()
 
-    if 'xddot' not in scaling_options.keys():
-        scaling_options['xddot'] = {}
+    if 'xdot' not in scaling_options.keys():
+        scaling_options['xdot'] = {}
 
     for var_type in variables.keys():
         scaling[var_type] = {}
@@ -866,20 +826,20 @@ def generate_si_variables(scaling_options, variables):
 
 
 
-            elif var_name in prepared_xd_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][var_name])
+            elif var_name in prepared_x_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options['x'][var_name])
 
-            elif stripped_name in prepared_xd_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][stripped_name])
+            elif stripped_name in prepared_x_names:
+                scaling[var_type][var_name] = cas.DM(scaling_options['x'][stripped_name])
 
-            elif var_might_be_derivative and (poss_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_deriv_name])
+            elif var_might_be_derivative and (poss_deriv_name in prepared_x_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_deriv_name])
 
-            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_sec_deriv_name])
+            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_x_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_sec_deriv_name])
 
-            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_xd_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['xd'][poss_third_deriv_name])
+            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_x_names):
+                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_third_deriv_name])
 
             else:
                 message = 'no scaling information provided for variable ' + var_name + ', expected in ' + var_type + '. Proceeding with unit scaling.'
@@ -900,9 +860,9 @@ def generate_si_variables(scaling_options, variables):
 
 
 
-def get_roll_expr(xd, n0, n1, parent_map):
+def get_roll_expr(x, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle roll angle via roll = atan(expr),
-    :param xd: system variables
+    :param x: system variables
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -910,21 +870,21 @@ def get_roll_expr(xd, n0, n1, parent_map):
     """
 
     # node + parent position
-    q0 = xd['q{}{}'.format(n0, parent_map[n0])]
+    q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
         q1 = np.zeros((3, 1))
     else:
-        q1 = xd['q{}{}'.format(n1, parent_map[n1])]
+        q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
     q_hat = q0 - q1  # tether direction
-    r = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
+    r = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:, 1] / cas.mtimes(q_hat.T, r[:, 2]))
 
 
-def get_pitch_expr(xd, n0, n1, parent_map):
+def get_pitch_expr(x, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle pitch angle via pitch = asin(expr),
-    :param xd: system variables
+    :param x: system variables
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -932,21 +892,21 @@ def get_pitch_expr(xd, n0, n1, parent_map):
     """
 
     # node + parent position
-    q0 = xd['q{}{}'.format(n0, parent_map[n0])]
+    q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
         q1 = np.zeros((3, 1))
     else:
-        q1 = xd['q{}{}'.format(n1, parent_map[n1])]
+        q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
     q_hat = q0 - q1  # tether direction
-    r = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
+    r = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
 
     return cas.mtimes(q_hat.T, r[:, 0] / vect_op.norm(q_hat))
 
 
-def get_span_angle_expr(options, xd, n0, n1, parent_map, parameters):
+def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     """ Return the expression that allows to compute the cross-tether vs. body span-vector angle and related inequality,
-    :param xd: system variables
+    :param x: system variables
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
@@ -954,15 +914,15 @@ def get_span_angle_expr(options, xd, n0, n1, parent_map, parameters):
     """
 
     # node + parent position
-    q0 = xd['q{}{}'.format(n0, parent_map[n0])]
-    r0 = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
+    q0 = x['q{}{}'.format(n0, parent_map[n0])]
+    r0 = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
     r_wtip = cas.vertcat(0.0, -parameters['theta0', 'geometry', 'b_ref'] / 2, 0.0)
 
     if n1 == 0:
         q1 = np.zeros((3, 1))
     else:
-        q1 = xd['q{}{}'.format(n1, parent_map[n1])]
-        r1 = cas.reshape(xd['r{}{}'.format(n1, parent_map[n1])], (3, 3))
+        q1 = x['q{}{}'.format(n1, parent_map[n1])]
+        r1 = cas.reshape(x['r{}{}'.format(n1, parent_map[n1])], (3, 3))
 
     # first node
     q_first = q0 + cas.mtimes(r0, r_wtip)
@@ -984,31 +944,31 @@ def get_span_angle_expr(options, xd, n0, n1, parent_map, parameters):
     return span_ineq, span_angle
 
 
-def get_yaw_expr(options, xd, n0, n1, parent_map, gamma_max):
+def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
     """ Compute angle between kite yaw vector and tether, including corresponding inequality.
-    :param xd: system variables
+    :param x: system variables
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
     :return: yaw expression, yaw angle
     """
     # node + parent position
-    q0 = xd['q{}{}'.format(n0, parent_map[n0])]
+    q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
         q1 = np.zeros((3, 1))
     else:
-        q1 = xd['q{}{}'.format(n1, parent_map[n1])]
+        q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
     q_hat = q0 - q1  # tether direction
-    r = cas.reshape(xd['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
+    r = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
 
     yaw_angle = cas.arccos(cas.mtimes(q_hat.T, r[:, 2]) / vect_op.norm(q_hat))
     yaw_expr = (cas.mtimes(q_hat.T, r[:, 2]) - cas.cos(gamma_max) * vect_op.norm(q_hat))
 
     # scale yaw_expression
     if n0 == 1:
-        scale = options['scaling']['xd']['l_t']
+        scale = options['scaling']['x']['l_t']
     else:
         scale = options['scaling']['theta']['l_s']
     yaw_expr = yaw_expr / scale
@@ -1022,7 +982,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    xd = variables['xd']
+    x = variables['x']
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
@@ -1042,8 +1002,8 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
             if options['model_bounds']['rotation']['type'] == 'roll_pitch':
                 rotation_angles = cas.vertcat(
-                    get_roll_expr(xd, kite, parent_map[kite], parent_map),
-                    get_pitch_expr(xd, kite, parent_map[kite], parent_map)
+                    get_roll_expr(x, kite, parent_map[kite], parent_map),
+                    get_pitch_expr(x, kite, parent_map[kite], parent_map)
                 )
 
                 if options['model_bounds']['rotation']['include']:
@@ -1069,7 +1029,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
             elif options['model_bounds']['rotation']['type'] == 'yaw':
 
                 yaw_expr, yaw_angle = get_yaw_expr(
-                    options, xd, kite, parent_map[kite], parent_map,
+                    options, x, kite, parent_map[kite], parent_map,
                     parameters['theta0', 'model_bounds', 'rot_angles', 2]
                 )
 
@@ -1098,12 +1058,12 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
                         # get roll and pitch expressions at each end of the cross-tether
                         rotation_angles = cas.vertcat(
-                            get_roll_expr(xd, kites[k], kites[(k + 1) % len(kites)], parent_map),
-                            get_pitch_expr(xd, kites[k], kites[(k + 1) % len(kites)], parent_map)
+                            get_roll_expr(x, kites[k], kites[(k + 1) % len(kites)], parent_map),
+                            get_pitch_expr(x, kites[k], kites[(k + 1) % len(kites)], parent_map)
                         )
                         rotation_angles2 = cas.vertcat(
-                            get_roll_expr(xd, kites[(k + 1) % len(kites)], kites[k], parent_map),
-                            get_pitch_expr(xd, kites[(k + 1) % len(kites)], kites[k], parent_map)
+                            get_roll_expr(x, kites[(k + 1) % len(kites)], kites[k], parent_map),
+                            get_pitch_expr(x, kites[(k + 1) % len(kites)], kites[k], parent_map)
                         )
 
                         if options['model_bounds']['rotation']['include']:
@@ -1144,9 +1104,9 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     else:
 
                         # get angle between body span vector and cross-tether and related inequality
-                        rotation_angle_expr, span = get_span_angle_expr(options, xd, kites[k], kites[(k + 1) % len(kites)],
+                        rotation_angle_expr, span = get_span_angle_expr(options, x, kites[k], kites[(k + 1) % len(kites)],
                                                                         parent_map, parameters)
-                        rotation_angle_expr2, span2 = get_span_angle_expr(options, xd, kites[(k + 1) % len(kites)],
+                        rotation_angle_expr2, span2 = get_span_angle_expr(options, x, kites[(k + 1) % len(kites)],
                                                                           kites[k], parent_map, parameters)
 
                         if options['model_bounds']['rotation']['include']:
