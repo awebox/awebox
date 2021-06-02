@@ -9,7 +9,12 @@ It is optional but highly recommended to use HSL linear solvers as a plugin with
      git clone https://github.com/awebox/awebox.git
      ```
 
-2.   Install CasADI version **3.5** for Python 3, following these [installation instructions](https://github.com/casadi/casadi/wiki/InstallationInstructions).
+2.   Run the install script:
+
+    ```
+    cd awebox/
+    python3 setup.py install
+    ```
 
 3.   In order to get the HSL solvers and render them visible to CasADi, follow these [instructions](https://github.com/casadi/casadi/wiki/Obtaining-HSL).
 
