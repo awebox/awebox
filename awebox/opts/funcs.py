@@ -218,7 +218,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options_tree.append(('solver', None, None, 'tol_hippo',       1e-4,        ('tolerance for interior point homotop parameter for hippo strategy [float]', None),'x'))
 
     # initialize theta params with standard scaling length or fixed length
-    initialization_theta = options['model']['scaling']['theta']
+    initialization_theta = options['solver']['initialization']['theta']
     for param in list(user_options['trajectory']['fixed_params'].keys()):
         initialization_theta[param] = user_options['trajectory']['fixed_params'][param]
     for param in list(fixed_params.keys()):
