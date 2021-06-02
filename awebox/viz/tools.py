@@ -90,7 +90,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-'):
+def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-', plot_tether = False):
     vsa = np.array(cas.DM(vertically_stacked_array))
 
     if vsa.shape[0] == 3 and (not vsa.shape[1] == 3):
@@ -98,8 +98,9 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
 
     if side == 'isometric':
         ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
-        for kk in range(int(vsa.shape[0]/5)-1):
-            ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
+        if plot_tether:
+            for kk in range(int(vsa.shape[0]/5)-1):
+                ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
     else:
         side_num = ''
         for sdx in side:
@@ -114,8 +115,9 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
         jdx = int(side_num[1])
 
         ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
-        for kk in range(int(vsa.shape[0]/5)-1):
-            ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
+        if plot_tether:
+            for kk in range(int(vsa.shape[0]/5)-1):
+                ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
 
     return None
 
@@ -510,6 +512,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         kite_rotations.append(rot)
 
     old_label = None
+    plot_tether = (len(kite_nodes) == 1)
     for kdx in range(len(kite_nodes)):
 
 
@@ -541,13 +544,13 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
         if old_label == label:
             label = None
-        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
+        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label, plot_tether = plot_tether)
 
         if cosmetics['plot_ref']:
             vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[kdx][0],
                                                         kite_ref_locations[kdx][1],
                                                         kite_ref_locations[kdx][2])
-            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
+            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--', plot_tether = plot_tether)
 
         old_label = label
 
