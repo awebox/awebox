@@ -295,8 +295,8 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
     if nlp_options['system_type'] == 'lift_mode':
         if nlp_options['phase_fix'] == 'single_reelout':
             nk_power_der = round(nlp_options['n_k']*nlp_options['phase_fix_reelout'])
-            nk_start = round(0.1*nk_power_der)
-            nk_stop  = round(0.9*nk_power_der)
+            nk_start = round(nlp_options['cost']['power_der_start']*nk_power_der)
+            nk_stop  = round(nlp_options['cost']['power_der_stop']*nk_power_der)
         else:
             nk_power_der = nlp_options['n_k']
         
