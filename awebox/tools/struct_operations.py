@@ -188,8 +188,6 @@ def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
         return V[var_type, kdx]
     elif direct_collocation:
         return V['coll_var', kdx, ddx, var_type]
-    else:
-        return no_available_var_info(model_variables, var_type)
 
 
 def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
@@ -218,8 +216,6 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
     elif multiple_shooting:
         return V[var_type, kdx]
 
-    else:
-        return no_available_var_info(model_variables, var_type)
 
 
 def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
@@ -266,9 +262,6 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
         elif var_type == 'xdot':
             local_var = get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx)
-
-        else:
-            local_var = no_available_var_info(model_variables, var_type)
 
         var_list.append(local_var)
 

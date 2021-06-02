@@ -1060,7 +1060,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     tether_name = '{}{}'.format(kites[k], kites[(k + 1) % len(kites)])
                     tether_name2 = '{}{}'.format(kites[(k + 1) % len(kites)], kites[k])
 
-                    if options['tether']['cross_tether']['attachment'] is not 'wing_tip':
+                    if options['tether']['cross_tether']['attachment'] != 'wing_tip':
 
                         yaw_expr, yaw_angle = get_yaw_expr(
                             options, x, kites[k], kites[(k + 1) % len(kites)], parent_map,

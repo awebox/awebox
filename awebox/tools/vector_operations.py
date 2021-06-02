@@ -119,12 +119,12 @@ def dot(a, b):
     return v
 
 def angle_between(a, b):
-    theta = np.arctan2(norm(cross(a, b)), dot(a, b))
+    theta = cas.arctan2(norm(cross(a, b)), dot(a, b))
 
     return theta
 
 def angle_between_resi(a, b, theta):
-    resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
+    resi = cas.tan(theta) * dot(a, b) - norm(cross(a, b))
     return resi
 
 def zeros_mx(shape):
@@ -312,7 +312,7 @@ def find_zero_cols(matrix, tol):
     return zero_cols
 
 def unitstep(val, eps=1e-8):
-    heavi = np.arctan(val / eps) / np.pi + 0.5
+    heavi = cas.arctan(val / eps) / np.pi + 0.5
     return heavi
 
 def step_in_out(number, step_in, step_out, eps=1e-4):

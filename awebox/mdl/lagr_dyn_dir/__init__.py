@@ -1,3 +1,4 @@
+
 #
 #    This file is part of awebox.
 #
@@ -22,11 +23,3 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# Import main interface classes
-from .sweep import Sweep
-from .trial import Trial
-from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
-
-# Visualization classes
-from .viz.visualization import Visualization
