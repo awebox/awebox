@@ -1182,10 +1182,10 @@ def estimate_time_period(options, architecture):
     number_of_kites = architecture.number_of_kites
     if number_of_kites == 1:
         cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
-        length = options['model']['scaling']['x']['l_t']
+        length = options['solver']['initialization']['l_t']
     else:
         cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
-        length = options['model']['scaling']['theta']['l_s']
+        length = options['solver']['initialization']['theta']['l_s']
     radius = length * np.sin(cone_angle)
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
 

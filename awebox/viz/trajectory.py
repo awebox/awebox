@@ -75,6 +75,8 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax_xy.xaxis.set_label_position('top')
         ax_xy.set_xlabel(r'x [m]')
         ax_xy.set_ylabel(r'y [m]')
+        xlim = ax_xy.get_xlim()
+        ax_xy.set_xlim([0, xlim[1]])
 
         ax_xz.xaxis.tick_top()
         ax_xz.yaxis.tick_right()
@@ -82,14 +84,21 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax_xz.yaxis.set_label_position('right')
         ax_xz.set_xlabel(r'x [m]')
         ax_xz.set_ylabel(r'z [m]')
+        xlim = ax_xz.get_xlim()
+        ax_xz.set_xlim([0, xlim[1]])
 
         ax_yz.set_xlabel(r'y [m]')
         ax_yz.set_ylabel(r'z [m]')
+        ylim = ax_yz.get_ylim()
+        ax_yz.set_ylim([0, ylim[1]])
 
         ax_iso.set_xlabel(r'x [m]')
         ax_iso.set_ylabel(r'y [m]')
         ax_iso.set_zlabel(r'z [m]')
-
+        xlim = ax_iso.get_xlim()
+        zlim = ax_iso.get_zlim()
+        ax_iso.set_xlim([0, xlim[1]])
+        ax_iso.set_zlim([0, zlim[1]])
     else:
         ax.set_xlabel(side[0] + ' [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel(side[1] + ' [m]', **cosmetics['trajectory']['axisfont'])
@@ -104,7 +113,10 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
 
     # set equal aspect ratio for a trajectory plots
     if side not in ['isometric', 'quad']:
-        for ax in fig.axes:
+        for ax in fig.axes[:-1]:
+            ax.set_aspect('equal')
+    if side == 'quad':
+        for ax in fig.axes[:-1]:
             ax.set_aspect('equal')
 
 def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, reload_dict):

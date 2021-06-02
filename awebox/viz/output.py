@@ -87,6 +87,8 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         for odx in range(number_of_opts):
             axes[odx].set_xlabel('t [s]')
+            axes[odx].autoscale(enable=True, axis= 'x', tight = True)
+            axes[odx].grid(True)
 
         for odx in range(len(interesting_outputs)):
 

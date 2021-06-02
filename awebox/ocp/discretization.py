@@ -131,6 +131,7 @@ def setup_nlp_cost():
         cas.entry('upsilon'),
         cas.entry('fictitious'),
         cas.entry('power'),
+        cas.entry('power_derivative'),
         cas.entry('t_f'),
         cas.entry('theta_regularisation'),
         cas.entry('nominal_landing'),

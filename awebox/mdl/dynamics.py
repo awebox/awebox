@@ -107,11 +107,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
-    power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
-    integral_outputs_fun, integral_outputs_struct, integral_scaling, energy_cstr = manage_power_integration(options,
-                                                                                                                power,
-                                                                                                                system_variables,
-                                                                                                                parameters)
+    power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
+    integral_outputs, integral_outputs_fun, integral_scaling, energy_cstr = manage_power_integration(options, power, outputs, system_variables, parameters)
     cstr_list.append(energy_cstr)
 
 
@@ -188,7 +185,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         out,
         out_fun,
         out_dict,
-        integral_outputs_struct,
+        integral_outputs,
         integral_outputs_fun,
         integral_scaling]
 
@@ -204,19 +201,24 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 
     return None
 
-def manage_power_integration(options, power, system_variables, parameters):
+def manage_power_integration(options, power, outputs, system_variables, parameters):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
     # generate empty integral_outputs struct
     integral_outputs = cas.struct_SX([])
-    integral_outputs_struct = cas.struct_symSX([])
 
     integral_scaling = {}
 
     if options['integral_outputs']:
-        integral_outputs = cas.struct_SX([cas.entry('e', expr=power / options['scaling']['x']['e'])])
-        integral_outputs_struct = cas.struct_symSX([cas.entry('e')])
+        
+        entry_list = [cas.entry('e', expr=power / options['scaling']['x']['e'])]
+
+        if options['trajectory']['system_type'] == 'drag_mode':
+            entry_list += [cas.entry('power_derivative_sq', expr= outputs['performance']['power_derivative']**2)]
+            integral_scaling['power_derivative_sq'] = 1.0
+
+        integral_outputs = cas.struct_SX(entry_list)
 
         integral_scaling['e'] = options['scaling']['x']['e']
 
@@ -237,7 +239,7 @@ def manage_power_integration(options, power, system_variables, parameters):
     integral_outputs_fun = cas.Function('integral_outputs', [system_variables['scaled'], parameters],
                                         [integral_outputs], opts)
 
-    return integral_outputs_fun, integral_outputs_struct, integral_scaling, cstr_list
+    return integral_outputs, integral_outputs_fun, integral_scaling, cstr_list
 
 
 def make_output_structure(outputs, system_variables, parameters):
@@ -288,15 +290,17 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
     return kite_drag_power
 
 
-def get_power(options, variables_si, parameters, outputs, architecture):
+def get_power(options, system_variables, parameters, outputs, architecture):
+    variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
+        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables, architecture)
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
 
-    return power
+    return power, outputs
 
 
 
@@ -729,6 +733,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
             if len(kites) == 2:
                 tension = z['lambda{}{}'.format(kites[0], kites[1])] * seg_length
                 outputs['local_performance']['tether_stress{}{}'.format(kites[0], kites[1])] = tension / cross_section
+                outputs['local_performance']['tether_force{}{}'.format(kites[0], kites[1])] = tension
 
                 stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
                 stress_ineq_tightened = stress_inequality_untightened * tightness
@@ -745,6 +750,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
                     tension = z['lambda' + label] * seg_length
                     outputs['local_performance']['tether_stress' + label] = tension / cross_section
+                    outputs['local_performance']['tether_force' + label] = tension
 
                     stress_inequality_untightened = tension / max_tension_from_stress - cross_section / cross_section_max
                     stress_ineq_tightened = stress_inequality_untightened * tightness
@@ -879,7 +885,7 @@ def get_roll_expr(x, n0, n1, parent_map):
     q_hat = q0 - q1  # tether direction
     r = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
 
-    return cas.mtimes(q_hat.T, r[:, 1] / cas.mtimes(q_hat.T, r[:, 2]))
+    return cas.mtimes(q_hat.T, r[:, 1]) / cas.mtimes(q_hat.T, r[:, 2])
 
 
 def get_pitch_expr(x, n0, n1, parent_map):
@@ -901,7 +907,7 @@ def get_pitch_expr(x, n0, n1, parent_map):
     q_hat = q0 - q1  # tether direction
     r = cas.reshape(x['r{}{}'.format(n0, parent_map[n0])], (3, 3))  # rotation matrix
 
-    return cas.mtimes(q_hat.T, r[:, 0] / vect_op.norm(q_hat))
+    return cas.mtimes(q_hat.T, r[:, 0]) / vect_op.norm(q_hat)
 
 
 def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
@@ -1056,50 +1062,29 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
                     if options['tether']['cross_tether']['attachment'] != 'wing_tip':
 
-                        # get roll and pitch expressions at each end of the cross-tether
-                        rotation_angles = cas.vertcat(
-                            get_roll_expr(x, kites[k], kites[(k + 1) % len(kites)], parent_map),
-                            get_pitch_expr(x, kites[k], kites[(k + 1) % len(kites)], parent_map)
+                        yaw_expr, yaw_angle = get_yaw_expr(
+                            options, x, kites[k], kites[(k + 1) % len(kites)], parent_map,
+                            parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
-                        rotation_angles2 = cas.vertcat(
-                            get_roll_expr(x, kites[(k + 1) % len(kites)], kites[k], parent_map),
-                            get_pitch_expr(x, kites[(k + 1) % len(kites)], kites[k], parent_map)
+
+                        yaw_expr2, yaw_angle2 = get_yaw_expr(
+                            options, x, kites[(k + 1) % len(kites)], kites[k], parent_map,
+                            parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
 
                         if options['model_bounds']['rotation']['include']:
-                            expr_max_tether1 = rotation_angles - max_angles
-                            expr_max_tether2 = rotation_angles2 - max_angles
-                            expr_min_tether1 = min_angles - rotation_angles
-                            expr_min_tether2 = min_angles - rotation_angles2
+                            cstr_max = cstr_op.Constraint(expr=-1. * yaw_expr,
+                                                        name='rotation_max' + tether_name,
+                                                        cstr_type='ineq')
+                            cstr_list.append(cstr_max)
 
-                            cstr_max_tether1 = cstr_op.Constraint(expr=expr_max_tether1,
-                                                                    name='rotation_max' + tether_name,
-                                                                    cstr_type='ineq')
-                            cstr_list.append(cstr_max_tether1)
-
-                            cstr_max_tether2 = cstr_op.Constraint(expr=expr_max_tether2,
-                                                                    name='rotation_max' + tether_name2,
-                                                                    cstr_type='ineq')
-                            cstr_list.append(cstr_max_tether2)
-
-                            cstr_min_tether1 = cstr_op.Constraint(expr=expr_min_tether1,
-                                                                    name='rotation_min' + tether_name,
-                                                                    cstr_type='ineq')
-                            cstr_list.append(cstr_min_tether1)
-
-                            cstr_min_tether2 = cstr_op.Constraint(expr=expr_min_tether2,
-                                                                    name='rotation_min' + tether_name2,
-                                                                    cstr_type='ineq')
-                            cstr_list.append(cstr_min_tether2)
-
-                        outputs['local_performance']['rot_angles' + tether_name] = cas.vertcat(
-                            cas.atan(rotation_angles[0]),
-                            cas.asin(rotation_angles[1])
-                        )
-                        outputs['local_performance']['rot_angles' + tether_name2] = cas.vertcat(
-                            cas.atan(rotation_angles2[0]),
-                            cas.asin(rotation_angles2[1])
-                        )
+                            cstr_max = cstr_op.Constraint(expr=-1. * yaw_expr,
+                                                        name='rotation_max' + tether_name2,
+                                                        cstr_type='ineq')
+                            cstr_list.append(cstr_max)
+                   
+                        outputs['local_performance']['rot_angles' + tether_name] = yaw_angle
+                        outputs['local_performance']['rot_angles' + tether_name2] = yaw_angle2
 
                     else:
 
