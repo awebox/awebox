@@ -24,33 +24,28 @@
 #
 import casadi.tools as cas
 import numpy as np
-
-import matplotlib.pyplot as plt
-import awebox.tools.struct_operations as struct_op
+import pickle
+import collections
 
 class awebox_callback(cas.Callback):
     def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
 
-        if options['callback']:
-            cas.Callback.__init__(self)
+        cas.Callback.__init__(self)
 
-            self.nx = nx
-            self.ng = ng
-            self.np = np
+        self.nx = nx
+        self.ng = ng
+        self.np = np
 
-            self.V_callback = V
-            self.p_fix_num = P
-            self.model = model
-            self.nlp = nlp
+        self.V = V
+        self.P = P
+        self.model = model
+        self.nlp = nlp
+        [self.Out, self.Out_fun] = nlp.output_components
 
-            plt.figure(1)
-            plt.subplot(111)
+        self.__init_dicts()
 
-            self.x_sols = []
-            self.y_sols = []
-
-            # Initialize internal objects
-            self.construct(name, opts)
+        # Initialize internal objects
+        self.construct(name, opts)
 
     def get_n_in(self): return cas.nlpsol_n_out()
     def get_n_out(self): return 1
@@ -71,97 +66,92 @@ class awebox_callback(cas.Callback):
             return cas.Sparsity(0,0)
 
     def eval(self, arg):
-        print('TEST')
         darg = {}
         for (i,s) in enumerate(cas.nlpsol_out()): darg[s] = arg[i]
         sol = darg['x']
-        V = self.V_callback(sol)
-        model = self.model
-        #plot_trajectory(V)
-        plot_states(V, model)
-        plot_controls(V, model)
-        plot_algebraic_vars(V,model)
-        plot_invariants(V,self.p_fix_num(0.),self.nlp)
-        plt.show(block=True)
-        # time.sleep(1)
-        # plt.close('all')
+        V = self.V(sol)
+        P = self.P
 
+        for phi in list(self.phi_dict.keys()):
+          self.phi_dict[phi].append(V['phi', phi])
+        
+        for x in list(self.model.variables_dict['x'].keys()):
+          for dim in range(self.model.variables_dict['x'][x].shape[0]):
+            self.x_dict[x+'_'+str(dim)].append(self.extract_x_vals(V, x, dim))
+        
+        for u in list(self.model.variables_dict['u'].keys()):
+          for dim in range(self.model.variables_dict['u'][u].shape[0]):
+            self.u_dict[u+'_'+str(dim)].append(self.extract_u_vals(V, u, dim))
+
+        for theta in list(self.model.variables_dict['theta'].keys()):
+          for dim in range(self.model.variables_dict['theta'][theta].shape[0]):
+            self.theta_dict[theta+'_'+str(dim)].append(V['theta',theta, dim])
+
+        for t in list(self.t_dict.keys()):
+          self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
+
+        energy = self.nlp.integral_output_components[1](V, P)
+        self.avg_power.append(energy[-1]/self.t_dict['x'][-1][-1])
+        # Out = self.Out(self.Out_fun(V, self.P))
         return [0]
 
-def plot_trajectory(V):
+    def extract_x_vals(self, V, name, dim):
+      x_vals = []
+      for k in range(self.nlp.n_k+1):
+          # add interval values
+          x_vals.append(V['x',k,name,dim])
+          if k < self.nlp.n_k:
+            # add node values
+            x_vals += V['coll_var',k, :, 'x', name,dim]
+      return x_vals
+    
+    def extract_u_vals(self, V, name, dim):
+      u_vals = []
+      for k in range(self.nlp.n_k):
+        if 'u' in V.keys():
+          u_vals.append(V['u',k,name,dim])
+        else:
+          u_vals += V['coll_var',k, :, 'u', name, dim]
+      return u_vals
+  
+    def __init_dicts(self):
+      
+      phi_dict = collections.OrderedDict()
+      for phi in self.model.parameters_dict['phi'].keys():
+        phi_dict[phi] = []
+      
+      x_dict = collections.OrderedDict()
+      for x in self.model.variables_dict['x'].keys():
+        for dim in range(self.model.variables_dict['x'][x].shape[0]):
+          x_dict[x+'_'+str(dim)] = []
 
-    xvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q21', 0]).full().flatten()
-    yvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q21', 1]).full().flatten()
-    zvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q21', 2]).full().flatten()
-    fig = plt.figure(1)
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot(xvals, yvals, zs=zvals)
-    xvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q31', 0]).full().flatten()
-    yvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q31', 1]).full().flatten()
-    zvals = struct_op.coll_slice_to_vec(V['xd', :, :, 'q31', 2]).full().flatten()
-    ax.plot(xvals, yvals, zs=zvals)
+      u_dict = collections.OrderedDict()
+      for u in self.model.variables_dict['u'].keys():
+        for dim in range(self.model.variables_dict['u'][u].shape[0]):
+          u_dict[u+'_'+str(dim)] = []
 
-    return None
+      theta_dict = collections.OrderedDict()
+      for th in self.model.variables_dict['theta'].keys():
+        for dim in range(self.model.variables_dict['theta'][th].shape[0]):
+          theta_dict[th+'_'+str(dim)] = []
 
-def plot_states(V, model):
-    counter = 0
-    plt.figure(1)
-    for state in struct_op.subkeys(model.variables,'xd'):
-        counter += 1
-        plt.subplot(4,4,counter)
-        for state_dim in range(V['xd',0,0,state].shape[0]):
-            plt.plot(cas.vertcat(*np.array(V['xd',:,:,state,state_dim])))
-            plt.title(state)
+      t_dict = collections.OrderedDict()
+      for t in self.nlp.time_grids.keys():
+        t_dict[t] = []
 
-    plt.subplots_adjust(wspace=0.3, hspace=0.6)
+      self.phi_dict = phi_dict
+      self.x_dict = x_dict
+      self.u_dict = u_dict
+      self.theta_dict = theta_dict
+      self.t_dict = t_dict
+      self.avg_power = []
+      
+      return None
 
-def plot_algebraic_vars(V, model):
-    counter = 0
-    plt.figure(4)
-    for state in struct_op.subkeys(model.variables,'xa'):
-        counter += 1
-        plt.subplot(2,2,counter)
-        for state_dim in range(V['xa',0,0,state].shape[0]):
-            plt.plot(cas.vertcat(*np.array(V['xa',:,:,state,state_dim])))
-            plt.title(state)
+    def reset(self):
+      self.__init_dicts()
+      return None
 
-    plt.subplots_adjust(wspace=0.3, hspace=0.6)
-
-def plot_invariants(V, P, nlp):
-
-    [nlp_outputs, nlp_output_fun] = nlp.output_components
-
-    outputs_opt = nlp_outputs(nlp_output_fun(V,P))
-    first_tether_indeces = np.array(outputs_opt.f['outputs', 0, 0, 'tether_length'])
-    number_of_constraints = first_tether_indeces.shape[0]
-
-    number_tethers = int(np.ceil(np.float(number_of_constraints) / 2))
-
-    plt.figure(3).clear()
-
-    fig, axes = plt.subplots(nrows=number_of_constraints, ncols=1, sharex='all', num=3)
-
-    for idx in range(number_of_constraints):
-
-        cstr_name = outputs_opt.getCanonicalIndex(first_tether_indeces[idx])[-2]
-        cstr_vec = np.abs(np.array(struct_op.coll_slice_to_vec(outputs_opt['outputs', :, :, 'tether_length', cstr_name])))
-
-        # axes[idx].semilogy(tgrid_xa, cstr_vec)
-        axes[idx].plot(cstr_vec)
-        axes[idx].set_ylabel(cstr_name)
-
-        if idx == 0:
-            axes[idx].set_title('tether length constraints')
-    return None
-
-def plot_controls(V, model):
-    counter = 0
-    plt.figure(2)
-    for state in struct_op.subkeys(model.variables,'u'):
-        counter += 1
-        plt.subplot(4,3,counter)
-        for state_dim in range(V['u',0,state].shape[0]):
-            plt.plot(cas.vertcat(*np.array(V['u',:,state,state_dim])))
-            plt.title(state)
-
-    plt.subplots_adjust(wspace=0.3, hspace=0.6)
+    def update_P(self, P):
+      self.P = P
+      return None

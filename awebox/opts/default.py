@@ -30,7 +30,7 @@ import numpy as np
 from . import funcs
 import casadi as cas
 
-def set_default_user_options(internal_access = False):
+def set_default_user_options():
 
     ## notation for dict tree:
     ## (category, sub_categroy, sub_sub_category, parameter name, default value, (tooltip, tooltip list), sweep_type)
@@ -62,8 +62,7 @@ def set_default_user_options(internal_access = False):
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
-        ('user_options',    None,          None,        'tether_drag_model',     'split',            ('possible options: split drag equally between nodes, get equivalent forces from only one element, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'single', 'multi', 'kite_only', 'not_in_use']),'t'),
-        ('user_options',    None,          None,        'internal_access',       internal_access,    ('Only set internal parameters/options if you know what you are doing', [True, False]),'x'),
+        ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'kite_only', 'not_in_use']),'t'),
     ]
 
     default_user_options, help_options = funcs.assemble_options_tree(default_user_options_tree, {}, {})
@@ -103,11 +102,13 @@ def set_default_options(default_user_options, help_options):
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
         ('model', 'aero', None,         'lift_aero_force',      True,        ('lift the aero force into the decision variables', [True, False]), 'x'),
+        ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
-        ('model', 'aero', 'actuator',   'a_ref',        1./3.,              ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
-        ('model', 'aero', 'actuator',   'a_range',      [-0.5, 0.5],        ('allowed range for induction factors', None),'x'),
+        ('model', 'aero', 'actuator',   'a_ref',        0.33,               ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
+        ('model', 'aero', 'actuator',   'a_range',      [0., 0.5],          ('allowed range for induction factors', None),'x'),
+        ('model', 'aero', 'actuator',   'a_fourier_range', [-0.01, 0.01],   ('allowed range for a_cos and a_sin, coefficients in the 1st order fourier summation', None), 'x'),
         ('model', 'aero', 'actuator',   'scaling',      1.,                 ('scaling factor for the actuator-disk residual', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_ref',   6.,                 ('approximation of the relative orbit radius, for normalization of the actuator disk equations', None),'x'),
         ('model', 'aero', 'actuator',   'varrho_range', [0., cas.inf],      ('allowed range for the relative orbit radius, for normalization of the actuator disk equations', None), 'x'),
@@ -117,13 +118,14 @@ def set_default_options(default_user_options, help_options):
 	    ('model', 'aero', 'actuator', 	'symmetry_comparison', 	 [],        ('which symmetry models should we include for comparison', ['axi', 'asym']), 'x'),
         ('model', 'aero', 'actuator',   'actuator_skew',        'simple',   ('which actuator-skew angle correction to apply', ['not_in_use', 'glauert', 'coleman', 'simple']), 'x'),
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
+        ('model', 'aero', 'actuator',   'asym_radial_linearity', False,     ('if true, computes the Fourier coefficients to vary linearly with flight radius; if false, fourier coefficients are explicitly a_cos and a_sin', [True, False]), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
-        ('model', 'aero', 'actuator',   'normal_vector_model',  'default',  ('selection of estimation method for normal vector', ['default', 'least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
-        ('model', 'aero', 'actuator',   'allow_azimuth_jumping', False,     ('put a limit on the azimuthal angle time-derivative to prevent solutions from jumping', None), 'x'),
+        ('model', 'aero', 'actuator',   'normal_vector_model',  'tether_parallel',  ('selection of estimation method for normal vector', ['least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
 
-        ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite', None), 'x'),
-        ('model', 'aero', 'vortex',     'far_convection_time', 120.,        ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
-        ('model', 'aero', 'vortex',     'core_to_chord_ratio', 0.1,        ('the ratio between the vortex core radius and the airfoil chord, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
+        ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite per wingtip', None), 'x'),
+        ('model', 'aero', 'vortex',     'far_convection_time',  120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
+        ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.1,        ('the ratio between the vortex core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'use_linearization',    False,      ('use an iterative solution procedure, which linearizes the Biot-Savart expression', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
@@ -165,7 +167,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
         ('model',   'tether', None,         'control_var',          'dddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
-        ('model',   'tether', None,         'aero_elements',        10,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
+        ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']),'x'),
@@ -179,15 +181,16 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_s',          [1.0e-2, 1.0e3],                                                                 ('secondary tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                                  ('intermediate tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'xd',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
-        ('model',  'system_bounds', 'xd',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'omega',        [np.array([-50.0, -50.0, -50.0]), np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
+        ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
-        ('model',  'system_bounds', 'xa',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
 
         #### model bounds (range of validity)
@@ -197,15 +200,14 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'tether_force',  'include',              False,     ('include tether force inequality in constraints', [True, False]),'x'),
         ('params',  'model_bounds',  None,           'tether_force_limits',  np.array([1e0, 2e3]),  ('tether force limits [N]', None),'s'),
         ('model',   'model_bounds', 'airspeed',      'include',             False,      ('include airspeed inequality for kites in constraints', [True, False]),'x'),
-        ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([1., 150.]),  ('airspeed limits [m/s]', None),'s'),
+        ('params',  'model_bounds',  None,           'airspeed_limits',     np.array([13., 32.]),  ('airspeed limits [m/s]', None),'s'),
         ('model',   'model_bounds', 'aero_validity', 'include',              True,       ('include orientation bounds on alpha and beta (not possible in 3dof mode)', [True, False]),'x'),
         ('model',   'model_bounds', 'aero_validity', 'scaling',              1.,         ('tightness scaling for aero_validity inequalities', None),'x'),
+        ('model',   'model_bounds', 'aero_validity', 'CD_min',               0.,         ('minimum allowed drag coefficient - included in aero validity constraints', None), 'x'),
         ('model',   'model_bounds', 'anticollision', 'safety_factor',        5.,         ('safety margin for anticollision constraint [m]', None),'x'),
         ('model',   'model_bounds', 'anticollision', 'include',              True,       ('include a minimum distance anticollision inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'acceleration',  'include',              True,       ('include a hardware limit on node acceleration', [True, False]),'x'),
         ('model',   'model_bounds', 'acceleration',  'acc_max',              12.,        ('maximum acceleration, as measured in multiples of g [-]', None),'x'),
-        ('model',   'model_bounds', 'angular_velocity', 'include',           False,      ('include a cap on maximum angular velocity magnitude for kites in constraints', [True, False]), 'x'),
-        ('params',  'model_bounds', None,            'angular_velocity_max', 50.,        ('maximum magnitude of angular velocity [deg/s]', None), 's'),
         ('model',   'model_bounds', 'rotation',     'include',               True,      ('include constraints on roll and pitch motion', None), 't'),
         ('model',   'model_bounds', 'rotation',     'type',                 'yaw',      ('rotation constraint type', ['yaw','roll_pitch']), 't'),
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
@@ -214,16 +216,16 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'coeff_actuation',  'include',          True,       ('include a bound on coeff', None), 'x'),
 
         #### scaling
-        ('model',  'scaling', 'xd',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
+        ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'l_i',      100.,     ('intermediate tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'l_s',      50.,      ('secondary tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'l_c',      100.,     ('cross-tether natural length [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_t',   5e-3,     ('main tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_s',   5e-3,     ('secondary tether natural diameter [m]', None),'x'),
         ('model',  'scaling', 'theta',  'diam_c',   5e-3,     ('cross-tether natural diameter [m]', None),'x'),
-        ('model',  'scaling', 'xl',     'a',        1.0,      ('induction factor [-]', None),'x'),
+        ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
-        ('model',  'scaling', 'xd',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
+        ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
@@ -235,10 +237,10 @@ def set_default_options(default_user_options, help_options):
         ('params',   None,       None,   'kappa_r',  1.,         ('baumgarte stabilization constant for dcm dynamics', None),'x'),
 
         #### ground_station
-        ('params', 'ground_station', None, 'r_gen',            0.25,   ('winch generator drum radius [m]',None),'x'),
-        ('params', 'ground_station', None, 'm_gen',            50.,   ('effective mass of generator [kg], guessed',None),'x'),
-        ('model', 'ground_station', None, 'ddl_t_max',        10.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
-        ('model', 'ground_station', None, 'dddl_t_max',       100.,    ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
+        ('params', 'ground_station', None, 'r_gen',         0.25,   ('winch generator drum radius [m]',None),'x'),
+        ('params', 'ground_station', None, 'm_gen',         50.,    ('effective mass of generator [kg], guessed',None),'x'),
+        ('model', 'ground_station', None, 'ddl_t_max',      15.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
+        ('model', 'ground_station', None, 'dddl_t_max',     100.,   ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
@@ -265,19 +267,23 @@ def set_default_options(default_user_options, help_options):
         ('formulation', 'compromised_landing', 'battery', 'power_electronics', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'charge_fraction', None, ('???', None), 'x'),
 
+        #### mpc
+        ('formulation',  'mpc',      None, 'terminal_point_constr', False,                ('use terminal point constraint', None), 't'),
+
         ## numerics
         #### NLP options
         ('nlp',  None,               None, 'n_k',                  40,                     ('control discretization [int]', None),'t'),
-        ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'x'),
+        ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'t'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
-        ('nlp',  'collocation',      None, 'u_param',              'zoh',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'u_param',              'zoh',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
-        ('nlp',  None,               None, 'constraint_scale',     1.,                      ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
+        ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
 
 
         ### Multiple shooting integrator options
@@ -290,6 +296,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'integrator',       None, 'num_steps_overwrite',  None,                   ('number of steps within integrator', None),'t'),
         ('nlp',  'integrator',       None, 'collocation_scheme',   'radau',                ('scheme of collocation integrator', None),'t'),
         ('nlp',  'integrator',       None, 'interpolation_order',  3,                      ('order of interpolating polynomial', None),'t'),
+
 
         ### solver options
         # todo: embed other solvers
@@ -307,6 +314,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'jit_flags',           '-O0',       ('flags to be passed to jit compiler', None),'t'),
         ('solver',  None,   None,   'expand_overwrite',     None,       ('expand MX --> SX [int]', None),'t'),
 
+        ('solver',  None,   None,   'homotopy_method',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  None,   None,   'homotopy_step',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
         ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
@@ -319,8 +328,10 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
+        ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
+        ('solver',  'initialization', None, 'l_t_full_to_unwound_ratio', 1.2,   ('initial guess ratio used to set full (main) tether length [-]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'max_cone_angle_single',10.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
@@ -347,7 +358,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'x'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
-        ('solver',  'cost',             'ddq_regularisation',   0,  0,          ('starting cost for ddq_regularisation', None),'s'),
+        ('solver',  'cost',             'xdot_regularisation', 0,  1e-1,       ('starting cost for xdot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 'x'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'x'),
@@ -391,12 +402,13 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     'when',     'failure',                  False,  ('run a health-check when a homotopy step fails. CAUTION: SLOW!', [True, False]),'x'),
         ('solver',  'health_check',     'when',     'final',                    False,  ('run a health-check after final homotopy step. CAUTION: SLOW!', [True, False]), 'x'),
         ('solver',  'health_check',     'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
-        ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-6,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
-        ('solver',  'health_check',     'thresh',   'condition_number',         1e7,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
+        ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-8,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
+        ('solver',  'health_check',     'thresh',   'condition_number',         1e9,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
         ('solver',  'health_check',     'tol',      'reduced_hessian_null',     1e-8,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
         ('solver',  'health_check',     'tol',      'constraint_jacobian_rank', 1e-8,   ('tolerance of rank compution for constraint jacobian', None), 'x'),
         ('solver',  'health_check',     'tol',      'linear_dependence_ratio',  1e-2,   ('tolerance of rough linear dependence identifier', None), 'x'),
-        ('solver',  'health_check',     None,       'spy_matrices',           False,    ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
+        ('solver',  'health_check',     None,       'spy_matrices',             False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
+        ('solver',  'health_check',     None,       'raise_exception',          False,  ('raise an exception when the problem is unhealthy', None), 'x'),
 
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),
@@ -408,12 +420,15 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'd',            4,                  ('NLP collocation polynomial order', None), 'x'),
         ('mpc', None,  None,    'jit',          False,              ('MPC solver jitting', None), 'x'),
         ('mpc', None,  None,    'expand',       True,               ('expand NLP expressions', None), 'x'),
+        ('mpc', None,  None,    'u_param',      'zoh',              ('control parametrization', ['zoh', 'poly']), 'x'),
         ('mpc', None,  None,    'cost_type',    'tracking',         ('MPC cost function type', ['tracking','economic']), 'x'),
         ('mpc', None,  None,    'linear_solver','ma57',             ('MPC cost function type', None), 'x'),
         ('mpc', None,  None,    'max_iter',     1000,               ('MPC solver max iterations', None), 'x'),
         ('mpc', None,  None,    'max_cpu_time', 2000,               ('MPC solver max cpu time', None), 'x'),
         ('mpc', None,  None,    'plot_flag',    False,              ('MPC plot solution for each step', None), 'x'),
         ('mpc', None,  None,    'ref_interpolator','spline',        ('periodic reference interpolation method', None), 'x'),
+        ('mpc', None,  None,    'homotopy_warmstart', True,         ('periodic reference interpolation method', None), 'x'),
+        ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
@@ -461,7 +476,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'power_balance_thresh', 5e-2,       ('power balance threshold test parameter', None), 'x'),
         ('quality', 'test_param', None, 'slacks_thresh', 1.e-6,             ('threshold value for slacked equality constraints being satisfied', None), 'x'),
         ('quality', 'test_param', None, 'max_control_interval', 10.,        ('max control interval test parameter', None), 'x'),
-        ('quality', 'test_param', None, 'last_vortex_ind_factor_thresh', 0.01,('maximum ratio between induced velocity from last vortex rings and wind speed', None), 'x'),
+        ('quality', 'test_param', None, 'vortex_truncation_error_thresh', 0.01,('maximum estimated vortex truncation error', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
     ]

@@ -25,16 +25,16 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     generalized_coordinates['scaled'] = generate_generalized_coordinates(system_variables['scaled'], system_gc)
     generalized_coordinates['SI'] = generate_generalized_coordinates(system_variables['SI'], system_gc)
 
-    # -------------------------------
-    # mass distribution in the system
-    # -------------------------------
-    node_masses_si, outputs = mass_comp.generate_m_nodes(options, system_variables['SI'], outputs, parameters, architecture)
+    # --------------------------------
+    # tether and ground station masses
+    # --------------------------------
+    outputs = mass_comp.generate_mass_outputs(options, system_variables['SI'], outputs, parameters, architecture)
 
     # --------------------------------
     # lagrangian
     # --------------------------------
 
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, node_masses_si, system_variables['SI'], architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
@@ -77,7 +77,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     if options['tether']['use_wound_tether']:
         lagrangian_momentum_correction = 0.
     else:
-        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, node_masses_si,
+        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
                                                          outputs, architecture)
 
     # rhs of lagrange equations
@@ -89,7 +89,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # scaling
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, system_variables['SI'], parameters)
     node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], outputs, parameters, architecture)
-    forces_scaling = options['scaling']['xl']['f_aero'] * (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
+    forces_scaling = options['scaling']['z']['f_aero'] * (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
 
     dynamics_translation = (lagrangian_lhs_translation - lagrangian_rhs_translation) / forces_scaling
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation,
@@ -111,17 +111,17 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # trivial kinematics
     # --------------------------------
 
-    for name in system_variables['SI']['xddot'].keys():
+    for name in system_variables['SI']['xdot'].keys():
 
-        name_in_xd = name in system_variables['SI']['xd'].keys()
+        name_in_x = name in system_variables['SI']['x'].keys()
         name_in_u = name in system_variables['SI']['u'].keys()
 
-        if name_in_xd:
-            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xddot', name] - system_variables['scaled']['xd', name]])
+        if name_in_x:
+            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xdot', name] - system_variables['scaled']['x', name]])
         elif name_in_u:
-            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xddot', name] - system_variables['scaled']['u', name]])
+            trivial_dyn = cas.vertcat(*[system_variables['scaled']['xdot', name] - system_variables['scaled']['u', name]])
 
-        if name_in_xd or name_in_u:
+        if name_in_x or name_in_u:
             trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
                                                 cstr_type='eq',
                                                 name='trivial_' + name)
@@ -140,7 +140,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
 
 
-def momentum_correction(options, generalized_coordinates, system_variables, node_masses, outputs, architecture):
+def momentum_correction(options, generalized_coordinates, system_variables, outputs, architecture):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
@@ -160,11 +160,11 @@ def momentum_correction(options, generalized_coordinates, system_variables, node
 
         for node in range(1, architecture.number_of_nodes):
             label = str(node) + str(architecture.parent_map[node])
-            mass = node_masses['m' + label]
+            mass = outputs['masses']['m_tether{}'.format(node)]
             mass_flow = tools.time_derivative(mass, system_variables, architecture)
 
             # velocity of the mass particles leaving the system
-            velocity = system_variables['SI']['xd']['dq' + label]
+            velocity = system_variables['SI']['x']['dq' + label]
             # see formula in reference
             lagrangian_momentum_correction += mass_flow * cas.mtimes(velocity.T, cas.jacobian(velocity,
                                                                                               xgcdot)).T
@@ -178,8 +178,8 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
 
     j_inertia = parameters['theta0', 'geometry', 'j']
 
-    xd = variables['SI']['xd']
-    xddot = variables['SI']['xddot']
+    x = variables['SI']['x']
+    xdot = variables['SI']['xdot']
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
@@ -187,12 +187,12 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
         parent = parent_map[kite]
         moment = f_nodes['m' + str(kite) + str(parent)]
 
-        rlocal = cas.reshape(xd['r' + str(kite) + str(parent)], (3, 3))
-        drlocal = cas.reshape(xddot['dr' + str(kite) + str(parent)], (3, 3))
+        rlocal = cas.reshape(x['r' + str(kite) + str(parent)], (3, 3))
+        drlocal = cas.reshape(xdot['dr' + str(kite) + str(parent)], (3, 3))
 
-        omega = xd['omega' + str(kite) + str(parent)]
+        omega = x['omega' + str(kite) + str(parent)]
         omega_skew = vect_op.skew(omega)
-        domega = xddot['domega' + str(kite) + str(parent)]
+        domega = xdot['domega' + str(kite) + str(parent)]
 
         tether_moment = outputs['tether_moments']['n{}{}'.format(kite, parent)]
 
@@ -200,7 +200,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
         J_dot_omega = cas.mtimes(j_inertia, domega)
         omega_cross_J_omega = vect_op.cross(omega, cas.mtimes(j_inertia, omega))
         omega_derivative = moment - (J_dot_omega + omega_cross_J_omega + tether_moment)
-        m_scale = options['scaling']['xl']['m_aero']
+        m_scale = options['scaling']['z']['m_aero']
         rotational_2nd_law = omega_derivative / m_scale
 
         rotation_dynamics_cstr = cstr_op.Constraint(expr=rotational_2nd_law,
@@ -224,7 +224,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
 
 def generate_generalized_coordinates(system_variables, system_gc):
     try:
-        test = system_variables['xd', 'l_t']
+        test = system_variables['x', 'l_t']
         struct_flag = 1
     except:
         struct_flag = 0
@@ -232,22 +232,22 @@ def generate_generalized_coordinates(system_variables, system_gc):
     if struct_flag == 1:
         generalized_coordinates = {}
         generalized_coordinates['xgc'] = cas.struct_SX(
-            [cas.entry(name, expr=system_variables['xd', name]) for name in system_gc])
+            [cas.entry(name, expr=system_variables['x', name]) for name in system_gc])
         generalized_coordinates['xgcdot'] = cas.struct_SX(
-            [cas.entry('d' + name, expr=system_variables['xd', 'd' + name])
+            [cas.entry('d' + name, expr=system_variables['x', 'd' + name])
              for name in system_gc])
         # generalized_coordinates['xgcddot'] = cas.struct_SX(
-        #     [cas.entry('dd' + name, expr=system_variables['xddot', 'dd' + name])
+        #     [cas.entry('dd' + name, expr=system_variables['xdot', 'dd' + name])
         #      for name in system_gc])
     else:
         generalized_coordinates = {}
         generalized_coordinates['xgc'] = cas.struct_SX(
-            [cas.entry(name, expr=system_variables['xd'][name]) for name in system_gc])
+            [cas.entry(name, expr=system_variables['x'][name]) for name in system_gc])
         generalized_coordinates['xgcdot'] = cas.struct_SX(
-            [cas.entry('d' + name, expr=system_variables['xd']['d' + name])
+            [cas.entry('d' + name, expr=system_variables['x']['d' + name])
              for name in system_gc])
         # generalized_coordinates['xgcddot'] = cas.struct_SX(
-        #     [cas.entry('dd' + name, expr=system_variables['xddot']['dd' + name])
+        #     [cas.entry('dd' + name, expr=system_variables['xdot']['dd' + name])
         #      for name in system_gc])
 
     return generalized_coordinates

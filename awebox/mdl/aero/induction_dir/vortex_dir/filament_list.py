@@ -79,10 +79,10 @@ def get_list_by_ring(options, variables_si, kite, ring):
 
     wake_node = ring
 
-    TENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node + 1)
-    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', wake_node)
-    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node)
-    TEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', wake_node + 1)
+    TENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', wake_node + 1)
+    LENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', wake_node)
+    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', wake_node)
+    TEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', wake_node + 1)
 
     strength = tools.get_ring_strength_si(variables_si, kite, ring)
 
@@ -118,8 +118,8 @@ def get_list_from_last_ring(options, variables_si, architecture, kite):
     far_convection_time = options['induction']['vortex_far_convection_time']
     u_ref = options['induction']['vortex_u_ref']
 
-    LENE = tools.get_wake_node_position_si(variables_si, kite, 'int', last_tracked_wake_node)
-    LEPE = tools.get_wake_node_position_si(variables_si, kite, 'ext', last_tracked_wake_node)
+    LENE = tools.get_wake_node_position_si(options, variables_si, kite, 'int', last_tracked_wake_node)
+    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, 'ext', last_tracked_wake_node)
 
     TENE = LENE + far_convection_time * u_ref * vect_op.xhat()
     TEPE = LEPE + far_convection_time * u_ref * vect_op.xhat()
@@ -161,17 +161,22 @@ def columnize(filament_list):
     return columnized_list
 
 def decolumnize(options, architecture, columnized_list):
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    number_kites = architecture.number_of_kites
-    rings = wake_nodes - 1
-
     entries = columnized_list.shape[0]
-    filaments = 3 * (rings + 1) * number_kites
+    filaments = expected_number_of_filaments(options, architecture)
     arguments = int(float(entries) / float(filaments))
 
     filament_list = cas.reshape(columnized_list, (arguments, filaments))
 
     return filament_list
+
+def expected_number_of_filaments(options, architecture):
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    number_kites = architecture.number_of_kites
+    rings = wake_nodes - 1
+    filaments = 3 * (rings + 1) * number_kites
+
+    return filaments
+
 
 def test():
 
@@ -183,29 +188,30 @@ def test():
     options['induction']['vortex_far_convection_time'] = 1.
     options['induction']['vortex_u_ref'] = 1.
     options['induction']['vortex_position_scale'] = 1.
+    options['induction']['vortex_representation'] = 'state'
 
     kite = architecture.kite_nodes[0]
 
-    xd_struct = cas.struct([
+    x_struct = cas.struct([
         cas.entry("wx_" + str(kite) + "_ext_0", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_ext_1", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_int_0", shape=(3, 1)),
         cas.entry("wx_" + str(kite) + "_int_1", shape=(3, 1))
     ])
-    xl_struct = cas.struct([
+    z_struct = cas.struct([
         cas.entry("wg_" + str(kite) + "_0")
     ])
     var_struct = cas.struct_symSX([
-        cas.entry('xd', struct=xd_struct),
-        cas.entry('xl', struct=xl_struct)
+        cas.entry('x', struct=x_struct),
+        cas.entry('z', struct=z_struct)
     ])
 
     variables_si = var_struct(0.)
-    variables_si['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_ext_1'] = variables_si['xd', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
-    variables_si['xd', 'wx_' + str(kite) + '_int_1'] = variables_si['xd', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
-    variables_si['xl', 'wg_' + str(kite) + '_0'] = 1.
+    variables_si['x', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_ext_1'] = variables_si['x', 'wx_' + str(kite) + '_ext_0'] + vect_op.xhat_np()
+    variables_si['x', 'wx_' + str(kite) + '_int_1'] = variables_si['x', 'wx_' + str(kite) + '_int_0'] + vect_op.xhat_np()
+    variables_si['z', 'wg_' + str(kite) + '_0'] = 1.
 
     test_list = get_list(options, variables_si, architecture)
 

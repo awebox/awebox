@@ -137,7 +137,7 @@ def get_gamma_extrema(plot_dict):
                 for ddx in range(d):
 
                     gamma_name = 'wg' + '_' + str(kite) + '_' + str(ring)
-                    var = plot_dict['V_plot']['coll_var', ndx, ddx, 'xl', gamma_name]
+                    var = plot_dict['V_plot']['coll_var', ndx, ddx, 'z', gamma_name]
 
                     gamma_max = np.max(np.array(cas.vertcat(gamma_max, var)))
                     gamma_min = np.min(np.array(cas.vertcat(gamma_min, var)))
@@ -314,8 +314,15 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         #### contour plot
         fig_contour, ax_contour = plt.subplots(1, 1)
         add_annulus_background(ax_contour, mu_min_by_path, mu_max_by_path)
+
         levels = [-0.05, 0., 0.2]
-        colors = ['red', 'green', 'blue']
+        linestyles = ['dotted', 'solid', 'dashed']
+        colors = ['k', 'k', 'k']
+
+        emergency_levels = 5
+        emergency_colors = 'k'
+        emergency_linestyles = 'dashdot'
+
         plt.grid(True)
         plt.title('induction factors over the kite plane')
         plt.xlabel("y/r [-]")
@@ -335,10 +342,16 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
             ax_points.scatter(y_list, z_list, c='k')
 
             #### contour plot
-            cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors)
-            plt.clabel(cs, inline=1, fontsize=10)
-            for ldx in range(len(levels)):
-                cs.collections[ldx].set_label(levels[ldx])
+            if (np.any(a_matr < levels[0])) and (np.any(a_matr > levels[-1])):
+                cs = ax_contour.contour(y_matr, z_matr, a_matr, levels, colors=colors, linestyles=linestyles)
+                # plt.clabel(cs, inline=1, fontsize=10)
+                # for ldx in range(len(cs.collections)):
+                #     cs.collections[ldx].set_label(levels[ldx])
+
+            else:
+                cs = ax_contour.contour(y_matr, z_matr, a_matr, emergency_levels, colors=emergency_colors, linestyles=emergency_linestyles)
+                ax_contour.clabel(cs, inline=True, fontsize=10)
+
             # plt.legend(loc='lower right')
 
         ax_points.set_xlim([-1. * max_axes, max_axes])

@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -27,7 +27,7 @@ actuator_disk model of awebox aerodynamics
 sets up the axial-induction actuator disk equation
 currently for untilted rotor with no tcf.
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-19
+- author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -35,32 +35,12 @@ import casadi.tools as cas
 import numpy as np
 
 
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-
-def get_t_star_var(variables, parent):
-    t_star = variables['xl']['t_star' + str(parent)]
-    return t_star
-
-def get_c_tilde_var(variables, parent, label):
-    c_tilde_var =variables['xl']['c_tilde_' + str(label) + str(parent)]
-    return c_tilde_var
-
-def get_LL_var(variables, parent, label):
-    LL = variables['xl']['LL_' + label + str(parent)]
-    return LL
-
-def get_LL_matrix_var(variables, parent, label):
-    LL_var = get_LL_var(variables, parent, label)
-    LL_matr = cas.reshape(LL_var, (3, 3))
-
-    return LL_matr
 
 def get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     corr = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
@@ -111,7 +91,7 @@ def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, paren
 def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture):
 
     total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
-    y_rotor = general_geom.get_y_rotor_hat_var(variables, parent)
+    y_rotor = actuator_geom.get_y_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, y_rotor)
 
     return moment
@@ -119,25 +99,10 @@ def get_actuator_moment_y_rotor(model_options, variables, outputs, parent, archi
 def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture):
 
     total_moment_aero = actuator_force.get_actuator_moment(model_options, variables, outputs, parent, architecture)
-    z_rotor = general_geom.get_z_rotor_hat_var(variables, parent)
+    z_rotor = actuator_geom.get_z_rotor_hat_var(variables, parent)
     moment = cas.mtimes(total_moment_aero.T, z_rotor)
 
     return moment
-
-
-def get_moment_denom(model_options, variables, parent, atmos, wind, parameters):
-
-    qzero_var = actuator_flow.get_qzero_var(atmos, wind, variables, parent)
-    area_var = actuator_geom.get_area_var(model_options, variables, parent, parameters)
-
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    radius_bar =  bar_varrho_var * b_ref
-
-    moment = qzero_var * area_var * radius_bar
-
-    return moment
-
 
 
 
@@ -149,18 +114,6 @@ def get_ct_ref(model_options):
 
     return ct_ref
 
-def get_t_star_ref(model_options, wind, parameters):
-
-    # t_star = geom.get_tstar_ref(parameters, wind)
-    # bar_varrho_var = geom.get_bar_varrho_var(model_options, variables, parent)
-    # dt_dtimescale = t_star * (bar_varrho_var + 0.5)
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    uzero_ref = wind.get_velocity_ref()
-    bar_varrho_ref = actuator_geom.get_varrho_ref(model_options)
-
-    ref = b_ref * (bar_varrho_ref + 0.5) / uzero_ref
-    return ref
 
 def get_thrust_ref(model_options, atmos, wind, parameters):
 
@@ -175,8 +128,6 @@ def get_thrust_ref(model_options, atmos, wind, parameters):
 
     return reference
 
-def get_cm_ref():
-    return 1.e-2
 
 def get_moment_ref(model_options, atmos, wind, parameters):
 
@@ -191,15 +142,26 @@ def get_moment_ref(model_options, atmos, wind, parameters):
     return moment
 
 
-def get_t_star_numerator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
+def get_t_star(variables, parameters, parent):
+    # radius / u_0 = [m] / [m/s]
+    t_star_num = get_t_star_numerator_val(variables, parameters, parent)
+    t_star_den = get_t_star_denominator_val(variables, parent)
+    return t_star_num / t_star_den
 
+def get_t_star_numerator_val(variables, parameters, parent):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     t_star_num = b_ref * (bar_varrho_var + 0.5)
     return t_star_num
 
-def get_t_star_denominator_val(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    uzero_mag = actuator_flow.get_uzero_vec_length_var(wind, variables, parent)
+def get_t_star_numerator_ref(model_options, parameters):
+    varrho_ref = actuator_geom.get_varrho_ref(model_options)
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    t_star_num = b_ref * (varrho_ref + 0.5)
+    return t_star_num
+
+def get_t_star_denominator_val(variables, parent):
+    uzero_mag = actuator_flow.get_uzero_vec_length_var(variables, parent)
     t_star_den = uzero_mag
     return t_star_den
 
@@ -216,7 +178,7 @@ def get_c_all_components(model_options, atmos, wind, variables, parameters, outp
     area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-    bar_varrho_var = actuator_geom.get_bar_varrho_var(model_options, variables, parent)
+    bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     radius_bar =  bar_varrho_var * b_ref
 

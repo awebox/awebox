@@ -36,7 +36,6 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 import awebox.tools.performance_operations as perf_op
 
 
@@ -59,14 +58,7 @@ def subkeys(casadi_struct, key):
     return subkey_list
 
 def count_shooting_nodes(nlp_options):
-    n_k = nlp_options['n_k']
-    periodic = perf_op.determine_if_periodic(nlp_options)
-    if periodic:
-        shooting_nodes = n_k
-    else:
-        shooting_nodes = n_k + 1
-
-    return shooting_nodes
+    return nlp_options['n_k']
 
 def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
@@ -168,17 +160,26 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
+def no_available_var_info(variables, var_type):
+    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
+    awelogger.logger.warning(message)
+    return np.zeros(variables[var_type].shape)
+
+
 def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
 
     if (ddx is None):
-        return V[var_type, kdx]
+        if var_type in list(V.keys()):
+            return V[var_type, kdx]
+        else:
+            return V['coll_var', kdx, 0, var_type]
     else:
         return V['coll_var', kdx, ddx, var_type]
 
 
 def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
-    var_type = 'xd'
+    var_type = 'x'
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     at_control_node = (ddx is None)
@@ -219,7 +220,7 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
 def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
-    var_type = 'xddot'
+    var_type = 'xdot'
 
     at_control_node = (ddx is None)
     lifted_derivs = (var_type in list(V.keys()))
@@ -234,10 +235,12 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         if lifted_derivs:
             return V[var_type, kdx]
         elif passed_Xdot_is_meaningful:
-            return Xdot['xd', kdx]
+            return Xdot['x', kdx]
     elif passed_Xdot_is_meaningful:
-        return Xdot['coll_xd', kdx, ddx]
-
+        return Xdot['coll_x', kdx, ddx]
+    else:
+        return np.zeros(model_variables[var_type].shape)
+        # return no_available_var_info(model_variables, var_type)
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
@@ -245,10 +248,10 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     # make list of variables at specific time
     for var_type in model_variables.keys():
 
-        if var_type in {'xl', 'xa'}:
+        if var_type == 'z':
             local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
 
-        elif var_type == 'xd':
+        elif var_type == 'x':
             local_var = get_states_at_time(nlp_options, V, model_variables, kdx, ddx)
 
         elif var_type == 'u':
@@ -257,7 +260,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         elif var_type == 'theta':
             local_var = get_V_theta(V, nlp_options, kdx)
 
-        elif var_type == 'xddot':
+        elif var_type == 'xdot':
             local_var = get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx)
 
         var_list.append(local_var)
@@ -277,9 +280,11 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
     radau_collocation = (direct_collocation and scheme == 'radau')
     other_collocation = (direct_collocation and (not scheme == 'radau'))
 
-    if radau_collocation:
+    terminal_constraint = nlp_options['mpc']['terminal_point_constr']
+
+    if radau_collocation and not terminal_constraint:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
-    elif other_collocation or multiple_shooting:
+    elif direct_collocation or multiple_shooting:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
@@ -389,7 +394,10 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling):
             if use_unit_scaling:
                 return var_si
             else:
-                return var_si / scale
+                var_scaled = var_si / scale
+                if type(var_si) == np.ndarray:
+                    var_scaled = var_scaled.full()
+                return var_scaled
 
         else:
             matrix_factor = cas.inv(cas.diag(scale))
@@ -534,12 +542,12 @@ def get_variable_type(model, name):
     elif model.type == 'Model':
         variables_dict = model.variables_dict
 
-    for variable_type in set(variables_dict.keys()) - set(['xddot']):
+    for variable_type in set(variables_dict.keys()) - set(['xdot']):
         if name in list(variables_dict[variable_type].keys()):
             return variable_type
 
-    if name in list(variables_dict['xddot'].keys()):
-        return 'xddot'
+    if name in list(variables_dict['xdot'].keys()):
+        return 'xdot'
 
     message = 'variable ' + name + ' not found in variables dictionary'
     awelogger.logger.error(message)
@@ -644,15 +652,15 @@ def construct_Xdot_struct(nlp_options, variables_dict):
 
     # extract information
     nk = nlp_options['n_k']
-    xd = variables_dict['xd']
+    x = variables_dict['x']
 
     # derivatives at interval nodes
-    entry_tuple = (cas.entry('xd', repeat=[nk], struct=xd),)
+    entry_tuple = (cas.entry('x', repeat=[nk], struct=x),)
 
     # add derivatives on collocation nodes
     if nlp_options['discretization'] == 'direct_collocation':
         d = nlp_options['collocation']['d']
-        entry_tuple += (cas.entry('coll_xd', repeat=[nk,d], struct=xd),)
+        entry_tuple += (cas.entry('coll_x', repeat=[nk,d], struct=x),)
 
     # make new symbolic structure
     Xdot = cas.struct_symMX([entry_tuple])
@@ -749,7 +757,7 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['xd','theta','phi','xi','xa','xl','xddot']):
+            for var_type in set(['x','theta','phi','xi','z','xdot']):
                 V_init_proposed[var_type] = V_coll[var_type]
                 lam_x_proposed[var_type]  = lam_x_coll[var_type]
 

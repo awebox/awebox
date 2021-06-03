@@ -51,16 +51,15 @@ def get_initial_guess(nlp, model, formulation, init_options):
 
 
 def initialize_multipliers_to_nonzero(V_init):
-    if 'xa' in list(V_init.keys()):
-        V_init['xa', :] = 1.
+    if 'z' in list(V_init.keys()):
+        V_init['z', :] = 1.
     if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var', :, :, 'xa'] = 1.
+        V_init['coll_var', :, :, 'z'] = 1.
 
     return V_init
 
 
 def build_si_initial_guess(nlp, model, formulation, init_options):
-    awelogger.logger.info('build si initial guess...')
 
     V = nlp.V
     V_init = V(0.0)
@@ -80,7 +79,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options):
 
     V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init)
 
-    V_init = set_xddot(V_init, nlp)
+    V_init = set_xdot(V_init, nlp)
 
     # specified initial values for system parameters
     V_init = set_nontime_system_parameters(init_options, model, V_init)
@@ -153,30 +152,34 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
     tf_guess = V_init['theta', 't_f']
 
     # extract time grid
-    tgrid_xd = nlp.time_grids['x'](tf_guess)
+    tgrid_x = nlp.time_grids['x'](tf_guess)
     if 'coll' in list(nlp.time_grids.keys()):
         tgrid_coll = nlp.time_grids['coll'](tf_guess)
 
     d = nlp.d
     n_k = nlp.n_k
 
-    for k in range(n_k + 1):
+    for ndx in range(n_k + 1):
 
-        t = tgrid_xd[k]
+        t = tgrid_x[ndx]
 
         ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-        for name in struct_op.subkeys(model.variables, 'xd'):
-            V_init['xd', k, name] = ret[name]
+        for var_type in ['x', 'z']:
+            for name in struct_op.subkeys(model.variables, var_type):
+                if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init.keys():
+                    V_init[var_type, ndx, name] = ret[name]
 
-        if nlp.discretization == 'direct_collocation' and (k < n_k):
-            for j in range(d):
-                t = tgrid_coll[k, j]
+        if nlp.discretization == 'direct_collocation' and (ndx < n_k):
+            for ddx in range(d):
+                t = tgrid_coll[ndx, ddx]
 
                 ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-                for name in struct_op.subkeys(model.variables, 'xd'):
-                    V_init['coll_var', k, j, 'xd', name] = ret[name]
+                for var_type in ['x', 'z']:
+                    for name in struct_op.subkeys(model.variables, var_type):
+                        if name in ret.keys():
+                            V_init['coll_var', ndx, ddx, var_type, name] = ret[name]
 
     return V_init
 
@@ -204,8 +207,8 @@ def set_nontime_system_parameters(init_options, model, V_init):
         elif name[:3] == 'l_c':
             layer = int(name[3:])
             kites = model.architecture.kites_map[layer]
-            q_first = V_init['xd', 0, 'q{}{}'.format(kites[0], model.architecture.parent_map[kites[0]])]
-            q_second = V_init['xd', 0, 'q{}{}'.format(kites[1], model.architecture.parent_map[kites[1]])]
+            q_first = V_init['x', 0, 'q{}{}'.format(kites[0], model.architecture.parent_map[kites[0]])]
+            q_second = V_init['x', 0, 'q{}{}'.format(kites[1], model.architecture.parent_map[kites[1]])]
             V_init['theta', name] = np.linalg.norm(q_first - q_second)
             if init_options['cross_tether_attachment'] == 'wing_tip':
                 V_init['theta', name] += - init_options['sys_params_num']['geometry']['b_ref']
@@ -216,10 +219,10 @@ def set_nontime_system_parameters(init_options, model, V_init):
 
     return V_init
 
-def set_xddot(V_init, nlp):
+def set_xdot(V_init, nlp):
 
-    if 'xddot' in list(V_init.keys()):
+    if 'xdot' in list(V_init.keys()):
         Xdot_init = nlp.Xdot(nlp.Xdot_fun(V_init))
         for k in range(nlp.n_k):
-            V_init['xddot',k] = Xdot_init['xd',k]
+            V_init['xdot',k] = Xdot_init['x',k]
     return V_init 
