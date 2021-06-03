@@ -22,7 +22,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install flake8 pytest
-        if [ -f requirements.txt ]; then python3 -m pip install -r requirements.txt; fi
+        python3 -m pip install -r requirements.txt
     - name: Install package
       run: |
         python3 setup.py install
