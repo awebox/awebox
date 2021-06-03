@@ -1,6 +1,4 @@
 
-<<<<<<< HEAD
-=======
 #
 #    This file is part of awebox.
 #
@@ -25,4 +23,3 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
->>>>>>> bd8a7778c8a709254ba2fb57f253261c23a6c956
