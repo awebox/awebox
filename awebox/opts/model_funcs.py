@@ -959,7 +959,7 @@ def get_gravity_ref(options):
 
 def build_lambda_e_power_scaling(options, options_tree, fixed_params, architecture):
 
-    lambda_scaling, energy_scaling, power_cost = get_suggested_lambda_energy_power_scaling(options, architecture)
+    lambda_scaling, energy_scaling, power_cost, power = get_suggested_lambda_energy_power_scaling(options, architecture)
 
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
         options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
@@ -969,6 +969,9 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
 
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('Max. power scaling factor', None),'x'))
+    options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('Max. power initialization', None),'x'))
 
     return options_tree, fixed_params
 
@@ -1044,7 +1047,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         power_cost_factor = options['solver']['cost_factor']['power']
         power_cost = power_cost_factor * (1. / scaled_power)  # yes, this = pcf * time_period_estimate
 
-    return lambda_scaling, energy_scaling, power_cost
+    return lambda_scaling, energy_scaling, power_cost, power
 
 
 def estimate_power(options, architecture):
