@@ -811,8 +811,10 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     q_scaling = 1.
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('descript', None), 'x'))
 
+    initialization_theta = options['solver']['initialization']['theta']
+    for param in initialization_theta.keys():
+        options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'theta', 't_f', cas.DM(1.0), ('descript', None), 'x'))
-
 
     return options_tree, fixed_params
 
@@ -981,9 +983,9 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     layers = architecture.layers
 
     # extract length scaling information
-    l_s_scaling = options['model']['scaling']['theta']['l_s']
+    l_s_scaling = options['solver']['initialization']['theta']['l_s']
     l_t_scaling = options['model']['scaling']['x']['l_t']
-    l_i_scaling = options['model']['scaling']['theta']['l_i']
+    l_i_scaling = options['solver']['initialization']['theta']['l_i']
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling
@@ -1180,10 +1182,10 @@ def estimate_time_period(options, architecture):
     number_of_kites = architecture.number_of_kites
     if number_of_kites == 1:
         cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
-        length = options['model']['scaling']['x']['l_t']
+        length = options['solver']['initialization']['l_t']
     else:
         cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
-        length = options['model']['scaling']['theta']['l_s']
+        length = options['solver']['initialization']['theta']['l_s']
     radius = length * np.sin(cone_angle)
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
 

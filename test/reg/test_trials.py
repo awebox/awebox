@@ -201,6 +201,9 @@ def generate_options_dict():
     actuator_qaxi_options['model.aero.overwrite.beta_max_deg'] = 20.
     actuator_qaxi_options['model.aero.overwrite.beta_min_deg'] = -20.
     actuator_qaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
+    actuator_qaxi_options['model.tether.lift_tether_force'] = True
+    actuator_qaxi_options['model.aero.lift_aero_force'] = True
+    actuator_qaxi_options['nlp.collocation.u_param'] = 'zoh'
     actuator_qaxi_options['solver.cost.fictitious.0'] = 1.e3
     actuator_qaxi_options['nlp.n_k'] = 15
 
@@ -234,6 +237,9 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['model.aero.overwrite.alpha_max_deg'] = 20.
     vortex_options['model.aero.overwrite.alpha_min_deg'] = -20.
+    vortex_options['model.tether.lift_tether_force'] = True
+    vortex_options['model.aero.lift_aero_force'] = True
+    vortex_options['nlp.collocation.u_param'] = 'zoh'
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options.trajectory.type'] = 'tracking'

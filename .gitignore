@@ -16,6 +16,7 @@ figures/
 *.p
 *.awe
 *.dict
+*.ipynb
 
 # Code-generated files
 *.c
