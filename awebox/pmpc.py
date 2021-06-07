@@ -122,11 +122,10 @@ class Pmpc(object):
             self.__trial.nlp.V_bounds['ub']['x',-1] = np.inf
         g_ub = self.__trial.nlp.g(self.__trial.nlp.g_bounds['ub'])
         for constr in self.__trial.model.constraints_dict['inequality'].keys():
-            if constr != 'dcoeff_actuation':
-                if self.__mpc_options['u_param'] == 'poly':
-                    g_ub['path',0,:,constr] = np.inf
-                else:
-                    g_ub['path',0, constr] = np.inf
+            if self.__mpc_options['u_param'] == 'poly':
+                g_ub['path',0,:,constr] = np.inf
+            else:
+                g_ub['path',0, constr] = np.inf
         self.__trial.nlp.g_bounds['ub'] = g_ub.cat
 
         return None

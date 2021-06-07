@@ -94,10 +94,6 @@ def set_default_options(default_user_options, help_options):
 
         ## aero model
         ('model', 'aero', None,         'aero_coeff_ref_velocity',     'eff',           ('specifies which velocity is used to define the stability derivatives: the APParent velocity (as for wind-tunnel or computer generated derivatives), or the EFFective velocity (as for free-flight measurements using a Pitot-tube)', ['app', 'eff']), 'x'),
-        ('model', 'aero', 'three_dof',  'coeff_max',    [2., 80.0 * np.pi / 180.],      ('maximum coefficients in roll-control model', None),'x'),
-        ('model', 'aero', 'three_dof',  'coeff_min',    [0., -80.0 * np.pi / 180.],     ('minimum coefficients in roll-control model', None),'x'),
-        ('model', 'aero', 'three_dof',  'dcoeff_max',   [5., 80. * np.pi / 180],        ('include a bound on dcoeff', None), 'x'),
-        ('model', 'aero', 'three_dof',  'dcoeff_min',   [-5., -80. * np.pi / 180],      ('include a bound on dcoeff', None), 'x'),
         ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
@@ -196,6 +192,9 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
 
+        ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
+        ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
+
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
         ('model',   'model_bounds', 'tether_stress', 'include',              True,      ('include tether stress inequality in constraints', [True, False]),'x'),
@@ -216,8 +215,6 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'rot_angles_cross',      np.array([80.0*np.pi/180., 80.0*np.pi/180., 85.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
-        ('model',   'model_bounds', 'dcoeff_actuation', 'include',          True,       ('include a bound on dcoeff', None), 'x'),
-        ('model',   'model_bounds', 'coeff_actuation',  'include',          True,       ('include a bound on coeff', None), 'x'),
 
         #### scaling
         ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),

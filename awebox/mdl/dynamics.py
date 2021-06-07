@@ -138,12 +138,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
 
-    dcoeff_cstr = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(dcoeff_cstr)
-
-    coeff_cstr = coeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(coeff_cstr)
-
     # ----------------------------------------
     #  sanity checking
     # ----------------------------------------
