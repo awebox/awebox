@@ -286,7 +286,7 @@ def find_power_cost(nlp_options, V, P, Integral_outputs):
     else:
         average_power = Integral_outputs['int_out',-1,'e'] / time_period
 
-    power_cost = P['cost', 'power'] * (-1.) * average_power
+    power_cost = P['cost', 'power'] * (-1.) * average_power / V['theta', 'P_max']
 
     return power_cost
 
@@ -304,6 +304,7 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
         power_derivative_sq = 0.0
         for k in range(nk_start, nk_stop):
             for j in range(nlp_options['collocation']['d']):
+                # TODO: fix scaling
                 lam = V['coll_var', k, j, 'z', 'lambda10']
                 dlam = Xdot['coll_z', k, j, 'lambda10']
                 l_t = V['coll_var', k, j, 'x', 'l_t']
