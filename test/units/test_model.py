@@ -285,7 +285,7 @@ def test_tether_moments():
         var_si['x', 'ddl_t'] = 9.49347e-13
 
     var_si['z'] = 45.024
-    var_si['theta'] = np.array([50, 100, 0.005, 0.00492276, 3.93805])
+    var_si['theta'] = np.array([0.005, 3.93805, 1])
 
     # scaled variables
     scaling = model.scaling
