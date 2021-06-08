@@ -380,6 +380,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
+        ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
         ('solver',  'cost',             'tracking',         1,      1.e-6,         ('update cost for tracking', None),'s'),
         ('solver',  'cost',             'gamma',            1,      1e3,        ('update cost for gamma', None),'s'),
