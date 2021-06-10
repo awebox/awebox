@@ -163,6 +163,7 @@ class Model(object):
         awelogger.logger.info('Wind model'+13*'.'+': {}'.format(self.__options['wind']['model']))
         awelogger.logger.info('Induction model'+8*'.'+': {}'.format(self.__options['induction_model']))
         awelogger.logger.info('System type'+12*'.'+': {}'.format(self.__options['trajectory']['system_type']))
+        awelogger.logger.info('Aircraft type'+10*'.'+': {}'.format(self.__options['kite_type']))
         awelogger.logger.info('Aircraft DOF'+11*'.'+': {}'.format(self.__options['kite_dof']))
         awelogger.logger.info('Number of aircraft'+5*'.'+': {}'.format(self.__architecture.number_of_kites))
         awelogger.logger.info('Number of layers'+7*'.'+': {}'.format(self.__architecture.layers))
