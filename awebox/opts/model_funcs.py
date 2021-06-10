@@ -226,8 +226,14 @@ def build_kite_dof_options(options, options_tree, fixed_params):
     user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
+    kite_type = user_options['system_model']['kite_type']
+
+    if user_options['system_model']['kite_type'] == 'soft':
+        if kite_dof == 6:
+            raise ValueError('Soft-kite model only supports 3DOF.')
 
     options_tree.append(('model', None, None, 'kite_dof', kite_dof, ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
+    options_tree.append(('model', None, None, 'kite_type', kite_type, ('kite type',['rigid','soft']),'x')),
     options_tree.append(('model', None, None, 'surface_control', user_options['system_model']['surface_control'], ('which derivative of the control-surface-deflection is controlled?: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x')),
 
     if (not int(kite_dof) == 6) and (not int(kite_dof) == 3):
