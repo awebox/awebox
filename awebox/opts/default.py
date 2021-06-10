@@ -138,6 +138,7 @@ def set_default_options(default_user_options, help_options):
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 's_ref',       None,     ('geometrical parameter', None),'s'),
+        ('model',  'geometry', 'overwrite', 's_ref_side',  None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'b_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'c_ref',       None,     ('geometrical parameter', None),'s'),
         ('model',  'geometry', 'overwrite', 'ar',          None,     ('geometrical parameter', None),'s'),
