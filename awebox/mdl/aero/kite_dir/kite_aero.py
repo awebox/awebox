@@ -35,6 +35,7 @@ _python-3.5 / casadi-3.4.5
 import awebox.mdl.aero.induction_dir.induction as induction
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
+import awebox.mdl.aero.kite_dir.three_dof_soft_kite as three_dof_soft_kite
 import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
@@ -65,15 +66,17 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     rho = atmos.get_density(q[2])
     q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
-    if int(options['kite_dof']) == 3:
+    if int(options['kite_dof']) == 3 and options['kite_type'] == 'rigid':
         kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
+    elif int(options['kite_dof']) == 3 and options['kite_type'] == 'soft':
+        kite_dcm = three_dof_soft_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
     elif int(options['kite_dof']) == 6:
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
         awelogger.logger.error(message)
 
-    if int(options['kite_dof']) == 3:
+    if int(options['kite_dof']) == 3 and options['kite_type'] == 'rigid':
 
         if options['aero']['lift_aero_force']:
             framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
@@ -89,6 +92,24 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
 
         framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
                                                   cas.DM.zeros((3, 1)), 'body')
+
+    if int(options['kite_dof']) == 3 and options['kite_type'] == 'soft':
+
+        if options['aero']['lift_aero_force']:
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture)
+        else:
+            force_found_vector, force_found_frame, vec_u, kite_dcm = three_dof_soft_kite.get_force_vector(options,
+                                                                                                     variables_si,
+                                                                                                     atmos,
+                                                                                                     wind, architecture,
+                                                                                                     parameters, kite,
+                                                                                                     outputs)
+            framed_forces = tools.get_framed_forces(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                    force_found_vector, force_found_frame)
+
+        framed_moments = tools.get_framed_moments(vec_u_eff, kite_dcm, variables_si, kite, architecture,
+                                                  cas.DM.zeros((3, 1)), 'body')
+
 
     elif int(options['kite_dof']) == 6:
 
@@ -221,8 +242,11 @@ def get_force_and_moment_vars(variables_si, kite, parent, options):
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
-    if int(options['kite_dof']) == 3:
+    if int(options['kite_dof']) == 3 and options['kite_type'] == 'rigid':
         cstr_list = three_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs)
+
+    elif int(options['kite_dof']) == 3 and options['kite_type'] == 'soft':
+        cstr_list = three_dof_soft_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs)
 
     elif int(options['kite_dof']) == 6:
         cstr_list = six_dof_kite.get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs)
