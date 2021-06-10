@@ -182,6 +182,40 @@ def test_drag_mode_model():
 
     return None
 
+
+def test_soft_kite_model():
+    """ Test soft-kite construction routines
+    """
+
+    # single-kite with point-mass model
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.system_model.kite_type'] = 'soft'
+    options['model.tether.use_wound_tether'] = False
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.kite_standard'] = awe.kitepower_data.data_dict()
+
+    # build model
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(trial_options['user_options']['system_model']['architecture'])
+    trial_options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(trial_options['model'], architecture)
+
+
+    states = model.variables_dict['x']
+    controls = model.variables_dict['u']
+    assert('yaw10' in list(states.keys()))
+    assert('coeff10' not in list(states.keys()))
+
+    assert('dyaw10'  in list(controls.keys()))
+    assert('pitch10' in list(controls.keys()))
+    assert('dcoeff10' not in list(controls.keys()))
+
+    return None
+
 def test_cross_tether_model():
     """ Test cross-tether construction routines
     """
