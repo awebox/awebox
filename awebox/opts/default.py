@@ -226,6 +226,9 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
+        ('model',  'scaling', 'x',     'yaw',      1.,     ('soft-kite yaw angle scaling [rad]', None),'x'),
+        ('model',  'scaling', 'u',     'dyaw',     1.,     ('soft-kite yaw angle rate scaling [rad/s]', None),'x'),
+        ('model',  'scaling', 'u',     'pitch',    1.,     ('soft-kite pitch angle scaling [rad]', None),'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),

@@ -275,7 +275,8 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         coeff_scaling = 0.1
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
-        options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
+        if user_options['system_model']['kite_type'] == 'rigid':
+            options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
 
         compromised_factor = options['model']['aero']['three_dof']['dcoeff_compromised_factor']
         dcoeff_compromised_max = np.array([5*compromised_factor,5])
