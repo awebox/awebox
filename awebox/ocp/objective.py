@@ -308,7 +308,11 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
                 dlam = Xdot['coll_z', k, j, 'lambda10']
                 l_t = V['coll_var', k, j, 'x', 'l_t']
                 dl_t = V['coll_var', k, j, 'x', 'dl_t']
-                ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
+                try:
+                    ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
+                except:
+                    ddl_t = V['coll_var', k, j, 'u', 'ddl_t']
+
                 power_der = dlam*l_t*dl_t + lam*dl_t*dl_t + lam*l_t*ddl_t
                 power_derivative_sq += int_weights[j]*power_der**2
 
