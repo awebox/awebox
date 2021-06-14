@@ -197,6 +197,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'dyaw',         [-1.5, 1.5],                                                                  ('soft kite dyaw bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'pitch',       [0.0, 30.0*np.pi/180.0],                                                      ('main tether jerk bounds', None),'x'),
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),

@@ -41,20 +41,19 @@ def data_dict():
 def geometry():
 
     geometry = {}
-    geometry['m_k'] = 36.8  # [kg]
-    geometry['s_ref'] = 200.0 # [m^2]
-    geometry['s_ref_side'] = 10.0 # [m^2]
+    geometry['m_k'] = 22.8  # [kg]
+    geometry['s_ref'] = 19.75 # [m^2]
+    geometry['s_ref_side'] = 19.75*0.15 # [m^2]
 
     # tether attachment point
     geometry['r_tether'] = np.zeros((3,1)) # assumed at COM
 
-    geometry['b_ref'] = 1.0  # [m]
-    geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m]
+    geometry['b_ref'] = geometry['s_ref']/3.0  # [m] - ONLY USED FOR SCALING
+    geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m] - ONLY USED FOR SCALING
 
     return geometry
 
 def aero():
-    # commented values are not currently supported, future implementation
 
     stab_derivs = {}
 
@@ -74,15 +73,10 @@ def aero():
     stab_derivs['CL']['alpha'] = [0.0, 0.0]
 
     aero_validity = {}
-    # aero_validity['alpha_max_deg'] = 21.7724
-    # aero_validity['alpha_min_deg'] = -7.4485
-    # aero_validity['beta_max_deg'] = 15.
-    # aero_validity['beta_min_deg'] = -15.0
-
-    aero_validity['alpha_max_deg'] = 9.
-    aero_validity['alpha_min_deg'] = -6.
-    aero_validity['beta_max_deg'] = 20.
-    aero_validity['beta_min_deg'] = -20.
+    aero_validity['alpha_max_deg'] = 10.
+    aero_validity['alpha_min_deg'] = 0.
+    aero_validity['beta_max_deg'] =  30.
+    aero_validity['beta_min_deg'] = -30.
 
 
     return stab_derivs, aero_validity
