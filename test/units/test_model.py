@@ -195,6 +195,11 @@ def test_soft_kite_model():
     options['model.tether.use_wound_tether'] = False
     options['user_options.induction_model'] = 'not_in_use'
     options['user_options.kite_standard'] = awe.kitepower_data.data_dict()
+    options['params.tether.rho'] = 724.0
+    options['params.tether.cd'] = 1.1
+    options['model.tether.control_var'] = 'ddl_t'
+    options['model.system_bounds.x.ddl_t'] = [-2.0, 2.0]
+    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0]
 
     # build model
     trial_options = awe.Options()
