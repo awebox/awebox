@@ -109,20 +109,20 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     beta = cas.dot(e2, v_app)/cas.dot(e1, v_app)
 
     lift_coefficient_params = cas.vertcat(
-        parameters['theta0', 'aero', 'CZ', '0'][0],
-        parameters['theta0', 'aero', 'CZ', 'alpha'][0],
-        parameters['theta0', 'aero', 'CZ', 'alpha'][1]
+        parameters['theta0', 'aero', 'CL', '0'][0],
+        parameters['theta0', 'aero', 'CL', 'alpha'][0],
+        parameters['theta0', 'aero', 'CL', 'alpha'][1]
     )
 
     drag_coefficient_params = cas.vertcat(
-        parameters['theta0', 'aero', 'CX', '0'][0],
-        parameters['theta0', 'aero', 'CX', 'alpha'][0],
-        parameters['theta0', 'aero', 'CX', 'alpha'][1]
+        parameters['theta0', 'aero', 'CD', '0'][0],
+        parameters['theta0', 'aero', 'CD', 'alpha'][0],
+        parameters['theta0', 'aero', 'CD', 'alpha'][1]
     )
 
-    c_s = parameters['theta0', 'aero', 'CY', '0'][0]
+    c_s = parameters['theta0', 'aero', 'CS', '0'][0]
 
-    # Aerodynamic model
+    # Aerodynamic models
     c_l = cas.mtimes(lift_coefficient_params.T, cas.vertcat(1, alpha, alpha**2))
     c_d_kite = cas.mtimes(drag_coefficient_params.T, cas.vertcat(1, alpha, alpha**2))
     lift = .5*rho_infty*kite_projected_area*cas.norm_2(v_app) * c_l*cas.cross(v_app, e2)  # TODO: note that lift term is

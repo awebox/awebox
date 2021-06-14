@@ -62,16 +62,16 @@ def aero():
     stab_derivs['frame']['force'] = 'control'
     stab_derivs['frame']['moment'] = 'control'
 
-    stab_derivs['CX'] = {}
-    stab_derivs['CX']['0'] = [-0.0293]
-    stab_derivs['CX']['alpha'] = [0.4784, 2.5549]
+    stab_derivs['CD'] = {}
+    stab_derivs['CD']['0'] = [0.13]
+    stab_derivs['CD']['alpha'] = [0.0, 0.0]
 
-    stab_derivs['CY'] = {}
-    stab_derivs['CY']['0'] = [-0.5526]
+    stab_derivs['CS'] = {}
+    stab_derivs['CS']['0'] = [-1.0]
 
-    stab_derivs['CZ'] = {}
-    stab_derivs['CZ']['0'] = [-0.5526]
-    stab_derivs['CZ']['alpha'] = [-5.0676, 5.7736]
+    stab_derivs['CL'] = {}
+    stab_derivs['CL']['0'] = [0.59]
+    stab_derivs['CL']['alpha'] = [0.0, 0.0]
 
     aero_validity = {}
     # aero_validity['alpha_max_deg'] = 21.7724
