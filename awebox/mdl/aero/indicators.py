@@ -269,6 +269,11 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     beta_min = options['aero']['beta_min_deg'] * np.pi / 180.0
     beta_max = options['aero']['beta_max_deg'] * np.pi / 180.0
 
+    if 'pitch' in base_aerodynamic_quantities.keys(): # soft kite control    import ipdb; ipdb.set_trace()
+        alpha = alpha - base_aerodynamic_quantities['pitch']
+        alpha_max = alpha_max + base_aerodynamic_quantities['pitch']
+        alpha_min = alpha_min + base_aerodynamic_quantities['pitch']
+
     alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
     alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
     beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
