@@ -43,7 +43,7 @@ def geometry():
     geometry = {}
     geometry['m_k'] = 22.8  # [kg]
     geometry['s_ref'] = 19.75 # [m^2]
-    geometry['s_ref_side'] = 19.75*0.15 # [m^2]
+    geometry['s_ref_side'] = geometry['s_ref']*0.15 # [m^2]
 
     # tether attachment point
     geometry['r_tether'] = np.zeros((3,1)) # assumed at COM
