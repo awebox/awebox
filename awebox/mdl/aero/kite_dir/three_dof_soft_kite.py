@@ -105,8 +105,8 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     v_app = - vec_u
 
     # Flow condition at kite
-    alpha = -cas.dot(e3, v_app) / cas.dot(e1, v_app) - pitch
-    beta = cas.dot(e2, v_app)/cas.dot(e1, v_app)
+    alpha = - cas.dot(e3, v_app) / cas.dot(e1, v_app) - pitch
+    beta = cas.dot(e2, v_app) / cas.dot(e1, v_app)
 
     lift_coefficient_params = cas.vertcat(
         parameters['theta0', 'aero', 'CL', '0'][0],
