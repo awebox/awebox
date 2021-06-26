@@ -145,11 +145,12 @@ def guess_values_at_time(t, init_options, model):
                 # z0 = np.sin(el0)*tether_length
                 # l12 = (tether_length**2 - z0**2)**.5
                 # a_lissajous = init_options['groundspeed']/(w_lj*z0)
-                a_lissajous = 2*np.pi/init_options['precompute']['time_final']
+                a_lissajous = 2*np.pi/(init_options['precompute']['time_final']/init_options['windings'])
                 az, el = tools.lissajous_curve(t, w_lj, h_lj, a = a_lissajous)
                 el = el + el0
                 x, y, z = tools.calc_cartesian_coords(az, el, tether_length)
-                ret['q' + str(node) + str(parent)] = cas.vertcat(x,y,z)
+                q = cas.vertcat(x,y,z)
+                ret['q' + str(node) + str(parent)] = q
 
                 azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a= a_lissajous)
                 dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, tether_length)
@@ -157,6 +158,21 @@ def guess_values_at_time(t, init_options, model):
 
                 psi = np.arctan2(azdot, -eldot)
                 ret['yaw' +str(node) + str(parent)] = psi
+
+                l = init_options['x']['l_t']
+                l12 = cas.norm_2(q[:2])
+                dcm_tau2e = cas.blockcat([
+                    [q[0]*q[2]/(l*l12), -q[1]/l12,  q[0]/l],
+                    [q[1]*q[2]/(l*l12), q[0]/l12, q[1]/l],
+                    [-l12/l,              0,         q[2]/l],
+                ])  # Transformation from tangential (to unit sphere surface) plane to earth frame
+                dcm_b2tau = cas.blockcat([
+                    [cas.cos(psi), -cas.sin(psi), 0],
+                    [cas.sin(psi), cas.cos(psi),  0],
+                    [0,  0,   1],
+                ])
+                kite_dcm = cas.mtimes(dcm_tau2e, dcm_b2tau) 
+                ret['dcm' +str(node) + str(parent)] = cas.reshape(kite_dcm, 9, 1)
 
     return ret
 
