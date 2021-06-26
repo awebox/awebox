@@ -212,12 +212,16 @@ def test_soft_kite_model():
 
     states = model.variables_dict['x']
     controls = model.variables_dict['u']
+    algs = model.variables_dict['z']
+
     assert('yaw10' in list(states.keys()))
     assert('coeff10' not in list(states.keys()))
 
     assert('dyaw10'  in list(controls.keys()))
     assert('pitch10' in list(controls.keys()))
     assert('dcoeff10' not in list(controls.keys()))
+
+    assert('dcm10' in list(algs.keys()))
 
     return None
 
