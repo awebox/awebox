@@ -45,7 +45,8 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
-    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+
+    kite_dcm = get_kite_dcm(options, variables, kite, architecture)
 
     vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
                                                         parameters, outputs)
@@ -81,18 +82,18 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
 
 def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters):
 
-    parent = architecture.parent_map[kite]
+    label = architecture.node_label(kite)
 
     # get relevant variables for kite n
-    q = variables['x']['q' + str(kite) + str(parent)]
-    dq = variables['x']['dq' + str(kite) + str(parent)]
-    yaw = variables['x']['yaw' + str(kite) + str(parent)]
-    pitch = variables['u']['pitch' + str(kite) + str(parent)]
+    q = variables['x'][f'q{label}']
+    dq = variables['x'][f'dq{label}']
+    yaw = variables['x'][f'yaw{label}']
+    pitch = variables['u'][f'pitch{label}']
 
     # wind parameters
     rho_infty = atmos.get_density(q[2])
 
-    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+    kite_dcm = get_kite_dcm(options, variables, kite, architecture)
 
     # Basis of body frame expressed in earth frame
     e1 = kite_dcm[:, 0]  # Longitudinal axis of the wing
@@ -105,8 +106,8 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     v_app = - vec_u
 
     # Flow condition at kite
-    alpha = - cas.dot(e3, v_app) / cas.dot(e1, v_app) - pitch
-    beta = cas.dot(e2, v_app) / cas.dot(e1, v_app)
+    alpha = get_alpha(vec_u, kite_dcm, pitch)
+    beta = get_beta(vec_u, kite_dcm)
 
     lift_coefficient_params = cas.vertcat(
         parameters['theta0', 'aero', 'CL', '0'][0],
@@ -134,7 +135,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
     return f_aero
 
-def get_kite_dcm(options, variables, wind, kite, architecture):
+def get_kite_dcm_expr(options, variables, kite, architecture):
 
     parent = architecture.parent_map[kite]
     q = variables['x']['q' + str(kite) + str(parent)]
@@ -160,3 +161,52 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
         raise ValueError('Soft-kite model is only implemented for single-kite systems.')
 
     return kite_dcm
+
+def get_kite_dcm(options, variables, kite, architecture):
+
+    if kite == 1:
+
+        label = architecture.node_label(kite)
+        kite_dcm = cas.reshape(variables['z'][f'dcm{label}'], 3, 3)
+
+    elif kite > 1:
+        raise ValueError('Soft-kite model is only implemented for single-kite systems.')
+
+    return kite_dcm
+
+def get_dcm_cstr(options, variables, architecture, outputs):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    for kite in architecture.kite_nodes:
+        label = architecture.node_label(kite)
+
+        dcm = get_kite_dcm(options, variables, kite, architecture)
+        dcm_expr = get_kite_dcm_expr(options, variables, kite, architecture)
+        cstr_expr = cas.reshape(dcm - dcm_expr, 9, 1) 
+        dcm_cstr = cstr_op.Constraint(expr=cstr_expr,
+                                        name='dcm{}'.format(label),
+                                        cstr_type='eq')
+        cstr_list.append(dcm_cstr)
+
+    return cstr_list
+
+def get_alpha(ua, dcm, pitch):
+
+    v_app = -ua
+    e1 = dcm[:, 0]  # Longitudinal axis of the wing
+    e3 = dcm[:, 2]  # Vertical axis of the wing
+    
+    alpha = - cas.dot(e3, v_app) / cas.dot(e1, v_app) - pitch
+
+    return alpha
+
+def get_beta(ua, dcm):
+
+    v_app = -ua
+    e1 = dcm[:, 0]  # Longitudinal axis of the wing
+    e2 = dcm[:, 1]  # Transversal axis of the wing
+
+    beta = cas.dot(e2, v_app) / cas.dot(e1, v_app)
+
+    return beta
