@@ -231,6 +231,8 @@ def build_kite_dof_options(options, options_tree, fixed_params):
     if user_options['system_model']['kite_type'] == 'soft':
         if kite_dof == 6:
             raise ValueError('Soft-kite model only supports 3DOF.')
+        else:
+            options_tree.append(('model', 'system_bounds', 'z', 'dcm', [-1, 1], ('DCM bounds',None),'x')),
 
     options_tree.append(('model', None, None, 'kite_dof', kite_dof, ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
     options_tree.append(('model', None, None, 'kite_type', kite_type, ('kite type',['rigid','soft']),'x')),
