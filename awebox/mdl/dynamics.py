@@ -101,6 +101,11 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         tether_force_cstr = tether_aero.get_tether_cstr(options, system_variables['SI'], architecture, outputs)
         cstr_list.append(tether_force_cstr)
 
+    if int(options['kite_dof']) == 3 and options['kite_type'] == 'soft':
+        import awebox.mdl.aero.kite_dir.three_dof_soft_kite as three_dof_soft_kite
+        dcm_cstr = three_dof_soft_kite.get_dcm_cstr(options, system_variables['SI'], architecture, outputs)
+        cstr_list.append(dcm_cstr)
+
     # induction constraint
     if not (options['induction_model'] == 'not_in_use'):
         induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
