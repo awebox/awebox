@@ -110,14 +110,14 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                     local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
 
                     if number_of_opts == 1:
-                        axes.plot(tgrid_ip, data, color=local_color)
+                        axes[0].plot(tgrid_ip, data, color=local_color)
                     else:
                         axes[odx].plot(tgrid_ip, data, color=local_color)
 
             if (epigraph is not None) and (isinstance(epigraph, float)):
 
                 if number_of_opts == 1:
-                    axes.axhline(y=epigraph, color='gray', linestyle='--')
+                    axes[0].axhline(y=epigraph, color='gray', linestyle='--')
                 else:
                     axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
 
