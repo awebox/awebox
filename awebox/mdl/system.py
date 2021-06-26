@@ -73,6 +73,7 @@ def generate_structure(options, architecture):
     elif int(kite_dof) == 3 and kite_type == 'soft':
         kite_states = kite_states + [('yaw', (1, 1))]
         kite_controls = kite_controls + [('dyaw', (1, 1)), ('pitch', (1, 1))]
+        kite_lifted = [('dcm', (9, 1))]
 
     elif int(kite_dof) == 6:
         kite_states = kite_states + [('omega', (3, 1)), ('r', (9, 1))]
@@ -123,6 +124,9 @@ def generate_structure(options, architecture):
 
             system_gc.extend([kite_gc[i] + str(n) + str(parent)
                               for i in range(len(kite_gc))])
+
+            if int(kite_dof) == 3 and kite_type == 'soft':
+                system_lifted.extend([(kite_lifted[i][0] + str(n) + str(parent), kite_lifted[i][1]) for i in range(len(kite_lifted))])
 
         else:
             system_states.extend(
