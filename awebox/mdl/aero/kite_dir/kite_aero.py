@@ -69,7 +69,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     if int(options['kite_dof']) == 3 and options['kite_type'] == 'rigid':
         kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
     elif int(options['kite_dof']) == 3 and options['kite_type'] == 'soft':
-        kite_dcm = three_dof_soft_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
+        kite_dcm = three_dof_soft_kite.get_kite_dcm(options, variables_si, kite, architecture)
     elif int(options['kite_dof']) == 6:
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:
