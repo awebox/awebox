@@ -198,7 +198,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dyaw',         [-1.5, 1.5],                                                                  ('soft kite dyaw bounds', None),'x'),
-        ('model',  'system_bounds', 'u',           'pitch',       [0.0, 30.0*np.pi/180.0],                                                      ('main tether jerk bounds', None),'x'),
+        ('model',  'system_bounds', 'x',           'pitch',       [0.0, 30.0*np.pi/180.0],                                                      ('soft kite pitch bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'dpitch',      [-1.5, 1.5],                                                      ('soft kite dpitch bounds', None),'x'),
 
         #### model bounds (range of validity)
         ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
@@ -230,7 +231,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
         ('model',  'scaling', 'x',     'yaw',      1.,     ('soft-kite yaw angle scaling [rad]', None),'x'),
         ('model',  'scaling', 'u',     'dyaw',     1.,     ('soft-kite yaw angle rate scaling [rad/s]', None),'x'),
-        ('model',  'scaling', 'u',     'pitch',    1.,     ('soft-kite pitch angle scaling [rad]', None),'x'),
+        ('model',  'scaling', 'x',     'pitch',    1.,     ('soft-kite pitch angle scaling [rad]', None),'x'),
+        ('model',  'scaling', 'u',     'dpitch',   1.,     ('soft-kite dpitch angle scaling [rad]', None),'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),

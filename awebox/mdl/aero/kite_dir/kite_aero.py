@@ -218,7 +218,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         base_aerodynamic_quantities['q'] = q
         base_aerodynamic_quantities['dq'] = dq
         if options['kite_type'] == 'soft':
-            base_aerodynamic_quantities['pitch'] = variables_si['u']['pitch10']
+            base_aerodynamic_quantities['pitch'] = variables_si['x']['pitch10']
 
         outputs = indicators.collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variables_si, parameters, base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outputs)

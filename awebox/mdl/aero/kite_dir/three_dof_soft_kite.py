@@ -88,7 +88,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     q = variables['x'][f'q{label}']
     dq = variables['x'][f'dq{label}']
     yaw = variables['x'][f'yaw{label}']
-    pitch = variables['u'][f'pitch{label}']
+    pitch = variables['x'][f'pitch{label}']
 
     # wind parameters
     rho_infty = atmos.get_density(q[2])

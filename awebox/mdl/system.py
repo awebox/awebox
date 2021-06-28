@@ -71,8 +71,8 @@ def generate_structure(options, architecture):
         kite_controls = kite_controls + [('dcoeff', (2, 1))]
 
     elif int(kite_dof) == 3 and kite_type == 'soft':
-        kite_states = kite_states + [('yaw', (1, 1))]
-        kite_controls = kite_controls + [('dyaw', (1, 1)), ('pitch', (1, 1))]
+        kite_states = kite_states + [('yaw', (1, 1)), ('pitch', (1, 1))]
+        kite_controls = kite_controls + [('dyaw', (1, 1)), ('dpitch', (1, 1))]
         kite_lifted = [('dcm', (9, 1))]
 
     elif int(kite_dof) == 6:
