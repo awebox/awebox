@@ -216,9 +216,10 @@ def test_soft_kite_model():
 
     assert('yaw10' in list(states.keys()))
     assert('coeff10' not in list(states.keys()))
+    assert('pitch10' in list(states.keys()))
 
     assert('dyaw10'  in list(controls.keys()))
-    assert('pitch10' in list(controls.keys()))
+    assert('dpitch10' in list(controls.keys()))
     assert('dcoeff10' not in list(controls.keys()))
 
     assert('dcm10' in list(algs.keys()))
