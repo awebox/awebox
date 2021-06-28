@@ -4,6 +4,8 @@ import awebox as awe
 import matplotlib.pyplot as plt
 import numpy as np
 import casadi as ca
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel('DEBUG')
 
 # single pumping soft-kite with kitepower point-mass model
 options = {}
@@ -21,6 +23,8 @@ options['params.tether.cd'] = 1.1
 options['model.tether.control_var'] = 'dddl_t' # tether jerk control
 options['user_options.wind.model'] = 'log_wind'
 options['user_options.wind.u_ref'] = 9.0
+options['params.wind.z_ref'] = 10. # reference height [m]
+options['params.wind.log_wind.z0_air'] = 0.1 # surface roughness [m]
 
 # system bounds
 options['model.system_bounds.x.ddl_t'] = [-2.0, 2.0] # m/s^2
@@ -46,16 +50,19 @@ options['params.model_bounds.tether_force_limits'] = np.array([1e3, 5e3])
 # trajectory options
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.lift_mode.windings'] = 6
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
+options['nlp.phase_fix_reelout'] = 0.7 # only applicable for 'single_reelout' phase fix option
 
 # NLP options
 options['nlp.n_k'] = 60
-options['nlp.collocation.u_param'] = 'zoh'
+options['nlp.collocation.u_param'] = 'poly'
 options['solver.linear_solver'] = 'ma57' # 'mumps'
-options['nlp.phase_fix_reelout'] = 0.9
 
 # initialization
 options['solver.initialization.shape'] = 'lemniscate'
+options['solver.initialization.lemniscate.az_width'] = 20*np.pi/180.
+options['solver.initialization.lemniscate.el_width'] = 8*np.pi/180.
+options['solver.initialization.inclination_deg'] = 20.
 options['solver.initialization.groundspeed'] = 20.
 options['solver.initialization.winding_period'] = 30.
 options['solver.initialization.theta.diam_t'] = 5e-3

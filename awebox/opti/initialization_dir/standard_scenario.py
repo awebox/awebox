@@ -138,13 +138,11 @@ def guess_values_at_time(t, init_options, model):
             elif init_options['shape'] == 'lemniscate':
                 
                 # TODO: make work for 6DOF
-                w_lj = 20*np.pi/180.
-                h_lj = 8*np.pi/180.
+                w_lj = init_options['lemniscate']['az_width']
+                h_lj = init_options['lemniscate']['el_width']
                 el0 = init_options['inclination_deg']*np.pi/180.0
                 tether_length = init_options['l_t']
-                # z0 = np.sin(el0)*tether_length
-                # l12 = (tether_length**2 - z0**2)**.5
-                # a_lissajous = init_options['groundspeed']/(w_lj*z0)
+
                 a_lissajous = 2*np.pi/(init_options['precompute']['time_final']/init_options['windings'])
                 az, el = tools.lissajous_curve(t, w_lj, h_lj, a = a_lissajous)
                 el = el + el0
