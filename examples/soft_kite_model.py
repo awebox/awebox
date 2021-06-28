@@ -24,11 +24,14 @@ options['user_options.wind.u_ref'] = 9.0
 
 # system bounds
 options['model.system_bounds.x.ddl_t'] = [-2.0, 2.0] # m/s^2
+options['model.ground_station.ddl_t_max'] = 2.0 # TODO get rid of redundant option
+options['model.ground_station.dddl_t_max'] = 50.0
 options['model.system_bounds.x.dl_t'] = [-10.0, 10.0] # m/s
-options['model.system_bounds.u.pitch'] = [0.0, np.pi/6] # rad
-options['model.system_bounds.u.dyaw'] = [-5., 5.] # rad/s
+options['model.system_bounds.x.pitch'] = [0.0, np.pi/6] # rad
+options['model.system_bounds.u.dpitch'] = [-5., 5.] # rad
+options['model.system_bounds.u.dyaw'] = [-3, 3] # rad/s
 options['model.system_bounds.x.q'] = [
-    np.array([-ca.inf, -ca.inf, 10.0]), # z > 10 m
+    np.array([-ca.inf, -ca.inf, 30.0]), # q_z > 30 m
     np.array([ca.inf, ca.inf, ca.inf])
     ] 
 
@@ -42,15 +45,18 @@ options['params.model_bounds.tether_force_limits'] = np.array([1e3, 5e3])
 
 # trajectory options
 options['user_options.trajectory.type'] = 'power_cycle'
-options['user_options.trajectory.lift_mode.windings'] = 5
+options['user_options.trajectory.lift_mode.windings'] = 6
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 
 # NLP options
-options['nlp.n_k'] = 40
-options['nlp.collocation.u_param'] = 'poly'
+options['nlp.n_k'] = 60
+options['nlp.collocation.u_param'] = 'zoh'
+options['solver.linear_solver'] = 'ma57' # 'mumps'
+options['nlp.phase_fix_reelout'] = 0.9
 
 # initialization
 options['solver.initialization.shape'] = 'lemniscate'
-options['solver.initialization.groundspeed'] = 30.
+options['solver.initialization.groundspeed'] = 20.
 options['solver.initialization.winding_period'] = 30.
 options['solver.initialization.theta.diam_t'] = 5e-3
 options['solver.initialization.l_t'] = 200.0
@@ -58,6 +64,7 @@ options['solver.initialization.l_t'] = 200.0
 # visualization options
 options['visualization.cosmetics.plot_ref'] = False
 options['visualization.cosmetics.plot_bounds'] = True
+options['visualization.cosmetics.interpolation.N']  = 250
 
 # optimize trial
 trial = awe.Trial(options, 'single_kite_lift_mode')
@@ -76,42 +83,6 @@ plt.figure()
 plt.plot(180.0/np.pi*aero_out['beta1'][0])
 plt.title('beta [deg]')
 plt.grid(True)
-
-plt.figure()
-plt.plot(aero_out['f_aero_earth1'][0])
-plt.plot(aero_out['f_aero_earth1'][1])
-plt.plot(aero_out['f_aero_earth1'][2])
-plt.grid(True)
-plt.title('f_aero_earth [N]')
-
-kite_dcm  = []
-ortho = []
-v_app = []
-for k in range(len(aero_out['ehat_chord1'][0])):
-    ehat_chord = ca.vertcat(
-        aero_out['ehat_chord1'][0][k],
-        aero_out['ehat_chord1'][1][k],
-        aero_out['ehat_chord1'][2][k],
-    )
-    ehat_span = ca.vertcat(
-        aero_out['ehat_span1'][0][k],
-        aero_out['ehat_span1'][1][k],
-        aero_out['ehat_span1'][2][k],
-    )
-    ehat_up = ca.vertcat(
-        aero_out['ehat_up1'][0][k],
-        aero_out['ehat_up1'][1][k],
-        aero_out['ehat_up1'][2][k],
-    )
-    ua = ca.vertcat(
-        aero_out['air_velocity1'][0][k],
-        aero_out['air_velocity1'][1][k],
-        aero_out['air_velocity1'][2][k]
-    )
-    dcm = ca.horzcat(ehat_chord, ehat_span, ehat_up)
-    kite_dcm.append(dcm)
-    ortho.append(ca.mtimes(dcm.T, dcm) - np.eye(3))
-    v_app.append(ua)
 
 plt.figure()
 plt.plot(aero_out['airspeed1'][0])
