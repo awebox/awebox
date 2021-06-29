@@ -572,12 +572,13 @@ def P_max_inequality(options, variables, power, parameters, architecture):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
-    max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max'] - parameters['theta0','model_bounds','P_max_ub']
+    if 'P_max' in variables['theta'].keys():
+        max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max'] - parameters['theta0','model_bounds','P_max_ub']
 
-    P_max_cstr = cstr_op.Constraint(expr=max_power_ineq,
-                                name='P_max_cstr',
-                                cstr_type='ineq')
-    cstr_list.append(P_max_cstr)
+        P_max_cstr = cstr_op.Constraint(expr=max_power_ineq,
+                                    name='P_max_cstr',
+                                    cstr_type='ineq')
+        cstr_list.append(P_max_cstr)
 
     return cstr_list
 

@@ -286,7 +286,10 @@ def find_power_cost(nlp_options, V, P, Integral_outputs):
     else:
         average_power = Integral_outputs['int_out',-1,'e'] / time_period
 
-    power_cost = P['cost', 'power'] * (-1.) * average_power * (P['cost', 'P_max'] + (1-P['cost', 'P_max']) / V['theta', 'P_max'])
+    if nlp_options['cost']['P_max']:
+        power_cost = P['cost', 'power'] * (-1.) * average_power * (P['cost', 'P_max'] + (1-P['cost', 'P_max']) / V['theta', 'P_max'])
+    else:
+        power_cost = P['cost', 'power'] * (-1.) * average_power
 
     return power_cost
 
