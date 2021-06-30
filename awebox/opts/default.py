@@ -355,6 +355,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'lambda',                1.,         ('optimization weight for all lambda variables [-]', None),'x'),
         ('solver',   'weights',        None,   'a',                     1e-3,       ('optimization weight for lifted variable a [-]', None),'x'),
         ('solver',   'weights',        None,   'dkappa',                1e1,        ('optimization weight for control variable dkappa [-]', None),'s'),
+        ('solver',   'weights',        None,   'P_max',                 0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
         ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
