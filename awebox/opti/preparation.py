@@ -177,6 +177,13 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
 
+    if 'P_max' in model.variables_dict['theta'].keys():
+        if options['cost']['P_max'][0] == 1.0:
+            V_bounds['lb']['theta', 'P_max'] = 1e3
+            V_bounds['ub']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['lb']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['ub']['theta', 'P_max'] = 1e3
+
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
         if 'fict' in name:
