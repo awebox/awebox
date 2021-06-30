@@ -27,12 +27,11 @@ options['params.wind.z_ref'] = 10. # reference height [m]
 options['params.wind.log_wind.z0_air'] = 0.1 # surface roughness [m]
 
 # system bounds
-options['model.system_bounds.x.ddl_t'] = [-2.0, 2.0] # m/s^2
 options['model.ground_station.ddl_t_max'] = 2.0 # TODO get rid of redundant option
 options['model.ground_station.dddl_t_max'] = 50.0
 options['model.system_bounds.x.dl_t'] = [-10.0, 10.0] # m/s
 options['model.system_bounds.x.pitch'] = [0.0, np.pi/6] # rad
-options['model.system_bounds.u.dpitch'] = [-5., 5.] # rad
+options['model.system_bounds.u.dpitch'] = [-5., 5.] # rad/s
 options['model.system_bounds.u.dyaw'] = [-3, 3] # rad/s
 options['model.system_bounds.x.q'] = [
     np.array([-ca.inf, -ca.inf, 30.0]), # q_z > 30 m
