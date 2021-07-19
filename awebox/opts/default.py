@@ -356,6 +356,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'a',                     1e-3,       ('optimization weight for lifted variable a [-]', None),'x'),
         ('solver',   'weights',        None,   'dkappa',                1e1,        ('optimization weight for control variable dkappa [-]', None),'s'),
         ('solver',   'weights',        None,   'P_max',                 0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
+        ('solver',   'weights',        None,   'ddq',                   1e3,        ('optimization weight for all ddq variables [-]', None),'s'),
 
         ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
         ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
@@ -363,7 +364,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-4,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
-        ('solver',  'cost',             'xdot_regularisation', 0,  1e-1,       ('starting cost for xdot regularisation', None),'s'),
+        ('solver',  'cost',             'xdot_regularisation', 0,   1e-5,       ('starting cost for xdot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 's'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'s'),
