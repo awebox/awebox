@@ -42,6 +42,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 
+import awebox.mdl.aero as aero
+
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
     a = atmos.get_speed_of_sound( q[2])
@@ -261,21 +263,36 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     ehat2 = kite_dcm[:, 1]  # spanwise, from positive edge to negative edge
     ehat3 = kite_dcm[:, 2]  # up
 
-    alpha = get_alpha(ua, kite_dcm)
-    beta = get_beta(ua, kite_dcm)
-
     alpha_min = options['aero']['alpha_min_deg'] * np.pi / 180.0
     alpha_max = options['aero']['alpha_max_deg'] * np.pi / 180.0
     beta_min = options['aero']['beta_min_deg'] * np.pi / 180.0
     beta_max = options['aero']['beta_max_deg'] * np.pi / 180.0
 
-    alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
-    alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
-    beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
-    beta_lb_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min)
+    if 'pitch' in base_aerodynamic_quantities.keys(): # soft kite control
+
+        alpha = aero.kite_dir.three_dof_soft_kite.get_alpha(ua, kite_dcm, base_aerodynamic_quantities['pitch'])
+        beta = aero.kite_dir.three_dof_soft_kite.get_beta(ua, kite_dcm)
+
+        alpha_max = alpha_max + base_aerodynamic_quantities['pitch']
+        alpha_min = alpha_min + base_aerodynamic_quantities['pitch']
+        alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_max)
+        alpha_lb_unscaled = (-cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_min)
+        beta_ub_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_max)
+        beta_lb_unscaled = (+ cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_min)
+
+    else:
+
+        alpha = get_alpha(ua, kite_dcm)
+        beta = get_beta(ua, kite_dcm)
+
+        alpha_ub_unscaled = (cas.mtimes(ua.T, ehat3) - cas.mtimes(ua.T, ehat1) * alpha_max)
+        alpha_lb_unscaled = (- cas.mtimes(ua.T, ehat3) + cas.mtimes(ua.T, ehat1) * alpha_min)
+
+        beta_ub_unscaled = (cas.mtimes(ua.T, ehat2) - cas.mtimes(ua.T, ehat1) * beta_max)
+        beta_lb_unscaled = (- cas.mtimes(ua.T, ehat2) + cas.mtimes(ua.T, ehat1) * beta_min)
 
     alpha_ub = alpha_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_max)
-    alpha_lb = alpha_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(alpha_min)
+    alpha_lb = alpha_lb_unscaled * tightness / airspeed_ref
     beta_ub = beta_ub_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_max)
     beta_lb = beta_lb_unscaled * tightness / airspeed_ref / vect_op.smooth_abs(beta_min)
 
@@ -289,11 +306,11 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
     outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
-
-    CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
-    CD_min = options['model_bounds']['aero_validity']['CD_min']
-    drag_lb = CD_min - CD
-    outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
+    if options['kite_dof'] == 6:
+        CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
+        CD_min = options['model_bounds']['aero_validity']['CD_min']
+        drag_lb = CD_min - CD
+        outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
 
 
     return outputs

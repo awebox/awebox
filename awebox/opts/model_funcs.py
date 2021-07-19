@@ -226,8 +226,17 @@ def build_kite_dof_options(options, options_tree, fixed_params):
     user_options = options['user_options']
 
     kite_dof = get_kite_dof(user_options)
+    kite_type = user_options['system_model']['kite_type']
+
+    if user_options['system_model']['kite_type'] == 'soft':
+        if kite_dof == 6:
+            raise ValueError('Soft-kite model only supports 3DOF.')
+        else:
+            options_tree.append(('model', 'system_bounds', 'z', 'dcm', [-1, 1], ('DCM bounds',None),'x')),
+            options_tree.append(('model', 'scaling', 'z', 'dcm', 1.0, ('DCM scaling',None),'x')),
 
     options_tree.append(('model', None, None, 'kite_dof', kite_dof, ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)',[3,6]),'x')),
+    options_tree.append(('model', None, None, 'kite_type', kite_type, ('kite type',['rigid','soft']),'x')),
     options_tree.append(('model', None, None, 'surface_control', user_options['system_model']['surface_control'], ('which derivative of the control-surface-deflection is controlled?: 0 (control of deflections), 1 (control of deflection rates)', [0, 1]),'x')),
 
     if (not int(kite_dof) == 6) and (not int(kite_dof) == 3):
@@ -269,7 +278,8 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         coeff_scaling = 0.1
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
-        options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
+        if user_options['system_model']['kite_type'] == 'rigid':
+            options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
 
         compromised_factor = options['model']['aero']['three_dof']['dcoeff_compromised_factor']
         dcoeff_compromised_max = np.array([5*compromised_factor,5])

@@ -41,6 +41,7 @@ from awebox.logger.logger import Logger as awelogger
 def generate_structure(options, architecture):
 
     kite_dof = options['kite_dof']
+    kite_type = options['kite_type']
     surface_control = options['surface_control']
     tether_control_var = options['tether']['control_var']
 
@@ -65,9 +66,14 @@ def generate_structure(options, architecture):
 
     kite_gc = ['q']
 
-    if int(kite_dof) == 3:
+    if int(kite_dof) == 3 and kite_type == 'rigid':
         kite_states = kite_states + [('coeff', (2, 1))]
         kite_controls = kite_controls + [('dcoeff', (2, 1))]
+
+    elif int(kite_dof) == 3 and kite_type == 'soft':
+        kite_states = kite_states + [('yaw', (1, 1)), ('pitch', (1, 1))]
+        kite_controls = kite_controls + [('dyaw', (1, 1)), ('dpitch', (1, 1))]
+        kite_lifted = [('dcm', (9, 1))]
 
     elif int(kite_dof) == 6:
         kite_states = kite_states + [('omega', (3, 1)), ('r', (9, 1))]
@@ -118,6 +124,9 @@ def generate_structure(options, architecture):
 
             system_gc.extend([kite_gc[i] + str(n) + str(parent)
                               for i in range(len(kite_gc))])
+
+            if int(kite_dof) == 3 and kite_type == 'soft':
+                system_lifted.extend([(kite_lifted[i][0] + str(n) + str(parent), kite_lifted[i][1]) for i in range(len(kite_lifted))])
 
         else:
             system_states.extend(

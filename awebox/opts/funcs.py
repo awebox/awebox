@@ -297,7 +297,7 @@ def build_formulation_options(options, help_options, user_options, options_tree,
 
     options_tree.append(
         ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
-    if int(user_options['system_model']['kite_dof']) == 3:
+    if int(user_options['system_model']['kite_dof']) == 3 and user_options['trajectory']['type'] == 'compromised_landing':
         coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
         coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
         battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)

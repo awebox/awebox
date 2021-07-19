@@ -182,6 +182,50 @@ def test_drag_mode_model():
 
     return None
 
+
+def test_soft_kite_model():
+    """ Test soft-kite construction routines
+    """
+
+    # single-kite with point-mass model
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.system_model.kite_type'] = 'soft'
+    options['model.tether.use_wound_tether'] = False
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.kite_standard'] = awe.kitepower_data.data_dict()
+    options['params.tether.rho'] = 724.0
+    options['params.tether.cd'] = 1.1
+    options['model.tether.control_var'] = 'ddl_t'
+    options['model.system_bounds.x.ddl_t'] = [-2.0, 2.0]
+    options['model.system_bounds.x.dl_t'] = [-10.0, 10.0]
+
+    # build model
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(trial_options['user_options']['system_model']['architecture'])
+    trial_options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(trial_options['model'], architecture)
+
+
+    states = model.variables_dict['x']
+    controls = model.variables_dict['u']
+    algs = model.variables_dict['z']
+
+    assert('yaw10' in list(states.keys()))
+    assert('coeff10' not in list(states.keys()))
+    assert('pitch10' in list(states.keys()))
+
+    assert('dyaw10'  in list(controls.keys()))
+    assert('dpitch10' in list(controls.keys()))
+    assert('dcoeff10' not in list(controls.keys()))
+
+    assert('dcm10' in list(algs.keys()))
+
+    return None
+
 def test_cross_tether_model():
     """ Test cross-tether construction routines
     """

@@ -24,8 +24,8 @@
 #
 '''
 repeated tools to make initialization smoother
-_python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: mark schelbergen (TU Delft, 2021)
 '''
 
 
@@ -252,3 +252,32 @@ def insert_val(V_init, var_type, name, init_val, idx = 0):
         V_init[var_type, :, name, idx] = init_val
 
     return V_init
+
+def lissajous_curve(t, w, h, a=1, delta=0):
+    b = 2*a
+    x = w*np.sin(a*t+delta)
+    y = h*np.sin(b*t)
+    return x, y
+
+def lissajous_dcurve(t, w, h, a=1, delta=0):
+    b = 2*a
+    x = a*w*np.cos(a*t+delta)
+    y = b*h*np.cos(b*t)
+    return x, y
+
+def calc_cartesian_coords(az, el, r):
+    z = np.sin(el)*r
+    l12 = (r**2 - z**2)**.5
+    x = np.cos(az)*l12
+    y = np.sin(az)*l12
+    return (x, y, z)
+
+def calc_cartesian_speed(az, el, azdot, eldot, r):
+    z = np.sin(el)*r
+    dz = np.cos(el)*r*eldot
+    l12 = (r**2 - z**2)**.5
+    dl12 = - z*dz / l12
+    dx = - np.sin(az)*azdot*l12 + np.cos(az)*dl12
+    dy = np.cos(az)*azdot*l12 + np.sin(az)*dl12 
+
+    return (dx, dy, dz)
