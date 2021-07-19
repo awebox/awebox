@@ -117,21 +117,38 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
 
     return resi
 
+def test():
+
+    vect_op.test_elliptic_k()
+    vect_op.test_elliptic_e()
+    vect_op.test_elliptic_pi()
+
+    biot_savart.test_altitude()
+    biot_savart.test_filament()
+    biot_savart.test_longtitudinal_cylinder()
+    biot_savart.test_tangential_cylinder()
+
+    freestream_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'freestream_filament')
+    flow.test(freestream_filament_far_wake_test_list)
+    pathwise_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'pathwise_filament')
+    flow.test(pathwise_filament_far_wake_test_list)
+
+    return None
+
 def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
 
-    biot_savart.test()
-    test_list = vortex_filament_list.test()
-    flow.test(test_list)
+    # break early and loud if there are problems
+    test()
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
 
-    filament_list = vortex_filament_list.get_list(model_options, variables_si, architecture)
+    filament_list = vortex_filament_list.get_list(model_options, variables_si, architecture, wind)
 
     columnized_list = vortex_filament_list.columnize(filament_list)
     outputs['vortex']['filament_list'] = columnized_list
 
-    last_filament_list = vortex_filament_list.get_last_list(model_options, variables_si, architecture)
+    far_wake_list = vortex_filament_list.get_far_wake_list(model_options, variables_si, architecture, wind)
 
     kite_nodes = architecture.kite_nodes
     for kite in kite_nodes:
@@ -142,18 +159,18 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, pa
         n_hat = unit_normal.get_n_hat(model_options, parent, variables_si, parameters, architecture)
         local_a = flow.get_induction_factor_at_kite(model_options, filament_list, wind, variables_si, parameters, architecture, kite, n_hat=n_hat)
 
-        last_u_ind = flow.get_induced_velocity_at_kite(model_options, last_filament_list, variables_si, architecture, kite)
-        last_u_ind_norm = vect_op.norm(last_u_ind)
-        last_u_ind_norm_over_ref = last_u_ind_norm / wind.get_speed_ref()
+        far_wake_u_ind = flow.get_induced_velocity_at_kite(model_options, far_wake_list, variables_si, architecture, kite)
+        far_wake_u_ind_norm = vect_op.norm(far_wake_u_ind)
+        far_wake_u_ind_norm_over_ref = far_wake_u_ind_norm / wind.get_speed_ref()
 
-        est_truncation_error = (last_u_ind_norm) / vect_op.norm(u_ind)
+        est_truncation_error = (far_wake_u_ind_norm) / vect_op.norm(u_ind)
 
         outputs['vortex']['u_ind' + str(kite)] = u_ind
         outputs['vortex']['u_ind_norm' + str(kite)] = vect_op.norm(u_ind)
         outputs['vortex']['local_a' + str(kite)] = local_a
 
-        outputs['vortex']['last_u_ind' + str(kite)] = last_u_ind
-        outputs['vortex']['last_u_ind_norm_over_ref' + str(kite)] = last_u_ind_norm_over_ref
+        outputs['vortex']['far_wake_u_ind' + str(kite)] = far_wake_u_ind
+        outputs['vortex']['far_wake_u_ind_norm_over_ref' + str(kite)] = far_wake_u_ind_norm_over_ref
 
         outputs['vortex']['est_truncation_error' + str(kite)] = est_truncation_error
 
@@ -166,7 +183,7 @@ def compute_global_performance(power_and_performance, plot_dict):
 
     max_est_trunc_list = []
     max_est_discr_list = []
-    last_u_ind_norm_over_ref_list = []
+    far_wake_u_ind_norm_over_ref_list = []
 
     all_local_a = None
 
@@ -187,8 +204,8 @@ def compute_global_performance(power_and_performance, plot_dict):
         local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
         max_est_discr_list += [local_max_est_discr]
 
-        local_last_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['last_u_ind_norm_over_ref' + str(kite)]))
-        last_u_ind_norm_over_ref_list += [local_last_u_ind_norm_over_ref]
+        local_far_wake_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['far_wake_u_ind_norm_over_ref' + str(kite)]))
+        far_wake_u_ind_norm_over_ref_list += [local_far_wake_u_ind_norm_over_ref]
 
     average_local_a = np.average(all_local_a)
     power_and_performance['vortex_average_local_a'] = average_local_a
@@ -196,8 +213,8 @@ def compute_global_performance(power_and_performance, plot_dict):
     stdev_local_a = np.std(all_local_a)
     power_and_performance['vortex_stdev_local_a'] = stdev_local_a
 
-    max_last_u_ind_norm_over_ref = np.max(np.array(last_u_ind_norm_over_ref_list))
-    power_and_performance['vortex_max_last_u_ind_norm_over_ref'] = max_last_u_ind_norm_over_ref
+    max_far_wake_u_ind_norm_over_ref = np.max(np.array(far_wake_u_ind_norm_over_ref_list))
+    power_and_performance['vortex_max_far_wake_u_ind_norm_over_ref'] = max_far_wake_u_ind_norm_over_ref
 
     max_est_trunc = np.max(np.array(max_est_trunc_list))
     power_and_performance['vortex_max_est_truncation_error'] = max_est_trunc

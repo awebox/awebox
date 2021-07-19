@@ -23,7 +23,7 @@
 #
 #
 '''
-constructs the filament list
+constructs the cylinder list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
@@ -42,116 +42,53 @@ import awebox.mdl.architecture as archi
 
 def get_list(options, variables_si, architecture, wind):
 
-    kite_nodes = architecture.kite_nodes
-
-    filament_list = []
-    for kite in kite_nodes:
-        kite_fil_list = get_list_by_kite(options, variables_si, architecture, wind, kite)
-        filament_list = cas.horzcat(filament_list, kite_fil_list)
-
-    return filament_list
-
-def get_list_by_kite(options, variables_si, architecture, wind, kite):
-
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    tracked_rings = wake_nodes - 1
-
-    filament_list = []
-    for ring in range(tracked_rings):
-        ring_fil_list = get_list_by_ring(options, variables_si, kite, ring)
-        filament_list = cas.horzcat(filament_list, ring_fil_list)
-
     far_wake_model = options['induction']['vortex_far_wake_model']
-    if 'filament' in far_wake_model:
-        last_ring_fil_list = get_far_wake_list_from_kite(options, variables_si, wind, kite)
-        filament_list = cas.horzcat(filament_list, last_ring_fil_list)
+    if 'cylinder' in far_wake_model:
+        cylinder_list = get_far_wake_list(options, variables_si, architecture, wind)
 
-    return filament_list
+    return cylinder_list
 
 def get_far_wake_list(options, variables_si, architecture, wind):
 
     far_wake_model = options['induction']['vortex_far_wake_model']
     kite_nodes = architecture.kite_nodes
 
-    filament_list = []
-    if 'filament' in far_wake_model:
+    cylinder_list = []
+    if 'cylinder' in far_wake_model:
         for kite in kite_nodes:
-            last_ring_fil_list = get_far_wake_list_from_kite(options, variables_si, wind, kite)
-            filament_list = cas.horzcat(filament_list, last_ring_fil_list)
+            cylinder_list_by_kite = get_far_wake_list_from_kite(options, variables_si, wind, kite)
+            cylinder_list = cas.horzcat(cylinder_list, cylinder_list_by_kite)
 
-    return filament_list
+    return cylinder_list
 
-def get_list_by_ring(options, variables_si, kite, ring):
-
-    wake_node = ring
-
-    NE_wingtip = get_NE_wingtip_name()
-    PE_wingtip = get_PE_wingtip_name()
-
-    TENE = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node + 1)
-    LENE = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node)
-    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node)
-    TEPE = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node + 1)
-
-    strength = tools.get_ring_strength_si(variables_si, kite, ring)
-
-    if ring == 0:
-        strength_prev = cas.DM.zeros((1, 1))
-    else:
-        strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
-
-    filament_list = make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev)
-    return filament_list
-
-def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev):
-    PE_filament = cas.vertcat(LEPE, TEPE, strength)
-    LE_filament = cas.vertcat(LENE, LEPE, strength - strength_prev)
-    NE_filament = cas.vertcat(TENE, LENE, strength)
-    filament_list = cas.horzcat(PE_filament, LE_filament, NE_filament)
-    return filament_list
-
-
-def get_far_wake_list_from_kite(options, variables_si, wind, kite):
+def get_far_wake_list_from_kite(options, variables_si, wind, kite, parent):
 
     wake_nodes = options['induction']['vortex_wake_nodes']
     rings = wake_nodes
 
     if rings < 0:
-        message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
+        message = 'insufficient wake nodes for creating a cylinder list: wake_nodes = ' + str(wake_nodes)
         awelogger.logger.error(message)
         raise Exception(message)
 
     far_wake_model = options['induction']['vortex_far_wake_model']
-    if 'filament' not in far_wake_model:
-        message = 'far-wake filament list mistakenly requested, when desired far_wake_model is: ' + far_wake_model
+    if not (far_wake_model == 'cylinder_freestream'):
+        message = 'far-wake cylinder list mistakenly requested, when desired far_wake_model is: ' + far_wake_model
         awelogger.logger.error(message)
         return Exception(message)
 
     last_tracked_wake_node = wake_nodes - 1
     ring = rings - 1 # remember: indexing starts at 0.
 
-    far_convection_time = options['induction']['vortex_far_convection_time']
-    far_wake_model = options['induction']['vortex_far_wake_model']
-
     NE_wingtip = get_NE_wingtip_name()
     PE_wingtip = get_PE_wingtip_name()
 
-    LENE = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, last_tracked_wake_node)
-    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, last_tracked_wake_node)
+    x_ne = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, last_tracked_wake_node)
+    x_pe = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, last_tracked_wake_node)
+    x_center = outputs['performance']['actuator_center' + str(parent)]
+    l_hat = wind.get_wind_direction()
 
-    if far_wake_model == 'pathwise_filament':
-        farwake_name = 'wu_farwake_' + str(kite) + '_'
 
-        if isinstance(variables_si, cas.structure3.DMStruct):
-            velocity_PE = variables_si['xl', farwake_name + PE_wingtip]
-            velocity_NE = variables_si['xl', farwake_name + NE_wingtip]
-        else:
-            velocity_PE = variables_si['xl'][farwake_name + PE_wingtip]
-            velocity_NE = variables_si['xl'][farwake_name + NE_wingtip]
-
-    elif far_wake_model == 'freestream_filament':
-        velocity_PE = wind.get_velocity(LEPE[[2]])
-        velocity_NE = wind.get_velocity(LENE[[2]])
 
     TENE = LENE + far_convection_time * velocity_NE
     TEPE = LEPE + far_convection_time * velocity_PE

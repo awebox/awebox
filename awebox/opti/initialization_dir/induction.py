@@ -77,15 +77,14 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
         awelogger.logger.error(message)
         raise Exception(message)
 
-    V_init = set_farwake_convection_velocity_initialization(init_options, V_init, model)
+    if init_options['induction']['vortex_far_wake_model'] == 'pathwise_filament':
+        V_init = set_far_wake_convection_velocity_initialization(init_options, V_init, model)
 
     if init_options['induction']['vortex_representation'] == 'state':
-
         V_init = set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
         V_init = set_state_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num)
 
     elif init_options['induction']['vortex_representation'] == 'alg':
-
         V_init = set_algebraic_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num)
         V_init = set_algebraic_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
 
@@ -252,7 +251,7 @@ def get_local_wind_reference_frame(init_options):
 
 ######################## vortex
 
-def set_farwake_convection_velocity_initialization(init_options, V_init, model):
+def set_far_wake_convection_velocity_initialization(init_options, V_init, model):
 
     n_k = init_options['n_k']
 

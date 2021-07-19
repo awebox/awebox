@@ -649,10 +649,13 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
 
-    if 'filament' in far_wake_model:
-        rings = wake_nodes
-    else:
-        rings = wake_nodes - 1
+    rings = wake_nodes
+
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_rings', rings, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
+    options_tree.append(('model', 'aero', 'vortex', 'rings', rings, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
     filaments = wake_nodes * 3 * len(architecture.kite_nodes)
     wingtips = ['ext', 'int']
@@ -675,7 +678,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
                 options_tree.append(('model', 'scaling', 'xd', 'd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
                 options_tree.append(('model', 'scaling', 'xd', 'dd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
 
-    if 'filament' in options['model']['aero']['vortex']['far_wake_model']:
+    if far_wake_model == 'pathwise_filament':
         for kite in architecture.kite_nodes:
             for tip in wingtips:
                 far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip

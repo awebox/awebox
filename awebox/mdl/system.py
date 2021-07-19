@@ -220,7 +220,7 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     wingtips = ['ext', 'int']
     wake_nodes = options['aero']['vortex']['wake_nodes']
-    rings = wake_nodes
+    rings = options['aero']['vortex']['rings']
 
     filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     vortex_representation = options['aero']['vortex']['representation']
@@ -242,7 +242,8 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
                     awelogger.logger.error(message)
                     raise Exception(message)
 
-    if 'filament' in options['aero']['vortex']['far_wake_model']:
+    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+    if (vortex_far_wake_model == 'pathwise_filament') or (vortex_far_wake_model == 'freestream_cylinder'):
         for kite in architecture.kite_nodes:
             for tip in wingtips:
                 far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip

@@ -77,6 +77,9 @@ def get_induced_velocity_at_kite(options, filament_list, variables, architecture
 
 def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
 
+    if not hasattr(filament_list, 'shape'):
+        return cas.DM.zeros((3, 1))
+
     filament_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
 
     include_normal_info = (n_hat is not None)

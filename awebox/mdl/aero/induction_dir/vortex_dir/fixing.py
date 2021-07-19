@@ -45,11 +45,11 @@ import awebox.tools.constraint_operations as cstr_op
 
 def get_fixing_constraint(options, V, Outputs, model, time_grids):
 
+    cstr_list = cstr_op.ConstraintList()
+
     comparison_labels = options['induction']['comparison_labels']
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-
-        cstr_list = cstr_op.ConstraintList()
 
         vortex_representation = options['induction']['vortex_representation']
 
@@ -62,7 +62,9 @@ def get_fixing_constraint(options, V, Outputs, model, time_grids):
             awelogger.logger.error(message)
             raise Exception(message)
 
-    cstr_list.append(get_farwake_convection_velocity_constraint(options, V, model))
+    vortex_far_wake_model = options['induction']['vortex_far_wake_model']
+    if vortex_far_wake_model == 'pathwise_filament':
+        cstr_list.append(get_farwake_convection_velocity_constraint(options, V, model))
 
     return cstr_list
 

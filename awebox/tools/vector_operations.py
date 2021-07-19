@@ -31,7 +31,10 @@ _python-3.5 / casadi-3.4.5
 import matplotlib.pylab as plt
 import scipy
 import scipy.io
+import scipy.special as special
 import scipy.sparse as sps
+
+import awebox.tools.print_operations as print_op
 
 import casadi.tools as cas
 import numpy as np
@@ -184,6 +187,15 @@ def yhat_np():
 def zhat_np():
     zhat_np = np.array(cas.vertcat(0., 0., 1.))
     return zhat_np
+
+def xhat_dm():
+    return cas.DM(xhat_np())
+
+def yhat_dm():
+    return cas.DM(yhat_np())
+
+def zhat_dm():
+    return cas.DM(zhat_np())
 
 def spy(matrix, tol=0.1, color=True, title=''):
     fig = plt.figure()
@@ -414,3 +426,155 @@ def rotation_matrix_to_euler_angles(dcm):
 # element-wise multiplication
 def mtimes_elementwise(a, b):
     return np.diag(np.array(cas.mtimes(a, b.T)))
+
+def elliptic_k(k=None, m=None):
+
+    if (k is not None) and (m is None):
+        m = k**2.
+    elif (m is None) and (k is None):
+        message = 'no acceptable argument given for elliptic_k approximation'
+        awelogger.logger.error(message)
+        raise Exception(message)
+    elif (m is not None) and (k is not None):
+        message = 'too many arguments given for elliptic_k approximation'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    if (isinstance(m, float)) or (isinstance(m, int)) or (isinstance(m, cas.DM)):
+        if not (m >= 0 or m < 1):
+            message = 'm argument of elliptic integral K(m) is outside of acceptable range.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+    else:
+        message = 'as the argument of elliptic integral K(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1'
+        awelogger.logger.warning(message)
+
+    a1 = 2.78187
+    a2 = -5.25143
+    a3 = 2.97986
+
+    part_1 = a1 * m + a2 * m**2. + a3 * m**3.
+    part_2 = cas.log(1./(1. - m))
+
+    found = np.pi / 2. + part_1 * part_2
+
+    return found
+
+def elliptic_k_approximation_max_error():
+    return 0.05
+
+def test_elliptic_k():
+
+    # boundary case
+    m = 0.
+    found = elliptic_k(m=m)
+    expected = special.ellipk(m)
+    error_bound = elliptic_k_approximation_max_error() * expected
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(boundary) elliptic integral K(m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+    # intermediate value
+    m = 0.5
+    found = elliptic_k(m=m)
+    expected = special.ellipk(m)
+    error_bound = elliptic_k_approximation_max_error() * expected
+
+    error = found - expected
+    if (error ** 2. > error_bound ** 2.):
+        message = '(intermediate) elliptic integral K(m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+def elliptic_pi(n=None, alpha=None):
+    part_1 = (1. + n**2.38175 / cas.sqrt(1. - n))
+    part_2 = elliptic_k(m = alpha)
+    found = part_1 * part_2
+    return found
+
+def elliptic_pi_approximation_max_error():
+    return 0.3
+
+def test_elliptic_pi():
+    # origin case
+    n = 0.
+    alpha = 0.
+    found = elliptic_pi(n=n, alpha=alpha)
+    expected = np.pi/2.
+    error_bound = elliptic_pi_approximation_max_error() * expected
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(origin) elliptic integral Pi(n|alpha) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    # center case
+    n = 0.5
+    alpha = 0.5
+    found = elliptic_pi(n=n, alpha=alpha)
+    expected = 2.70129
+    error_bound = elliptic_pi_approximation_max_error() * expected
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(center) elliptic integral Pi(n|alpha) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+    return None
+
+def elliptic_e(m=None):
+    found = 0.166667 * (9.42478 - 2.823 * m + 1.646 * m**2. - 2.24778 * m**3.)
+    return found
+
+def elliptic_e_approximation_max_error():
+    return 0.009
+
+def test_elliptic_e():
+
+    # boundary case
+    m = 0.
+    found = elliptic_e(m=m)
+    expected = special.ellipe(m)
+    error_bound = elliptic_e_approximation_max_error() * expected
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(boundary 0) elliptic integral E(m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+    # intermediate value
+    m = 0.5
+    found = elliptic_e(m=m)
+    expected = special.ellipe(m)
+    error_bound = elliptic_e_approximation_max_error() * expected
+
+    error = found - expected
+    if (error ** 2. > error_bound ** 2.):
+        message = '(intermediate) elliptic integral K(m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    # boundary case
+    m = 1.
+    found = elliptic_e(m=m)
+    expected = special.ellipe(m)
+    error_bound = elliptic_e_approximation_max_error() * expected
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(boundary 1) elliptic integral E(m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None

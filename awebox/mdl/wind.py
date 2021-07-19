@@ -39,6 +39,7 @@ class Wind:
     def __init__(self, wind_model_options, params):
         self.__options = wind_model_options
         self.__params = params #NOTE: where do those parameters come from?
+
         if self.__options['model'] == 'datafile':
             self.find_u_polynomial_from_datafile()
             # self.find_p_polynomial_from_datafile(params) # pressure is set as constant for now
@@ -46,14 +47,15 @@ class Wind:
         self.__type_incompatibility_warning_already_given = False
 
     def get_velocity(self, zz):
-        params = self.__params.prefix['theta0','wind']
+
         options = self.__options
 
         model = options['model']
 
-        xhat = vect_op.xhat_np()
+        u_hat = get_wind_direction()
 
         if isinstance(zz, cas.SX):
+            params = self.__params.prefix['theta0', 'wind']
             u_ref = params['u_ref']
             z_ref = params['z_ref']
             z0_air = params['log_wind', 'z0_air']
@@ -72,7 +74,7 @@ class Wind:
 
         if model in ['log_wind', 'power', 'uniform']:
             u_val = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
-            u = u_val * xhat
+            u = u_val * u_hat
 
         elif model == 'datafile':
             u = self.get_velocity_from_datafile(zz)
@@ -82,6 +84,8 @@ class Wind:
 
         return u
 
+    def get_wind_direction():
+        return vect_op.xhat_np()
 
     def get_speed_ref(self, from_parameters=True):
         if from_parameters:
@@ -175,7 +179,6 @@ class Wind:
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
-
 
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 
