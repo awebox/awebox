@@ -219,6 +219,22 @@ def expected_number_of_filaments(options, architecture):
 
     return filaments
 
+def gatekeeper_list_has_expected_number_of_filaments(options, architecture, columnized_filament_list):
+    filament_list = decolumnize(options, architecture, columnized_filament_list)
+    number_of_filaments = filament_list.shape[1]
+
+    expected = expected_number_of_filaments(options, architecture)
+    if int(number_of_filaments) != int(expected):
+        message = 'construction of vortex induction residual finds a number of filaments (' + \
+                  str(number_of_filaments) + ') that is not the same as the expected ' \
+                  'number of filaments (' + str(expected) + ')'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return True
+
+
+
 def get_PE_wingtip_name():
     return 'ext'
 

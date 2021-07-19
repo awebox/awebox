@@ -85,8 +85,8 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
     resi = []
 
     # induced velocity residuals
-    columnized_list = outputs['vortex']['filament_list']
-    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_list)
+    columnized_filament_list = outputs['vortex']['filament_list']
+    filament_list = vortex_filament_list.decolumnize(options, architecture, columnized_filament_list)
     number_of_filaments = filament_list.shape[1]
 
     expected_number_of_filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
