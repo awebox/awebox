@@ -93,7 +93,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
-    for variable_type in set(model.variables.keys()) - set(['xdot']):
+    for variable_type in set(model.variables.keys()):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
             var_name, _ = struct_op.split_name_and_node_identifier(name)
