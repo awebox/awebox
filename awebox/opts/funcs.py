@@ -204,7 +204,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     if options['nlp']['cost']['P_max']:
         _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
-        options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [1e-3, cas.inf], ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('????', None), 'x'))
         options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('????', None), 'x'))
