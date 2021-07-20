@@ -93,7 +93,7 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
-    for variable_type in set(model.variables.keys()) - set(['xdot']):
+    for variable_type in set(model.variables.keys()):
         for name in struct_op.subkeys(model.variables, variable_type):
             # set weights
             var_name, _ = struct_op.split_name_and_node_identifier(name)
@@ -176,6 +176,13 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
     # set theta parameters
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
+
+    if 'P_max' in model.variables_dict['theta'].keys():
+        if options['cost']['P_max'][0] == 1.0:
+            V_bounds['lb']['theta', 'P_max'] = 1e3
+            V_bounds['ub']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['lb']['theta', 'P_max'] = 1e3
+            nlp.V_bounds['ub']['theta', 'P_max'] = 1e3
 
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):

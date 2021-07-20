@@ -418,6 +418,14 @@ class Trial(object):
     def return_status_numeric(self, value):
         print('Cannot set return_status_numeric object.')
 
+    @property
+    def solution_dict(self):
+        return self.__solution_dict
+
+    @solution_dict.setter
+    def solution_dict(self, value):
+        print('Cannot set solution_dict object.')
+
 def generate_initial_state(model, V_init):
     x0 = model.struct_list['x'](0.)
     for name in list(model.struct_list['x'].keys()):

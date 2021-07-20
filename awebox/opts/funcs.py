@@ -25,6 +25,7 @@
 
 import numpy as np
 import copy
+import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
@@ -201,6 +202,17 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     options_tree.append(('nlp', 'mpc', None, 'terminal_point_constr', options['formulation']['mpc']['terminal_point_constr'], ('????', None), 'x'))
 
+    if options['nlp']['cost']['P_max']:
+        _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
+        options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [1e-3, cas.inf], ('????', None), 'x'))
+        options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('????', None), 'x'))
+        options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('????', None), 'x'))
+
+    # else:
+    #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
+    #     options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
+    #     options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [power, power], ('????', None), 'x'))
+
     return options_tree, phase_fix
 
 
@@ -298,8 +310,8 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(
         ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+        coeff_max = options['model']['system_bounds']['x']['coeff'][1]
+        coeff_min = options['model']['system_bounds']['x']['coeff'][0]
         battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
         for name in list(battery_model_parameters.keys()):
             if options['formulation']['compromised_landing']['battery'][name] is None:

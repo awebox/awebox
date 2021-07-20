@@ -138,11 +138,8 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
 
-    dcoeff_cstr = dcoeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(dcoeff_cstr)
-
-    coeff_cstr = coeff_actuation_inequality(options, system_variables['SI'], parameters, architecture)
-    cstr_list.append(coeff_cstr)
+    P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
+    cstr_list.append(P_max_cstr)
 
     # ----------------------------------------
     #  sanity checking
@@ -571,6 +568,20 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
     return cstr_list
 
 
+def P_max_inequality(options, variables, power, parameters, architecture):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    if 'P_max' in variables['theta'].keys():
+        max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max']
+
+        P_max_cstr = cstr_op.Constraint(expr=max_power_ineq,
+                                    name='P_max_cstr',
+                                    cstr_type='ineq')
+        cstr_list.append(P_max_cstr)
+
+    return cstr_list
+
 def acceleration_inequality(options, variables):
 
     cstr_list = mdl_constraint.MdlConstraintList()
@@ -597,7 +608,6 @@ def acceleration_inequality(options, variables):
                 cstr_list.append(acc_cstr)
 
     return cstr_list
-
 
 def airspeed_inequality(options, outputs, parameters, architecture):
 
