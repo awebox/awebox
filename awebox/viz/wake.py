@@ -23,7 +23,6 @@
 #
 #
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.viz.tools as tools
@@ -35,6 +34,8 @@ import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament
 import awebox.mdl.wind as wind
 
 import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 def plot_wake(plot_dict, cosmetics, fig_name, side):
 

@@ -50,7 +50,7 @@ setup(name='awebox',
    install_requires=[
       'numpy',
       'scipy',
-      'casadi==3.5.1',
+      'casadi>=3.5.1',
       'matplotlib',
    ],
 )
