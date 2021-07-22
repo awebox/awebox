@@ -301,23 +301,24 @@ def find_power_derivative_cost(nlp_options, V, P, Xdot, Integral_outputs):
             nk_power_der = round(nlp_options['n_k']*nlp_options['phase_fix_reelout'])
             nk_start = round(nlp_options['cost']['power_der_start']*nk_power_der)
             nk_stop  = round(nlp_options['cost']['power_der_stop']*nk_power_der)
-        else:
-            nk_power_der = nlp_options['n_k']
         
-        int_weights = find_int_weights(nlp_options)
-        power_derivative_sq = 0.0
-        for k in range(nk_start, nk_stop):
-            for j in range(nlp_options['collocation']['d']):
-                # TODO: fix scaling
-                lam = V['coll_var', k, j, 'z', 'lambda10']
-                dlam = Xdot['coll_z', k, j, 'lambda10']
-                l_t = V['coll_var', k, j, 'x', 'l_t']
-                dl_t = V['coll_var', k, j, 'x', 'dl_t']
-                ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
-                power_der = dlam*l_t*dl_t + lam*dl_t*dl_t + lam*l_t*ddl_t
-                power_derivative_sq += int_weights[j]*power_der**2
+            int_weights = find_int_weights(nlp_options)
+            power_derivative_sq = 0.0
+            for k in range(nk_start, nk_stop):
+                for j in range(nlp_options['collocation']['d']):
+                    # TODO: fix scaling
+                    lam = V['coll_var', k, j, 'z', 'lambda10']
+                    dlam = Xdot['coll_z', k, j, 'lambda10']
+                    l_t = V['coll_var', k, j, 'x', 'l_t']
+                    dl_t = V['coll_var', k, j, 'x', 'dl_t']
+                    ddl_t = V['coll_var', k, j, 'x', 'ddl_t']
+                    power_der = dlam*l_t*dl_t + lam*dl_t*dl_t + lam*l_t*ddl_t
+                    power_derivative_sq += int_weights[j]*power_der**2
 
-        power_derivative_cost = P['cost', 'power_derivative']*power_derivative_sq
+            power_derivative_cost = P['cost', 'power_derivative']*power_derivative_sq
+
+        else:
+            power_derivative_cost = 0.0
 
     else:
         power_derivative_sq = Integral_outputs['int_out',-1,'power_derivative_sq']
