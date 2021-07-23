@@ -31,7 +31,6 @@ python-3.5 / casadi-3.4.5
 '''
 import casadi.tools as cas
 import numpy as np
-from numpy.lib.financial import ipmt
 from . import collocation
 from . import ocp_outputs
 
