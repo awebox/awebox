@@ -45,9 +45,6 @@ options['params.wind.power_wind.exp_ref'] = 0.15
 options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
-# phase fix: enforce single reel-out, single reel-in phase
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
-
 # don't model generator
 options['model.model_bounds.wound_tether_length.include'] = False
 
@@ -89,8 +86,9 @@ options['user_options.kite_standard.geometry.ddelta_max'] = np.array([2., 2., 2.
 options['user_options.induction_model'] = 'not_in_use'
 
 # nlp discretization
-options['nlp.n_k'] = 40
-options['nlp.collocation.u_param'] = 'poly'
+options['nlp.n_k'] = 50
+options['nlp.collocation.u_param'] = 'zoh'
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57'
 
 # regularization
@@ -99,9 +97,6 @@ options['solver.cost.xdot_regularisation.0'] = 1e-8
 options['solver.weights.domega'] = 1e6 # multiplied with xdot_regularization
 options['solver.cost.u_regularisation.0'] = 1e-2
 options['solver.weights.ddelta'] = 1e0
-# # Pmax
-# options['nlp.cost.P_max'] = False
-# options['solver.cost.P_max.0'] = 0.9
 
 # initialization
 options['solver.initialization.groundspeed'] = 19.
