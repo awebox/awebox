@@ -117,6 +117,11 @@ plt.show()
 plot_dict = trial.visualization.plot_dict
 outputs = plot_dict['outputs']
 time = plot_dict['time_grids']['ip']
+avg_power = np.mean(outputs['performance']['p_current'][0])/1e3
+
+print('======================================')
+print('Average power: {} kW'.format(avg_power))
+print('======================================')
 
 plt.subplots(5, 1, sharex=True)
 plt.subplot(511)
