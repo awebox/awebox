@@ -30,6 +30,8 @@ python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
 import casadi.tools as cas
+import numpy as np
+from numpy.lib.financial import ipmt
 from . import collocation
 from . import ocp_outputs
 
@@ -123,13 +125,13 @@ def get_costs_struct(V):
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
+        cas.entry("beta_cost"),
         cas.entry("slack_cost")] +
        [cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')] +
        [cas.entry("time_cost"),
         cas.entry("power_cost"),
         cas.entry("nominal_landing_cost"),
         cas.entry("transition_cost"),
-        cas.entry("compromised_battery_cost"),
         cas.entry("tracking_problem_cost"),
         cas.entry("power_problem_cost"),
         cas.entry("power_derivative_cost"),
@@ -225,12 +227,11 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
 
     variables = model.variables
 
-    direct_collocation, multiple_shooting, d, scheme, int_weights = extract_discretization_info(nlp_options)
+    direct_collocation, multiple_shooting, _, _, _ = extract_discretization_info(nlp_options)
     if direct_collocation:
         vars, refs, weights, N_steps = get_coll_parallel_info(nlp_options, V, P, Xdot, model)
     elif multiple_shooting:
         vars, refs, weights, N_steps = get_ms_parallel_info(nlp_options, V, P, Xdot, model)
-
     parallellization = nlp_options['parallelization']['type']
 
     reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
@@ -239,10 +240,6 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     reg_costs = reg_costs_struct(cas.sum2(reg_costs_map(vars, refs, weights)))
 
     return reg_costs
-
-
-
-
 
 def find_int_weights(nlp_options):
 
@@ -352,37 +349,8 @@ def find_nominal_landing_cost(V, P, variables, nlp_options):
 
     return nominal_landing_cost
 
-def find_compromised_battery_cost(nlp_options, V, P, emergency_scenario, model):
-    n_k = nlp_options['n_k']
-    if (len(model.architecture.kite_nodes) == 1 or nlp_options['system_model']['kite_dof'] == 6 or emergency_scenario[0] != 'broken_battery'):
-        compromised_battery_cost = cas.DM(0.0)
-    elif emergency_scenario[0] == 'broken_battery':
-        actuator_len = V['u',0,'dcoeff21'].shape[0]
-        broken_actuator = slice(0,actuator_len)
-        broken_kite = emergency_scenario[1]
-        broken_kite_parent = model.architecture.parent_map[broken_kite]
-
-        compromised_battery_cost = 0.0
-        for j in range(n_k):
-            broken_str = 'dcoeff' + str(broken_kite) + str(broken_kite_parent)
-            compromised_battery_cost += cas.mtimes(V['u', j, broken_str, broken_actuator].T,V['u', j, broken_str, broken_actuator])
-
-        compromised_battery_cost *= 1./n_k
-        compromised_battery_cost = P['cost', 'compromised_battery'] * compromised_battery_cost
-
-    return compromised_battery_cost
-
-
-
 
 #### problem costs
-
-def find_compromised_battery_problem_cost(nlp_options, V, P, model):
-    emergency_scenario = nlp_options['landing']['emergency_scenario']
-    compromised_battery_problem_cost = find_compromised_battery_cost(nlp_options, V, P, emergency_scenario, model)
-
-    return compromised_battery_problem_cost
-
 def find_transition_problem_cost(component_costs, P):
 
     xdot_regularisation = component_costs['xdot_regularisation_cost']
@@ -436,7 +404,18 @@ def find_general_problem_cost(component_costs):
 
     return general_problem_cost
 
+def find_beta_cost(nlp_options, model, Outputs, P):
 
+    int_weights = find_int_weights(nlp_options)
+    beta_cost = 0.0
+    for kite in model.architecture.kite_nodes:
+        for k in range(nlp_options['n_k']):
+            for j in range(nlp_options['collocation']['d']):
+                beta_cost += int_weights[j]*Outputs['coll_outputs', k, j, 'aerodynamics', 'beta{}'.format(kite)]**2
+
+    beta_cost = P['cost', 'beta']*beta_cost
+
+    return beta_cost
 
 
 ###### assemble the objective!
@@ -450,18 +429,16 @@ def find_objective(component_costs, V):
     tracking_problem_cost = component_costs['tracking_problem_cost']
     power_problem_cost = component_costs['power_problem_cost']
     nominal_landing_problem_cost = component_costs['nominal_landing_cost']
-    compromised_battery_problem_cost = component_costs['compromised_battery_cost']
     transition_problem_cost = component_costs['tracking_problem_cost']
     general_problem_cost = component_costs['general_problem_cost']
 
     objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost
-    # + (1. - V['phi', 'nu']) * compromised_battery_problem_cost
 
     return objective
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
 
     component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
@@ -472,8 +449,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['power_derivative_cost'] = find_power_derivative_cost(nlp_options, V, P, xdot, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
-    component_costs['compromised_battery_cost'] = find_compromised_battery_problem_cost(nlp_options, V, P, model)
-
+    component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Outputs, P)
     component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)

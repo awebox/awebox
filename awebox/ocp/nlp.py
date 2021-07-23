@@ -127,8 +127,7 @@ class NLP(object):
     def __generate_objective(self, nlp_options, model):
 
         timer = time.time()
-
-        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), model.outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), self.__Outputs(self.__Outputs_fun(self.__V, self.__P)), model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 
