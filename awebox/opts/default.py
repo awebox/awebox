@@ -338,6 +338,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_c',      100.,     ('cross-tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_t',   5e-3,     ('main tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'diam_i',   4e-3,     ('intermediate tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_s',   5e-3,     ('secondary tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
 
