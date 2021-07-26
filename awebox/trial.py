@@ -115,7 +115,7 @@ class Trial(object):
 
     def optimize(self, options_seed = [], final_homotopy_step = 'final',
                  warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False):
+                 debug_locations = [], save_flag = False, intermediate_solve = False):
 
         if not options_seed:
             options = self.__options
@@ -146,7 +146,7 @@ class Trial(object):
                                   self.__formulation, self.__visualization,
                                   final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
-                                  debug_locations)
+                                  debug_locations, intermediate_solve = intermediate_solve)
         self.__solution_dict = self.generate_solution_dict()
 
         self.set_timings('optimization')
