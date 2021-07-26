@@ -8,8 +8,7 @@ import awebox as awe
 import casadi as ca
 import pickle
 import copy
-from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
+
 # single kite with point-mass model
 options = {}
 options['user_options.system_model.architecture'] = {1:0}

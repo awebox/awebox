@@ -15,8 +15,6 @@ from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 import casadi as ca
-from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
 
 # single kite with 6DOF Ampyx AP2 model
 options = {}

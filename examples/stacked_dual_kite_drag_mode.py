@@ -14,8 +14,6 @@ Energy, Vol.173, pp. 569-585, 2019.
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import awebox as awe
 import matplotlib.pyplot as plt
-from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
 
 # single kite with point-mass model
 options = {}

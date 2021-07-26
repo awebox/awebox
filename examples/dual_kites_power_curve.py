@@ -9,8 +9,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 
 :author: Jochem De Schutter
 """
-from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
+
 import awebox as awe
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
