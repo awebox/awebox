@@ -33,7 +33,7 @@ options['params.tether.cd'] = 1.2
 options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
 options['user_options.trajectory.fixed_params'] = {'diam_t': 2e-3}
 options['model.tether.use_wound_tether'] = False # don't model generator inertia
-options['model.tether.control_var'] = 'dddl_t' # tether jerk control
+options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
 
 # tether drag model (more accurate than the Argatov model in Licitra2019)
 options['user_options.tether_drag_model'] = 'multi' 
@@ -51,7 +51,7 @@ options['model.model_bounds.wound_tether_length.include'] = False
 # tether force limit
 options['model.model_bounds.tether_stress.include'] = False
 options['model.model_bounds.tether_force.include'] = True
-options['params.model_bounds.tether_force_limits'] = np.array([10, 1800.0])
+options['params.model_bounds.tether_force_limits'] = np.array([50, 1800.0])
 
 # flight envelope
 options['model.model_bounds.airspeed.include'] = True
@@ -77,7 +77,7 @@ options['model.ground_station.ddl_t_max'] = 2.4 # [m/s^2]
 options['model.system_bounds.x.q'] =  [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
 options['model.system_bounds.theta.t_f'] =  [20.0, 70.0] # [s]
 options['model.system_bounds.z.lambda'] =  [0., ca.inf] # [N/m]
-omega_bound = 270.0*np.pi/180.0
+omega_bound = 50.0*np.pi/180.0
 options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])]
 options['user_options.kite_standard.geometry.delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
 options['user_options.kite_standard.geometry.ddelta_max'] = np.array([2., 2., 2.])
@@ -86,21 +86,25 @@ options['user_options.kite_standard.geometry.ddelta_max'] = np.array([2., 2., 2.
 options['user_options.induction_model'] = 'not_in_use'
 
 # nlp discretization
-options['nlp.n_k'] = 50
+options['nlp.n_k'] = 40
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57'
 
 # regularization
-options['solver.cost.beta.0'] = 1e-1
+options['solver.cost.beta.0'] = 1e0
 options['solver.cost.xdot_regularisation.0'] = 1e-8
 options['solver.weights.domega'] = 1e6 # multiplied with xdot_regularization
-options['solver.cost.u_regularisation.0'] = 1e-2
-options['solver.weights.ddelta'] = 1e0
+options['solver.cost.u_regularisation.0'] = 1e-1
+options['solver.weights.ddelta'] = 1e2
+options['solver.weights.ddl_t'] = 1e4
+options['solver.cost.t_f.0'] = 0.0
+options['solver.cost.tracking.1'] = 1.2e-4
+options['solver.cost.tracking.2'] = 1.2e-4
 
 # initialization
 options['solver.initialization.groundspeed'] = 19.
-options['solver.initialization.inclination_deg'] = 40.
+options['solver.initialization.inclination_deg'] = 45.
 options['solver.initialization.l_t'] = 400.0
 options['solver.initialization.winding_period'] = 40.0
 
@@ -111,13 +115,12 @@ trial.optimize()
 
 # first look
 trial.plot(['states', 'controls', 'constraints','quad'])
-plt.show()
 
 # plot relevant system outputs, compare to [Licitra2019, Fig 11].
 plot_dict = trial.visualization.plot_dict
 outputs = plot_dict['outputs']
 time = plot_dict['time_grids']['ip']
-avg_power = np.mean(outputs['performance']['p_current'][0])/1e3
+avg_power = plot_dict['power_and_performance']['avg_power']/1e3
 
 print('======================================')
 print('Average power: {} kW'.format(avg_power))
@@ -134,7 +137,7 @@ plt.subplot(512)
 plt.plot(time, plot_dict['x']['dl_t'][0], label = 'v_l')
 plt.ylabel('[m/s]')
 plt.legend()
-plt.hlines([20, -10], time[0], time[-1], linestyle='--', color = 'black')
+plt.hlines([20, -15], time[0], time[-1], linestyle='--', color = 'black')
 plt.grid(True)
 
 plt.subplot(513)
@@ -157,6 +160,6 @@ plt.plot(time, outputs['local_performance']['tether_force10'][0], label = 'Ft')
 plt.ylabel('[kN]')
 plt.xlabel('t [s]')
 plt.legend()
-plt.hlines([10, 1800], time[0], time[-1], linestyle='--', color = 'black')
+plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color = 'black')
 plt.grid(True)
 plt.show()
