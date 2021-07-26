@@ -97,7 +97,7 @@ class Optimization(object):
 
     def solve(self, options, nlp, model, formulation, visualization,
               final_homotopy_step='final', warmstart_file = None, vortex_linearization_file = None, debug_flags =
-              [], debug_locations = []):
+              [], debug_locations = [], intermediate_solve = False):
 
         self.__debug_flags = debug_flags
         if debug_flags != [] and debug_locations == []:
@@ -109,6 +109,7 @@ class Optimization(object):
 
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
+            self.__intermediate_solve = intermediate_solve
 
             # reset timings / iteration counters
             self.reset_timings_and_counters()
@@ -322,7 +323,10 @@ class Optimization(object):
             self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, initial_solver, visualization)
 
         elif step_name == 'final':
-            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
+            if not self.__intermediate_solve:
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
+            else:
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, middle_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
