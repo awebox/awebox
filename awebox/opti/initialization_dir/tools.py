@@ -234,8 +234,11 @@ def get_wind_speed(init_options, zz):
 def insert_dict(dict, var_type, name, name_stripped, V_init):
     init_val = dict[name_stripped]
 
-    for idx in range(init_val.shape[0]):
-        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
+    if not isinstance(init_val, float):
+        for idx in range(init_val.shape[0]):
+            V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
+    else:
+        V_init = insert_val(V_init, var_type, name, init_val)
 
     return V_init
 
@@ -246,9 +249,10 @@ def insert_val(V_init, var_type, name, init_val, idx = 0):
     V_init['coll_var', :, :, var_type, name, idx] = init_val
 
     if var_type in ['x', 'z']:
+        if var_type in list(V_init.keys()):
         # initialize on interval nodes
         # V_init[var_type, :, :, name] = init_val
 
-        V_init[var_type, :, name, idx] = init_val
+            V_init[var_type, :, name, idx] = init_val
 
     return V_init
