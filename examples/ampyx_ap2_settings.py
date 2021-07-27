@@ -65,17 +65,18 @@ def set_ampyx_ap2_settings(options):
     options['solver.cost.beta.0'] = 1e0
     options['solver.cost.xdot_regularisation.0'] = 1e-8
     options['solver.weights.domega'] = 1e6 # multiplied with xdot_regularization
+    options['solver.weights.dl_t'] = 2*400.0**2
     options['solver.cost.u_regularisation.0'] = 1e-1
     options['solver.weights.ddelta'] = 1e2
-    options['solver.weights.ddl_t'] = 1e4
-    options['solver.cost.t_f.0'] = 0.0
-    options['solver.cost.tracking.1'] = 1.2e-4
-    options['solver.cost.tracking.2'] = 1.2e-4
+    options['solver.weights.ddl_t'] = 4e4
+    options['solver.cost.t_f.0'] = 1e-4
+    options['solver.cost.tracking.1'] = 1e-4
+    options['solver.cost.tracking.2'] = 1e-4
 
     # initialization
     options['solver.initialization.groundspeed'] = 19.
     options['solver.initialization.inclination_deg'] = 45.
     options['solver.initialization.l_t'] = 400.0
-    options['solver.initialization.winding_period'] = 40.0
+    options['solver.initialization.winding_period'] = 35.0
 
     return options
