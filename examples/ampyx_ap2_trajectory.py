@@ -14,7 +14,6 @@ import awebox as awe
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
-import casadi as ca
 
 # single kite with 6DOF Ampyx AP2 model
 options = {}
@@ -27,7 +26,7 @@ options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
 
 # wind model
-options['params.wind.z_ref'] = 10.0
+options['params.wind.z_ref'] = 100.0
 options['params.wind.power_wind.exp_ref'] = 0.15
 options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.

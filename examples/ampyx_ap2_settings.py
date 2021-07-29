@@ -44,7 +44,7 @@ def set_ampyx_ap2_settings(options):
     # aircraft-tether anticollision
     options['model.model_bounds.rotation.include'] = True
     options['model.model_bounds.rotation.type'] = 'yaw'
-    options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 50.0*np.pi/180.0])
+    options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 40.0*np.pi/180.0])
 
     # variable bounds
     options['model.system_bounds.x.l_t'] =  [10.0, 700.0] # [m]
@@ -62,21 +62,21 @@ def set_ampyx_ap2_settings(options):
     options['user_options.induction_model'] = 'not_in_use'
 
     # regularization
-    options['solver.cost.beta.0'] = 1e0
+    options['solver.cost.beta.0'] = 1e-1
     options['solver.cost.xdot_regularisation.0'] = 1e-8
     options['solver.weights.domega'] = 1e6 # multiplied with xdot_regularization
-    options['solver.weights.dl_t'] = 2*400.0**2
+    options['solver.weights.dl_t'] = 400.0**2
     options['solver.cost.u_regularisation.0'] = 1e-1
     options['solver.weights.ddelta'] = 1e2
-    options['solver.weights.ddl_t'] = 4e4
-    options['solver.cost.t_f.0'] = 1e-4
-    options['solver.cost.tracking.1'] = 1e-4
-    options['solver.cost.tracking.2'] = 1e-4
+    options['solver.weights.ddl_t'] = 2e4
+    options['solver.cost.t_f.0'] = 0.0#1e-4
+    options['solver.cost.tracking.1'] = 0.0#1e-4
+    options['solver.cost.tracking.2'] = 0.0#1e-4
 
     # initialization
     options['solver.initialization.groundspeed'] = 19.
     options['solver.initialization.inclination_deg'] = 45.
     options['solver.initialization.l_t'] = 400.0
-    options['solver.initialization.winding_period'] = 35.0
+    options['solver.initialization.winding_period'] = 40.0
 
     return options
