@@ -61,18 +61,6 @@ def set_ampyx_ap2_settings(options):
     # don't include induction effects
     options['user_options.induction_model'] = 'not_in_use'
 
-    # regularization
-    options['solver.cost.beta.0'] = 1e-1
-    options['solver.cost.xdot_regularisation.0'] = 1e-8
-    options['solver.weights.domega'] = 1e6 # multiplied with xdot_regularization
-    options['solver.weights.dl_t'] = 400.0**2
-    options['solver.cost.u_regularisation.0'] = 1e-1
-    options['solver.weights.ddelta'] = 1e2
-    options['solver.weights.ddl_t'] = 2e4
-    options['solver.cost.t_f.0'] = 0.0#1e-4
-    options['solver.cost.tracking.1'] = 0.0#1e-4
-    options['solver.cost.tracking.2'] = 0.0#1e-4
-
     # initialization
     options['solver.initialization.groundspeed'] = 19.
     options['solver.initialization.inclination_deg'] = 45.

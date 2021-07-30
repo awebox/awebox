@@ -218,7 +218,6 @@ def set_default_options(default_user_options, help_options):
 
         #### scaling
         ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None),'x'),
-        # ('model',  'scaling', 'x',     'dq',       50.,      ('kite natural speed [m/s]', None),'x'),
         ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
@@ -349,7 +348,9 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'l_t',                   1e-3,       ('optimization weight for all l_t variables [-]', None), 'x'),
-        ('solver',   'weights',        None,   'ddl_t',                 1.0,       ('optimization weight for all ddl_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'dl_t',                  1e-3,       ('optimization weight for all dl_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'ddl_t',                 2e4,       ('optimization weight for all ddl_t variables [-]', None), 'x'),
+        ('solver',   'weights',        None,   'dddl_t',                2e2,       ('optimization weight for all ddl_t variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'q',                     1e-1,       ('optimization weight for all q variables [-]', None),'x'),
         ('solver',   'weights',        None,   'w',                     1e-10,      ('optimization weight for all vortex variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'omega',                 1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
@@ -366,11 +367,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'diam_s',                1e0,       ('optimization weight for the diam_s variable [-]', None),'s'),
         ('solver',   'weights',        None,   'diam_t',                1e0,       ('optimization weight for the diam_t variable [-]', None),'s'),
 
-        ('solver',   'weights_overwrite', None,   'dddl_t',         None,       ('optimization weight for control variable dddl_t [-]', None),'s'),
-        ('solver',   'weights_overwrite', None,   'ddl_t',          None,       ('optimization weight for control variable ddl_t [-]', None), 's'),
-
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
-        ('solver',  'cost',             'u_regularisation',     0,  1e-2,       ('starting cost for u_regularisation', None),'s'),
+        ('solver',  'cost',             'u_regularisation',     0,  1e-1,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'slack',                0,  1e-2,       ('starting cost for slack penalization', None), 's'),
         ('solver',  'cost',             'xdot_regularisation', 0,   1e-8,       ('starting cost for xdot regularisation', None),'s'),
         ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 's'),
