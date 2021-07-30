@@ -155,7 +155,7 @@ def get_regularization_sorting_dict():
     sorting_dict['xdot'] = {'category': 'xdot_regularisation_cost', 'exceptions': {} }
     sorting_dict['u'] = {'category': 'u_regularisation_cost', 'exceptions': {'f_fict': 'fictitious_cost', 'm_fict': 'fictitious_cost'} }
     sorting_dict['z'] = {'category': 'tracking_cost', 'exceptions': {}}
-    sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {}}
+    sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {'t_f': None}}
 
     return sorting_dict
 
