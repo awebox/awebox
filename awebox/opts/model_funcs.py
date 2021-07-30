@@ -807,10 +807,6 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
 
-    # note: lagrangian dynamics is not yet set up for scaled q's
-    q_scaling = 1.
-    options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('descript', None), 'x'))
-
     initialization_theta = options['solver']['initialization']['theta']
     for param in initialization_theta.keys():
         options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))

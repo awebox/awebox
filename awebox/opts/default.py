@@ -217,6 +217,8 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
 
         #### scaling
+        ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None),'x'),
+        # ('model',  'scaling', 'x',     'dq',       50.,      ('kite natural speed [m/s]', None),'x'),
         ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
