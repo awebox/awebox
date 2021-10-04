@@ -35,6 +35,7 @@ from . import collocation
 from . import ocp_outputs
 
 import time
+import collections
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
@@ -79,9 +80,10 @@ def get_general_reg_costs_function(variables, V):
     reg_fun = get_general_regularization_function(variables)
     regs = variables(reg_fun(var_sym, ref_sym, weight_sym))
 
-    sorting_dict = get_regularization_sorting_dict()
-    reg_costs_struct = get_costs_struct(V)
-    reg_costs = reg_costs_struct(cas.SX.zeros(reg_costs_struct.shape))
+    sorting_dict, reg_list = get_regularization_sorting_dict()
+    reg_costs_dict = collections.OrderedDict()
+    for cost in reg_list:
+        reg_costs_dict[cost] = 0.0
 
     slack_fun = get_local_slack_penalty_function()
 
@@ -93,11 +95,11 @@ def get_general_reg_costs_function(variables, V):
             name, _ = struct_op.split_name_and_node_identifier(var_name)
 
             if (not name in exceptions.keys()) and (not category == None):
-                reg_costs[category] = reg_costs[category] + cas.sum1(regs[var_type, var_name])
+                reg_costs_dict[category] = reg_costs_dict[category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
-                reg_costs[exc_category] = reg_costs[exc_category] + cas.sum1(regs[var_type, var_name])
+                reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + cas.sum1(regs[var_type, var_name])
 
             elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
                 exc_category = exceptions[name]
@@ -108,12 +110,12 @@ def get_general_reg_costs_function(variables, V):
                     weight_loc = weight_sym[idx]
                     pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
 
-                    reg_costs[exc_category] = reg_costs[exc_category] + pen_loc
+                    reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + pen_loc
 
-    reg_costs_list = reg_costs.cat
+    reg_costs_list = cas.vertcat(*reg_costs_dict.values())
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
 
-    return reg_costs_fun, reg_costs_struct
+    return reg_costs_fun, reg_costs_dict
 
 
 def get_costs_struct(V):
@@ -157,12 +159,14 @@ def get_regularization_sorting_dict():
     sorting_dict['z'] = {'category': 'tracking_cost', 'exceptions': {}}
     sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {'t_f': None}}
 
-    return sorting_dict
+    reg_list = ['tracking_cost', 'xdot_regularisation_cost', 'u_regularisation_cost', 'fictitious_cost', 'theta_regularisation_cost']
+
+    return sorting_dict, reg_list
 
 
 def get_regularization_weights(variables, P, nlp_options):
 
-    sorting_dict = get_regularization_sorting_dict()
+    sorting_dict, _ = get_regularization_sorting_dict()
 
     weights = variables(P['p', 'weights'])
 
@@ -233,12 +237,26 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
         vars, refs, weights, N_steps = get_ms_parallel_info(nlp_options, V, P, Xdot, model)
     parallellization = nlp_options['parallelization']['type']
 
-    reg_costs_fun, reg_costs_struct = get_general_reg_costs_function(variables, V)
+    reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(variables, V)
     reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
 
-    reg_costs = reg_costs_struct(cas.sum2(reg_costs_map(vars, refs, weights)))
+    summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
 
-    return reg_costs
+    idx = 0
+    for cost in reg_costs_dict.keys():
+        reg_costs_dict[cost] = summed_reg_costs[idx]
+        idx += 1
+
+    # initialize component costs
+    component_costs = collections.OrderedDict()
+    cost_struct = get_costs_struct(V)
+    for cost in cost_struct.keys():
+        if cost not in reg_costs_dict.keys():
+            component_costs[cost] = 0.0
+        else:
+            component_costs[cost] = reg_costs_dict[cost]
+
+    return component_costs
 
 def find_int_weights(nlp_options):
 
@@ -459,14 +477,11 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
 
 def get_component_cost_function(component_costs, V, P):
 
-    ccc = component_costs.cat
-
     component_cost_fun = {}
 
-    for idx in range(ccc.shape[0]):
-        local_expr = ccc[idx]
-        local_name = component_costs.keys()[idx]
-        component_cost_fun[local_name + '_fun'] = cas.Function(local_name + '_fun', [V, P], [local_expr])
+    for cost in component_costs.keys():
+        local_expr = component_costs[cost]
+        component_cost_fun[cost + '_fun'] = cas.Function(cost + '_fun', [V, P], [local_expr])
 
     return component_cost_fun
 
@@ -492,11 +507,7 @@ def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xd
 
 def make_cost_function(V, P, component_costs):
 
-    ccc = component_costs.cat
-
-    f = 0.
-    for idx in range(ccc.shape[0]):
-        f += ccc[idx]
+    f = component_costs['objective']
 
     # f = cas.sum1(component_costs.cat)
     f_fun = cas.Function('f', [V, P], [f])
