@@ -116,15 +116,15 @@ def define_costs_to_update(P, formulation):
 
     power_updates = {}
     power_updates[0] = ['power', 'psi', 'fictitious', 'power_derivative']
-    power_updates[1] = ['tracking']
+    power_updates[1] = []
 
     nominal_landing_updates = {}
     nominal_landing_updates[0] = ['nominal_landing', 'eta']
-    nominal_landing_updates[1] = ['tracking']
+    nominal_landing_updates[1] = []
 
     transition_updates = {}
     transition_updates[0] = ['transition', 'upsilon']
-    transition_updates[1] = ['tracking']
+    transition_updates[1] = []
 
     compromised_landing_updates = {}
     compromised_landing_updates[0] = ['compromised_battery', 'nu']
