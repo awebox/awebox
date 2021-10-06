@@ -391,9 +391,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'beta',             0,      1e-1,          ('starting cost for P_max', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
-        ('solver',  'cost',             'gamma',            1,      1e3,        ('update cost for gamma', None),'s'),
+        ('solver',  'cost',             'gamma',            1,      1e1,        ('update cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'s'),
-        ('solver',  'cost',             'psi',              1,      1e3,        ('update cost for psi', None),'s'),
+        ('solver',  'cost',             'psi',              1,      1e1,        ('update cost for psi', None),'s'),
         ('solver',  'cost',             'tau',              1,      1e3,        ('update cost for tau', None),'s'),
         ('solver',  'cost',             'eta',              1,      1e3,        ('update cost for eta', None),'s'),
         ('solver',  'cost',             'nu',               1,      1e3,        ('update cost for nu', None),'s'),
