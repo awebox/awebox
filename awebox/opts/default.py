@@ -344,7 +344,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1.,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'cost_factor',    None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None),'x'),
         ('solver',   'weights',        None,   'l_t',                   1e-3,       ('optimization weight for all l_t variables [-]', None), 'x'),
@@ -381,7 +381,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nu',               0,      0.,         ('starting cost for nu', None),'s'),
         ('solver',  'cost',             'upsilon',          0,      0.,         ('starting cost for upsilon', None),'s'),
 
-        ('solver',  'cost',             'fictitious',       0,      1e-4,       ('starting cost for fictitious', None),'s'),
+        ('solver',  'cost',             'fictitious',       0,      1e3,       ('starting cost for fictitious', None),'s'),
         ('solver',  'cost',             'power',            0,      0.,         ('starting cost for power', None),'s'),
         ('solver',  'cost',             'power_derivative', 0,      0.,         ('starting cost for power derivative', None),'s'),
         ('solver',  'cost',             't_f',              0,      0.,       ('starting cost for final time', None),'s'),
@@ -391,7 +391,6 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'beta',             0,      1e-1,          ('starting cost for P_max', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
-        ('solver',  'cost',             'tracking',         1,      1.e-7,         ('update cost for tracking', None),'s'),
         ('solver',  'cost',             'gamma',            1,      1e3,        ('update cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'s'),
         ('solver',  'cost',             'psi',              1,      1e3,        ('update cost for psi', None),'s'),
@@ -408,7 +407,6 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',  'cost',             'fictitious',           2,  1.e0,       ('second update cost for fictitious', None), 's'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'s'),
-        ('solver',  'cost',             'tracking',             2,  1.e-7,          ('second update cost for tracking', None),'s'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
