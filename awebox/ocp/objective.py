@@ -347,11 +347,9 @@ def find_transition_problem_cost(component_costs, P):
 
 def find_tracking_problem_cost(component_costs):
 
-    fictitious_cost = component_costs['fictitious_cost']
     tracking_cost = component_costs['tracking_cost']
-    time_cost = component_costs['time_cost']
 
-    tracking_problem_cost = fictitious_cost + tracking_cost + time_cost
+    tracking_problem_cost = tracking_cost
 
     return tracking_problem_cost
 
@@ -371,6 +369,19 @@ def find_nominal_landing_problem_cost(nlp_options, V, P, variables):
 
 def find_general_problem_cost(component_costs):
 
+    u_regularisation_cost = component_costs['u_regularisation_cost']
+    xdot_regularisation_cost = component_costs['xdot_regularisation_cost']
+    theta_regularisation_cost = component_costs['theta_regularisation_cost']
+    beta_cost = component_costs['beta_cost']
+    time_cost = component_costs['time_cost']
+    fictitious_cost = component_costs['fictitious_cost']
+
+    general_problem_cost = fictitious_cost + u_regularisation_cost + xdot_regularisation_cost + theta_regularisation_cost + beta_cost + time_cost
+
+    return general_problem_cost
+
+def find_homotopy_cost(component_costs):
+
     gamma_cost = component_costs['gamma_cost']
     iota_cost = component_costs['iota_cost']
     tau_cost = component_costs['tau_cost']
@@ -379,13 +390,9 @@ def find_general_problem_cost(component_costs):
     nu_cost = component_costs['nu_cost']
     upsilon_cost = component_costs['upsilon_cost']
 
-    u_regularisation_cost = component_costs['u_regularisation_cost']
-    xdot_regularisation_cost = component_costs['xdot_regularisation_cost']
-    theta_regularisation_cost = component_costs['theta_regularisation_cost']
+    homotopy_cost = psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost 
 
-    general_problem_cost = u_regularisation_cost + xdot_regularisation_cost + theta_regularisation_cost + psi_cost + iota_cost + tau_cost + gamma_cost + eta_cost + nu_cost + upsilon_cost
-
-    return general_problem_cost
+    return homotopy_cost
 
 def find_beta_cost(nlp_options, model, Outputs, P):
 
@@ -414,8 +421,9 @@ def find_objective(component_costs, V):
     nominal_landing_problem_cost = component_costs['nominal_landing_cost']
     transition_problem_cost = component_costs['tracking_problem_cost']
     general_problem_cost = component_costs['general_problem_cost']
+    homotopy_cost = component_costs['homotopy_cost']
 
-    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost
+    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost + homotopy_cost
 
     return objective
 
@@ -435,6 +443,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
+    component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
     component_costs['objective'] = find_objective(component_costs, V)
 
