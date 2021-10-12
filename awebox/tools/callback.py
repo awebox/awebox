@@ -26,6 +26,7 @@ import casadi.tools as cas
 import numpy as np
 import pickle
 import collections
+import copy
 
 class awebox_callback(cas.Callback):
     def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
@@ -69,6 +70,9 @@ class awebox_callback(cas.Callback):
         darg = {}
         for (i,s) in enumerate(cas.nlpsol_out()): darg[s] = arg[i]
         sol = darg['x']
+        lam_x = darg['lam_x']
+        lam_g = darg['lam_g']
+
         V = self.V(sol)
         P = self.P
 
@@ -100,6 +104,13 @@ class awebox_callback(cas.Callback):
 
         for cost in list(self.cost_dict.keys()):
             self.cost_dict[cost].append(self.nlp.cost_components[0][cost+'_fun'](V,P))
+
+        for x in list(self.model.variables_dict['x'].keys()):
+          for dim in range(self.model.variables_dict['x'][x].shape[0]):
+            self.lam_x_dict[x+'_'+str(dim)].append(self.extract_x_vals(self.V(lam_x), x, dim))
+
+        self.lam_g += [lam_g]
+        self.g_dict += [self.nlp.g_fun(V,P)]
 
         return [0]
 
@@ -166,6 +177,8 @@ class awebox_callback(cas.Callback):
       for cost in self.nlp.cost_components[1].keys():
           cost_dict[cost] = []
 
+      lam_x_dict = copy.deepcopy(x_dict)
+
       self.phi_dict = phi_dict
       self.x_dict = x_dict
       self.u_dict = u_dict
@@ -173,6 +186,9 @@ class awebox_callback(cas.Callback):
       self.theta_dict = theta_dict
       self.cost_dict = cost_dict
       self.t_dict = t_dict
+      self.lam_x_dict = lam_x_dict
+      self.g_dict = []
+      self.lam_g = []
       self.avg_power = []
       
       return None
