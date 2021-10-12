@@ -255,8 +255,10 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         middle_opts['ipopt.mu_target'] = options['mu_hippo']
         middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
         middle_opts['ipopt.tol'] = options['tol_hippo']
+        middle_opts['ipopt.warm_start_init_point'] = 'yes'
 
         final_opts['ipopt.mu_init'] = options['mu_hippo']
+        final_opts['ipopt.warm_start_init_point'] = 'yes'
 
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
