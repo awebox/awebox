@@ -361,7 +361,8 @@ class Optimization(object):
             # solve
             if options['homotopy_method'] == 'classic' and (counter == 0) and (phi_name != None):
                 
-                self.__perform_classic_continuation(step_name, phi_name, options, solver)
+                if (options['homotopy_step'][phi_name] < 1.0):
+                    self.__perform_classic_continuation(step_name, phi_name, options, solver)
 
             else:
 
@@ -387,7 +388,7 @@ class Optimization(object):
     def __perform_classic_continuation(self, step_name, phi_name, options, solver):
 
         # define parameter path
-        step = options['homotopy_step']
+        step = options['homotopy_step'][phi_name]
         parameter_path = linspace(1-step, step, int(1/step)-1)
 
         # update fixed params
