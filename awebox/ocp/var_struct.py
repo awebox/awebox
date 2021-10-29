@@ -92,7 +92,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     # generate structure
     V = cas.struct_symMX(entry_list)
 
-    print_op.print_variable_info('NLP', V)
+    # print_op.print_variable_info('NLP', V)
 
     return V
 
