@@ -359,8 +359,7 @@ class Optimization(object):
             phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
             # solve
-            if options['homotopy_method'] == 'classic' and (counter == 0) and (phi_name != None):
-                
+            if (phi_name != None) and (options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
                 if (options['homotopy_step'][phi_name] < 1.0):
                     self.__perform_classic_continuation(step_name, phi_name, options, solver)
 

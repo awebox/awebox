@@ -279,7 +279,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
         options['solver']['initialization']['fix_tether_length'] = True
 
-    if options['solver']['homotopy_method'] not in ['penalty', 'classic']:
+    if options['solver']['homotopy_method']['gamma'] not in ['penalty', 'classic']:
         awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
 
     return options_tree

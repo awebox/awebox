@@ -312,7 +312,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'jit_flags',           '-O0',       ('flags to be passed to jit compiler', None),'t'),
         ('solver',  None,   None,   'expand_overwrite',     None,       ('expand MX --> SX [int]', None),'t'),
 
-        ('solver',  None,   None,   'homotopy_method',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  'homotopy_method',None,  'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  'homotopy_method',None,  'psi',        'classic',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
