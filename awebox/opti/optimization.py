@@ -224,7 +224,7 @@ class Optimization(object):
         nx = V.cat.shape[0]
         ng = nlp.g.shape[0]
         np = P.cat.shape[0]
-        awe_callback = callback.awebox_callback(name, model, nlp, options, V, P, nx, ng, np)
+        awe_callback = callback.awebox_callback(name, model, nlp, options, V, P, nx, ng, np, record_states = options['record_states'])
 
         return awe_callback
 
