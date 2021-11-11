@@ -88,8 +88,12 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
 
+    vortex_objects = {}
+    if not (options['induction_model'] == 'not_in_use'):
+        vortex_objects = induction.construct_objects(options, system_variables['SI'], parameters, architecture, wind)
+
     # enforce the lagrangian dynamics
-    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs)
+    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, vortex_objects)
     cstr_list.append(lagr_dyn_cstr)
 
     # enforce lifted aerodynamic force <-- this must happen after lagr_dyn.get_dynamics, which determines the kite indicators
@@ -104,7 +108,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     # induction constraint
     if not (options['induction_model'] == 'not_in_use'):
-        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture, vortex_objects)
         cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
@@ -191,7 +195,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         out_dict,
         integral_outputs_struct,
         integral_outputs_fun,
-        integral_scaling]
+        integral_scaling,
+        vortex_objects
+    ]
 
 
 def check_that_all_xddot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):

@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import casadi.tools as cas
 import numpy as np
 import matplotlib.pyplot as plt
@@ -718,6 +720,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
     plot_dict['variable_bounds'] = model.variable_bounds
+    plot_dict['vortex_objects'] = model.vortex_objects
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
@@ -743,6 +746,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     scaling = plot_dict['scaling']
     plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
     plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+    plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
 
     # get new name
     plot_dict['name'] = name
@@ -896,6 +900,7 @@ def interpolate_data(plot_dict, cosmetics):
 
     return plot_dict
 
+
 def interpolate_ref_data(plot_dict, cosmetics):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
@@ -911,6 +916,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     outputs_dict = plot_dict['outputs_dict']
     output_vals = plot_dict['output_vals'][2]
     V_ref = plot_dict['V_ref']
+
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
         u_param = plot_dict['u_param']
@@ -1103,29 +1109,111 @@ def get_nondim_time_and_switch(plot_dict):
 
     return time_nondim, tau
 
-def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
+def assemble_variable_slice_from_interpolated_data(plot_dict, index):
 
-    variables_dict = plot_dict['variables_dict']
+    collected_vals = []
 
-    if not var_type in variables_dict.keys():
-        awelogger.logger.error('requested variable type does not exist.')
-        return None
+    model_variables = plot_dict['variables']
+    for jdx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(jdx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        kdx = canonical[2]
 
-    else:
-        local_dict = variables_dict[var_type]
-        collected_vals = []
+        if (var_type == 'theta'):
+            local_val = plot_dict['V_plot']['theta', 't_f', kdx]
+            collected_vals = cas.vertcat(collected_vals, local_val)
 
-        for name in local_dict.keys():
-            column_vals = plot_dict[var_type][name]
-            # assume that all variables are saved in column format!!
-            n_entries = len(column_vals)
+        elif (var_type == 'xddot'):
+            if (var_name in plot_dict['xd'].keys()):
+                local_val = plot_dict['xd'][var_name][kdx][index]
+            else:
+                # be advised: this function does not compute dynamics
+                local_val = cas.DM.zeros((1,1))
+            collected_vals = cas.vertcat(collected_vals, local_val)
 
-            for edx in range(n_entries):
-                entry_val = column_vals[edx][index]
-                collected_vals = cas.vertcat(collected_vals, entry_val)
+        elif (var_type in plot_dict.keys()) and (var_name in plot_dict[var_type].keys()):
+            local_val = plot_dict[var_type][var_name][kdx][index]
+            collected_vals = cas.vertcat(collected_vals, local_val)
 
-        var_slice = local_dict(collected_vals)
-        return var_slice
+        else:
+
+            pdb.set_trace()
+
+            message = 'unrecognized variable type or name when re-assembling a (model) variable from interpolated data.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+    try:
+        vars_si = model_variables(collected_vals)
+    except:
+        message = 'unable to assign re-assembled interpolated data into a (model) variable structure'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return vars_si
+
+def assemble_model_parameters(plot_dict):
+
+    collected_vals = []
+
+    options_model = plot_dict['options']['model']
+    options_params = plot_dict['options']['params']
+
+    model_parameters = plot_dict['parameters']
+    for jdx in range(model_parameters.shape[0]):
+        canonical = model_parameters.getCanonicalIndex(jdx)
+        var_type = canonical[0]
+        kdx = canonical[-1]
+
+        if (var_type == 'phi'):
+            var_name = canonical[1]
+            kdx = canonical[2]
+            local_val = plot_dict['V_plot'][var_type, var_name, kdx]
+            collected_vals = cas.vertcat(collected_vals, local_val)
+
+        elif (var_type == 'theta0') and (kdx == 0):
+
+            try:
+
+                if canonical[1] in options_params.keys():
+                    local_val = options_params
+                elif canonical[1] in options_model.keys():
+                    local_val = options_model
+                else:
+                    pdb.set_trace()
+
+                # remember that the first entry of canonical is (already) 'theta0' and the last entry of canonical will be the dimension (kdx)
+                for sdx in range(len(canonical)-2):
+                    local_val = local_val[canonical[sdx+1]]
+
+                if hasattr(local_val, 'shape'):
+                    local_shape = cas.DM(local_val).shape
+                    local_val = cas.reshape(local_val, (local_shape[0] * local_shape[1], 1))
+                collected_vals = cas.vertcat(collected_vals, local_val)
+
+            except:
+                message = 'error in parameters theta0 assembly'
+                awelogger.logger.error(message)
+                raise Exception(message)
+
+        elif (kdx == 0):
+
+            message = 'unrecognized parameter type or name when re-assembling a (model) parameter from solution data'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+    try:
+        params = model_parameters(collected_vals)
+    except:
+
+        pdb.set_trace()
+        message = 'unable to assign re-assembled interpolated data into a (model) parameters structure'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return params
+
 
 def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 

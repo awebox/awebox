@@ -31,7 +31,8 @@ _python-3.5 / casadi-3.4.5
 import pdb
 
 import numpy as np
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+import awebox.mdl.aero.induction_dir.tools_dir.geom as tools_geom
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
@@ -65,6 +66,9 @@ def get_fixing_constraint(options, V, Outputs, model, time_grids):
     vortex_far_wake_model = options['induction']['vortex_far_wake_model']
     if vortex_far_wake_model == 'pathwise_filament':
         cstr_list.append(get_farwake_convection_velocity_constraint(options, V, model))
+
+    if 'cylinder' in vortex_far_wake_model:
+        cstr_list.append(get_vortex_cylinder_center_constraint(options, V, model))
 
     return cstr_list
 
@@ -371,3 +375,110 @@ def get_far_wake_velocity_val(options, V, model, kite, ndx, ddx=None):
         raise Exception(message)
 
     return velocity
+
+
+
+
+
+################ cylinder center
+
+def get_vortex_cylinder_center_constraint(options, V, model):
+
+    n_k = options['n_k']
+
+    kite_nodes = model.architecture.kite_nodes
+    wingtips = ['ext', 'int']
+
+    cstr_list = cstr_op.ConstraintList()
+
+    name_base = 'far_wake_convection_velocity_'
+
+    for kite in kite_nodes:
+        for tip in wingtips:
+            var_name = 'wx_center_' + str(kite)
+
+            for ndx in range(n_k):
+
+                local_name = name_base + str(kite) + '_' + str(tip) + '_' + str(ndx)
+
+                wx_scaled = V['xl', ndx, var_name]
+                wx_si = struct_op.var_scaled_to_si('xd', var_name, wx_scaled, model.scaling)
+
+                x_center = get_vortex_cylinder_center_val(options, V, model, kite, ndx)
+
+                local_resi_si = wx_si - x_center
+                local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+
+                local_cstr = cstr_op.Constraint(expr = local_resi,
+                                                name = local_name,
+                                                cstr_type='eq')
+                cstr_list.append(local_cstr)
+
+                for ddx in range(options['collocation']['d']):
+                    local_name = name_base + str(kite) + '_' + str(tip) + '_' + str(ndx) + ',' + str(ddx)
+
+                    wx_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+                    wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
+
+                    x_center = get_vortex_cylinder_center_val(options, V, model, kite, ndx)
+
+                    local_resi_si = wx_si - x_center
+                    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
+
+                    local_cstr = cstr_op.Constraint(expr=local_resi,
+                                                    name=local_name,
+                                                    cstr_type='eq')
+                    cstr_list.append(local_cstr)
+
+    return cstr_list
+
+
+def get_vortex_cylinder_center_val(options, V, model, kite, ndx, ddx=None):
+
+    parent = model.architecture.parent_map[kite]
+
+    vortex_representation = options['induction']['vortex_representation']
+
+    n_k = options['n_k']
+
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    wake_node = wake_nodes - 1
+
+    Xdot_mimic = struct_op.construct_Xdot_struct(options, model.variables_dict)(0.)
+    V_si = struct_op.scaled_to_si(V, model.scaling)
+
+    if (vortex_representation == 'state'):
+
+        shooting_ndx = n_k - wake_node
+        collocation_ndx = shooting_ndx - 1
+        modular_ndx = np.mod(collocation_ndx, n_k)
+
+        shedding_ndx = modular_ndx
+        shedding_ddx = -1
+
+    elif (vortex_representation == 'alg'):
+
+        if ddx is None:
+            ndx_collocation = ndx - 1
+            ddx_collocation = -1
+        else:
+            ndx_collocation = ndx
+            ddx_collocation = ddx
+
+        subtracted_ndx = ndx_collocation - wake_node
+        shedding_ndx = np.mod(subtracted_ndx, n_k)
+
+        if wake_node == 0:
+            shedding_ddx = ddx_collocation
+        else:
+            shedding_ddx = -1
+
+    else:
+        message = 'unknown vortex representation specified: ' + vortex_representation
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    variables_si = struct_op.get_variables_at_time(options, V_si, Xdot_mimic, model.variables, shedding_ndx, shedding_ddx)
+    x_center = tools_geom.get_center_point(options, parent, variables_si, model.architecture)
+
+    return x_center

@@ -34,7 +34,8 @@ import pdb
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
-import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
@@ -222,8 +223,11 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     wake_nodes = options['aero']['vortex']['wake_nodes']
     rings = options['aero']['vortex']['rings']
 
-    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     vortex_representation = options['aero']['vortex']['representation']
+
+    number_near_filaments = vortex_near_wake.expected_number_of_filaments(options, architecture)
+    number_far_filaments = vortex_far_wake.expected_number_of_filaments(options, architecture)
+    number_dimensional_cylinders = vortex_far_wake.expected_number_of_directional_cylinders(options, architecture)
 
     for kite in architecture.kite_nodes:
         for ring in range(rings):
@@ -243,15 +247,31 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
                     raise Exception(message)
 
     vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
-    if (vortex_far_wake_model == 'pathwise_filament') or (vortex_far_wake_model == 'freestream_cylinder'):
+    if (vortex_far_wake_model == 'pathwise_filament'):
         for kite in architecture.kite_nodes:
             for tip in wingtips:
                 far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip
                 system_lifted.extend([(far_wake_name, (3, 1))])
 
+    if ('cylinder' in vortex_far_wake_model):
+        for kite in architecture.kite_nodes:
+            wx_center_name = 'wx_center_' + str(kite)
+            system_lifted.extend([(wx_center_name)])
+
     for kite_obs in architecture.kite_nodes:
-        for fdx in range(filaments):
-            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
+        for fdx in range(number_near_filaments):
+            ind_name = 'wu_near_fil_' + str(fdx) + '_' + str(kite_obs)
+            system_lifted.extend([(ind_name, (3, 1))])
+
+        for fdx in range(number_far_filaments):
+            ind_name = 'wu_far_fil_' + str(fdx) + '_' + str(kite_obs)
+            system_lifted.extend([(ind_name, (3, 1))])
+
+        for fdx in range(number_dimensional_cylinders):
+            ind_name = 'wu_tan_cyl_' + str(fdx) + '_' + str(kite_obs)
+            system_lifted.extend([(ind_name, (3, 1))])
+
+            ind_name = 'wu_long_cyl_' + str(fdx) + '_' + str(kite_obs)
             system_lifted.extend([(ind_name, (3, 1))])
 
         ind_name = 'wu_ind_' + str(kite_obs)
@@ -402,26 +422,10 @@ def generate_system_parameters(options, architecture):
 
     # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
-
-    # define vortex induction linearization parameters
-    use_vortex_linearization = options['aero']['vortex']['use_linearization']
-    if use_vortex_linearization:
-        vortex_linearization_list, _ = generate_structure(options, architecture)
-        vortex_linearization_params, _ = struct_op.generate_variable_struct(vortex_linearization_list)
-        parameters_dict['lin'] = vortex_linearization_params
-
-    # generate nested casadi structure for system parameters
-    if use_vortex_linearization:
-        parameters = cas.struct_symSX([
-            cas.entry('theta0', struct=parameters_dict['theta0']),
-            cas.entry('phi', struct=parameters_dict['phi']),
-            cas.entry('lin', struct=parameters_dict['lin'])
-        ])
-    else:
-        parameters = cas.struct_symSX([
-            cas.entry('theta0', struct= parameters_dict['theta0']),
-            cas.entry('phi', struct= parameters_dict['phi'])
-        ])
+    parameters = cas.struct_symSX([
+        cas.entry('theta0', struct= parameters_dict['theta0']),
+        cas.entry('phi', struct= parameters_dict['phi'])
+    ])
 
     return parameters, parameters_dict
 

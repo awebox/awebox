@@ -52,7 +52,7 @@ class Wind:
 
         model = options['model']
 
-        u_hat = get_wind_direction()
+        u_hat = self.get_wind_direction()
 
         if isinstance(zz, cas.SX):
             params = self.__params.prefix['theta0', 'wind']
@@ -84,7 +84,7 @@ class Wind:
 
         return u
 
-    def get_wind_direction():
+    def get_wind_direction(self):
         return vect_op.xhat_np()
 
     def get_speed_ref(self, from_parameters=True):

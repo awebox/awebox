@@ -27,6 +27,7 @@ Sweep helper functions to manipulate multiple trials at once
 
 @author: jochem de schutter alu-freiburg 2018
 """
+import pdb
 
 import awebox.tools.struct_operations as struct_op
 from itertools import product

@@ -33,8 +33,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
 import awebox.mdl.wind as wind
+
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -79,6 +80,10 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
     return None
 
 def draw_wake_nodes(ax, side, plot_dict, index):
+
+    variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    pdb.set_trace()
 
     vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
     if vortex_info_exists:

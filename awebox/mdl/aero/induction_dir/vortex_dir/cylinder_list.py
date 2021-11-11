@@ -30,7 +30,10 @@ _python-3.5 / casadi-3.4.5
 import pdb
 
 import numpy as np
+
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+import awebox.mdl.aero.induction_dir.vortex_dir.element_list as vortex_element_list
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.mdl.wind as wind_module
@@ -42,11 +45,19 @@ import awebox.mdl.architecture as archi
 
 def get_list(options, variables_si, architecture, wind):
 
-    far_wake_model = options['induction']['vortex_far_wake_model']
-    if 'cylinder' in far_wake_model:
-        cylinder_list = get_far_wake_list(options, variables_si, architecture, wind)
+    print_op.warn_about_temporary_funcationality_removal(location='vortex.cylinder_list.get_list')
+    # far_wake_model = options['induction']['vortex_far_wake_model']
+    # if 'cylinder' in far_wake_model:
+    #     cylinder_list = get_far_wake_list(options, variables_si, architecture, wind)
+    # return cylinder_list
 
-    return cylinder_list
+    tangential_cylinder_list = vortex_element_list.get_test_tangential_cylinder_list()
+    tangential_cylinder_list.make_symbolic_biot_savart_function()
+
+    longitudinal_cylinder_list = vortex_element_list.get_test_longitudinal_cylinder_list()
+    longitudinal_cylinder_list.make_symbolic_biot_savart_function()
+
+    return tangential_cylinder_list, longitudinal_cylinder_list
 
 def get_far_wake_list(options, variables_si, architecture, wind):
 

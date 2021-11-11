@@ -105,10 +105,12 @@ class Model(object):
         outputs_dict,
         integral_outputs,
         integral_outputs_fun,
-        integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
+        integral_scaling,
+        vortex_objects] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
 
         self.__kite_dof = options['kite_dof']
         self.__kite_geometry = {} #options['geometry']
+        self.__vortex_objects = vortex_objects
 
         self.__variables = variables
         self.__variables_dict = variables_dict
@@ -326,6 +328,15 @@ class Model(object):
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+    @property
+    def vortex_objects(self):
+        return self.__vortex_objects
+
+    @vortex_objects.setter
+    def vortex_objects(self, value):
+        awelogger.logger.warning('Cannot set vortex_objects object.')
+
 
     @property
     def dynamics(self):

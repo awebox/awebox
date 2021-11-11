@@ -578,3 +578,35 @@ def test_elliptic_e():
         raise Exception(message)
 
     return None
+
+def get_altitude(vec_1, vec_2):
+    vec_a = cross(vec_1, vec_2)
+    altitude = smooth_norm(vec_a) / smooth_norm(vec_1 - vec_2)
+    return altitude
+
+def test_altitude():
+
+    expected = 1.
+    x_obs = expected * zhat_dm()
+
+    # right triangle
+    x_1 = 0. * xhat_dm()
+    x_2 = 1. * xhat_dm()
+    difference = get_altitude(x_1 - x_obs, x_2 - x_obs) - expected
+    thresh = 1.e-6
+    if thresh < difference**2.:
+        message = 'biot-savart right-triangle altitude test gives error of size: ' + str(difference)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    # obtuse triangle
+    x_1 = 1. * xhat_np()
+    x_2 = 2. * xhat_np()
+    difference = get_altitude(x_1 - x_obs, x_2 - x_obs) - expected
+    thresh = 1.e-6
+    if thresh < difference**2.:
+        message = 'biot-savart obtuse-triangle altitude test gives error of size: ' + str(difference)
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None

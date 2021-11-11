@@ -35,7 +35,7 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
@@ -43,19 +43,22 @@ import awebox.tools.constraint_operations as cstr_op
 
 
 
-def get_superposition_cstr(options, wind, variables_si, architecture):
+def get_superposition_cstr(options, wind, variables_si, objects, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
-    filaments = vortex_filament_list.expected_number_of_filaments(options, architecture)
     u_ref = wind.get_speed_ref()
 
     for kite_obs in architecture.kite_nodes:
         u_ind_kite = cas.DM.zeros((3, 1))
-        for fdx in range(filaments):
-            ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
-            local_var = variables_si['xl'][ind_name]
-            u_ind_kite += local_var
+
+        for elem_list_name in objects.keys():
+            elem_list = objects[elem_list_name]
+
+            for fdx in range(elem_list.number_of_elements):
+                ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+                local_var = variables_si['xl'][ind_name]
+                u_ind_kite += local_var
 
         # superposition of filament induced velocities at kite
         ind_name = 'wu_ind_' + str(kite_obs)
@@ -69,111 +72,114 @@ def get_superposition_cstr(options, wind, variables_si, architecture):
 
     return cstr_list
 
-def get_induced_velocity_at_kite(options, filament_list, variables, architecture, kite_obs, n_hat=None):
-    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
-    u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
+def get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs, selection='all_wake'):
+
+    u_ind_kite = cas.DM.zeros((3, 1))
+
+    if selection == 'all_wake':
+        ind_name = 'wu_ind_' + str(kite_obs)
+        u_ind_kite = variables_si['xl'][ind_name]
+
+    elif selection == 'far_wake':
+        for elem_list_name in vortex_objects.keys():
+
+            if 'near' not in elem_list_name:
+                elem_list = vortex_objects[elem_list_name]
+
+                for fdx in range(elem_list.number_of_elements):
+                    ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+                    local_var = variables_si['xl'][ind_name]
+                    u_ind_kite += local_var
+
+    elif selection == 'near_wake':
+        for elem_list_name in vortex_objects.keys():
+
+            if 'near' in elem_list_name:
+                elem_list = vortex_objects[elem_list_name]
+
+                for fdx in range(elem_list.number_of_elements):
+                    ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+                    local_var = variables_si['xl'][ind_name]
+                    u_ind_kite += local_var
+
+    return u_ind_kite
+
+
+def get_induced_velocity_at_observer(vortex_objects, x_obs, n_hat=None):
+
+    u_ind = cas.DM.zeros((3, 1))
+    for elem_list_name in vortex_objects.keys():
+        elem_list = vortex_objects[elem_list_name]
+        u_ind += cas.sum2(elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=n_hat))
+
     return u_ind
 
+def get_induction_factor_at_kite(options, wind, variables, vortex_objects, architecture, kite_obs, n_hat=vect_op.xhat()):
 
-def get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=None):
-
-    if not hasattr(filament_list, 'shape'):
-        return cas.DM.zeros((3, 1))
-
-    filament_list = vortex_filament_list.append_observer_to_list(filament_list, x_obs)
-
-    include_normal_info = (n_hat is not None)
-    if include_normal_info:
-        filament_list = vortex_filament_list.append_normal_to_list(filament_list, n_hat)
-
-    u_ind = make_symbolic_filament_and_sum(options, filament_list, include_normal_info)
-    return u_ind
-
-
-
-def get_induction_factor_at_kite(options, filament_list, wind, variables, parameters, architecture, kite_obs, n_hat=vect_op.xhat()):
-
-    x_obs = variables['xd']['q' + str(kite_obs) + str(architecture.parent_map[kite_obs])]
+    u_ind = get_induced_velocity_at_kite(variables, vortex_objects, kite_obs)
+    u_projected = cas.mtimes(u_ind.T, n_hat)
 
     parent = architecture.parent_map[kite_obs]
     u_zero_vec = general_flow.get_uzero_vec(options, wind, parent, variables, architecture)
     u_zero = vect_op.smooth_norm(u_zero_vec)
 
-    a_calc = get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=n_hat)
+    a_calc = compute_induction_factor(u_projected, u_zero)
 
     return a_calc
 
+def compute_induction_factor(u_projected, u_zero):
+    a_calc = -1. * u_projected / u_zero
+    return a_calc
 
 def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=vect_op.xhat()):
-    u_ind = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
-    a_calc = -1. * u_ind / u_zero
+    u_projected = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
+    a_calc = compute_induction_factor(u_projected, u_zero)
     return a_calc
 
 
-
-def make_symbolic_filament_and_sum(options, filament_list, include_normal_info=False):
-
-    r_core = options['induction']['vortex_core_radius']
-
-    # define the symbolic function
-    n_symbolics = filament_list.shape[0]
-
-    u_ind = cas.DM.zeros((3, 1))
-    if n_symbolics > 0:
-        seg_data_sym = cas.SX.sym('seg_data_sym', (n_symbolics, 1))
-
-        if include_normal_info:
-            filament_sym = biot_savart.filament_normal(seg_data_sym, r_core=r_core)
-        else:
-            filament_sym = biot_savart.filament(seg_data_sym, r_core=r_core)
-
-        filament_fun = cas.Function('filament_fun', [seg_data_sym], [filament_sym])
-
-        # evaluate the symbolic function
-        u_ind = vortex_tools.evaluate_symbolic_on_segments_and_sum(filament_fun, filament_list)
-
-    return u_ind
 
 def test(test_list):
 
-    options = {}
-    options['induction'] = {}
-    options['induction']['vortex_core_radius'] = 0.
-
-    x_obs = 0.5 * vect_op.xhat_np()
-
-    u_ind = get_induced_velocity_at_observer(options, test_list, x_obs)
-
-    xhat_component = cas.mtimes(u_ind.T, vect_op.xhat())
-    if not (xhat_component == 0):
-        message = 'induced velocity at observer does not work as expected. ' \
-                  'test u_ind component in plane of QSVR (along xhat) is ' + str(xhat_component)
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    yhat_component = cas.mtimes(u_ind.T, vect_op.yhat())
-    if not (yhat_component == 0):
-        message = 'induced velocity at observer does not work as expected. ' \
-                  'test u_ind component in plane of QSVR (along yhat) is ' + str(yhat_component)
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    zhat_component = cas.mtimes(u_ind.T, vect_op.zhat())
-    sign_along_zhat = vect_op.sign(zhat_component)
-    sign_comparison = (sign_along_zhat - (-1))**2.
-    if not (sign_comparison < 1.e-8):
-        message = 'induced velocity at observer does not work as expected. ' \
-                  'sign of test u_ind component out-of-plane of QSVR (projected on zhat) is ' + str(sign_along_zhat)
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    calculated_norm = vect_op.norm(u_ind)
-    expected_norm = 0.675237 #0.752133
-    norm_comparison = (calculated_norm - expected_norm)**2.
-    if not (norm_comparison < 1.e-8):
-        message = 'induced velocity at observer does not work as expected. ' \
-                  'squared difference of norm of test u_ind vector is ' + str(norm_comparison)
-        awelogger.logger.error(message)
-        raise Exception(message)
+    print_op.warn_about_temporary_funcationality_removal(location='vortex_flow.test')
+    #
+    # options = {}
+    # options['induction'] = {}
+    # options['induction']['vortex_core_radius'] = 0.
+    #
+    # x_obs = 0.5 * vect_op.xhat_np()
+    #
+    # u_ind = get_induced_velocity_at_observer(options, test_list, x_obs)
+    #
+    # xhat_component = cas.mtimes(u_ind.T, vect_op.xhat())
+    # if not (xhat_component == 0):
+    #     message = 'induced velocity at observer does not work as expected. ' \
+    #               'test u_ind component in plane of QSVR (along xhat) is ' + str(xhat_component)
+    #     awelogger.logger.error(message)
+    #     raise Exception(message)
+    #
+    # yhat_component = cas.mtimes(u_ind.T, vect_op.yhat())
+    # if not (yhat_component == 0):
+    #     message = 'induced velocity at observer does not work as expected. ' \
+    #               'test u_ind component in plane of QSVR (along yhat) is ' + str(yhat_component)
+    #     awelogger.logger.error(message)
+    #     raise Exception(message)
+    #
+    # zhat_component = cas.mtimes(u_ind.T, vect_op.zhat())
+    # sign_along_zhat = vect_op.sign(zhat_component)
+    # sign_comparison = (sign_along_zhat - (-1))**2.
+    # if not (sign_comparison < 1.e-8):
+    #     message = 'induced velocity at observer does not work as expected. ' \
+    #               'sign of test u_ind component out-of-plane of QSVR (projected on zhat) is ' + str(sign_along_zhat)
+    #     awelogger.logger.error(message)
+    #     raise Exception(message)
+    #
+    # calculated_norm = vect_op.norm(u_ind)
+    # expected_norm = 0.675237 #0.752133
+    # norm_comparison = (calculated_norm - expected_norm)**2.
+    # if not (norm_comparison < 1.e-8):
+    #     message = 'induced velocity at observer does not work as expected. ' \
+    #               'squared difference of norm of test u_ind vector is ' + str(norm_comparison)
+    #     awelogger.logger.error(message)
+    #     raise Exception(message)
 
     return None

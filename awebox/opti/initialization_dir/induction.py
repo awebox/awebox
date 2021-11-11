@@ -41,7 +41,7 @@ import awebox.tools.print_operations as print_op
 
 import awebox.opti.initialization_dir.tools as tools_init
 
-import awebox.mdl.aero.induction_dir.vortex_dir.filament_list as vortex_filament_list
+import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fixing

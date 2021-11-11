@@ -34,6 +34,9 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
+import awebox.mdl.aero.induction_dir.vortex_dir.element_list as vortex_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
+
 
 def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=None):
 
@@ -74,6 +77,22 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     total = cas.sum2(all)
 
     return total
+
+def get_epsilon(options, parameters):
+    c_ref = parameters['theta0','geometry','c_ref']
+    epsilon = options['aero']['vortex']['epsilon_to_chord_ratio'] * c_ref
+    return epsilon
+
+def get_r_core(options, parameters):
+    c_ref = parameters['theta0','geometry','c_ref']
+    r_core = options['aero']['vortex']['core_to_chord_ratio'] * c_ref
+    return r_core
+
+def get_PE_wingtip_name():
+    return 'ext'
+
+def get_NE_wingtip_name():
+    return 'int'
 
 def get_strength_scale(variables_dict, scaling):
     var_type = 'xl'

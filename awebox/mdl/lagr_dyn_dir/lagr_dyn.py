@@ -15,7 +15,7 @@ import awebox.mdl.lagr_dyn_dir.forces as forces_comp
 import numpy as np
 import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs):
+def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, vortex_objects):
 
     parent_map = architecture.parent_map
     number_of_nodes = architecture.number_of_nodes
@@ -52,7 +52,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # generalized forces in the system
     # --------------------------------
 
-    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, system_variables['SI'], parameters, outputs,
+    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, system_variables['SI'], parameters, outputs, vortex_objects,
                                                     architecture)
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], holonomic_constraints, outputs,
                                                   architecture)
