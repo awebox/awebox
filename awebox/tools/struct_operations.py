@@ -789,9 +789,12 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
     else:
 
         V_init_proposed = warmstart_solution_dict['V_opt']
-        lam_x_proposed  = warmstart_solution_dict['opt_arg']['lam_x0']
-        lam_g_proposed  = warmstart_solution_dict['opt_arg']['lam_g0']
-
+        if 'lam_x0' in warmstart_solution_dict['opt_arg'].keys():
+            lam_x_proposed  = warmstart_solution_dict['opt_arg']['lam_x0']
+            lam_g_proposed  = warmstart_solution_dict['opt_arg']['lam_g0']
+        else:
+            lam_x_proposed = np.zeros(nlp.V_bounds['ub'].shape)
+            lam_g_proposed = np.zeros(nlp.g.shape)
 
     V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
     if not V_shape_matches:
