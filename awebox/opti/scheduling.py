@@ -33,7 +33,7 @@ python-3.5 / casadi-3.4.5
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options):
+def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options, homotopy_method_type):
 
     schedule = {}
     schedule['cost'] = define_cost_update_schedule(cost_solver_options)
@@ -42,7 +42,10 @@ def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
-
+    
+    if homotopy_method_type == 'single':
+        schedule = compress_homotopy_schedule(schedule)
+    
     return schedule
 
 def define_homotopy_schedule(formulation):
@@ -115,7 +118,7 @@ def define_costs_to_update(P, formulation):
     tether_release_updates[0] = []
 
     power_updates = {}
-    power_updates[0] = ['power', 'psi', 'fictitious', 'power_derivative']
+    power_updates[0] = ['power', 'psi', 'power_derivative']
     power_updates[1] = []
 
     nominal_landing_updates = {}
@@ -271,6 +274,10 @@ def define_step_labels(formulation):
     compromised_landing_updates[0] = 'Switch to compromised landing problem...'
     compromised_landing_updates[1] = 'Enforce compromised landing paradigm...'
 
+    middle_updates = {}
+    middle_updates[0] = 'Switch to final problem...'
+    middle_updates[1] = 'Prepare final problem...'
+
     final_updates = {}
     final_updates[0] = 'Final solution.'
 
@@ -283,6 +290,7 @@ def define_step_labels(formulation):
     updates['transition'] = transition_updates
     updates['nominal_landing'] = nominal_landing_updates
     updates['compromised_landing'] = compromised_landing_updates
+    updates['middle'] = middle_updates
     updates['final'] = final_updates
 
     return updates
@@ -484,3 +492,23 @@ def find_current_homotopy_parameter(parameters, V_bounds):
             phi_name = phi
     
     return phi_name
+
+def compress_homotopy_schedule(schedule):
+
+    # compress intermediate steps
+    middle_steps = []
+    for step in schedule['homotopy']:
+        if step not in ['initial', 'final']:
+            middle_steps.append(step)
+    schedule['homotopy'] = ('initial', 'middle', 'final')
+
+    # fill in middle solver updates
+    schedule['costs_to_update']['middle'] = {0: [], 1: []}
+    schedule['bounds_to_update']['middle'] = {0: [], 1: []}
+    for step in middle_steps:
+        schedule['costs_to_update']['middle'][0]  += schedule['costs_to_update'][step][0]
+        schedule['costs_to_update']['middle'][1]  += schedule['costs_to_update'][step][1]
+        schedule['bounds_to_update']['middle'][0] += schedule['bounds_to_update'][step][0]
+        schedule['bounds_to_update']['middle'][1] += schedule['bounds_to_update'][step][1]
+
+    return schedule

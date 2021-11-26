@@ -313,6 +313,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'jit_flags',           '-O0',       ('flags to be passed to jit compiler', None),'t'),
         ('solver',  None,   None,   'expand_overwrite',     None,       ('expand MX --> SX [int]', None),'t'),
 
+        ('solver',  'homotopy_method',None,  'type',       'scheduled',  ('homotopy method type used', ['scheduled', 'single']), 's'),
         ('solver',  'homotopy_method',None,  'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None,  'psi',        'classic',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
@@ -394,7 +395,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'beta',             0,      1e-1,          ('starting cost for P_max', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
-        ('solver',  'cost',             'gamma',            1,      1e1,        ('update cost for gamma', None),'s'),
+        ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'s'),
         ('solver',  'cost',             'psi',              1,      1e1,        ('update cost for psi', None),'s'),
         ('solver',  'cost',             'tau',              1,      1e3,        ('update cost for tau', None),'s'),
