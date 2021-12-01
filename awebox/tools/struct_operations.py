@@ -27,6 +27,7 @@ file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -389,6 +390,36 @@ def calculate_kdx(params, V, t):
         tau = 1.0
 
     return kdx, tau
+
+def variables_si_to_scaled(model_variables, variables_si, scaling):
+
+    variables_scaled = copy.deepcopy(variables_si)
+
+    for idx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(idx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        kdx = canonical[2]
+
+        variables_scaled[var_type, var_name, kdx] = var_si_to_scaled(var_type, var_name, variables_scaled.cat[idx], scaling)
+
+    return variables_scaled
+
+def variables_scaled_to_si(model_variables, variables_scaled, scaling):
+
+    stacked = []
+    for idx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(idx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        kdx = canonical[2]
+
+        new = var_scaled_to_si(var_type, var_name, variables_scaled.cat[idx], scaling)
+        stacked = cas.vertcat(stacked, new)
+
+    variables_si = model_variables(stacked)
+    return variables_si
+
 
 def var_si_to_scaled(var_type, var_name, var_si, scaling):
 

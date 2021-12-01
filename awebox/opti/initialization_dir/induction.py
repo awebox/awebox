@@ -77,8 +77,13 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
         awelogger.logger.error(message)
         raise Exception(message)
 
-    if init_options['induction']['vortex_far_wake_model'] == 'pathwise_filament':
+    far_wake_model = init_options['induction']['vortex_far_wake_model']
+    if far_wake_model == 'pathwise_filament':
         V_init = set_far_wake_convection_velocity_initialization(init_options, V_init, model)
+
+    if 'cylinder' in far_wake_model:
+        V_init = set_far_wake_cylinder_center_initialization(init_options, V_init, model)
+        V_init = initial_guess_vortex_constants(init_options, model, V_init)
 
     if init_options['induction']['vortex_representation'] == 'state':
         V_init = set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
@@ -198,7 +203,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
     dict['wind_dcm'] = wind_dcm_cols
     dict['z_vec_length'] = cas.DM(init_options['induction']['z_vec_length'])
-    dict['u_vec_length'] = vect_op.norm(tools_init.get_wind_velocity(init_options, V_init['xd', 0, 'q10'][2]))
+    dict['u_vec_length'] = vect_op.norm(tools_init.get_wind_velocity(init_options))
     dict['gamma'] = get_gamma_angle(init_options)
     dict['g_vec_length'] = cas.DM(init_options['induction']['g_vec_length'])
     dict['cosgamma'] = np.cos(dict['gamma'])
@@ -273,6 +278,40 @@ def set_far_wake_convection_velocity_initialization(init_options, V_init, model)
                 for ddx in range(init_options['collocation']['d']):
                     velocity = vortex_fixing.get_far_wake_velocity_val(init_options, V_init_scaled, model, kite, ndx, ddx)
                     V_init['coll_var', ndx, ddx, 'xl', var_name] = velocity
+
+    return V_init
+
+
+def set_far_wake_cylinder_center_initialization(init_options, V_init, model):
+
+    n_k = init_options['n_k']
+
+    kite_nodes = model.architecture.kite_nodes
+
+    V_init_si = copy.deepcopy(V_init)
+
+    height = init_options['precompute']['height']
+    ehat_normal = tools_init.get_ehat_tether(init_options)
+
+    for kite in kite_nodes:
+        var_name = 'wx_center_' + str(kite)
+
+        parent = model.architecture.parent_map[kite]
+
+        for ndx in range(n_k):
+
+            if parent == 0:
+                parent_position = np.zeros((3, 1))
+            else:
+                grandparent = model.architecture.parent_map[parent]
+                parent_position = V_init_si['xd', ndx, 'q' + str(parent) + str(grandparent)]
+
+            x_center = parent_position + ehat_normal * height
+
+            V_init['xl', ndx, var_name] = x_center
+
+            for ddx in range(init_options['collocation']['d']):
+                V_init['coll_var', ndx, ddx, 'xl', var_name] = x_center
 
     return V_init
 
@@ -364,14 +403,14 @@ def set_state_vortex_repr_position_initialization(init_options, nlp, model, V_in
                     for ddx in range(nlp.d):
                         local_time = tgrid_coll[sdx, ddx]
                         delta_t = local_time - fixing_time
-                        vec_u = tools_init.get_wind_velocity(init_options, wx_fixing[2])
+                        vec_u = tools_init.get_wind_velocity(init_options)
                         wx_local = wx_fixing + vec_u * delta_t
                         V_init['coll_var', sdx, ddx, 'xd', var_name_local] = wx_local
 
                 for sdx in range(n_k + 1):
                     local_time = tgrid_xd[sdx]
                     delta_t = local_time - fixing_time
-                    vec_u = tools_init.get_wind_velocity(init_options, wx_fixing[2])
+                    vec_u = tools_init.get_wind_velocity(init_options)
                     wx_local = wx_fixing + vec_u * delta_t
                     V_init['xd', sdx, var_name_local] = wx_local
 
@@ -417,6 +456,21 @@ def set_algebraic_vortex_repr_strength_initialization(init_options, nlp, model, 
                 gamma_val = vortex_strength.get_local_algebraic_repr_shooting_strength_val(V_init_scaled, model, kite,
                                                                                            ring, ndx)
                 V_init['xl', ndx, var_name] = gamma_val
+
+    return V_init
+
+
+def initial_guess_vortex_constants(init_options, model, V_init):
+
+    dict = {}
+    dict['wr'] = cas.DM(init_options['precompute']['radius'])
+    dict['wh'] = cas.DM(init_options['precompute']['angular_speed'] / vect_op.norm(tools_init.get_wind_velocity(init_options)))
+
+    var_type = 'xl'
+    for name in struct_op.subkeys(model.variables, var_type):
+
+        if name[:2] in dict.keys():
+            V_init = tools_init.insert_dict(dict, var_type, name, name[:2], V_init)
 
     return V_init
 

@@ -37,58 +37,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.tools.print_operations as print_op
 
-def list_filament_observer_and_normal_info(point_obs, filament_list, options, n_hat=None):
-    # join the vortex_list to the observation data
-
-    n_filaments = filament_list.shape[1]
-
-    r_core = options['induction']['vortex_core_radius']
-
-    point_obs_extended = []
-    for jdx in range(3):
-        point_obs_extended = cas.vertcat(point_obs_extended, vect_op.ones_sx((1, n_filaments)) * point_obs[jdx])
-    eps_extended = vect_op.ones_sx((1, n_filaments)) * r_core
-
-    seg_list = cas.vertcat(point_obs_extended, filament_list, eps_extended)
-
-    if n_hat is not None:
-        n_hat_ext = []
-        for jdx in range(3):
-            n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
-
-        seg_list = cas.vertcat(seg_list, n_hat_ext)
-
-    return seg_list
-
-
-def list_filaments_kiteobs_and_normal_info(filament_list, options, variables, parameters, kite_obs, architecture, include_normal_info):
-
-    n_filaments = filament_list.shape[1]
-
-    parent_obs = architecture.parent_map[kite_obs]
-
-    point_obs = variables['xd']['q' + str(kite_obs) + str(parent_obs)]
-
-    seg_list = list_filament_observer_and_normal_info(point_obs, filament_list, options)
-
-    if include_normal_info:
-
-        n_vec_val = unit_normal.get_n_vec(options, parent_obs, variables, parameters, architecture)
-        n_hat = vect_op.normalize(n_vec_val)
-
-        n_hat_ext = []
-        for jdx in range(3):
-            n_hat_ext = cas.vertcat(n_hat_ext, vect_op.ones_sx((1, n_filaments)) * n_hat[jdx])
-
-        seg_list = cas.vertcat(seg_list, n_hat_ext)
-
-    return seg_list
-
-
-def filament_normal(seg_data):
-    n_hat = seg_data[-3:]
-    return cas.mtimes(filament(seg_data).T, n_hat)
-
 def filament(seg_data):
 
     try:
@@ -219,9 +167,17 @@ def get_cylinder_z_obs(cyl_data):
 def get_cylinder_axes(cyl_data):
     x_center = cyl_data['x_center']
     l_hat = cyl_data['l_hat']
-    x_obs = cyl_data['x_obs']
 
-    vec_diff = x_obs - x_center
+    if 'x_obs' in cyl_data.keys():
+        x_point = cyl_data['x_obs']
+    elif 'x_kite' in cyl_data.keys():
+        x_point = cyl_data['x_kite']
+    else:
+        message = 'insufficient information given in cylinder data to determine a coordinate frame'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    vec_diff = x_point - x_center
 
     ehat_long = l_hat
     vec_theta = vect_op.cross(l_hat, vec_diff)
@@ -396,6 +352,9 @@ def tangential_cylinder(cyl_data):
     u_z = u_z_factor * (u_z_part_1 + u_z_part_2_factor * (u_z_part_2_a + u_z_part_2_b))
 
     found = u_r * ehat_r + u_z * ehat_long
+    # print_op.warn_about_temporary_funcationality_removal(location='biot_savart.long_cylinder')
+    # found = cas.DM.zeros((3, 1))
+
     return found
 
 def test_tangential_cylinder():

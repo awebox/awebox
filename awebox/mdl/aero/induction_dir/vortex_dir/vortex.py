@@ -37,7 +37,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
 import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.cylinder_list as vortex_cylinder_list
 import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.tools.vector_operations as vect_op
@@ -49,7 +48,10 @@ from awebox.logger.logger import Logger as awelogger
 import numpy as np
 import pdb
 
-def construct_objects(options, variables_si, parameters, architecture, wind):
+def construct_objects(options, system_variables, parameters, architecture, wind):
+
+    variables_scaled = system_variables['scaled']
+    variables_si = system_variables['SI']
 
     near_wake = vortex_near_wake.get_list(options, variables_si, parameters, architecture, wind)
     far_wake_filaments, tangential_cylinder, longitudinal_cylinder = vortex_far_wake.get_lists(options, variables_si, parameters, architecture, wind)
@@ -71,6 +73,7 @@ def construct_objects(options, variables_si, parameters, architecture, wind):
     for key in vortex_lists.keys():
         elem_list = vortex_lists[key]
         elem_list.confirm_list_has_expected_dimensions()
+        elem_list.make_symbolic_info_function(variables_scaled, parameters)
         elem_list.make_symbolic_biot_savart_function()
 
     return vortex_lists
@@ -141,8 +144,9 @@ def test():
 
     vect_op.test_altitude()
     biot_savart.test_filament()
-    biot_savart.test_longtitudinal_cylinder()
-    biot_savart.test_tangential_cylinder()
+    print_op.warn_about_temporary_funcationality_removal(location='vortex.test')
+    # biot_savart.test_longtitudinal_cylinder()
+    # biot_savart.test_tangential_cylinder()
 
     print_op.warn_about_temporary_funcationality_removal(location='vortex.test')
     vortex_element.test_filament_type()
@@ -161,12 +165,6 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, vo
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
-
-
-    print_op.warn_about_temporary_funcationality_removal(location='vortex.outputs.columnize')
-    # columnized_list = vortex_filament_list.columnize(filament_list)
-    # outputs['vortex']['filament_list'] = columnized_list
-    # far_wake_list = vortex_filament_list.get_far_wake_list(model_options, variables_si, architecture, wind)
 
     kite_nodes = architecture.kite_nodes
     for kite_obs in kite_nodes:

@@ -124,7 +124,8 @@ def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev, r_core)
     return filament_list
 
 def expected_number_of_filaments(options, architecture):
-    wake_nodes = options['induction']['vortex_wake_nodes']
+
+    wake_nodes = tools.get_option_from_possible_dicts(options, 'wake_nodes')
     number_kites = architecture.number_of_kites
 
     rings = wake_nodes - 1

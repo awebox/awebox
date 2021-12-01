@@ -41,12 +41,12 @@ from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
 ### objects
-def construct_objects(options, variables_si, parameters, architecture, wind):
+def construct_objects(options, system_variables, parameters, architecture, wind):
 
     comparison_labels = options['aero']['induction']['comparison_labels']
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        objects = vortex.construct_objects(options, variables_si, parameters, architecture, wind)
+        objects = vortex.construct_objects(options, system_variables, parameters, architecture, wind)
     else:
         objects = {}
 

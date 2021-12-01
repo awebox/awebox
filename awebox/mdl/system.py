@@ -256,7 +256,14 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
     if ('cylinder' in vortex_far_wake_model):
         for kite in architecture.kite_nodes:
             wx_center_name = 'wx_center_' + str(kite)
-            system_lifted.extend([(wx_center_name)])
+            system_lifted.extend([(wx_center_name, (3, 1))])
+
+            for tip in wingtips:
+                w_radius_name = 'wr_' + str(kite) + '_' + tip
+                system_lifted.extend([(w_radius_name, (1, 1))])
+
+                w_pitch_name = 'wh_' + str(kite) + '_' + tip
+                system_lifted.extend([(w_pitch_name, (1, 1))])
 
     for kite_obs in architecture.kite_nodes:
         for fdx in range(number_near_filaments):

@@ -61,6 +61,7 @@ def smooth_norm(a, epsilon=1e-8):
         dot_product = np.matmul(a.T, a)
     else:
         dot_product = cas.mtimes(a.T, a)
+
     norm = smooth_sqrt(dot_product, epsilon)
 
     return norm

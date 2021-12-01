@@ -189,6 +189,13 @@ class ElementList:
 
         return combi
 
+    def make_symbolic_info_function(self, model_variables, model_parameters):
+        for elem in self.__list:
+            elem.make_symbolic_info_function(model_variables, model_parameters)
+
+        return None
+
+
     def make_symbolic_biot_savart_function(self):
 
         if self.__expected_element_info_length is not None:
@@ -250,17 +257,14 @@ class ElementList:
         u_ind = cas.sum2(all)
         return u_ind
 
-    def draw(self, ax, strength_max=None, strength_min=None):
-
-        if (strength_max is None) and (strength_min is None):
-            strength_max = self.abs_strength_max()
-            strength_min = -1. * strength_max
-
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         for elem in self.__list:
-            elem.draw(ax, strength_min, strength_max)
+            elem.draw(ax, side, variables_scaled, parameters, cosmetics)
 
-    def abs_strength_max(self):
-        all_strengths = np.array([elem.unpack_info(elem.info)['strength'] for elem in self.__list])
+        return None
+
+    def abs_strength_max(self, variables_scaled, parameters):
+        all_strengths = np.array([elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))['strength'] for elem in self.__list])
         return np.max(np.abs(all_strengths))
 
     @property
@@ -400,13 +404,13 @@ def test_filament_list_biot_savart():
     print_op.warn_about_temporary_funcationality_removal(location='vortex_element.test_filament_list_biot_savart')
     return None
 
-def test_filament_list_drawing():
-    filament_list = get_test_filament_list()
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    filament_list.draw(ax)
-    plt.show()
-    return None
+# def test_filament_list_drawing():
+#     filament_list = get_test_filament_list()
+#     fig = plt.figure()
+#     ax = plt.axes(projection='3d')
+#     filament_list.draw(ax)
+#     plt.show()
+#     return None
 
 def get_test_tangential_cylinder_list():
     cylinder_list = ElementList()

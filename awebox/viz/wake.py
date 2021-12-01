@@ -64,7 +64,6 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
 
     elif side == 'isometric':
         ax = plt.subplot(111, projection='3d')
-        draw_wake_nodes(ax, 'isometric', plot_dict, -1)
         ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
@@ -72,46 +71,37 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
         ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
-    draw_wake_nodes(ax, side, plot_dict, -1)
+    draw_wake_nodes(ax, side, plot_dict, cosmetics, -1)
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     plt.suptitle(fig_name)
 
     return None
 
-def draw_wake_nodes(ax, side, plot_dict, index):
-
-    variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
-
-    pdb.set_trace()
+def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
     vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
     if vortex_info_exists:
 
-        filament_list = reconstruct_filament_list(plot_dict, index)
+        model_variables = plot_dict['variables']
+        model_scaling = plot_dict['scaling']
 
-        n_filaments = filament_list.shape[1]
+        variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+        variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
 
-        for fdx in range(n_filaments):
-            seg_data = filament_list[:, fdx]
-            start_point = seg_data[:3].T
-            end_point = seg_data[3:6].T
-            gamma = seg_data[6]
+        parameters = plot_dict['parameters_plot']
 
-            points = cas.vertcat(start_point, end_point)
-            wake_color = convert_gamma_to_color(gamma, plot_dict)
-            try:
-                tools.make_side_plot(ax, points, side, wake_color)
-            except:
-                awelogger.logger.error('error in side plot production')
+        vortex_objects = plot_dict['vortex_objects']
+        for elem_list_name in vortex_objects.keys():
+            elem_list = vortex_objects[elem_list_name]
+            elem_list.draw(ax, side, variables_scaled, parameters, cosmetics)
 
     return None
 
 def determine_if_vortex_info_exists(plot_dict):
     vortex_exists = 'vortex' in plot_dict['outputs'].keys()
-    filament_list_exists = vortex_exists and ('filament_list' in plot_dict['outputs']['vortex'].keys())
-
-    return filament_list_exists
+    vortex_objects_exists = 'vortex_objects' in plot_dict.keys()
+    return (vortex_exists and vortex_objects_exists)
 
 def reconstruct_filament_list(plot_dict, index):
 
@@ -127,48 +117,6 @@ def reconstruct_filament_list(plot_dict, index):
 
     return filament_list
 
-def get_gamma_extrema(plot_dict):
-    n_k = plot_dict['n_k']
-    d = plot_dict['d']
-    kite_nodes = plot_dict['architecture'].kite_nodes
-    wake_nodes = plot_dict['options']['model']['aero']['vortex']['wake_nodes']
-
-    rings = wake_nodes
-
-    gamma_max = -1.e5
-    gamma_min = 1.e5
-
-    for kite in kite_nodes:
-        for ring in range(rings):
-            for ndx in range(n_k):
-                for ddx in range(d):
-
-                    gamma_name = 'wg' + '_' + str(kite) + '_' + str(ring)
-                    var = plot_dict['V_plot']['coll_var', ndx, ddx, 'xl', gamma_name]
-
-                    gamma_max = np.max(np.array(cas.vertcat(gamma_max, var)))
-                    gamma_min = np.min(np.array(cas.vertcat(gamma_min, var)))
-
-    # so that gamma = 0 vortex filaments will be drawn in white...
-    gamma_max = np.max(np.array([np.abs(gamma_max), np.abs(gamma_min)]))
-    gamma_min = -1. * gamma_max
-
-    if gamma_min > gamma_max:
-        message = 'something went wrong when finding the wake strength extrema (plotting).'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    return gamma_min, gamma_max
-
-
-def convert_gamma_to_color(gamma_val, plot_dict):
-
-    gamma_min, gamma_max = get_gamma_extrema(plot_dict)
-    cmap = plt.get_cmap('seismic')
-    gamma_scaled = float( (gamma_val - gamma_min) / (gamma_max - gamma_min) )
-
-    color = cmap(gamma_scaled)
-    return color
 
 def compute_vortex_verification_points(plot_dict, cosmetics, idx_at_eval, kdx):
     

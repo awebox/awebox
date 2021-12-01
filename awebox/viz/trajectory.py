@@ -324,7 +324,7 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
             tools.draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
 
     if cosmetics['trajectory']['wake_nodes']:
-        wake.draw_wake_nodes(ax, side, plot_dict, index)
+        wake.draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
 
     ax.get_figure().canvas.draw()
 

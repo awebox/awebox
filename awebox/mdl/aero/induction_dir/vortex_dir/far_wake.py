@@ -27,10 +27,12 @@ constructs the filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
+import copy
 import pdb
 
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as vortex_biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.element_list as vortex_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
 import awebox.mdl.aero.induction_dir.tools_dir.geom as tools_geom
@@ -178,6 +180,8 @@ def get_filament_list_from_kite(options, variables_si, parameters, wind, kite):
 
 def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, architecture):
 
+    parent = architecture.parent_map[kite]
+
     tangential_cylinder_list = vortex_element_list.ElementList()
     longitudinal_cylinder_list = vortex_element_list.ElementList()
 
@@ -194,56 +198,66 @@ def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, a
     x_center = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xl', wx_center_name)
 
     strength = vortex_tools.get_ring_strength_si(variables_si, kite, last_tracked_wake_node)
-
-    print_op.warn_about_temporary_funcationality_removal(location='far_wake.cylinder_list')
-    strength_tan = strength
-    strength_long = 0
-
     l_hat = wind.get_wind_direction()
     epsilon = vortex_tools.get_epsilon(options, parameters)
 
-    tan_NE_dict = {'x_center': x_center,
-                   'x_kite': x_kite_NE,
-                   'l_hat': l_hat,
-                   'epsilon': epsilon,
-                   'strength': -1 * strength_tan
-                   }
+    NE_dict = {'x_center': x_center,
+                'x_kite': x_kite_NE,
+                'l_hat': l_hat,
+                'epsilon': epsilon
+                }
+    strength_tan_NE, strength_long_NE = get_cylinder_strength(strength, variables_si, kite, NE_wingtip)
+
+    tan_NE_dict = copy.deepcopy(NE_dict)
+    tan_NE_dict['strength'] = strength_tan_NE
     tan_NE = vortex_element.TangentialCylinder(tan_NE_dict)
     tangential_cylinder_list.append(tan_NE)
 
-    long_NE_dict = {'x_center': x_center,
-                   'x_kite': x_kite_NE,
-                   'l_hat': l_hat,
-                   'epsilon': epsilon,
-                   'strength': -1 * strength_long
-                   }
+    long_NE_dict = copy.deepcopy(NE_dict)
+    long_NE_dict['strength'] = -1. * strength_long_NE
     long_NE = vortex_element.LongitudinalCylinder(long_NE_dict)
     longitudinal_cylinder_list.append(long_NE)
 
-    tan_PE_dict = {'x_center': x_center,
-                   'x_kite': x_kite_PE,
-                   'l_hat': l_hat,
-                   'epsilon': epsilon,
-                   'strength': strength_tan
-                   }
+
+    PE_dict = {'x_center': x_center,
+                'x_kite': x_kite_PE,
+                'l_hat': l_hat,
+                'epsilon': epsilon
+                }
+    strength_tan_PE, strength_long_PE = get_cylinder_strength(strength, variables_si, kite, PE_wingtip)
+
+    tan_PE_dict = copy.deepcopy(PE_dict)
+    tan_PE_dict['strength'] = strength_tan_PE
     tan_PE = vortex_element.TangentialCylinder(tan_PE_dict)
     tangential_cylinder_list.append(tan_PE)
 
-    long_PE_dict = {'x_center': x_center,
-                   'x_kite': x_kite_PE,
-                   'l_hat': l_hat,
-                   'epsilon': epsilon,
-                   'strength': strength_long
-                   }
+    long_PE_dict = copy.deepcopy(PE_dict)
+    long_PE_dict['strength'] = strength_long_PE
     long_PE = vortex_element.LongitudinalCylinder(long_PE_dict)
     longitudinal_cylinder_list.append(long_PE)
 
     return tangential_cylinder_list, longitudinal_cylinder_list
 
+def get_cylinder_strength(strength, variables_si, kite, tip):
+
+    # see pages 217 and 268 of Branlard
+
+    w_radius_name = 'wr_' + str(kite) + '_' + tip
+    w_pitch_name = 'wh_' + str(kite) + '_' + tip
+
+    radius = variables_si['xl'][w_radius_name]
+    pitch = variables_si['xl'][w_pitch_name]
+
+    strength_tan = -1. * strength / pitch
+    strength_long = strength / (2. * np.pi * radius)
+
+    return strength_tan, strength_long
+
+
 def expected_number_of_filaments(options, architecture):
 
-    far_wake_model = options['induction']['vortex_far_wake_model']
-    wake_nodes = options['induction']['vortex_wake_nodes']
+    wake_nodes = vortex_tools.get_option_from_possible_dicts(options, 'wake_nodes')
+    far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
     number_kites = architecture.number_of_kites
 
     if 'filament' in far_wake_model:
@@ -261,7 +275,7 @@ def expected_number_of_filaments(options, architecture):
 
 def expected_number_of_directional_cylinders(options, architecture):
 
-    far_wake_model = options['induction']['vortex_far_wake_model']
+    far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
     number_kites = architecture.number_of_kites
 
     if 'cylinder' in far_wake_model:

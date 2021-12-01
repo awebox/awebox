@@ -90,7 +90,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     vortex_objects = {}
     if not (options['induction_model'] == 'not_in_use'):
-        vortex_objects = induction.construct_objects(options, system_variables['SI'], parameters, architecture, wind)
+        vortex_objects = induction.construct_objects(options, system_variables, parameters, architecture, wind)
 
     # enforce the lagrangian dynamics
     lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, vortex_objects)

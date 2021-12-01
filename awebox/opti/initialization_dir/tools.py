@@ -27,7 +27,7 @@ repeated tools to make initialization smoother
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
-
+import pdb
 
 import numpy as np
 import casadi.tools as cas
@@ -168,7 +168,7 @@ def get_air_velocity(init_options, model, node, ret):
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
 
-    vec_u_infty = get_wind_velocity(init_options, position[2])
+    vec_u_infty = get_wind_velocity(init_options)
     vec_u_app = vec_u_infty - velocity
 
     return vec_u_app
@@ -214,13 +214,13 @@ def find_airspeed(init_options, groundspeed, psi):
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
-    uu = get_wind_velocity(init_options, zz)
+    uu = get_wind_velocity(init_options)
     u_app = dq_kite - uu
     airspeed = float(vect_op.norm(u_app))
 
     return airspeed
 
-def get_wind_velocity(init_options, zz):
+def get_wind_velocity(init_options):
     l_t = init_options['xd']['l_t']
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
@@ -238,8 +238,11 @@ def get_wind_velocity(init_options, zz):
 def insert_dict(dict, var_type, name, name_stripped, V_init):
     init_val = dict[name_stripped]
 
-    for idx in range(init_val.shape[0]):
-        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
+    try:
+        for idx in range(init_val.shape[0]):
+            V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
+    except:
+        pdb.set_trace()
 
     return V_init
 

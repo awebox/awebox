@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-21
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -127,7 +128,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     f_aero_earth = base_aerodynamic_quantities['f_aero_earth']
     f_aero_body = base_aerodynamic_quantities['f_aero_body']
 
-
     f_aero_control = base_aerodynamic_quantities['f_aero_control']
     f_aero_wind = base_aerodynamic_quantities['f_aero_wind']
     f_lift_earth = base_aerodynamic_quantities['f_lift_earth']
@@ -148,6 +148,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     airspeed = vect_op.norm(air_velocity)
     outputs['aerodynamics']['airspeed' + str(kite)] = airspeed
     outputs['aerodynamics']['u_infty' + str(kite)] = wind.get_velocity(q[2])
+
 
     rho = atmos.get_density(q[2])
     outputs['aerodynamics']['air_density' + str(kite)] = rho
@@ -176,6 +177,13 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
+
+    if int(options['kite_dof']) == 6:
+        omega = variables['xd']['omega' + str(kite) + str(architecture.parent_map[kite])]
+    else:
+        omega = cas.DM.zeros((3, 1))
+    outputs['aerodynamics']['air_velocity_int' + str(kite)] = air_velocity - vect_op.cross(omega, (b_ref/2.) * ehat_span)
+    outputs['aerodynamics']['air_velocity_ext' + str(kite)] = air_velocity + vect_op.cross(omega, (b_ref/2.) * ehat_span)
 
     circulation_cross = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
     circulation_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))

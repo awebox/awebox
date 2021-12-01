@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
@@ -57,7 +58,19 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=
 
     return dwx_local
 
+def get_option_from_possible_dicts(options, name):
+    if ('induction' in options.keys()) and (name in options['induction'].keys()):
+        value = options['induction']['vortex_' + name]
+    elif ('aero' in options.keys()) and ('vortex' in options['aero'].keys()) and (name in options['aero']['vortex'].keys()):
+        value = options['aero']['vortex'][name]
+    elif ('model' in options.keys()) and ('aero' in options['model'].keys()) and ('vortex' in options['model']['aero'].keys()) and (name in options['model']['aero']['vortex'].keys()):
+        value = options['model']['aero']['vortex'][name]
+    else:
+        message = 'no available information about the desired option (' + name + ') found.'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
+    return value
 
 def get_ring_strength_si(variables, kite, ring, scaling=None):
     coord_name = 'wg_' + str(kite) + '_' + str(ring)
@@ -123,3 +136,45 @@ def append_bounds(g_bounds, fix):
 
         return g_bounds
 
+
+def get_shedding_ndx_and_ddx(options, ndx, ddx=None):
+
+    vortex_representation = options['induction']['vortex_representation']
+
+    n_k = options['n_k']
+
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    wake_node = wake_nodes - 1
+
+    if (vortex_representation == 'state'):
+
+        shooting_ndx = n_k - wake_node
+        collocation_ndx = shooting_ndx - 1
+        modular_ndx = np.mod(collocation_ndx, n_k)
+
+        shedding_ndx = modular_ndx
+        shedding_ddx = -1
+
+    elif (vortex_representation == 'alg'):
+
+        if ddx is None:
+            ndx_collocation = ndx - 1
+            ddx_collocation = -1
+        else:
+            ndx_collocation = ndx
+            ddx_collocation = ddx
+
+        subtracted_ndx = ndx_collocation - wake_node
+        shedding_ndx = np.mod(subtracted_ndx, n_k)
+
+        if wake_node == 0:
+            shedding_ddx = ddx_collocation
+        else:
+            shedding_ddx = -1
+
+    else:
+        message = 'unknown vortex representation specified: ' + vortex_representation
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return shedding_ndx, shedding_ddx

@@ -53,8 +53,10 @@ class Element:
     def set_info(self, packed_info):
         self.__info = packed_info
 
-    def get_strength_color(self, strength_min, strength_max):
-        strength_val = self.__info_dict['strength']
+    def get_strength_color(self, strength_val, cosmetics):
+
+        strength_max = cosmetics['trajectory']['circulation_max_estimate']
+        strength_min = -1. * strength_max
 
         if strength_val > strength_max:
             message = 'reported vortex element strength ' + str(strength_val) + ' is larger than the maximum expected ' \
@@ -71,9 +73,20 @@ class Element:
         color = cmap(strength_scaled)
         return color
 
-    def evaluate_info(self, model_variables, model_parameters, variables_scaled, parameters):
-        info_fun = cas.Function('info_fun', [model_variables, model_parameters], self.__info)
-        return info_fun(variables_scaled, parameters)
+    def make_symbolic_info_function(self, model_variables, model_parameters):
+        self.__info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
+        return None
+
+    def evaluate_info(self, variables, parameters):
+        return self.__info_fun(variables, parameters)
+
+    @property
+    def info_fun(self):
+        return self.__info_fun
+
+    @info_fun.setter
+    def info_fun(self, value):
+        awelogger.logger.error('Cannot set info_fun object.')
 
     @property
     def info(self):
@@ -145,19 +158,29 @@ class Filament(Element):
                              )
         return packed
 
-    def draw(self, ax, model_variables, model_parameters, variables_scaled, parameters, strength_min, strength_max):
-        evaluated = self.evaluate_info(model_variables, model_parameters, variables_scaled, parameters)
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+        evaluated = self.evaluate_info(variables_scaled, parameters)
         unpacked = self.unpack_info(evaluated)
 
-        color = self.get_strength_color(strength_min, strength_max)
-        x = np.concatenate((self.info_dict['x_start'][0],
-                            self.info_dict['x_end'][0]), 0)
-        y = np.concatenate((self.info_dict['x_start'][1],
-                            self.info_dict['x_end'][1]), 0)
-        z = np.concatenate((self.info_dict['x_start'][2],
-                            self.info_dict['x_end'][2]), 0)
+        color = self.get_strength_color(unpacked['strength'], cosmetics)
 
-        ax.plot3D(x, y, z, c=color)
+        x_start = unpacked['x_start']
+        x_end = unpacked['x_end']
+
+        x = [x_start[0], x_end[0]]
+        y = [x_start[1], x_end[1]]
+        z = [x_start[2], x_end[2]]
+
+        if side == 'xy':
+            ax.plot(x, y, c=color)
+        elif side == 'xz':
+            ax.plot(x, z, c=color)
+        elif side == 'yz':
+            ax.plot(y, z, c=color)
+        elif side == 'isometric':
+            ax.plot3D(x, y, z, c=color)
+
+        return None
 
 class Cylinder(Element):
     def __init__(self, info_dict):
@@ -203,60 +226,64 @@ class LongitudinalCylinder(Cylinder):
         super().__init__(info_dict)
         self.set_element_type('longitudinal_cylinder')
 
-    def draw(self, ax, strength_max, strength_min):
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+        evaluated = self.evaluate_info(variables_scaled, parameters)
+        unpacked = self.unpack_info(evaluated)
 
-        x_center = self.info_dict['x_center']
-        l_hat = self.info_dict['l_hat']
-        r_cyl = biot_savart.get_cylinder_r_cyl(self.info_dict)
+        x_center = unpacked['x_center']
+        l_hat = unpacked['l_hat']
+        r_cyl = biot_savart.get_cylinder_r_cyl(unpacked)
         a_hat = vect_op.normed_cross(l_hat, vect_op.zhat_np())
         b_hat = vect_op.normed_cross(l_hat, a_hat)
 
-        print_op.warn_about_temporary_funcationality_removal(location='induction.vortex_dir.element.longitudinal_cylinder.draw:hard_coding_n')
-        n_theta = 5
+        n_s = cosmetics['trajectory']['cylinder_n_s']
 
-        s_start = 0.
-        s_end = 120.
-        print_op.warn_about_temporary_funcationality_removal(location='induction.vortex_dir.element.longitudinal_cylinder.draw:hard_coding_far_convection_time')
+        x_kite = unpacked['x_kite']
+        s_start = cas.mtimes(l_hat.T, (x_kite - x_center))
+        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
-        for tdx in np.arange(n_theta):
-            theta = 2. * np.pi * float(tdx) / float(n_theta)
+        for tdx in range(n_s):
+            theta = 2. * np.pi * float(tdx) / float(n_s)
 
             x_start = x_center + l_hat * s_start + r_cyl * np.sin(theta) * a_hat + r_cyl * np.cos(theta) * b_hat
             x_end = x_center + l_hat * s_end + r_cyl * np.sin(theta) * a_hat + r_cyl * np.cos(theta) * b_hat
 
-            color = self.get_strength_color(strength_min, strength_max)
-            x = np.concatenate((x_start[0],
-                                x_end[0]), 0)
-            y = np.concatenate((x_start[1],
-                                x_end[1]), 0)
-            z = np.concatenate((x_start[2],
-                                x_end[2]), 0)
+            color = self.get_strength_color(unpacked['strength'], cosmetics)
+            x = [x_start[0], x_end[0]]
+            y = [x_start[1], x_end[1]]
+            z = [x_start[2], x_end[2]]
 
-            ax.plot3D(x, y, z, c=color)
+            if side == 'xy':
+                ax.plot(x, y, c=color)
+            elif side == 'xz':
+                ax.plot(x, z, c=color)
+            elif side == 'yz':
+                ax.plot(y, z, c=color)
+            elif side == 'isometric':
+                ax.plot3D(x, y, z, c=color)
 
-
+        return None
 
 class TangentialCylinder(Cylinder):
     def __init__(self, info_dict):
         super().__init__(info_dict)
         self.set_element_type('tangential_cylinder')
 
-    def draw(self, ax, strength_max, strength_min):
-        x_center = self.info_dict['x_center']
-        l_hat = self.info_dict['l_hat']
-        r_cyl = biot_savart.get_cylinder_r_cyl(self.info_dict)
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+        evaluated = self.evaluate_info(variables_scaled, parameters)
+        unpacked = self.unpack_info(evaluated)
+
+        x_center = unpacked['x_center']
+        l_hat = unpacked['l_hat']
+        r_cyl = biot_savart.get_cylinder_r_cyl(unpacked)
         a_hat = vect_op.normed_cross(l_hat, vect_op.zhat_np())
         b_hat = vect_op.normed_cross(l_hat, a_hat)
 
-        print_op.warn_about_temporary_funcationality_removal(
-            location='induction.vortex_dir.element.tangential_cylinder.draw:hard_coding_n')
-        n_theta = 30
-
-        s_start = 0.
-        s_end = 120.
-        n_s = 5
-        print_op.warn_about_temporary_funcationality_removal(
-            location='induction.vortex_dir.element.tangential_cylinder.draw:hard_coding_far_convection_time')
+        n_theta = cosmetics['trajectory']['cylinder_n_theta']
+        n_s = cosmetics['trajectory']['cylinder_n_s']
+        x_kite = unpacked['x_kite']
+        s_start = cas.mtimes(l_hat.T, (x_kite - x_center))
+        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
         for sdx in range(n_s):
 
@@ -269,16 +296,21 @@ class TangentialCylinder(Cylinder):
                 x_start = x_center + l_hat * s + r_cyl * np.sin(theta_start) * a_hat + r_cyl * np.cos(theta_start) * b_hat
                 x_end = x_center + l_hat * s + r_cyl * np.sin(theta_end) * a_hat + r_cyl * np.cos(theta_end) * b_hat
 
-                color = self.get_strength_color(strength_min, strength_max)
-                x = np.concatenate((x_start[0],
-                                    x_end[0]), 0)
-                y = np.concatenate((x_start[1],
-                                    x_end[1]), 0)
-                z = np.concatenate((x_start[2],
-                                    x_end[2]), 0)
+                color = self.get_strength_color(unpacked['strength'], cosmetics)
+                x = [x_start[0], x_end[0]]
+                y = [x_start[1], x_end[1]]
+                z = [x_start[2], x_end[2]]
 
-                ax.plot3D(x, y, z, c=color)
+                if side == 'xy':
+                    ax.plot(x, y, c=color)
+                elif side == 'xz':
+                    ax.plot(x, z, c=color)
+                elif side == 'yz':
+                    ax.plot(y, z, c=color)
+                elif side == 'isometric':
+                    ax.plot3D(x, y, z, c=color)
 
+        return None
 
 def get_test_filament():
 
@@ -304,12 +336,12 @@ def test_filament_type():
 
     return None
 
-def test_filament_drawing():
-    fil = get_test_filament()
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    fil.draw(ax, -1., 1.)
-    plt.show()
+# def test_filament_drawing():
+#     fil = get_test_filament()
+#     fig = plt.figure()
+#     ax = plt.axes(projection='3d')
+#     fil.draw(ax, -1., 1.)
+#     plt.show()
 
 def get_test_tangential_cylinder():
     x_center = 0. * vect_op.xhat_np()
@@ -326,12 +358,12 @@ def get_test_tangential_cylinder():
     cyl = TangentialCylinder(dict_info)
     return cyl
 
-def test_tangential_cylinder_drawing():
-    cyl = get_test_tangential_cylinder()
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    cyl.draw(ax, -1., 1.)
-    plt.show()
+# def test_tangential_cylinder_drawing():
+#     cyl = get_test_tangential_cylinder()
+#     fig = plt.figure()
+#     ax = plt.axes(projection='3d')
+#     cyl.draw(ax, -1., 1.)
+#     plt.show()
 
 def get_test_longitudinal_cylinder():
 
@@ -349,9 +381,9 @@ def get_test_longitudinal_cylinder():
     cyl = LongitudinalCylinder(dict_info)
     return cyl
 
-def test_longitudinal_cylinder_drawing():
-    cyl = get_test_longitudinal_cylinder()
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    cyl.draw(ax, -1., 1.)
-    plt.show()
+# def test_longitudinal_cylinder_drawing():
+#     cyl = get_test_longitudinal_cylinder()
+#     fig = plt.figure()
+#     ax = plt.axes(projection='3d')
+#     cyl.draw(ax, -1., 1.)
+#     plt.show()
