@@ -70,7 +70,6 @@ def get_fixing_constraint(options, V, Outputs, model, time_grids):
 
     if 'cylinder' in vortex_far_wake_model:
         cstr_list.append(get_vortex_cylinder_center_constraint(options, V, Outputs, model))
-        cstr_list.append(get_vortex_cylinder_radius_constraint(options, V, Outputs, model))
         cstr_list.append(get_vortex_cylinder_pitch_constraint(options, V, Outputs, model))
 
     return cstr_list
@@ -430,81 +429,45 @@ def get_vortex_cylinder_center_constraint(options, V, Outputs, model):
 
 def get_vortex_cylinder_center_val(options, Outputs, model, kite, ndx, ddx=None):
     parent = model.architecture.parent_map[kite]
-    shedding_ndx, shedding_ddx = vortex_tools.get_shedding_ndx_and_ddx(options, ndx, ddx=None)
+    shedding_ndx, shedding_ddx = vortex_tools.get_shedding_ndx_and_ddx(options, ndx, ddx)
     x_center = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'performance', 'actuator_center' + str(parent)]
-
-    # x_center = vect_op.zhat_dm() * 140.
-    # print_op.warn_about_temporary_funcationality_removal(location='fixing.center_val')
 
     return x_center
 
-def get_vortex_cylinder_radius_constraint(options, V, Outputs, model):
+def get_vortex_cylinder_radius_vector_val(options, V, model, kite, tip, ndx, ddx=None):
 
-    n_k = options['n_k']
+    shedding_ndx, shedding_ddx = vortex_tools.get_shedding_ndx_and_ddx(options, ndx, ddx)
 
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    vortex_representation = options['induction']['vortex_representation']
 
-    cstr_list = cstr_op.ConstraintList()
-
-    name_base = 'far_wake_convection_radius_'
-
-    for kite in kite_nodes:
-
-        for tip in wingtips:
-            var_name = 'wr_' + str(kite) + '_' + tip
-
-            for ndx in range(n_k):
-
-                local_name = name_base + str(kite) + '_' + tip + '_' + str(ndx)
-
-                wx_scaled = V['xl', ndx, var_name]
-                wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
-
-                r_vec = get_vortex_cylinder_radius_vector_val(options, Outputs, model, kite, tip, ndx)
-
-                local_resi_si = wx_si**2. - cas.mtimes(r_vec.T, r_vec)
-                local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
-
-                local_cstr = cstr_op.Constraint(expr = local_resi,
-                                                name = local_name,
-                                                cstr_type='eq')
-                cstr_list.append(local_cstr)
-
-                for ddx in range(options['collocation']['d']):
-                    local_name = name_base + str(kite) + '_' + tip + '_' + str(ndx) + ',' + str(ddx)
-
-                    wx_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-                    wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
-
-                    r_vec = get_vortex_cylinder_radius_vector_val(options, Outputs, model, kite, tip, ndx, ddx)
-
-                    local_resi_si = wx_si ** 2. - cas.mtimes(r_vec.T, r_vec)
-                    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
-
-                    local_cstr = cstr_op.Constraint(expr=local_resi,
-                                                    name=local_name,
-                                                    cstr_type='eq')
-                    cstr_list.append(local_cstr)
-
-    return cstr_list
-
-
-def get_vortex_cylinder_radius_val(options, Outputs, model, kite, tip, ndx, ddx=None):
-    radius_vec = get_vortex_cylinder_radius_vector_val(options, Outputs, model, kite, tip, ndx, ddx)
-    radius = vect_op.smooth_norm(radius_vec)
-    return radius
-
-def get_vortex_cylinder_radius_vector_val(options, Outputs, model, kite, tip, ndx, ddx=None):
-    parent = model.architecture.parent_map[kite]
-    shedding_ndx, shedding_ddx = vortex_tools.get_shedding_ndx_and_ddx(options, ndx, ddx=None)
-    x_center = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'performance', 'actuator_center' + str(parent)]
-    x_tip = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-
+    wake_node = wake_nodes - 1
     l_hat = model.wind.get_wind_direction()
 
-    radial_vec = x_tip - x_center
+    coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+    if vortex_representation == 'state':
+        wx_node_var_type = 'xd'
+    elif vortex_representation == 'alg':
+        wx_node_var_type = 'xl'
+    else:
+        message = 'specified vortex representation ' + vortex_representation + ' is not supported'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    try:
+        wx_node = V['coll_var', shedding_ndx, shedding_ddx, wx_node_var_type, coord_name]
+    except:
+        pdb.set_trace()
+
+    wx_node_si = struct_op.var_scaled_to_si(wx_node_var_type, coord_name, wx_node, model.scaling)
+
+    wx_center_name = 'wx_center_' + str(kite)
+    wx_center = V['coll_var', shedding_ndx, shedding_ddx, 'xl', wx_center_name]
+    wx_center_si = struct_op.var_scaled_to_si('xl', wx_center_name, wx_center, model.scaling)
+
+    radial_vec = wx_node_si - wx_center_si
     radius_vec = radial_vec - cas.mtimes(radial_vec.T, l_hat) * l_hat
+
     return radius_vec
 
 
@@ -531,7 +494,7 @@ def get_vortex_cylinder_pitch_constraint(options, V, Outputs, model):
                 wx_scaled = V['xl', ndx, var_name]
                 wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
 
-                pitch_squared_eq = get_vortex_cylinder_pitch_squared_eq(wx_si, options, Outputs, model, kite, tip, ndx)
+                pitch_squared_eq = get_vortex_cylinder_pitch_squared_eq(wx_si, options, V, Outputs, model, kite, tip, ndx)
 
                 local_resi_si = pitch_squared_eq
                 local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
@@ -547,7 +510,7 @@ def get_vortex_cylinder_pitch_constraint(options, V, Outputs, model):
                     wx_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
                     wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
 
-                    pitch_squared_eq = get_vortex_cylinder_pitch_squared_eq(wx_si, options, Outputs, model, kite, tip, ndx, ddx)
+                    pitch_squared_eq = get_vortex_cylinder_pitch_squared_eq(wx_si, options, V, Outputs, model, kite, tip, ndx, ddx)
 
                     local_resi_si = pitch_squared_eq
                     local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
@@ -560,32 +523,30 @@ def get_vortex_cylinder_pitch_constraint(options, V, Outputs, model):
     return cstr_list
 
 
-def get_vortex_cylinder_pitch_squared_eq(pitch_var, options, Outputs, model, kite, tip, ndx, ddx=None):
-    parent = model.architecture.parent_map[kite]
+def get_vortex_cylinder_pitch_squared_eq(pitch_var, options, V, Outputs, model, kite, tip, ndx, ddx=None):
     shedding_ndx, shedding_ddx = vortex_tools.get_shedding_ndx_and_ddx(options, ndx, ddx=None)
 
-    air_velocity = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'air_velocity_' + tip + str(kite)]
+    parent = model.architecture.parent_map[kite]
+    u_zero = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'performance', 'u_zero' + str(parent)]
+    u_app_tip = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'u_app_' + tip + str(kite)]
     windspeed = model.wind.get_speed_ref(False)
 
     l_hat = model.wind.get_wind_direction()
-    radius_vec = get_vortex_cylinder_radius_vector_val(options, Outputs, model, kite, tip, ndx, ddx)
+    radius_vec = get_vortex_cylinder_radius_vector_val(options, V, model, kite, tip, ndx, ddx)
 
-    u_axial = cas.mtimes(air_velocity.T, l_hat)
+    u_axial = cas.mtimes(u_zero.T, l_hat)
 
-    air_velocity_axial = u_axial * l_hat
-    air_velocity_radial = cas.mtimes(air_velocity.T, radius_vec) * radius_vec / cas.mtimes(radius_vec.T, radius_vec)
-    air_velocity_tangential = air_velocity - air_velocity_radial - air_velocity_axial
+    air_velocity_axial = cas.mtimes(u_app_tip.T, l_hat) * l_hat
+    air_velocity_radial = cas.mtimes(u_app_tip.T, radius_vec) * radius_vec / cas.mtimes(radius_vec.T, radius_vec)
+    air_velocity_tangential = u_app_tip - air_velocity_radial - air_velocity_axial
 
     # u_tangential = vect_op.smooth_norm(air_velocity_tangential)
     # pitch = 2. * np.pi * u_axial / u_tangential
 
-    # pitch_squared_num = 4. * np.pi**2. * u_axial**2.
-    # pitch_squared_denom = cas.mtimes(air_velocity_tangential.T, air_velocity_tangential)
-    #
-    # pitch_squared_ref = 4. * np.pi**2. * windspeed**2.
-    # pitch_squared_eq = (pitch_var**2. * pitch_squared_denom - pitch_squared_num) / pitch_squared_ref
+    pitch_squared_num = 4. * np.pi**2. * u_axial**2.
+    pitch_squared_denom = cas.mtimes(air_velocity_tangential.T, air_velocity_tangential)
 
-    print_op.warn_about_temporary_funcationality_removal(location='fixing.pitch')
-    pitch_squared_eq = (pitch_var - 1.)
+    pitch_squared_ref = 4. * np.pi**2. * windspeed**2.
+    pitch_squared_eq = (pitch_var**2. * pitch_squared_denom - pitch_squared_num) / pitch_squared_ref
 
     return pitch_squared_eq

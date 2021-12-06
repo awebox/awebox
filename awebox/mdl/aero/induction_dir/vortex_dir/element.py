@@ -188,7 +188,7 @@ class Cylinder(Element):
         self.set_element_type('cylinder')
         packed_info = self.pack_info(info_dict)
         self.set_info(packed_info)
-        self.set_expected_info_length(11)
+        self.set_expected_info_length(10)
 
     def draw(self, ax, strength_max, strength_min):
         message = 'this element is insufficiently specified for use. please use either a Longitudinal Cylinder element or a Tangential Cylinder element'
@@ -198,14 +198,16 @@ class Cylinder(Element):
     def unpack_info(self, packed_info):
 
         x_center = packed_info[0:3]
-        x_kite = packed_info[3:6]
-        l_hat = packed_info[6:9]
-        epsilon = packed_info[9]
-        strength = packed_info[10]
+        l_hat = packed_info[3:6]
+        radius = packed_info[6]
+        l_start = packed_info[7]
+        epsilon = packed_info[8]
+        strength = packed_info[9]
 
         unpacked = {'x_center': x_center,
-                    'x_kite': x_kite,
                     'l_hat': l_hat,
+                    'radius': radius,
+                    'l_start': l_start,
                     'epsilon': epsilon,
                     'strength': strength
                     }
@@ -213,8 +215,9 @@ class Cylinder(Element):
 
     def pack_info(self, dict_info):
         packed = cas.vertcat(dict_info['x_center'],
-                             dict_info['x_kite'],
                              dict_info['l_hat'],
+                             dict_info['radius'],
+                             dict_info['l_start'],
                              dict_info['epsilon'],
                              dict_info['strength']
                              )
@@ -232,15 +235,15 @@ class LongitudinalCylinder(Cylinder):
 
         x_center = unpacked['x_center']
         l_hat = unpacked['l_hat']
-        r_cyl = biot_savart.get_cylinder_r_cyl(unpacked)
-        a_hat = vect_op.normed_cross(l_hat, vect_op.zhat_np())
-        b_hat = vect_op.normed_cross(l_hat, a_hat)
+        r_cyl = unpacked['radius']
+        l_start = unpacked['l_start']
+
+        a_hat, b_hat, _ = biot_savart.get_cylinder_axes(unpacked)
+
+        s_start = l_start
+        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
         n_s = cosmetics['trajectory']['cylinder_n_s']
-
-        x_kite = unpacked['x_kite']
-        s_start = cas.mtimes(l_hat.T, (x_kite - x_center))
-        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
         for tdx in range(n_s):
             theta = 2. * np.pi * float(tdx) / float(n_s)
@@ -275,15 +278,16 @@ class TangentialCylinder(Cylinder):
 
         x_center = unpacked['x_center']
         l_hat = unpacked['l_hat']
-        r_cyl = biot_savart.get_cylinder_r_cyl(unpacked)
-        a_hat = vect_op.normed_cross(l_hat, vect_op.zhat_np())
-        b_hat = vect_op.normed_cross(l_hat, a_hat)
+        r_cyl = unpacked['radius']
+        l_start = unpacked['l_start']
+
+        a_hat, b_hat, _ = biot_savart.get_cylinder_axes(unpacked)
+
+        s_start = l_start
+        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
         n_theta = cosmetics['trajectory']['cylinder_n_theta']
         n_s = cosmetics['trajectory']['cylinder_n_s']
-        x_kite = unpacked['x_kite']
-        s_start = cas.mtimes(l_hat.T, (x_kite - x_center))
-        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
 
         for sdx in range(n_s):
 
@@ -336,54 +340,31 @@ def test_filament_type():
 
     return None
 
-# def test_filament_drawing():
-#     fil = get_test_filament()
-#     fig = plt.figure()
-#     ax = plt.axes(projection='3d')
-#     fil.draw(ax, -1., 1.)
-#     plt.show()
+def get_test_cylinder():
+    x_center = 0. * vect_op.xhat_np()
+    radius = 5.
+    l_start = 0.
+    l_hat = vect_op.xhat_np()
+    epsilon = 0.
+    strength = 1.
+    unpacked = {'x_center': x_center,
+                'l_hat': l_hat,
+                'radius': radius,
+                'l_start': l_start,
+                'epsilon': epsilon,
+                'strength': strength
+                }
+
+    cyl = Cylinder(unpacked)
+    return cyl
+
 
 def get_test_tangential_cylinder():
-    x_center = 0. * vect_op.xhat_np()
-    x_kite = 5. * vect_op.yhat_np()
-    l_hat = vect_op.xhat_np()
-    epsilon = 0.
-    strength = 1.
-    dict_info = {'x_center': x_center,
-                 'x_kite': x_kite,
-                 'l_hat': l_hat,
-                 'epsilon': epsilon,
-                 'strength': strength}
-
-    cyl = TangentialCylinder(dict_info)
+    cyl_data = get_test_cylinder().info_dict
+    cyl = TangentialCylinder(cyl_data)
     return cyl
-
-# def test_tangential_cylinder_drawing():
-#     cyl = get_test_tangential_cylinder()
-#     fig = plt.figure()
-#     ax = plt.axes(projection='3d')
-#     cyl.draw(ax, -1., 1.)
-#     plt.show()
 
 def get_test_longitudinal_cylinder():
-
-    x_center = 0. * vect_op.xhat_np()
-    x_kite = 5. * vect_op.yhat_np()
-    l_hat = vect_op.xhat_np()
-    epsilon = 0.
-    strength = 1.
-    dict_info = {'x_center': x_center,
-                 'x_kite': x_kite,
-                 'l_hat': l_hat,
-                 'epsilon': epsilon,
-                 'strength': strength}
-
-    cyl = LongitudinalCylinder(dict_info)
+    cyl_data = get_test_cylinder().info_dict
+    cyl = LongitudinalCylinder(cyl_data)
     return cyl
-
-# def test_longitudinal_cylinder_drawing():
-#     cyl = get_test_longitudinal_cylinder()
-#     fig = plt.figure()
-#     ax = plt.axes(projection='3d')
-#     cyl.draw(ax, -1., 1.)
-#     plt.show()

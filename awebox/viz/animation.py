@@ -133,7 +133,7 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
         axes[ax].clear()
 
         # plot system
-        trajectory.plot_trajectory_instant(axes[ax], axes['ax2'], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
+        trajectory.plot_trajectory_instant(axes[ax], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
 
     # plot trajectories
     counter = 0

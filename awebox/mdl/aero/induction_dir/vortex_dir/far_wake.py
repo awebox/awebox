@@ -38,6 +38,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
 import awebox.mdl.aero.induction_dir.tools_dir.geom as tools_geom
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
 import awebox.mdl.wind as wind_module
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
@@ -178,9 +179,31 @@ def get_filament_list_from_kite(options, variables_si, parameters, wind, kite):
 
     return filament_list
 
-def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, architecture):
+def get_cylinder_strength_signs(clockwise_rotation_about_xhat=True):
 
-    parent = architecture.parent_map[kite]
+    if clockwise_rotation_about_xhat:
+        clockwise_sign = +1.
+    else:
+        clockwise_sign = -1.
+
+    tan_PE_sign = clockwise_sign * -1.
+    long_PE_sign = +1.
+
+    tan_NE_sign = -1. * tan_PE_sign
+    long_NE_sign = -1. * long_PE_sign
+
+    NE_wingtip = vortex_tools.get_NE_wingtip_name()
+    PE_wingtip = vortex_tools.get_PE_wingtip_name()
+
+    signs = {'tan_' + PE_wingtip: tan_PE_sign,
+             'long_' + PE_wingtip: long_PE_sign,
+             'tan_' + NE_wingtip: tan_NE_sign,
+             'long_' + NE_wingtip: long_NE_sign
+             }
+
+    return signs
+
+def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, architecture):
 
     tangential_cylinder_list = vortex_element_list.ElementList()
     longitudinal_cylinder_list = vortex_element_list.ElementList()
@@ -191,22 +214,31 @@ def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, a
     NE_wingtip = vortex_tools.get_NE_wingtip_name()
     PE_wingtip = vortex_tools.get_PE_wingtip_name()
 
+    wr_name_base = 'wr_' + str(kite) + '_'
+    radius_NE = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xl', wr_name_base + NE_wingtip)
+    radius_PE = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xl', wr_name_base + PE_wingtip)
+
     x_kite_NE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, last_tracked_wake_node)
     x_kite_PE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, last_tracked_wake_node)
 
     wx_center_name = 'wx_center_' + str(kite)
     x_center = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xl', wx_center_name)
 
-    strength = vortex_tools.get_ring_strength_si(variables_si, kite, last_tracked_wake_node)
     l_hat = wind.get_wind_direction()
+    l_start_NE = cas.mtimes((x_kite_NE - x_center).T, l_hat)
+    l_start_PE = cas.mtimes((x_kite_PE - x_center).T, l_hat)
+
+    strength = vortex_tools.get_ring_strength_si(variables_si, kite, last_tracked_wake_node)
+
     epsilon = vortex_tools.get_epsilon(options, parameters)
 
     NE_dict = {'x_center': x_center,
-                'x_kite': x_kite_NE,
-                'l_hat': l_hat,
-                'epsilon': epsilon
-                }
-    strength_tan_NE, strength_long_NE = get_cylinder_strength(strength, variables_si, kite, NE_wingtip)
+               'radius': radius_NE,
+               'l_start': l_start_NE,
+               'l_hat': l_hat,
+               'epsilon': epsilon
+               }
+    strength_tan_NE, strength_long_NE = get_cylinder_strength(options, strength, variables_si, kite, NE_wingtip)
 
     tan_NE_dict = copy.deepcopy(NE_dict)
     tan_NE_dict['strength'] = strength_tan_NE
@@ -214,17 +246,17 @@ def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, a
     tangential_cylinder_list.append(tan_NE)
 
     long_NE_dict = copy.deepcopy(NE_dict)
-    long_NE_dict['strength'] = -1. * strength_long_NE
+    long_NE_dict['strength'] = strength_long_NE
     long_NE = vortex_element.LongitudinalCylinder(long_NE_dict)
     longitudinal_cylinder_list.append(long_NE)
 
-
     PE_dict = {'x_center': x_center,
-                'x_kite': x_kite_PE,
-                'l_hat': l_hat,
-                'epsilon': epsilon
-                }
-    strength_tan_PE, strength_long_PE = get_cylinder_strength(strength, variables_si, kite, PE_wingtip)
+               'radius': radius_PE,
+               'l_start': l_start_PE,
+               'l_hat': l_hat,
+               'epsilon': epsilon
+               }
+    strength_tan_PE, strength_long_PE = get_cylinder_strength(options, strength, variables_si, kite, PE_wingtip)
 
     tan_PE_dict = copy.deepcopy(PE_dict)
     tan_PE_dict['strength'] = strength_tan_PE
@@ -238,9 +270,12 @@ def get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, a
 
     return tangential_cylinder_list, longitudinal_cylinder_list
 
-def get_cylinder_strength(strength, variables_si, kite, tip):
+def get_cylinder_strength(options, strength, variables_si, kite, tip):
 
     # see pages 217 and 268 of Branlard
+
+    clockwise_rotation_about_xhat = options['aero']['vortex']['clockwise_rotation_about_xhat']
+    signs = get_cylinder_strength_signs(clockwise_rotation_about_xhat)
 
     w_radius_name = 'wr_' + str(kite) + '_' + tip
     w_pitch_name = 'wh_' + str(kite) + '_' + tip
@@ -248,8 +283,8 @@ def get_cylinder_strength(strength, variables_si, kite, tip):
     radius = variables_si['xl'][w_radius_name]
     pitch = variables_si['xl'][w_pitch_name]
 
-    strength_tan = -1. * strength / pitch
-    strength_long = strength / (2. * np.pi * radius)
+    strength_tan = signs['tan_' + tip] * strength / pitch
+    strength_long = signs['long_' + tip] * strength / (2. * np.pi * radius)
 
     return strength_tan, strength_long
 
@@ -287,7 +322,46 @@ def expected_number_of_directional_cylinders(options, architecture):
 
     return cylinders
 
-#
+def get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture):
+    wingtips = ['ext', 'int']
+    wake_nodes = options['aero']['vortex']['wake_nodes']
+    vortex_representation = options['aero']['vortex']['representation']
+
+    wake_node = wake_nodes - 1
+    l_hat = wind.get_wind_direction()
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+
+    cstr_list = cstr_op.ConstraintList()
+
+    for kite in architecture.kite_nodes:
+        for tip in wingtips:
+            coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+            if vortex_representation == 'state':
+                wx_node = variables_si['xd'][coord_name]
+            elif vortex_representation == 'alg':
+                wx_node = variables_si['xl'][coord_name]
+            else:
+                message = 'specified vortex representation ' + vortex_representation + ' is not supported'
+                awelogger.logger.error(message)
+                raise Exception(message)
+
+            wx_center_name = 'wx_center_' + str(kite)
+            wx_center = variables_si['xl'][wx_center_name]
+
+            radial_vec = wx_node - wx_center
+            radius_vec = radial_vec - cas.mtimes(radial_vec.T, l_hat) * l_hat
+
+            w_radius_name = 'wr_' + str(kite) + '_' + tip
+            wr = variables_si['xl'][w_radius_name]
+
+            resi_unscaled = wr**2. - cas.mtimes(radius_vec.T, radius_vec)
+            resi = resi_unscaled / b_ref**2.
+
+            name = 'far_wake_cylinder_radius_' + str(kite) + '_' + tip
+            cstr = cstr_op.Constraint(expr = resi, cstr_type='eq', name=name)
+            cstr_list.append(cstr)
+
+    return cstr_list
 
 # def test(far_wake_model = 'freestream_filament'):
 #

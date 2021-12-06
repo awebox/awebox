@@ -251,7 +251,44 @@ def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per
         draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
         draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
 
+    return None
 
+def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False)):
+
+    options = plot_dict['options']
+    architecture = plot_dict['architecture']
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
+
+    for kite in kite_nodes:
+
+        # kite colors
+        if init_colors:
+            local_color = 'k'
+        else:
+            local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+
+        parent = parent_map[kite]
+
+        # kite position information
+        q_kite = []
+        for j in range(3):
+            q_kite = cas.vertcat(q_kite, plot_dict['xd']['q' + str(kite) + str(parent)][j][index])
+
+        # dcm information
+        r_dcm = []
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
+
+        # draw kite body
+        draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
+
+    return None
 
 def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx, output_type, output_name, cosmetics, reload_dict, dim=0):
 

@@ -148,20 +148,18 @@ def get_cylinder_r_obs(cyl_data):
     return r_obs
 
 def get_cylinder_r_cyl(cyl_data):
-    x_center = cyl_data['x_center']
-    x_kite = cyl_data['x_kite']
-    l_hat = cyl_data['l_hat']
-
-    x_axis_2 = x_center + l_hat
-    r_cyl = vect_op.get_altitude(x_center - x_kite, x_axis_2 - x_kite)
+    r_cyl = cyl_data['radius']
     return r_cyl
 
 def get_cylinder_z_obs(cyl_data):
-    x_kite = cyl_data['x_kite']
+    l_start = cyl_data['l_start']
     l_hat = cyl_data['l_hat']
+    x_center = cyl_data['x_center']
     x_obs = cyl_data['x_obs']
 
-    z_obs = cas.mtimes((x_obs - x_kite).T, l_hat)
+    x_start = x_center + l_start * l_hat
+
+    z_obs = cas.mtimes((x_obs - x_start).T, l_hat)
     return z_obs
 
 def get_cylinder_axes(cyl_data):
@@ -170,14 +168,9 @@ def get_cylinder_axes(cyl_data):
 
     if 'x_obs' in cyl_data.keys():
         x_point = cyl_data['x_obs']
-    elif 'x_kite' in cyl_data.keys():
-        x_point = cyl_data['x_kite']
+        vec_diff = x_point - x_center
     else:
-        message = 'insufficient information given in cylinder data to determine a coordinate frame'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    vec_diff = x_point - x_center
+        vec_diff = vect_op.zhat_dm()
 
     ehat_long = l_hat
     vec_theta = vect_op.cross(l_hat, vec_diff)
@@ -223,20 +216,26 @@ def test_longtitudinal_cylinder():
     r_hat = vect_op.zhat_dm()
 
     x_center = 0. * l_hat
-    x_kite = x_center + r_cyl * r_hat
+    l_start = 0.
     epsilon = 0.
+
+
+    x_kite = x_center + r_cyl * r_hat
 
     thresh = 1.e-6
 
     # check direction of induced velocity
     x_obs = 0. * l_hat + 0. * r_hat + 2. * r_cyl * vect_op.yhat_dm()
     expected_direction = vect_op.zhat_dm()
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_long,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = longitudinal_cylinder(cyl_data)
     found_direction = vect_op.normalize(found)
 
@@ -249,12 +248,14 @@ def test_longtitudinal_cylinder():
     # check value on axis
     x_obs = 0. * l_hat + 0. * r_hat
     expected_value = 0.
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_long,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = longitudinal_cylinder(cyl_data)
     found_value = vect_op.norm(found)
 
@@ -269,12 +270,14 @@ def test_longtitudinal_cylinder():
     r_obs = r_cyl / 2.
     x_obs = 0. * l_hat + r_obs * r_hat
     expected_value = 0.
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_long,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = longitudinal_cylinder(cyl_data)
     found_value = vect_op.norm(found)
 
@@ -289,12 +292,14 @@ def test_longtitudinal_cylinder():
     r_obs = r_cyl * 1.001
     x_obs = 0. * l_hat + r_obs * r_hat
     expected_value = gamma_long * r_cyl / 2. / r_obs
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_long,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = longitudinal_cylinder(cyl_data)
     found_value = vect_op.norm(found)
 
@@ -308,12 +313,14 @@ def test_longtitudinal_cylinder():
     r_obs = 3. * r_cyl
     x_obs = 0. * l_hat + r_obs * r_hat
     expected_value = gamma_long * r_cyl / 2. / r_obs
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_long,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = longitudinal_cylinder(cyl_data)
     found_value = vect_op.norm(found)
 
@@ -366,7 +373,7 @@ def test_tangential_cylinder():
     r_hat = vect_op.zhat_dm()
 
     x_center = 0. * l_hat
-    x_kite = x_center + r_cyl * r_hat
+    l_start = 0.
 
     epsilon = 0.
     thresh = 1.e-6
@@ -374,12 +381,14 @@ def test_tangential_cylinder():
     # check axial induction on plane., within cylinder
     x_obs = 0. * l_hat + 0.2 * r_cyl * r_hat
     expected_axial = 0.
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_tan,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = tangential_cylinder(cyl_data)
     found_axial = cas.mtimes(found.T, l_hat)
 
@@ -392,12 +401,14 @@ def test_tangential_cylinder():
     # check axial induction on plane., outside cylinder
     x_obs = 0. * l_hat + 2. * r_cyl * r_hat
     expected_axial = gamma_tan / 2.
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_tan,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = tangential_cylinder(cyl_data)
     found_axial = cas.mtimes(found.T, l_hat)
 
@@ -410,12 +421,14 @@ def test_tangential_cylinder():
     # check radial induction on axis
     x_obs = 0. * l_hat + 0. * r_hat
     expected_radial = 0.
-    cyl_data = {'x_kite': x_kite,
-                'x_center': x_center,
+    cyl_data = {'x_center': x_center,
                 'l_hat': l_hat,
+                'radius': r_cyl,
+                'l_start': l_start,
                 'epsilon': epsilon,
                 'strength': gamma_tan,
-                'x_obs': x_obs}
+                'x_obs': x_obs
+                }
     found = tangential_cylinder(cyl_data)
     found_radial = cas.mtimes(found.T, r_hat)
 

@@ -446,9 +446,8 @@ def elliptic_k(k=None, m=None):
             message = 'm argument of elliptic integral K(m) is outside of acceptable range.'
             awelogger.logger.error(message)
             raise Exception(message)
-    else:
-        message = 'as the argument of elliptic integral K(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1'
-        awelogger.logger.warning(message)
+    # else:
+        # be advised: as the argument of elliptic integral K(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
 
     a1 = 2.78187
     a2 = -5.25143

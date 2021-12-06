@@ -78,7 +78,7 @@ def construct_objects(options, system_variables, parameters, architecture, wind)
 
     return vortex_lists
 
-def get_vortex_cstr(options, wind, variables_si, objects, architecture):
+def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
 
     vortex_representation = options['aero']['vortex']['representation']
     cstr_list = cstr_op.ConstraintList()
@@ -89,6 +89,11 @@ def get_vortex_cstr(options, wind, variables_si, objects, architecture):
 
     superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, objects, architecture)
     cstr_list.append(superposition_cstr)
+
+    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+    if ('cylinder' in vortex_far_wake_model):
+        radius_cstr = vortex_far_wake.get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture)
+        cstr_list.append(radius_cstr)
 
     return cstr_list
 

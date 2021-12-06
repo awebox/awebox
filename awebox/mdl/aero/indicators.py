@@ -70,8 +70,16 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
-        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent,
-                                                                                                variables, architecture)
+
+        q_center = general_geom.get_center_point(options, parent, variables, architecture)
+        dq_center = general_geom.get_center_velocity(parent, variables, architecture)
+        u_infty_center = wind.get_velocity(q_center[2])
+        u_zero = u_infty_center - dq_center
+
+        outputs['performance']['actuator_center' + str(parent)] = q_center
+        outputs['performance']['actuator_velocity' + str(parent)] = dq_center
+        outputs['performance']['u_zero' + str(parent)] = u_zero
+
         outputs['performance']['f' + str(parent)] = general_flow.get_f_val(options, wind, parent, variables,
                                                                            architecture)
 
@@ -137,6 +145,8 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     kite_dcm = base_aerodynamic_quantities['kite_dcm']
     q = base_aerodynamic_quantities['q']
 
+    parent = architecture.parent_map[kite]
+
     f_lift_earth_overwrite = options['aero']['overwrite']['f_lift_earth']
     if f_lift_earth_overwrite is not None:
         f_lift_earth = f_lift_earth_overwrite
@@ -149,6 +159,8 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['airspeed' + str(kite)] = airspeed
     outputs['aerodynamics']['u_infty' + str(kite)] = wind.get_velocity(q[2])
 
+    u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
+    outputs['aerodynamics']['u_app' + str(kite)] = u_app_kite
 
     rho = atmos.get_density(q[2])
     outputs['aerodynamics']['air_density' + str(kite)] = rho
@@ -179,11 +191,25 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     if int(options['kite_dof']) == 6:
-        omega = variables['xd']['omega' + str(kite) + str(architecture.parent_map[kite])]
+        omega = variables['xd']['omega' + str(kite) + str(parent)]
     else:
         omega = cas.DM.zeros((3, 1))
-    outputs['aerodynamics']['air_velocity_int' + str(kite)] = air_velocity - vect_op.cross(omega, (b_ref/2.) * ehat_span)
-    outputs['aerodynamics']['air_velocity_ext' + str(kite)] = air_velocity + vect_op.cross(omega, (b_ref/2.) * ehat_span)
+
+    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
+    for tip in ['ext', 'int']:
+
+        if tip == 'ext':
+            sign = +1.
+        elif tip == 'int':
+            sign = -1.
+
+        x_wingtip = q + sign * ehat_span * b_ref / 2.
+        u_infty_wingtip = wind.get_velocity(x_wingtip[2])
+        u_rot_wingtip = (b_ref/2.) * vect_op.cross(omega, sign * ehat_span)
+        u_app_wingtip = u_infty_wingtip - (u_kite + u_rot_wingtip)
+
+        outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
+        outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
 
     circulation_cross = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
     circulation_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
@@ -191,9 +217,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
     outputs['aerodynamics']['circulation_cl' + str(kite)] = circulation_cl
     outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
-
-    outputs['aerodynamics']['wingtip_ext' + str(kite)] = q + ehat_span * b_ref / 2.
-    outputs['aerodynamics']['wingtip_int' + str(kite)] = q - ehat_span * b_ref / 2.
 
     outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
 

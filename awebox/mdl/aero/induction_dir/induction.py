@@ -122,7 +122,7 @@ def get_specific_cstr(options, atmos, wind, variables_si, parameters, objects, o
 
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     if any_vor:
-        vortex_cstr = vortex.get_vortex_cstr(options, wind, variables_si, objects, architecture)
+        vortex_cstr = vortex.get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture)
         cstr_list.append(vortex_cstr)
 
     return cstr_list
@@ -131,7 +131,7 @@ def get_specific_cstr(options, atmos, wind, variables_si, parameters, objects, o
 ## velocities
 
 def get_kite_induced_velocity_var(variables, wind, kite):
-    ind_var = variables['xl']['ui' + str(kite)] * wind.get_speed_ref()
+    ind_var = variables['xl']['ui' + str(kite)]
     return ind_var
 
 def get_kite_induced_velocity_val(model_options, wind, variables, kite, architecture, parameters, outputs):

@@ -43,6 +43,7 @@ def get_kite_apparent_velocity(variables, wind, kite, parent):
 
     return u_app_kite
 
+
 def get_uzero_vec(model_options, wind, parent, variables, architecture):
 
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)

@@ -71,7 +71,12 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
         ax.yaxis._axinfo['label']['space_factor'] = 2.8
         ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
-    draw_wake_nodes(ax, side, plot_dict, cosmetics, -1)
+    index = -1
+    draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
+
+    if cosmetics['trajectory']['kite_bodies']:
+        init_colors = False
+        tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     plt.suptitle(fig_name)

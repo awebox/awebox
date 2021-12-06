@@ -716,6 +716,9 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ind = a_ref * u_ref
 
+    clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
+    options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
+
     number_near_filaments = vortex_near_wake.expected_number_of_filaments(options, architecture)
     number_far_filaments = vortex_far_wake.expected_number_of_filaments(options, architecture)
     number_dimensional_cylinders = vortex_far_wake.expected_number_of_directional_cylinders(options, architecture)
