@@ -1174,22 +1174,16 @@ def estimate_energy(options, architecture):
 def estimate_time_period(options, architecture):
 
     windings = float(options['user_options']['trajectory']['lift_mode']['windings'])
-    winding_period = float(options['solver']['initialization']['winding_period'])
-
-    estimate_1 = windings * winding_period
+    cone_angle = float(options['solver']['initialization']['cone_deg'])*np.pi/180.0
+    ground_speed = float(options['solver']['initialization']['groundspeed'])
 
     number_of_kites = architecture.number_of_kites
     if number_of_kites == 1:
-        cone_angle = options['solver']['initialization']['max_cone_angle_single'] * np.pi / 180.
         length = options['solver']['initialization']['l_t']
     else:
-        cone_angle = options['solver']['initialization']['max_cone_angle_multi'] * np.pi / 180.
         length = options['solver']['initialization']['theta']['l_s']
     radius = length * np.sin(cone_angle)
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
 
-    estimate_2 = (2. * np.pi * windings) / np.sqrt( acc_max / radius)
-
-    time_period = (estimate_1 + estimate_2) / 2.
+    time_period = (2. * np.pi * windings * radius) / ground_speed
 
     return time_period
