@@ -327,7 +327,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
-        ('solver',  'initialization', None, 'winding_period',       10.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
+        ('solver',  'initialization', None, 'cone_deg',             25.,        ('initial guess of reasonable period for one winding [s]', None), 'x'),
         ('solver',  'initialization', None, 'inclination_deg',      15.,        ('initial tether inclination angle [deg]', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
