@@ -97,7 +97,7 @@ class Optimization(object):
 
     def solve(self, options, nlp, model, formulation, visualization,
               final_homotopy_step='final', warmstart_file = None, vortex_linearization_file = None, debug_flags =
-              [], debug_locations = []):
+              [], debug_locations = [], intermediate_solve = False):
 
         self.__debug_flags = debug_flags
         if debug_flags != [] and debug_locations == []:
@@ -109,12 +109,13 @@ class Optimization(object):
 
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
+            self.__intermediate_solve = intermediate_solve
 
             # reset timings / iteration counters
             self.reset_timings_and_counters()
 
            # schedule the homotopy steps
-            self.define_homotopy_update_schedule(model, formulation, nlp, options['cost'])
+            self.define_homotopy_update_schedule(model, formulation, nlp, options)
 
             # prepare problem
             self.define_standard_args(nlp, formulation, model, options, visualization)
@@ -223,7 +224,7 @@ class Optimization(object):
         nx = V.cat.shape[0]
         ng = nlp.g.shape[0]
         np = P.cat.shape[0]
-        awe_callback = callback.awebox_callback(name, model, nlp, options, V, P, nx, ng, np)
+        awe_callback = callback.awebox_callback(name, model, nlp, options, V, P, nx, ng, np, record_states = options['record_states'])
 
         return awe_callback
 
@@ -322,7 +323,10 @@ class Optimization(object):
             self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, initial_solver, visualization)
 
         elif step_name == 'final':
-            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
+            if not self.__intermediate_solve:
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
+            else:
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, middle_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
@@ -352,12 +356,16 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # find current homotopy parameter
-            phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
+            if options['homotopy_method']['type'] == 'single':
+                phi_name = 'middle'
+                options['homotopy_method']['middle'] = 'penalty'
+            else:
+                phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
             # solve
-            if options['homotopy_method'] == 'classic' and (counter == 0) and (phi_name != None):
-                
-                self.__perform_classic_continuation(step_name, phi_name, options, solver)
+            if (phi_name != None) and (options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
+                if (options['homotopy_step'][phi_name] < 1.0):
+                    self.__perform_classic_continuation(step_name, phi_name, options, solver)
 
             else:
 
@@ -383,7 +391,7 @@ class Optimization(object):
     def __perform_classic_continuation(self, step_name, phi_name, options, solver):
 
         # define parameter path
-        step = options['homotopy_step']
+        step = options['homotopy_step'][phi_name]
         parameter_path = linspace(1-step, step, int(1/step)-1)
 
         # update fixed params
@@ -500,9 +508,9 @@ class Optimization(object):
 
     ### scheduling
 
-    def define_homotopy_update_schedule(self, model, formulation, nlp, cost_options):
+    def define_homotopy_update_schedule(self, model, formulation, nlp, options):
 
-        self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options)
+        self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, options['cost'], options['homotopy_method']['type'])
         return None
 
     def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_solution_dict, nlp, model):

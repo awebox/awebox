@@ -116,7 +116,7 @@ def set_wu_ind(init_options, nlp, model, V_init):
                                                                kite_obs)
                 ind_name = 'wu_ind_' + str(kite_obs)
 
-                if ddx == 0:
+                if ddx == 0 and 'z' in list(V_init.keys()):
                     V_init['z', kdx, ind_name] = u_ind_kite
                 else:
                     V_init['coll_var', kdx, ddx, 'z', ind_name] = u_ind_kite
@@ -129,7 +129,7 @@ def set_wu_ind(init_options, nlp, model, V_init):
 
                     ind_name = 'wu_fil_' + str(fdx) + '_' + str(kite_obs)
 
-                    if ddx == 0:
+                    if ddx == 0 and 'z' in list(V_init.keys()):
                         V_init['z', kdx, ind_name] = u_ind_fil
                     else:
                         V_init['coll_var', kdx, ddx, 'z', ind_name] = u_ind_fil
@@ -336,12 +336,14 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
 
         t = tgrid_x[ndx]
         psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-        V_init['z', ndx, 'psi' + str(kite_parent)] = psi
+        
+        if 'z' in list(V_init.keys()):
+            V_init['z', ndx, 'psi' + str(kite_parent)] = psi
 
-        if '[z,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['z', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
-        if '[z,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['z', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
+            if '[z,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['z', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if '[z,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['z', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
         for ddx in range(nlp.d):
             t = tgrid_coll[ndx, ddx]
@@ -503,10 +505,12 @@ def get_local_alg_repr_fixing_initialization(init_options, V_init, nlp, model, k
 
 def get_continuity_fixing_initialization(V_init, kite, tip, wake_node, ndx):
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    V_init['z', ndx, var_name] = V_init['coll_var', ndx-1, -1, 'z', var_name]
+    if 'z' in list(V_init.keys()):
+        V_init['z', ndx, var_name] = V_init['coll_var', ndx-1, -1, 'z', var_name]
     return V_init
 
 def get_alg_periodic_fixing_initialization(V_init, kite, tip, wake_node):
     var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    V_init['z', 0, var_name] = V_init['coll_var', -1, -1, 'z', var_name]
+    if 'z' in list(V_init.keys()):
+        V_init['z', 0, var_name] = V_init['coll_var', -1, -1, 'z', var_name]
     return V_init

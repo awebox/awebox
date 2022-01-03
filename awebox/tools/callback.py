@@ -26,9 +26,10 @@ import casadi.tools as cas
 import numpy as np
 import pickle
 import collections
+import copy
 
 class awebox_callback(cas.Callback):
-    def __init__(self, name, model, nlp, options, V, P, nx, ng, np, opts={}):
+    def __init__(self, name, model, nlp, options, V, P, nx, ng, np, record_states = True, opts={}):
 
         cas.Callback.__init__(self)
 
@@ -42,6 +43,7 @@ class awebox_callback(cas.Callback):
         self.nlp = nlp
         [self.Out, self.Out_fun] = nlp.output_components
 
+        self.record_states = record_states
         self.__init_dicts()
 
         # Initialize internal objects
@@ -69,30 +71,50 @@ class awebox_callback(cas.Callback):
         darg = {}
         for (i,s) in enumerate(cas.nlpsol_out()): darg[s] = arg[i]
         sol = darg['x']
+        lam_x = darg['lam_x']
+        lam_g = darg['lam_g']
+
         V = self.V(sol)
         P = self.P
 
         for phi in list(self.phi_dict.keys()):
           self.phi_dict[phi].append(V['phi', phi])
         
-        for x in list(self.model.variables_dict['x'].keys()):
-          for dim in range(self.model.variables_dict['x'][x].shape[0]):
-            self.x_dict[x+'_'+str(dim)].append(self.extract_x_vals(V, x, dim))
-        
-        for u in list(self.model.variables_dict['u'].keys()):
-          for dim in range(self.model.variables_dict['u'][u].shape[0]):
-            self.u_dict[u+'_'+str(dim)].append(self.extract_u_vals(V, u, dim))
+        if self.record_states:
+            for x in list(self.model.variables_dict['x'].keys()):
+                for dim in range(self.model.variables_dict['x'][x].shape[0]):
+                    self.x_dict[x+'_'+str(dim)].append(self.extract_x_vals(V, x, dim))
+                
+            for u in list(self.model.variables_dict['u'].keys()):
+                for dim in range(self.model.variables_dict['u'][u].shape[0]):
+                    self.u_dict[u+'_'+str(dim)].append(self.extract_u_vals(V, u, dim))
 
-        for theta in list(self.model.variables_dict['theta'].keys()):
-          for dim in range(self.model.variables_dict['theta'][theta].shape[0]):
-            self.theta_dict[theta+'_'+str(dim)].append(V['theta',theta, dim])
+            for z in list(self.model.variables_dict['z'].keys()):
+                for dim in range(self.model.variables_dict['z'][z].shape[0]):
+                    self.z_dict[z+'_'+str(dim)].append(self.extract_z_vals(V, z, dim))
 
-        for t in list(self.t_dict.keys()):
-          self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
+            for theta in list(self.model.variables_dict['theta'].keys()):
+                for dim in range(self.model.variables_dict['theta'][theta].shape[0]):
+                    self.theta_dict[theta+'_'+str(dim)].append(V['theta',theta, dim])
 
-        energy = self.nlp.integral_output_components[1](V, P)
-        self.avg_power.append(energy[-1]/self.t_dict['x'][-1][-1])
-        # Out = self.Out(self.Out_fun(V, self.P))
+            for t in list(self.t_dict.keys()):
+                self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
+
+            energy = self.nlp.integral_output_components[1](V, P)
+            self.avg_power.append(energy[-1]/self.t_dict['x'][-1][-1])
+            # Out = self.Out(self.Out_fun(V, self.P))
+
+            for x in list(self.model.variables_dict['x'].keys()):
+
+                for dim in range(self.model.variables_dict['x'][x].shape[0]):
+                    self.lam_x_dict[x+'_'+str(dim)].append(self.extract_x_vals(self.V(lam_x), x, dim))
+
+                self.lam_g += [lam_g]
+                self.g_dict += [self.nlp.g_fun(V,P)]
+
+        for cost in list(self.cost_dict.keys()):
+            self.cost_dict[cost].append(self.nlp.cost_components[0][cost+'_fun'](V,P))
+
         return [0]
 
     def extract_x_vals(self, V, name, dim):
@@ -113,7 +135,17 @@ class awebox_callback(cas.Callback):
         else:
           u_vals += V['coll_var',k, :, 'u', name, dim]
       return u_vals
-  
+
+    def extract_z_vals(self, V, name, dim):
+      z_vals = []
+      for k in range(self.nlp.n_k):
+          # add interval values
+          z_vals.append(V['z',k,name,dim])
+          # add node values
+          z_vals += V['coll_var',k, :, 'z', name,dim]
+      z_vals.append(V['z', 0, name, dim])
+      return z_vals
+
     def __init_dicts(self):
       
       phi_dict = collections.OrderedDict()
@@ -130,6 +162,11 @@ class awebox_callback(cas.Callback):
         for dim in range(self.model.variables_dict['u'][u].shape[0]):
           u_dict[u+'_'+str(dim)] = []
 
+      z_dict = collections.OrderedDict()
+      for z in self.model.variables_dict['z'].keys():
+        for dim in range(self.model.variables_dict['z'][z].shape[0]):
+          z_dict[z+'_'+str(dim)] = []
+
       theta_dict = collections.OrderedDict()
       for th in self.model.variables_dict['theta'].keys():
         for dim in range(self.model.variables_dict['theta'][th].shape[0]):
@@ -139,11 +176,22 @@ class awebox_callback(cas.Callback):
       for t in self.nlp.time_grids.keys():
         t_dict[t] = []
 
+      cost_dict = collections.OrderedDict()
+      for cost in self.nlp.cost_components[1].keys():
+          cost_dict[cost] = []
+
+      lam_x_dict = copy.deepcopy(x_dict)
+
       self.phi_dict = phi_dict
       self.x_dict = x_dict
       self.u_dict = u_dict
+      self.z_dict = z_dict
       self.theta_dict = theta_dict
+      self.cost_dict = cost_dict
       self.t_dict = t_dict
+      self.lam_x_dict = lam_x_dict
+      self.g_dict = []
+      self.lam_g = []
       self.avg_power = []
       
       return None

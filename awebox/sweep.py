@@ -127,15 +127,25 @@ class Sweep:
                                                                                                apply_sweeping_warmstart=apply_sweeping_warmstart,
                                                                                                have_already_saved_prev_trial=have_already_saved_prev_trial)
 
-                single_trial.optimize(options_seed = param_options,
-                                      final_homotopy_step =
-                                      final_homotopy_step, debug_flags =
-                                      debug_flags, debug_locations =
-                                      debug_locations, warmstart_file = warmstart_file)
+                if apply_sweeping_warmstart:
+                    single_trial.optimize(options_seed = param_options,
+                                        final_homotopy_step =
+                                        final_homotopy_step, debug_flags =
+                                        debug_flags, debug_locations =
+                                        debug_locations, warmstart_file = warmstart_file,
+                                        intermediate_solve = True)
+                    warmstart_file = single_trial.solution_dict
 
-                if apply_sweeping_warmstart and single_trial.return_status_numeric < 3:
-                    single_trial.save(fn=prev_trial_save_name)
-                    have_already_saved_prev_trial = True
+                    if single_trial.return_status_numeric < 3:
+                        single_trial.save(fn=prev_trial_save_name)
+                        have_already_saved_prev_trial = True
+
+                single_trial.optimize(options_seed = param_options,
+                    final_homotopy_step =
+                    final_homotopy_step, debug_flags =
+                    debug_flags, debug_locations =
+                    debug_locations, warmstart_file = warmstart_file,
+                    intermediate_solve = False)
 
                 recalibrated_plot_dict = sweep_funcs.recalibrate_visualization(single_trial)
                 self.__plot_dict[trial_to_run][param] = copy.deepcopy(recalibrated_plot_dict)

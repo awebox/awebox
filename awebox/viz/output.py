@@ -161,7 +161,7 @@ def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
     if len(plot_dict['outputs']['model_inequalities'].keys()) > 0:
         plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
 
-    plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
+    # plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
 
 def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
 

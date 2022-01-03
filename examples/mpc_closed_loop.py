@@ -12,20 +12,20 @@ import copy
 # single kite with point-mass model
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options['user_options.system_model.kite_dof'] = 3
 options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+options['user_options.system_model.kite_dof'] = 3
 
-# trajectory should be a single pumping cycle with initial number of five windings
+# trajectory should be a single pumping cycle
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
 
-# don't include induction effects, use simple tether drag
-options['user_options.induction_model'] = 'not_in_use'
-options['user_options.tether_drag_model'] = 'split'
-options['model.tether.lift_tether_force'] = False
-options['model.aero.lift_aero_force'] = False
+# wind model
+options['params.wind.z_ref'] = 10.0
+options['user_options.wind.model'] = 'log_wind'
+options['user_options.wind.u_ref'] = 5.
 
+# NLP discretization
 options['nlp.n_k'] = 40
 options['nlp.collocation.u_param'] = 'poly'
 

@@ -33,7 +33,6 @@ import awebox.viz.wake as wake
 import casadi.tools as cas
 
 import matplotlib
-matplotlib.use('Agg')
 
 import matplotlib.animation as manimation
 
