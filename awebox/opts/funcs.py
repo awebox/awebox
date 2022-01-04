@@ -165,12 +165,15 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
 
     n_k = options['nlp']['n_k']
-    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k,             ('regularisation cost normalization', None),'x'))
+    N_n = architecture.number_of_nodes
+    N_k = architecture.number_of_kites
+    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k*N_n,             ('tracking cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k*N_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation', n_k,             ('xdot_regularisation cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  n_k*N_n,             ('xdot_regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k*N_k,             ('fictitious cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 n_k*N_k,             ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
 
