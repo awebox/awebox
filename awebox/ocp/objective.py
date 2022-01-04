@@ -403,7 +403,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
             for j in range(nlp_options['collocation']['d']):
                 beta_cost += int_weights[j]*Outputs['coll_outputs', k, j, 'aerodynamics', 'beta{}'.format(kite)]**2
 
-    beta_cost = P['cost', 'beta']*beta_cost
+    beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
 
     return beta_cost
 
