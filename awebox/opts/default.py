@@ -486,6 +486,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'dc_max', 1e1,                      ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'ddc_max', 5e1,                     ('maximum invariant test parameter', None), 'x'),
+        ('quality', 'test_param', None, 'r_max', 1e-2,                      ('maximum invariant test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_loyd_factor', 30,              ('maximum loyd factor test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_power_harvesting_factor', 100, ('maximum power harvesting factor test parameter', None), 'x'),
         ('quality', 'test_param', None, 'max_tension', 1e6,                 ('maximum max main tether tension test parameter', None), 'x'),

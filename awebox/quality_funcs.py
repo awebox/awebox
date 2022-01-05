@@ -81,11 +81,15 @@ def test_invariants(trial, test_param_dict, results):
     c_max = test_param_dict['c_max']
     dc_max = test_param_dict['dc_max']
     ddc_max = test_param_dict['ddc_max']
+    r_max = test_param_dict['r_max']
 
     # get architecture
     architecture = trial.model.architecture
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
+
+    # DOF
+    DOF6 = trial.options['user_options']['system_model']['kite_dof'] == 6
 
     # loop over nodes
     for node in range(1,number_of_nodes):
@@ -97,15 +101,19 @@ def test_invariants(trial, test_param_dict, results):
                 c_list = out_local['coll_outputs', :, :, 'tether_length', 'c' + str(node) + str(parent)]
                 dc_list = out_local['coll_outputs', :, :, 'tether_length', 'dc' + str(node) + str(parent)]
                 ddc_list = out_local['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)]
-
+                if DOF6:
+                    r_list = out_local['coll_outputs', :, :, 'tether_length', 'orthonormality' + str(node) + str(parent)]
             elif discretization == 'multiple_shooting':
                 c_list = out_local['outputs', :, 'tether_length', 'c' + str(node) + str(parent)]
                 dc_list = out_local['outputs', :, 'tether_length', 'dc' + str(node) + str(parent)]
                 ddc_list = out_local['outputs', :, 'tether_length', 'ddc' + str(node) + str(parent)]
 
-            c_avg = np.average(abs(np.array(c_list)))
-            dc_avg = np.average(abs(np.array(dc_list)))
-            ddc_avg = np.average(abs(np.array(ddc_list)))
+            c_avg = np.max(abs(np.array(c_list)))
+            dc_avg = np.max(abs(np.array(dc_list)))
+            ddc_avg = np.max(abs(np.array(ddc_list)))
+
+            if DOF6:
+                r_avg = np.max([np.max(np.abs(np.array(r_list[x][y]))) for x in range(len(r_list)) for y in range(len(r_list[0]))])
 
             # test whether invariants are small enough
             if i == 0:
@@ -129,6 +137,13 @@ def test_invariants(trial, test_param_dict, results):
                     results['ddc' + str(node) + str(parent)] = False
                 else:
                     results['ddc' + str(node) + str(parent)] = True
+
+                if DOF6:
+                    if r_avg > r_max:
+                        awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                        results['r' + str(node) + str(parent)] = False
+                    else:
+                        results['r' + str(node) + str(parent)] = True
 
     return results
 
@@ -386,6 +401,7 @@ def generate_test_param_dict(options):
     test_param_dict['c_max'] = options['test_param']['c_max']
     test_param_dict['dc_max'] = options['test_param']['dc_max']
     test_param_dict['ddc_max'] = options['test_param']['ddc_max']
+    test_param_dict['r_max'] = options['test_param']['r_max']
     test_param_dict['max_loyd_factor'] = options['test_param']['max_loyd_factor']
     test_param_dict['max_power_harvesting_factor'] = options['test_param']['max_power_harvesting_factor']
     test_param_dict['max_tension'] = options['test_param']['max_tension']
