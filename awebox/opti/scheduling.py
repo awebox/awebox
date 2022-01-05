@@ -154,7 +154,10 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
     updates = {}
 
     initial_updates = {}
-    initial_updates[0] = []
+    if 'ddl_t' in list(model.variables_dict['u'].keys()):
+        initial_updates[0] = ['ddl_t', 'ddl_t'] + struct_op.subkeys(model.variables, 'theta') * 2
+    elif 'dddl_t' in list(model.variables_dict['u'].keys()):
+        initial_updates[0] = ['dddl_t', 'dddl_t'] + struct_op.subkeys(model.variables, 'theta') * 2
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma']
@@ -180,10 +183,7 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
 
     power_updates = {}
     # check which tether length variable is a control variable
-    if 'ddl_t' in list(model.variables_dict['u'].keys()):
-        power_updates[0] = ['ddl_t', 'ddl_t', 'psi'] + struct_op.subkeys(model.variables, 'theta') * 2
-    elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-        power_updates[0] = ['dddl_t', 'dddl_t', 'psi'] + struct_op.subkeys(model.variables, 'theta') * 2
+    power_updates[0] = ['psi']
     # check if phase fix
     if 'dl_t' in list(bounds_schedule.keys()):
         power_updates[0] += ['dl_t']*2

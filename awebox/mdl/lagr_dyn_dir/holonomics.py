@@ -57,6 +57,23 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
         holonomic_constraints += z_si['lambda{}{}'.format(node, parent)] * g_local
 
+        if node in kite_nodes:
+            if 'r' + str(node) + str(parent) in list(x_si.keys()):
+                r = cas.reshape(var_scaled['x', 'r' + str(node) + str(parent)], (3, 3))
+                orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
+                orthonormality = cas.reshape(orthonormality, (9, 1))
+
+                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
+
+                dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
+                dr_dt = cas.reshape(dr_dt, (3, 3))
+                omega = variables['SI']['x']['omega' + str(node) + str(parent)]
+                omega_skew = vect_op.skew(omega)
+                dr = cas.mtimes(r, omega_skew)
+                rot_kinematics = dr_dt - dr
+                rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
+                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
+
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
 
@@ -96,24 +113,6 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
 
                 # add to holonomic constraints
                 holonomic_constraints += z_si['lambda{}'.format(n01)] * g_local
-
-        if node in kite_nodes:
-            if 'r' + str(node) + str(parent) in list(x_si.keys()):
-                r = cas.reshape(var_scaled['x', 'r' + str(node) + str(parent)], (3, 3))
-                orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
-                orthonormality = cas.reshape(orthonormality, (9, 1))
-
-                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
-
-                dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
-                dr_dt = cas.reshape(dr_dt, (3, 3))
-                omega = variables['SI']['x']['omega' + str(node) + str(parent)]
-                omega_skew = vect_op.skew(omega)
-                dr = cas.mtimes(r, omega_skew)
-                rot_kinematics = dr_dt - dr
-                rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
-
-                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
 
     g_cat = cas.vertcat(*g)
     gdot_cat = cas.vertcat(*gdot)
