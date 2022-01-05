@@ -222,6 +222,7 @@ def generate_default_solver_options(options):
     opts['ipopt.mu_target'] = options['mu_target']
     opts['ipopt.mu_init'] = options['mu_init']
     opts['ipopt.tol'] = options['tol']
+    opts['ipopt.ma57_automatic_scaling'] = 'yes'
 
     opts['record_time'] = 1
 
