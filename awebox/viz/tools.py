@@ -281,20 +281,30 @@ def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx,
     else:
         plt.title(output_name)
 
-def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, cosmetics):
+def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if  discretization == 'direct_collocation':
 
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
 
-        # total time points
-        tgrid_u_coll = plot_dict['time_grids']['x_coll'][:-1]
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+
+            # total time points
+            tgrid_u_coll = plot_dict['time_grids']['x_coll'][:-1]
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+
+            # total time points
+            tgrid_u_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]  
 
     # interval time points
-    tgrid_u = plot_dict['time_grids']['u']
+    if not ref:
+        tgrid_u = plot_dict['time_grids']['u']
+    else:
+        tgrid_u = plot_dict['time_grids']['ref']['u']
 
     if discretization == 'multiple_shooting':
         # take interval values
@@ -338,20 +348,28 @@ def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, c
 
     return output_values, tgrid, ndim
 
-def merge_x_values(V ,name, dim, plot_dict, cosmetics):
+def merge_x_values(V ,name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs
 
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
 
-        # total time points
-        tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll'] 
 
-        # interval time points
-    tgrid_x = plot_dict['time_grids']['x']
+    # interval time points
+    if not ref:
+        tgrid_x = plot_dict['time_grids']['x']
+    else:
+        tgrid_x = plot_dict['time_grids']['ref']['x']
 
     if discretization == 'multiple_shooting':
         # take interval values
@@ -389,18 +407,27 @@ def merge_x_values(V ,name, dim, plot_dict, cosmetics):
 
     return x_values, tgrid
 
-def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics):
+def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
-        # total time points
-        tgrid_z_coll = plot_dict['time_grids']['x_coll'][:-1]
+
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+            # total time points
+            tgrid_z_coll = plot_dict['time_grids']['x_coll'][:-1]
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            # total time points
+            tgrid_z_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]   
 
     # interval time points
-    tgrid_z = plot_dict['time_grids']['u']
+    if not ref:
+        tgrid_z = plot_dict['time_grids']['u']
+    else:
+        tgrid_z = plot_dict['time_grids']['ref']['u']
 
     if discretization == 'multiple_shooting':
         # take interval values
@@ -438,16 +465,22 @@ def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics):
 
     return z_values, tgrid
 
-def merge_integral_output_values(int_out, name, plot_dict, cosmetics):
+def merge_integral_output_values(int_out, name, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         # total time points
-        tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        if not ref:
+            tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        else:
+            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll']
 
     # interval time points
-    tgrid_x = plot_dict['time_grids']['x']
+    if not ref:
+        tgrid_x = plot_dict['time_grids']['x']
+    else:
+        tgrid_x = plot_dict['time_grids']['ref']['x']
 
     if discretization == 'multiple_shooting':
         # take interval values
@@ -916,6 +949,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     outputs_dict = plot_dict['outputs_dict']
     output_vals = plot_dict['output_vals'][2]
     V_ref = plot_dict['V_ref']
+
     if plot_dict['Collocation'] is not None:
         interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
         u_param = plot_dict['u_param']
@@ -926,7 +960,6 @@ def interpolate_ref_data(plot_dict, cosmetics):
     plot_dict['ref'] = {'x': {},'u':{},'z':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
-    plot_dict['time_grids']['ref']['ip'] =  plot_dict['time_grids']['ip']
     n_points = plot_dict['time_grids']['ip'].shape[0]
 
     # x-values
@@ -934,7 +967,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
         plot_dict['ref']['x'][name] = []
         for j in range(variables_dict['x',name].shape[0]):
             # merge values
-            values, time_grid = merge_x_values(V_ref, name, j, plot_dict, cosmetics)
+            values, time_grid = merge_x_values(V_ref, name, j, plot_dict, cosmetics, ref = True)
+            plot_dict['time_grids']['ref']['ip'] =  np.linspace(time_grid[0], time_grid[-1], n_points)
 
             # interpolate
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
@@ -951,7 +985,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
                 if plot_dict['discretization'] == 'direct_collocation':
                     values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, var_type)
                 else:
-                    values, time_grid = merge_z_values(V_ref, var_type, name, j, plot_dict, cosmetics)
+                    values, time_grid = merge_z_values(V_ref, var_type, name, j, plot_dict, cosmetics, ref = True)
                     # interpolate
                     values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
                 plot_dict['ref'][var_type][name] += [values_ip]
@@ -976,8 +1010,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
             plot_dict['ref']['outputs'][output_type][name] = []
             for j in range(outputs_dict[output_type][name].shape[0]):
                 # merge values
-                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
-                # inteprolate
+                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics, ref = True)
+                # interpolate
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
                 plot_dict['ref']['outputs'][output_type][name] += [values_ip]
 
