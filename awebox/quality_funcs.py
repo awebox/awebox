@@ -101,7 +101,7 @@ def test_invariants(trial, test_param_dict, results):
                 c_list = out_local['coll_outputs', :, :, 'tether_length', 'c' + str(node) + str(parent)]
                 dc_list = out_local['coll_outputs', :, :, 'tether_length', 'dc' + str(node) + str(parent)]
                 ddc_list = out_local['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)]
-                if DOF6:
+                if DOF6 and node in architecture.kite_nodes:
                     r_list = out_local['coll_outputs', :, :, 'tether_length', 'orthonormality' + str(node) + str(parent)]
             elif discretization == 'multiple_shooting':
                 c_list = out_local['outputs', :, 'tether_length', 'c' + str(node) + str(parent)]
@@ -112,7 +112,7 @@ def test_invariants(trial, test_param_dict, results):
             dc_avg = np.max(abs(np.array(dc_list)))
             ddc_avg = np.max(abs(np.array(ddc_list)))
 
-            if DOF6:
+            if DOF6 and node in architecture.kite_nodes:
                 r_avg = np.max([np.max(np.abs(np.array(r_list[x][y]))) for x in range(len(r_list)) for y in range(len(r_list[0]))])
 
             # test whether invariants are small enough
@@ -138,7 +138,7 @@ def test_invariants(trial, test_param_dict, results):
                 else:
                     results['ddc' + str(node) + str(parent)] = True
 
-                if DOF6:
+                if DOF6 and node in architecture.kite_nodes:
                     if r_avg > r_max:
                         awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
                         results['r' + str(node) + str(parent)] = False
