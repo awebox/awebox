@@ -32,10 +32,10 @@ options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
 # nlp discretization
-options['nlp.n_k'] = 40
+options['nlp.n_k'] = 80
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
-options['solver.linear_solver'] = 'ma57'
+options['solver.linear_solver'] = 'mumps' # ma57 if HSL installed
 
 # optimize trial
 trial = awe.Trial(options, 'Ampyx_AP2')

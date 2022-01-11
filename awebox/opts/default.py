@@ -315,7 +315,7 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',  'homotopy_method',None,  'type',       'scheduled',  ('homotopy method type used', ['scheduled', 'single']), 's'),
         ('solver',  'homotopy_method',None,  'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
-        ('solver',  'homotopy_method',None,  'psi',        'classic',  ('homotopy method used', ['penalty', 'classic']), 's'),
+        ('solver',  'homotopy_method',None,  'psi',        'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
@@ -366,7 +366,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'dkappa',                1e1,        ('optimization weight for control variable dkappa [-]', None),'s'),
         ('solver',   'weights',        None,   'P_max',                 0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
         ('solver',   'weights',        None,   'ddq',                   1e0,        ('optimization weight for all ddq variables [-]', None),'s'),
-        ('solver',   'weights',        None,   'domega',                1e6,        ('optimization weight for all domega variables [-]', None),'s'),
+        ('solver',   'weights',        None,   'domega',                5e7,        ('optimization weight for all domega variables [-]', None),'s'),
         ('solver',   'weights',        None,   'l_s',                   1e0,       ('optimization weight for the l_s variable [-]', None),'s'),
         ('solver',   'weights',        None,   'diam_s',                1e0,       ('optimization weight for the diam_s variable [-]', None),'s'),
         ('solver',   'weights',        None,   'diam_t',                1e0,       ('optimization weight for the diam_t variable [-]', None),'s'),
@@ -392,7 +392,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
-        ('solver',  'cost',             'beta',             0,      4e0,          ('starting cost for P_max', None),'s'),
+        ('solver',  'cost',             'beta',             0,      8e0,          ('starting cost for P_max', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
         ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),
