@@ -1,4 +1,6 @@
 
+awebox.egg-info/
+
 # Python
 *.pyc
 .pytest_cache/
