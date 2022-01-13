@@ -215,24 +215,26 @@ def generate_default_solver_options(options):
 
     opts = {}
     opts['expand'] = options['expand']
-    opts['ipopt.linear_solver'] = options['linear_solver']
-    opts['ipopt.max_iter'] = options['max_iter']
-    opts['ipopt.max_cpu_time'] = options['max_cpu_time']
 
-    opts['ipopt.mu_target'] = options['mu_target']
-    opts['ipopt.mu_init'] = options['mu_init']
-    opts['ipopt.tol'] = options['tol']
-    opts['ipopt.ma57_automatic_scaling'] = 'yes'
+    if options['nlp_solver'] == 'ipopt':
+        opts['ipopt.linear_solver'] = options['linear_solver']
+        opts['ipopt.max_iter'] = options['max_iter']
+        opts['ipopt.max_cpu_time'] = options['max_cpu_time']
+
+        opts['ipopt.mu_target'] = options['mu_target']
+        opts['ipopt.mu_init'] = options['mu_init']
+        opts['ipopt.tol'] = options['tol']
+        opts['ipopt.ma57_automatic_scaling'] = 'yes'
+
+        if awelogger.logger.getEffectiveLevel() > 10:
+            opts['ipopt.print_level'] = 0
+            opts['print_time'] = 0
+            opts['ipopt.sb'] = 'yes'
+
+        if options['hessian_approximation']:
+            opts['ipopt.hessian_approximation'] = 'limited-memory'
 
     opts['record_time'] = 1
-
-    if awelogger.logger.getEffectiveLevel() > 10:
-        opts['ipopt.print_level'] = 0
-        opts['print_time'] = 0
-        opts['ipopt.sb'] = 'yes'
-
-    if options['hessian_approximation']:
-        opts['ipopt.hessian_approximation'] = 'limited-memory'
 
     opts['jit'] = options['jit']
     if options['jit']:
@@ -247,7 +249,7 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
     middle_opts = generate_default_solver_options(options)
     final_opts = generate_default_solver_options(options)
 
-    if options['hippo_strategy']:
+    if options['nlp_solver'] == 'ipopt':
         initial_opts['ipopt.mu_target'] = options['mu_hippo']
         initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
         initial_opts['ipopt.tol'] = options['tol_hippo']
@@ -275,9 +277,14 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         # do whatever it is that depends on lift-mode here....
         32.0
 
-    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    if options['nlp_solver'] == 'ipopt':
+        initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+        middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+        final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    elif options['nlp_solver'] == 'worhp':
+        initial_solver = cas.nlpsol('solver', 'worhp', nlp.get_nlp(), final_opts)
+        middle_solver = initial_solver
+        final_solver = initial_solver
 
     solvers = {}
     solvers['initial'] = initial_solver
