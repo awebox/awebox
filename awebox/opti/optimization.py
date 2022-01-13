@@ -697,7 +697,7 @@ class Optimization(object):
         awelogger.logger.info('')
         awelogger.logger.info('Solver options:')
         awelogger.logger.info('')
-        awelogger.logger.info('NLP solver'+14*'.'+': {}'.format('IPOPT'))
+        awelogger.logger.info('NLP solver'+14*'.'+': {}'.format(self.__options['nlp_solver']))
         awelogger.logger.info('Linear solver'+11*'.'+': {}'.format(self.__options['linear_solver']))
         awelogger.logger.info('Max. iterations'+9*'.'+': {}'.format(self.__options['max_iter']))
         awelogger.logger.info('Homotopy method'+9*'.'+': {}'.format(self.__options['homotopy_method']))
