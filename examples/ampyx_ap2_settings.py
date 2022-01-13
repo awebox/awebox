@@ -62,9 +62,9 @@ def set_ampyx_ap2_settings(options):
     options['user_options.induction_model'] = 'not_in_use'
 
     # initialization
-    options['solver.initialization.groundspeed'] = 19.
+    options['solver.initialization.groundspeed'] = 15.
     options['solver.initialization.inclination_deg'] = 45.
-    options['solver.initialization.cone_deg'] = 18.
-    options['solver.initialization.l_t'] = 400.
+    options['solver.initialization.cone_deg'] = 15.
+    options['solver.initialization.l_t'] = 200.
 
     return options
