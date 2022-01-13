@@ -32,7 +32,7 @@ options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
 # nlp discretization
-options['nlp.n_k'] = 20
+options['nlp.n_k'] = 80
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'mumps' # ma57 if HSL installed
