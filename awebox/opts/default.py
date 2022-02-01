@@ -125,7 +125,8 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
         ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite per wingtip', None), 'x'),
-        ('model', 'aero', 'vortex',     'far_wake_model',       'freestream_filament', ('the type of far wake representation: freestream filament, pathwise filament, or freestream semi-infinite cylinder', ['freestream_filament', 'pathwise_filament', 'freestream_cylinder']), 'x'),
+        ('model', 'aero', 'vortex',     'far_wake_model',       'freestream_filament', ('the type of far wake representation: freestream filament, pathwise filament, freestream semi-infinite cylinder', ['repetition', 'freestream_filament', 'pathwise_filament', 'freestream_cylinder', 'not-in-use']), 'x'),
+        ('model', 'aero', 'vortex',     'repetitions',          '2',        ('if the repetition far_wake_model is applied, how many repetitions should be used. Must be an integer value.', None), 'x'),
         ('model', 'aero', 'vortex',     'far_convection_time',  120.,       ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
         ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.1,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_to_chord_ratio', 0.1,      ('the ratio between the vortex-cylinder normalization factor and the airfoil chord, [-]', None), 'x'),

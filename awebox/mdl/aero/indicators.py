@@ -141,6 +141,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     f_lift_earth = base_aerodynamic_quantities['f_lift_earth']
     f_drag_earth = base_aerodynamic_quantities['f_drag_earth']
     f_side_earth = base_aerodynamic_quantities['f_side_earth']
+    f_lift_norm = base_aerodynamic_quantities['f_lift_norm']
     m_aero_body = base_aerodynamic_quantities['m_aero_body']
     kite_dcm = base_aerodynamic_quantities['kite_dcm']
     q = base_aerodynamic_quantities['q']
@@ -150,6 +151,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     f_lift_earth_overwrite = options['aero']['overwrite']['f_lift_earth']
     if f_lift_earth_overwrite is not None:
         f_lift_earth = f_lift_earth_overwrite
+        f_lift_norm = vect_op.smooth_norm(f_lift_earth)
 
     for name in set(base_aerodynamic_quantities['aero_coefficients'].keys()):
         outputs['aerodynamics'][name + str(kite)] = base_aerodynamic_quantities['aero_coefficients'][name]
@@ -211,7 +213,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
         outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
 
-    circulation_cross = vect_op.smooth_norm(f_lift_earth) / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+    circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
     circulation_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
 
     outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross

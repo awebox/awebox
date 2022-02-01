@@ -75,7 +75,7 @@ def get_lists(options, variables_si, parameters, architecture, wind):
             tangential_cylinder_list.append(tan_list)
             longitudinal_cylinder_list.append(long_list)
 
-    elif far_wake_model is not 'not_in_use':
+    elif far_wake_model not in ['not_in_use', 'repetition']:
         message = 'unknown vortex far-wake model selected.'
         awelogger.logger.error(message)
         raise Exception(message)

@@ -122,6 +122,9 @@ def get_induction_trivial_residual(options, wind, variables_si, architecture, ob
 
 def get_induction_final_residual(options, wind, variables_si, outputs, architecture, objects):
 
+    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+    repetitions = options['aero']['vortex']['repetitions']
+
     resi = []
 
     u_ref = wind.get_speed_ref()
@@ -133,7 +136,17 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
             elem_list = objects[elem_list_name]
 
             x_obs = variables_si['xd']['q' + str(kite_obs) + str(parent_obs)]
-            all_biot_savarts = elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=None)
+
+            if vortex_far_wake_model == 'repetition':
+                all_biot_savarts = cas.DM.zeros(3, elem_list.number_of_elements)
+                for pdx in range(repetitions):
+                    all_biot_savarts += elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs,
+                                                                                                 n_hat=None,
+                                                                                                 period=pdx,
+                                                                                                 wind=wind,
+                                                                                                 optimization_period=optimization_period)
+            else:
+                all_biot_savarts = elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=None)
 
             for fdx in range(elem_list.number_of_elements):
                 u_ind_fil = all_biot_savarts[:, fdx]

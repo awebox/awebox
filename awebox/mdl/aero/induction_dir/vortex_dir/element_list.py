@@ -128,11 +128,15 @@ class ElementList:
 
         return columnized_list
 
-    def get_decolumnized_info_list(self):
+    def get_decolumnized_info_list(self, period=None, wind=None, optimization_period=None):
 
         self.confirm_list_has_expected_dimensions()
 
-        python_list_of_info = [elem.info for elem in self.__list]
+        if (period is not None) and (wind is not None):
+            python_list_of_info = [elem.get_repeated_info(period, wind, optimization_period) for elem in self.__list]
+        else:
+            python_list_of_info = [elem.info for elem in self.__list]
+
         decolumnized_list = cas.horzcat(*python_list_of_info)
 
         self.confirm_that_decolumnized_info_list_has_correct_shape_for_mapping(decolumnized_list)
@@ -169,8 +173,8 @@ class ElementList:
 
         return x_obs, n_hat
 
-    def get_decolumnized_list_with_attached_observer_info(self, x_obs=cas.DM.zeros(3, 1), n_hat=None):
-        decolumnized_list = self.get_decolumnized_info_list()
+    def get_decolumnized_list_with_attached_observer_info(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
+        decolumnized_list = self.get_decolumnized_info_list(period, wind, optimization_period)
 
         number_of_elements = self.number_of_elements
         observer_list = cas.repmat(x_obs, (1, number_of_elements))
@@ -236,14 +240,14 @@ class ElementList:
 
         return None
 
-    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), n_hat=None):
+    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
 
         if n_hat is None:
             biot_savart_fun = self.__biot_savart_fun
         else:
             biot_savart_fun = self.__biot_savart_projected_fun
 
-        decolumnized_list = self.get_decolumnized_list_with_attached_observer_info(x_obs, n_hat)
+        decolumnized_list = self.get_decolumnized_list_with_attached_observer_info(x_obs, n_hat, period, wind, optimization_period)
 
         number_of_elements = self.number_of_elements
         biot_savart_map = biot_savart_fun.map(number_of_elements, 'openmp')

@@ -136,11 +136,16 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
 
         f_drag_wind = f_aero_wind[0] * vect_op.xhat()
         f_side_wind = f_aero_wind[1] * vect_op.yhat()
-        f_lift_wind = f_aero_wind[2] * vect_op.zhat()
+
+        f_lift_norm = f_aero_wind[2]
+
+        f_lift_wind = f_lift_norm * vect_op.zhat()
 
         f_drag_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_drag_wind)
         f_side_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_side_wind)
         f_lift_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_lift_wind)
+
+
 
         coeff_wind = f_aero_wind / q_eff / s_ref
         CD = coeff_wind[0]
@@ -187,6 +192,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         base_aerodynamic_quantities['f_lift_earth'] = f_lift_earth
         base_aerodynamic_quantities['f_drag_earth'] = f_drag_earth
         base_aerodynamic_quantities['f_side_earth'] = f_side_earth
+        base_aerodynamic_quantities['f_lift_norm'] = f_lift_norm
         base_aerodynamic_quantities['m_aero_body'] = m_aero_body
         base_aerodynamic_quantities['kite_dcm'] = kite_dcm
         base_aerodynamic_quantities['q'] = q
