@@ -131,6 +131,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.1,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_to_chord_ratio', 0.1,      ('the ratio between the vortex-cylinder normalization factor and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
+        ('movel', 'aero', 'vortex',     'induction_factor_normalizing_speed', 'u_zero', ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',  20,         ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',   False,   ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),

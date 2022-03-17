@@ -25,6 +25,7 @@
 ##################################
 # Class Optimization solves the NLP of the multi-kite system
 ###################################
+import pdb
 
 from . import scheduling
 
@@ -40,7 +41,7 @@ import awebox.tools.callback as callback
 from numpy import linspace
 
 import matplotlib.pyplot as plt
-
+import resource
 import copy
 
 from awebox.logger.logger import Logger as awelogger
@@ -52,6 +53,7 @@ class Optimization(object):
         self.__status = 'Optimization not yet built.'
         self.__V_opt = None
         self.__timings = {}
+        self.__cumulative_max_memory = {}
         self.__iterations = {}
         self.__t_wall = {}
         self.__return_status_numeric = {}
@@ -85,6 +87,7 @@ class Optimization(object):
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
+            self.__cumulative_max_memory['setup'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
             self.__status = 'I am an optimization.'
             awelogger.logger.info('Optimization built.')
@@ -115,7 +118,7 @@ class Optimization(object):
             # reset timings / iteration counters
             self.reset_timings_and_counters()
 
-           # schedule the homotopy steps
+            # schedule the homotopy steps
             self.define_homotopy_update_schedule(model, formulation, nlp, options['cost'])
 
             # prepare problem
@@ -162,23 +165,18 @@ class Optimization(object):
 
     def reset_timings_and_counters(self):
 
-        self.__timings['optimization'] = 0.
-        self.__iterations['optimization'] = 0.
-        self.__t_wall['optimization'] = 0.
-        self.__return_status_numeric['optimization'] = 17
+        for step in (set(self.__timings.keys()) - set(['setup']) | set(['optimization'])):
+            self.__timings[step] = 0.
 
-        for step in self.__timings.keys():
-            if not (step == 'setup'):
-                self.__timings[step] = 0.
+        for step in (set(self.__cumulative_max_memory.keys()) - set(['setup']) | set(['optimization'])):
+            self.__cumulative_max_memory[step] = 0
 
-        for step in self.__iterations.keys():
-            if not (step == 'setup'):
-                self.__iterations[step] = 0.
-                self.__t_wall[step] = 0.
+        for step in (set(self.__iterations.keys()) - set(['setup']) | set(['optimization'])):
+            self.__iterations[step] = 0.
+            self.__t_wall[step] = 0.
 
-        for step in self.__return_status_numeric.keys():
-            if not (step == 'setup'):
-                self.__return_status_numeric[step] = 17
+        for step in (set(self.__return_status_numeric.keys()) - set(['setup']) | set(['optimization'])):
+            self.__return_status_numeric[step] = 17
 
         self.__awe_callback.reset()
 
@@ -205,6 +203,7 @@ class Optimization(object):
     def update_runtime_info(self, timer, step_name):
 
         self.__timings[step_name] = time.time() - timer
+        self.__cumulative_max_memory[step_name] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss 
 
         self.__return_status_numeric[step_name] = struct_op.convert_return_status_string_to_number(
             self.stats['return_status'])
@@ -216,6 +215,7 @@ class Optimization(object):
         self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
+        self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss 
 
     def initialize_callback(self, name, nlp, model, options):
 
@@ -415,6 +415,7 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
             self.__solution = solver(**self.__arg)
             self.__stats = solver.stats()
+
             self.__arg['lam_x0'] = self.__solution['lam_x']
             self.__arg['lam_g0'] = self.__solution['lam_g']
             self.__arg['x0'] = self.__solution['x']
@@ -779,6 +780,14 @@ class Optimization(object):
     @timings.setter
     def timings(self, value):
         awelogger.logger.warning('Cannot set timings object.')
+
+    @property
+    def cumulative_max_memory(self):
+        return self.__cumulative_max_memory
+
+    @cumulative_max_memory.setter
+    def cumulative_max_memory(self, value):
+        awelogger.logger.warning('Cannot set cumulative_max_memory object.')
 
     @property
     def arg(self):

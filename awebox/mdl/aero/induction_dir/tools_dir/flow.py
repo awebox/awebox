@@ -35,14 +35,16 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
-
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
-    u_infty = wind.get_velocity(q_kite[2])
+    u_infty = get_kite_uinfy_vec(variables, wind, kite, parent)
     u_kite = variables['xd']['dq' + str(kite) + str(parent)]
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
 
+def get_kite_uinfy_vec(variables, wind, kite, parent):
+    q_kite = variables['xd']['q' + str(kite) + str(parent)]
+    u_infty = wind.get_velocity(q_kite[2])
+    return u_infty
 
 def get_uzero_vec(model_options, wind, parent, variables, architecture):
 

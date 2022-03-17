@@ -35,7 +35,6 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
@@ -114,29 +113,39 @@ def get_induced_velocity_at_observer(vortex_objects, x_obs, n_hat=None):
 
     return u_ind
 
-def get_induction_factor_at_kite(options, wind, variables, vortex_objects, architecture, kite_obs, n_hat=vect_op.xhat()):
+def get_induction_factor_at_kite(options, wind, variables_si, vortex_objects, architecture, kite_obs, n_hat=vect_op.xhat()):
 
-    u_ind = get_induced_velocity_at_kite(variables, vortex_objects, kite_obs)
+    u_ind = get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs)
     u_projected = cas.mtimes(u_ind.T, n_hat)
 
     parent = architecture.parent_map[kite_obs]
-    u_zero_vec = general_flow.get_uzero_vec(options, wind, parent, variables, architecture)
-    u_zero = vect_op.smooth_norm(u_zero_vec)
-
-    a_calc = compute_induction_factor(u_projected, u_zero)
+    a_calc = compute_induction_factor(options, u_projected, wind, parent, variables_si, architecture)
 
     return a_calc
 
-def compute_induction_factor(u_projected, u_zero):
-    a_calc = -1. * u_projected / u_zero
+def compute_induction_factor(options, u_projected, wind, parent, variables, architecture):
+
+    induction_factor_normalizing_speed = options['aero']['vortex']['induction_factor_normalizing_speed']
+    if induction_factor_normalizing_speed == 'u_zero':
+        u_vec = general_flow.get_uzero_vec(options, wind, parent, variables, architecture)
+    elif induction_factor_normalizing_speed == 'u_inf':
+        u_vec = general_flow.get_kite_uinfy_vec(variables, wind, kite, parent)
+    elif induction_factor_normalizing_speed == 'u_ref':
+        u_vec = wind.get_speed_ref()
+    else:
+        message = 'desired induction_factor_normalizing_speed (' + induction_factor_normalizing_speed + ') is not yet available'
+        awelogger.logger.error(message)
+        raise Exception(message)
+    u_normalizing = vect_op.smooth_norm(u_vec)
+
+    a_calc = -1. * u_projected / u_normalizing
+
     return a_calc
 
-def get_induction_factor_at_observer(options, filament_list, x_obs, u_zero, n_hat=vect_op.xhat()):
-    u_projected = get_induced_velocity_at_observer(options, filament_list, x_obs, n_hat=n_hat)
-    a_calc = compute_induction_factor(u_projected, u_zero)
+def get_induction_factor_at_observer(options, wind, parent, variables, architecture, vortex_objects, x_obs, u_zero, n_hat=vect_op.xhat()):
+    u_projected = get_induced_velocity_at_observer(vortex_objects, x_obs, n_hat=None)
+    a_calc = compute_induction_factor(options, u_projected, wind, parent, variables, architecture)
     return a_calc
-
-
 
 def test(test_list):
 

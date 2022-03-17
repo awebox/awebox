@@ -54,6 +54,10 @@ class ElementList:
         self.__element_info_length = None
         self.__expected_element_info_length = None
 
+        self.__model_induction_fun = None
+        self.__model_projected_induction_fun = None
+        self.__model_induction_factor_fun = None
+
     def append(self, added_elem):
 
         is_element_list = isinstance(added_elem, ElementList)
@@ -255,8 +259,8 @@ class ElementList:
 
         return all
 
-    def evalate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1), n_hat=None):
 
+    def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1), n_hat=None):
         all = self.evaluate_biot_savart_induction_for_all_elements(x_obs, n_hat)
         u_ind = cas.sum2(all)
         return u_ind
@@ -264,7 +268,6 @@ class ElementList:
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         for elem in self.__list:
             elem.draw(ax, side, variables_scaled, parameters, cosmetics)
-
         return None
 
     def abs_strength_max(self, variables_scaled, parameters):
@@ -323,6 +326,37 @@ class ElementList:
     def biot_savart_projected_fun(self, value):
         awelogger.logger.error('Cannot set biot_savart_projected_fun object.')
 
+    @property
+    def model_induction_fun(self):
+        return self.__model_induction_fun
+
+    @model_induction_fun.setter
+    def model_induction_fun(self, value):
+        self.__model_induction_fun = value
+
+    @property
+    def model_projected_induction_fun(self):
+        return self.__model_projected_induction_fun
+
+    @model_projected_induction_fun.setter
+    def model_projected_induction_fun(self, value):
+        self.__model_projected_induction_fun = value
+
+    @property
+    def model_projected_induction_fun(self):
+        return self.__model_projected_induction_fun
+
+    @model_projected_induction_fun.setter
+    def model_projected_induction_fun(self, value):
+        self.__model_projected_induction_fun = value
+
+    @property
+    def model_induction_factor_fun(self):
+        return self.__model_induction_factor_fun
+
+    @model_induction_factor_fun.setter
+    def model_induction_factor_fun(self, value):
+        self.__model_induction_factor_fun = value
 
     @property
     def element_type(self):

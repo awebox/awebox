@@ -78,6 +78,38 @@ def construct_objects(options, system_variables, parameters, architecture, wind)
 
     return vortex_lists
 
+def precompute_vortex_functions(options, system_variables, parameters, elem_list):
+
+    variables_scaled = system_variables['scaled']
+    variables_si = system_variables['SI']
+
+    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+    n_hat_sym = cas.SX.sym('n_hat_sym', (3, 1))
+
+    #     u_ind_unprojected = self.evaluate_total_biot_savart_induction(x_obs=x_obs_sym, n_hat=None)
+    #     model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind_unprojected])
+    #     self.__model_induction_fun = model_induction_fun
+    #
+    #     u_ind_projected = cas.mtimes(n_hat_sym.T, u_ind_unprojected)
+    #     model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_projected])
+    #     self.__model_projected_induction_fun = model_projected_induction_fun
+    #
+    #     return None
+
+
+    if precompute_model_induction_fun:
+        u_ind = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=None)
+        model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind])
+        elem_list.set_model_induction_fun(model_induction_fun)
+
+    if precompute_model_projected_induction_fun:
+        u_ind_proj = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=n_hat_sym)
+        model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_proj])
+        elem_list.set_model_projected_induction_fun(model_projected_induction_fun)
+
+    if precompute_model_induction_factor_fun:
+        a_calc = flow.get_induction_factor_at_observer()
+
 def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
 
     vortex_representation = options['aero']['vortex']['representation']
@@ -212,7 +244,6 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, vo
     return outputs
 
 def compute_global_performance(power_and_performance, plot_dict):
-
 
     kite_nodes = plot_dict['architecture'].kite_nodes
 
