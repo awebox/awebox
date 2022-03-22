@@ -27,20 +27,6 @@ object-oriented-vortex-filament-and-cylinder operations
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2022
 '''
-import pdb
-
-import casadi.tools as cas
-import matplotlib.pyplot as plt
-import numpy as np
-
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
-
-import awebox.tools.struct_operations as struct_op
-import awebox.tools.vector_operations as vect_op
-import awebox.tools.print_operations as print_op
-
-from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
 matplotlib.use('TkAgg')

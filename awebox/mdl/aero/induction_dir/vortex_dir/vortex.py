@@ -29,13 +29,12 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-from multiprocessing import Pool
 
 import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
 import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
-import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
@@ -43,10 +42,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-
-from awebox.logger.logger import Logger as awelogger
 import numpy as np
-import pdb
+
 
 def construct_objects(options, system_variables, parameters, architecture, wind):
 

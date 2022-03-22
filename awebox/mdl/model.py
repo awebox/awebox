@@ -335,7 +335,7 @@ class Model(object):
 
     @vortex_objects.setter
     def vortex_objects(self, value):
-        awelogger.logger.warning('Cannot set vortex_objects object.')
+        awelogger.logger.warning('Cannot set vortex_objects_dir object.')
 
 
     @property

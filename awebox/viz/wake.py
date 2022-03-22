@@ -98,7 +98,7 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
         parameters = plot_dict['parameters_plot']
 
-        vortex_objects = plot_dict['vortex_objects']
+        vortex_objects = plot_dict['vortex_objects_dir']
         for elem_list_name in vortex_objects.keys():
             elem_list = vortex_objects[elem_list_name]
             elem_list.draw(ax, side, variables_scaled, parameters, cosmetics)
@@ -107,7 +107,7 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
 def determine_if_vortex_info_exists(plot_dict):
     vortex_exists = 'vortex' in plot_dict['outputs'].keys()
-    vortex_objects_exists = 'vortex_objects' in plot_dict.keys()
+    vortex_objects_exists = 'vortex_objects_dir' in plot_dict.keys()
     return (vortex_exists and vortex_objects_exists)
 
 def reconstruct_filament_list(plot_dict, index):
@@ -204,7 +204,7 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     # pdb.set_trace()
     #
     # local_projected_induction_sym = cas.DM.zeros((1,1))
-    # for name, object in plot_dict['vortex_objects'].items():
+    # for name, object in plot_dict['vortex_objects_dir'].items():
     #
     #     if object.model_projected_induction_fun is not None:
     #         object.make_awebox_model_induction_functions(plot_dict['variables'], plot_dict['parameters'])

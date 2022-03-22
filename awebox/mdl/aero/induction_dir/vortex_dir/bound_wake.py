@@ -30,15 +30,13 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.mdl.aero.induction_dir.vortex_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 
 import awebox.mdl.architecture as archi
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-
-from awebox.logger.logger import Logger as awelogger
 
 
 def get_list(options, variables_si, parameters, architecture):

@@ -27,20 +27,12 @@ constructs the filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
-import pdb
 
-import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.mdl.aero.induction_dir.vortex_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.element as vortex_element
-import awebox.tools.struct_operations as struct_op
-import awebox.tools.vector_operations as vect_op
-import awebox.mdl.wind as wind_module
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 import casadi.tools as cas
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 
-import awebox.mdl.architecture as archi
 
 def get_list(options, variables_si, parameters, architecture, wind):
 
