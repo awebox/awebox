@@ -57,18 +57,17 @@ class Cylinder(vortex_element.Element):
     def define_info_order(self):
         order = {0: ('x_center', 3),
                  1: ('l_hat', 3),
-                 2: ('radius_start', 1),
-                 3: ('radius_end', 1),
-                 4: ('l_start', 1),
-                 5: ('epsilon', 1),
-                 6: ('strength', 1)
+                 2: ('radius', 1),
+                 3: ('l_start', 1),
+                 4: ('epsilon', 1),
+                 5: ('strength', 1)
                  }
         self.set_info_order(order)
         self.set_expected_info_length()
         return None
 
 def construct_test_object():
-    x_center = cas.DM.zeros((3, 1))
+    x_center = np.array([0., 0., 0.])
     radius = 1.
     l_start = 0.
     l_hat = vect_op.xhat_np()
@@ -86,6 +85,8 @@ def construct_test_object():
     return cyl
 
 def test():
-    fil = construct_test_object()
-    fil.test_basic_criteria(expected_object_type='cylinder')
+    cyl = construct_test_object()
+    cyl.test_basic_criteria(expected_object_type='cylinder')
     return None
+
+test()

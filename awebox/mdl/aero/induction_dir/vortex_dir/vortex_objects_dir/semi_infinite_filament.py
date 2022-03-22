@@ -80,3 +80,23 @@ class SemiInfiniteFilament(vortex_element.Element):
         super().basic_draw(ax, side, unpacked['strength'], x_start, x_end, cosmetics)
 
         return None
+
+def construct_test_object():
+    x_start = 0. * vect_op.xhat_np()
+    l_hat = vect_op.xhat_np()
+    r_core = 0.
+    strength = 1.
+    dict_info = {'x_start': x_start,
+                 'l_hat': l_hat,
+                 'r_core': r_core,
+                 'strength': strength}
+
+    fil = SemiInfiniteFilament(dict_info)
+    return fil
+
+def test():
+    fil = construct_test_object()
+    fil.test_basic_criteria(expected_object_type='semi_infinite_filament')
+    return None
+
+test()

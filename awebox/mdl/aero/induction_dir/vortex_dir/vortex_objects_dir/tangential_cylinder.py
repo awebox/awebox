@@ -83,7 +83,15 @@ class TangentialCylinder(vortex_cylinder.Cylinder):
 
         return None
 
-def get_test_tangential_cylinder():
-    cyl_data = vortex_cylinder.get_test_cylinder().info_dict
-    cyl = TangentialCylinder(cyl_data)
-    return cyl
+def construct_test_object():
+    cyl = vortex_cylinder.construct_test_object()
+    unpacked = cyl.info_dict
+    tan_cyl = TangentialCylinder(unpacked)
+    return tan_cyl
+
+def test():
+    cyl = construct_test_object()
+    cyl.test_basic_criteria(expected_object_type='tangential_cylinder')
+    return None
+
+test()
