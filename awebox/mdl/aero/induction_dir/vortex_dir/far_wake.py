@@ -23,7 +23,7 @@
 #
 #
 '''
-constructs the filament list
+constructs the far-wake filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
@@ -51,18 +51,12 @@ def get_lists(options, variables_si, parameters, architecture, wind):
     far_wake_model = options['induction']['vortex_far_wake_model']
     kite_nodes = architecture.kite_nodes
 
-    check_positive_vortex_wake_nodes(options)
-
     expected_number_filaments = expected_number_of_filaments(options, architecture)
     expected_number_directional_cylinders = expected_number_of_directional_cylinders(options, architecture)
 
     filament_list = vortex_element_list.ElementList(expected_number_filaments)
     tangential_cylinder_list = vortex_element_list.ElementList(expected_number_directional_cylinders)
     longitudinal_cylinder_list = vortex_element_list.ElementList(expected_number_directional_cylinders)
-
-    for kite in kite_nodes:
-        bound_list = get_bound_filament_from_kite_if_appropriate(options, variables_si, parameters, kite)
-        filament_list.append(bound_list)
 
     if 'filament' in far_wake_model:
         for kite in kite_nodes:
@@ -80,45 +74,9 @@ def get_lists(options, variables_si, parameters, architecture, wind):
         awelogger.logger.error(message)
         raise Exception(message)
 
+    filament_list.confirm_list_has_expected_dimensions()
+
     return filament_list, tangential_cylinder_list, longitudinal_cylinder_list
-
-
-def check_positive_vortex_wake_nodes(options):
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    if wake_nodes < 0:
-        message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
-        awelogger.logger.error(message)
-        raise Exception(message)
-    return None
-
-def get_bound_filament_from_kite_if_appropriate(options, variables_si, parameters, kite):
-
-    filament_list = vortex_element_list.ElementList()
-
-    wake_nodes = options['induction']['vortex_wake_nodes']
-
-    if wake_nodes == 1:
-        last_tracked_wake_node = 0
-
-        NE_wingtip = vortex_tools.get_NE_wingtip_name()
-        PE_wingtip = vortex_tools.get_PE_wingtip_name()
-
-        LENE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, last_tracked_wake_node)
-        LEPE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, last_tracked_wake_node)
-
-        strength = vortex_tools.get_ring_strength_si(variables_si, kite, last_tracked_wake_node)
-
-        r_core = vortex_tools.get_r_core(options, parameters)
-
-        dict_info_bound = {'x_start': LENE,
-                           'x_end': LEPE,
-                           'r_core': r_core,
-                           'strength': strength
-                           }
-        fil_bound = vortex_element.Filament(dict_info_bound)
-        filament_list.append(fil_bound)
-
-    return filament_list
 
 
 def get_filament_list_from_kite(options, variables_si, parameters, wind, kite):
@@ -291,7 +249,6 @@ def get_cylinder_strength(options, strength, variables_si, kite, tip):
 
 def expected_number_of_filaments(options, architecture):
 
-    wake_nodes = vortex_tools.get_option_from_possible_dicts(options, 'wake_nodes')
     far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
     number_kites = architecture.number_of_kites
 
@@ -301,10 +258,6 @@ def expected_number_of_filaments(options, architecture):
         use = 0
 
     filaments = use * 2 * number_kites
-
-    # need to add bound filaments
-    if wake_nodes == 1:
-        filaments += number_kites
 
     return filaments
 

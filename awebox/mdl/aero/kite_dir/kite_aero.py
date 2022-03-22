@@ -231,14 +231,3 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 
     return cstr_list
-
-
-def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
-    if int(options['kite_dof']) == 3:
-        wingtip_pos = three_dof_kite.get_wingtip_position(kite, options, model, variables, parameters, ext_int)
-    elif int(options['kite_dof']) == 6:
-        wingtip_pos = six_dof_kite.get_wingtip_position(kite, model, variables, parameters, ext_int)
-    else:
-        raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
-
-    return wingtip_pos

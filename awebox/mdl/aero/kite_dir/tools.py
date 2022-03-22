@@ -37,6 +37,24 @@ import numpy as np
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
+def construct_wingtip_position(q_kite, dcm_kite, parameters, tip):
+
+    if tip == 'ext':
+        span_sign = 1.
+    elif tip == 'int':
+        span_sign = -1.
+    else:
+        message = 'wingtip ' + tip + ' is not recognized'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    ehat_span = dcm_kite[:, 1]
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+
+    wingtip_position = q_kite + ehat_span * span_sign * b_ref / 2.
+
+    return wingtip_position
 
 ##### the force and moment lifted variables
 

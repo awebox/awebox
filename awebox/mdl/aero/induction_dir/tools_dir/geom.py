@@ -68,3 +68,17 @@ def get_center_velocity(parent, variables, architecture):
         raise Exception(message)
 
     return dcenter
+
+def get_wingtip_position(variables_si, parameters, kite, parent, tip):
+
+    q = variables_si['xd', 'q' + str(kite) + str(parent)]
+
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
+
+    if tip == 'ext':
+        sign = +1.
+    elif tip == 'int':
+        sign = -1.
+
+    x_wingtip = q + sign * ehat_span * b_ref / 2.

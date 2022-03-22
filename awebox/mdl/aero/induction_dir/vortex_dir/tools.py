@@ -27,6 +27,7 @@ various structural tools for the vortex model
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-2021
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -57,6 +58,14 @@ def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=
         return struct_op.var_scaled_to_si(var_type, coord_name, dwx_local, scaling)
 
     return dwx_local
+
+def check_positive_vortex_wake_nodes(options):
+    wake_nodes = options['induction']['vortex_wake_nodes']
+    if wake_nodes < 0:
+        message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
+        awelogger.logger.error(message)
+        raise Exception(message)
+    return None
 
 def get_option_from_possible_dicts(options, name):
     if ('induction' in options.keys()) and (name in options['induction'].keys()):
@@ -97,8 +106,15 @@ def get_epsilon(options, parameters):
     return epsilon
 
 def get_r_core(options, parameters):
-    c_ref = parameters['theta0','geometry','c_ref']
-    r_core = options['aero']['vortex']['core_to_chord_ratio'] * c_ref
+
+    core_to_chord_ratio = options['aero']['vortex']['core_to_chord_ratio']
+    if core_to_chord_ratio == 0.:
+        r_core = 0.
+
+    else:
+        c_ref = parameters['theta0','geometry','c_ref']
+        r_core = core_to_chord_ratio * c_ref
+
     return r_core
 
 def get_PE_wingtip_name():

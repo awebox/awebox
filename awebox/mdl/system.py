@@ -34,8 +34,9 @@ import pdb
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.bound_wake as vortex_bound_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
@@ -225,6 +226,7 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
     vortex_representation = options['aero']['vortex']['representation']
 
+    number_bound_filaments = vortex_bound_wake.expected_number_of_filaments(options, architecture)
     number_near_filaments = vortex_near_wake.expected_number_of_filaments(options, architecture)
     number_far_filaments = vortex_far_wake.expected_number_of_filaments(options, architecture)
     number_dimensional_cylinders = vortex_far_wake.expected_number_of_directional_cylinders(options, architecture)
@@ -266,6 +268,11 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
                 system_lifted.extend([(w_pitch_name, (1, 1))])
 
     for kite_obs in architecture.kite_nodes:
+
+        for fdx in range(number_bound_filaments):
+            ind_name = 'wu_bound_fil_' + str(fdx) + '_' + str(kite_obs)
+            system_lifted.extend([(ind_name, (3, 1))])
+
         for fdx in range(number_near_filaments):
             ind_name = 'wu_near_fil_' + str(fdx) + '_' + str(kite_obs)
             system_lifted.extend([(ind_name, (3, 1))])

@@ -26,7 +26,7 @@
 file to provide printing operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
-- edited: rachel leuthold, alu-fr 2018-2021
+- edited: rachel leuthold, alu-fr 2018-2022
 '''
 
 from awebox.logger.logger import Logger as awelogger
@@ -165,13 +165,26 @@ def print_variable_info(object_name, variable_struct):
 
     return None
 
-def print_dict_as_table(dict):
+def print_dict_as_table(dict, type='info'):
     for key in dict.keys():
         if isinstance(dict[key], float):
             message = '{:>30}: {:.2e}'.format(key, dict[key])
-            awelogger.logger.info(message)
         else:
             message = '{:>30}: '.format(key) + str(dict[key])
+
+        if type == 'error':
+            awelogger.logger.error(message)
+        elif type == 'warning':
+            awelogger.logger.warning(message)
+        else:
             awelogger.logger.info(message)
 
     return None
+
+def print_test_outcome(test_passes, message, display_dict={}):
+    if not test_passes:
+        awelogger.logger.error(message)
+
+        print_dict_as_table(display_dict, type='error')
+
+        raise Exception(message)

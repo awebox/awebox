@@ -175,30 +175,12 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
 
 
 
-def get_wingtip_position(kite, model, variables, parameters, ext_int):
-    parent_map = model.architecture.parent_map
+def get_wingtip_position(kite, architecture, variables_si, parameters, tip):
 
-    xd = model.variables_dict['xd'](variables['xd'])
-
-    if ext_int == 'ext':
-        span_sign = 1.
-    elif ext_int == 'int':
-        span_sign = -1.
-    else:
-        awelogger.logger.error('wing side not recognized for 6dof kite.')
-
-    parent = parent_map[kite]
-
-    name = 'q' + str(kite) + str(parent)
-    q_unscaled = xd[name]
-    scale = model.scaling['xd'][name]
-    q = q_unscaled * scale
-
-    kite_dcm = cas.reshape(xd['kite_dcm' + str(kite) + str(parent)], (3, 3))
-    ehat_span = kite_dcm[:, 1]
-
-    b_ref = parameters['theta0','geometry','b_ref']
-
-    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+    parent = architecture.parent_map[kite]
+    q_kite = variables_si['xd', 'q' + str(kite) + str(parent)]
+    dcm_square = variables_si['xd', 'r' + str(kite) + str(parent)]
+    dcm_kite = cas.reshape(dcm_square, (3, 3))
+    wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 
     return wingtip_position

@@ -205,9 +205,10 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
         elif tip == 'int':
             sign = -1.
 
-        x_wingtip = q + sign * ehat_span * b_ref / 2.
+        shift = sign * ehat_span * b_ref / 2.
+        x_wingtip = q + shift
         u_infty_wingtip = wind.get_velocity(x_wingtip[2])
-        u_rot_wingtip = (b_ref/2.) * vect_op.cross(omega, sign * ehat_span)
+        u_rot_wingtip = vect_op.cross(omega, shift)
         u_app_wingtip = u_infty_wingtip - (u_kite + u_rot_wingtip)
 
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip

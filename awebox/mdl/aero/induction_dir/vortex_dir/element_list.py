@@ -120,8 +120,6 @@ class ElementList:
 
         return None
 
-
-
     def get_columnized_info_list(self):
 
         decolumnized_list = self.get_decolumnized_info_list()
@@ -225,6 +223,14 @@ class ElementList:
 
             if self.__element_type == 'filament':
                 vec_u_ind = biot_savart.filament(info_dict)
+            elif self.__element_type == 'semi_infinite_filament':
+                print_op.warn_about_temporary_funcationality_removal(location='element_list semi-infinite-filament and annulus')
+                message = self.__element_type + ' biot-savart does not exist yet'
+                raise Exception(message)
+            elif self.__element_type == 'annulus':
+                print_op.warn_about_temporary_funcationality_removal(location='element_list semi-infinite-filament and annulus')
+                message = self.__element_type + ' biot-savart does not exist yet'
+                raise Exception(message)
             elif self.__element_type == 'longitudinal_cylinder':
                 vec_u_ind = biot_savart.longitudinal_cylinder(info_dict)
             elif self.__element_type == 'tangential_cylinder':

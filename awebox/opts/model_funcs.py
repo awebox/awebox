@@ -624,6 +624,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_far_convection_time', vortex_far_convection_time, ('???? of trajectories in animation', None), 'x')),
 
     far_wake_model = options['model']['aero']['vortex']['far_wake_model']
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_model', far_wake_model, ('????', None), 'x')),

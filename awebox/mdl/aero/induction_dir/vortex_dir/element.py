@@ -196,6 +196,52 @@ class Filament(Element):
 
         return None
 
+
+class SemiInfiniteFilament(Element):
+    def __init__(self, info_dict):
+        super().__init__(info_dict)
+        self.set_element_type('semi_infinite_filament')
+        packed_info = self.pack_info(info_dict)
+        self.set_info(packed_info)
+        self.set_expected_info_length(8)
+
+    def unpack_info(self, packed_info):
+        x_start = packed_info[0:3]
+        l_hat = packed_info[3:6]
+        r_core = packed_info[6]
+        strength = packed_info[7]
+
+        unpacked = {'x_start': x_start,
+                    'l_hat': l_hat,
+                    'r_core': r_core,
+                    'strength': strength}
+        return unpacked
+
+    def pack_info(self, dict_info):
+        packed = cas.vertcat(dict_info['x_start'],
+                             dict_info['l_hat'],
+                             dict_info['r_core'],
+                             dict_info['strength']
+                             )
+        return packed
+
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+        evaluated = self.evaluate_info(variables_scaled, parameters)
+        unpacked = self.unpack_info(evaluated)
+
+        x_start = unpacked['x_start']
+        l_hat = unpacked['l_hat']
+
+        vortex_far_convection_time = cosmetics['trajectory']['vortex_far_convection_time']
+        u_ref = parameters.prefix['theta0', 'wind', 'u_ref']
+        vec_length = l_hat * u_ref * vortex_far_convection_time
+        x_end = x_start + vec_length
+
+        super().basic_draw(ax, side, unpacked['strength'], x_start, x_end, cosmetics)
+
+        return None
+
+
 class Annulus(Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
@@ -204,7 +250,7 @@ class Annulus(Element):
         self.set_info(packed_info)
         self.set_expected_info_length(11)
 
-    def draw(self, ax, strength_max, strength_min):
+    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
         unpacked = self.unpack_info(evaluated)
 

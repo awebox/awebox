@@ -262,6 +262,7 @@ def get_local_algebraic_repr_collocation_position_value(options, V, Outputs, mod
 
     return wx_found
 
+
 ################ farwake
 
 def get_farwake_convection_velocity_constraint(options, V, model):

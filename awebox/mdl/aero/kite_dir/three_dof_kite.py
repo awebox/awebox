@@ -181,29 +181,10 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     return kite_dcm
 
 
-def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
-
-    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
-
-    parent_map = model.architecture.parent_map
-    xd = model.variables_dict['xd'](variables['xd'])
-
-    if ext_int == 'ext':
-        span_sign = 1.
-    elif ext_int == 'int':
-        span_sign = -1.
-    else:
-        awelogger.logger.error('wing side not recognized for 3dof kite.')
-
-    parent = parent_map[kite]
-
-    q = xd['q' + str(kite) + str(parent)]
-
-    kite_dcm = get_kite_dcm(options, variables, model.wind, kite, model.architecture)
-    ehat_span = kite_dcm[:, 1]
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-
-    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+def get_wingtip_position(kite, options, wind, architecture, variables_si, parameters, tip):
+    parent = architecture.parent_map[kite]
+    q_kite = variables_si['xd', 'q' + str(kite) + str(parent)]
+    dcm_kite = get_kite_dcm(options, variables_si, wind, kite, architecture)
+    wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 
     return wingtip_position

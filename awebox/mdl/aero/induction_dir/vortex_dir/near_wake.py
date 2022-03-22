@@ -52,6 +52,8 @@ def get_list(options, variables_si, parameters, architecture, wind):
         kite_fil_list = get_list_by_kite(options, variables_si, parameters, architecture, wind, kite)
         filament_list.append(kite_fil_list)
 
+    filament_list.confirm_list_has_expected_dimensions()
+
     return filament_list
 
 def get_list_by_kite(options, variables_si, parameters, architecture, wind, kite):

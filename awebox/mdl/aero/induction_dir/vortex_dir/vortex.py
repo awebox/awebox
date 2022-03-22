@@ -50,6 +50,8 @@ import pdb
 
 def construct_objects(options, system_variables, parameters, architecture, wind):
 
+    tools.check_positive_vortex_wake_nodes(options)
+
     variables_scaled = system_variables['scaled']
     variables_si = system_variables['SI']
 
