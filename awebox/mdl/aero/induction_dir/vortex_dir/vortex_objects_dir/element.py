@@ -50,6 +50,7 @@ class Element:
         self.__info_dict = info_dict
         self.set_element_type('element')
         self.set_info_order(None)
+        self.set_biot_savart_fun(None)
 
     def set_info(self, packed_info):
         self.__info = packed_info
@@ -116,8 +117,10 @@ class Element:
             for local_position in range(number_of_positions):
                 local_pair = self.__info_order[local_position]
                 local_name = local_pair[0]
+                local_length = local_pair[1]
+                local_val = cas.reshape(dict_info[local_name], (local_length, 1))
 
-                packed = cas.vertcat(packed, dict_info[local_name])
+                packed = cas.vertcat(packed, local_val)
 
             return packed
 
@@ -187,13 +190,8 @@ class Element:
 
         return repeated_dict
 
-    def construct_test_object(self):
-        message = 'cannot construct a test object for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    def test(self):
-        message = 'cannot test this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+    def define_biot_savart_induction_function(self):
+        message = 'cannot define the biot savart induction function for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -228,6 +226,11 @@ class Element:
             raise Exception(message)
 
         return None
+
+    def test_biot_savart(self):
+        message = 'cannot test the biot-savart induction from this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     @property
     def info_fun(self):
@@ -287,4 +290,13 @@ class Element:
     def expected_info_length(self, value):
         awelogger.logger.error('Cannot set info_length object.')
 
+    @property
+    def biot_savart_fun(self):
+        return self.__biot_savart_fun
 
+    @biot_savart_fun.setter
+    def biot_savart_fun(self, value):
+        awelogger.logger.error('Cannot set biot_savart_fun object.')
+
+    def set_biot_savart_fun(self, value):
+        self.__biot_savart_fun = value
