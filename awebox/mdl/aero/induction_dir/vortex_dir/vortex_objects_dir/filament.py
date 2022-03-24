@@ -23,7 +23,7 @@
 #
 #
 '''
-object-oriented-vortex-filament-and-cylinder operations
+object-oriented vortex filament
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021-2022
 '''
@@ -52,7 +52,7 @@ class Filament(vortex_element.Element):
         super().__init__(info_dict)
         self.set_element_type('filament')
         self.define_info_order()
-        packed_info = self.pack_info(info_dict)
+        packed_info = self.pack_info()
         self.set_info(packed_info)
 
     def define_info_order(self):
@@ -62,14 +62,13 @@ class Filament(vortex_element.Element):
                  3: ('strength', 1)
                  }
         self.set_info_order(order)
-        self.set_expected_info_length()
 
         return None
 
     def define_biot_savart_induction_function(self):
         expected_info_length = self.expected_info_length
         packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
-        unpacked_sym = self.unpack_info(packed_sym)
+        unpacked_sym = self.unpack_info(external_info=packed_sym)
 
         x_obs = cas.SX.sym('x_obs', (3, 1))
 
@@ -101,27 +100,16 @@ class Filament(vortex_element.Element):
         den2 = r_0 * r_1 * cas.mtimes(vec_0.T, vec_1)
         den3 = epsilon_vortex
 
-        # value = factor * num1 * num2 / (den1 + den2 + den3)
-        print_op.warn_about_temporary_funcationality_removal(location='filament.biot_savart')
-        # value = num2
-        value = factor
+        value = factor * num1 * num2 / (den1 + den2 + den3)
 
         biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
         self.set_biot_savart_fun(biot_savart_fun)
-
-        packed_val = cas.vertcat(0., 0., 0., 1.,0., 0., 1., 1.)
-        x_obs_val = vect_op.zhat_dm() * 32.
-        temp_fun = cas.Function('temp_fun', [x_obs], [x_obs])
-        print(temp_fun(x_obs_val))
-        print(biot_savart_fun(packed_val,x_obs_val))
-
-        pdb.set_trace()
 
         return None
 
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
-        unpacked = self.unpack_info(evaluated)
+        unpacked = self.unpack_info(external_info=evaluated)
 
         x_start = unpacked['x_start']
         x_end = unpacked['x_end']
@@ -186,7 +174,7 @@ def test_biot_savart_2D_behavior(fil, epsilon=1.e-4):
     packed_info = fil.info
     biot_savart_fun = fil.biot_savart_fun
     vec_u_ind = biot_savart_fun(packed_info, x_obs)
-    vec_u_ind_2 = biot_savart_fun[packed_info, scale * x_obs]
+    vec_u_ind_2 = biot_savart_fun(packed_info, scale * x_obs)
 
     num = cas.mtimes(vec_u_ind.T, vect_op.yhat_dm())
     den = cas.mtimes(vec_u_ind_2.T, vect_op.yhat_dm())
@@ -205,7 +193,7 @@ def test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-4):
     packed_info = fil.info
     biot_savart_fun = fil.biot_savart_fun
     vec_u_ind = biot_savart_fun(packed_info, x_obs)
-    vec_u_ind_2 = biot_savart_fun[packed_info, scale * x_obs]
+    vec_u_ind_2 = biot_savart_fun(packed_info, scale * x_obs)
 
     num = cas.mtimes(vec_u_ind.T, vect_op.yhat_dm())
     den = cas.mtimes(vec_u_ind_2.T, vect_op.yhat_dm())
@@ -217,7 +205,8 @@ def test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-4):
         awelogger.logger.error(message)
         raise Exception(message)
 
-def test_biot_savart_unregularized_singularity(fil, epsilon=1.e-4):
+
+def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
     x_obs = 1.5 * vect_op.xhat_dm()
 
     packed_info = fil.info
@@ -232,26 +221,12 @@ def test_biot_savart_unregularized_singularity(fil, epsilon=1.e-4):
         awelogger.logger.error(message)
         raise Exception(message)
 
-def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
-    x_obs = 1.5 * vect_op.xhat_dm() + 0.112325 * (vect_op.yhat_dm() + vect_op.zhat_dm())
 
-    packed_info = fil.info
-    biot_savart_fun = fil.biot_savart_fun
-    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon=1.e-4):
+    x_obs = fil_with_nonzero_core_radius.info_dict['x_start']
 
-    test_val = vect_op.norm(vec_u_ind - 0.2/(4. * np.pi) * (-1.*vect_op.yhat_dm() + vect_op.zhat_dm()))
-    criteria = (test_val < epsilon)
-
-    if not criteria:
-        message = 'vortex filament: computation gives UNreasonable values at off-axis position'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-def test_biot_savart_regularized_singularity(fil_with_nonzero_core_radius, epsilon=1.e-4):
-    x_obs = 0. * vect_op.xhat_dm()
-
-    packed_info = fil_with_nonzero_core_radius.info()
-    biot_savart_fun = fil_with_nonzero_core_radius.biot_savart_fun()
+    packed_info = fil_with_nonzero_core_radius.info
+    biot_savart_fun = fil_with_nonzero_core_radius.biot_savart_fun
     vec_u_ind = biot_savart_fun(packed_info, x_obs)
 
     test_val = vect_op.norm(vec_u_ind)
@@ -262,21 +237,38 @@ def test_biot_savart_regularized_singularity(fil_with_nonzero_core_radius, epsil
         awelogger.logger.error(message)
         raise Exception(message)
 
+def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
+    x_obs = 1.5 * vect_op.xhat_dm() + 0.112325 * (vect_op.yhat_dm() + vect_op.zhat_dm())
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    expected = 0.2/(4. * np.pi) * (-1.*vect_op.yhat_dm() + vect_op.zhat_dm())
+    diff = vec_u_ind - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex filament: computation gives unreasonable values at off-axis position'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
 def test():
     fil = construct_test_object(r_core=0.)
     fil.test_basic_criteria(expected_object_type='filament')
 
-    epsilon = 1.e-3
+    epsilon = 1.e-7
     test_biot_savart_infinitely_far_away(fil, epsilon)
     test_biot_savart_right_hand_rule(fil, epsilon)
-    test_biot_savart_2D_behavior(fil, epsilon)
-    test_biot_savart_point_vortex_behavior(fil, epsilon)
-    test_biot_savart_unregularized_singularity(fil, epsilon)
+    test_biot_savart_2D_behavior(fil, 1.e-3)
+    test_biot_savart_point_vortex_behavior(fil, 1.e-3)
+    test_biot_savart_unregularized_singularity_removed(fil, epsilon)
     test_biot_savart_off_axis_values(fil, epsilon)
 
-    fil2 = construct_test_object(r_core = 1.)
-    test_biot_savart_regularized_singularity(fil, epsilon)
+    fil_with_nonzero_core_radius = construct_test_object(r_core = 1.)
+    test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
 
     return None
 

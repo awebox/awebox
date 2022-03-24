@@ -51,7 +51,7 @@ class Cylinder(vortex_element.Element):
         super().__init__(info_dict)
         self.set_element_type('cylinder')
         self.define_info_order()
-        packed_info = self.pack_info(info_dict)
+        packed_info = self.pack_info()
         self.set_info(packed_info)
 
     def define_info_order(self):
@@ -63,7 +63,6 @@ class Cylinder(vortex_element.Element):
                  5: ('strength', 1)
                  }
         self.set_info_order(order)
-        self.set_expected_info_length()
         return None
 
 def construct_test_object():

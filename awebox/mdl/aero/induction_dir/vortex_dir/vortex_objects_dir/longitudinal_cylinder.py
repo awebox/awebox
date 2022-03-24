@@ -54,7 +54,7 @@ class LongitudinalCylinder(vortex_cylinder.Cylinder):
 
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
-        unpacked = self.unpack_info(evaluated)
+        unpacked = self.unpack_info(external_info=evaluated)
 
         x_center = unpacked['x_center']
         l_hat = unpacked['l_hat']

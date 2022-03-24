@@ -52,7 +52,7 @@ class SemiInfiniteFilament(vortex_element.Element):
         super().__init__(info_dict)
         self.set_element_type('semi_infinite_filament')
         self.define_info_order()
-        packed_info = self.pack_info(info_dict)
+        packed_info = self.pack_info()
         self.set_info(packed_info)
 
     def define_info_order(self):
@@ -62,12 +62,11 @@ class SemiInfiniteFilament(vortex_element.Element):
                  3: ('strength', 1)
                  }
         self.set_info_order(order)
-        self.set_expected_info_length()
         return None
 
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
-        unpacked = self.unpack_info(evaluated)
+        unpacked = self.unpack_info(external_info=evaluated)
 
         x_start = unpacked['x_start']
         l_hat = unpacked['l_hat']

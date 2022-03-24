@@ -46,11 +46,15 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 class Element:
-    def __init__(self, info_dict):
+    def __init__(self, info_dict, info_order=None):
         self.__info_dict = info_dict
         self.set_element_type('element')
-        self.set_info_order(None)
         self.set_biot_savart_fun(None)
+
+        if info_order is not None:
+            self.set_info_order(info_order)
+            packed_info = self.pack_info()
+            self.set_info(packed_info)
 
     def set_info(self, packed_info):
         self.__info = packed_info
@@ -82,7 +86,12 @@ class Element:
         return None
 
 
-    def unpack_info(self, packed_info):
+    def unpack_info(self, external_info=None):
+
+        if external_info is not None:
+            packed_info = external_info
+        else:
+            packed_info = self.info
 
         if self.__info_order is not None:
             local_index = 0
@@ -90,7 +99,7 @@ class Element:
 
             unpacked = {}
             for local_position in range(number_of_positions):
-                local_pair = self.__info_order[local_position]
+                local_pair = self.info_order[local_position]
                 local_name = local_pair[0]
                 local_length = local_pair[1]
 
@@ -98,6 +107,9 @@ class Element:
                 end_index = start_index + local_length
 
                 unpacked[local_name] = packed_info[start_index:end_index]
+
+                local_index = end_index
+
             return unpacked
 
         else:
@@ -108,17 +120,22 @@ class Element:
         return None
 
 
-    def pack_info(self, dict_info):
+    def pack_info(self, external_info=None):
 
-        if self.__info_order is not None:
+        if external_info is not None:
+            info_dict = external_info
+        else:
+            info_dict = self.info_dict
+
+        if self.info_order is not None:
             number_of_positions = self.number_of_info_values()
 
             packed = []
             for local_position in range(number_of_positions):
-                local_pair = self.__info_order[local_position]
+                local_pair = self.info_order[local_position]
                 local_name = local_pair[0]
                 local_length = local_pair[1]
-                local_val = cas.reshape(dict_info[local_name], (local_length, 1))
+                local_val = cas.reshape(info_dict[local_name], (local_length, 1))
 
                 packed = cas.vertcat(packed, local_val)
 
@@ -212,7 +229,8 @@ class Element:
 
     def test_has_expected_info_length(self):
 
-        if self.__info_order is not None:
+        if self.info_order is not None:
+
             criteria = (self.info_length == self.expected_info_length)
 
             if not criteria:
@@ -257,7 +275,11 @@ class Element:
         self.__info_order = value
 
     def set_info_order(self, value):
-        self.__info_order = value
+        if value is not None:
+            self.__info_order = value
+            self.set_expected_info_length()
+
+        return None
 
     @property
     def info_dict(self):
@@ -300,3 +322,99 @@ class Element:
 
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
+
+
+def construct_test_object():
+
+    info_order = {0: ('alpha', 1),
+                  1: ('beta', 1),
+                  2: ('gamma', 1)
+                  }
+
+    alpha = 1.1
+    beta = 2.2
+    gamma = 3.3
+    info_dict = {'alpha': alpha,
+                 'beta': beta,
+                 'gamma': gamma
+                 }
+
+    elem = Element(info_dict, info_order=info_order)
+    return elem
+
+def test_number_of_info_values(elem):
+    number_of_info_values = elem.number_of_info_values()
+    criteria = (number_of_info_values == 3)
+
+    if not criteria:
+        message = 'vortex element: wrong number of info values being recorded'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_pack_internal_info(elem):
+    packed = elem.pack_info()
+    expected = cas.DM([1.1, 2.2, 3.3])
+    diff = vect_op.norm(packed - expected)
+    criteria = (diff == 0.)
+
+    if not criteria:
+        message = 'vortex element: internal info is being packed incorrectly'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_unpack_internal_info(elem):
+    unpacked = elem.unpack_info()
+    expected = {'alpha': 1.1, 'beta': 2.2, 'gamma': 3.3}
+
+    criteria = True
+    for key, value in expected.items():
+        criteria = (criteria and (unpacked[key] == expected[key]))
+
+    if not criteria:
+        message = 'vortex element: internal info is being unpacked incorrectly'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_pack_external_info(elem):
+
+    info_dict = {'alpha': 4.1, 'beta': 5.2, 'gamma': 6.3}
+    info_packed = cas.DM([4.1, 5.2, 6.3])
+
+    packed = elem.pack_info(external_info=info_dict)
+
+    diff = vect_op.norm(packed - info_packed)
+    criteria = (diff == 0.)
+
+    if not criteria:
+        message = 'vortex element: external info is being packed incorrectly'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_unpack_external_info(elem):
+    info_dict = {'alpha': 4.1, 'beta': 5.2, 'gamma': 6.3}
+    info_packed = cas.DM([4.1, 5.2, 6.3])
+
+    unpacked = elem.unpack_info(external_info=info_packed)
+
+    criteria = True
+    for key, value in info_dict.items():
+        criteria = (criteria and (unpacked[key] == info_dict[key]))
+
+
+    if not criteria:
+        message = 'vortex element: external info is being unpacked incorrectly'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test():
+    elem = construct_test_object()
+    elem.test_basic_criteria(expected_object_type='element')
+    test_number_of_info_values(elem)
+    test_unpack_internal_info(elem)
+    test_pack_internal_info(elem)
+    test_unpack_external_info(elem)
+    test_pack_external_info(elem)
+
+test()

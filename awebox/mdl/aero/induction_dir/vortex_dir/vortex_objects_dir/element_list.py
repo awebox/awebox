@@ -215,7 +215,7 @@ class ElementList:
                 awelogger.logger.error(message)
                 raise Exception(message)
 
-            info_dict = self.__list[0].unpack_info(info_sym)
+            info_dict = self.__list[0].unpack_info(external_info=info_sym)
             info_dict['x_obs'] = x_obs
 
             if self.__element_type == 'filament':
@@ -274,7 +274,8 @@ class ElementList:
         return None
 
     def abs_strength_max(self, variables_scaled, parameters):
-        all_strengths = np.array([elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))['strength'] for elem in self.__list])
+
+        all_strengths = np.array([elem.unpack_info(external_info=elem.evaluate_info(variables_scaled, parameters))['strength'] for elem in self.__list])
         return np.max(np.abs(all_strengths))
 
     @property
