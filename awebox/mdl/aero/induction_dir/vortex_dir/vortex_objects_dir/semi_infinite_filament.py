@@ -64,6 +64,36 @@ class SemiInfiniteFilament(vortex_element.Element):
         self.set_info_order(order)
         return None
 
+    def define_biot_savart_induction_function(self):
+        expected_info_length = self.expected_info_length
+        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
+        unpacked_sym = self.unpack_info(external_info=packed_sym)
+
+        x_obs = cas.SX.sym('x_obs', (3, 1))
+
+        x_0 = unpacked_sym['x_start']
+        l_hat = unpacked_sym['l_hat']
+        r_core = unpacked_sym['r_core']
+        strength = unpacked_sym['strength']
+
+        vec_0 = x_0 - x_obs
+
+        r_squared_0 = cas.mtimes(vec_0.T, vec_0)
+        r_0 = vect_op.smooth_sqrt(r_squared_0)
+
+        factor = strength/(4. * np.pi)
+        num1 = vect_op.cross(vec_0, l_hat)
+        den1 = r_squared_0
+        den2 = r_0 * cas.mtimes(l_hat.T, vec_0)
+        den3 = r_core**2.
+
+        value = factor * num1 / (den1 + den2 + den3)
+
+        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
+        self.set_biot_savart_fun(biot_savart_fun)
+
+        return None
+
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
         unpacked = self.unpack_info(external_info=evaluated)
@@ -80,22 +110,135 @@ class SemiInfiniteFilament(vortex_element.Element):
 
         return None
 
-def construct_test_object():
-    x_start = 0. * vect_op.xhat_np()
-    l_hat = vect_op.xhat_np()
-    r_core = 0.
-    strength = 1.
+def construct_test_object(r_core=cas.DM(0.)):
+    x_start = 0. * vect_op.xhat_dm()
+    l_hat = vect_op.xhat_dm()
+    strength = cas.DM(4. * np.pi)
     dict_info = {'x_start': x_start,
                  'l_hat': l_hat,
                  'r_core': r_core,
                  'strength': strength}
 
     fil = SemiInfiniteFilament(dict_info)
+    fil.define_biot_savart_induction_function()
+
     return fil
 
+def test_biot_savart_infinitely_far_away(fil, epsilon=1.e-4):
+    x_obs = 1.e7 * vect_op.zhat_dm()
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    test_val = vect_op.norm(vec_u_ind)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite filament: influence of the vortex does not vanish far from the vortex'
+        awelogger.logger.error(message)
+
+        raise Exception(message)
+
+def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
+    x_obs = 1. * vect_op.zhat_dm()
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    test_val = vect_op.norm(vect_op.normalize(vec_u_ind) + vect_op.yhat_dm())
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+
+        message = 'vortex semi-infinite filament: direction of induced velocity does not satisfy the right-hand-rule'
+        awelogger.logger.error(message)
+
+        raise Exception(message)
+
+def test_biot_savart_inverse_radius_behavior(fil, epsilon=1.e-4):
+    x_obs = 1. * vect_op.zhat_dm()
+    scale = 2.
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+    vec_u_ind_2 = biot_savart_fun(packed_info, scale * x_obs)
+
+    num = cas.mtimes(vec_u_ind.T, vect_op.yhat_dm())
+    den = cas.mtimes(vec_u_ind_2.T, vect_op.yhat_dm())
+    test_val = num/den - scale
+    criteria = (-1. * epsilon < test_val) and (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite filament: the inverse-radius relationship is not satisfied'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
+    x_obs = -1. * vect_op.xhat_dm()
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    test_val = vect_op.norm(vec_u_ind)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite filament: singularities DO occur on the axis, off of the vortex filament'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon=1.e-4):
+    x_obs = 1. * vect_op.xhat_dm()
+
+    packed_info = fil_with_nonzero_core_radius.info
+    biot_savart_fun = fil_with_nonzero_core_radius.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    test_val = vect_op.norm(vec_u_ind)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite filament: regularization does not remove the singularities on the vortex filament'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
+    x_obs = 10. * vect_op.xhat_dm() + 4.59612 * (vect_op.yhat_dm() + vect_op.zhat_dm())
+
+    packed_info = fil.info
+    biot_savart_fun = fil.biot_savart_fun
+    vec_u_ind = biot_savart_fun(packed_info, x_obs)
+
+    expected = 0.2 * (-1.*vect_op.yhat_dm() + vect_op.zhat_dm())
+    diff = vec_u_ind - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex filament: computation gives unreasonable values at off-axis position'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
 def test():
-    fil = construct_test_object()
+    fil = construct_test_object(r_core=0.)
     fil.test_basic_criteria(expected_object_type='semi_infinite_filament')
+
+    epsilon = 1.e-6
+    test_biot_savart_infinitely_far_away(fil, epsilon)
+    test_biot_savart_right_hand_rule(fil, epsilon)
+    test_biot_savart_inverse_radius_behavior(fil, epsilon=1.e-3)
+    test_biot_savart_unregularized_singularity_removed(fil, epsilon)
+    test_biot_savart_off_axis_values(fil, epsilon)
+
+    fil_with_nonzero_core_radius = construct_test_object(r_core=1.)
+    test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
+
     return None
 
 test()

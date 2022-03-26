@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2022 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -120,7 +120,7 @@ class Filament(vortex_element.Element):
 def construct_test_object(r_core=cas.DM(0.)):
     x_start = -1. * vect_op.xhat_dm()
     x_end = 1. * vect_op.xhat_dm()
-    strength = cas.DM(1.)
+    strength = cas.DM(4.) * np.pi
     dict_info = {'x_start': x_start,
                  'x_end': x_end,
                  'r_core': r_core,
@@ -144,8 +144,6 @@ def test_biot_savart_infinitely_far_away(fil, epsilon=1.e-4):
         message = 'vortex filament: influence of the vortex does not vanish far from the vortex'
         awelogger.logger.error(message)
 
-        pdb.set_trace()
-
         raise Exception(message)
 
 def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
@@ -162,8 +160,6 @@ def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
 
         message = 'vortex filament: direction of induced velocity does not satisfy the right-hand-rule'
         awelogger.logger.error(message)
-
-        pdb.set_trace()
 
         raise Exception(message)
 
@@ -244,7 +240,7 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
     biot_savart_fun = fil.biot_savart_fun
     vec_u_ind = biot_savart_fun(packed_info, x_obs)
 
-    expected = 0.2/(4. * np.pi) * (-1.*vect_op.yhat_dm() + vect_op.zhat_dm())
+    expected = 0.2 * (-1.*vect_op.yhat_dm() + vect_op.zhat_dm())
     diff = vec_u_ind - expected
 
     test_val = vect_op.norm(diff)
@@ -259,15 +255,15 @@ def test():
     fil = construct_test_object(r_core=0.)
     fil.test_basic_criteria(expected_object_type='filament')
 
-    epsilon = 1.e-7
+    epsilon = 1.e-6
     test_biot_savart_infinitely_far_away(fil, epsilon)
     test_biot_savart_right_hand_rule(fil, epsilon)
-    test_biot_savart_2D_behavior(fil, 1.e-3)
-    test_biot_savart_point_vortex_behavior(fil, 1.e-3)
+    test_biot_savart_2D_behavior(fil, epsilon=1.e-3)
+    test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-3)
     test_biot_savart_unregularized_singularity_removed(fil, epsilon)
     test_biot_savart_off_axis_values(fil, epsilon)
 
-    fil_with_nonzero_core_radius = construct_test_object(r_core = 1.)
+    fil_with_nonzero_core_radius = construct_test_object(r_core=1.)
     test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
 
     return None

@@ -92,7 +92,7 @@ def smooth_abs(arg, epsilon=1e-8):
 
     return abs
 
-def smooth_sqrt(arg, epsilon=1e-6):
+def smooth_sqrt(arg, epsilon=1e-8):
     sqrt = (arg + epsilon ** 2.) ** 0.5
     return sqrt
 
