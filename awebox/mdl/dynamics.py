@@ -141,6 +141,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
     cstr_list.append(P_max_cstr)
 
+    outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(ellips_cstr)
+
     # ----------------------------------------
     #  sanity checking
     # ----------------------------------------
@@ -581,6 +584,25 @@ def P_max_inequality(options, variables, power, parameters, architecture):
         cstr_list.append(P_max_cstr)
 
     return cstr_list
+
+def ellipsoidal_flight_constraint(options, variables, parameters, architecture, outputs):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    alpha = - np.pi/2 + parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
+    r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius']
+    if options['model_bounds']['ellipsoidal_flight_region']['include']:
+        for kite in architecture.kite_nodes:
+            q = variables['x']['q{}'.format(architecture.node_label(kite))]
+            ellipse_ineq = q[0]**2/np.tan(alpha)**2 + q[0]*q[2]*np.sin(2*alpha)/np.sin(alpha)**2 + \
+                q[2]**2 + q[1]**2 - r**2
+
+            ellipse_cstr = cstr_op.Constraint(expr=ellipse_ineq,
+                                        name='ellipse_flight' + architecture.node_label(kite),
+                                        cstr_type='ineq')
+            cstr_list.append(ellipse_cstr)
+    return outputs, cstr_list
+
 
 def acceleration_inequality(options, variables):
 
