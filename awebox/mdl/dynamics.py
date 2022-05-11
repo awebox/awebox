@@ -594,8 +594,10 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
         for kite in architecture.kite_nodes:
             q = variables['x']['q{}'.format(architecture.node_label(kite))]
-            ellipse_ineq = q[0]**2/np.tan(alpha)**2 + q[0]*q[2]*np.sin(2*alpha)/np.sin(alpha)**2 + \
-                q[2]**2 + q[1]**2 - r**2
+
+            yy = q[1]
+            zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
+            ellipse_ineq = zz**2/np.sin(alpha)**2 + yy**2 - r**2
 
             ellipse_cstr = cstr_op.Constraint(expr=ellipse_ineq,
                                         name='ellipse_flight' + architecture.node_label(kite),
