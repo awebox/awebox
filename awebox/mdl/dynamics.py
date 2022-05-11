@@ -589,7 +589,7 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
-    alpha = - np.pi/2 + parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
+    alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
     r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius']
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
         for kite in architecture.kite_nodes:
@@ -597,7 +597,7 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
             yy = q[1]
             zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
-            ellipse_ineq = zz**2/np.sin(alpha)**2 + yy**2 - r**2
+            ellipse_ineq = zz**2/(r*np.sin(alpha))**2 + yy**2/r**2 - 1
 
             ellipse_cstr = cstr_op.Constraint(expr=ellipse_ineq,
                                         name='ellipse_flight' + architecture.node_label(kite),
