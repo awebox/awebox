@@ -91,6 +91,11 @@ def init_write_csv_dict(plot_dict):
     # add time stamp
     write_csv_dict['time'] = None
 
+    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
+        variable_length = plot_dict['variables']['theta', variable].shape[0]
+        for index in range(variable_length):
+            write_csv_dict['theta_' + variable + '_' + str(index)] = None
+
     # add architecture information
     write_csv_dict['nodes'] = None
     write_csv_dict['parent'] = None
@@ -174,6 +179,15 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
 
     write_csv_dict['time'] = tgrid_ip[k]
+
+    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
+        V_plot = plot_dict['V_plot']
+        variable_length = plot_dict['variables']['theta',variable].shape[0]
+        for index in range(variable_length):
+            if k == 0:
+                write_csv_dict['theta_' + variable + '_' + str(index)] = str(V_plot['theta', variable, index])
+            else:
+                write_csv_dict['theta_' + variable + '_' + str(index)] = None
 
     parent_map = plot_dict['architecture'].parent_map
     if k < plot_dict['architecture'].number_of_nodes-1:
