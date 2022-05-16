@@ -31,6 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+from . import ocp_outputs
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
 import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
@@ -46,7 +47,7 @@ import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
 
-def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
@@ -108,6 +109,23 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(integral_cstr)
         if len(integral_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
+
+    if nlp_options['induction']['induction_model'] == 'averaged':
+
+        cstr_list = ocp_constraint.OcpConstraintList()
+        t_f = ocp_outputs.find_time_period(nlp_options, V)
+        nk_reelout = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
+        F_avg = Integral_outputs['int_out', nk_reelout, 'tether_force_int']
+        WdA_avg = Integral_outputs['int_out', nk_reelout, 'area_int']
+        a = V['theta','a']*model.scaling['theta']['a']
+        induction_expr = F_avg/t_f - 4*a*(1 - a)*WdA_avg
+        induction_cstr = cstr_op.Constraint(expr= induction_expr,
+                                    name='average_induction',
+                                    cstr_type='eq')
+        cstr_list.append(induction_cstr)
+
+        ocp_cstr_list.append(cstr_list)
+        ocp_cstr_entry_list.append(cas.entry('avg_induction', shape = (1,1)))
 
     # Constraints structure
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
