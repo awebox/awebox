@@ -245,10 +245,15 @@ def generate_optimal_model(trial, param_options = None):
     weights = obj.get_regularization_weights(trial.model.variables, trial.optimization.p_fix_num, trial.options['nlp']).cat
     refs = struct_op.get_variables_at_time(trial.options['nlp'], trial.nlp.V(trial.optimization.p_fix_num['p','ref']), trial.nlp.Xdot(0.0), trial.model.variables, 0, 0)
     var = trial.model.variables
-    u_reg = reg_costs_struct(reg_costs_fun(var, refs, weights))['u_regularisation_cost']
+    xdot_reg = reg_costs_fun(var, refs, weights)[1]
+    u_reg = reg_costs_fun(var, refs, weights)[2]
+    beta_reg = 0.0
+    for kite in trial.model.architecture.kite_nodes:
+        beta_sq = trial.model.outputs(trial.model.outputs_fun(variables, parameters))['aerodynamics', 'beta{}'.format(kite)]**2
+        beta_reg += trial.optimization.p_fix_num['cost', 'beta']*beta_sq / trial.options['nlp']['cost']['normalization']['beta']
     power = trial.model.integral_outputs_fun(var, trial.model.parameters)
     cost_weighting = discr.setup_nlp_cost()(trial.optimization.p_fix_num['cost'])
-    stage_cost = - cost_weighting['power']*power/t_f.full()[0][0] + cost_weighting['u_regularisation']*u_reg
+    stage_cost = - cost_weighting['power']*power/t_f.full()[0][0] + u_reg + xdot_reg + beta_reg
     quadrature = cas.Function('quad', [var, trial.model.parameters], [stage_cost])
 
     # create dae object based on numerical parameters
