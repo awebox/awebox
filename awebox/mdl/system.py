@@ -195,6 +195,9 @@ def generate_structure(options, architecture):
     if 'P_max' in options['system_bounds']['theta'].keys():
         system_parameters += [('P_max', (1, 1))] # max power
 
+    if 'ell_radius' in options['system_bounds']['theta'].keys():
+        system_parameters += [('ell_radius', (1, 1))] # max power
+
     if options['induction_model'] == 'averaged':
         system_parameters += [('a', (1,1))] # average induction
 

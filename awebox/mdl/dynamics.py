@@ -234,6 +234,13 @@ def manage_power_integration(options, power, outputs, system_variables, paramete
             integral_scaling['tether_force_int'] = 1.0
             integral_scaling['area_int'] = 1.0
 
+            path_length = 0.0
+            for kite in architecture.kite_nodes:
+                dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
+                path_length += vect_op.norm(dq)
+            entry_list += [cas.entry('path_length', expr = path_length)]
+            integral_scaling['path_length'] = 1.0
+
         integral_outputs = cas.struct_SX(entry_list)
 
         integral_scaling['e'] = options['scaling']['x']['e']
@@ -606,7 +613,10 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
     cstr_list = mdl_constraint.MdlConstraintList()
 
     alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
-    r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius']
+    if 'ell_radius' in list(variables['theta'].keys()):
+        r = variables['theta']['ell_radius']
+    else:
+        r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius']
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
         for kite in architecture.kite_nodes:
             q = variables['x']['q{}'.format(architecture.node_label(kite))]

@@ -127,6 +127,16 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape = (1,1)))
 
+        cstr_list = ocp_constraint.OcpConstraintList()
+        path_length = Integral_outputs['int_out', nk_reelout, 'path_length']
+        path_length_expr = path_length - 2*np.pi*V['theta', 'l_s']*model.scaling['theta']['l_s']
+        path_length_cstr = cstr_op.Constraint(expr= path_length_expr,
+                                    name='path_length',
+                                    cstr_type='ineq')
+        cstr_list.append(path_length_cstr)
+        ocp_cstr_list.append(cstr_list)
+        ocp_cstr_entry_list.append(cas.entry('path_length', shape = (1,1)))
+
     # Constraints structure
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 

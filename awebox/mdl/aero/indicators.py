@@ -292,8 +292,8 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
 
     CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
     CD_min = options['model_bounds']['aero_validity']['CD_min']
-    drag_lb = CD_min - CD
-    outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
+    # drag_lb = CD_min - CD
+    # outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
 
 
     return outputs
