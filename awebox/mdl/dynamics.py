@@ -614,19 +614,19 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
     alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
     if 'ell_radius' in list(variables['theta'].keys()):
-        r = variables['theta']['ell_radius']
+        r = variables['theta']['ell_radius'] - parameters['theta0', 'geometry', 'b_ref']
     else:
-        r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius']
+        r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius'] - parameters['theta0', 'geometry', 'b_ref']
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
-        for kite in architecture.kite_nodes:
-            q = variables['x']['q{}'.format(architecture.node_label(kite))]
+        for node in range(1,architecture.number_of_nodes):
+            q = variables['x']['q{}'.format(architecture.node_label(node))]
 
             yy = q[1]
             zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
             ellipse_ineq = zz**2/(r*np.sin(alpha))**2 + yy**2/r**2 - 1
 
             ellipse_cstr = cstr_op.Constraint(expr=ellipse_ineq,
-                                        name='ellipse_flight' + architecture.node_label(kite),
+                                        name='ellipse_flight' + architecture.node_label(node),
                                         cstr_type='ineq')
             cstr_list.append(ellipse_cstr)
     return outputs, cstr_list
