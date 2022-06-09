@@ -778,6 +778,12 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         #                                        cstr_type='ineq')
         #     cstr_list.append(force_max_cstr)
 
+        #     force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
+
+        #     force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
+        #                                        name='tether_force_min' + str(n) + str(parent),
+        #                                        cstr_type='ineq')
+        #     cstr_list.append(force_min_cstr)
 
         # outputs so that the user can find the stress and tension
         outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section_area
