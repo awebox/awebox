@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.cylinder as vortex_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_cylinder
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -47,10 +47,10 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class LongitudinalCylinder(vortex_cylinder.Cylinder):
+class SemiInfiniteLongitudinalCylinder(vortex_cylinder.SemiInfiniteCylinder):
     def __init__(self, info_dict):
         super().__init__(info_dict)
-        self.set_element_type('longitudinal_cylinder')
+        self.set_element_type('semi_infinite_longitudinal_cylinder')
 
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
@@ -80,12 +80,12 @@ class LongitudinalCylinder(vortex_cylinder.Cylinder):
 def construct_test_object():
     cyl = vortex_cylinder.construct_test_object()
     unpacked = cyl.info_dict
-    long_cyl = LongitudinalCylinder(unpacked)
+    long_cyl = SemiInfiniteLongitudinalCylinder(unpacked)
     return long_cyl
 
 def test():
     cyl = construct_test_object()
-    cyl.test_basic_criteria(expected_object_type='longitudinal_cylinder')
+    cyl.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_cylinder')
     return None
 
 test()

@@ -37,100 +37,6 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.tools.print_operations as print_op
 
-def filament(seg_data):
-
-    try:
-        num = get_filament_numerator(seg_data)
-        den = get_filament_denominator(seg_data)
-        sol = num / den
-
-    except:
-        message = 'something went wrong while computing the filament biot-savart induction.'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    return sol
-
-def get_filament_numerator(seg_data):
-
-    point_obs = seg_data['x_obs']
-    point_1 = seg_data['x_start']
-    point_2 = seg_data['x_end']
-    Gamma = seg_data['strength']
-
-    vec_1 = point_obs - point_1
-    vec_2 = point_obs - point_2
-
-    r1 = vect_op.smooth_norm(vec_1)
-    r2 = vect_op.smooth_norm(vec_2)
-
-    factor = Gamma / (4. * np.pi)
-
-    scale = (r1 + r2) * factor
-    dir = vect_op.cross(vec_1, vec_2)
-    num = dir * scale
-
-    return num
-
-def get_filament_denominator(seg_data):
-
-    # for actual signs:
-    # https: // openfast.readthedocs.io / en / master / source / user / aerodyn - olaf / OLAFTheory.html
-
-    point_obs = seg_data['x_obs']
-    point_1 = seg_data['x_start']
-    point_2 = seg_data['x_end']
-    r_core = seg_data['r_core']
-
-    vec_1 = point_obs - point_1
-    vec_2 = point_obs - point_2
-    vec_0 = point_2 - point_1
-
-    r1 = vect_op.smooth_norm(vec_1)
-    r2 = vect_op.smooth_norm(vec_2)
-    r0 = vect_op.smooth_norm(vec_0)
-
-    den_ori = (r1 * r2) * (r1 * r2 + cas.mtimes(vec_1.T, vec_2))
-    reg_den = r0**2. * r_core**2.
-
-    den = den_ori + reg_den
-
-    return den
-
-def test_filament():
-
-    point_obs = vect_op.yhat()
-    point_1 = 1000. * vect_op.zhat()
-    point_2 = -1. * point_1
-    Gamma = 1.
-    r_core = 0.
-
-    seg_data = {'x_obs': point_obs,
-                'x_start': point_1,
-                'x_end': point_2,
-                'r_core': r_core,
-                'strength': Gamma
-                }
-
-    vec_found = filament(seg_data)
-    val_normalize = 1. / (2. * np.pi)
-    vec_norm = vec_found / val_normalize
-
-    mag_test = (vect_op.norm(vec_norm) - 1.)**2.
-    mag_thresh = 1.e-6
-    if mag_test > mag_thresh:
-        message = 'biot-savart filament induction magnitude test gives error of size: ' + str(mag_test)
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    dir_test = vect_op.norm(vec_norm - vect_op.xhat() * cas.mtimes(vec_norm.T, vect_op.xhat()))
-    dir_thresh = 1.e-6
-    if dir_test > dir_thresh:
-        message = 'biot-savart filament induction direction test gives error of size: ' + str(dir_test)
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    return None
 
 def k_squared_cylinder(r_obs, r_cyl, z_obs, epsilon):
     # see (36.76) from Branlard, 2017
@@ -359,8 +265,6 @@ def tangential_cylinder(cyl_data):
     u_z = u_z_factor * (u_z_part_1 + u_z_part_2_factor * (u_z_part_2_a + u_z_part_2_b))
 
     found = u_r * ehat_r + u_z * ehat_long
-    # print_op.warn_about_temporary_funcationality_removal(location='biot_savart.long_cylinder')
-    # found = cas.DM.zeros((3, 1))
 
     return found
 

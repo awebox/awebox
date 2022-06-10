@@ -46,10 +46,10 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class Cylinder(vortex_element.Element):
+class SemiInfiniteCylinder(vortex_element.Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
-        self.set_element_type('cylinder')
+        self.set_element_type('semi_infinite_cylinder')
         self.define_info_order()
         packed_info = self.pack_info()
         self.set_info(packed_info)
@@ -80,12 +80,12 @@ def construct_test_object():
                 'strength': strength
                 }
 
-    cyl = Cylinder(unpacked)
+    cyl = SemiInfiniteCylinder(unpacked)
     return cyl
-
+2
 def test():
     cyl = construct_test_object()
-    cyl.test_basic_criteria(expected_object_type='cylinder')
+    cyl.test_basic_criteria(expected_object_type='semi_infinite_cylinder')
     return None
 
 test()

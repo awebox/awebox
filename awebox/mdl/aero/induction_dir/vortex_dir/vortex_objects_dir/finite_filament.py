@@ -23,7 +23,7 @@
 #
 #
 '''
-object-oriented vortex filament
+object-oriented vortex finite filament
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021-2022
 '''
@@ -47,10 +47,10 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class Filament(vortex_element.Element):
+class FiniteFilament(vortex_element.Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
-        self.set_element_type('filament')
+        self.set_element_type('finite_filament')
         self.define_info_order()
         packed_info = self.pack_info()
         self.set_info(packed_info)
@@ -126,7 +126,7 @@ def construct_test_object(r_core=cas.DM(0.)):
                  'r_core': r_core,
                  'strength': strength}
 
-    fil = Filament(dict_info)
+    fil = FiniteFilament(dict_info)
     fil.define_biot_savart_induction_function()
     return fil
 
@@ -141,7 +141,7 @@ def test_biot_savart_infinitely_far_away(fil, epsilon=1.e-4):
     criteria = (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: influence of the vortex does not vanish far from the vortex'
+        message = 'vortex finite filament: influence of the vortex does not vanish far from the vortex'
         awelogger.logger.error(message)
 
         raise Exception(message)
@@ -158,7 +158,7 @@ def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
 
     if not criteria:
 
-        message = 'vortex filament: direction of induced velocity does not satisfy the right-hand-rule'
+        message = 'vortex finite filament: direction of induced velocity does not satisfy the right-hand-rule'
         awelogger.logger.error(message)
 
         raise Exception(message)
@@ -178,7 +178,7 @@ def test_biot_savart_2D_behavior(fil, epsilon=1.e-4):
     criteria = (-1. * epsilon < test_val) and (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: in an approximately 2D situation, the inverse-radius relationship is not satisfied'
+        message = 'vortex finite filament: in an approximately 2D situation, the inverse-radius relationship is not satisfied'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -197,7 +197,7 @@ def test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-4):
     criteria = (-1. * epsilon < test_val) and (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: in an approximately point-vortex situation, the inverse-squared-radius relationship is not satisfied'
+        message = 'vortex finite filament: in an approximately point-vortex situation, the inverse-squared-radius relationship is not satisfied'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -213,7 +213,7 @@ def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
     criteria = (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: singularities DO occur on the axis, outside of the endpoints'
+        message = 'vortex finite filament: singularities DO occur on the axis, outside of the endpoints'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -229,7 +229,7 @@ def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radiu
     criteria = (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: regularization does not remove the singularities on the vortex filament'
+        message = 'vortex finite filament: regularization does not remove the singularities on the vortex finite filament'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -247,13 +247,13 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
     criteria = (test_val < epsilon)
 
     if not criteria:
-        message = 'vortex filament: computation gives unreasonable values at off-axis position'
+        message = 'vortex finite filament: computation gives unreasonable values at off-axis position'
         awelogger.logger.error(message)
         raise Exception(message)
 
 def test():
     fil = construct_test_object(r_core=0.)
-    fil.test_basic_criteria(expected_object_type='filament')
+    fil.test_basic_criteria(expected_object_type='finite_filament')
 
     epsilon = 1.e-6
     test_biot_savart_infinitely_far_away(fil, epsilon)

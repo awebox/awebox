@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.cylinder as vortex_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_cylinder
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -47,10 +47,55 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class TangentialCylinder(vortex_cylinder.Cylinder):
+class SemiInfiniteTangentialCylinder(vortex_cylinder.SemiInfiniteCylinder):
     def __init__(self, info_dict):
         super().__init__(info_dict)
-        self.set_element_type('tangential_cylinder')
+        self.set_element_type('semi_infinite_tangential_cylinder')
+
+    def define_biot_savart_induction_function(self):
+        expected_info_length = self.expected_info_length
+        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
+        unpacked_sym = self.unpack_info(external_info=packed_sym)
+
+        x_obs = cas.SX.sym('x_obs', (3, 1))
+
+        x_center = unpacked_sym['x_center']
+        l_hat = unpacked_sym['l_hat']
+        radius = unpacked_sym['radius']
+        l_start = unpacked_sym['l_start']
+        epsilon = unpacked_sym['epsilon']
+        strength = unpacked_sym['strength']
+
+        vec_0 = x_0 - x_obs
+        vec_1 = x_1 - x_obs
+
+        r_squared_0 = cas.mtimes(vec_0.T, vec_0)
+        r_squared_1 = cas.mtimes(vec_1.T, vec_1)
+        r_0 = vect_op.smooth_sqrt(r_squared_0)
+        r_1 = vect_op.smooth_sqrt(r_squared_1)
+
+        # notice, that we're using the cut-off model as described in
+        # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
+        # which is the unit-consistent version what's used in
+        # A. van Garrel. Development of a Wind Turbine Aerodynamics Simulation Module. Technical report,
+        # Energy research Centre of the Netherlands. ECN-C–03-079, aug 2003
+        length = vect_op.norm(x_1 - x_0)
+        epsilon_vortex = r_core**2. * length**2.
+
+        factor = strength/(4. * np.pi)
+        num1 = r_0 + r_1
+        num2 = vect_op.cross(vec_0, vec_1)
+        den1 = r_squared_0 * r_squared_1
+        den2 = r_0 * r_1 * cas.mtimes(vec_0.T, vec_1)
+        den3 = epsilon_vortex
+
+        value = factor * num1 * num2 / (den1 + den2 + den3)
+
+        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
+        self.set_biot_savart_fun(biot_savart_fun)
+
+        return None
+
 
     def draw(self, ax, side, variables_scaled, parameters, cosmetics):
         evaluated = self.evaluate_info(variables_scaled, parameters)
@@ -86,12 +131,12 @@ class TangentialCylinder(vortex_cylinder.Cylinder):
 def construct_test_object():
     cyl = vortex_cylinder.construct_test_object()
     unpacked = cyl.info_dict
-    tan_cyl = TangentialCylinder(unpacked)
+    tan_cyl = SemiInfiniteTangentialCylinder(unpacked)
     return tan_cyl
 
 def test():
     cyl = construct_test_object()
-    cyl.test_basic_criteria(expected_object_type='tangential_cylinder')
+    cyl.test_basic_criteria(expected_object_type='semi_infinite_tangential_cylinder')
     return None
 
 test()
