@@ -637,10 +637,9 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
             yy = q[1]
             zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
-            
             if kite == 2:
                 ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
-            elif kite == 1:
+            elif kite == 3:
                 ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
 
             ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
