@@ -629,6 +629,24 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
                                         name='ellipse_flight' + architecture.node_label(node),
                                         cstr_type='ineq')
             cstr_list.append(ellipse_cstr)
+
+
+        ell_theta = variables['theta']['ell_theta']
+        for kite in architecture.kite_nodes:
+            q = variables['x']['q{}'.format(architecture.node_label(kite))]
+
+            yy = q[1]
+            zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
+            
+            if kite == 2:
+                ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
+            elif kite == 1:
+                ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
+
+            ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
+                                        name='ellipse_half' + architecture.node_label(kite),
+                                        cstr_type='ineq')
+            cstr_list.append(ellipse_half_cstr)
     return outputs, cstr_list
 
 

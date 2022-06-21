@@ -214,6 +214,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     if options['nlp']['cost']['PDGA']:
         options_tree.append(('model', 'scaling', 'theta', 'ell_radius', 50.0, ('????', None), 'x'))
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
+        options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
     # else:
     #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)

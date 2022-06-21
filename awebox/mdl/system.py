@@ -200,6 +200,7 @@ def generate_structure(options, architecture):
 
     if options['induction_model'] == 'averaged':
         system_parameters += [('a', (1,1))] # average induction
+        system_parameters += [('ell_theta', (1,1))]
 
     # add cross-tether lengths and diameters
     if options['cross_tether'] and len(kite_nodes) > 1:
