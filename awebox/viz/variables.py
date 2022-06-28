@@ -340,7 +340,7 @@ def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name):
                                                                    cosmetics)
         p = plt.plot(tgrid_out, out_values)
     else:
-        p = plt.plot(tgrid_ip, plot_dict['integral_outputs'][var_name][0])
+        p = plt.plot(tgrid_ip, np.array(plot_dict['integral_outputs'][var_name][0]))
 
     plt.title(var_name)
     plt.autoscale(enable=True, axis = 'x', tight = True)
