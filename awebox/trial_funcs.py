@@ -251,7 +251,11 @@ def generate_optimal_model(trial, param_options = None):
     for kite in trial.model.architecture.kite_nodes:
         beta_sq = trial.model.outputs(trial.model.outputs_fun(variables, parameters))['aerodynamics', 'beta{}'.format(kite)]**2
         beta_reg += trial.optimization.p_fix_num['cost', 'beta']*beta_sq / trial.options['nlp']['cost']['normalization']['beta']
-    power = trial.model.integral_outputs_fun(var, trial.model.parameters)
+    if not 'e' in trial.model.variables_dict['x'].keys():
+        power = trial.model.integral_outputs_fun(var, trial.model.parameters)
+    else:
+        outputs_eval = trial.model.outputs(trial.model.outputs_fun(var, trial.model.parameters))
+        power = outputs_eval['performance','p_current']/trial.model.scaling['x']['e']
     cost_weighting = discr.setup_nlp_cost()(trial.optimization.p_fix_num['cost'])
     stage_cost = - cost_weighting['power']*power/t_f.full()[0][0] + u_reg + xdot_reg + beta_reg
     quadrature = cas.Function('quad', [var, trial.model.parameters], [stage_cost])
