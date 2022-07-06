@@ -35,11 +35,13 @@ import awebox.pmpc as pmpc
 import awebox.tools.integrator_routines as awe_integrators
 import awebox.viz.visualization as visualization
 import awebox.viz.tools as viz_tools
+import awebox.opts.options
+import awebox.mdl.architecture as archi
 import copy
 import numpy as np
 
 class Simulation:
-    def __init__(self, trial, sim_type, ts, options):
+    def __init__(self, trial, sim_type, ts, options_seed):
         """ Constructor.
         """
 
@@ -49,6 +51,8 @@ class Simulation:
         self.__sim_type = sim_type
         self.__trial = trial
         self.__ts = ts
+        options = awebox.opts.options.Options()
+        options.fill_in_seed(options_seed)
         self.__sim_options = options['sim']
         self.__mpc_options = options['mpc']
         self.__build()

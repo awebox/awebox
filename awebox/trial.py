@@ -318,6 +318,10 @@ class Trial(object):
         return trial_funcs.generate_optimal_model(self, param_options= param_options)
 
     @property
+    def options_seed(self):
+        return self.__options_seed
+
+    @property
     def options(self):
         return self.__options
 

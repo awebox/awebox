@@ -63,21 +63,21 @@ class Pmpc(object):
         self.__nz = trial.model.variables['z'].shape[0]
 
         # create mpc trial
-        options = copy.deepcopy(trial.options)
-        options['user_options']['trajectory']['type'] = 'mpc'
-        options['nlp']['discretization'] = 'direct_collocation'
-        options['nlp']['n_k'] = self.__N
-        options['nlp']['d'] = self.__d
-        options['nlp']['scheme'] = self.__scheme
-        options['nlp']['collocation']['u_param'] = self.__mpc_options['u_param']
-        options['formulation']['mpc']['terminal_point_constr'] = self.__mpc_options['terminal_point_constr']
-        options['visualization']['cosmetics']['plot_ref'] = True
+        options = copy.deepcopy(trial.options_seed)
+        options['user_options.trajectory.type'] = 'mpc'
+        options['nlp.discretization'] = 'direct_collocation'
+        options['nlp.n_k'] = self.__N
+        options['nlp.collocation.d'] = self.__d
+        options['nlp.collocation.scheme'] = self.__scheme
+        options['nlp.collocation.u_param'] = self.__mpc_options['u_param']
+        options['formulation.mpc.terminal_point_constr'] = self.__mpc_options['terminal_point_constr']
+        options['visualization.cosmetics.plot_ref'] = True
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
             if name != 't_f':
                 fixed_params[name] = self.__pocp_trial.optimization.V_final['theta',name].full()
         fixed_params['t_f'] = self.__N*self.__ts
-        options['user_options']['trajectory']['fixed_params'] = fixed_params
+        options['user_options.trajectory.fixed_params'] = fixed_params
 
         self.__trial = awe.Trial(seed = options)
         self.__build_trial()
@@ -447,13 +447,15 @@ class Pmpc(object):
                         values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
                         self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
                     elif var_type == 'z' or (var_type == 'u' and self.__mpc_options['u_param'] == 'poly'):
-                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
                         else:
                             self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
                     elif var_type == 'u' and self.__mpc_options['u_param'] == 'zoh':
-                        values, time_grid = viz_tools.merge_xa_values(V_opt, var_type, name, j, plot_dict, cosmetics)
+                        control = V_opt['u',:,name,j]
+                        values = viz_tools.sample_and_hold_controls(plot_dict['time_grids'], control)
+                        time_grid = plot_dict['time_grids']['ip']
                         if all(v == 0 for v in values) or 'fict' in name:
                             self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
                         else:
