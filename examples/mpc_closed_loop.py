@@ -8,6 +8,8 @@ import awebox as awe
 import casadi as ca
 import pickle
 import copy
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel('DEBUG')
 
 # single kite with point-mass model
 options = {}
@@ -27,7 +29,10 @@ options['user_options.wind.u_ref'] = 5.
 
 # NLP discretization
 options['nlp.n_k'] = 40
-options['nlp.collocation.u_param'] = 'poly'
+options['nlp.collocation.u_param'] = 'zoh'
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
+options['solver.linear_solver'] = 'ma57' # if HSL
+options['solver.mu_hippo'] = 1e-2
 
 # initialize and optimize trial
 trial = awe.Trial(options, 'single_kite_lift_mode')
@@ -42,7 +47,7 @@ ts = 0.1 # sampling time
 # MPC options
 options['mpc.scheme'] = 'radau'
 options['mpc.d'] = 4
-options['mpc.jit'] = True
+options['mpc.jit'] = False
 options['mpc.cost_type'] = 'tracking'
 options['mpc.expand'] = True
 options['mpc.linear_solver'] = 'ma57'
