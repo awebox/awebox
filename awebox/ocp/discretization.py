@@ -338,6 +338,7 @@ def discretize(nlp_options, model, formulation):
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
+    Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
     Xdot_struct = Xdot
@@ -347,7 +348,7 @@ def discretize(nlp_options, model, formulation):
     # GET CONSTRAINTS
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
-        Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
+        Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf,
             ms_vars, ms_params, Outputs_struct, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting

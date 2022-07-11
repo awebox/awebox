@@ -162,7 +162,17 @@ def get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architectu
 
 
 def get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, architecture):
-    vec_u_eff_mawes_in_earth_frame = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
+
+    if options['induction_model'] == 'averaged':
+
+        q = variables['x']['q{}'.format(architecture.node_label(kite))]
+        dq = variables['x']['dq{}'.format(architecture.node_label(kite))]
+        uw_infty = (1-variables['theta']['a']) * wind.get_velocity(q[2])
+
+        vec_u_eff_mawes_in_earth_frame = uw_infty - dq
+
+    else:
+        vec_u_eff_mawes_in_earth_frame = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
     return vec_u_eff_mawes_in_earth_frame
 
 

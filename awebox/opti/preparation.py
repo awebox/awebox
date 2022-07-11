@@ -152,6 +152,14 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
 
     g_bounds = copy.deepcopy(nlp.g_bounds)
 
+    if 'ellipse_half21' in model.constraints_dict['inequality'].keys():
+        g_ub = nlp.g(g_bounds['ub'])
+        switch_kdx = round(nlp.options['n_k'] * nlp.options['phase_fix_reelout'])
+        for k in range(switch_kdx+1, nlp.options['n_k']):
+            g_ub['path', k, 'ellipse_half21'] = 1e5
+            g_ub['path', k, 'ellipse_half31'] = 1e5
+        g_bounds['ub'] = g_ub.cat
+
     # set homotopy parameters
     for name in list(model.parameters_dict['phi'].keys()):
         V_bounds['lb']['phi', name] = 1.
