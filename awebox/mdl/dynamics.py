@@ -623,22 +623,22 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
                                         cstr_type='ineq')
             cstr_list.append(ellipse_cstr)
 
+        if options['induction_model'] == 'averaged':
+            ell_theta = variables['theta']['ell_theta']
+            for kite in architecture.kite_nodes:
+                q = variables['x']['q{}'.format(architecture.node_label(kite))]
 
-        ell_theta = variables['theta']['ell_theta']
-        for kite in architecture.kite_nodes:
-            q = variables['x']['q{}'.format(architecture.node_label(kite))]
+                yy = q[1]
+                zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
+                if kite == 2:
+                    ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
+                elif kite == 3:
+                    ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
 
-            yy = q[1]
-            zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
-            if kite == 2:
-                ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
-            elif kite == 3:
-                ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
-
-            ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
-                                        name='ellipse_half' + architecture.node_label(kite),
-                                        cstr_type='ineq')
-            cstr_list.append(ellipse_half_cstr)
+                ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
+                                            name='ellipse_half' + architecture.node_label(kite),
+                                            cstr_type='ineq')
+                cstr_list.append(ellipse_half_cstr)
     return outputs, cstr_list
 
 
@@ -772,21 +772,28 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
                                            cstr_type='ineq')
             cstr_list.append(stress_cstr)
 
-        if n in tether_constraint_includes['force']:
-
-            force_max_resi = (tension - max_tension) / vect_op.smooth_abs(max_tension)
-
-            force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
-                                               name='tether_force_max' + str(n) + str(parent),
-                                               cstr_type='ineq')
-            cstr_list.append(force_max_cstr)
-
             force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
 
             force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
                                                name='tether_force_min' + str(n) + str(parent),
                                                cstr_type='ineq')
             cstr_list.append(force_min_cstr)
+
+        # if n in tether_constraint_includes['force']:
+
+        #     force_max_resi = (tension - max_tension) / vect_op.smooth_abs(max_tension)
+
+        #     force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
+        #                                        name='tether_force_max' + str(n) + str(parent),
+        #                                        cstr_type='ineq')
+        #     cstr_list.append(force_max_cstr)
+
+        #     force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
+
+        #     force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
+        #                                        name='tether_force_min' + str(n) + str(parent),
+        #                                        cstr_type='ineq')
+        #     cstr_list.append(force_min_cstr)
 
         # outputs so that the user can find the stress and tension
         outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section_area
