@@ -234,13 +234,6 @@ def manage_power_integration(options, power, outputs, system_variables, paramete
             integral_scaling['tether_force_int'] = 1.0
             integral_scaling['area_int'] = 1.0
 
-            path_length = 0.0
-            for kite in architecture.kite_nodes:
-                dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
-                path_length += vect_op.norm(dq)
-            entry_list += [cas.entry('path_length', expr = path_length)]
-            integral_scaling['path_length'] = 1.0
-
         integral_outputs = cas.struct_SX(entry_list)
 
         integral_scaling['e'] = options['scaling']['x']['e']
