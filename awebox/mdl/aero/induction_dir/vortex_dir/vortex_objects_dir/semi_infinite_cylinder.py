@@ -59,33 +59,272 @@ class SemiInfiniteCylinder(vortex_element.Element):
                  1: ('l_hat', 3),
                  2: ('radius', 1),
                  3: ('l_start', 1),
-                 4: ('epsilon', 1),
-                 5: ('strength', 1)
+                 4: ('epsilon_m', 1),
+                 5: ('epsilon_r', 1),
+                 6: ('strength', 1)
                  }
         self.set_info_order(order)
         return None
+
+    def get_r_obs(self, x_obs):
+        unpacked = self.unpack_info()
+        x_center = unpacked['x_center']
+        l_hat = unpacked['l_hat']
+
+        x_axis_2 = x_center + l_hat
+        r_obs = vect_op.get_altitude(x_center - x_obs, x_axis_2 - x_obs)
+
+        return r_obs
+
+    def get_z_obs(self, x_obs):
+
+        unpacked = self.unpack_info()
+        l_start = unpacked['l_start']
+        l_hat = unpacked['l_hat']
+        x_center = unpacked['x_center']
+
+        x_start = x_center + l_start * l_hat
+
+        z_obs = cas.mtimes((x_obs - x_start).T, l_hat)
+
+        return z_obs
+
+    def get_regularized_elliptic_m_from_r_and_z(self, r_obs, z_obs):
+
+        unpacked = self.unpack_info()
+        r_cyl = unpacked['radius']
+        epsilon_r = unpacked['epsilon_r']
+
+        m_num = 4. * r_obs * r_cyl
+        m_den = (r_cyl + r_obs)**2. + z_obs**2 + epsilon_r**2.
+        m = m_num/m_den
+        return m
+
+    def get_regularized_elliptic_m(self, x_obs):
+        r_obs = self.get_r_obs(x_obs)
+        z_obs = self.get_z_obs(x_obs)
+
+        m = self.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+        return m
+
+    def get_regularized_elliptic_m_zero_from_r(self, r_obs):
+        z_obs = cas.DM.zeros((1,1))
+        m = self.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+        return m
+
+    def get_regularized_elliptic_m_zero(self, x_obs):
+        r_obs = self.get_r_obs(x_obs)
+        m0 = self.get_regularized_elliptic_m_zero_from_r(r_obs)
+        return m0
+
 
 def construct_test_object():
     x_center = np.array([0., 0., 0.])
     radius = 1.
     l_start = 0.
     l_hat = vect_op.xhat_np()
-    epsilon = 0.
+    epsilon_m = 1.
+    epsilon_r = 1.
     strength = 1.
     unpacked = {'x_center': x_center,
                 'l_hat': l_hat,
                 'radius': radius,
                 'l_start': l_start,
-                'epsilon': epsilon,
+                'epsilon_m': epsilon_m,
+                'epsilon_r': epsilon_r,
                 'strength': strength
                 }
 
     cyl = SemiInfiniteCylinder(unpacked)
     return cyl
-2
+
+def test_r_val_on_axis(cyl, epsilon=1.e-4):
+    expected = 0.
+    x_obs = 10. * vect_op.xhat_dm() + expected * vect_op.zhat_dm()
+
+    found = cyl.get_r_obs(x_obs)
+    diff = found - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: computation does not find correct radius on axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_r_val_off_axis(cyl, epsilon=1.e-4):
+    expected = 3.
+    x_obs = 10. * vect_op.xhat_dm() + expected * vect_op.zhat_dm()
+
+    found = cyl.get_r_obs(x_obs)
+    diff = found - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: computation does not find correct radius off axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_z_val_before_cylinder(cyl, epsilon=1.e-4):
+    expected = -10.
+    x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
+
+    found = cyl.get_z_obs(x_obs)
+    diff = found - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: computation does not find correct longitude prior to cylinder'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_z_val_at_start(cyl, epsilon=1.e-4):
+    expected = 0.
+    x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
+
+    found = cyl.get_z_obs(x_obs)
+    diff = found - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: computation does not find correct longitude on start of cylinder'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_z_val_on_cylinder(cyl, epsilon=1.e-4):
+    expected = 10.
+    x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
+
+    found = cyl.get_z_obs(x_obs)
+    diff = found - expected
+
+    test_val = vect_op.norm(diff)
+    criteria = (test_val < epsilon)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: computation does not find correct longitude on cylinder'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+def test_regularized_m_value_at_critical_point(cyl, epsilon=1.e-4):
+    unpacked = cyl.unpack_info()
+    r_cyl = unpacked['radius']
+
+    r_obs = r_cyl
+    z_obs = 0.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    expected = (4. * r_cyl**2.) / (4. * r_cyl**2. + 1.)
+    diff = found - expected
+
+    criteria = (diff ** 2. < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not give expected value at critical point (on cylinder starting circle)'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_regularized_m_value_does_not_reach_one_at_critical_point(cyl, epsilon=1.e-4):
+    unpacked = cyl.unpack_info()
+    r_cyl = unpacked['radius']
+
+    r_obs = r_cyl
+    z_obs = 0.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    distance = (found - 1.)
+
+    criteria = (distance**2. > epsilon**2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, at critical point (on cylinder starting circle)'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_regularized_m_value_reaches_zero_on_axis(cyl, epsilon=1.e-4):
+
+    r_obs = 0.
+    z_obs = 0.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    criteria = (found ** 2. < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, on cylinder axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_regularized_m_value_approaches_zero_at_large_radius(cyl, epsilon=1.e-4):
+    r_obs = 10.**8
+    z_obs = 10.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    criteria = (found ** 2. < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, at large radius'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_regularized_m_value_approaches_zero_far_downstream(cyl, epsilon=1.e-4):
+    unpacked = cyl.unpack_info()
+    r_cyl = unpacked['radius']
+
+    r_obs = 1.2 * r_cyl
+    z_obs = 10.**8.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    criteria = (found ** 2. < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, far downstream'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_regularized_m_value_approaches_zero_far_upstream(cyl, epsilon=1.e-4):
+    unpacked = cyl.unpack_info()
+    r_cyl = unpacked['radius']
+
+    r_obs = 1.2 * r_cyl
+    z_obs = -1. * 10.**8.
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+
+    criteria = (found ** 2. < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, far upstream'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+
 def test():
     cyl = construct_test_object()
     cyl.test_basic_criteria(expected_object_type='semi_infinite_cylinder')
-    return None
 
-test()
+    test_r_val_on_axis(cyl)
+    test_r_val_off_axis(cyl)
+    test_z_val_before_cylinder(cyl)
+    test_z_val_on_cylinder(cyl)
+    test_z_val_on_cylinder(cyl)
+
+    test_regularized_m_value_does_not_reach_one_at_critical_point(cyl)
+    test_regularized_m_value_reaches_zero_on_axis(cyl)
+    test_regularized_m_value_approaches_zero_at_large_radius(cyl)
+    test_regularized_m_value_approaches_zero_far_downstream(cyl)
+    test_regularized_m_value_approaches_zero_far_upstream(cyl)
+    test_regularized_m_value_at_critical_point(cyl)
+
+    return None

@@ -27,6 +27,7 @@ file to provide vector operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, jochem de schutter alu-fr 2017-19
 '''
+import pdb
 
 import matplotlib.pylab as plt
 import scipy
@@ -449,19 +450,24 @@ def elliptic_k(k=None, m=None):
     # else:
         # be advised: as the argument of elliptic integral K(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
 
-    a1 = 2.78187
-    a2 = -5.25143
-    a3 = 2.97986
+    a0 = 1.3862944
+    a1 = 0.1119723
+    a2 = 0.0725296
+    b0 = 0.5
+    b1 = 0.1213478
+    b2 = 0.0288729
 
-    part_1 = a1 * m + a2 * m**2. + a3 * m**3.
-    part_2 = cas.log(1./(1. - m))
+    one_minus_m = 1. - m
 
-    found = np.pi / 2. + part_1 * part_2
+    part_1 = a0 + a1 * one_minus_m**1. + a2 * one_minus_m**2.
+    part_2 = cas.log(1./one_minus_m) * ( b0 + b1 * one_minus_m**1. + b2 * one_minus_m**2. )
+
+    found = part_1 + part_2
 
     return found
 
 def elliptic_k_approximation_max_error():
-    return 0.05
+    return 2.e-5
 
 def test_elliptic_k():
 
@@ -492,20 +498,50 @@ def test_elliptic_k():
 
     return None
 
-def elliptic_pi(n=None, alpha=None):
-    part_1 = (1. + n**2.38175 / cas.sqrt(1. - n))
-    part_2 = elliptic_k(m = alpha)
-    found = part_1 * part_2
+def elliptic_pi(n=None, m=None):
+
+    sqrt_one_minus_n = cas.sqrt(1. - n)
+
+    psi = cas.atan2(m-n, m+n)
+
+    pin_at_psi_0 = psi
+    pin_at_psi_positive_quarter = (psi - np.pi/4.)
+    pin_at_psi_negative_quarter = (psi + np.pi/4.)
+
+    pinned_a1_loc = pin_at_psi_0 * pin_at_psi_positive_quarter
+    pinned_a1_expr = np.pi/(2. * sqrt_one_minus_n)
+
+    pinned_a2_loc = pin_at_psi_negative_quarter * pin_at_psi_positive_quarter
+    pinned_a2_expr = -2. * elliptic_e(m=(n/(n-1.))) / sqrt_one_minus_n
+
+    pinned_a3_loc = pin_at_psi_0 * pin_at_psi_negative_quarter
+    pinned_a3_expr = elliptic_k(m=m)
+
+    pinned = 8. / np.pi**2. * (pinned_a1_loc + pinned_a1_expr + pinned_a2_loc * pinned_a2_expr + pinned_a3_loc * pinned_a3_expr)
+
+    a1 = -4.96273
+    a2 = 18.6521
+    a3 = -18.2879
+    epsilon_m = 1.e-6
+
+    m_squared_plus_n_squared = m**2. + n**2.
+    diff_part_1 = 4. * m * n * (m**2. - n**2.)
+    diff_part_2 = a3 * m_squared_plus_n_squared + a2 * cas.sqrt(m_squared_plus_n_squared) + a1
+    diff_part_3 = cas.log(1./ (1. - cas.sqrt(m_squared_plus_n_squared)/np.sqrt(2.)))
+
+    diff = diff_part_1 * diff_part_2 * diff_part_3 / (m_squared_plus_n_squared + epsilon_m)
+
+    found = pinned + diff
     return found
 
 def elliptic_pi_approximation_max_error():
-    return 0.3
+    return 1.
 
 def test_elliptic_pi():
     # origin case
     n = 0.
-    alpha = 0.
-    found = elliptic_pi(n=n, alpha=alpha)
+    m = 0.
+    found = elliptic_pi(n=n, m=m)
     expected = np.pi/2.
     error_bound = elliptic_pi_approximation_max_error() * expected
 
@@ -517,8 +553,8 @@ def test_elliptic_pi():
 
     # center case
     n = 0.5
-    alpha = 0.5
-    found = elliptic_pi(n=n, alpha=alpha)
+    m = 0.5
+    found = elliptic_pi(n=n, m=m)
     expected = 2.70129
     error_bound = elliptic_pi_approximation_max_error() * expected
 
@@ -528,15 +564,48 @@ def test_elliptic_pi():
         awelogger.logger.error(message)
         raise Exception(message)
 
-
     return None
 
-def elliptic_e(m=None):
-    found = 0.166667 * (9.42478 - 2.823 * m + 1.646 * m**2. - 2.24778 * m**3.)
+def elliptic_e(k=None, m=None):
+
+    if (k is not None) and (m is None):
+        m = k**2.
+    elif (m is None) and (k is None):
+        message = 'no acceptable argument given for elliptic_e approximation'
+        awelogger.logger.error(message)
+        raise Exception(message)
+    elif (m is not None) and (k is not None):
+        message = 'too many arguments given for elliptic_e approximation'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    if (isinstance(m, float)) or (isinstance(m, int)) or (isinstance(m, cas.DM)):
+        if not (m >= 0 or m < 1):
+            message = 'm argument of elliptic integral E(m) is outside of acceptable range.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+    # else:
+        # be advised: as the argument of elliptic integral E(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
+
+    # a0 = 1.
+    a1 = 0.4630151
+    a2 = 0.1077812
+    # b0 = 0.
+    b1 = 0.2452727
+    b2 = 0.0412496
+
+    one_minus_m = 1. - m
+    epsilon_m = 1.e-8
+
+    part_1 = 1. + a1 * one_minus_m**1. + a2 * one_minus_m**2.
+    part_2 = cas.log(1./(one_minus_m + epsilon_m)) * (b1 * one_minus_m**1. + b2 * one_minus_m**2. )
+
+    found = part_1 + part_2
+
     return found
 
 def elliptic_e_approximation_max_error():
-    return 0.009
+    return 4.e-5
 
 def test_elliptic_e():
 
@@ -610,3 +679,7 @@ def test_altitude():
         raise Exception(message)
 
     return None
+
+test_elliptic_e()
+test_elliptic_k()
+test_elliptic_pi()
