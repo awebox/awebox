@@ -175,9 +175,9 @@ def compute_position_indicators(power_and_performance, plot_dict):
     q10 = plot_dict['x']['q10']
     elevation = []
     for i in range(q10[0].shape[0]):
-        q10_0 = q10[0][i].full()[0][0]
-        q10_1 = q10[1][i].full()[0][0]
-        q10_2 = q10[2][i].full()[0][0]
+        q10_0 = q10[0][i][0]
+        q10_1 = q10[1][i][0]
+        q10_2 = q10[2][i][0]
         elevation += [np.arccos(np.linalg.norm(np.array([q10_0, q10_1, 0.0])) / np.linalg.norm(np.array([q10_0, q10_1, q10_2])))]
     elevation = np.mean(elevation) * 180 / np.pi
     power_and_performance['elevation'] = elevation
