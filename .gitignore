@@ -4,6 +4,8 @@ awebox.egg-info/
 # Python
 *.pyc
 .pytest_cache/
+build/
+dist/
 
 # Figures
 figures/
