@@ -1,4 +1,4 @@
-numpy
-scipy
-casadi>=3.5.1
-matplotlib
+numpy==1.23.0
+scipy==1.8.1
+casadi==3.5.5
+matplotlib==3.5.2
