@@ -35,9 +35,17 @@ import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as vortex_semi_infinite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as vortex_semi_infinite_tangential_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
+
+
+
 import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
@@ -72,8 +80,8 @@ def construct_objects(options, system_variables, parameters, architecture, wind)
     for key in vortex_lists.keys():
         elem_list = vortex_lists[key]
         elem_list.confirm_list_has_expected_dimensions()
-        elem_list.make_symbolic_info_function(variables_scaled, parameters)
-        elem_list.make_symbolic_biot_savart_function()
+        elem_list.define_model_variables_to_info_function(variables_scaled, parameters)
+        elem_list.define_biot_savart_induction_function()
 
     return vortex_lists
 
@@ -192,13 +200,14 @@ def get_induction_final_residual(options, wind, variables_si, outputs, architect
 def test():
 
     vect_op.test_altitude()
-    biot_savart.test_filament()
-    print_op.warn_about_temporary_funcationality_removal(location='vortex.test')
-    # biot_savart.test_longtitudinal_cylinder()
-    # biot_savart.test_tangential_cylinder()
 
-    print_op.warn_about_temporary_funcationality_removal(location='vortex.test')
-    vortex_element.test_filament_type()
+    vortex_element.test()
+    vortex_element_list.test()
+    vortex_finite_filament.test()
+    vortex_semi_infinite_filament.test()
+    vortex_semi_infinite_cylinder.test()
+    vortex_semi_infinite_tangential_cylinder.test()
+    vortex_semi_infinite_longitudinal_cylinder.test()
 
     # freestream_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'freestream_filament')
     # flow.test(freestream_filament_far_wake_test_list)
@@ -288,3 +297,5 @@ def compute_global_performance(power_and_performance, plot_dict):
     power_and_performance['vortex_max_est_discretization_error'] = max_est_discr
 
     return power_and_performance
+
+test()

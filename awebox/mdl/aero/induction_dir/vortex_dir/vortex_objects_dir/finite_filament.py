@@ -32,9 +32,9 @@ import pdb
 
 import casadi.tools as cas
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 
 import awebox.tools.struct_operations as struct_op
@@ -82,8 +82,8 @@ class FiniteFilament(vortex_element.Element):
 
         r_squared_0 = cas.mtimes(vec_0.T, vec_0)
         r_squared_1 = cas.mtimes(vec_1.T, vec_1)
-        r_0 = vect_op.smooth_sqrt(r_squared_0)
-        r_1 = vect_op.smooth_sqrt(r_squared_1)
+        r_0 = r_squared_0**0.5
+        r_1 = r_squared_1**0.5
 
         # notice, that we're using the cut-off model as described in
         # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
@@ -107,15 +107,15 @@ class FiniteFilament(vortex_element.Element):
 
         return None
 
-    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
-        evaluated = self.evaluate_info(variables_scaled, parameters)
-        unpacked = self.unpack_info(external_info=evaluated)
+    def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
+        unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
 
         x_start = unpacked['x_start']
         x_end = unpacked['x_end']
         super().basic_draw(ax, side, unpacked['strength'], x_start, x_end, cosmetics)
 
         return None
+
 
 def construct_test_object(r_core=cas.DM(0.)):
     x_start = -1. * vect_op.xhat_dm()
@@ -124,7 +124,8 @@ def construct_test_object(r_core=cas.DM(0.)):
     dict_info = {'x_start': x_start,
                  'x_end': x_end,
                  'r_core': r_core,
-                 'strength': strength}
+                 'strength': strength
+                 }
 
     fil = FiniteFilament(dict_info)
     fil.define_biot_savart_induction_function()
@@ -164,18 +165,36 @@ def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
         raise Exception(message)
 
 def test_biot_savart_2D_behavior(fil, epsilon=1.e-4):
-    x_obs = 1.e-2 * vect_op.zhat_dm()
+
+    unpacked = fil.info_dict
+    x_center = 0.5 * (unpacked['x_start'] + unpacked['x_end'])
+    length = vect_op.norm(unpacked['x_end'] - unpacked['x_start'])
+
+    r_hat = vect_op.zhat_dm()
+    radius = length * 1.e-3
     scale = 2.
+
+    x_obs = x_center + radius * r_hat
+    x_obs_2r = x_center + scale * radius * r_hat
+
+    # u_ind(2 r) = u_0 / (2 r)
+    # u_ind( r) = u_0 / r
+    # r u_ind(r) = 2 r u_ind(2 r)
+    # u_ind(r) / u_ind(2 r) = 2
 
     packed_info = fil.info
     biot_savart_fun = fil.biot_savart_fun
     vec_u_ind = biot_savart_fun(packed_info, x_obs)
-    vec_u_ind_2 = biot_savart_fun(packed_info, scale * x_obs)
+    vec_u_ind_2r = biot_savart_fun(packed_info, x_obs_2r)
 
-    num = cas.mtimes(vec_u_ind.T, vect_op.yhat_dm())
-    den = cas.mtimes(vec_u_ind_2.T, vect_op.yhat_dm())
-    test_val = num/den - scale
-    criteria = (-1. * epsilon < test_val) and (test_val < epsilon)
+    u_theta = cas.mtimes(vec_u_ind.T, vect_op.yhat_dm())
+    u_theta_2r = cas.mtimes(vec_u_ind_2r.T, vect_op.yhat_dm())
+
+    found = u_theta/u_theta_2r
+    expected = scale
+
+    diff = found - expected
+    criteria = (diff**2. < epsilon**2.)
 
     if not criteria:
         message = 'vortex finite filament: in an approximately 2D situation, the inverse-radius relationship is not satisfied'
@@ -265,6 +284,8 @@ def test():
 
     fil_with_nonzero_core_radius = construct_test_object(r_core=1.)
     test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
+
+    fil.test_draw()
 
     return None
 

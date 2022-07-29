@@ -32,8 +32,6 @@ import pdb
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
 
 import awebox.tools.print_operations as print_op

@@ -34,7 +34,6 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 
 import awebox.tools.struct_operations as struct_op
@@ -79,7 +78,7 @@ class SemiInfiniteFilament(vortex_element.Element):
         vec_0 = x_0 - x_obs
 
         r_squared_0 = cas.mtimes(vec_0.T, vec_0)
-        r_0 = vect_op.smooth_sqrt(r_squared_0)
+        r_0 = r_squared_0**0.5
 
         factor = strength/(4. * np.pi)
         num1 = vect_op.cross(vec_0, l_hat)
@@ -94,17 +93,21 @@ class SemiInfiniteFilament(vortex_element.Element):
 
         return None
 
-    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
-        evaluated = self.evaluate_info(variables_scaled, parameters)
-        unpacked = self.unpack_info(external_info=evaluated)
+    def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
+
+        unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
 
         x_start = unpacked['x_start']
         l_hat = unpacked['l_hat']
 
-        vortex_far_convection_time = cosmetics['trajectory']['vortex_far_convection_time']
-        u_ref = parameters.prefix['theta0', 'wind', 'u_ref']
-        vec_length = l_hat * u_ref * vortex_far_convection_time
-        x_end = x_start + vec_length
+        if parameters is None:
+            s_length = cosmetics['trajectory']['filament_s_length']
+        else:
+            vortex_far_convection_time = cosmetics['trajectory']['vortex_far_convection_time']
+            u_ref = parameters.prefix['theta0', 'wind', 'u_ref']
+            s_length =  vortex_far_convection_time * u_ref
+
+        x_end = x_start + l_hat * s_length
 
         super().basic_draw(ax, side, unpacked['strength'], x_start, x_end, cosmetics)
 
@@ -238,6 +241,8 @@ def test():
 
     fil_with_nonzero_core_radius = construct_test_object(r_core=1.)
     test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
+
+    fil.test_draw()
 
     return None
 

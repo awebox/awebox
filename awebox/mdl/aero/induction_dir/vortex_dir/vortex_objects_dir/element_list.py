@@ -27,12 +27,17 @@ object-oriented-vortex-filament-and-cylinder operations
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as vortex_semi_infinite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as vortex_semi_infinite_tangential_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -52,8 +57,9 @@ class ElementList:
         self.__expected_element_info_length = None
 
         self.__model_induction_fun = None
-        self.__model_projected_induction_fun = None
         self.__model_induction_factor_fun = None
+        self.set_biot_savart_fun(None)
+        self.set_concatenated_biot_savart_fun(None)
 
     def append(self, added_elem):
 
@@ -67,7 +73,6 @@ class ElementList:
             awelogger.logger.warning(message)
 
         elif is_element_list and is_correct_type:
-
             for indiv_elem in added_elem.list:
                 self.append(indiv_elem)
 
@@ -155,116 +160,81 @@ class ElementList:
 
         return None
 
-    def get_number_of_symbolics_for_biot_savart(self, projected=False):
+    def get_number_of_symbolics_for_concatenated_biot_savart(self):
         number_symbolics = self.__expected_element_info_length + 3
-        if projected:
-            number_symbolics += 3
-
         return number_symbolics
 
-    def get_biot_savart_observer_info(self, info, projected=False):
-        if projected:
-            x_obs = info[-6:-3]
-            n_hat = info[-3:]
-        else:
-            x_obs = info[-3:]
-            n_hat = None
+    def get_element_info_from_concatenated_inputs(self, concatenated):
+        elem_info = concatenated[:-3]
+        return elem_info
 
-        return x_obs, n_hat
+    def get_observer_info_from_concatenated_inputs(self, concatenated):
+        obs_info = concatenated[-3:]
+        return obs_info
 
-    def get_decolumnized_list_with_attached_observer_info(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
+    def get_decolumnized_list_concatenated_with_observer_info(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
         decolumnized_list = self.get_decolumnized_info_list(period, wind, optimization_period)
 
         number_of_elements = self.number_of_elements
         observer_list = cas.repmat(x_obs, (1, number_of_elements))
+        concatenated_list = cas.vertcat(decolumnized_list, observer_list)
 
-        if (n_hat is None):
-            combi = cas.vertcat(decolumnized_list, observer_list)
+        return concatenated_list
 
-        elif (n_hat is not None) and (n_hat.shape == (3, 1)):
-            n_hat_list = cas.repmat(n_hat, (1, number_of_elements))
-            combi = cas.vertcat(decolumnized_list, observer_list, n_hat_list)
-
-        else:
-            message = 'something went wrong when appending the normal vector to the element_list. n_hat passed was:' + str(n_hat)
-            awelogger.logger.error(message)
-            raise Exception(message)
-
-        return combi
-
-    def make_symbolic_info_function(self, model_variables, model_parameters):
+    def define_model_variables_to_info_function(self, model_variables, model_parameters):
         for elem in self.__list:
-            elem.make_symbolic_info_function(model_variables, model_parameters)
+            if elem.info_fun is not None:
+                elem.define_model_variables_to_info_function(model_variables, model_parameters)
 
         return None
 
+    def define_biot_savart_induction_function(self):
+        if len(self.__list) > 0:
+            elem = self.__list[0]
 
-    def make_symbolic_biot_savart_function(self):
+            if elem.biot_savart_fun is None:
+                elem.define_biot_savart_induction_function()
 
-        if self.__expected_element_info_length is not None:
+            biot_savart_fun = elem.biot_savart_fun
+            self.set_biot_savart_fun(biot_savart_fun)
 
-            projected = True
+            number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart()
+            concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
+            elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
+            x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
 
-            number_symbolics = self.get_number_of_symbolics_for_biot_savart(projected)
-            info_sym = cas.SX.sym('info_sym', (number_symbolics, 1))
-            info_sym_unprojected = info_sym[:-3]
-            x_obs, n_hat = self.get_biot_savart_observer_info(info_sym, projected)
+            biot_savart_output = biot_savart_fun(elem_info, x_obs)
 
-            if (not self.__list) or (self.__element_type is 'unspecified'):
-                message = 'either the vortex element list has no vortex elements, and therefore the type of vortex element in the list is unspecified; or the type of vortex element in the non-empty list - somehow - remains unspecified. without type information, the biot savart induced velocity cannot be computed.'
-                awelogger.logger.error(message)
-                raise Exception(message)
+            concatenated_biot_savart_fun = cas.Function('concatenated_biot_savart_fun', [concatenated_sym], [biot_savart_output])
+            self.set_concatenated_biot_savart_fun(concatenated_biot_savart_fun)
 
-            info_dict = self.__list[0].unpack_info(external_info=info_sym)
-            info_dict['x_obs'] = x_obs
-
-            if self.__element_type == 'filament':
-                vec_u_ind = biot_savart.filament(info_dict)
-            elif self.__element_type == 'semi_infinite_filament':
-                print_op.warn_about_temporary_funcationality_removal(location='element_list semi-infinite-filament and annulus')
-                message = self.__element_type + ' biot-savart does not exist yet'
-                raise Exception(message)
-            elif self.__element_type == 'annulus':
-                print_op.warn_about_temporary_funcationality_removal(location='element_list semi-infinite-filament and annulus')
-                message = self.__element_type + ' biot-savart does not exist yet'
-                raise Exception(message)
-            elif self.__element_type == 'longitudinal_cylinder':
-                vec_u_ind = biot_savart.longitudinal_cylinder(info_dict)
-            elif self.__element_type == 'tangential_cylinder':
-                vec_u_ind = biot_savart.tangential_cylinder(info_dict)
-
-            else:
-                message = 'cannot make symbolic biot savart function for vortex element list of type: ' + self.__element_type
-                awelogger.logger.error(message)
-                raise Exception(message)
-
-            u_ind_projected = cas.mtimes(vec_u_ind.T, n_hat)
-            biot_savart_projected_fun = cas.Function('biot_savart_projected_fun', [info_sym], [u_ind_projected])
-            self.__biot_savart_projected_fun = biot_savart_projected_fun
-
-            biot_savart_fun = cas.Function('biot_savart_fun', [info_sym_unprojected], [vec_u_ind])
-            self.__biot_savart_fun = biot_savart_fun
+        else:
+            message = 'unable to define the biot_savart_induction_function for the vortex element list of type ' + self.element_type
+            awelogger.logger.error(message)
+            raise Exception(message)
 
         return None
 
     def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
 
-        if n_hat is None:
-            biot_savart_fun = self.__biot_savart_fun
-        else:
-            biot_savart_fun = self.__biot_savart_projected_fun
+        print_op.warn_about_temporary_funcationality_removal(location='element_list.projected_biot_savart')
+        print_op.warn_about_temporary_funcationality_removal(location='element_list.repeated_biot_savart')
 
-        decolumnized_list = self.get_decolumnized_list_with_attached_observer_info(x_obs, n_hat, period, wind, optimization_period)
+        if self.concatenated_biot_savart_fun is None:
+            self.define_biot_savart_induction_function()
+
+        concatenated_biot_savart_fun = self.__concatenated_biot_savart_fun
+        concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs, n_hat, period, wind, optimization_period)
 
         number_of_elements = self.number_of_elements
-        biot_savart_map = biot_savart_fun.map(number_of_elements, 'openmp')
-        all = biot_savart_map(decolumnized_list)
+        concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, 'openmp')
+        all = concatenated_biot_savart_map(concatenated_list)
 
         return all
 
 
-    def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1), n_hat=None):
-        all = self.evaluate_biot_savart_induction_for_all_elements(x_obs, n_hat)
+    def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1)):
+        all = self.evaluate_biot_savart_induction_for_all_elements(x_obs)
         u_ind = cas.sum2(all)
         return u_ind
 
@@ -322,13 +292,19 @@ class ElementList:
     def biot_savart_fun(self, value):
         awelogger.logger.error('Cannot set biot_savart_fun object.')
 
-    @property
-    def biot_savart_projected_fun(self):
-        return self.__biot_savart_projected_fun
+    def set_biot_savart_fun(self, value):
+        self.__biot_savart_fun = value
 
-    @biot_savart_projected_fun.setter
-    def biot_savart_projected_fun(self, value):
-        awelogger.logger.error('Cannot set biot_savart_projected_fun object.')
+    @property
+    def concatenated_biot_savart_fun(self):
+        return self.__concatenated_biot_savart_fun
+
+    @concatenated_biot_savart_fun.setter
+    def concatenated_biot_savart_fun(self, value):
+        awelogger.logger.error('Cannot set concatenated_biot_savart_fun object.')
+
+    def set_concatenated_biot_savart_fun(self, value):
+        self.__concatenated_biot_savart_fun = value
 
     @property
     def model_induction_fun(self):
@@ -337,22 +313,6 @@ class ElementList:
     @model_induction_fun.setter
     def model_induction_fun(self, value):
         self.__model_induction_fun = value
-
-    @property
-    def model_projected_induction_fun(self):
-        return self.__model_projected_induction_fun
-
-    @model_projected_induction_fun.setter
-    def model_projected_induction_fun(self, value):
-        self.__model_projected_induction_fun = value
-
-    @property
-    def model_projected_induction_fun(self):
-        return self.__model_projected_induction_fun
-
-    @model_projected_induction_fun.setter
-    def model_projected_induction_fun(self, value):
-        self.__model_projected_induction_fun = value
 
     @property
     def model_induction_factor_fun(self):
@@ -390,78 +350,181 @@ class ElementList:
         return None
 
 
-def get_test_filament_list():
+####### test a basic list
+
+def construct_test_filament_list():
     filament_list = ElementList()
+
+    r_core = 1.e-10
 
     x_start0 = 0. * vect_op.xhat_np()
     x_end0 = x_start0 + 5. * vect_op.xhat_np()
-    r_core0 = 0.
     strength0 = 3.
     dict_info0 = {'x_start': x_start0,
                   'x_end': x_end0,
-                  'r_core': r_core0,
+                  'r_core': r_core,
                   'strength': strength0}
 
-    fil0 = vortex_element.Filament(dict_info0)
+    fil0 = vortex_finite_filament.FiniteFilament(dict_info0)
     filament_list.append(fil0)
 
     x_start1 = x_end0
     x_end1 = x_start1 + 5. * vect_op.zhat_np()
-    r_core1 = 0.
     strength1 = 1.
     dict_info1 = {'x_start': x_start1,
                   'x_end': x_end1,
-                  'r_core': r_core1,
+                  'r_core': r_core,
                   'strength': strength1}
 
-    fil1 = vortex_element.Filament(dict_info1)
+    fil1 = vortex_finite_filament.FiniteFilament(dict_info1)
     filament_list.append(fil1)
 
     x_start2 = x_end1
     x_end2 = x_start2 + 5. * vect_op.yhat_np()
-    r_core2 = 0.
     strength2 = -3.
     dict_info2 = {'x_start': x_start2,
                   'x_end': x_end2,
-                  'r_core': r_core2,
+                  'r_core': r_core,
                   'strength': strength2}
 
-    fil2 = vortex_element.Filament(dict_info2)
+    fil2 = vortex_finite_filament.FiniteFilament(dict_info2)
     filament_list.append(fil2)
 
     return filament_list
 
-def test_filament_list_columnization():
-    filament_list = get_test_filament_list()
+def test_filament_list_columnization(filament_list):
     columnized_info_list = filament_list.get_columnized_info_list()
     assert (columnized_info_list.shape == (8 * 3, 1))
     return None
 
-def test_filament_list_biot_savart():
-
-    filament_list = get_test_filament_list()
+def test_filament_list_biot_savart_at_default_observer(filament_list, epsilon=1.e-4):
 
     x_obs = cas.DM.zeros((3, 1))
-    filament_list.compute_biot_savart_induction(x_obs=x_obs, n_hat=None)
-    print_op.warn_about_temporary_funcationality_removal(location='vortex_element.test_filament_list_biot_savart')
+    found = filament_list.evaluate_total_biot_savart_induction()
+
+    expected = cas.DM.zeros((3, 1))
+    for fdx in range(3):
+        fil = filament_list.list[fdx]
+        fil.define_biot_savart_induction_function()
+        vec_u_ind = fil.biot_savart_fun(fil.info, x_obs)
+        expected += vec_u_ind
+
+    diff = expected - found
+    criteria = (cas.mtimes(diff.T, diff) < epsilon**2.)
+
+    if not criteria:
+        message = 'vortex element list: something went wrong when computing the total induced velocity at the default observer (origin)'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
     return None
 
-# def test_filament_list_drawing():
-#     filament_list = get_test_filament_list()
-#     fig = plt.figure()
-#     ax = plt.axes(projection='3d')
-#     filament_list.draw(ax)
-#     plt.show()
-#     return None
+def test_filament_list_biot_savart_summation(filament_list, epsilon=1.e-4):
 
-def get_test_tangential_cylinder_list():
-    cylinder_list = ElementList()
-    cyl = vortex_element.get_test_tangential_cylinder()
-    cylinder_list.append(cyl)
-    return cylinder_list
+    x_obs = 3. * vect_op.xhat_dm() + 2. * vect_op.yhat_dm()
 
-def get_test_longitudinal_cylinder_list():
-    cylinder_list = ElementList()
-    cyl = vortex_element.get_test_longitudinal_cylinder()
-    cylinder_list.append(cyl)
-    return cylinder_list
+    found = filament_list.evaluate_total_biot_savart_induction(x_obs=x_obs)
+
+    expected = cas.DM.zeros((3, 1))
+    for fdx in range(3):
+        fil = filament_list.list[fdx]
+        fil.define_biot_savart_induction_function()
+        vec_u_ind = fil.biot_savart_fun(fil.info, x_obs)
+        expected += vec_u_ind
+
+    diff = expected - found
+    criteria = (cas.mtimes(diff.T, diff) < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex element list: something went wrong when summing the total induced velocity at a specified observer'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+
+def test_filament_list_biot_savart_computation(filament_list, epsilon=1.e-4):
+
+    x_obs = 3. * vect_op.xhat_dm() + 2. * vect_op.yhat_dm()
+
+    found = filament_list.evaluate_total_biot_savart_induction(x_obs=x_obs)
+
+    vec_u_ind_0 = 0.183723 * vect_op.zhat_np()
+    vec_u_ind_1 = -0.0173158 * vect_op.xhat_np() - 0.0173158 * vect_op.yhat_np()
+    vec_u_ind_2 = (+0.0343618 * vect_op.xhat_np() - 0.0137447 * vect_op.zhat_np())
+
+    expected = vec_u_ind_0 + vec_u_ind_1 + vec_u_ind_2
+
+    diff = expected - found
+    criteria = (cas.mtimes(diff.T, diff) < epsilon ** 2.)
+
+    if not criteria:
+        message = 'vortex element list: something went wrong when computing the total induced velocity at a specified observer'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+
+
+def test_filament_list():
+    filament_list = construct_test_filament_list()
+    test_filament_list_columnization(filament_list)
+    test_filament_list_biot_savart_at_default_observer(filament_list)
+    test_filament_list_biot_savart_summation(filament_list)
+    test_filament_list_biot_savart_computation(filament_list)
+    return None
+
+###### appending tests
+
+def test_appending_multiple_times():
+    filament_list = ElementList()
+
+    fil = vortex_finite_filament.construct_test_object(r_core=0.01)
+    filament_list.append(fil)
+    filament_list.append(fil)
+
+    fil_1 = vortex_finite_filament.construct_test_object(r_core=0.01)
+    filament_list.append(fil)
+
+    found = filament_list.number_of_elements
+    expected = 3
+    criteria = (found == expected)
+
+    if not criteria:
+        message = 'something went wrong when appending multiple vortex objects of the same type to a vortex list'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test_that_appending_different_types_is_ignored():
+
+    filament_list = ElementList()
+    fil = vortex_finite_filament.construct_test_object(r_core = 0.01)
+    filament_list.append(fil)
+
+    tan_cyl = vortex_semi_infinite_tangential_cylinder.construct_test_object()
+    filament_list.append(tan_cyl)
+
+    found = filament_list.number_of_elements
+    expected = 1
+    criteria = (found == expected)
+
+    if not criteria:
+        message = 'something went wrong when (trying to) append multiple vortex objects of different type to a vortex list'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+def test_appending():
+    test_appending_multiple_times()
+    test_that_appending_different_types_is_ignored()
+
+    return None
+
+#############
+
+def test():
+    test_filament_list()
+    test_appending()

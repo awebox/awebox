@@ -34,7 +34,6 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
 
 import awebox.tools.struct_operations as struct_op
@@ -89,6 +88,24 @@ class SemiInfiniteCylinder(vortex_element.Element):
 
         return z_obs
 
+    def get_observational_axes(self, x_obs):
+        unpacked = self.unpack_info()
+        x_center = unpacked['x_center']
+        l_hat = unpacked['l_hat']
+        epsilon_r = unpacked['epsilon_r']
+        epsilon_m = unpacked['epsilon_m']
+
+        direction_assumed_to_be_orthogonal_to_longitude = vect_op.zhat_dm()
+
+        diff = x_obs - x_center
+
+        r_hat_base = vect_op.smooth_normalize(diff - l_hat * cas.mtimes(l_hat.T, diff), epsilon=epsilon_r)
+        r_hat = vect_op.normalize(r_hat_base + epsilon_m * direction_assumed_to_be_orthogonal_to_longitude)
+
+        theta_hat = vect_op.normed_cross(l_hat, r_hat)
+
+        return r_hat, theta_hat, l_hat
+
     def get_regularized_elliptic_m_from_r_and_z(self, r_obs, z_obs):
 
         unpacked = self.unpack_info()
@@ -118,13 +135,19 @@ class SemiInfiniteCylinder(vortex_element.Element):
         return m0
 
 
-def construct_test_object():
+def construct_test_object(regularized=True):
     x_center = np.array([0., 0., 0.])
     radius = 1.
     l_start = 0.
     l_hat = vect_op.xhat_np()
-    epsilon_m = 1.
-    epsilon_r = 1.
+
+    if regularized:
+        epsilon_m = 10.**(-5.)
+        epsilon_r = 1.
+    else:
+        epsilon_m = 10.**(-10)
+        epsilon_r = 10.**(-10)
+
     strength = 1.
     unpacked = {'x_center': x_center,
                 'l_hat': l_hat,
@@ -308,6 +331,82 @@ def test_regularized_m_value_approaches_zero_far_upstream(cyl, epsilon=1.e-4):
         awelogger.logger.error(message)
         raise Exception(message)
 
+###### test axes
+
+def test_axes_when_observer_is_on_x_hat(cyl, epsilon=1.e-6):
+
+    x_obs = 3. * vect_op.xhat_dm()
+
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+
+    expected_r_hat = vect_op.zhat_dm()
+    expected_theta_hat = -1. * vect_op.yhat_dm()
+    expected_l_hat = vect_op.xhat_dm()
+
+    r_diff = r_hat - expected_r_hat
+    theta_diff = theta_hat - expected_theta_hat
+    l_diff = l_hat - expected_l_hat
+
+    offset = cas.mtimes(r_diff.T, r_diff) + cas.mtimes(theta_diff.T, theta_diff) + cas.mtimes(l_diff.T, l_diff)
+
+    criteria = (offset < epsilon**2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on x_hat axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+def test_axes_when_observer_is_on_z_hat(cyl, epsilon=1.e-6):
+
+    x_obs = 3. * vect_op.zhat_dm()
+
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+
+    expected_r_hat = vect_op.zhat_dm()
+    expected_theta_hat = -1. * vect_op.yhat_dm()
+    expected_l_hat = vect_op.xhat_dm()
+
+    r_diff = r_hat - expected_r_hat
+    theta_diff = theta_hat - expected_theta_hat
+    l_diff = l_hat - expected_l_hat
+
+    offset = cas.mtimes(r_diff.T, r_diff) + cas.mtimes(theta_diff.T, theta_diff) + cas.mtimes(l_diff.T, l_diff)
+
+    criteria = (offset < epsilon**2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on z_hat axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+def test_axes_when_observer_is_on_y_hat(cyl, epsilon=1.e-4):
+
+    x_obs = 3. * vect_op.yhat_dm()
+
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+
+    expected_r_hat = vect_op.yhat_dm()
+    expected_theta_hat = vect_op.zhat_dm()
+    expected_l_hat = vect_op.xhat_dm()
+
+    r_diff = r_hat - expected_r_hat
+    theta_diff = theta_hat - expected_theta_hat
+    l_diff = l_hat - expected_l_hat
+
+    offset = cas.mtimes(r_diff.T, r_diff) + cas.mtimes(theta_diff.T, theta_diff) + cas.mtimes(l_diff.T, l_diff)
+
+    criteria = (offset < epsilon**2.)
+
+    if not criteria:
+        message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on y_hat axis'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
 
 
 def test():
@@ -320,6 +419,10 @@ def test():
     test_z_val_on_cylinder(cyl)
     test_z_val_on_cylinder(cyl)
 
+    test_axes_when_observer_is_on_x_hat(cyl)
+    test_axes_when_observer_is_on_z_hat(cyl)
+    test_axes_when_observer_is_on_y_hat(cyl)
+
     test_regularized_m_value_does_not_reach_one_at_critical_point(cyl)
     test_regularized_m_value_reaches_zero_on_axis(cyl)
     test_regularized_m_value_approaches_zero_at_large_radius(cyl)
@@ -328,3 +431,5 @@ def test():
     test_regularized_m_value_at_critical_point(cyl)
 
     return None
+
+test()

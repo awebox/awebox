@@ -34,8 +34,6 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.biot_savart as biot_savart
-
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -50,11 +48,14 @@ class Element:
         self.__info_dict = info_dict
         self.set_element_type('element')
         self.set_biot_savart_fun(None)
+        self.set_info_fun(None)
 
         if info_order is not None:
             self.set_info_order(info_order)
             packed_info = self.pack_info()
             self.set_info(packed_info)
+
+        self.set_test_includes_visualization(False)
 
     def set_info(self, packed_info):
         self.__info = packed_info
@@ -168,23 +169,51 @@ class Element:
         color = cmap(strength_scaled)
         return color
 
-    def make_symbolic_info_function(self, model_variables, model_parameters):
-        self.__info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
+    def define_model_variables_to_info_function(self, model_variables, model_parameters):
+        info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
+        self.set_info_fun(info_fun)
+
         return None
 
     def evaluate_info(self, variables, parameters):
         return self.__info_fun(variables, parameters)
 
-    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+    def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         awelogger.logger.error(message)
         raise Exception(message)
 
+
+    def construct_fake_cosmetics(self):
+        cosmetics = {}
+        cosmetics['trajectory'] = {}
+        cosmetics['trajectory']['cylinder_s_length'] = 3.
+        cosmetics['trajectory']['filament_s_length'] = cosmetics['trajectory']['cylinder_s_length']
+        cosmetics['trajectory']['cylinder_n_theta'] = 30
+        cosmetics['trajectory']['cylinder_n_s'] = 8
+        cosmetics['trajectory']['circulation_max_estimate'] = self.info_dict['strength']
+
+        return cosmetics
+
+    def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
+        passed_information = (variables_scaled is not None) and (parameters is not None)
+        if passed_information:
+            evaluated = self.evaluate_info(variables_scaled, parameters)
+            unpacked = self.unpack_info(external_info=evaluated)
+        else:
+            unpacked = self.info_dict
+
+        if cosmetics is None:
+            cosmetics = self.construct_fake_cosmetics()
+
+        return unpacked, cosmetics
+
     def basic_draw(self, ax, side, strength, x_start, x_end, cosmetics):
+
         color = self.get_strength_color(strength, cosmetics)
-        x = [x_start[0], x_end[0]]
-        y = [x_start[1], x_end[1]]
-        z = [x_start[2], x_end[2]]
+        x = [float(x_start[0]), float(x_end[0])]
+        y = [float(x_start[1]), float(x_end[1])]
+        z = [float(x_start[2]), float(x_end[2])]
 
         if side == 'xy':
             ax.plot(x, y, c=color)
@@ -250,6 +279,16 @@ class Element:
         awelogger.logger.error(message)
         raise Exception(message)
 
+    def test_draw(self):
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        self.draw(ax, 'isometric')
+
+        if self.test_includes_visualization:
+            plt.show()
+
+        return None
+
     @property
     def info_fun(self):
         return self.__info_fun
@@ -257,6 +296,13 @@ class Element:
     @info_fun.setter
     def info_fun(self, value):
         awelogger.logger.error('Cannot set info_fun object.')
+
+    @property
+    def info_fun(self):
+        return self.__info_fun
+
+    def set_info_fun(self, value):
+        self.__info_fun = value
 
     @property
     def info(self):
@@ -322,6 +368,17 @@ class Element:
 
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
+
+    @property
+    def test_includes_visualization(self):
+        return self.__test_includes_visualization
+
+    @test_includes_visualization.setter
+    def test_includes_visualization(self, value):
+        awelogger.logger.error('Cannot set test_includes_visualization object.')
+
+    def set_test_includes_visualization(self, value):
+        self.__test_includes_visualization = value
 
 
 def construct_test_object():
@@ -416,5 +473,3 @@ def test():
     test_pack_internal_info(elem)
     test_unpack_external_info(elem)
     test_pack_external_info(elem)
-
-test()

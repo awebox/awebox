@@ -63,7 +63,7 @@ def smooth_norm(a, epsilon=1e-8):
     else:
         dot_product = cas.mtimes(a.T, a)
 
-    norm = smooth_sqrt(dot_product, epsilon)
+    norm = smooth_sqrt(dot_product, epsilon**2.)
 
     return norm
 
@@ -74,27 +74,27 @@ def abs(a):
 def smooth_abs(arg, epsilon=1e-8):
 
     if hasattr(arg, 'shape') and (arg.shape == (1,1)):
-        abs = smooth_sqrt(arg ** 2., epsilon)
+        abs = smooth_sqrt(arg ** 2., epsilon**2.)
 
     elif hasattr(arg, 'shape') and (len(arg.shape) > 0):
         abs = []
         for idx in range(arg.shape[0]):
-            local = smooth_sqrt(arg[idx] ** 2., epsilon)
+            local = smooth_sqrt(arg[idx] ** 2., epsilon**2.)
             abs = cas.vertcat(abs, local)
 
     elif isinstance(arg, list):
         abs = []
         for idx in range(len(arg)):
-            local = smooth_sqrt(arg[idx] ** 2., epsilon)
+            local = smooth_sqrt(arg[idx] ** 2., epsilon**2.)
             abs += [local]
 
     else:
-        abs = smooth_sqrt(arg ** 2., epsilon)
+        abs = smooth_sqrt(arg ** 2., epsilon**2.)
 
     return abs
 
 def smooth_sqrt(arg, epsilon=1e-8):
-    sqrt = (arg + epsilon ** 2.) ** 0.5
+    sqrt = (arg + epsilon) ** 0.5
     return sqrt
 
 def normalize(a):
@@ -469,7 +469,7 @@ def elliptic_k(k=None, m=None):
 def elliptic_k_approximation_max_error():
     return 2.e-5
 
-def test_elliptic_k():
+def test_elliptic_k(epsilon=1.e-6):
 
     # boundary case
     m = 0.
@@ -517,7 +517,7 @@ def elliptic_pi(n=None, m=None):
     pinned_a3_loc = pin_at_psi_0 * pin_at_psi_negative_quarter
     pinned_a3_expr = elliptic_k(m=m)
 
-    pinned = 8. / np.pi**2. * (pinned_a1_loc + pinned_a1_expr + pinned_a2_loc * pinned_a2_expr + pinned_a3_loc * pinned_a3_expr)
+    pinned = 8. / np.pi**2. * (pinned_a1_loc * pinned_a1_expr + pinned_a2_loc * pinned_a2_expr + pinned_a3_loc * pinned_a3_expr)
 
     a1 = -4.96273
     a2 = 18.6521
@@ -537,19 +537,46 @@ def elliptic_pi(n=None, m=None):
 def elliptic_pi_approximation_max_error():
     return 1.
 
-def test_elliptic_pi():
+def test_elliptic_pi(epsilon=1.e-4):
     # origin case
     n = 0.
     m = 0.
     found = elliptic_pi(n=n, m=m)
     expected = np.pi/2.
-    error_bound = elliptic_pi_approximation_max_error() * expected
+    error_bound = epsilon
 
     error = found - expected
     if (error**2. > error_bound**2.):
+
         message = '(origin) elliptic integral Pi(n|alpha) approximation did not work as expected'
         awelogger.logger.error(message)
         raise Exception(message)
+
+    # m = 0 case
+    n = 0.5
+    m = 0.
+    found = elliptic_pi(n=n, m=m)
+    expected = np.pi / (2. * (1. - n)**0.5)
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(m=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+    # n = 0 case
+    n = 0.
+    m = 0.5
+    found = elliptic_pi(n=n, m=m)
+    expected = special.ellipk(m=m)
+
+    error = found - expected
+    if (error**2. > error_bound**2.):
+        message = '(n=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
 
     # center case
     n = 0.5
