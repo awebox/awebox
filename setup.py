@@ -28,12 +28,12 @@ from setuptools import setup, find_packages
 import sys
 print(sys.version_info)
 
-if sys.version_info < (3,5):
-    sys.exit('Python version 3.5 or later required. Exiting.')
+if sys.version_info < (3,8):
+    sys.exit('Python version 3.8 or later required. Exiting.')
 
 setup(name='awebox',
    version='0.1.0',
-   python_requires='>=3.5, <3.8',
+   python_requires='>=3.8, <3.9',
    description='Modeling and optimal control of sinlge- and multi-kite systems',
    url='https://github.com/awebox/awebox',
    author='Jochem De Schutter, Rachel Leuthold, Thilo Bronnenmeyer, Elena Malz, Sebastien Gros, Moritz Diehl',
