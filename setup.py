@@ -33,7 +33,7 @@ if sys.version_info < (3,8):
 
 setup(name='awebox',
    version='0.1.0',
-   python_requires='>=3.8, <3.9',
+   python_requires='>=3.8',
    description='Modeling and optimal control of sinlge- and multi-kite systems',
    url='https://github.com/awebox/awebox',
    author='Jochem De Schutter, Rachel Leuthold, Thilo Bronnenmeyer, Elena Malz, Sebastien Gros, Moritz Diehl',
