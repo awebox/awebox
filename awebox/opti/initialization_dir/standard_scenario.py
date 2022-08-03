@@ -170,11 +170,12 @@ def precompute_path_parameters(init_options, model):
     init_options = set_user_groundspeed(init_options)
 
     # clipping and adjusting
-    for step in range(adjustment_steps):
-        init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
-        init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
-        init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
-        init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
+    if init_options['init_clipping']:
+        for step in range(adjustment_steps):
+            init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
+            init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
+            init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
+            init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
 
     init_options = set_dependent_time_final(init_options)  # depends on winding_period
     init_options = set_dependent_height(init_options)  # depends on radius and hypotenuse

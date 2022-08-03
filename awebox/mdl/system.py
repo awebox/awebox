@@ -195,6 +195,12 @@ def generate_structure(options, architecture):
     if 'P_max' in options['system_bounds']['theta'].keys():
         system_parameters += [('P_max', (1, 1))] # max power
 
+    if options['model_bounds']['ellipsoidal_flight_region']['include']:
+        system_parameters += [('ell_radius', (1, 1))] # max power
+
+    if options['induction_model'] == 'averaged':
+        system_parameters += [('a', (1,1))] # average induction
+        system_parameters += [('ell_theta', (1,1))]
 
     # add cross-tether lengths and diameters
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -361,6 +367,7 @@ def define_bounds(options, variables):
             else:
                 variable_bounds[variable_type][name]['lb'] = -cas.inf
                 variable_bounds[variable_type][name]['ub'] = cas.inf
+
     return variable_bounds
 
 def scale_variable(variables, var_si, scaling):
