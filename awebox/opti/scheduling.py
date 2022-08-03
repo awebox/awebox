@@ -71,7 +71,7 @@ def define_homotopy_schedule(formulation):
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
-    make_induction_step = not (induction_model == 'not_in_use')
+    make_induction_step = not (induction_model in ['not_in_use', 'averaged'])
     if make_induction_step:
         homotopy_schedule = homotopy_schedule + induction_schedule
 

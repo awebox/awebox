@@ -184,7 +184,12 @@ def collect_contributions(parameters, inputs):
                 for ldx in range(deriv_length):
                     input_stack = cas.vertcat(input_stack, input_val * alpha_val**ldx )
 
-                contrib_from_input = cas.mtimes(deriv_stack.T, input_stack)
+                if deriv_name in ['Cl', 'Cm', 'Cn'] and input_name in ['deltaa', 'deltae', 'deltar']:
+                    weight = parameters['theta0', 'aero', 'moment_factor']
+                else:
+                    weight = 1.0
+                
+                contrib_from_input = weight * cas.mtimes(deriv_stack.T, input_stack)
                 coeffs[deriv_name] += contrib_from_input
 
     return coeffs

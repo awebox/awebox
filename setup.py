@@ -28,12 +28,12 @@ from setuptools import setup, find_packages
 import sys
 print(sys.version_info)
 
-if sys.version_info < (3,5):
-    sys.exit('Python version 3.5 or later required. Exiting.')
+if sys.version_info < (3,8):
+    sys.exit('Python version 3.8 or later required. Exiting.')
 
 setup(name='awebox',
    version='0.1.0',
-   python_requires='>=3.5, <3.8',
+   python_requires='>=3.8',
    description='Modeling and optimal control of sinlge- and multi-kite systems',
    url='https://github.com/awebox/awebox',
    author='Jochem De Schutter, Rachel Leuthold, Thilo Bronnenmeyer, Elena Malz, Sebastien Gros, Moritz Diehl',
@@ -48,9 +48,18 @@ setup(name='awebox',
    #   "relative_to": __file__
    # },
    install_requires=[
-      'numpy',
-      'scipy',
-      'casadi>=3.5.1',
-      'matplotlib',
+        'casadi==3.5.5',
+        'cycler==0.11.0',
+        'fonttools==4.34.4',
+        'kiwisolver==1.4.4',
+        'matplotlib==3.5.2',
+        'numpy==1.23.1',
+        'packaging==21.3',
+        'Pillow==9.2.0',
+        'pyparsing==3.0.9',
+        'python-dateutil==2.8.2',
+        'scipy==1.9.0rc3',
+        'six==1.16.0',
+        'tk==0.1.0'
    ],
 )

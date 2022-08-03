@@ -102,14 +102,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    if not (options['induction_model'] == 'not_in_use'):
+    if not (options['induction_model'] in ['not_in_use', 'averaged']):
         induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
-
-    # ensure that energy matches power integration
-    power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
-    integral_outputs, integral_outputs_fun, integral_scaling, energy_cstr = manage_power_integration(options, power, outputs, system_variables, parameters)
-    cstr_list.append(energy_cstr)
 
 
     # --------------------------------------------
@@ -138,8 +133,16 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
 
+    # ensure that energy matches power integration
+    power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
+    integral_outputs, integral_outputs_fun, integral_scaling, energy_cstr = manage_power_integration(options, power, outputs, system_variables, parameters, architecture, atmos, wind)
+    cstr_list.append(energy_cstr)
+
     P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
     cstr_list.append(P_max_cstr)
+
+    outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(ellips_cstr)
 
     # ----------------------------------------
     #  sanity checking
@@ -198,7 +201,7 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 
     return None
 
-def manage_power_integration(options, power, outputs, system_variables, parameters):
+def manage_power_integration(options, power, outputs, system_variables, parameters, architecture, atmos, wind):
 
     cstr_list = mdl_constraint.MdlConstraintList()
 
@@ -214,6 +217,22 @@ def manage_power_integration(options, power, outputs, system_variables, paramete
         if options['trajectory']['system_type'] == 'drag_mode':
             entry_list += [cas.entry('power_derivative_sq', expr= outputs['performance']['power_derivative']**2)]
             integral_scaling['power_derivative_sq'] = 1.0
+
+        if options['induction_model'] == 'averaged':
+            tether_forces = 0.0
+            WdA = 0.0
+            for kite in architecture.kite_nodes:
+                tether_forces += outputs['local_performance']['tether_force{}'.format(architecture.node_label(kite))]
+                q = system_variables['SI']['x']['q{}'.format(architecture.node_label(kite))]
+                rho = atmos.get_density(q[2])[0]
+                u_inf = wind.get_velocity(q[2])[0]
+                dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
+                b = parameters['theta0', 'geometry', 'b_ref']
+                WdA += 0.5*b*vect_op.norm(dq)*rho*u_inf**2
+            entry_list += [cas.entry('tether_force_int', expr= tether_forces)]
+            entry_list += [cas.entry('area_int', expr= WdA)]
+            integral_scaling['tether_force_int'] = 1.0
+            integral_scaling['area_int'] = 1.0
 
         integral_outputs = cas.struct_SX(entry_list)
 
@@ -582,6 +601,47 @@ def P_max_inequality(options, variables, power, parameters, architecture):
 
     return cstr_list
 
+def ellipsoidal_flight_constraint(options, variables, parameters, architecture, outputs):
+
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
+    if 'ell_radius' in list(variables['theta'].keys()):
+        r = variables['theta']['ell_radius'] - parameters['theta0', 'geometry', 'b_ref']
+    else:
+        r = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'radius'] - parameters['theta0', 'geometry', 'b_ref']
+    if options['model_bounds']['ellipsoidal_flight_region']['include']:
+        for node in range(1,architecture.number_of_nodes):
+            q = variables['x']['q{}'.format(architecture.node_label(node))]
+
+            yy = q[1]
+            zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
+            ellipse_ineq = zz**2/(r*np.sin(alpha))**2 + yy**2/r**2 - 1
+
+            ellipse_cstr = cstr_op.Constraint(expr=ellipse_ineq,
+                                        name='ellipse_flight' + architecture.node_label(node),
+                                        cstr_type='ineq')
+            cstr_list.append(ellipse_cstr)
+
+        if options['induction_model'] == 'averaged':
+            ell_theta = variables['theta']['ell_theta']
+            for kite in architecture.kite_nodes:
+                q = variables['x']['q{}'.format(architecture.node_label(kite))]
+
+                yy = q[1]
+                zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
+                if kite == 2:
+                    ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
+                elif kite == 3:
+                    ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
+
+                ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
+                                            name='ellipse_half' + architecture.node_label(kite),
+                                            cstr_type='ineq')
+                cstr_list.append(ellipse_half_cstr)
+    return outputs, cstr_list
+
+
 def acceleration_inequality(options, variables):
 
     cstr_list = mdl_constraint.MdlConstraintList()
@@ -715,12 +775,13 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         if n in tether_constraint_includes['force']:
 
             force_max_resi = (tension - max_tension) / vect_op.smooth_abs(max_tension)
-            force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
 
             force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
                                                name='tether_force_max' + str(n) + str(parent),
                                                cstr_type='ineq')
             cstr_list.append(force_max_cstr)
+
+            force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
 
             force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
                                                name='tether_force_min' + str(n) + str(parent),

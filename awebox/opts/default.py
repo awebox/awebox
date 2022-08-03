@@ -99,6 +99,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
         ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
+        ('params','aero', None,         'moment_factor',   1.0,              ('enhance aerodynamic moment generator by control surfaces', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
 
@@ -174,8 +175,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
         #### system bounds and limits (physical)
-        ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-3, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-3, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-4, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'dl_t',          [-30.0, 30.0],                                                   ('main tether speed bounds [m/s]', None),'x'),
@@ -191,6 +192,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
+        ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
+        ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
 
         ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
         ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
@@ -215,6 +218,9 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', None,           'rot_angles',            np.array([80.0*np.pi/180., 80.0*np.pi/180., 160.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'rot_angles_cross',      np.array([80.0*np.pi/180., 80.0*np.pi/180., 85.0*np.pi/180.0]), ('[roll, pitch, yaw] - [rad]', None), 's'),
         ('params',  'model_bounds', None,           'span_angle',            45.0*np.pi/180., ('[max. angle between span and wing-tip cross-tether] - [rad]', None), 's'),
+        ('model',   'model_bounds', 'ellipsoidal_flight_region', 'include',  False,   ('include ellipsoidal flight hull', None), 't'),
+        ('params',  'model_bounds', 'ellipsoidal_flight_region', 'radius',  500.0,   ('ellipsoidal flight hull ground radius', None), 's'),
+        ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
         ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None),'x'),
@@ -283,6 +289,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
+        ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
@@ -339,6 +346,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'max_cone_angle_single',30.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
+        ('solver',  'initialization', None, 'init_clipping',        True,    ('clip initial guess parameters to reasonable values', [True, False]), 'x'),
 
         ('solver',  'initialization', 'theta',  'l_i',      100.,     ('intermediate tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
@@ -347,6 +355,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'diam_i',   4e-3,     ('intermediate tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_s',   5e-3,     ('secondary tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
