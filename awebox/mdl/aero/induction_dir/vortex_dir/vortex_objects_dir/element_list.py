@@ -32,12 +32,9 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as vortex_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_semi_infinite_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as vortex_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_semi_infinite_tangential_cylinder
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -64,7 +61,7 @@ class ElementList:
     def append(self, added_elem):
 
         is_element_list = isinstance(added_elem, ElementList)
-        is_element = isinstance(added_elem, vortex_element.Element)
+        is_element = isinstance(added_elem, obj_element.Element)
         is_correct_type = (self.__element_type is None) or (self.__element_type == added_elem.element_type)
         has_correct_length = (self.__element_info_length is None) or (is_element and (self.__element_info_length == added_elem.info_length)) or (is_element_list and (self.__element_info_length == added_elem.element_info_length))
 
@@ -132,14 +129,10 @@ class ElementList:
 
         return columnized_list
 
-    def get_decolumnized_info_list(self, period=None, wind=None, optimization_period=None):
+    def get_decolumnized_info_list(self):
 
         self.confirm_list_has_expected_dimensions()
-
-        if (period is not None) and (wind is not None):
-            python_list_of_info = [elem.get_repeated_info(period, wind, optimization_period) for elem in self.__list]
-        else:
-            python_list_of_info = [elem.info for elem in self.__list]
+        python_list_of_info = [elem.info for elem in self.__list]
 
         decolumnized_list = cas.horzcat(*python_list_of_info)
 
@@ -172,8 +165,8 @@ class ElementList:
         obs_info = concatenated[-3:]
         return obs_info
 
-    def get_decolumnized_list_concatenated_with_observer_info(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
-        decolumnized_list = self.get_decolumnized_info_list(period, wind, optimization_period)
+    def get_decolumnized_list_concatenated_with_observer_info(self, x_obs=cas.DM.zeros(3, 1)):
+        decolumnized_list = self.get_decolumnized_info_list()
 
         number_of_elements = self.number_of_elements
         observer_list = cas.repmat(x_obs, (1, number_of_elements))
@@ -215,7 +208,7 @@ class ElementList:
 
         return None
 
-    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), n_hat=None, period=None, wind=None, optimization_period=None):
+    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1)):
 
         print_op.warn_about_temporary_funcationality_removal(location='element_list.projected_biot_savart')
         print_op.warn_about_temporary_funcationality_removal(location='element_list.repeated_biot_savart')
@@ -224,7 +217,7 @@ class ElementList:
             self.define_biot_savart_induction_function()
 
         concatenated_biot_savart_fun = self.__concatenated_biot_savart_fun
-        concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs, n_hat, period, wind, optimization_period)
+        concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
 
         number_of_elements = self.number_of_elements
         concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, 'openmp')
@@ -232,13 +225,39 @@ class ElementList:
 
         return all
 
-
     def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1)):
         all = self.evaluate_biot_savart_induction_for_all_elements(x_obs)
         u_ind = cas.sum2(all)
         return u_ind
 
-    def draw(self, ax, side, variables_scaled, parameters, cosmetics):
+    def get_max_abs_strength(self):
+        if self.__number_of_elements > 0:
+            all_strengths = [elem.info_dict['strength'] for elem in self.__list]
+            strengths_are_numeric = [vect_op.is_numeric(strength) for strength in all_strengths]
+            if all(strengths_are_numeric):
+                strengths_array = np.array(all_strengths)
+                return np.max(np.abs(strengths_array))
+
+        message = 'could not compute a numeric max-abs-strength for this element_list. proceeding with a unit value'
+        awelogger.logger.warning(message)
+        return 1.
+
+    def construct_fake_cosmetics(self):
+        if self.__number_of_elements > 0:
+            example_element = self.__list[0]
+            cosmetics = example_element.construct_fake_cosmetics()
+
+            max_abs_strength = self.get_max_abs_strength()
+            cosmetics['trajectory']['circulation_max_estimate'] = max_abs_strength
+            return cosmetics
+
+        return None
+
+    def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
+
+        if cosmetics is None:
+            cosmetics = self.construct_fake_cosmetics()
+
         for elem in self.__list:
             elem.draw(ax, side, variables_scaled, parameters, cosmetics)
         return None
@@ -247,6 +266,18 @@ class ElementList:
 
         all_strengths = np.array([elem.unpack_info(external_info=elem.evaluate_info(variables_scaled, parameters))['strength'] for elem in self.__list])
         return np.max(np.abs(all_strengths))
+
+    def is_element_in_list(self, query_elem, epsilon=1.e-8):
+
+        if query_elem in self.__list:
+            return True
+
+        else:
+            for elem in self.__list:
+                if elem.is_equal(query_elem, epsilon):
+                    return True
+
+        return False
 
     @property
     def list(self):
@@ -270,11 +301,16 @@ class ElementList:
 
     @expected_number_of_elements.setter
     def expected_number_of_elements(self, value):
+        awelogger.logger.error('Cannot set expected_number_of_elements object.')
+        return None
+
+    def set_expected_number_of_elements(self, value):
         if self.__expected_number_of_elements is not None:
-            awelogger.logger.error('Cannot set elements object.')
+            awelogger.logger.error('Cannot set expected_number_of_elements object.')
         else:
             self.__expected_number_of_elements = value
         return None
+
 
     @property
     def element_info_length(self):
@@ -365,7 +401,7 @@ def construct_test_filament_list():
                   'r_core': r_core,
                   'strength': strength0}
 
-    fil0 = vortex_finite_filament.FiniteFilament(dict_info0)
+    fil0 = obj_finite_filament.FiniteFilament(dict_info0)
     filament_list.append(fil0)
 
     x_start1 = x_end0
@@ -376,7 +412,7 @@ def construct_test_filament_list():
                   'r_core': r_core,
                   'strength': strength1}
 
-    fil1 = vortex_finite_filament.FiniteFilament(dict_info1)
+    fil1 = obj_finite_filament.FiniteFilament(dict_info1)
     filament_list.append(fil1)
 
     x_start2 = x_end1
@@ -387,7 +423,7 @@ def construct_test_filament_list():
                   'r_core': r_core,
                   'strength': strength2}
 
-    fil2 = vortex_finite_filament.FiniteFilament(dict_info2)
+    fil2 = obj_finite_filament.FiniteFilament(dict_info2)
     filament_list.append(fil2)
 
     return filament_list
@@ -480,12 +516,12 @@ def test_filament_list():
 def test_appending_multiple_times():
     filament_list = ElementList()
 
-    fil = vortex_finite_filament.construct_test_object(r_core=0.01)
+    fil = obj_finite_filament.construct_test_object(r_core=0.01)
     filament_list.append(fil)
     filament_list.append(fil)
 
-    fil_1 = vortex_finite_filament.construct_test_object(r_core=0.01)
-    filament_list.append(fil)
+    fil2 = obj_finite_filament.construct_test_object(r_core=1.)
+    filament_list.append(fil2)
 
     found = filament_list.number_of_elements
     expected = 3
@@ -497,13 +533,35 @@ def test_appending_multiple_times():
         raise Exception(message)
 
 
+def test_is_elem_in_list():
+    filament_list = ElementList()
+
+    fil = obj_finite_filament.construct_test_object(r_core=0.01)
+    filament_list.append(fil)
+
+    fil2 = obj_finite_filament.construct_test_object(r_core=1.)
+
+    fil3 = obj_finite_filament.construct_test_object(r_core=0.01)
+
+    condition_1 = (filament_list.is_element_in_list(fil) == True)
+    condition_2 = (filament_list.is_element_in_list(fil2) == False)
+    condition_3 = (filament_list.is_element_in_list(fil3) == True)
+    criteria = condition_1 and condition_2 and condition_3
+
+    if not criteria:
+        message = 'the query "is this element in the element list" does not work as expected.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
 def test_that_appending_different_types_is_ignored():
 
     filament_list = ElementList()
-    fil = vortex_finite_filament.construct_test_object(r_core = 0.01)
+    fil = obj_finite_filament.construct_test_object(r_core = 0.01)
     filament_list.append(fil)
 
-    tan_cyl = vortex_semi_infinite_tangential_cylinder.construct_test_object()
+    tan_cyl = obj_semi_infinite_tangential_cylinder.construct_test_object()
     filament_list.append(tan_cyl)
 
     found = filament_list.number_of_elements
@@ -519,6 +577,7 @@ def test_that_appending_different_types_is_ignored():
 
 def test_appending():
     test_appending_multiple_times()
+    test_is_elem_in_list()
     test_that_appending_different_types_is_ignored()
 
     return None
@@ -528,3 +587,5 @@ def test_appending():
 def test():
     test_filament_list()
     test_appending()
+
+# test()

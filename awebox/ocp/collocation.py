@@ -247,7 +247,8 @@ class Collocation(object):
         # number of integral outputs
         ni = model.integral_outputs.cat.shape[0]
 
-        if ni > 0:
+        number_of_integral_outputs_is_positive = (ni > 0)
+        if number_of_integral_outputs_is_positive:
 
             # constant term
             i0 =  model.integral_outputs(cas.vertcat(*Integral_outputs_list)[-ni:])
@@ -284,10 +285,6 @@ class Collocation(object):
             for i in range(integral_output[list(integral_output.keys())[0]].shape[0]):
                 for name in list(model.integral_outputs.keys()):
                     Integral_outputs_list.append(integral_output[name][i])
-
-        else:
-            # do nothing
-            32.0
 
         return Integral_outputs_list
 

@@ -242,15 +242,10 @@ def get_cylinder_strength(options, strength, variables_si, kite, tip):
 
 def expected_number_of_filaments(options, architecture):
 
-    far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
     number_kites = architecture.number_of_kites
 
-    if 'filament' in far_wake_model:
-        use = 1
-    else:
-        use = 0
-
-    filaments = use * 2 * number_kites
+    use = 1
+    filaments = use * 3 * number_kites * (wake_nodes - 1)
 
     return filaments
 
@@ -308,118 +303,3 @@ def get_cylinder_radius_cstr(options, wind, variables_si, parameters, architectu
             cstr_list.append(cstr)
 
     return cstr_list
-
-# def test(far_wake_model = 'freestream_filament'):
-#
-#     architecture = archi.Architecture({1:0})
-#
-#     options = {}
-#
-#     options['wind'] = {}
-#     options['wind']['u_ref'] = 1.
-#     options['wind']['model'] = 'uniform'
-#     options['wind']['z_ref'] = -999.
-#     options['wind']['log_wind'] = {'z0_air': -999}
-#     options['wind']['power_wind'] = {'exp_ref': -999}
-#
-#     options['induction'] = {}
-#     options['induction']['vortex_wake_nodes'] = 1
-#     options['induction']['vortex_far_convection_time'] = 1.
-#     options['induction']['vortex_far_wake_model'] = far_wake_model
-#     options['induction']['vortex_u_ref'] = options['wind']['u_ref']
-#     options['induction']['vortex_position_scale'] = 1.
-#     options['induction']['vortex_representation'] = 'state'
-#
-#     wind = wind_module.Wind(options['wind'], options['wind'])
-#     kite = architecture.kite_nodes[0]
-#
-#     xd_struct = cas.struct([
-#         cas.entry("wx_" + str(kite) + "_ext_0", shape=(3, 1)),
-#         cas.entry("wx_" + str(kite) + "_ext_1", shape=(3, 1)),
-#         cas.entry("wx_" + str(kite) + "_int_0", shape=(3, 1)),
-#         cas.entry("wx_" + str(kite) + "_int_1", shape=(3, 1))
-#     ])
-#     xl_struct = cas.struct([
-#         cas.entry("wg_" + str(kite) + "_0"),
-#         cas.entry('wu_farwake_' + str(kite) + '_int', shape=(3, 1)),
-#         cas.entry('wu_farwake_' + str(kite) + '_ext', shape=(3, 1))
-#     ])
-#     var_struct = cas.struct_symSX([
-#         cas.entry('xd', struct=xd_struct),
-#         cas.entry('xl', struct=xl_struct)
-#     ])
-#
-#     variables_si = var_struct(0.)
-#     variables_si['xd', 'wx_' + str(kite) + '_ext_0'] = 0.5 * vect_op.yhat_np()
-#     variables_si['xd', 'wx_' + str(kite) + '_int_0'] = -0.5 * vect_op.yhat_np()
-#     variables_si['xl', 'wg_' + str(kite) + '_0'] = 1.
-#     variables_si['xl', 'wu_farwake_' + str(kite) + '_ext'] = vect_op.xhat_np()
-#     variables_si['xl', 'wu_farwake_' + str(kite) + '_int'] = vect_op.xhat_np()
-#
-#     test_list = get_list(options, variables_si, architecture, wind)
-#
-#     filaments = test_list.shape[1]
-#
-#     filament_count_test = filaments - 3
-#     if not (filament_count_test == 0):
-#         message = 'filament list does not work as expected. difference in number of filaments in test_list = ' + str(filament_count_test)
-#         awelogger.logger.error(message)
-#         raise Exception(message)
-#
-#     LE_expected = cas.DM(np.array([0., -0.5, 0., 0., 0.5, 0., 1.]))
-#     PE_expected = cas.DM(np.array([0., 0.5, 0., 1., 0.5, 0., 1.]))
-#     TE_expected = cas.DM(np.array([1., -0.5, 0., 0., -0.5, 0., 1.]))
-#
-#     expected_filaments = {'leading edge': LE_expected,
-#                           'positive edge': PE_expected,
-#                           'trailing edge': TE_expected}
-#
-#
-#     for type in expected_filaments.keys():
-#         expected_filament = expected_filaments[type]
-#         expected_in_list = expected_filament_in_list(test_list, expected_filament)
-#         if not expected_in_list:
-#             message = 'filament list does not work as expected. ' + type + \
-#                       ' test filament not in test_list.'
-#             awelogger.logger.error(message)
-#
-#             with np.printoptions(precision=3, suppress=True):
-#                 print('test_list:')
-#                 print(np.array(test_list))
-#
-#             raise Exception(message)
-#
-#
-#     NE_not_expected = cas.DM(np.array([1., -0.5, 0., 1., 0.5, 0., -1.]))
-#     not_expected_filaments = {'negative edge': NE_not_expected}
-#
-#     for type in not_expected_filaments.keys():
-#         not_expected_filament = not_expected_filaments[type]
-#         is_reasonable = not (expected_filament_in_list(test_list, not_expected_filament))
-#         if not is_reasonable:
-#             message = 'filament list does not work as expected. ' + type + \
-#                       ' test filament in test_list.'
-#             awelogger.logger.error(message)
-#
-#             with np.printoptions(precision=3, suppress=True):
-#                 print('test_list:')
-#                 print(np.array(test_list))
-#
-#             raise Exception(message)
-#
-#
-#     return test_list
-#
-# def expected_filament_in_list(test_list, expected_filament):
-#
-#     filaments = test_list.shape[1]
-#
-#     thresh = 1.e-8
-#
-#     for filament in range(filaments):
-#         local = test_list[:, filament]
-#         comparison = vect_op.norm(local - expected_filament)
-#         if comparison < thresh:
-#             return True
-#
-#     return False

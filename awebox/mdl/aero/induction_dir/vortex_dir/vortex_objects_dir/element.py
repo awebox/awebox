@@ -151,8 +151,12 @@ class Element:
 
     def get_strength_color(self, strength_val, cosmetics):
 
+        if vect_op.is_numeric_scalar(strength_val):
+            strength_val = float(strength_val)
+
         strength_max = cosmetics['trajectory']['circulation_max_estimate']
         strength_min = -1. * strength_max
+        strength_range = 2. * strength_max
 
         if strength_val > strength_max:
             message = 'reported vortex element strength ' + str(strength_val) + ' is larger than the maximum expected ' \
@@ -165,18 +169,24 @@ class Element:
             awelogger.logger.warning(message)
 
         cmap = plt.get_cmap('seismic')
-        strength_scaled = float((strength_val - strength_min) / (strength_max - strength_min))
+        strength_scaled = float(strength_val - strength_min) / float(strength_range)
+
         color = cmap(strength_scaled)
         return color
 
-    def define_model_variables_to_info_function(self, model_variables, model_parameters):
-        info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
+    def define_biot_savart_induction_function(self):
+        message = 'cannot define the biot savart induction function for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    def define_model_variables_to_info_function(self, variables_scaled, parameters):
+        info_fun = cas.Function('info_fun', [variables_scaled, parameters], [self.__info])
         self.set_info_fun(info_fun)
 
         return None
 
-    def evaluate_info(self, variables, parameters):
-        return self.__info_fun(variables, parameters)
+    def evaluate_info(self, variables_scaled, parameters):
+        return self.__info_fun(variables_scaled, parameters)
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
@@ -184,14 +194,29 @@ class Element:
         raise Exception(message)
 
 
-    def construct_fake_cosmetics(self):
+    def construct_fake_cosmetics(self, unpacked=None):
         cosmetics = {}
         cosmetics['trajectory'] = {}
         cosmetics['trajectory']['cylinder_s_length'] = 3.
         cosmetics['trajectory']['filament_s_length'] = cosmetics['trajectory']['cylinder_s_length']
         cosmetics['trajectory']['cylinder_n_theta'] = 30
         cosmetics['trajectory']['cylinder_n_s'] = 8
-        cosmetics['trajectory']['circulation_max_estimate'] = self.info_dict['strength']
+
+        if (unpacked is not None) and (vect_op.is_numeric(unpacked['strength'])):
+            local_strength = unpacked['strength']
+        elif (unpacked is None) and (vect_op.is_numeric(self.info_dict['strength'])):
+            local_strength = self.info_dict['strength']
+        else:
+            local_strength = 1.
+
+        # notice, in this case, every element 'above' this threshhold will be dark-red,
+        # and every element below will be white
+        epsilon_draw_nonwhite = 1.e-4
+        if local_strength**2. < epsilon_draw_nonwhite**2.:
+            # prevent divide by zero errors when plotting color is selected;
+            local_strength = 1.
+
+        cosmetics['trajectory']['circulation_max_estimate'] = local_strength
 
         return cosmetics
 
@@ -204,11 +229,14 @@ class Element:
             unpacked = self.info_dict
 
         if cosmetics is None:
-            cosmetics = self.construct_fake_cosmetics()
+            cosmetics = self.construct_fake_cosmetics(unpacked)
 
         return unpacked, cosmetics
 
     def basic_draw(self, ax, side, strength, x_start, x_end, cosmetics):
+
+        if cosmetics is None:
+            cosmetics = self.construct_fake_cosmetics()
 
         color = self.get_strength_color(strength, cosmetics)
         x = [float(x_start[0]), float(x_end[0])]
@@ -236,10 +264,37 @@ class Element:
 
         return repeated_dict
 
-    def define_biot_savart_induction_function(self):
-        message = 'cannot define the biot savart induction function for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
+    def is_equal(self, query_element, epsilon=1.e-6):
+
+        if not (self.__element_type == query_element.element_type):
+            return False
+
+        for name, val in self.__info_dict.items():
+            query_val = query_element.info_dict[name]
+
+            local_is_casadi_symbolic = isinstance(val, cas.SX) or isinstance(val, cas.MX)
+            query_is_casadi_symbolic = isinstance(query_val, cas.SX) or isinstance(query_val, cas.MX)
+            only_one_is_symbolic = (local_is_casadi_symbolic and not query_is_casadi_symbolic) or (query_is_casadi_symbolic and not local_is_casadi_symbolic)
+            both_are_symbolic = local_is_casadi_symbolic and query_is_casadi_symbolic
+
+            if only_one_is_symbolic:
+                return False
+
+            elif both_are_symbolic:
+                return cas.is_equal(val, query_val)
+
+            else:
+                diff = (val - query_val)
+                if isinstance(diff, float) or isinstance(diff, np.ndarray):
+                    diff = cas.DM(diff)
+                diff = diff / vect_op.smooth_norm(cas.DM(val), epsilon=0.01 * epsilon)
+
+                criteria = (cas.mtimes(diff.T, diff) < epsilon**2.)
+                if not criteria:
+                    return False
+
+        return True
+
 
     def test_basic_criteria(self, expected_object_type='element'):
         self.test_object_type(expected_object_type)
@@ -280,6 +335,8 @@ class Element:
         raise Exception(message)
 
     def test_draw(self):
+        plt.close('all')
+
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         self.draw(ax, 'isometric')
@@ -296,10 +353,6 @@ class Element:
     @info_fun.setter
     def info_fun(self, value):
         awelogger.logger.error('Cannot set info_fun object.')
-
-    @property
-    def info_fun(self):
-        return self.__info_fun
 
     def set_info_fun(self, value):
         self.__info_fun = value
@@ -381,14 +434,13 @@ class Element:
         self.__test_includes_visualization = value
 
 
-def construct_test_object():
+def construct_test_object(alpha=1.1):
 
     info_order = {0: ('alpha', 1),
                   1: ('beta', 1),
                   2: ('gamma', 1)
                   }
 
-    alpha = 1.1
     beta = 2.2
     gamma = 3.3
     info_dict = {'alpha': alpha,
@@ -464,6 +516,35 @@ def test_unpack_external_info(elem):
         awelogger.logger.error(message)
         raise Exception(message)
 
+def test_is_equal():
+    obj1 = construct_test_object(alpha=1.1)
+    obj2 = construct_test_object(alpha=cas.DM(1.1))
+    obj3 = construct_test_object(alpha=2.2)
+    obj4 = construct_test_object(alpha=cas.SX.sym('alpha'))
+
+    obj5 = construct_test_object(alpha=1.1 + 1.e-12)
+    obj6 = construct_test_object(alpha=1.1 + 1.e-3)
+    obj7 = construct_test_object(alpha=cas.DM(1.1 + 1.e-12))
+    obj8 = construct_test_object(alpha=cas.DM(1.1 + 1.e-3))
+
+    con1 = (obj1.is_equal(obj1) == True)
+    con2 = (obj1.is_equal(obj2) == True)
+    con3 = (obj1.is_equal(obj3) == False)
+    con4 = (obj1.is_equal(obj4) == False)
+
+    con5 = (obj1.is_equal(obj5) == True)
+    con6 = (obj1.is_equal(obj6) == False)
+    con7 = (obj1.is_equal(obj7) == True)
+    con8 = (obj1.is_equal(obj8) == False)
+
+    criteria = con1 and con2 and con3 and con4 and con5 and con6 and con7 and con8
+
+    if not criteria:
+        message = 'the function checking whether another vortex element is the same as this vortex element, does not behave as expected'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
 
 def test():
     elem = construct_test_object()
@@ -473,3 +554,6 @@ def test():
     test_pack_internal_info(elem)
     test_unpack_external_info(elem)
     test_pack_external_info(elem)
+    test_is_equal()
+
+# test()

@@ -34,6 +34,7 @@ import pdb
 import numpy as np
 import awebox.mdl.aero.induction_dir.tools_dir.geom as tools_geom
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.fixing as alg_fixing
 import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
@@ -45,32 +46,31 @@ import awebox.tools.constraint_operations as cstr_op
 
 ################# define the actual constraint
 
-def get_fixing_constraint(options, V, Outputs, model, time_grids):
+def get_constraint(nlp_options, V, Outputs, model, time_grids):
 
     cstr_list = cstr_op.ConstraintList()
 
-    comparison_labels = options['induction']['comparison_labels']
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
+    if vortex_tools.vortices_are_modelled(nlp_options):
 
-        vortex_representation = options['induction']['vortex_representation']
-
+        vortex_representation = nlp_options['induction']['vortex_representation']
         if vortex_representation == 'state':
-            cstr_list.append(get_state_repr_fixing_constraint(options, V, Outputs, model))
+            cstr_list.append(get_state_repr_fixing_constraint(nlp_options, V, Outputs, model))
+
+            vortex_far_wake_model = nlp_options['induction']['vortex_far_wake_model']
+            if vortex_far_wake_model == 'pathwise_filament':
+                cstr_list.append(get_farwake_convection_velocity_constraint(nlp_options, V, model))
+
+            if 'cylinder' in vortex_far_wake_model:
+                cstr_list.append(get_vortex_cylinder_center_constraint(nlp_options, V, Outputs, model))
+                cstr_list.append(get_vortex_cylinder_pitch_constraint(nlp_options, V, Outputs, model))
+
         elif vortex_representation == 'alg':
-            cstr_list.append(get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids))
+            cstr_list.append(alg_fixing.get_constraint(nlp_options, V, Outputs, model, time_grids))
+
         else:
             message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
             awelogger.logger.error(message)
             raise Exception(message)
-
-    vortex_far_wake_model = options['induction']['vortex_far_wake_model']
-    if vortex_far_wake_model == 'pathwise_filament':
-        cstr_list.append(get_farwake_convection_velocity_constraint(options, V, model))
-
-    if 'cylinder' in vortex_far_wake_model:
-        cstr_list.append(get_vortex_cylinder_center_constraint(options, V, Outputs, model))
-        cstr_list.append(get_vortex_cylinder_pitch_constraint(options, V, Outputs, model))
 
     return cstr_list
 
@@ -141,126 +141,6 @@ def get_state_repr_fixing_constraint(options, V, Outputs, model):
                 cstr_list.append(local_cstr)
 
     return cstr_list
-
-
-################## algebraic representation
-
-
-
-def get_alg_repr_fixing_constraint(options, V, Outputs, model, time_grids):
-
-    n_k = options['n_k']
-    d = options['collocation']['d']
-
-    comparison_labels = options['induction']['comparison_labels']
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-    cstr_list = cstr_op.ConstraintList()
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            for wake_node in range(wake_nodes):
-
-                for ndx in range(n_k):
-
-                    shooting_cstr = get_local_algebraic_repr_shooting_position_constraint(V, model, kite, tip, wake_node, ndx)
-                    cstr_list.append(shooting_cstr)
-
-                    for ddx in range(d):
-                        local_cstr = get_local_algebraic_repr_collocation_position_constraint(options, V, Outputs, model, time_grids,
-                                                                                              kite, tip, wake_node, ndx, ddx)
-                        cstr_list.append(local_cstr)
-
-
-    return cstr_list
-
-
-
-
-def get_local_algebraic_repr_collocation_position_constraint(options, V, Outputs, model, time_grids, kite, tip, wake_node, ndx, ddx):
-
-    local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx) + ',' + str(ddx)
-
-    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-    wx_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-    wx_local = struct_op.var_scaled_to_si('xl', var_name, wx_local_scaled, model.scaling)
-
-    wx_val = get_local_algebraic_repr_collocation_position_value(options, V, Outputs, model, time_grids, kite, tip, wake_node, ndx, ddx)
-
-    local_resi_si = wx_local - wx_val
-    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
-
-    local_cstr = cstr_op.Constraint(expr=local_resi,
-                                    name=local_name,
-                                    cstr_type='eq')
-
-    return local_cstr
-
-
-def get_local_algebraic_repr_shooting_position_constraint(V, model, kite, tip, wake_node, ndx):
-
-    local_name = 'wake_fixing_' + str(kite) + '_' + str(tip) + '_' + str(wake_node) + '_' + str(ndx)
-
-    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-    wx_local_scaled = V['xl', ndx, var_name]
-    wx_local = struct_op.var_scaled_to_si('xl', var_name, wx_local_scaled, model.scaling)
-
-    wx_val = get_local_algebraic_repr_shooting_position_value(V, model, kite, tip, wake_node, ndx)
-
-    local_resi_si = wx_local - wx_val
-    local_resi = struct_op.var_si_to_scaled('xl', var_name, local_resi_si, model.scaling)
-
-    local_cstr = cstr_op.Constraint(expr=local_resi,
-                                    name=local_name,
-                                    cstr_type='eq')
-
-    return local_cstr
-
-
-def get_local_algebraic_repr_shooting_position_value(V, model, kite, tip, wake_node, ndx):
-    var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    wx_scaled = V['coll_var', ndx-1, -1, 'xl', var_name]
-    wx_si = struct_op.var_scaled_to_si('xl', var_name, wx_scaled, model.scaling)
-    return wx_si
-
-
-def get_local_algebraic_repr_collocation_position_value(options, V, Outputs, model, time_grids, kite, tip, wake_node, ndx, ddx):
-
-    t_f = V['theta', 't_f']
-    tgrid = time_grids['coll'](t_f)
-    current_time = tgrid[ndx, ddx]
-
-    n_k = options['n_k']
-
-    # # if wake_node = 0, then shed at ndx
-    # # if wake_node = 1, then shed at (ndx - 1) ---- > corresponds to (ndx - 2), ddx = -1
-    # # .... if shedding_ndx is 1, then shedding_ndx -> 1
-    # # ....  if shedding_ndx is 0, then shedding_ndx -> n_k
-    # # ....  if shedding_ndx is -1, then shedding_ndx -> n_k - 1
-    # # .... so, shedding_ndx -> np.mod(ndx - wake_node, n_k) -----> np.mod(ndx - wake_node - 1, n_k), ddx=-1
-    subtracted_ndx = ndx - wake_node
-    shedding_ndx = np.mod(subtracted_ndx, n_k)
-    periods_passed = np.floor(subtracted_ndx / n_k)
-
-    if wake_node == 0:
-        shedding_ddx = ddx
-    else:
-        shedding_ddx = -1
-
-    wingtip_pos = Outputs['coll_outputs', shedding_ndx, shedding_ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-
-    u_local = model.wind.get_velocity(wingtip_pos[2])
-    t_period = tgrid[-1, -1]
-    shedding_time = t_period * periods_passed + tgrid[shedding_ndx, shedding_ddx]
-    delta_t = current_time - shedding_time
-
-    wx_found = wingtip_pos + delta_t * u_local
-
-    return wx_found
 
 
 ################ farwake

@@ -43,16 +43,13 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as vortex_wake
 
-import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.algebraic_representation as algebraic_representation
-import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.state_representation as state_representation
+
 
 import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
-import awebox.ocp.ocp_constraint as ocp_constraint
 import awebox.tools.print_operations as print_op
-
-from awebox.logger.logger import Logger as awelogger
 
 import numpy as np
 
@@ -60,52 +57,68 @@ import numpy as np
 def build(options, architecture, wind, variables_si, parameters):
 
     tools.check_positive_vortex_wake_nodes(options)
+    wake_dict = None
+    print_op.warn_about_temporary_funcationality_removal(location='state_representation')
+    #
+    # variables_scaled = system_variables['scaled']
+    # variables_si = system_variables['SI']
+    #
+    # near_wake = vortex_near_wake.get_list(options, variables_si, parameters, architecture, wind)
+    # far_wake_filaments, tangential_cylinder, longitudinal_cylinder = vortex_far_wake.get_lists(options, variables_si, parameters, architecture, wind)
+    #
+    # vortex_lists = {}
+    #
+    # if near_wake.number_of_elements > 0:
+    #     vortex_lists['near_fil'] = near_wake
+    #
+    # if far_wake_filaments.number_of_elements > 0:
+    #     vortex_lists['far_fil'] = far_wake_filaments
+    #
+    # if tangential_cylinder.number_of_elements > 0:
+    #     vortex_lists['tan_cyl'] = tangential_cylinder
+    #
+    # if longitudinal_cylinder.number_of_elements > 0:
+    #     vortex_lists['long_cyl'] = longitudinal_cylinder
+    #
+    # for key in vortex_lists.keys():
+    #     elem_list = vortex_lists[key]
+    #     elem_list.confirm_list_has_expected_dimensions()
+    #     elem_list.define_model_variables_to_info_function(variables_scaled, parameters)
+    #     elem_list.define_biot_savart_induction_function()
 
-    vortex_representation = tools.get_option_from_possible_dicts(options, 'representation')
-    if vortex_representation == 'alg':
-        return algebraic_representation.build(options, architecture, wind, variables_si, parameters)
-    elif vortex_representation == 'state':
-        return state_representation.build(options, architecture, wind, variables_si, parameters)
-    else:
-        log_and_raise_unknown_representation_error(vortex_representation)
+    return wake_dict
 
-    return None
+def precompute_vortex_functions(options, system_variables, parameters, elem_list):
 
-def get_model_constraints(options, wake_dict, wind, variables_si, architecture):
+    variables_scaled = system_variables['scaled']
+    variables_si = system_variables['SI']
 
-    if tools.vortices_are_modelled(options):
+    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+    n_hat_sym = cas.SX.sym('n_hat_sym', (3, 1))
 
-        vortex_representation = tools.get_option_from_possible_dicts(options, 'representation')
-        if vortex_representation == 'alg':
-            return algebraic_representation.get_model_constraints(wake_dict, wind, variables_si, architecture)
-        elif vortex_representation == 'state':
-            return state_representation.get_model_constraints(wake_dict, wind, variables_si, architecture)
-        else:
-            log_and_raise_unknown_representation_error(vortex_representation)
-
-    return None
-
-def get_ocp_constraints(nlp_options, V, Outputs, model, time_grids):
-
-    ocp_cstr_list = ocp_constraint.OcpConstraintList()
-
-    if tools.vortices_are_modelled(nlp_options):
-        vortex_representation = tools.get_option_from_possible_dicts(nlp_options, 'representation')
-        if vortex_representation == 'alg':
-            return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
-        elif vortex_representation == 'state':
-            return state_representation.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
-        else:
-            log_and_raise_unknown_representation_error(vortex_representation)
-
-    return ocp_cstr_list
+    #     u_ind_unprojected = self.evaluate_total_biot_savart_induction(x_obs=x_obs_sym, n_hat=None)
+    #     model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind_unprojected])
+    #     self.__model_induction_fun = model_induction_fun
+    #
+    #     u_ind_projected = cas.mtimes(n_hat_sym.T, u_ind_unprojected)
+    #     model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_projected])
+    #     self.__model_projected_induction_fun = model_projected_induction_fun
+    #
+    #     return None
 
 
-def log_and_raise_unknown_representation_error(vortex_representation):
-    message = 'vortex representation (' + vortex_representation + ') is not recognized'
-    awelogger.logger.error(message)
-    raise Exception(message)
-    return None
+    if precompute_model_induction_fun:
+        u_ind = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=None)
+        model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind])
+        elem_list.set_model_induction_fun(model_induction_fun)
+
+    if precompute_model_projected_induction_fun:
+        u_ind_proj = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=n_hat_sym)
+        model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_proj])
+        elem_list.set_model_projected_induction_fun(model_projected_induction_fun)
+
+    if precompute_model_induction_factor_fun:
+        a_calc = flow.get_induction_factor_at_observer()
 
 def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
 
@@ -126,6 +139,66 @@ def get_vortex_cstr(options, wind, variables_si, parameters, objects, architectu
 
     return cstr_list
 
+def get_induction_trivial_residual(options, wind, variables_si, architecture, objects):
+
+    resi = []
+
+    u_ref = wind.get_speed_ref()
+
+    for kite_obs in architecture.kite_nodes:
+
+        for elem_list_name in objects.keys():
+            elem_list = objects[elem_list_name]
+            number_elements = elem_list.number_of_elements
+            if number_elements > 0:
+                for fdx in range(number_elements):
+                    u_ind_fil = cas.DM.zeros((3, 1))
+
+                    ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+                    local_var = variables_si['xl'][ind_name]
+                    local_resi = (local_var - u_ind_fil) / u_ref
+                    resi = cas.vertcat(resi, local_resi)
+
+    return resi
+
+
+def get_induction_final_residual(options, wind, variables_si, outputs, architecture, objects):
+
+    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+    repetitions = options['aero']['vortex']['repetitions']
+
+    resi = []
+
+    u_ref = wind.get_speed_ref()
+
+    for kite_obs in architecture.kite_nodes:
+        parent_obs = architecture.parent_map[kite_obs]
+
+        for elem_list_name in objects.keys():
+            elem_list = objects[elem_list_name]
+
+            x_obs = variables_si['xd']['q' + str(kite_obs) + str(parent_obs)]
+
+            if vortex_far_wake_model == 'repetition':
+                all_biot_savarts = cas.DM.zeros(3, elem_list.number_of_elements)
+                for pdx in range(repetitions):
+                    all_biot_savarts += elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs,
+                                                                                                 n_hat=None,
+                                                                                                 period=pdx,
+                                                                                                 wind=wind,
+                                                                                                 optimization_period=optimization_period)
+            else:
+                all_biot_savarts = elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=None)
+
+            for fdx in range(elem_list.number_of_elements):
+                u_ind_fil = all_biot_savarts[:, fdx]
+
+                ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+                local_var = variables_si['xl'][ind_name]
+                local_resi = (local_var - u_ind_fil) / u_ref
+                resi = cas.vertcat(resi, local_resi)
+
+    return resi
 
 def test():
 

@@ -34,7 +34,7 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -45,7 +45,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class SemiInfiniteCylinder(vortex_element.Element):
+class SemiInfiniteCylinder(obj_element.Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
         self.set_element_type('semi_infinite_cylinder')
@@ -134,6 +134,12 @@ class SemiInfiniteCylinder(vortex_element.Element):
         m0 = self.get_regularized_elliptic_m_zero_from_r(r_obs)
         return m0
 
+def calculate_radius_and_l_start(x_start, x_center, l_hat):
+    vec_dist = (x_start - x_center)
+    l_start = cas.mtimes(vec_dist.T, l_hat)
+    vec_radial = vec_dist - l_start * l_hat
+    radius = vect_op.norm(vec_radial)
+    return radius, l_start
 
 def construct_test_object(regularized=True):
     x_center = np.array([0., 0., 0.])
@@ -432,4 +438,4 @@ def test():
 
     return None
 
-test()
+# test()

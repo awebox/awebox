@@ -32,8 +32,7 @@ python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
-import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 import awebox.ocp.operation as operation
 import awebox.ocp.ocp_constraint as ocp_constraint
@@ -94,17 +93,12 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
         ocp_cstr_list.append(periodic_cstr)
         if len(periodic_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('periodic', shape =  periodic_cstr.get_expression_list('all').shape))
+            ocp_cstr_entry_list.append(cas.entry('periodic', shape = periodic_cstr.get_expression_list('all').shape))
 
-        vortex_fixing_cstr = vortex_fix.get_fixing_constraint(nlp_options, V, Outputs, model, time_grids)
-        ocp_cstr_list.append(vortex_fixing_cstr)
-        if len(vortex_fixing_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('vortex_fix', shape =  vortex_fixing_cstr.get_expression_list('all').shape))
-
-        vortex_strength_cstr = vortex_strength.get_strength_constraint(nlp_options, V, Outputs, model)
-        ocp_cstr_list.append(vortex_strength_cstr)
-        if len(vortex_strength_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('vortex_strength', shape = vortex_strength_cstr.get_expression_list('all').shape))
+        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
+        ocp_cstr_list.append(vortex_ocp_cstr_list)
+        if len(vortex_ocp_cstr_list.eq_list) != 0:
+            ocp_cstr_entry_list.append(cas.entry('vortex', shape = vortex_ocp_cstr_list.get_expression_list('all').shape))
 
         if direct_collocation:
             integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)

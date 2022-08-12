@@ -27,6 +27,7 @@ various structural tools for the vortex model
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-2021
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -34,24 +35,18 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 
 
-def get_wake_node_position_si(options, variables, kite, tip, wake_node, scaling=None):
 
-    vortex_representation = options['induction']['vortex_representation']
-    if vortex_representation == 'state':
-        var_type = 'xd'
-    elif vortex_representation == 'alg':
-        var_type = 'xl'
-    else:
-        message = 'unexpected vortex representation'
-        raise Exception(message)
-
-    coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-    dwx_local = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, coord_name)
-
+def get_variable_si(variables, var_type, var_name, scaling=None):
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
     if scaling is not None:
-        return struct_op.var_scaled_to_si(var_type, coord_name, dwx_local, scaling)
+        return struct_op.var_scaled_to_si(var_type, var_name, var, scaling)
+    else:
+        return var
 
-    return dwx_local
+def vortices_are_modelled(options):
+    comparison_labels = get_option_from_possible_dicts(options, 'comparison_labels')
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    return any_vor
 
 def check_positive_vortex_wake_nodes(options):
     wake_nodes = options['induction']['vortex_wake_nodes']
@@ -62,11 +57,29 @@ def check_positive_vortex_wake_nodes(options):
     return None
 
 def get_option_from_possible_dicts(options, name):
-    if ('induction' in options.keys()) and (name in options['induction'].keys()):
-        value = options['induction']['vortex_' + name]
-    elif ('aero' in options.keys()) and ('vortex' in options['aero'].keys()) and (name in options['aero']['vortex'].keys()):
+
+    vortex_name = 'vortex_' + name
+
+    has_induction_toplevel = 'induction' in options.keys()
+    name_in_induction_keys = has_induction_toplevel and (name in options['induction'].keys())
+    vortex_name_in_induction_keys = has_induction_toplevel and (vortex_name in options['induction'].keys())
+
+    has_aero_toplevel = 'aero' in options.keys()
+    has_vortex_midlevel = has_aero_toplevel and ('vortex' in options['aero'].keys())
+    name_in_aero_vortex_keys = has_vortex_midlevel and (name in options['aero']['vortex'].keys())
+
+    has_model_toplevel = 'model' in options.keys()
+    has_aero_midlevel = has_model_toplevel and ('aero' in options['model'].keys())
+    has_vortex_lowlevel = has_aero_midlevel and ('vortex' in options['model']['aero'].keys())
+    name_in_model_aero_vortex_keys = has_vortex_lowlevel and (name in options['model']['aero']['vortex'].keys())
+
+    if vortex_name_in_induction_keys:
+        value = options['induction'][vortex_name]
+    elif name_in_induction_keys:
+        value = options['induction'][name]
+    elif name_in_aero_vortex_keys:
         value = options['aero']['vortex'][name]
-    elif ('model' in options.keys()) and ('aero' in options['model'].keys()) and ('vortex' in options['model']['aero'].keys()) and (name in options['model']['aero']['vortex'].keys()):
+    elif name_in_model_aero_vortex_keys:
         value = options['model']['aero']['vortex'][name]
     else:
         message = 'no available information about the desired option (' + name + ') found.'
@@ -74,15 +87,6 @@ def get_option_from_possible_dicts(options, name):
         raise Exception(message)
 
     return value
-
-def get_ring_strength_si(variables, kite, ring, scaling=None):
-    coord_name = 'wg_' + str(kite) + '_' + str(ring)
-    wg_local = struct_op.get_variable_from_model_or_reconstruction(variables, 'xl', coord_name)
-
-    if scaling is not None:
-        return struct_op.var_scaled_to_si('xl', coord_name, wg_local, scaling)
-
-    return wg_local
 
 def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
@@ -117,74 +121,9 @@ def get_PE_wingtip_name():
 def get_NE_wingtip_name():
     return 'int'
 
-def get_strength_scale(variables_dict, scaling):
-    var_type = 'xl'
-    for var_name in variables_dict[var_type].labels():
-        if 'wg' == var_name[:2]:
-            wg_scale = struct_op.var_scaled_to_si(var_type, var_name, 1., scaling)
-            return wg_scale
-
-    wg_scale = 1.
-    return wg_scale
-
-
-def append_bounds(g_bounds, fix):
-
-    if (type(fix) == type([])) and fix == []:
-        return g_bounds
-
-    else:
-        try:
-            fix_shape = fix.shape
-        except:
-            message = 'An attempt to append bounds was passed a vortex-related constraint with an unaccepted structure.'
-            awelogger.logger.error(message)
-            raise Exception(message)
-
-        g_bounds['ub'].append(cas.DM.zeros(fix_shape))
-        g_bounds['lb'].append(cas.DM.zeros(fix_shape))
-
-        return g_bounds
-
-
-def get_shedding_ndx_and_ddx(options, ndx, ddx=None):
-
-    vortex_representation = options['induction']['vortex_representation']
-
-    n_k = options['n_k']
-
-    wake_nodes = options['induction']['vortex_wake_nodes']
-    wake_node = wake_nodes - 1
-
-    if (vortex_representation == 'state'):
-
-        shooting_ndx = n_k - wake_node
-        collocation_ndx = shooting_ndx - 1
-        modular_ndx = np.mod(collocation_ndx, n_k)
-
-        shedding_ndx = modular_ndx
-        shedding_ddx = -1
-
-    elif (vortex_representation == 'alg'):
-
-        if ddx is None:
-            ndx_collocation = ndx - 1
-            ddx_collocation = -1
-        else:
-            ndx_collocation = ndx
-            ddx_collocation = ddx
-
-        subtracted_ndx = ndx_collocation - wake_node
-        shedding_ndx = np.mod(subtracted_ndx, n_k)
-
-        if wake_node == 0:
-            shedding_ddx = ddx_collocation
-        else:
-            shedding_ddx = -1
-
-    else:
-        message = 'unknown vortex representation specified: ' + vortex_representation
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    return shedding_ndx, shedding_ddx
+def get_wingtip_name_and_strength_direction_dict():
+    dict = {
+        get_NE_wingtip_name(): -1.,
+        get_PE_wingtip_name(): +1.
+    }
+    return dict

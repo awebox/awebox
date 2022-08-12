@@ -70,6 +70,7 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
+        number_children = len(architecture.children_map[parent])
 
         q_center = general_geom.get_center_point(options, parent, variables, architecture)
         dq_center = general_geom.get_center_velocity(parent, variables, architecture)
@@ -84,21 +85,20 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
                                                                            architecture)
 
         average_radius = 0.
-
-        number_children = len(architecture.children_map[parent])
+        total_circulation = 0.
         for kite in architecture.children_map[parent]:
-
-            rad_curv_name = 'radius_of_curvature' + str(kite)
-            if rad_curv_name in outputs['local_performance'].keys():
-                local_radius = outputs['local_performance'][rad_curv_name]
-            else:
-                qkite = variables['xd']['q' + str(kite) + str(parent)]
-                local_radius = vect_op.norm(qkite - outputs['performance']['actuator_center' + str(parent)])
-
+            local_radius = outputs['local_performance']['radius_of_curvature' + str(kite)]
             average_radius += local_radius / float(number_children)
 
-        outputs['performance']['average_radius' + str(parent)] = average_radius
+            local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
+            total_circulation += local_circulation
 
+        outputs['performance']['average_radius' + str(parent)] = average_radius
+        average_curvature = 1./average_radius
+        outputs['performance']['average_curvature' + str(parent)] = average_curvature
+
+        outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation
+        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), u_zero, total_circulation, average_curvature)
 
     outputs['performance']['p_loyd_total'] = 0.
     for kite in kite_nodes:
@@ -331,7 +331,7 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
 
     return outputs
 
-def collect_local_performance_outputs(architecture, atmos, wind, variables, parameters, base_aerodynamic_quantities, outputs):
+def collect_local_performance_outputs(architecture, atmos, wind, variables_si, parameters, base_aerodynamic_quantities, outputs):
 
     kite = base_aerodynamic_quantities['kite']
     q = base_aerodynamic_quantities['q']
@@ -339,7 +339,7 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables, para
     CL = base_aerodynamic_quantities['aero_coefficients']['CL']
     CD = base_aerodynamic_quantities['aero_coefficients']['CD']
 
-    xd = variables['xd']
+    xd = variables_si['xd']
     elevation_angle = get_elevation_angle(xd)
 
     parent = architecture.parent_map[kite]
@@ -357,8 +357,7 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables, para
     outputs['local_performance']['speed_ratio' + str(kite)] = airspeed / vect_op.norm(wind.get_velocity(q[2]))
     outputs['local_performance']['speed_ratio_loyd' + str(kite)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
-    outputs['local_performance']['radius_of_curvature' + str(kite)] = path_based_geom.get_radius_of_curvature(variables, kite, parent)
-
+    outputs['local_performance']['radius_of_curvature' + str(kite)] = path_based_geom.get_radius_of_curvature(variables_si, kite, parent)
 
     return outputs
 

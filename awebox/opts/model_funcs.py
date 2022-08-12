@@ -619,18 +619,34 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
 
-    far_convection_time = options['model']['aero']['vortex']['far_convection_time']
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_far_convection_time', far_convection_time, ('????', None), 'x')),
-    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_far_convection_time', vortex_far_convection_time, ('???? of trajectories in animation', None), 'x')),
+    far_wake_convection_time = options['model']['aero']['vortex']['far_wake_convection_time']
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_far_wake_convection_time', far_wake_convection_time, ('???? of trajectories in animation', None), 'x')),
 
-    far_wake_model = options['model']['aero']['vortex']['far_wake_model']
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_model', far_wake_model, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_far_wake_model', far_wake_model, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_far_wake_model', far_wake_model, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_far_wake_model', far_wake_model, ('????', None), 'x')),
+    vortex_far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
+    options_tree.append(('formulation', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
+
+    vortex_epsilon_m = options['model']['aero']['vortex']['epsilon_m']
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(
+        ('formulation', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
+
+    vortex_epsilon_r = options['model']['aero']['vortex']['epsilon_r']
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(
+        ('formulation', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
 
     vortex_representation = options['model']['aero']['vortex']['representation']
     options_tree.append(('model', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
@@ -657,6 +673,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+
+    print_op.warn_about_temporary_funcationality_removal(location='opts.model_funcs.is_this_necesary?')
 
     rings = wake_nodes
 

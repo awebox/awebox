@@ -34,7 +34,7 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -48,7 +48,7 @@ import scipy.special as special
 matplotlib.use('TkAgg')
 
 
-class SemiInfiniteTangentialCylinder(vortex_cylinder.SemiInfiniteCylinder):
+class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCylinder):
     # Branlard, Emmanuel & Gaunaa, Mac.(2014). Cylindrical vortex wake model: Right cylinder. Wind Energy. 524. 10.1002/we.1800.
 
     def __init__(self, info_dict):
@@ -221,7 +221,7 @@ class SemiInfiniteTangentialCylinder(vortex_cylinder.SemiInfiniteCylinder):
         return None
 
 def construct_test_object(regularized=True):
-    cyl = vortex_cylinder.construct_test_object(regularized)
+    cyl = obj_semi_infinite_cylinder.construct_test_object(regularized)
     unpacked = cyl.info_dict
     tan_cyl = SemiInfiniteTangentialCylinder(unpacked)
     tan_cyl.define_biot_savart_induction_function()
@@ -867,3 +867,5 @@ def test():
     cyl_regularized.test_draw()
 
     return None
+
+test()

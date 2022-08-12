@@ -37,6 +37,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.bound_wake as vortex_bound_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as vortex_alg_structure
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
@@ -220,76 +221,15 @@ def extend_general_induction(options, system_lifted, system_states, architecture
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
 
-    wingtips = ['ext', 'int']
-    wake_nodes = options['aero']['vortex']['wake_nodes']
-    rings = options['aero']['vortex']['rings']
-
     vortex_representation = options['aero']['vortex']['representation']
-
-    number_bound_filaments = vortex_bound_wake.expected_number_of_filaments(options, architecture)
-    number_near_filaments = vortex_near_wake.expected_number_of_filaments(options, architecture)
-    number_far_filaments = vortex_far_wake.expected_number_of_filaments(options, architecture)
-    number_dimensional_cylinders = vortex_far_wake.expected_number_of_directional_cylinders(options, architecture)
-
-    for kite in architecture.kite_nodes:
-        for ring in range(rings):
-            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
-            system_lifted.extend([(gamma_name, (1, 1))])
-
-        for wake_node in range(wake_nodes):
-            for tip in wingtips:
-                coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-                if vortex_representation == 'state':
-                    system_states.extend([(coord_name, (3, 1))])
-                elif vortex_representation == 'alg':
-                    system_lifted.extend([(coord_name, (3, 1))])
-                else:
-                    message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
-                    awelogger.logger.error(message)
-                    raise Exception(message)
-
-    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
-    if (vortex_far_wake_model == 'pathwise_filament'):
-        for kite in architecture.kite_nodes:
-            for tip in wingtips:
-                far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip
-                system_lifted.extend([(far_wake_name, (3, 1))])
-
-    if ('cylinder' in vortex_far_wake_model):
-        for kite in architecture.kite_nodes:
-            wx_center_name = 'wx_center_' + str(kite)
-            system_lifted.extend([(wx_center_name, (3, 1))])
-
-            for tip in wingtips:
-                w_radius_name = 'wr_' + str(kite) + '_' + tip
-                system_lifted.extend([(w_radius_name, (1, 1))])
-
-                w_pitch_name = 'wh_' + str(kite) + '_' + tip
-                system_lifted.extend([(w_pitch_name, (1, 1))])
-
-    for kite_obs in architecture.kite_nodes:
-
-        for fdx in range(number_bound_filaments):
-            ind_name = 'wu_bound_fil_' + str(fdx) + '_' + str(kite_obs)
-            system_lifted.extend([(ind_name, (3, 1))])
-
-        for fdx in range(number_near_filaments):
-            ind_name = 'wu_near_fil_' + str(fdx) + '_' + str(kite_obs)
-            system_lifted.extend([(ind_name, (3, 1))])
-
-        for fdx in range(number_far_filaments):
-            ind_name = 'wu_far_fil_' + str(fdx) + '_' + str(kite_obs)
-            system_lifted.extend([(ind_name, (3, 1))])
-
-        for fdx in range(number_dimensional_cylinders):
-            ind_name = 'wu_tan_cyl_' + str(fdx) + '_' + str(kite_obs)
-            system_lifted.extend([(ind_name, (3, 1))])
-
-            ind_name = 'wu_long_cyl_' + str(fdx) + '_' + str(kite_obs)
-            system_lifted.extend([(ind_name, (3, 1))])
-
-        ind_name = 'wu_ind_' + str(kite_obs)
-        system_lifted.extend([(ind_name, (3, 1))])
+    if vortex_representation == 'alg':
+        system_lifted, system_states = vortex_alg_structure.extend_system_variables(options, system_lifted, system_states, architecture)
+    elif vortex_representation == 'state':
+        print_op.warn_about_temporary_funcationality_removal(location='mdl.system.vortex_induction')
+    else:
+        message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     return system_lifted, system_states
 

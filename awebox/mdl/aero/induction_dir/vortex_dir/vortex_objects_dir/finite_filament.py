@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -47,7 +47,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class FiniteFilament(vortex_element.Element):
+class FiniteFilament(obj_element.Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
         self.set_element_type('finite_filament')
@@ -289,4 +289,4 @@ def test():
 
     return None
 
-test()
+# test()

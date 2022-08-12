@@ -57,38 +57,33 @@ def approx_center_velocity(model_options, siblings, variables, architecture):
 
 def approx_kite_radius_vector(model_options, variables, kite, parent):
     radius = get_radius_of_curvature(variables, kite, parent)
-    rhat = get_trajectory_normal(variables, kite, parent)
+    rhat = get_trajectory_normal_unit_vector(variables, kite, parent)
 
     radius_vec = radius * rhat
 
     return radius_vec
 
 
-def get_radius_of_curvature(variables, kite, parent):
+def get_radius_of_curvature(variables_si, kite, parent):
 
-    dq = variables['xd']['dq' + str(kite) + str(parent)]
-    ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
+    dq = variables_si['xd']['dq' + str(kite) + str(parent)]
+    ddq = variables_si['xddot']['ddq' + str(kite) + str(parent)]
 
     gamma_dot = dq
     gamma_ddot = ddq
 
-    # from frenet vectors + curvature definition
-    # r = || gamma' || / (e1' cdot e2)
-    # e1 = gamma' / || gamma' ||
-    # e1' = ( gamma" || gamma' ||^2  - gamma' (gamma' cdot gamma") ) / || gamma' ||^3
-    # e2 = ebar2 / || ebar2 ||
-    # ebar2 = gamma" - (gamma' cdot gamma") gamma' / || gamma' ||^2
-    # ....
-    # r = || gamma' ||^4 // || gamma" || gamma' ||^2 - gamma' (gamma' cdot gamma") ||
+    # from frenet vectors, see wiki page 'curvature'
+    # kappa = Norm[gamma' cross gamma''] / Norm[gamma']^3
+    # r = 1/kappa
 
-    num = cas.mtimes(gamma_dot.T, gamma_dot)**2. + 1.0e-8
+    num_kappa = vect_op.smooth_normed_cross(gamma_dot, gamma_ddot)
+    den_kappa = vect_op.smooth_norm(gamma_dot)**3.
 
-    den_vec = gamma_ddot * cas.mtimes(gamma_dot.T, gamma_dot) - gamma_dot * cas.mtimes(gamma_dot.T, gamma_ddot)
-    den = vect_op.smooth_norm(den_vec)
+    num = den_kappa
+    den = num_kappa
 
     radius = num / den
     return radius
-
 
 def get_radius_inequality(model_options, variables, kite, parent, parameters):
     # no projection included...
@@ -116,20 +111,20 @@ def get_radius_inequality(model_options, variables, kite, parent, parameters):
     return inequality
 
 
-def get_trajectory_tangent(variables, kite, parent):
+def get_trajectory_tangent_unit_vector(variables, kite, parent):
     dq = variables['xd']['dq' + str(kite) + str(parent)]
     tangent = vect_op.smooth_normalize(dq)
     return tangent
 
-def get_trajectory_normal(variables, kite, parent):
+def get_trajectory_normal_unit_vector(variables, kite, parent):
     ddq = variables['xddot']['ddq' + str(kite) + str(parent)]
     normal = vect_op.smooth_normalize(ddq)
     return normal
 
-def get_trajectory_binormal(variables, kite, parent):
+def get_trajectory_binormal_unit_vector(variables, kite, parent):
 
-    tangent = get_trajectory_tangent(variables, kite, parent)
-    normal = get_trajectory_normal(variables, kite, parent)
+    tangent = get_trajectory_tangent_unit_vector(variables, kite, parent)
+    normal = get_trajectory_normal_unit_vector(variables, kite, parent)
     binormal = vect_op.smooth_normed_cross(tangent, normal)
 
     forwards_orientation = binormal[0] / vect_op.smooth_abs(binormal[0])
@@ -146,7 +141,7 @@ def approx_normal_axis(model_options, siblings, variables, architecture):
     for kite in siblings:
         parent = parent_map[kite]
 
-        binormal = get_trajectory_binormal(variables, kite, parent)
+        binormal = get_trajectory_binormal_unit_vector(variables, kite, parent)
         normal = normal + binormal
 
     nhat = vect_op.smooth_normalize(normal)
@@ -160,7 +155,7 @@ def radial_extrapolation_to_center(model_options, kite, variables, architecture)
     q = variables['xd']['q' + str(kite) + str(parent)]
 
     radius = get_radius_of_curvature(variables, kite, parent)
-    radial = get_trajectory_normal(variables, kite, parent)
+    radial = get_trajectory_normal_unit_vector(variables, kite, parent)
 
     approx_center = q - radius * radial
 

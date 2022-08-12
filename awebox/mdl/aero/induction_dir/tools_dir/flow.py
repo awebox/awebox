@@ -31,8 +31,11 @@ _python-3.5 / casadi-3.4.5
 
 import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
 
-import awebox.tools.vector_operations as vect_op
+import numpy as np
+import casadi.tools as cas
+from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
     u_infty = get_kite_uinfy_vec(variables, wind, kite, parent)
@@ -68,3 +71,29 @@ def get_actuator_freestream_velocity(model_options, wind, parent, variables, arc
     u_infty = wind.get_velocity(center[2])
 
     return u_infty
+
+def get_far_wake_cylinder_pitch(l_hat, vec_u_zero, total_circulation, average_curvature):
+
+    sum_of_kite_circulations_in_layer = total_circulation
+
+    # angular velocity = darboux vector = torsion * unit_tangent + curvature * unit_binormal
+    angular_speed_in_binormal_direction = vect_op.smooth_norm(average_curvature)
+    frequency_of_rotation = angular_speed_in_binormal_direction / (2. * np.pi)
+    period_of_rotation = 1. / frequency_of_rotation
+
+    # pitch = distance traveled of (one layer's) far-wake during one rotation
+    # pitch = period_of_rotation * (u_zero_in_longitudinal_direction + contribution_of_all_vortex_cylinders)
+    # far downstream, a tangential vortex cylinder of strength gamma_tan induces a velocity of gamma_tan within the cylinder
+    # we consider only within the streamtube, so where only the postive-edge/exterior cylinders are located. they have strength gamma_tan = kite_circulation / pitch
+    # pitch = period_of_rotation * (u_zero_in_longitudinal_direction + Sum[kite_circulation / pitch, all kites in layer])
+    # pitch^2 = pitch * period_of_rotation * (vec_u_zero \cdot lhat) - period_of_rotation * sum_of_kite_circulations_in_layer
+    # therefore, solve with quadratic formula
+    quad_a = 1.
+    quad_b = -1. * period_of_rotation * cas.mtimes(vec_u_zero.T, l_hat)
+    quad_c = period_of_rotation * sum_of_kite_circulations_in_layer
+
+    # we choose the 'plus' variant of the quadratic formula, so that when circulation = 0, pitch = t * (vec_u_zero \cdot lhat)
+    # notice that this corresponds to the 1D case, mentioned in Branlard et al. 2014
+    pitch = (-1. * quad_b + vect_op.smooth_sqrt(quad_b ** 2. - 4. * quad_a * quad_c)) / (2. * quad_a)
+
+    return pitch

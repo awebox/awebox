@@ -32,6 +32,7 @@ import casadi.tools as cas
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as vortex_wake
 
 import awebox.mdl.architecture as archi
 

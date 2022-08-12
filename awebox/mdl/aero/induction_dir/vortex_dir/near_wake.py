@@ -23,73 +23,94 @@
 #
 #
 '''
-constructs the filament list
+constructs the far-wake filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020
 '''
+import copy
 
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
+import numpy as np
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
 import casadi.tools as cas
+from awebox.logger.logger import Logger as awelogger
 
 
-def get_list(options, variables_si, parameters, architecture, wind):
+def get_lists(options, variables_si, parameters, architecture, wind):
+
+    far_wake_model = options['induction']['vortex_far_wake_model']
+    kite_nodes = architecture.kite_nodes
 
     expected_number_filaments = expected_number_of_filaments(options, architecture)
-    filament_list = vortex_element_list.ElementList(expected_number_filaments)
+    expected_number_directional_cylinders = expected_number_of_directional_cylinders(options, architecture)
 
-    kite_nodes = architecture.kite_nodes
-    for kite in kite_nodes:
-        kite_fil_list = get_list_by_kite(options, variables_si, parameters, architecture, wind, kite)
-        filament_list.append(kite_fil_list)
+    filament_list = vortex_element_list.ElementList(expected_number_filaments)
+    tangential_cylinder_list = vortex_element_list.ElementList(expected_number_directional_cylinders)
+    longitudinal_cylinder_list = vortex_element_list.ElementList(expected_number_directional_cylinders)
+
+    if 'filament' in far_wake_model:
+        for kite in kite_nodes:
+            last_ring_fil_list = get_filament_list_from_kite(options, variables_si, parameters, wind, kite)
+            filament_list.append(last_ring_fil_list)
+
+    elif 'cylinder' in far_wake_model:
+        for kite in kite_nodes:
+            tan_list, long_list = get_cylinder_list_from_kite(options, variables_si, parameters, wind, kite, architecture)
+            tangential_cylinder_list.append(tan_list)
+            longitudinal_cylinder_list.append(long_list)
+
+    elif far_wake_model not in ['not_in_use', 'repetition']:
+        message = 'unknown vortex far-wake model selected.'
+        awelogger.logger.error(message)
+        raise Exception(message)
 
     filament_list.confirm_list_has_expected_dimensions()
 
-    return filament_list
+    return filament_list, tangential_cylinder_list, longitudinal_cylinder_list
 
-def get_list_by_kite(options, variables_si, parameters, architecture, wind, kite):
+
+def get_filament_list_from_kite(options, variables_si, parameters, wind, kite):
+
+    filament_list = vortex_element_list.ElementList()
 
     wake_nodes = options['induction']['vortex_wake_nodes']
-    tracked_rings = wake_nodes - 1
+    rings = wake_nodes
 
-    filament_list = vortex_element_list.ElementList()
+    last_tracked_wake_node = wake_nodes - 1
+    ring = rings - 1 # remember: indexing starts at 0.
 
-    for ring in range(tracked_rings):
-        ring_fil_list = get_list_by_ring(options, variables_si, parameters, kite, ring)
-        filament_list.append(ring_fil_list)
+    far_convection_time = options['induction']['vortex_far_convection_time']
+    far_wake_model = options['induction']['vortex_far_wake_model']
 
-    return filament_list
+    NE_wingtip = vortex_tools.get_NE_wingtip_name()
+    PE_wingtip = vortex_tools.get_PE_wingtip_name()
 
-def get_list_by_ring(options, variables_si, parameters, kite, ring):
+    LENE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, last_tracked_wake_node)
+    LEPE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, last_tracked_wake_node)
 
-    wake_node = ring
+    if far_wake_model == 'pathwise_filament':
+        farwake_name = 'wu_farwake_' + str(kite) + '_'
 
-    NE_wingtip = tools.get_NE_wingtip_name()
-    PE_wingtip = tools.get_PE_wingtip_name()
+        if isinstance(variables_si, cas.structure3.DMStruct):
+            velocity_PE = variables_si['xl', farwake_name + PE_wingtip]
+            velocity_NE = variables_si['xl', farwake_name + NE_wingtip]
+        else:
+            velocity_PE = variables_si['xl'][farwake_name + PE_wingtip]
+            velocity_NE = variables_si['xl'][farwake_name + NE_wingtip]
 
-    TENE = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node + 1)
-    LENE = tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node)
-    LEPE = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node)
-    TEPE = tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node + 1)
+    elif far_wake_model == 'freestream_filament':
+        velocity_PE = wind.get_velocity(LEPE[[2]])
+        velocity_NE = wind.get_velocity(LENE[[2]])
 
-    strength = tools.get_ring_strength_si(variables_si, kite, ring)
+    TENE = LENE + far_convection_time * velocity_NE
+    TEPE = LEPE + far_convection_time * velocity_PE
 
-    if ring == 0:
-        strength_prev = cas.DM.zeros((1, 1))
-    else:
-        strength_prev = tools.get_ring_strength_si(variables_si, kite, ring - 1)
+    strength = vortex_tools.get_ring_strength_si(variables_si, kite, ring)
 
-    r_core = tools.get_r_core(options, parameters)
-
-    filament_list = make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev, r_core)
-
-    return filament_list
-
-
-def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev, r_core):
-
-    filament_list = vortex_element_list.ElementList()
+    r_core = vortex_tools.get_r_core(options, parameters)
 
     dict_info_PE = {'x_start': LEPE,
                     'x_end': TEPE,
@@ -98,14 +119,6 @@ def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev, r_core)
                     }
     fil_PE = vortex_element.Filament(dict_info_PE)
     filament_list.append(fil_PE)
-
-    dict_info_LE = {'x_start': LENE,
-                    'x_end': LEPE,
-                    'r_core': r_core,
-                    'strength': strength - strength_prev
-                    }
-    fil_LE = vortex_element.Filament(dict_info_LE)
-    filament_list.append(fil_LE)
 
     dict_info_NE = {'x_start': TENE,
                     'x_end': LENE,
@@ -117,14 +130,99 @@ def make_horseshoe_list(LENE, LEPE, TEPE, TENE, strength, strength_prev, r_core)
 
     return filament_list
 
+def get_cylinder_strength_signs(clockwise_rotation_about_xhat=True):
+
+    if clockwise_rotation_about_xhat:
+        clockwise_sign = +1.
+    else:
+        clockwise_sign = -1.
+
+    tan_PE_sign = clockwise_sign * -1.
+    long_PE_sign = +1.
+
+    tan_NE_sign = -1. * tan_PE_sign
+    long_NE_sign = -1. * long_PE_sign
+
+    NE_wingtip = vortex_tools.get_NE_wingtip_name()
+    PE_wingtip = vortex_tools.get_PE_wingtip_name()
+
+    signs = {'tan_' + PE_wingtip: tan_PE_sign,
+             'long_' + PE_wingtip: long_PE_sign,
+             'tan_' + NE_wingtip: tan_NE_sign,
+             'long_' + NE_wingtip: long_NE_sign
+             }
+
+    return signs
+
+
 def expected_number_of_filaments(options, architecture):
 
-    wake_nodes = tools.get_option_from_possible_dicts(options, 'wake_nodes')
+    far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
     number_kites = architecture.number_of_kites
 
-    rings = wake_nodes - 1
-    filaments = 3 * (rings) * number_kites
+    if 'filament' in far_wake_model:
+        use = 1
+    else:
+        use = 0
+
+    filaments = use * 2 * number_kites
+
     return filaments
+
+def expected_number_of_directional_cylinders(options, architecture):
+
+    far_wake_model = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_model')
+    number_kites = architecture.number_of_kites
+
+    if 'cylinder' in far_wake_model:
+        use = 1
+    else:
+        use = 0
+
+    cylinders = use * 2 * number_kites
+
+    return cylinders
+
+def get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture):
+    wingtips = ['ext', 'int']
+    wake_nodes = options['aero']['vortex']['wake_nodes']
+    vortex_representation = options['aero']['vortex']['representation']
+
+    wake_node = wake_nodes - 1
+    l_hat = wind.get_wind_direction()
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+
+    cstr_list = cstr_op.ConstraintList()
+
+    for kite in architecture.kite_nodes:
+        for tip in wingtips:
+            coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+            if vortex_representation == 'state':
+                wx_node = variables_si['xd'][coord_name]
+            elif vortex_representation == 'alg':
+                wx_node = variables_si['xl'][coord_name]
+            else:
+                message = 'specified vortex representation ' + vortex_representation + ' is not supported'
+                awelogger.logger.error(message)
+                raise Exception(message)
+
+            wx_center_name = 'wx_center_' + str(kite)
+            wx_center = variables_si['xl'][wx_center_name]
+
+            radial_vec = wx_node - wx_center
+            radius_vec = radial_vec - cas.mtimes(radial_vec.T, l_hat) * l_hat
+
+            w_radius_name = 'wr_' + str(kite) + '_' + tip
+            wr = variables_si['xl'][w_radius_name]
+
+            resi_unscaled = wr**2. - cas.mtimes(radius_vec.T, radius_vec)
+            resi = resi_unscaled / b_ref**2.
+
+            name = 'far_wake_cylinder_radius_' + str(kite) + '_' + tip
+            cstr = cstr_op.Constraint(expr = resi, cstr_type='eq', name=name)
+            cstr_list.append(cstr)
+
+    return cstr_list
 
 # def test(far_wake_model = 'freestream_filament'):
 #

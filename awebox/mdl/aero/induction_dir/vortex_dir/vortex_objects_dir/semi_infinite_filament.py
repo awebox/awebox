@@ -34,7 +34,7 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -46,7 +46,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class SemiInfiniteFilament(vortex_element.Element):
+class SemiInfiniteFilament(obj_element.Element):
     def __init__(self, info_dict):
         super().__init__(info_dict)
         self.set_element_type('semi_infinite_filament')
@@ -105,7 +105,7 @@ class SemiInfiniteFilament(vortex_element.Element):
         else:
             vortex_far_convection_time = cosmetics['trajectory']['vortex_far_convection_time']
             u_ref = parameters.prefix['theta0', 'wind', 'u_ref']
-            s_length =  vortex_far_convection_time * u_ref
+            s_length = vortex_far_convection_time * u_ref
 
         x_end = x_start + l_hat * s_length
 
@@ -246,4 +246,4 @@ def test():
 
     return None
 
-test()
+# test()

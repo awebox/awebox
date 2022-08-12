@@ -707,6 +707,17 @@ def test_altitude():
 
     return None
 
-test_elliptic_e()
-test_elliptic_k()
-test_elliptic_pi()
+def is_numeric(val):
+    return (isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray))
+
+def is_numeric_scalar(val):
+    if isinstance(val, float):
+        return True
+    elif is_numeric(val) and hasattr(val, 'shape') and val.shape == (1, 1):
+        return True
+    else:
+        return False
+
+# test_elliptic_e()
+# test_elliptic_k()
+# test_elliptic_pi()
