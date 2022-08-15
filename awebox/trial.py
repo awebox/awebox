@@ -41,6 +41,7 @@ import awebox.tools.save_operations as data_tools
 import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
+from tabulate import tabulate
 import copy
 
 class Trial(object):
@@ -146,6 +147,7 @@ class Trial(object):
                                   final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
                                   debug_locations, intermediate_solve = intermediate_solve)
+
         self.__solution_dict = self.generate_solution_dict()
 
         self.set_timings('optimization')
@@ -168,6 +170,9 @@ class Trial(object):
 
         # perform quality check
         self.__quality.check_quality(self)
+
+        # print solution
+        self.print_solution()
 
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
@@ -226,6 +231,41 @@ class Trial(object):
         awelogger.logger.info(print_op.hline('&'))
         awelogger.logger.info('')
         awelogger.logger.info('')
+
+    def print_solution(self):
+
+        headers = ['Parameter / output', 'Optimal value', 'Dimension']
+        plot_dict = self.visualization.plot_dict
+        P_avg = plot_dict['power_and_performance']['avg_power']
+        table = [['Average power output', str(P_avg/1e3), 'kW']]
+
+        T = round(plot_dict['power_and_performance']['time_period'].full()[0][0], 3)
+        table.append(['Time period', str(T), 's'])
+        import numpy as np
+        theta_info = {
+            'diam_t': ('Main tether diameter', 1e3, 'mm'),
+            'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
+            'l_s': ('Secondary tether length', 1, 'm'),
+            'l_t': ('Main tether length', 1, 'm'),
+            'l_i': ('Intermediate tether length', 1, 'm'),
+            'diam_i': ('Intermediate tether diameter', 1e3, 'mm'),
+            'l_t_full': ('Wound tether length', 1, 'm'),
+            'P_max': ('Peak power', 1e3, 'kW'),
+            'ell_radius': ('Ellipse radius', 1, 'm'),
+            'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
+            'ell_theta': ('Ellipse division angle', 180.0/np.pi, 'deg'), 
+            'a': ('Average induction', 1, '-'),
+        }
+
+        for theta in self.model.variables_dict['theta'].keys():
+            if theta != 't_f':
+                info = theta_info[theta]
+                table.append([
+                    info[0],
+                    str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
+                    info[2]]
+                    )
+        print(tabulate(table, headers=headers))
 
     def save_to_awe(self, fn):
 
