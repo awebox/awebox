@@ -44,13 +44,13 @@ import casadi.tools as cas
 import numpy as np
 import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_forces_and_moments(options, atmos, wind, variables_si, outputs, vortex_objects, parameters, architecture):
+def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, variables_si, outputs, vortex_objects, parameters, architecture)
+        outputs = induction.collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture)
 
     return outputs
 

@@ -29,7 +29,7 @@ _python-3.5 / casadi-3.4.5
 - edit: jochem de schutter, alu-fr 2019
 """
 
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 import numpy as np
 import casadi.tools as cas
@@ -57,6 +57,14 @@ def get_uzero_vec(model_options, wind, parent, variables, architecture):
     u_apparent = u_infty - u_actuator
 
     return u_apparent
+
+
+def compute_induction_factor(vec_u_ind, n_hat, u_normalizing):
+    u_projected = cas.mtimes(vec_u_ind.T, n_hat)
+    a_calc = -1. * u_projected / u_normalizing
+
+    return a_calc
+
 
 def get_f_val(model_options, wind, parent, variables, architecture):
     dl_t = variables['xd']['dl_t']

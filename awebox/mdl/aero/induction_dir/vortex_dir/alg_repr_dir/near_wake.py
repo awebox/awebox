@@ -34,6 +34,8 @@ import casadi.tools as cas
 import numpy as np
 import matplotlib.pyplot as plt
 
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 
@@ -57,7 +59,7 @@ def build(options, architecture, variables_si, parameters):
         filament_list = build_per_kite(options, kite, variables_si, parameters)
         near_wake.append(filament_list)
 
-    dict_of_expected_number_of_elements = alg_structure.get_expected_number_of_near_wake_elements_dict(options, architecture)
+    dict_of_expected_number_of_elements = vortex_tools.get_expected_number_of_near_wake_elements_dict(options, architecture)
     near_wake.set_expected_number_of_elements_from_dict(dict_of_expected_number_of_elements)
     near_wake.confirm_all_lists_have_expected_dimensions(dict_of_expected_number_of_elements.keys())
 
@@ -65,7 +67,7 @@ def build(options, architecture, variables_si, parameters):
 
 def build_per_kite(options, kite, variables_si, parameters):
 
-    wake_nodes = vortex_tools.get_option_from_possible_dicts(options, 'wake_nodes')
+    wake_nodes = general_tools.get_option_from_possible_dicts(options, 'wake_nodes', 'vortex')
 
     filament_list = obj_element_list.ElementList(expected_number_of_elements= 3 * (wake_nodes-1))
 
@@ -100,11 +102,11 @@ def build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameter
     NE_wingtip = vortex_tools.get_NE_wingtip_name()
     PE_wingtip = vortex_tools.get_PE_wingtip_name()
 
-    LENE = alg_structure.get_wake_node_position_si(variables_si, kite, NE_wingtip, wake_node+1)
-    LEPE = alg_structure.get_wake_node_position_si(variables_si, kite, PE_wingtip, wake_node+1)
+    LENE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node+1)
+    LEPE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node+1)
 
-    strength = alg_structure.get_vortex_ring_strength_si(variables_si, kite, ring+1)
-    strength_prev = alg_structure.get_vortex_ring_strength_si(variables_si, kite, ring)
+    strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring+1)
+    strength_prev = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
 
     r_core = vortex_tools.get_r_core(options, parameters)
 
@@ -122,15 +124,15 @@ def build_trailing_per_kite_per_ring(options, kite, ring, variables_si, paramete
 
     wake_node = ring
 
-    strength = alg_structure.get_vortex_ring_strength_si(variables_si, kite, ring)
+    strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
     r_core = vortex_tools.get_r_core(options, parameters)
 
     filament_list = obj_element_list.ElementList(expected_number_of_elements=2)
 
     wingtips_and_strength_directions = vortex_tools.get_wingtip_name_and_strength_direction_dict()
     for tip, tip_directionality in wingtips_and_strength_directions.items():
-        x_start = alg_structure.get_wake_node_position_si(variables_si, kite, tip, wake_node)
-        x_end = alg_structure.get_wake_node_position_si(variables_si, kite, tip, wake_node + 1)
+        x_start = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
+        x_end = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node + 1)
 
         dict_info = {'x_start': x_start,
                      'x_end': x_end,

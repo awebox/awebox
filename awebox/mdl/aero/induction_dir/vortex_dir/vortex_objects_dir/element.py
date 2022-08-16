@@ -55,8 +55,6 @@ class Element:
             packed_info = self.pack_info()
             self.set_info(packed_info)
 
-        self.set_test_includes_visualization(False)
-
     def set_info(self, packed_info):
         self.__info = packed_info
 
@@ -334,15 +332,12 @@ class Element:
         awelogger.logger.error(message)
         raise Exception(message)
 
-    def test_draw(self):
-        plt.close('all')
+    def test_draw(self, test_includes_visualization=False):
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        self.draw(ax, 'isometric')
-
-        if self.test_includes_visualization:
-            plt.show()
+        if test_includes_visualization:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            self.draw(ax, 'isometric')
 
         return None
 
@@ -421,17 +416,6 @@ class Element:
 
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
-
-    @property
-    def test_includes_visualization(self):
-        return self.__test_includes_visualization
-
-    @test_includes_visualization.setter
-    def test_includes_visualization(self, value):
-        awelogger.logger.error('Cannot set test_includes_visualization object.')
-
-    def set_test_includes_visualization(self, value):
-        self.__test_includes_visualization = value
 
 
 def construct_test_object(alpha=1.1):

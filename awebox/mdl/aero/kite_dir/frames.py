@@ -31,7 +31,6 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op

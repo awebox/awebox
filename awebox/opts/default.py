@@ -132,10 +132,11 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'epsilon_m',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, dimensionless, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'force_zero',           False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures. Suggested for use in warmstarting only.', [True, False]), 'x'),
-        ('movel', 'aero', 'vortex',     'induction_factor_normalizing_speed', 'u_zero', ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
+        ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed', 'u_zero', ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',  20,         ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
-        ('model', 'aero', 'vortex',     'verification_uniform_distribution',   False,   ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,  ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'test_includes_visualization',          False,  ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 
         ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 

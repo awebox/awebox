@@ -210,8 +210,8 @@ class ElementList:
 
     def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1)):
 
-        print_op.warn_about_temporary_funcationality_removal(location='element_list.projected_biot_savart')
-        print_op.warn_about_temporary_funcationality_removal(location='element_list.repeated_biot_savart')
+        print_op.warn_about_temporary_functionality_removal(location='element_list.projected_biot_savart')
+        print_op.warn_about_temporary_functionality_removal(location='element_list.repeated_biot_savart')
 
         if self.concatenated_biot_savart_fun is None:
             self.define_biot_savart_induction_function()

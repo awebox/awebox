@@ -33,31 +33,31 @@ import awebox.tools.vector_operations as vect_op
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
-
-def get_state_repr_convection_cstr(options, wind, variables_si, architecture):
-
-    cstr_list = cstr_op.ConstraintList()
-
-    kite_nodes = architecture.kite_nodes
-    wingtips = ['ext', 'int']
-    wake_nodes = options['aero']['vortex']['wake_nodes']
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            for wake_node in range(wake_nodes):
-
-                var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-                wx_local = variables_si['xd'][var_name]
-                u_infty = wind.get_velocity(wx_local[2])
-
-                dwx_local = variables_si['xddot']['d' + var_name]
-
-                resi_local = (dwx_local - u_infty) / wind.get_speed_ref()
-
-                local_cstr = cstr_op.Constraint(expr = resi_local,
-                                                name = 'convection_' + var_name,
-                                                cstr_type = 'eq')
-                cstr_list.append(local_cstr)
-
-    return cstr_list
+#
+# def get_state_repr_convection_cstr(options, wind, variables_si, architecture):
+#
+#     cstr_list = cstr_op.ConstraintList()
+#
+#     kite_nodes = architecture.kite_nodes
+#     wingtips = ['ext', 'int']
+#     wake_nodes = options['aero']['vortex']['wake_nodes']
+#
+#     for kite in kite_nodes:
+#         for tip in wingtips:
+#             for wake_node in range(wake_nodes):
+#
+#                 var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
+#
+#                 wx_local = variables_si['xd'][var_name]
+#                 u_infty = wind.get_velocity(wx_local[2])
+#
+#                 dwx_local = variables_si['xddot']['d' + var_name]
+#
+#                 resi_local = (dwx_local - u_infty) / wind.get_speed_ref()
+#
+#                 local_cstr = cstr_op.Constraint(expr = resi_local,
+#                                                 name = 'convection_' + var_name,
+#                                                 cstr_type = 'eq')
+#                 cstr_list.append(local_cstr)
+#
+#     return cstr_list

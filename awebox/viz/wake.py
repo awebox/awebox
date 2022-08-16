@@ -28,15 +28,15 @@ import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+
+import awebox.mdl.wind as wind
+
 import awebox.viz.tools as tools
+
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
-import awebox.mdl.wind as wind
 
 
 import matplotlib
@@ -87,8 +87,7 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
 
 def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
-    vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
-    if vortex_info_exists:
+    if 'wake' in plot_dict.keys():
 
         model_variables = plot_dict['variables']
         model_scaling = plot_dict['scaling']
@@ -98,31 +97,10 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
         parameters = plot_dict['parameters_plot']
 
-        vortex_objects = plot_dict['vortex_objects_dir']
-        for elem_list_name in vortex_objects.keys():
-            elem_list = vortex_objects[elem_list_name]
-            elem_list.draw(ax, side, variables_scaled, parameters, cosmetics)
+        wake = plot_dict['wake']
+        wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
     return None
-
-def determine_if_vortex_info_exists(plot_dict):
-    vortex_exists = 'vortex' in plot_dict['outputs'].keys()
-    vortex_objects_exists = 'vortex_objects_dir' in plot_dict.keys()
-    return (vortex_exists and vortex_objects_exists)
-
-def reconstruct_filament_list(plot_dict, index):
-
-    all_time = plot_dict['outputs']['vortex']['filament_list']
-    n_entries = len(all_time)
-
-    columnized_list = []
-    for edx in range(n_entries):
-        new_entry = all_time[edx][index]
-        columnized_list = cas.vertcat(columnized_list, new_entry)
-
-    filament_list = vortex_filament_list.decolumnize(plot_dict['options']['model'], plot_dict['architecture'], columnized_list)
-
-    return filament_list
 
 def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, cosmetics, idx_at_eval, kdx):
 
@@ -192,7 +170,7 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
 
 def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, idx_at_eval, kdx, specified='radial_yz'):
 
-    print_op.warn_about_temporary_funcationality_removal(location='viz.wake.compute_vortex_verification')
+    print_op.warn_about_temporary_functionality_removal(location='viz.wake.compute_vortex_verification')
     #
     # local_variables = get_local_variables()
     # local_parameters = get_local_parameters()

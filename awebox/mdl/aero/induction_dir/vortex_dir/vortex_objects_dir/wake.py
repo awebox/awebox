@@ -32,17 +32,11 @@ import copy
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as vortex_substructure
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -150,3 +144,7 @@ class Wake:
                 self.get_substructure(substructure_type).define_biot_savart_induction_functions()
 
         return None
+
+def test():
+    return None
+

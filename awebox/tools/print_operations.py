@@ -106,7 +106,7 @@ def make_beep_in_linux():
     freq = 440  # Hz
     os.system('play --no-show-progress --null --channels 1 synth %s sine %f' % (duration, freq))
 
-def warn_about_temporary_funcationality_removal(location='unspecified', editor='an editor'):
+def warn_about_temporary_functionality_removal(location='unspecified', editor='an editor'):
     awelogger.logger.warning(
         editor + ' has temporarily removed awebox functionality, in order to improve the code. location: ' + location)
     return None

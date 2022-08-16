@@ -41,32 +41,20 @@ import awebox.tools.print_operations as print_op
 
 import awebox.opti.initialization_dir.tools as tools_init
 
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_filament_list
-import awebox.mdl.aero.induction_dir.vortex_dir.flow as vortex_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
-import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fixing
+import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 import pdb
 
-def initial_guess_induction(init_options, nlp, formulation, model, V_init, p_fix_num):
+def initial_guess_induction(init_options, nlp, model, V_init, p_fix_num):
 
-    comparison_labels = init_options['model']['comparison_labels']
 
-    if comparison_labels:
-        V_init = initial_guess_general(V_init)
-
-    any_act = any(label[:3] == 'act' for label in comparison_labels)
-    if any_act:
+    if actuator.model_is_included_in_comparison(init_options):
         V_init = initial_guess_actuator(init_options, nlp, model, V_init)
 
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    if any_vor:
+    if vortex.model_is_included_in_comparison(init_options):
         V_init = initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num)
 
-    return V_init
-
-
-def initial_guess_general(V_init):
     return V_init
 
 
@@ -77,23 +65,7 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
         awelogger.logger.error(message)
         raise Exception(message)
 
-    far_wake_model = init_options['induction']['vortex_far_wake_model']
-    if far_wake_model == 'pathwise_filament':
-        V_init = set_far_wake_convection_velocity_initialization(init_options, V_init, model)
-
-    if 'cylinder' in far_wake_model:
-        V_init = set_far_wake_cylinder_center_initialization(init_options, V_init, model)
-        V_init = initial_guess_vortex_constants(init_options, model, V_init)
-
-    if init_options['induction']['vortex_representation'] == 'state':
-        V_init = set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
-        V_init = set_state_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num)
-
-    elif init_options['induction']['vortex_representation'] == 'alg':
-        V_init = set_algebraic_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num)
-        V_init = set_algebraic_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num)
-
-    # induced velocities initialized to zero, since induction homotopy at beginning of path
+    vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
 
     return V_init
 
@@ -247,276 +219,4 @@ def get_local_wind_reference_frame(init_options):
         w_hat = vect_op.normed_cross(u_hat, n_rot_hat)
         v_hat = vect_op.normed_cross(w_hat, u_hat)
     return u_hat, v_hat, w_hat
-
-
-
-
-
-
-
-######################## vortex
-
-def set_far_wake_convection_velocity_initialization(init_options, V_init, model):
-
-    n_k = init_options['n_k']
-
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            var_name = 'wu_farwake_' + str(kite) + '_' + tip
-
-            for ndx in range(n_k):
-
-                velocity = vortex_fixing.get_far_wake_velocity_val(init_options, V_init_scaled, model, kite, ndx)
-                V_init['xl', ndx, var_name] = velocity
-
-                for ddx in range(init_options['collocation']['d']):
-                    velocity = vortex_fixing.get_far_wake_velocity_val(init_options, V_init_scaled, model, kite, ndx, ddx)
-                    V_init['coll_var', ndx, ddx, 'xl', var_name] = velocity
-
-    return V_init
-
-
-def set_far_wake_cylinder_center_initialization(init_options, V_init, model):
-
-    n_k = init_options['n_k']
-
-    kite_nodes = model.architecture.kite_nodes
-
-    V_init_si = copy.deepcopy(V_init)
-
-    height = init_options['precompute']['height']
-    ehat_normal = tools_init.get_ehat_tether(init_options)
-
-    for kite in kite_nodes:
-        var_name = 'wx_center_' + str(kite)
-
-        parent = model.architecture.parent_map[kite]
-
-        for ndx in range(n_k):
-
-            if parent == 0:
-                parent_position = np.zeros((3, 1))
-            else:
-                grandparent = model.architecture.parent_map[parent]
-                parent_position = V_init_si['xd', ndx, 'q' + str(parent) + str(grandparent)]
-
-            x_center = parent_position + ehat_normal * height
-
-            V_init['xl', ndx, var_name] = x_center
-
-            for ddx in range(init_options['collocation']['d']):
-                V_init['coll_var', ndx, ddx, 'xl', var_name] = x_center
-
-    return V_init
-
-
-def set_algebraic_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num):
-
-    n_k = nlp.n_k
-    d = nlp.d
-
-    wake_nodes = init_options['induction']['vortex_wake_nodes']
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            for wake_node in range(wake_nodes):
-
-                var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-                for ndx in range(n_k):
-                    for ddx in range(d):
-
-                        wx_val = vortex_fixing.get_local_algebraic_repr_collocation_position_value(init_options, V_init_scaled, Outputs_init, model, nlp.time_grids, kite, tip, wake_node, ndx, ddx)
-                        V_init['coll_var', ndx, ddx, 'xl', var_name] = wx_val
-
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            for wake_node in range(wake_nodes):
-
-                var_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-
-                for ndx in range(n_k):
-
-                    wx_val = vortex_fixing.get_local_algebraic_repr_shooting_position_value(V_init_scaled, model, kite, tip, wake_node, ndx)
-                    V_init['xl', ndx, var_name] = wx_val
-
-    return V_init
-
-
-
-def set_state_vortex_repr_position_initialization(init_options, nlp, model, V_init, p_fix_num):
-    n_k = nlp.n_k
-
-    wake_nodes = init_options['induction']['vortex_wake_nodes']
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-    time_final = init_options['precompute']['time_final']
-    tgrid_xd = nlp.time_grids['x'](time_final)
-    tgrid_coll = nlp.time_grids['coll'](time_final)
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
-
-    for kite in kite_nodes:
-        for tip in wingtips:
-            for wake_node in range(wake_nodes):
-
-                if wake_node < n_k:
-                    shooting_ndx = n_k - wake_node
-                    collocation_ndx = shooting_ndx - 1
-
-                    wx_fixing = Outputs_init[
-                        'coll_outputs', collocation_ndx, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-                    fixing_time = tgrid_coll[collocation_ndx, -1]
-
-                    var_name_local = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-
-                else:
-
-                    wake_node_upstream = wake_node - n_k
-                    var_name_upsteam = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node_upstream)
-
-                    wx_fixing = V_init['xd', -1, var_name_upsteam]
-                    fixing_time = tgrid_xd[0]
-
-                    var_name_local = 'wx_' + str(kite) + '_' + str(tip) + '_' + str(wake_node)
-
-                for sdx in range(n_k):
-                    for ddx in range(nlp.d):
-                        local_time = tgrid_coll[sdx, ddx]
-                        delta_t = local_time - fixing_time
-                        vec_u = tools_init.get_wind_velocity(init_options)
-                        wx_local = wx_fixing + vec_u * delta_t
-                        V_init['coll_var', sdx, ddx, 'xd', var_name_local] = wx_local
-
-                for sdx in range(n_k + 1):
-                    local_time = tgrid_xd[sdx]
-                    delta_t = local_time - fixing_time
-                    vec_u = tools_init.get_wind_velocity(init_options)
-                    wx_local = wx_fixing + vec_u * delta_t
-                    V_init['xd', sdx, var_name_local] = wx_local
-
-                    if sdx < n_k:
-                        V_init['xddot', sdx, 'd' + var_name_local] = vec_u
-
-    return V_init
-
-
-def set_algebraic_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num):
-    n_k = nlp.n_k
-    d = nlp.d
-
-    wake_nodes = init_options['induction']['vortex_wake_nodes']
-    kite_nodes = model.architecture.kite_nodes
-    rings = wake_nodes
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
-
-    for kite in kite_nodes:
-        for ring in range(rings):
-
-            var_name = 'wg_' + str(kite) + '_' + str(ring)
-
-            for ndx in range(n_k):
-                for ddx in range(d):
-                    gamma_val = vortex_strength.get_local_algebraic_repr_collocation_strength_val(init_options,
-                                                                                                  Outputs_init, kite,
-                                                                                                  ring, ndx, ddx)
-                    V_init['coll_var', ndx, ddx, 'xl', var_name] = gamma_val
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-
-    for kite in kite_nodes:
-        for ring in range(rings):
-
-            var_name = 'wg_' + str(kite) + '_' + str(ring)
-
-            for ndx in range(n_k):
-                gamma_val = vortex_strength.get_local_algebraic_repr_shooting_strength_val(V_init_scaled, model, kite,
-                                                                                           ring, ndx)
-                V_init['xl', ndx, var_name] = gamma_val
-
-    return V_init
-
-
-def initial_guess_vortex_constants(init_options, model, V_init):
-
-    dict = {}
-    dict['wr'] = cas.DM(init_options['precompute']['radius'])
-    dict['wh'] = cas.DM(init_options['precompute']['angular_speed'] / vect_op.norm(tools_init.get_wind_velocity(init_options)))
-
-    var_type = 'xl'
-    for name in struct_op.subkeys(model.variables, var_type):
-
-        if name[:2] in dict.keys():
-            V_init = tools_init.insert_dict(dict, var_type, name, name[:2], V_init)
-
-    return V_init
-
-
-def set_state_vortex_repr_strength_initialization(init_options, nlp, model, V_init, p_fix_num):
-    n_k = nlp.n_k
-    d = nlp.d
-
-    wake_nodes = init_options['induction']['vortex_wake_nodes']
-    kite_nodes = model.architecture.kite_nodes
-    rings = wake_nodes
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
-
-    for kite in kite_nodes:
-        for ring in range(rings):
-
-            var_name = 'wg_' + str(kite) + '_' + str(ring)
-
-            for ndx in range(n_k):
-                for ddx in range(d):
-                    gamma_val = vortex_strength.get_local_state_repr_collocation_strength_val(init_options,
-                                                                                              Outputs_init, kite, ring,
-                                                                                              ndx, ddx)
-                    V_init['coll_var', ndx, ddx, 'xl', var_name] = gamma_val
-
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
-
-
-    for kite in kite_nodes:
-        for ring in range(rings):
-
-            var_name = 'wg_' + str(kite) + '_' + str(ring)
-
-            for ndx in range(n_k):
-                if ndx == 0:
-                    gamma_val = vortex_strength.get_local_state_repr_collocation_strength_val(init_options,
-                                                                                              Outputs_init, kite, ring)
-                    V_init['xl', ndx, var_name] = gamma_val
-                else:
-                    gamma_val = V_init['coll_var', ndx - 1, -1, 'xl', var_name]
-                    V_init['xl', ndx, var_name] = gamma_val
-
-    return V_init
 

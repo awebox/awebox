@@ -852,7 +852,8 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
 ####### concatenate tests
 
-def test():
+def test(test_includes_visualization=False):
+
     cyl_regularized = construct_test_object(regularized=True)
     cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_cylinder')
 
@@ -868,4 +869,4 @@ def test():
 
     return None
 
-test()
+# test()

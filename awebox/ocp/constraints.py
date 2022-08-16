@@ -45,7 +45,7 @@ import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
 
-def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, time_grids):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, Integral_outputs, time_grids):
 
     ocp_cstr_list = ocp_constraint.OcpConstraintList()
     ocp_cstr_entry_list = []
@@ -95,7 +95,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         if len(periodic_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('periodic', shape = periodic_cstr.get_expression_list('all').shape))
 
-        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
+        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
         ocp_cstr_list.append(vortex_ocp_cstr_list)
         if len(vortex_ocp_cstr_list.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('vortex', shape = vortex_ocp_cstr_list.get_expression_list('all').shape))

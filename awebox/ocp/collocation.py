@@ -29,6 +29,7 @@ python-3.5 / casadi-3.4.5
            rachel leuthold, jochem de schutter alu-fr 2017-18
 - edited:  thilo bronnenmeyer 2018
 '''
+import pdb
 
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
@@ -356,8 +357,10 @@ class Collocation(object):
         Integral_constraints_list = []
         for kdx in range(self.__n_k):
             tf = struct_op.calculate_tf(options, V, kdx)
+
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
+
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 

@@ -44,8 +44,6 @@ import awebox.tools.constraint_operations as cstr_op
 
 import awebox.ocp.ocp_constraint as ocp_constraint
 
-import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
-import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 from awebox.logger.logger import Logger as awelogger

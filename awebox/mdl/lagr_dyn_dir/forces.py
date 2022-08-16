@@ -43,7 +43,7 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 
-def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, vortex_objects, architecture):
+def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
     # initialize dictionary
     node_forces = {}
     for node in range(1, architecture.number_of_nodes):
@@ -52,8 +52,7 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, vo
         if int(options['kite_dof']) == 6:
             node_forces['m' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
-    aero_forces, outputs = generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs, vortex_objects,
-                                                       architecture)
+    aero_forces, outputs = generate_aerodynamic_forces(options, atmos, wind, wake, variables_si, outputs, parameters, architecture)
 
     # # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
@@ -119,12 +118,12 @@ def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, 
     return tether_drag_forces, outputs
 
 
-def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs, vortex_objects, architecture):
+def generate_aerodynamic_forces(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
     # homotopy parameters
     p_dec = parameters.prefix['phi']
 
     # get aerodynamic forces and moments
-    outputs = kite_aero.get_forces_and_moments(options, atmos, wind, variables_si, outputs, vortex_objects, parameters, architecture)
+    outputs = kite_aero.get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture)
 
     # attribute aerodynamic forces to kites
     aero_forces = {}

@@ -65,10 +65,10 @@ def build_per_kite(options, kite, variables_si, parameters):
     NE_wingtip = vortex_tools.get_NE_wingtip_name()
     PE_wingtip = vortex_tools.get_PE_wingtip_name()
 
-    LENE = alg_structure.get_wake_node_position_si(variables_si, kite, NE_wingtip, wake_node)
-    LEPE = alg_structure.get_wake_node_position_si(variables_si, kite, PE_wingtip, wake_node)
+    LENE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node)
+    LEPE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node)
 
-    strength = alg_structure.get_vortex_ring_strength_si(variables_si, kite, ring)
+    strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
     strength_prev = cas.DM.zeros((1, 1))
 
     r_core = vortex_tools.get_r_core(options, parameters)

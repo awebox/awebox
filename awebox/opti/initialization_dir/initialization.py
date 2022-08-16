@@ -78,7 +78,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     V_init = extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict)
 
-    V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init, p_fix_num)
+    V_init = induction.initial_guess_induction(init_options, nlp, model, V_init, p_fix_num)
 
     V_init = set_xddot(V_init, nlp)
 

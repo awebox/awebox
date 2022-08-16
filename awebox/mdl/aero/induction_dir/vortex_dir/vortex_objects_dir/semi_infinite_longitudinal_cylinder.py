@@ -31,7 +31,6 @@ import copy
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import scipy.special as special
 
 import numpy as np
@@ -722,7 +721,8 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
 
 
-def test():
+def test(test_includes_visualization=False):
+
     cyl_regularized = construct_test_object(regularized=True)
     cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_cylinder')
 

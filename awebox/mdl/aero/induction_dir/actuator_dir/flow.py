@@ -37,8 +37,8 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
-import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -349,6 +349,7 @@ def get_kite_induced_velocity(model_options, variables, parameters, architecture
     return u_ind_kite
 
 def get_kite_effective_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
+    print_op.warn_about_temporary_functionality_removal(location='this_is_defined_twice.flow?')
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     u_ind_kite = get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)

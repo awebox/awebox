@@ -31,7 +31,6 @@ import copy
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
@@ -228,7 +227,8 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
         awelogger.logger.error(message)
         raise Exception(message)
 
-def test():
+def test(test_includes_visualization=False):
+
     fil = construct_test_object(r_core=0.)
     fil.test_basic_criteria(expected_object_type='semi_infinite_filament')
 
@@ -242,7 +242,7 @@ def test():
     fil_with_nonzero_core_radius = construct_test_object(r_core=1.)
     test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon)
 
-    fil.test_draw()
+    fil.test_draw(test_includes_visualization)
 
     return None
 

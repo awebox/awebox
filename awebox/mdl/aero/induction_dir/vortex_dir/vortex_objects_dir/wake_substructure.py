@@ -32,17 +32,18 @@ import copy
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
+
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_fin_fli
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_si_long_cyl
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -81,14 +82,14 @@ class WakeSubstructure:
 
         return None
 
-    def construct_induced_velocity_at_kite_residuals(self, wind, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_at_kite_residuals(self, wind, variables_si, kite_obs, parent_obs):
         resi = []
         for elem_type in self.get_initialized_element_types():
-            local_resi = self.construct_induced_velocity_at_kite_residuals_by_element_type(elem_type, wind, variables_si, kite_obs, parent_obs)
+            local_resi = self.construct_biot_savart_at_kite_residuals_by_element_type(elem_type, wind, variables_si, kite_obs, parent_obs)
             resi = cas.vertcat(resi, local_resi)
         return resi
 
-    def construct_induced_velocity_at_kite_residuals_by_element_type(self, element_type, wind, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_at_kite_residuals_by_element_type(self, element_type, wind, variables_si, kite_obs, parent_obs):
 
         u_ref = wind.get_speed_ref()
 
@@ -98,10 +99,10 @@ class WakeSubstructure:
         vars = []
         number_of_elements = self.get_list(element_type).number_of_elements
         for edx in range(number_of_elements):
-            var_name = alg_structure.get_element_induced_velocity_name(self.__substructure_type, element_type, edx, kite_obs)
-            vars = cas.horzcat(vars, variables_si['xl', var_name])
+            local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
+            vars = cas.horzcat(vars, local_var)
 
-        x_obs = variables_si['xd', 'q' + str(kite_obs) + str(parent_obs)]
+        x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'q' + str(kite_obs) + str(parent_obs))
         found = self.get_mapped_biot_savart_fun(element_type)(x_obs)
 
         resi = (vars - found) / u_ref
@@ -115,21 +116,23 @@ class WakeSubstructure:
         is_list = isinstance(added_elem, list)
         if is_list:
             all_items_in_list_are_element_lists = all(
-                [isinstance(elem, vortex_element_list.ElementList) for elem in added_elem])
+                [isinstance(elem, obj_element_list.ElementList) for elem in added_elem])
             all_items_in_list_are_elements = all(
-                [isinstance(elem, vortex_element.Element) for elem in added_elem])
+                [isinstance(elem, obj_element.Element) for elem in added_elem])
             if not (all_items_in_list_are_element_lists or all_items_in_list_are_elements):
                 message = 'the only type of list that can be appended to vortex wake_substructure objects are ElementLists, lists of Elements or lists of ElementLists.'
                 awelogger.logger.error(message)
                 raise Exception(message)
 
-        is_element_list = isinstance(added_elem, vortex_element_list.ElementList)
-        is_element = isinstance(added_elem, vortex_element.Element)
+        is_element_list = isinstance(added_elem, obj_element_list.ElementList)
+        is_element = isinstance(added_elem, obj_element.Element)
 
         if is_element or is_element_list:
             element_type = added_elem.element_type
-            self.initialize_list_on_first_use(element_type)
-            self.get_list(element_type).append(added_elem)
+            if element_type is not None:
+                self.initialize_list_on_first_use(element_type)
+                self.get_list(element_type).append(added_elem)
+
         elif is_list and (all_items_in_list_are_elements or all_items_in_list_are_element_lists):
             for local_elem in added_elem:
                 self.append(local_elem)
@@ -145,16 +148,16 @@ class WakeSubstructure:
 
         if self.get_list(element_type) is None:
             if element_type == 'finite_filament':
-                self.__finite_filament_list = vortex_element_list.ElementList()
+                self.__finite_filament_list = obj_element_list.ElementList()
 
             elif element_type == 'semi_infinite_filament':
-                self.__semi_infinite_filament_list = vortex_element_list.ElementList()
+                self.__semi_infinite_filament_list = obj_element_list.ElementList()
 
             elif element_type == 'semi_infinite_tangential_cylinder':
-                self.__semi_infinite_tangential_cylinder_list = vortex_element_list.ElementList()
+                self.__semi_infinite_tangential_cylinder_list = obj_element_list.ElementList()
 
             elif element_type == 'semi_infinite_longitudinal_cylinder':
-                self.__semi_infinite_longitudinal_cylinder_list = vortex_element_list.ElementList()
+                self.__semi_infinite_longitudinal_cylinder_list = obj_element_list.ElementList()
 
             else:
                 message = 'cannot recognize vortex object list for ' + element_type + ' objects'
@@ -177,8 +180,8 @@ class WakeSubstructure:
 
         initialized_types = self.get_initialized_element_types()
         criteria = (set(types_expected_to_be_initialized) == set(initialized_types))
-        if not criteria:
 
+        if not criteria:
             message = 'vortex wake: the set of vortex element types that are expected to be initialized is not the same as the set of the vortex element types that *are* initialized.'
             awelogger.logger.error(message)
             raise Exception(message)
@@ -286,11 +289,11 @@ class WakeSubstructure:
 def construct_test_object():
     local_substructure = WakeSubstructure()
 
-    fil = vortex_finite_filament.construct_test_object()
+    fil = obj_fin_fli.construct_test_object()
     local_substructure.append(fil)
     local_substructure.append(fil)
 
-    long_cyl = vortex_semi_infinite_longitudinal_cylinder.construct_test_object()
+    long_cyl = obj_si_long_cyl.construct_test_object()
     local_substructure.append(long_cyl)
 
     return local_substructure
@@ -365,4 +368,4 @@ def test():
     test_check_expected_dimensions()
     test_mapped_biot_savart()
 
-test()
+# test()

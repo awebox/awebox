@@ -28,37 +28,35 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-21
 '''
 
+import pdb
+
 import casadi.tools as cas
+import numpy as np
+import matplotlib.pyplot as plt
 
-import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
-import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as vortex_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_semi_infinite_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as vortex_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as vortex_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
+import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.bound_wake as alg_bound_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.near_wake as alg_near_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.far_wake as alg_far_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.fixing as alg_fixing
 
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as obj_wake
 
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.ocp.ocp_constraint as ocp_constraint
 import awebox.tools.print_operations as print_op
 
-import numpy as np
+from awebox.logger.logger import Logger as awelogger
 
 
-def build(options, architecture, wind, variables_si, parameters):
+def get_wake(options, architecture, wind, variables_si, parameters):
 
     tools.check_positive_vortex_wake_nodes(options)
+
     wake_dict = None
-    print_op.warn_about_temporary_funcationality_removal(location='state_representation')
+    print_op.warn_about_temporary_functionality_removal(location='state_representation')
     #
     # variables_scaled = system_variables['scaled']
     # variables_si = system_variables['SI']
@@ -87,221 +85,121 @@ def build(options, architecture, wind, variables_si, parameters):
     #     elem_list.define_biot_savart_induction_function()
 
     return wake_dict
+#
+# def precompute_vortex_functions(options, system_variables, parameters, elem_list):
+#
+#     variables_scaled = system_variables['scaled']
+#     variables_si = system_variables['SI']
+#
+#     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+#     n_hat_sym = cas.SX.sym('n_hat_sym', (3, 1))
+#
+#     #     u_ind_unprojected = self.evaluate_total_biot_savart_induction(x_obs=x_obs_sym, n_hat=None)
+#     #     model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind_unprojected])
+#     #     self.__model_induction_fun = model_induction_fun
+#     #
+#     #     u_ind_projected = cas.mtimes(n_hat_sym.T, u_ind_unprojected)
+#     #     model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_projected])
+#     #     self.__model_projected_induction_fun = model_projected_induction_fun
+#     #
+#     #     return None
+#
+#
+#     if precompute_model_induction_fun:
+#         u_ind = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=None)
+#         model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind])
+#         elem_list.set_model_induction_fun(model_induction_fun)
+#
+#     if precompute_model_projected_induction_fun:
+#         u_ind_proj = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=n_hat_sym)
+#         model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_proj])
+#         elem_list.set_model_projected_induction_fun(model_projected_induction_fun)
+#
+#     if precompute_model_induction_factor_fun:
+#         a_calc = flow.get_induction_factor_at_observer()
+#
+# def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
+#
+#     vortex_representation = options['aero']['vortex']['representation']
+#     cstr_list = cstr_op.ConstraintList()
+#
+#     if vortex_representation == 'state':
+#         state_conv_cstr = state_convection.get_state_repr_convection_cstr(options, wind, variables_si, architecture)
+#         cstr_list.append(state_conv_cstr)
+#
+#     superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, objects, architecture)
+#     cstr_list.append(superposition_cstr)
+#
+#     vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+#     if ('cylinder' in vortex_far_wake_model):
+#         radius_cstr = vortex_far_wake.get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture)
+#         cstr_list.append(radius_cstr)
+#
+#     return cstr_list
+#
+# def get_induction_trivial_residual(options, wind, variables_si, architecture, objects):
+#
+#     resi = []
+#
+#     u_ref = wind.get_speed_ref()
+#
+#     for kite_obs in architecture.kite_nodes:
+#
+#         for elem_list_name in objects.keys():
+#             elem_list = objects[elem_list_name]
+#             number_elements = elem_list.number_of_elements
+#             if number_elements > 0:
+#                 for fdx in range(number_elements):
+#                     u_ind_fil = cas.DM.zeros((3, 1))
+#
+#                     ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+#                     local_var = variables_si['xl'][ind_name]
+#                     local_resi = (local_var - u_ind_fil) / u_ref
+#                     resi = cas.vertcat(resi, local_resi)
+#
+#     return resi
+#
+#
+# def get_induction_final_residual(options, wind, variables_si, outputs, architecture, objects):
+#
+#     vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
+#     repetitions = options['aero']['vortex']['repetitions']
+#
+#     resi = []
+#
+#     u_ref = wind.get_speed_ref()
+#
+#     for kite_obs in architecture.kite_nodes:
+#         parent_obs = architecture.parent_map[kite_obs]
+#
+#         for elem_list_name in objects.keys():
+#             elem_list = objects[elem_list_name]
+#
+#             x_obs = variables_si['xd']['q' + str(kite_obs) + str(parent_obs)]
+#
+#             if vortex_far_wake_model == 'repetition':
+#                 all_biot_savarts = cas.DM.zeros(3, elem_list.number_of_elements)
+#                 for pdx in range(repetitions):
+#                     all_biot_savarts += elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs,
+#                                                                                                  n_hat=None,
+#                                                                                                  period=pdx,
+#                                                                                                  wind=wind,
+#                                                                                                  optimization_period=optimization_period)
+#             else:
+#                 all_biot_savarts = elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=None)
+#
+#             for fdx in range(elem_list.number_of_elements):
+#                 u_ind_fil = all_biot_savarts[:, fdx]
+#
+#                 ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
+#                 local_var = variables_si['xl'][ind_name]
+#                 local_resi = (local_var - u_ind_fil) / u_ref
+#                 resi = cas.vertcat(resi, local_resi)
+#
+#     return resi
 
-def precompute_vortex_functions(options, system_variables, parameters, elem_list):
 
-    variables_scaled = system_variables['scaled']
-    variables_si = system_variables['SI']
-
-    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-    n_hat_sym = cas.SX.sym('n_hat_sym', (3, 1))
-
-    #     u_ind_unprojected = self.evaluate_total_biot_savart_induction(x_obs=x_obs_sym, n_hat=None)
-    #     model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind_unprojected])
-    #     self.__model_induction_fun = model_induction_fun
-    #
-    #     u_ind_projected = cas.mtimes(n_hat_sym.T, u_ind_unprojected)
-    #     model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_projected])
-    #     self.__model_projected_induction_fun = model_projected_induction_fun
-    #
-    #     return None
-
-
-    if precompute_model_induction_fun:
-        u_ind = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=None)
-        model_induction_fun = cas.Function('model_induction_fun', [variables_scaled, parameters, x_obs_sym], [u_ind])
-        elem_list.set_model_induction_fun(model_induction_fun)
-
-    if precompute_model_projected_induction_fun:
-        u_ind_proj = flow.get_induced_velocity_at_observer(vortex_objects, x_obs_sym, n_hat=n_hat_sym)
-        model_projected_induction_fun = cas.Function('model_projected_induction_fun', [variables_scaled, parameters, x_obs_sym, n_hat_sym], [u_ind_proj])
-        elem_list.set_model_projected_induction_fun(model_projected_induction_fun)
-
-    if precompute_model_induction_factor_fun:
-        a_calc = flow.get_induction_factor_at_observer()
-
-def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
-
-    vortex_representation = options['aero']['vortex']['representation']
-    cstr_list = cstr_op.ConstraintList()
-
-    if vortex_representation == 'state':
-        state_conv_cstr = convection.get_state_repr_convection_cstr(options, wind, variables_si, architecture)
-        cstr_list.append(state_conv_cstr)
-
-    superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, objects, architecture)
-    cstr_list.append(superposition_cstr)
-
-    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
-    if ('cylinder' in vortex_far_wake_model):
-        radius_cstr = vortex_far_wake.get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture)
-        cstr_list.append(radius_cstr)
-
-    return cstr_list
-
-def get_induction_trivial_residual(options, wind, variables_si, architecture, objects):
-
-    resi = []
-
-    u_ref = wind.get_speed_ref()
-
-    for kite_obs in architecture.kite_nodes:
-
-        for elem_list_name in objects.keys():
-            elem_list = objects[elem_list_name]
-            number_elements = elem_list.number_of_elements
-            if number_elements > 0:
-                for fdx in range(number_elements):
-                    u_ind_fil = cas.DM.zeros((3, 1))
-
-                    ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
-                    local_var = variables_si['xl'][ind_name]
-                    local_resi = (local_var - u_ind_fil) / u_ref
-                    resi = cas.vertcat(resi, local_resi)
-
-    return resi
-
-
-def get_induction_final_residual(options, wind, variables_si, outputs, architecture, objects):
-
-    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
-    repetitions = options['aero']['vortex']['repetitions']
-
-    resi = []
-
-    u_ref = wind.get_speed_ref()
-
-    for kite_obs in architecture.kite_nodes:
-        parent_obs = architecture.parent_map[kite_obs]
-
-        for elem_list_name in objects.keys():
-            elem_list = objects[elem_list_name]
-
-            x_obs = variables_si['xd']['q' + str(kite_obs) + str(parent_obs)]
-
-            if vortex_far_wake_model == 'repetition':
-                all_biot_savarts = cas.DM.zeros(3, elem_list.number_of_elements)
-                for pdx in range(repetitions):
-                    all_biot_savarts += elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs,
-                                                                                                 n_hat=None,
-                                                                                                 period=pdx,
-                                                                                                 wind=wind,
-                                                                                                 optimization_period=optimization_period)
-            else:
-                all_biot_savarts = elem_list.evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs, n_hat=None)
-
-            for fdx in range(elem_list.number_of_elements):
-                u_ind_fil = all_biot_savarts[:, fdx]
-
-                ind_name = 'wu_' + elem_list_name + '_' + str(fdx) + '_' + str(kite_obs)
-                local_var = variables_si['xl'][ind_name]
-                local_resi = (local_var - u_ind_fil) / u_ref
-                resi = cas.vertcat(resi, local_resi)
-
-    return resi
-
-def test():
-
-    vect_op.test_altitude()
-
-    vortex_element.test()
-    vortex_element_list.test()
-
-    vortex_finite_filament.test()
-    vortex_semi_infinite_filament.test()
-    vortex_semi_infinite_cylinder.test()
-    vortex_semi_infinite_tangential_cylinder.test()
-    vortex_semi_infinite_longitudinal_cylinder.test()
-
-    vortex_wake.test()
-
-    # freestream_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'freestream_filament')
-    # flow.test(freestream_filament_far_wake_test_list)
-    # pathwise_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'pathwise_filament')
-    # flow.test(pathwise_filament_far_wake_test_list)
-
+def test(test_includes_visualization):
     return None
-
-def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, vortex_objects, parameters, architecture):
-
-    # break early and loud if there are problems
-    test()
-
-    if 'vortex' not in list(outputs.keys()):
-        outputs['vortex'] = {}
-
-    kite_nodes = architecture.kite_nodes
-    for kite_obs in kite_nodes:
-
-        parent_obs = architecture.parent_map[kite_obs]
-
-        u_ind = flow.get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs)
-
-        n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, parameters, architecture)
-        local_a = flow.get_induction_factor_at_kite(model_options, wind, variables_si, vortex_objects, architecture, kite_obs, n_hat=n_hat)
-
-        far_wake_u_ind = flow.get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs, selection='far_wake')
-        far_wake_u_ind_norm = vect_op.norm(far_wake_u_ind)
-        far_wake_u_ind_norm_over_ref = far_wake_u_ind_norm / wind.get_speed_ref()
-
-        est_truncation_error = (far_wake_u_ind_norm) / vect_op.norm(u_ind)
-
-        outputs['vortex']['u_ind' + str(kite_obs)] = u_ind
-        outputs['vortex']['u_ind_norm' + str(kite_obs)] = vect_op.norm(u_ind)
-        outputs['vortex']['local_a' + str(kite_obs)] = local_a
-
-        outputs['vortex']['far_wake_u_ind' + str(kite_obs)] = far_wake_u_ind
-        outputs['vortex']['far_wake_u_ind_norm_over_ref' + str(kite_obs)] = far_wake_u_ind_norm_over_ref
-
-        outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
-
-    return outputs
-
-def compute_global_performance(power_and_performance, plot_dict):
-
-    kite_nodes = plot_dict['architecture'].kite_nodes
-
-    max_est_trunc_list = []
-    max_est_discr_list = []
-    far_wake_u_ind_norm_over_ref_list = []
-
-    all_local_a = None
-
-    for kite in kite_nodes:
-
-        trunc_name = 'est_truncation_error' + str(kite)
-        local_max_est_trunc = np.max(np.array(plot_dict['outputs']['vortex'][trunc_name][0]))
-        max_est_trunc_list += [local_max_est_trunc]
-
-        kite_local_a = np.ndarray.flatten(np.array(plot_dict['outputs']['vortex']['local_a' + str(kite)][0]))
-        if all_local_a is None:
-            all_local_a = kite_local_a
-        else:
-            all_local_a = np.vstack([all_local_a, kite_local_a])
-
-        max_kite_local_a = np.max(kite_local_a)
-        min_kite_local_a = np.min(kite_local_a)
-        local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
-        max_est_discr_list += [local_max_est_discr]
-
-        local_far_wake_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['far_wake_u_ind_norm_over_ref' + str(kite)]))
-        far_wake_u_ind_norm_over_ref_list += [local_far_wake_u_ind_norm_over_ref]
-
-    average_local_a = np.average(all_local_a)
-    power_and_performance['vortex_average_local_a'] = average_local_a
-
-    stdev_local_a = np.std(all_local_a)
-    power_and_performance['vortex_stdev_local_a'] = stdev_local_a
-
-    max_far_wake_u_ind_norm_over_ref = np.max(np.array(far_wake_u_ind_norm_over_ref_list))
-    power_and_performance['vortex_max_far_wake_u_ind_norm_over_ref'] = max_far_wake_u_ind_norm_over_ref
-
-    max_est_trunc = np.max(np.array(max_est_trunc_list))
-    power_and_performance['vortex_max_est_truncation_error'] = max_est_trunc
-
-    max_est_discr = np.max(np.array(max_est_discr_list))
-    power_and_performance['vortex_max_est_discretization_error'] = max_est_discr
-
-    return power_and_performance
 
 # test()

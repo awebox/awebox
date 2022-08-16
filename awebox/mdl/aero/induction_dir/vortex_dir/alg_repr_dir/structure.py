@@ -51,184 +51,10 @@ from awebox.logger.logger import Logger as awelogger
 # which means that each of the vortex elements induced velocities depends on the wake structure,
 # but not the positions and strengths; those belong to the wake nodes
 
-def get_define_wake_types():
-    return ['bound', 'near', 'far']
-
-def get_wake_node_position_si(variables, kite_shed, tip, wake_node, scaling=None):
-    var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
-
-def get_vortex_ring_strength_si(variables, kite_shed, ring, scaling=None):
-    var_name = get_vortex_ring_strength_name(kite_shed, ring)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
-
-def get_element_induced_velocity_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
-    var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
 
 
-def get_induced_velocity_at_kite_si(variables, kite_obs, scaling=None):
-    var_name = get_induced_velocity_at_kite_name(kite_obs)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
-
-def get_far_wake_finite_filament_pathwise_convection_velocity_si(variables, kite_shed, scaling=None):
-    var_name = get_far_wake_finite_filament_pathwise_convection_velocity_name(kite_shed)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
-
-def get_far_wake_cylinder_center_position_si(variables, parent_shed, scaling=None):
-    var_name = get_far_wake_cylinder_center_position_name(parent_shed)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
-
-def get_far_wake_cylinder_pitch_si(variables, parent_shed, scaling=None):
-    var_name = get_far_wake_cylinder_pitch_name(parent_shed)
-    return vortex_tools.get_variable_si(variables, 'xl', var_name, scaling)
 
 
-def get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=None, tip=None, wake_node_or_ring=None):
-    if abbreviated_var_name == 'wx':
-        return get_wake_node_position_name(kite_shed=kite_shed_or_parent_shed, tip=tip, wake_node=wake_node_or_ring)
-    elif abbreviated_var_name == 'wx_center':
-        return get_far_wake_cylinder_center_position_name(parent_shed=kite_shed_or_parent_shed)
-    elif abbreviated_var_name == 'wg':
-        return get_vortex_ring_strength_name(kite_shed=kite_shed_or_parent_shed, ring=wake_node_or_ring)
-    elif abbreviated_var_name == 'wh':
-        return get_far_wake_cylinder_pitch_name(parent_shed=kite_shed_or_parent_shed)
-    else:
-        message = 'get_var_name function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-def get_wake_node_position_name(kite_shed, tip, wake_node):
-    var_name = 'wx_' + str(kite_shed) + '_' + tip + '_' + str(wake_node)
-    return var_name
-
-def get_vortex_ring_strength_name(kite_shed, ring):
-    var_name = 'wg_' + str(kite_shed) + '_' + str(ring)
-    return var_name
-
-def get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs):
-    var_name = 'wu_' + wake_type + '_' + element_type + '_' + str(element_number) + '_' + str(kite_obs)
-    return var_name
-
-def get_induced_velocity_at_kite_name(kite_obs):
-    var_name = 'wu_ind_' + str(kite_obs)
-    return var_name
-
-def get_far_wake_finite_filament_pathwise_convection_velocity_name(kite_shed):
-    var_name = 'wu_pathwise_' + str(kite_shed)
-    return var_name
-
-def get_far_wake_cylinder_center_position_name(parent_shed):
-    var_name = 'wx_center_' + str(parent_shed)
-    return var_name
-
-def get_far_wake_cylinder_pitch_name(parent_shed):
-    var_name = 'wh_' + str(parent_shed)
-    return var_name
-
-def get_expected_number_of_elements_dict_for_wake_types(options, architecture):
-    expected_number_of_elements_dict_for_wake_types = {
-        'bound': get_expected_number_of_bound_wake_elements_dict(architecture),
-        'near': get_expected_number_of_near_wake_elements_dict(options, architecture),
-        'far': get_expected_number_of_far_wake_elements_dict(options, architecture)
-    }
-    return expected_number_of_elements_dict_for_wake_types
-
-def get_expected_number_of_bound_wake_elements_dict(architecture):
-    number_of_kites = architecture.number_of_kites
-    expected_dict = {'finite_filament': 1 * number_of_kites}
-    return expected_dict
-
-def get_expected_number_of_near_wake_elements_dict(options, architecture):
-    number_of_kites = architecture.number_of_kites
-    wake_nodes = vortex_tools.get_option_from_possible_dicts(options, 'wake_nodes')
-    expected_dict = {'finite_filament': 3 * number_of_kites * (wake_nodes - 1)}
-    return expected_dict
-
-def get_expected_number_of_far_wake_elements_dict(options, architecture):
-    far_wake_element_type = vortex_tools.get_option_from_possible_dicts(options, 'far_wake_element_type')
-    if far_wake_element_type == 'finite_filament':
-        expected_dict = get_expected_number_of_finite_filament_far_wake_elements(architecture)
-    elif far_wake_element_type == 'semi_infinite_filament':
-        expected_dict = get_expected_number_of_semi_infinite_filament_far_wake_elements(architecture)
-    elif far_wake_element_type == 'semi_infinite_cylinder':
-        expected_dict = get_expected_number_of_semi_infinite_cylinder_far_wake_elements(architecture)
-    else:
-        message = 'unexpected type of far-wake vortex element (' + far_wake_element_type + '). maybe, check your spelling?'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
-    return expected_dict
-
-def get_expected_number_of_semi_infinite_cylinder_far_wake_elements(architecture):
-    number_of_kites = architecture.number_of_kites
-    expected_dict = {'semi_infinite_tangential_cylinder': 2 * number_of_kites,
-                     'semi_infinite_longitudinal_cylinder': 2 * number_of_kites}
-    return expected_dict
-
-def get_expected_number_of_finite_filament_far_wake_elements(architecture):
-    number_of_kites = architecture.number_of_kites
-    expected_dict = {'finite_filament': 2 * number_of_kites}
-    return expected_dict
-
-def get_expected_number_of_semi_infinite_filament_far_wake_elements(architecture):
-    number_of_kites = architecture.number_of_kites
-    expected_dict = {'semi_infinite_filament': 2 * number_of_kites}
-    return expected_dict
-
-def extend_system_variables(options, system_lifted, system_states, architecture):
-
-    # the part that describes the wake nodes and consequent vortex rings
-    wingtips = ['ext', 'int']
-    wake_nodes = options['aero']['vortex']['wake_nodes']
-    rings = options['aero']['vortex']['rings']
-
-    for kite_shed in architecture.kite_nodes:
-        for wake_node in range(wake_nodes):
-            for tip in wingtips:
-                var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
-                system_lifted.extend([(var_name, (3, 1))])
-
-        for ring in range(rings):
-            var_name = get_vortex_ring_strength_name(kite_shed, ring)
-            system_lifted.extend([(var_name, (1, 1))])
-
-    far_wake_element_type = options['aero']['vortex']['far_wake_element_type']
-    if (far_wake_element_type == 'semi_infinite_cylinder'):
-        for parent_shed in set([architecture.parent_map[kite] for kite in architecture.kite_nodes]):
-            var_name = get_far_wake_cylinder_center_position_name(parent_shed=parent_shed)
-            system_lifted.extend([(var_name, (3, 1))])
-
-            var_name = get_far_wake_cylinder_pitch_name(parent_shed=parent_shed)
-            system_lifted.extend([(var_name, (1, 1))])
-
-    # induced velocity part: the part that depends on the wake types and wake structure
-    expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(options, architecture)
-
-    for kite_obs in architecture.kite_nodes:
-        var_name = get_induced_velocity_at_kite_name(kite_obs)
-        system_lifted.extend([(var_name, (3, 1))])
-
-        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
-            for element_type, expected_number in local_expected_number_of_elements_dict.items():
-                for element_number in range(expected_number):
-                    var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                    system_lifted.extend([(var_name, (3, 1))])
-
-    return system_lifted, system_states
-
-
-def get_total_number_of_vortex_elements(options, architecture):
-
-    expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(options,
-                                                                                                          architecture)
-
-    total_number = 0
-    for local_dict in expected_number_of_elements_dict_for_wake_types.values():
-        for count in local_dict.values():
-            total_number += count
-
-    return total_number
 
 def construct_test_model_variable_structures(element_type='finite_filament'):
 
@@ -267,7 +93,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
 
     architecture = archi.Architecture({1: 0})
 
-    system_lifted, system_states = extend_system_variables(options, [], [], architecture)
+    system_lifted, system_states = vortex_tools.extend_system_variables(options, [], [], architecture)
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
@@ -316,12 +142,12 @@ def construct_straight_flight_test_object(element_type='finite_filament'):
 
     variables_si = var_struct(0.)
 
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 0)] = x_PE
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 0)] = x_NE
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
-    variables_si['xl', get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1
@@ -341,12 +167,12 @@ def construct_vortex_ring_test_object(element_type='semi_infinite_filament'):
 
     variables_si = var_struct(0.)
 
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 0)] = x_PE
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 0)] = x_NE
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
-    variables_si['xl', get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', get_vortex_ring_strength_name(kite, 1)] = cas.DM(0.)
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(0.)
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1
@@ -390,15 +216,15 @@ def construct_circular_flight_test_object(element_type='semi_infinite_cylinder')
 
     variables_si = var_struct(0.)
 
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 0)] = x_PE_0
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 0)] = x_NE_0
-    variables_si['xl', get_wake_node_position_name(kite, 'ext', 1)] = x_PE_1
-    variables_si['xl', get_wake_node_position_name(kite, 'int', 1)] = x_NE_1
-    variables_si['xl', get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE_0
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE_0
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE_1
+    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE_1
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
 
-    variables_si['xl', get_far_wake_cylinder_center_position_name(parent)] = x_center
-    variables_si['xl', get_far_wake_cylinder_pitch_name(parent)] = pitch
+    variables_si['xl', vortex_tools.get_far_wake_cylinder_center_position_name(parent)] = x_center
+    variables_si['xl', vortex_tools.get_far_wake_cylinder_pitch_name(parent)] = pitch
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1

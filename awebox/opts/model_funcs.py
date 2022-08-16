@@ -41,8 +41,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 import awebox.mdl.wind as wind
 
@@ -508,7 +507,7 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'aero', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
-    options_tree.append(('solver', 'initialization', 'model', 'comparison_labels', comparison_labels, ('????', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('model', 'scaling', 'xl', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
@@ -665,16 +664,10 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     CL = estimate_CL(options)
     b_ref = geometry['b_ref']
 
-    CL_max_estimate = 2. * CL
-    airspeed_max_estimate = options['params']['model_bounds']['airspeed_limits'][1]
-    circulation_max_estimate = 0.5 * airspeed_max_estimate * CL_max_estimate * c_ref
-    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
-
-
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
 
-    print_op.warn_about_temporary_funcationality_removal(location='opts.model_funcs.is_this_necesary?')
+    print_op.warn_about_temporary_functionality_removal(location='opts.model_funcs.is_this_necesary?')
 
     rings = wake_nodes
 
@@ -684,81 +677,21 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
-    filaments = wake_nodes * 3 * len(architecture.kite_nodes)
-    wingtips = ['ext', 'int']
-
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
+    circulation_max_estimate = 5. * gamma_scale
+    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
+
     for kite in architecture.kite_nodes:
-        for ring in range(rings):
-            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
-            options_tree.append(('model', 'scaling', 'xl', gamma_name, gamma_scale, ('descript', None), 'x'))
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
+        options_tree.append(('model', 'scaling', 'xd', 'integrated_circulation' + str(kite), gamma_scale, ('????', None), 'x')),
 
-
-    u_ref = get_u_ref(options['user_options'])
-    # vortex_position_scale = 2. * u_ref
-    vortex_position_scale = 1.
-    for kite in architecture.kite_nodes:
-        for wake_node in range(wake_nodes):
-            for tip in wingtips:
-                coord_name = 'wx_' + str(kite) + '_' + tip + '_' + str(wake_node)
-                options_tree.append(('model', 'scaling', 'xd', coord_name, vortex_position_scale, ('descript', None), 'x'))
-                options_tree.append(('model', 'scaling', 'xd', 'd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
-                options_tree.append(('model', 'scaling', 'xd', 'dd' + coord_name, vortex_position_scale, ('descript', None), 'x'))
-
-    if far_wake_model == 'pathwise_filament':
-        for kite in architecture.kite_nodes:
-            for tip in wingtips:
-                far_wake_name = 'wu_farwake_' + str(kite) + '_' + tip
-                options_tree.append(('model', 'scaling', 'xl', far_wake_name, u_ref, ('descript', None), 'x'))
-
-    if ('cylinder' in far_wake_model) and (architecture.number_of_kites == 1):
-        message = 'the cylindrical far_wake_model performs poorly with only one kite. we recommend switching to a filament far_wake_model'
-        awelogger.logger.warning(message)
-
-    wx_center_scaling = vortex_position_scale
-    if 'cylinder' in far_wake_model:
-        for kite in architecture.kite_nodes:
-            wx_center_name = 'wx_center_' + str(kite)
-            options_tree.append(('model', 'scaling', 'xl', wx_center_name, wx_center_scaling, ('descript', None), 'x'))
-
-            for tip in wingtips:
-                w_radius_name = 'wr_' + str(kite) + '_' + tip
-                w_pitch_name = 'wh_' + str(kite) + '_' + tip
-                options_tree.append(('model', 'system_bounds', 'xl', w_radius_name, [0., cas.inf], ('???', None), 'x'))
-                options_tree.append(('model', 'system_bounds', 'xl', w_pitch_name, [0., cas.inf], ('???', None), 'x'))
-
-                options_tree.append(('model', 'scaling', 'xl', w_radius_name, b_ref, ('descript', None), 'x'))
-                options_tree.append(('model', 'scaling', 'xl', w_pitch_name, 10., ('descript', None), 'x'))
-
+    options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture)
 
     a_ref = options['model']['aero']['actuator']['a_ref']
+    u_ref = get_u_ref(options['user_options'])
     u_ind = a_ref * u_ref
 
     clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
-
-    number_near_filaments = vortex_near_wake.expected_number_of_filaments(options, architecture)
-    number_far_filaments = vortex_far_wake.expected_number_of_filaments(options, architecture)
-    number_dimensional_cylinders = vortex_far_wake.expected_number_of_directional_cylinders(options, architecture)
-    for kite_obs in architecture.kite_nodes:
-        for fdx in range(number_near_filaments):
-            ind_name = 'wu_near_fil_' + str(fdx) + '_' + str(kite_obs)
-            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
-
-        for fdx in range(number_far_filaments):
-            ind_name = 'wu_far_fil_' + str(fdx) + '_' + str(kite_obs)
-            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
-
-        for fdx in range(number_dimensional_cylinders):
-            ind_name = 'wu_tan_cyl_' + str(fdx) + '_' + str(kite_obs)
-            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
-
-            ind_name = 'wu_long_cyl_' + str(fdx) + '_' + str(kite_obs)
-            options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
-
-        ind_name = 'wu_ind_' + str(kite_obs)
-        options_tree.append(('model', 'scaling', 'xl', ind_name, u_ind, ('descript', None), 'x'))
 
     options_tree.append(('model', 'scaling', 'xl', 'ui', u_ind, ('descript', None), 'x'))
 

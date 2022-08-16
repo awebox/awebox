@@ -34,10 +34,7 @@ import pdb
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
-import awebox.mdl.aero.induction_dir.vortex_dir.bound_wake as vortex_bound_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.near_wake as vortex_near_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
-import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as vortex_alg_structure
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
@@ -220,17 +217,7 @@ def extend_general_induction(options, system_lifted, system_states, architecture
     return system_lifted, system_states
 
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
-
-    vortex_representation = options['aero']['vortex']['representation']
-    if vortex_representation == 'alg':
-        system_lifted, system_states = vortex_alg_structure.extend_system_variables(options, system_lifted, system_states, architecture)
-    elif vortex_representation == 'state':
-        print_op.warn_about_temporary_funcationality_removal(location='mdl.system.vortex_induction')
-    else:
-        message = 'specified vortex representation ' + vortex_representation + ' is not allowed'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+    system_lifted, system_states = vortex_tools.extend_system_variables(options, system_lifted, system_states, architecture)
     return system_lifted, system_states
 
 def extend_actuator_induction(options, system_lifted, system_states, architecture):

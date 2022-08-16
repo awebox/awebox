@@ -27,26 +27,29 @@ vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-21
 '''
+import pdb
 
 import casadi.tools as cas
 
-import awebox.mdl.aero.induction_dir.vortex_dir.convection as convection
-import awebox.mdl.aero.induction_dir.vortex_dir.flow as flow
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as tools
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as vortex_element
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as vortex_element_list
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as vortex_finite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as vortex_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as vortex_semi_infinite_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as vortex_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as vortex_semi_infinite_longitudinal_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as vortex_wake
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.mdl.aero.induction_dir.general_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_fin_fil
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_si_fil
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_si_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_si_tan_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_si_long_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as obj_wake
 
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.algebraic_representation as algebraic_representation
+import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.state_representation as state_representation
 
-import awebox.mdl.aero.induction_dir.vortex_dir.far_wake as vortex_far_wake
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.ocp.ocp_constraint as ocp_constraint
@@ -57,102 +60,119 @@ from awebox.logger.logger import Logger as awelogger
 import numpy as np
 
 
-def build(options, architecture, wind, variables_si, parameters):
+def build(model_options, architecture, wind, variables_si, parameters):
 
-    tools.check_positive_vortex_wake_nodes(options)
+    vortex_tools.check_positive_vortex_wake_nodes(model_options)
 
-    vortex_representation = tools.get_option_from_possible_dicts(options, 'representation')
+    vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'alg':
-        return algebraic_representation.build(options, architecture, wind, variables_si, parameters)
+        return algebraic_representation.build(model_options, architecture, wind, variables_si, parameters)
     elif vortex_representation == 'state':
-        return state_representation.build(options, architecture, wind, variables_si, parameters)
+        print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+        return state_representation.build(model_options, architecture, wind, variables_si, parameters)
     else:
-        log_and_raise_unknown_representation_error(vortex_representation)
+        vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
     return None
 
-def get_model_constraints(options, wake_dict, wind, variables_si, architecture):
 
-    if tools.vortices_are_modelled(options):
+def get_model_constraints(model_options, wake, wind, variables_si, architecture):
 
-        vortex_representation = tools.get_option_from_possible_dicts(options, 'representation')
-        if vortex_representation == 'alg':
-            return algebraic_representation.get_model_constraints(wake_dict, wind, variables_si, architecture)
-        elif vortex_representation == 'state':
-            return state_representation.get_model_constraints(wake_dict, wind, variables_si, architecture)
-        else:
-            log_and_raise_unknown_representation_error(vortex_representation)
-
-    return None
-
-def get_ocp_constraints(nlp_options, V, Outputs, model, time_grids):
-
-    ocp_cstr_list = ocp_constraint.OcpConstraintList()
-
-    if tools.vortices_are_modelled(nlp_options):
-        vortex_representation = tools.get_option_from_possible_dicts(nlp_options, 'representation')
-        if vortex_representation == 'alg':
-            return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
-        elif vortex_representation == 'state':
-            return state_representation.get_ocp_constraints(nlp_options, V, Outputs, model, time_grids)
-        else:
-            log_and_raise_unknown_representation_error(vortex_representation)
-
-    return ocp_cstr_list
-
-
-def log_and_raise_unknown_representation_error(vortex_representation):
-    message = 'vortex representation (' + vortex_representation + ') is not recognized'
-    awelogger.logger.error(message)
-    raise Exception(message)
-    return None
-
-def get_vortex_cstr(options, wind, variables_si, parameters, objects, architecture):
-
-    vortex_representation = options['aero']['vortex']['representation']
     cstr_list = cstr_op.ConstraintList()
 
-    if vortex_representation == 'state':
-        state_conv_cstr = convection.get_state_repr_convection_cstr(options, wind, variables_si, architecture)
-        cstr_list.append(state_conv_cstr)
-
-    superposition_cstr = flow.get_superposition_cstr(options, wind, variables_si, objects, architecture)
+    superposition_cstr = get_superposition_cstr(wake, wind, variables_si, architecture)
     cstr_list.append(superposition_cstr)
 
-    vortex_far_wake_model = options['aero']['vortex']['far_wake_model']
-    if ('cylinder' in vortex_far_wake_model):
-        radius_cstr = vortex_far_wake.get_cylinder_radius_cstr(options, wind, variables_si, parameters, architecture)
-        cstr_list.append(radius_cstr)
+    biot_savart_cstr = get_biot_savart_cstr(wake, wind, variables_si, architecture)
+    cstr_list.append(biot_savart_cstr)
+
+    vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
+    if vortex_representation == 'state':
+        print_op.warn_about_temporary_functionality_removal(location='vortex.model_constraints:state_convection_resi')
 
     return cstr_list
 
+def get_superposition_cstr(wake, wind, variables_si, architecture):
 
-def test():
+    cstr_list = cstr_op.ConstraintList()
 
-    vect_op.test_altitude()
+    u_ref = wind.get_speed_ref()
 
-    vortex_element.test()
-    vortex_element_list.test()
+    for kite_obs in architecture.kite_nodes:
+        vec_u_superposition = vortex_tools.superpose_induced_velocities_at_kite(wake, variables_si, kite_obs)
 
-    vortex_finite_filament.test()
-    vortex_semi_infinite_filament.test()
-    vortex_semi_infinite_cylinder.test()
-    vortex_semi_infinite_tangential_cylinder.test()
-    vortex_semi_infinite_longitudinal_cylinder.test()
+        vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
 
-    vortex_wake.test()
+        resi = (vec_u_ind - vec_u_superposition) / u_ref
 
-    # freestream_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'freestream_filament')
-    # flow.test(freestream_filament_far_wake_test_list)
-    # pathwise_filament_far_wake_test_list = vortex_filament_list.test(far_wake_model = 'pathwise_filament')
-    # flow.test(pathwise_filament_far_wake_test_list)
+        local_cstr = cstr_op.Constraint(expr=resi,
+                                        name='superposition_' + str(kite_obs),
+                                        cstr_type='eq')
+        cstr_list.append(local_cstr)
 
-    return None
+    return cstr_list
 
-def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, vortex_objects, parameters, architecture):
+def get_biot_savart_cstr(wake, wind, variables_si, architecture):
+
+    cstr_list = cstr_op.ConstraintList()
+
+    for substructure_type in wake.get_initialized_substructure_types():
+        for kite_obs in architecture.kite_nodes:
+            resi = wake.get_substructure(substructure_type).construct_biot_savart_at_kite_residuals(wind, variables_si, kite_obs,
+                                                                                                    architecture.parent_map[kite_obs])
+
+            local_cstr = cstr_op.Constraint(expr=resi,
+                                            name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
+                                            cstr_type='eq')
+            cstr_list.append(local_cstr)
+
+    return cstr_list
+
+def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
+
+    ocp_cstr_list = ocp_constraint.OcpConstraintList()
+
+    if model_is_included_in_comparison(nlp_options):
+        vortex_representation = general_tools.get_option_from_possible_dicts(nlp_options, 'representation', 'vortex')
+        if vortex_representation == 'alg':
+            return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
+        elif vortex_representation == 'state':
+            print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+            return state_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
+        else:
+            vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
+
+    return ocp_cstr_list
+
+def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
+
+    if model_is_included_in_comparison(nlp_options):
+        vortex_representation = general_tools.get_option_from_possible_dicts(nlp_options, 'representation', 'vortex')
+
+        if vortex_representation == 'alg':
+            return algebraic_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
+        elif vortex_representation == 'state':
+            print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+            return state_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
+        else:
+            vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
+
+    return V_init
+
+def get_induced_velocity_at_kite_si(variables_si, kite_obs):
+    return vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
+
+def model_is_included_in_comparison(options):
+    comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'vortex')
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    return any_vor
+
+def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, parameters, architecture):
 
     # break early and loud if there are problems
-    test()
+    test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
+    test(test_includes_visualization)
+    # then do what we came here to do: build the wake
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
@@ -162,23 +182,25 @@ def collect_vortex_outputs(model_options, atmos, wind, variables_si, outputs, vo
 
         parent_obs = architecture.parent_map[kite_obs]
 
-        u_ind = flow.get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs)
-
+        vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
         n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, parameters, architecture)
-        local_a = flow.get_induction_factor_at_kite(model_options, wind, variables_si, vortex_objects, architecture, kite_obs, n_hat=n_hat)
+        u_normalizing = vortex_tools.get_induction_factor_normalizing_speed(model_options, wind, kite_obs, parent_obs, variables_si, architecture)
+        u_ind = vect_op.norm(vec_u_ind)
 
-        far_wake_u_ind = flow.get_induced_velocity_at_kite(variables_si, vortex_objects, kite_obs, selection='far_wake')
-        far_wake_u_ind_norm = vect_op.norm(far_wake_u_ind)
-        far_wake_u_ind_norm_over_ref = far_wake_u_ind_norm / wind.get_speed_ref()
+        local_a = general_flow.compute_induction_factor(vec_u_ind, n_hat, u_normalizing)
 
-        est_truncation_error = (far_wake_u_ind_norm) / vect_op.norm(u_ind)
+        vec_u_ind_from_far_wake = vortex_tools.superpose_induced_velocities_at_kite(wake, variables_si, kite_obs, substructure_types = ['far'])
+        u_ind_from_far_wake = vect_op.norm(vec_u_ind_from_far_wake)
+        u_ind_from_far_wake_over_u_ref = u_ind_from_far_wake / wind.get_speed_ref()
+
+        est_truncation_error = u_ind_from_far_wake / u_ind
 
         outputs['vortex']['u_ind' + str(kite_obs)] = u_ind
         outputs['vortex']['u_ind_norm' + str(kite_obs)] = vect_op.norm(u_ind)
         outputs['vortex']['local_a' + str(kite_obs)] = local_a
 
-        outputs['vortex']['far_wake_u_ind' + str(kite_obs)] = far_wake_u_ind
-        outputs['vortex']['far_wake_u_ind_norm_over_ref' + str(kite_obs)] = far_wake_u_ind_norm_over_ref
+        outputs['vortex']['u_ind_from_far_wake' + str(kite_obs)] = u_ind_from_far_wake
+        outputs['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite_obs)] = u_ind_from_far_wake_over_u_ref
 
         outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
 
@@ -190,7 +212,7 @@ def compute_global_performance(power_and_performance, plot_dict):
 
     max_est_trunc_list = []
     max_est_discr_list = []
-    far_wake_u_ind_norm_over_ref_list = []
+    max_u_ind_from_far_wake_over_u_ref_list = []
 
     all_local_a = None
 
@@ -211,8 +233,8 @@ def compute_global_performance(power_and_performance, plot_dict):
         local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
         max_est_discr_list += [local_max_est_discr]
 
-        local_far_wake_u_ind_norm_over_ref = np.max(np.array(plot_dict['outputs']['vortex']['far_wake_u_ind_norm_over_ref' + str(kite)]))
-        far_wake_u_ind_norm_over_ref_list += [local_far_wake_u_ind_norm_over_ref]
+        local_max_u_ind_from_far_wake_over_u_ref = np.max(np.array(plot_dict['outputs']['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite)]))
+        max_u_ind_from_far_wake_over_u_ref_list += [local_max_u_ind_from_far_wake_over_u_ref]
 
     average_local_a = np.average(all_local_a)
     power_and_performance['vortex_average_local_a'] = average_local_a
@@ -220,8 +242,8 @@ def compute_global_performance(power_and_performance, plot_dict):
     stdev_local_a = np.std(all_local_a)
     power_and_performance['vortex_stdev_local_a'] = stdev_local_a
 
-    max_far_wake_u_ind_norm_over_ref = np.max(np.array(far_wake_u_ind_norm_over_ref_list))
-    power_and_performance['vortex_max_far_wake_u_ind_norm_over_ref'] = max_far_wake_u_ind_norm_over_ref
+    max_u_ind_from_far_wake_over_u_ref = np.max(np.array(max_u_ind_from_far_wake_over_u_ref_list))
+    power_and_performance['vortex_max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref
 
     max_est_trunc = np.max(np.array(max_est_trunc_list))
     power_and_performance['vortex_max_est_truncation_error'] = max_est_trunc
@@ -230,5 +252,69 @@ def compute_global_performance(power_and_performance, plot_dict):
     power_and_performance['vortex_max_est_discretization_error'] = max_est_discr
 
     return power_and_performance
+
+
+def get_derivative_dict_for_alongside_integration(outputs, architecture):
+    derivative_dict = {}
+
+    for kite in architecture.kite_nodes:
+        local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
+        derivative_dict['integrated_circulation' + str(kite)] = local_circulation
+
+    return derivative_dict
+
+def test_that_model_constraint_residuals_have_correct_shape():
+
+    options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures()
+    wake = build(options, architecture, wind, var_struct, param_struct)
+
+    total_number_of_elements = vortex_tools.get_total_number_of_vortex_elements(options, architecture)
+    number_of_observers = architecture.number_of_kites
+    dimension_of_velocity = 3
+
+    variables_si = var_struct
+
+    superposition_cstr = get_superposition_cstr(wake, wind, variables_si, architecture)
+    found_superposition_shape = superposition_cstr.get_expression_list('all').shape
+    expected_superposition_shape = (number_of_observers * dimension_of_velocity, 1)
+    cond1 = (found_superposition_shape == expected_superposition_shape)
+
+    biot_savart_cstr = get_biot_savart_cstr(wake, wind, variables_si, architecture)
+    found_biot_savart_shape = biot_savart_cstr.get_expression_list('all').shape
+    expected_biot_savart_shape = (total_number_of_elements * number_of_observers * dimension_of_velocity, 1)
+    cond2 = (found_biot_savart_shape == expected_biot_savart_shape)
+
+    criteria = cond1 and cond2
+    if not criteria:
+        message = 'an incorrect number of induction residuals have been defined for the algebraic-representation vortex wake'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+
+def test(test_includes_visualization=False):
+
+    vect_op.test_altitude()
+    vect_op.test_elliptic_k()
+    vect_op.test_elliptic_e()
+    vect_op.test_elliptic_pi()
+
+    obj_element.test()
+    obj_element_list.test()
+
+    obj_fin_fil.test(test_includes_visualization)
+    obj_si_fil.test(test_includes_visualization)
+    obj_si_cyl.test()
+    obj_si_tan_cyl.test(test_includes_visualization)
+    obj_si_long_cyl.test(test_includes_visualization)
+
+    obj_wake_substructure.test()
+    obj_wake.test()
+
+    algebraic_representation.test(test_includes_visualization)
+    state_representation.test(test_includes_visualization)
+
+    test_that_model_constraint_residuals_have_correct_shape()
+
+    return None
 
 # test()

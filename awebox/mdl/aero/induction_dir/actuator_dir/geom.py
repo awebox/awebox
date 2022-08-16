@@ -38,9 +38,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.general_dir.path_based_geom as path_based_geom
+import awebox.mdl.aero.induction_dir.general_dir.multi_kite_geom as multi_kite_geom
+import awebox.mdl.aero.induction_dir.general_dir.unit_normal as unit_normal
 
 # switches
 

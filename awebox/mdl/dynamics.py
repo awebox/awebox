@@ -28,6 +28,7 @@ that generates the dynamics residual
 python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -38,17 +39,15 @@ from collections import OrderedDict
 
 from . import system
 
-import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
-import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
-
-import awebox.mdl.aero.induction_dir.induction as induction
-import awebox.mdl.aero.induction_dir.vortex_dir.convection as vortex_convection
-import awebox.mdl.aero.indicators as indicators
-
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
+
+import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
+import awebox.mdl.aero.induction_dir.induction as induction
+
+import awebox.mdl.mdl_constraint as mdl_constraint
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -88,12 +87,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
 
-    vortex_objects = {}
-    if not (options['induction_model'] == 'not_in_use'):
-        vortex_objects = induction.construct_objects(options, system_variables, parameters, architecture, wind)
+    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables['SI'], parameters)
 
     # enforce the lagrangian dynamics
-    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, vortex_objects)
+    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake)
     cstr_list.append(lagr_dyn_cstr)
 
     # enforce lifted aerodynamic force <-- this must happen after lagr_dyn.get_dynamics, which determines the kite indicators
@@ -108,16 +105,24 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     # induction constraint
     if not (options['induction_model'] == 'not_in_use'):
-        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture, vortex_objects)
+        induction_cstr = induction.get_model_constraints(options, wake, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
     power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
-    integral_outputs_fun, integral_outputs_struct, integral_scaling, energy_cstr = manage_power_integration(options,
-                                                                                                                power,
+    derivative_dict_for_alongside_integration = {'e': power}
+
+    print_op.warn_about_temporary_functionality_removal(location='dynamics.ugly_code')
+    derivative_of_integrated_circulation_dict = induction.get_derivative_dict_for_alongside_integration(options, outputs, architecture)
+    for local_key, local_val in derivative_of_integrated_circulation_dict.items():
+        if not local_key in derivative_dict_for_alongside_integration.keys():
+            derivative_dict_for_alongside_integration[local_key] = local_val
+
+    integral_outputs_fun, integral_outputs_struct, integral_scaling, alongside_integration_cstr = manage_alongside_integration(options,
+                                                                                                                derivative_dict_for_alongside_integration,
                                                                                                                 system_variables,
                                                                                                                 parameters)
-    cstr_list.append(energy_cstr)
+    cstr_list.append(alongside_integration_cstr)
 
 
     # --------------------------------------------
@@ -196,7 +201,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         integral_outputs_struct,
         integral_outputs_fun,
         integral_scaling,
-        vortex_objects
+        wake
     ]
 
 
@@ -211,29 +216,7 @@ def check_that_all_xddot_vars_are_represented_in_dynamics(cstr_list, variables_d
 
     return None
 
-def manage_power_integration(options, power, system_variables, parameters):
-
-    cstr_list = mdl_constraint.MdlConstraintList()
-
-    # generate empty integral_outputs struct
-    integral_outputs = cas.struct_SX([])
-    integral_outputs_struct = cas.struct_symSX([])
-
-    integral_scaling = {}
-
-    if options['integral_outputs']:
-        integral_outputs = cas.struct_SX([cas.entry('e', expr=power / options['scaling']['xd']['e'])])
-        integral_outputs_struct = cas.struct_symSX([cas.entry('e')])
-
-        integral_scaling['e'] = options['scaling']['xd']['e']
-
-    else:
-        energy_resi = (system_variables['SI']['xddot']['de'] - power) / options['scaling']['xd']['e']
-
-        energy_cstr = cstr_op.Constraint(expr=energy_resi,
-                                       name='energy',
-                                       cstr_type='eq')
-        cstr_list.append(energy_cstr)
+def manage_alongside_integration(options, derivative_dict_for_alongside_integration, system_variables, parameters):
 
     # dynamics function options
     if options['jit_code_gen']['include']:
@@ -241,6 +224,39 @@ def manage_power_integration(options, power, system_variables, parameters):
     else:
         opts = {}
 
+    # generate empty integral_outputs struct
+    integral_outputs = cas.struct_SX([])
+    integral_scaling = {}
+    integral_outputs_expr_entries = []
+    integral_outputs_struct_entries = []
+    cstr_list = mdl_constraint.MdlConstraintList()
+
+    for integral_var_name, integral_derivative_expression_si in derivative_dict_for_alongside_integration.items():
+        # for example, integral_var_scaled = 'e' with integral_derivative_expression = power / options['scaling']['xd']['e']
+
+        local_scaling = options['scaling']['xd'][integral_var_name]
+        local_expression_scaled = integral_derivative_expression_si / local_scaling
+
+        if options['integral_outputs']:
+
+            local_expr = integral_derivative_expression_si
+            integral_outputs_expr_entries += [cas.entry(integral_var_name, expr=local_expr)]
+
+            local_shape = integral_derivative_expression_si.shape
+            integral_outputs_struct_entries += [cas.entry(integral_var_name, shape=local_shape)]
+
+            integral_scaling[integral_var_name] = local_scaling
+
+        else:
+            local_resi = (system_variables['scaled']['xddot']['d' + integral_var_name] - local_expression_scaled)
+
+            local_cstr = cstr_op.Constraint(expr=local_resi,
+                                           name='integral_' + integral_var_name,
+                                           cstr_type='eq')
+            cstr_list.append(local_cstr)
+
+    integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
+    integral_outputs_struct = cas.struct_symSX(integral_outputs_struct_entries)
     integral_outputs_fun = cas.Function('integral_outputs', [system_variables['scaled'], parameters],
                                         [integral_outputs], opts)
 

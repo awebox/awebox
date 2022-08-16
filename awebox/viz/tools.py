@@ -34,7 +34,6 @@ import matplotlib.cm as cmx
 import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.tools.print_operations as print_op
 
 def get_naca_airfoil_coordinates(s, m, p, t):
@@ -757,7 +756,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
     plot_dict['variable_bounds'] = model.variable_bounds
-    plot_dict['vortex_objects_dir'] = model.vortex_objects
+    plot_dict['wake'] = model.wake
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']

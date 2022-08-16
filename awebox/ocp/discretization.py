@@ -41,6 +41,8 @@ import awebox.ocp.var_struct as var_struct
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+import pdb as pdb
+
 def construct_time_grids(nlp_options):
 
     time_grids = {}
@@ -335,7 +337,7 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs, time_grids)
+            ms_vars, ms_params, Outputs, Integral_outputs, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
 

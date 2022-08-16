@@ -31,7 +31,6 @@ import copy
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element

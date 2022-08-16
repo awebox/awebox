@@ -40,14 +40,20 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
-import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 
-def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs, architecture):
+def model_is_included_in_comparison(options):
+    comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'actuator')
+    any_vor = any(label[:3] == 'act' for label in comparison_labels)
+    return any_vor
+
+def get_model_constraints(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
