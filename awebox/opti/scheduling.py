@@ -154,10 +154,11 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
     updates = {}
 
     initial_updates = {}
+    initial_updates[0] = struct_op.subkeys(model.variables, 'theta') * 2
     if 'ddl_t' in list(model.variables_dict['u'].keys()):
-        initial_updates[0] = ['ddl_t', 'ddl_t'] + struct_op.subkeys(model.variables, 'theta') * 2
+        initial_updates[0] += ['ddl_t', 'ddl_t'] 
     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-        initial_updates[0] = ['dddl_t', 'dddl_t'] + struct_op.subkeys(model.variables, 'theta') * 2
+        initial_updates[0] += ['dddl_t', 'dddl_t']
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma']
@@ -184,11 +185,12 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
     power_updates = {}
     # check which tether length variable is a control variable
     power_updates[0] = ['psi']
-    # check if phase fix
-    if 'dl_t' in list(bounds_schedule.keys()):
-        power_updates[0] += ['dl_t']*2
-    if 'l_t' in list(bounds_schedule.keys()):
-        power_updates[0] += ['l_t']*2
+    # check if phase fix and lift-mode
+    if 'l_t' in list(model.variables_dict['x'].keys()):
+        if 'dl_t' in list(bounds_schedule.keys()):
+            power_updates[0] += ['dl_t']*2
+        if 'l_t' in list(bounds_schedule.keys()):
+            power_updates[0] += ['l_t']*2
 
     power_updates[1] = ['psi']
 
@@ -397,7 +399,7 @@ def create_empty_bound_update_schedule(model, nlp, formulation):
         bound_schedule['ddl_t'] = {}
     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
         bound_schedule['dddl_t'] = {}
-    # check if phase fix
+    # check if single_reelout phase fix
     if nlp.V['theta','t_f'].shape[0] > 1:
         bound_schedule['dl_t'] = {}
         bound_schedule['l_t'] = {}
@@ -431,12 +433,18 @@ def define_bound_update_schedule(model, nlp, formulation):
     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
         bound_schedule['dddl_t'][1] = ['lb', 'u', 'final']
         bound_schedule['dddl_t'][2] = ['ub', 'u', 'final']
-    if 'dl_t' in list(bound_schedule.keys()):
-        bound_schedule['dl_t'][1] = ['lb','x','final']
-        bound_schedule['dl_t'][2] = ['ub','x','final']
-    if 'l_t' in list(bound_schedule.keys()):
-        bound_schedule['l_t'][1] = ['lb','x','final']
-        bound_schedule['l_t'][2] = ['ub','x','final']
+
+    if 'l_t' in list(model.variables_dict['x'].keys()):
+        if 'dl_t' in list(bound_schedule.keys()):
+            bound_schedule['dl_t'][1] = ['lb','x','final']
+            bound_schedule['dl_t'][2] = ['ub','x','final']
+        if 'l_t' in list(bound_schedule.keys()):
+            bound_schedule['l_t'][1] = ['lb','x','final']
+            bound_schedule['l_t'][2] = ['ub','x','final']
+    else:
+        if 'l_t' in list(bound_schedule.keys()):
+            bound_schedule['l_t'][1] = ['lb','theta','final']
+            bound_schedule['l_t'][2] = ['ub','theta','final']
 
     return bound_schedule
 

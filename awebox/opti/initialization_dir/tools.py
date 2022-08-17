@@ -206,7 +206,11 @@ def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
 
-    l_t = init_options['x']['l_t']
+    if 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    else:
+        l_t = init_options['theta']['l_t']
+
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
@@ -217,7 +221,10 @@ def find_airspeed(init_options, groundspeed, psi):
     return airspeed
 
 def get_wind_speed(init_options, zz):
-    l_t = init_options['x']['l_t']
+    if 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    else:
+        l_t = init_options['theta']['l_t']
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 

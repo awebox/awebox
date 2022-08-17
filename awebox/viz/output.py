@@ -108,18 +108,11 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                 for kite in kite_nodes:
                     data = np.array(outputs[opt[0]][base_name + str(kite)][0])
                     local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-
-                    if number_of_opts == 1:
-                        axes.plot(tgrid_ip, data, color=local_color)
-                    else:
-                        axes[odx].plot(tgrid_ip, data, color=local_color)
+                    axes[odx].plot(tgrid_ip, data, color=local_color)
 
             if (epigraph is not None) and (isinstance(epigraph, float)):
 
-                if number_of_opts == 1:
-                    axes.axhline(y=epigraph, color='gray', linestyle='--')
-                else:
-                    axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
+                axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
 
             if 't_switch' in plot_dict['time_grids'].keys():
                 t_switch = float(plot_dict['time_grids']['t_switch'])

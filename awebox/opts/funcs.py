@@ -145,6 +145,9 @@ def share_trajectory_type(options, options_tree=[]):
     if trajectory_type in ['transition','launch']:
         options_tree.append(('formulation', 'trajectory', 'transition', 'terminal_trajectory', user_options['trajectory']['transition']['terminal_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
 
+    if system_type == 'drag_mode':
+        options_tree.append(('model', 'system_bounds', 'theta', 'l_t', options['model']['system_bounds']['x']['l_t'], ('user input for maximum main tether length', None),'x'))
+
     return options_tree
 
 
@@ -265,8 +268,10 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
-    options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
-
+    if user_options['trajectory']['system_type'] == 'lift_mode':
+        options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+    else:
+        options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']

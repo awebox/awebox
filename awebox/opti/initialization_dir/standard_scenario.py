@@ -71,7 +71,11 @@ def guess_values_at_time(t, init_options, model):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    ret['l_t'] = init_options['x']['l_t']
+    if 'l_t' in init_options['x'].keys():
+        ret['l_t'] = init_options['x']['l_t']
+    else:
+        ret['l_t'] = init_options['theta']['l_t']
+
     ret['dl_t'] = 0.0
 
     number_of_nodes = model.architecture.number_of_nodes
@@ -188,7 +192,10 @@ def precompute_path_parameters(init_options, model):
 def set_fixed_hypotenuse(init_options, model):
     number_kites = model.architecture.number_of_kites
     if number_kites == 1:
-        hypotenuse = init_options['x']['l_t']
+        if 'l_t' in init_options['x'].keys():
+            hypotenuse = init_options['x']['l_t']
+        else:
+            hypotenuse = init_options['theta']['l_t']
     else:
         hypotenuse = init_options['theta']['l_s']
 
