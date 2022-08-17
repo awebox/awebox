@@ -251,6 +251,8 @@ def generate_optimal_model(trial, param_options = None):
 
                 else:
                     parameters['theta0',param_type,param] = param_options[param_type][param]
+        else:
+            parameters['theta0', param_type] = param_options[param_type]
 
     # create stage cost function
     import awebox.ocp.objective as obj
