@@ -239,7 +239,10 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
         if node == 1:
             previous_node = cas.DM.zeros((3, 1))
-            segment_length = x_si['l_t']
+            if 'l_t' in x_si.keys():
+                segment_length = x_si['l_t']
+            else:
+                segment_length = theta_si['l_t']
         elif node in kite_nodes:
             grandparent = parent_map[parent]
             previous_node = x_si['q' + str(parent) + str(grandparent)]
