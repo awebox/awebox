@@ -206,22 +206,22 @@ def test_correct_finite_filaments_defined():
 
     return None
 
-def test_finite_filament_drawing():
-    plt.close('all')
+def test_finite_filament_drawing(test_includes_visualization=False):
+    if test_includes_visualization:
 
-    options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object()
-    near_wake = build(options, architecture, variables_si, parameters)
+        options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object()
+        near_wake = build(options, architecture, variables_si, parameters)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    near_wake.draw(ax, 'isometric')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        near_wake.draw(ax, 'isometric')
 
-    # plt.show()
+        plt.show()
 
     return None
 
-def test():
-    test_finite_filament_drawing()
+def test(test_includes_visualization=False):
+    test_finite_filament_drawing(test_includes_visualization)
     test_correct_finite_filaments_defined()
 
 # test()

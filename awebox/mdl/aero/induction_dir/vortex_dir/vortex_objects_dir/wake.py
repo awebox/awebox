@@ -145,6 +145,12 @@ class Wake:
 
         return None
 
+    def define_model_variables_to_info_functions(self, model_variables, model_parameters):
+        initialized = self.get_initialized_substructure_types()
+        for substructure_type in initialized:
+            self.get_substructure(substructure_type).define_model_variables_to_info_functions(model_variables, model_parameters)
+        return None
+
 def test():
     return None
 

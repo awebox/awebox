@@ -82,6 +82,12 @@ class WakeSubstructure:
 
         return None
 
+    def define_model_variables_to_info_functions(self, model_variables, model_parameters):
+        initalized_types = self.get_initialized_element_types()
+        for element_type in initalized_types:
+            self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
+        return None
+
     def construct_biot_savart_at_kite_residuals(self, wind, variables_si, kite_obs, parent_obs):
         resi = []
         for elem_type in self.get_initialized_element_types():

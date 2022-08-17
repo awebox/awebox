@@ -99,10 +99,10 @@ def test_drawing(test_includes_visualization):
 
     return None
 
-def test(test_includes_visualization):
-    alg_bound_wake.test()
-    alg_near_wake.test()
-    alg_far_wake.test()
+def test(test_includes_visualization=False):
+    alg_bound_wake.test(test_includes_visualization)
+    alg_near_wake.test(test_includes_visualization)
+    alg_far_wake.test(test_includes_visualization)
     test_drawing(test_includes_visualization)
 
     return None

@@ -247,18 +247,18 @@ def test_correct_finite_filaments_defined():
 
     return None
 
-def test_finite_filament_drawing():
-    plt.close('all')
+def test_finite_filament_drawing(test_includes_visualization=False):
+    if test_includes_visualization:
 
-    test_type = 'finite_filament'
-    options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object(test_type)
-    far_wake = build(options, architecture, wind, variables_si, parameters)
+        test_type = 'finite_filament'
+        options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object(test_type)
+        far_wake = build(options, architecture, wind, variables_si, parameters)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    far_wake.draw(ax, 'isometric')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        far_wake.draw(ax, 'isometric')
 
-    # plt.show()
+        plt.show()
 
     return None
 
@@ -303,33 +303,32 @@ def test_correct_semi_infinite_filaments_defined():
     return None
 
 
-def test_semi_infinite_filament_drawing():
-    plt.close('all')
+def test_semi_infinite_filament_drawing(test_includes_visualization=False):
+    if test_includes_visualization:
+        test_type = 'semi_infinite_filament'
+        options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object(test_type)
+        far_wake = build(options, architecture, wind, variables_si, parameters)
 
-    test_type = 'semi_infinite_filament'
-    options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object(test_type)
-    far_wake = build(options, architecture, wind, variables_si, parameters)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        far_wake.draw(ax, 'isometric')
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    far_wake.draw(ax, 'isometric')
-
-    # plt.show()
+        plt.show()
 
     return None
 
-def test_semi_infinite_cylinder_drawing():
-    plt.close('all')
+def test_semi_infinite_cylinder_drawing(test_includes_visualization=False):
+    if test_includes_visualization:
 
-    test_type = 'semi_infinite_cylinder'
-    options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_circular_flight_test_object(test_type)
-    far_wake = build(options, architecture, wind, variables_si, parameters)
+        test_type = 'semi_infinite_cylinder'
+        options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_circular_flight_test_object(test_type)
+        far_wake = build(options, architecture, wind, variables_si, parameters)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    far_wake.draw(ax, 'isometric')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        far_wake.draw(ax, 'isometric')
 
-    # plt.show()
+        plt.show()
 
     return None
 
@@ -405,14 +404,14 @@ def test_correct_semi_infinite_cylinders_defined():
 
     return None
 
-def test():
-    test_finite_filament_drawing()
+def test(test_includes_visualization=False):
+    test_finite_filament_drawing(test_includes_visualization)
     test_correct_finite_filaments_defined()
 
-    test_semi_infinite_filament_drawing()
+    test_semi_infinite_filament_drawing(test_includes_visualization)
     test_correct_semi_infinite_filaments_defined()
 
-    test_semi_infinite_cylinder_drawing()
+    test_semi_infinite_cylinder_drawing(test_includes_visualization)
     test_correct_semi_infinite_cylinders_defined()
 
 # test()

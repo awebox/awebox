@@ -613,10 +613,12 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
     u_ref = get_u_ref(options['user_options'])
     vortex_u_ref = u_ref
+    vec_u_ref = u_ref * vect_op.xhat_np()
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
     options_tree.append(('model', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_vec_u_ref', vec_u_ref, ('???? of trajectories in animation', None), 'x')),
 
     far_wake_convection_time = options['model']['aero']['vortex']['far_wake_convection_time']
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),

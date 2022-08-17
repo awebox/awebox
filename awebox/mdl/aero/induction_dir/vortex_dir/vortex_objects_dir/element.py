@@ -177,8 +177,8 @@ class Element:
         awelogger.logger.error(message)
         raise Exception(message)
 
-    def define_model_variables_to_info_function(self, variables_scaled, parameters):
-        info_fun = cas.Function('info_fun', [variables_scaled, parameters], [self.__info])
+    def define_model_variables_to_info_function(self, model_variables, model_parameters):
+        info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
         self.set_info_fun(info_fun)
 
         return None
@@ -199,6 +199,7 @@ class Element:
         cosmetics['trajectory']['filament_s_length'] = cosmetics['trajectory']['cylinder_s_length']
         cosmetics['trajectory']['cylinder_n_theta'] = 30
         cosmetics['trajectory']['cylinder_n_s'] = 8
+        cosmetics['trajectory']['vortex_vec_u_ref'] = vect_op.xhat_np()
 
         if (unpacked is not None) and (vect_op.is_numeric(unpacked['strength'])):
             local_strength = unpacked['strength']

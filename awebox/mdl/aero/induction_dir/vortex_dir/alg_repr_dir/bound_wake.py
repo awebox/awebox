@@ -125,24 +125,24 @@ def test_correct_filaments_defined():
 
     return None
 
-def test_drawing():
-    plt.close('all')
+def test_drawing(test_includes_visualization=False):
+    if test_includes_visualization:
 
-    options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object()
-    bound_wake = build(options, architecture, variables_si, parameters)
+        options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_straight_flight_test_object()
+        bound_wake = build(options, architecture, variables_si, parameters)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    bound_wake.draw(ax, 'isometric')
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        bound_wake.draw(ax, 'isometric')
 
-    # plt.show()
+        plt.show()
 
     return None
 
 
-def test():
+def test(test_includes_visualization=False):
     test_correct_filaments_defined()
-    test_drawing()
+    test_drawing(test_includes_visualization)
     return None
 
 # test()

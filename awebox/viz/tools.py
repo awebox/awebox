@@ -756,6 +756,9 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['scaling'] = model.scaling
     plot_dict['variable_bounds'] = model.variable_bounds
+
+    if model.wake is not None:
+        model.wake.define_model_variables_to_info_functions(model.variables, model.parameters)
     plot_dict['wake'] = model.wake
 
     # wind information

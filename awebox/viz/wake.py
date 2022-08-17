@@ -90,6 +90,7 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
     if 'wake' in plot_dict.keys():
 
         model_variables = plot_dict['variables']
+        model_parameters = plot_dict['parameters']
         model_scaling = plot_dict['scaling']
 
         variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)

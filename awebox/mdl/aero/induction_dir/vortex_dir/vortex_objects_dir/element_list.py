@@ -208,6 +208,12 @@ class ElementList:
 
         return None
 
+    def define_model_variables_to_info_functions(self, model_variables, model_parameters):
+        for elem in self.__list:
+            if elem.info_fun is None:
+                elem.define_model_variables_to_info_function(model_variables, model_parameters)
+        return None
+
     def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1)):
 
         print_op.warn_about_temporary_functionality_removal(location='element_list.projected_biot_savart')

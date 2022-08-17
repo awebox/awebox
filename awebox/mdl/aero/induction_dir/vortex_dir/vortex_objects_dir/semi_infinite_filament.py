@@ -102,9 +102,9 @@ class SemiInfiniteFilament(obj_element.Element):
         if parameters is None:
             s_length = cosmetics['trajectory']['filament_s_length']
         else:
-            vortex_far_convection_time = cosmetics['trajectory']['vortex_far_convection_time']
-            u_ref = parameters.prefix['theta0', 'wind', 'u_ref']
-            s_length = vortex_far_convection_time * u_ref
+            vortex_far_convection_time = cosmetics['trajectory']['vortex_far_wake_convection_time']
+            vec_u_ref = cosmetics['trajectory']['vortex_vec_u_ref']
+            s_length = vortex_far_convection_time * vec_u_ref
 
         x_end = x_start + l_hat * s_length
 
