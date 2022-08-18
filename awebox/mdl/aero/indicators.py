@@ -64,7 +64,8 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
     kite_nodes = architecture.kite_nodes
     x = variables['x']
 
-    outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
+    if 'dl_t' in x.keys():
+        outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
     outputs['performance']['elevation'] = get_elevation_angle(variables['x'])
 
     layer_nodes = architecture.layer_nodes
@@ -381,8 +382,10 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
         available_power_at_kites += get_power_density(atmos, wind, height) * s_ref
 
-    current_power = z['lambda10'] * x['l_t'] * x['dl_t']
-
+    if 'l_t' in x.keys():
+        current_power = z['lambda10'] * x['l_t'] * x['dl_t']
+    else:
+        current_power = z['lambda10'] * variables['theta']['l_t']
     node_1_height = x['q10'][2]
     available_power_at_node_1_height = get_power_density(atmos, wind, node_1_height) * s_ref * number_of_kites
 

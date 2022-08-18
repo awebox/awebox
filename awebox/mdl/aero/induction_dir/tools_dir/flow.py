@@ -53,7 +53,10 @@ def get_uzero_vec(model_options, wind, parent, variables, architecture):
     return u_apparent
 
 def get_f_val(model_options, wind, parent, variables, architecture):
-    dl_t = variables['x']['dl_t']
+    if 'dl_t' in variables['x'].keys():
+        dl_t = variables['x']['dl_t']
+    else:
+        dl_t = 0.0
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
     f_val = dl_t / vect_op.smooth_norm(u_infty)
 

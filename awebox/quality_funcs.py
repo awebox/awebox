@@ -184,9 +184,13 @@ def test_outputs(trial, test_param_dict, results):
 
     # check if maximum tether stress is sensible
     max_tension = test_param_dict['max_tension']
-    l_t = trial.visualization.plot_dict['x']['l_t']
+    if 'l_t' in trial.visualization.plot_dict['x'].keys():
+        l_t = trial.visualization.plot_dict['x']['l_t'][0]
+    else:
+        l_t = trial.visualization.plot_dict['theta']['l_t']
+
     lambda10 = trial.visualization.plot_dict['z']['lambda10']
-    main_tension = l_t[0] * lambda10[0]
+    main_tension = l_t * lambda10[0]
     tension = np.max(main_tension)
     if tension > max_tension:
         awelogger.logger.warning('Max main tether tension > ' + str(max_tension*1e-6) + ' MN for trial ' + trial.name)

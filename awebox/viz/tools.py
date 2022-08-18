@@ -824,8 +824,10 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['max_z'] = np.max(np.array(V_plot['x', :, 'q10', 2])) * 1.2
     plot_dict['mazim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
     plot_dict['scale_power'] = 1.  # e-3
-    plot_dict['scale_axes'] = np.float(V_plot['x', 0, 'l_t'])
-
+    try:
+        plot_dict['scale_axes'] = np.float(V_plot['x', 0, 'l_t'])
+    except:
+        plot_dict['scale_axes'] = np.float(V_plot['theta', 'l_t'])
 
     dashes = []
     for ldx in range(20):
@@ -867,6 +869,7 @@ def interpolate_data(plot_dict, cosmetics):
     plot_dict['x'] = {}
     plot_dict['z'] = {}
     plot_dict['u'] = {}
+    plot_dict['theta'] = {}
     plot_dict['outputs'] = {}
     plot_dict['integral_outputs'] = {}
 
@@ -931,6 +934,9 @@ def interpolate_data(plot_dict, cosmetics):
         for name in plot_dict['integral_variables']:
             values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
             plot_dict['integral_outputs'][name] = [values_ip]
+
+    for name in list(struct_op.subkeys(variables_dict,'theta')):
+        plot_dict['theta'][name] = plot_dict['V_plot']['theta', name].full()[0][0]
 
     return plot_dict
 

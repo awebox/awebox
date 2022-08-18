@@ -251,6 +251,8 @@ def generate_optimal_model(trial, param_options = None):
 
                 else:
                     parameters['theta0',param_type,param] = param_options[param_type][param]
+        else:
+            parameters['theta0', param_type] = param_options[param_type]
 
     # create stage cost function
     import awebox.ocp.objective as obj
@@ -299,8 +301,9 @@ def generate_optimal_model(trial, param_options = None):
     model['var_bounds_fun'] = cas.Function(
         'var_bounds',
         [*f_args],
-        [generate_var_bounds_fun(trial.model)(variables)]
+        [generate_var_bounds_fun(trial.model)[0](variables)]
         )
+    model['var_constr_str'] = generate_var_bounds_fun(trial.model)[1]
     model['t_f'] = t_f.full()[0][0]
     model['rootfinder'] = model_dae.rootfinder
 
@@ -309,6 +312,7 @@ def generate_optimal_model(trial, param_options = None):
 def generate_var_bounds_fun(model):
 
     var_constraints = []
+    var_constr_str = []
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
 
@@ -324,20 +328,25 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(i)+' ub')
 
                         if var_bounds[var_type][var]['lb'][i] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(i)+' lb')
                 else:
                         if var_bounds[var_type][var]['ub'] != np.inf:
                             var_constraints.append(
                                 model.variables[var_type,var] - var_bounds[var_type][var]['ub']
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(0)+' ub')
 
                         if var_bounds[var_type][var]['lb'] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(0)+' lb')
 
-    return cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
+    var_bounds_fun = cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
+    return [var_bounds_fun, var_constr_str]

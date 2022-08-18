@@ -157,17 +157,19 @@ def generate_structure(options, architecture):
                     )
 
     # _add global states and controls
-    system_states.extend([('l_t', (1, 1)), ('dl_t', (1, 1))]) # main tether length and speed
+    if options['trajectory']['system_type'] == 'lift_mode':
+        system_states.extend([('l_t', (1, 1))])
+        system_states.extend([('dl_t', (1, 1))])
 
-    # _energy + main tether length and speed
-    if tether_control_var == 'ddl_t':
-        system_controls.extend([('ddl_t', (1, 1))])  # main tether acceleration
-    elif tether_control_var == 'dddl_t':
-        system_states.extend([('ddl_t', (1, 1))]) # main tether acceleration
-        system_controls.extend([('dddl_t', (1, 1))])  # main tether jerk
-    else:
-        raise ValueError('invalid tether control variable chosen')
-
+        # _energy + main tether length and speed
+        if tether_control_var == 'ddl_t':
+            system_controls.extend([('ddl_t', (1, 1))])  # main tether acceleration
+        elif tether_control_var == 'dddl_t':
+            system_states.extend([('ddl_t', (1, 1))]) # main tether acceleration
+            system_controls.extend([('dddl_t', (1, 1))])  # main tether jerk
+        else:
+            raise ValueError('invalid tether control variable chosen')
+        
     if options['integral_outputs']:
         32.0
     else:
@@ -183,6 +185,8 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f',(1,1))]
+    if options['trajectory']['system_type'] == 'drag_mode':
+        system_parameters.extend([('l_t', (1, 1))])
 
     if len(architecture.kite_nodes) > 1:
         system_parameters += [('l_s', (1, 1)), ('diam_s', (1, 1))]
