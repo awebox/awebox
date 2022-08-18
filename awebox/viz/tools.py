@@ -889,7 +889,7 @@ def interpolate_data(plot_dict, cosmetics):
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
                 values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'x')
-            plot_dict['x'][name] += [values_ip.full()]
+            plot_dict['x'][name] += [values_ip.full().squeeze()]
 
     # z-values
     for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
