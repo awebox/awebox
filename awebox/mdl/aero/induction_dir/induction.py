@@ -61,7 +61,7 @@ def get_model_constraints(model_options, wake, atmos, wind, variables_si, parame
         vortex_cstr = vortex.get_model_constraints(model_options, wake, wind, variables_si, architecture)
         cstr_list.append(vortex_cstr)
 
-    return None
+    return cstr_list
 
 def get_induction_cstr(options, wind, variables_si, parameters, architecture):
 

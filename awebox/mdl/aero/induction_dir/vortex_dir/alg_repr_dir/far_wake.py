@@ -414,4 +414,6 @@ def test(test_includes_visualization=False):
     test_semi_infinite_cylinder_drawing(test_includes_visualization)
     test_correct_semi_infinite_cylinders_defined()
 
+    return None
+
 # test()

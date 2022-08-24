@@ -32,7 +32,7 @@ import copy
 import pdb
 
 import numpy as np
-import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 
@@ -48,16 +48,10 @@ from awebox.logger.logger import Logger as awelogger
 ################# define the actual constraint
 
 def get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
-
     cstr_list = cstr_op.ConstraintList()
-
-    cstr_list.append(get_specific_constraint('wx', nlp_options, V, Outputs, Integral_outputs, model, time_grids))
-    cstr_list.append(get_specific_constraint('wg', nlp_options, V, Outputs, Integral_outputs, model, time_grids))
-
-    far_wake_element_type = general_tools.get_option_from_possible_dicts(nlp_options, 'far_wake_element_type', 'vortex')
-    if far_wake_element_type == 'semi_infinite_cylinder':
-        cstr_list.append(get_specific_constraint('wx_center', nlp_options, V, Outputs, Integral_outputs, model, time_grids))
-        cstr_list.append(get_specific_constraint('wh', nlp_options, V, Outputs, Integral_outputs, model, time_grids))
+    abbreviated_variables = vortex_tools.get_list_of_abbreviated_variables(nlp_options)
+    for abbreviated_var_name in abbreviated_variables:
+        cstr_list.append(get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids))
 
     return cstr_list
 
@@ -66,35 +60,9 @@ def get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integ
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
-    wake_nodes = general_tools.get_option_from_possible_dicts(nlp_options, 'wake_nodes', 'vortex')
-    rings = general_tools.get_option_from_possible_dicts(nlp_options, 'rings', 'vortex')
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
-
-    if abbreviated_var_name == 'wx':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = wingtips
-        wake_node_or_ring_list = range(wake_nodes)
-    elif abbreviated_var_name == 'wg':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = [None]
-        wake_node_or_ring_list = range(rings)
-    elif abbreviated_var_name == 'wh':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = [None]
-        wake_node_or_ring_list = [None]
-    elif abbreviated_var_name == 'wx_center':
-        kite_shed_or_parent_shed_list = set([model.architecture.parent_map[kite] for kite in model.architecture.kite_nodes])
-        tip_list = [None]
-        wake_node_or_ring_list = [None]
-    else:
-        message = 'get_specific_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+    kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = vortex_tools.get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, nlp_options, model.architecture)
 
     cstr_list = cstr_op.ConstraintList()
-
-    print_op.warn_about_temporary_functionality_removal(location='alg_repr.fixing.shooting_cstr_at_ndx=n_k?')
 
     for kite_shed_or_parent_shed in kite_shed_or_parent_shed_list:
         for tip in tip_list:
@@ -127,28 +95,31 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
     else:
         cstr_name += ',' + str(ddx)
         var_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+    var_local_si = struct_op.var_scaled_to_si('xl', var_name, var_local_scaled, model.scaling)
 
     if ddx is None:
         var_val_scaled = V['coll_var', ndx - 1, -1, 'xl', var_name]
         var_val_si = struct_op.var_scaled_to_si('xl', var_name, var_val_scaled, model.scaling)
+        resi_si = var_local_si - var_val_si
+
     else:
         # look-up the actual value from the Outputs. Keep the computing here minimal.
         if abbreviated_var_name == 'wx':
             var_val_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
+            resi_si = var_local_si - var_val_si
         elif abbreviated_var_name == 'wg':
             var_val_si = get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_si = var_local_si - var_val_si
         elif abbreviated_var_name == 'wh':
-            var_val_si = get_local_cylinder_pitch_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_si = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
         elif abbreviated_var_name == 'wx_center':
             var_val_si = get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_si = var_local_si - var_val_si
         else:
             message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
             awelogger.logger.error(message)
             raise Exception(message)
 
-    var_local_si = struct_op.var_scaled_to_si('xl', var_name, var_local_scaled, model.scaling)
-
-    resi_si = var_local_si - var_val_si
     resi_scaled = struct_op.var_si_to_scaled('xl', var_name, resi_si, model.scaling)
 
     local_cstr = cstr_op.Constraint(expr=resi_scaled,
@@ -159,6 +130,8 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
 
 
 def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx=None):
+
+    # V['coll_var', ndx-1, -1, 'xl', var_name] = V['xl', ndx, var_name]
 
     if ddx is None:
         ndx = ndx - 1
@@ -173,6 +146,7 @@ def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options,
     # # ....  if ndx_shed is 0, then ndx_shed -> n_k
     # # ....  if ndx_shed is -1, then ndx_shed -> n_k - 1
     # # .... so, ndx_shed -> np.mod(ndx - wake_node, n_k)
+
     subtracted_ndx = ndx - wake_node
     ndx_shed = np.mod(subtracted_ndx, n_k)
     periods_passed = np.floor(subtracted_ndx / n_k)
@@ -230,6 +204,7 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 ############## ring strength
 
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
+
     int_name = 'integrated_circulation' + str(kite_shed)
     local_scaling = model.scaling['xd'][int_name]
 
@@ -251,7 +226,7 @@ def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model,
 
     ddx_before_shed = ddx_shed
     if ndx_shed == 0:
-        ndx_before_shed = ndx_shed - 1 + n_k
+        ndx_before_shed = -1
         time_before_shed = tgrid_coll[ndx_before_shed, ddx_before_shed] - optimization_period
         integrated_circulation_before_shed_scaled = Integral_outputs['coll_int_out',
             ndx_before_shed, ddx_before_shed, int_name] - total_integrated_circulation_scaled
@@ -264,15 +239,16 @@ def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model,
 
     integrated_circulation_before_shed_si = integrated_circulation_before_shed_scaled * local_scaling
 
-    delta_integrated_circulation_si = integrated_circulation_shed_si - integrated_circulation_before_shed_si
+    definite_integral_circulation_si = integrated_circulation_shed_si - integrated_circulation_before_shed_si
     delta_t = time_shed - time_before_shed
 
-    average_circulation = delta_integrated_circulation_si / delta_t
+    average_circulation = definite_integral_circulation_si / delta_t
 
     return average_circulation
 
 
 ################ cylinder center
+
 
 def get_local_cylinder_center_value(nlp_options, Outputs, parent_shed, wake_node, ndx, ddx=None):
     ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx)
@@ -280,20 +256,38 @@ def get_local_cylinder_center_value(nlp_options, Outputs, parent_shed, wake_node
     return wx_center
 
 def get_the_cylinder_center_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed):
-    wingtip_pos = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'actuator_center' + str(parent_shed)]
-    return wingtip_pos
+    wx_center = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'actuator_center' + str(parent_shed)]
+    return wx_center
 
 
 ################ cylinder pitch
 
+def get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, parent_shed, wake_node, ndx, ddx=None):
+    var_name = vortex_tools.get_var_name('wh', kite_shed_or_parent_shed=parent_shed,
+                                         tip=None, wake_node_or_ring=wake_node)
+    var_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+    pitch_si = struct_op.var_scaled_to_si('xl', var_name, var_local_scaled, model.scaling)
+
+    ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx)
+
+    l_hat = model.wind.get_wind_direction()
+    vec_u_zero = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'u_zero' + str(parent_shed)]
+    total_circulation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'total_circulation' + str(parent_shed)]
+    average_period_of_rotation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'average_period_of_rotation' + str(parent_shed)]
+    resi = general_flow.get_far_wake_cylinder_residual(pitch_si, l_hat, vec_u_zero, total_circulation, average_period_of_rotation)
+
+    return resi
+
+
 def get_local_cylinder_pitch_value(nlp_options, Outputs, parent_shed, wake_node, ndx, ddx=None):
     ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx)
-    wx_center = get_the_cylinder_pitch_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed)
-    return wx_center
+    wh = get_the_cylinder_pitch_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed)
+    return wh
 
 def get_the_cylinder_pitch_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed):
     pitch = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'far_wake_cylinder_pitch' + str(parent_shed)]
     return pitch
+
 
 ###############
 

@@ -732,7 +732,7 @@ def test(test_includes_visualization=False):
     test_regularized_biot_savart_induction_tangential_component(cyl_regularized, cyl_unregularized)
     test_biot_savart_function(cyl_unregularized)
 
-    cyl_regularized.test_draw()
+    cyl_regularized.test_draw(test_includes_visualization)
 
     return None
 

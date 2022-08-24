@@ -86,9 +86,14 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
         average_radius = 0.
         total_circulation = 0.
+        average_period_of_rotation = 0.
+
         for kite in architecture.children_map[parent]:
             local_radius = outputs['local_performance']['radius_of_curvature' + str(kite)]
             average_radius += local_radius / float(number_children)
+
+            local_period_of_rotation = outputs['local_performance']['period_of_rotation' + str(kite)]
+            average_period_of_rotation += local_period_of_rotation / float(number_children)
 
             local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
             total_circulation += local_circulation
@@ -96,9 +101,10 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
         outputs['performance']['average_radius' + str(parent)] = average_radius
         average_curvature = 1./average_radius
         outputs['performance']['average_curvature' + str(parent)] = average_curvature
+        outputs['performance']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
 
         outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation
-        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), u_zero, total_circulation, average_curvature)
+        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), u_zero, total_circulation, average_period_of_rotation)
 
     outputs['performance']['p_loyd_total'] = 0.
     for kite in kite_nodes:
@@ -358,6 +364,12 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables_si, p
     outputs['local_performance']['speed_ratio_loyd' + str(kite)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
     outputs['local_performance']['radius_of_curvature' + str(kite)] = path_based_geom.get_radius_of_curvature(variables_si, kite, parent)
+
+    gamma_frenet = variables_si['xd']['q' + str(kite) + str(parent)]
+    d_gamma_d_t = variables_si['xd']['dq' + str(kite) + str(parent)]
+    dd_gamma_dd_t = variables_si['xddot']['ddq' + str(kite) + str(parent)]
+    period_of_rotation = general_geom.get_local_period_of_rotation(gamma_frenet, d_gamma_d_t, dd_gamma_dd_t)
+    outputs['local_performance']['period_of_rotation' + str(kite)] = period_of_rotation
 
     return outputs
 

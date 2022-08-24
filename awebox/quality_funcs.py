@@ -369,7 +369,7 @@ def test_tracked_vortex_periods(trial, test_param_dict, results):
         if max_est_truncation_error > vortex_truncation_error_thresh:
             message = 'Vortex model estimates a large truncation error' \
                       + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \
-                      + '. We recommend increasing the number of tracked periods.'
+                      + '. We recommend increasing the number of wake nodes.'
             awelogger.logger.warning(message)
             results['vortex_truncation_error'] = False
 

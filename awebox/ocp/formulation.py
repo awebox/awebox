@@ -206,7 +206,7 @@ class Formulation(object):
 
     def generate_integral_constraints(self, options, model):
 
-        awelogger.logger.info('generate integral constraints..')
+        awelogger.logger.info('generate integral constraints...')
 
         variables = model.variables(cas.MX.sym('variables', model.variables.cat.shape))
         parameters = model.parameters(cas.MX.sym('parameters', model.parameters.cat.shape))

@@ -182,6 +182,22 @@ class WakeSubstructure:
             self.set_expected_number_of_elements(elem_type, val)
         return None
 
+    def has_at_least_one_element(self):
+        initialized_types = self.get_initialized_element_types()
+        for element_type in initialized_types:
+            if self.get_list(element_type).number_of_elements > 0:
+                return True
+        else:
+            return False
+
+    def get_total_number_of_elements(self):
+        initialized_types = self.get_initialized_element_types()
+        total_number_of_elements = 0
+        for element_type in initialized_types:
+            total_number_of_elements += self.get_list(element_type).number_of_elements()
+
+        return total_number_of_elements
+
     def confirm_all_lists_have_expected_dimensions(self, types_expected_to_be_initialized):
 
         initialized_types = self.get_initialized_element_types()

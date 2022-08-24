@@ -40,37 +40,61 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 
 
+def get_list_of_abbreviated_variables(model_options):
+    abbreviated_variables = ['wx', 'wg']
+    far_wake_element_type = general_tools.get_option_from_possible_dicts(model_options, 'far_wake_element_type',
+                                                                         'vortex')
+    if far_wake_element_type == 'semi_infinite_cylinder':
+        abbreviated_variables += ['wx_center', 'wh']
+
+    return abbreviated_variables
 
 def extend_system_variables(model_options, system_lifted, system_states, architecture):
 
-    # the part that describes the wake nodes and consequent vortex rings
-    wingtips = ['ext', 'int']
-    wake_nodes = model_options['aero']['vortex']['wake_nodes']
-    rings = model_options['aero']['vortex']['rings']
+    abbreviated_variables = get_list_of_abbreviated_variables(model_options)
 
-    for kite_shed in architecture.kite_nodes:
-        for wake_node in range(wake_nodes):
-            for tip in wingtips:
-                var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
+    for abbreviated_var_name in abbreviated_variables:
+        system_lifted, system_states = extend_specific_geometric_variable(abbreviated_var_name, model_options, system_lifted, system_states,
+                                           architecture)
 
-                var_type = get_wake_node_position_var_type(model_options)
+    system_lifted, system_states = extend_velocity_variables(model_options, system_lifted, system_states, architecture)
+
+    return system_lifted, system_states
+
+def extend_specific_geometric_variable(abbreviated_var_name, model_options, system_lifted, system_states, architecture):
+    kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(
+        abbreviated_var_name, model_options, architecture)
+
+    if abbreviated_var_name == 'wx':
+        var_type = get_wake_node_position_var_type(model_options)
+    else:
+        var_type = 'xl'
+
+    if abbreviated_var_name[:2] == 'wx':
+        var_shape = (3, 1)
+    else:
+        var_shape = (1, 1)
+
+    for kite_shed_or_parent_shed in kite_shed_or_parent_shed_list:
+        for tip in tip_list:
+            for wake_node_or_ring in wake_node_or_ring_list:
+
+                var_name = get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
+
                 if var_type == 'xl':
-                    system_lifted.extend([(var_name, (3, 1))])
-                elif var_type == 'xl':
-                    system_states.extend([(var_name, (3, 1))])
+                    system_lifted.extend([(var_name, var_shape)])
+                elif var_type == 'xd':
+                    system_states.extend([(var_name, var_shape)])
+                    system_states.extend([('d' + var_name, var_shape)])
 
-        for ring in range(rings):
-            var_name = get_vortex_ring_strength_name(kite_shed, ring)
-            system_lifted.extend([(var_name, (1, 1))])
+                else:
+                    message = 'unexpected variable type: (' + var_type + ')'
+                    awelogger.logger.error(message)
+                    raise Exception(message)
 
-    far_wake_element_type = model_options['aero']['vortex']['far_wake_element_type']
-    if (far_wake_element_type == 'semi_infinite_cylinder'):
-        for parent_shed in set([architecture.parent_map[kite] for kite in architecture.kite_nodes]):
-            var_name = get_far_wake_cylinder_center_position_name(parent_shed=parent_shed)
-            system_lifted.extend([(var_name, (3, 1))])
+    return system_lifted, system_states
 
-            var_name = get_far_wake_cylinder_pitch_name(parent_shed=parent_shed)
-            system_lifted.extend([(var_name, (1, 1))])
+def extend_velocity_variables(model_options, system_lifted, system_states, architecture):
 
     # induced velocity part: the part that depends on the wake types and wake structure
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(model_options, architecture)
@@ -138,7 +162,8 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
             options_tree.append(('model', 'scaling', 'xl', var_name, wx_center_scale, ('descript', None), 'x'))
 
             var_name = get_far_wake_cylinder_pitch_name(parent_shed=parent_shed)
-            options_tree.append(('model', 'scaling', 'xl', var_name, wh_scale, ('descript', None), 'x'))
+            options_tree.append(('model', 'scaling', 'xl', var_name, wh_scale, ('descript', None), 'x')),
+            options_tree.append(('model', 'system_bounds', 'xl', var_name, [0.0, cas.inf], ('', None), 'x'))
 
     # induced velocity part: the part that depends on the wake types and wake structure
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(options, architecture)
@@ -215,6 +240,46 @@ def get_far_wake_cylinder_center_position_si(variables, parent_shed, scaling=Non
 def get_far_wake_cylinder_pitch_si(variables, parent_shed, scaling=None):
     var_name = get_far_wake_cylinder_pitch_name(parent_shed)
     return get_variable_si(variables, 'xl', var_name, scaling)
+
+def get_lifted_vortex_wake_related_degrees_of_freedom(variables):
+    lifted_variables = struct_op.subkeys(variables, 'xl')
+
+    dof = 0
+    for var_name in lifted_variables:
+        dof += variables['xl', var_name].shape[0]
+
+    return dof
+
+def get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, nlp_options, architecture):
+
+    wake_nodes = general_tools.get_option_from_possible_dicts(nlp_options, 'wake_nodes', 'vortex')
+    rings = general_tools.get_option_from_possible_dicts(nlp_options, 'rings', 'vortex')
+    kite_nodes = architecture.kite_nodes
+    kite_parents = set([architecture.parent_map[kite] for kite in kite_nodes])
+    wingtips = ['ext', 'int']
+
+    if abbreviated_var_name == 'wx':
+        kite_shed_or_parent_shed_list = kite_nodes
+        tip_list = wingtips
+        wake_node_or_ring_list = range(wake_nodes)
+    elif abbreviated_var_name == 'wg':
+        kite_shed_or_parent_shed_list = kite_nodes
+        tip_list = [None]
+        wake_node_or_ring_list = range(rings)
+    elif abbreviated_var_name == 'wh':
+        kite_shed_or_parent_shed_list = kite_parents
+        tip_list = [None]
+        wake_node_or_ring_list = [wake_nodes - 1]
+    elif abbreviated_var_name == 'wx_center':
+        kite_shed_or_parent_shed_list = kite_parents
+        tip_list = [None]
+        wake_node_or_ring_list = [wake_nodes - 1]
+    else:
+        message = 'get_specific_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list
 
 def get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=None, tip=None, wake_node_or_ring=None):
     if abbreviated_var_name == 'wx':

@@ -865,7 +865,7 @@ def test(test_includes_visualization=False):
 
     test_biot_savart_function(cyl_unregularized)
 
-    cyl_regularized.test_draw()
+    cyl_regularized.test_draw(test_includes_visualization)
 
     return None
 

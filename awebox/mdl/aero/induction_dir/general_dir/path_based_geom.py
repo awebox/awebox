@@ -76,7 +76,7 @@ def get_radius_of_curvature(variables_si, kite, parent):
     # kappa = Norm[gamma' cross gamma''] / Norm[gamma']^3
     # r = 1/kappa
 
-    num_kappa = vect_op.smooth_normed_cross(gamma_dot, gamma_ddot)
+    num_kappa = vect_op.smooth_norm(vect_op.cross(gamma_dot, gamma_ddot))
     den_kappa = vect_op.smooth_norm(gamma_dot)**3.
 
     num = den_kappa

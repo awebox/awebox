@@ -85,7 +85,7 @@ class Wind:
         return u
 
     def get_wind_direction(self):
-        return vect_op.xhat_np()
+        return vect_op.xhat_dm()
 
     def get_speed_ref(self, from_parameters=True):
         if from_parameters:

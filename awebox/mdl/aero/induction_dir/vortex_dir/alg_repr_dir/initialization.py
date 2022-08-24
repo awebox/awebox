@@ -48,7 +48,7 @@ from awebox.logger.logger import Logger as awelogger
 
 ################# define the actual constraint
 
-def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
+def get_initialization(init_options, V_init, p_fix_num, nlp, model):
 
     time_grids = nlp.time_grids
 
@@ -63,91 +63,151 @@ def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
     Integral_outputs_fun = integral_output_components[1]
     Integral_outputs_scaled = Integral_outputs_struct(Integral_outputs_fun(V_init_scaled, p_fix_num))
 
-    V_init_scaled = append_specific_initialization('wx', nlp_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids)
-    V_init_scaled = append_specific_initialization('wg', nlp_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids)
-
-    far_wake_element_type = general_tools.get_option_from_possible_dicts(nlp_options, 'far_wake_element_type', 'vortex')
-    if far_wake_element_type == 'semi_infinite_cylinder':
-        V_init_scaled = append_specific_initialization('wx_center', nlp_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids)
-        V_init_scaled = append_specific_initialization('wh', nlp_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids)
+    abbreviated_variables = vortex_tools.get_list_of_abbreviated_variables(init_options)
+    for abbreviated_var_name in abbreviated_variables:
+        V_init_scaled = append_specific_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init,
+                                                       Integral_outputs_scaled, model, time_grids)
 
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
 
+    check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
+    check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+
     return V_init_si
 
-def append_specific_initialization(abbreviated_var_name, nlp_options, V_init_scaled, Outputs, Integral_outputs_scaled, model, time_grids):
 
-    n_k = nlp_options['n_k']
-    d = nlp_options['collocation']['d']
+def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-4):
 
-    wake_nodes = general_tools.get_option_from_possible_dicts(nlp_options, 'wake_nodes', 'vortex')
-    rings = general_tools.get_option_from_possible_dicts(nlp_options, 'rings', 'vortex')
-    kite_nodes = model.architecture.kite_nodes
-    wingtips = ['ext', 'int']
+    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
 
-    if abbreviated_var_name == 'wx':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = wingtips
-        wake_node_or_ring_list = range(wake_nodes)
-    elif abbreviated_var_name == 'wg':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = [None]
-        wake_node_or_ring_list = range(rings)
-    elif abbreviated_var_name == 'wh':
-        kite_shed_or_parent_shed_list = kite_nodes
-        tip_list = [None]
-        wake_node_or_ring_list = [None]
-    elif abbreviated_var_name == 'wx_center':
-        kite_shed_or_parent_shed_list = set([model.architecture.parent_map[kite] for kite in model.architecture.kite_nodes])
-        tip_list = [None]
-        wake_node_or_ring_list = [None]
-    else:
-        message = 'get_specific_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
+    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
+
+    [Integral_outputs, Integral_outputs_fun] = nlp.integral_output_components
+    int_out = Integral_outputs(Integral_outputs_fun(V_init_scaled, p_fix_num))
+    tgrid_x = nlp.time_grids['x'](V_init_si['theta', 't_f'])
+    tgrid_coll = nlp.time_grids['coll'](V_init_si['theta', 't_f'])
+
+    kite_test = model.architecture.kite_nodes[0]
+    ndx_test = 0
+    ddx_test = -1
+
+    period = tgrid_coll[-1, -1]
+    time_end = tgrid_coll[ndx_test, ddx_test]
+    time_start = tgrid_coll[ndx_test - 1, ddx_test] - (ndx_test < 1) * period
+    delta_t = time_end - time_start
+
+    integrated_total = int_out['coll_int_out', -1, -1, 'integrated_circulation' + str(kite_test)]
+    integrated_end = int_out['coll_int_out', ndx_test, ddx_test, 'integrated_circulation' + str(kite_test)]
+    integrated_start = int_out['coll_int_out', ndx_test-1, ddx_test, 'integrated_circulation' + str(kite_test)] - (ndx_test < 1)*integrated_total
+    definite_integrated_circulation = integrated_end - integrated_start
+
+    average_circulation = definite_integrated_circulation / delta_t
+
+    expected_strength = average_circulation
+    found_strength = V_init_si['coll_var', ndx_test, ddx_test, 'xl', 'wg_' + str(kite_test) + '_0']
+    non_coll_found = V_init_si['xl', ndx_test+1, 'wg_' + str(kite_test) + '_0']
+
+    cond1 = (found_strength/expected_strength - 1.)**2. < epsilon**2.
+    cond2 = (non_coll_found/expected_strength - 1.)**2. < epsilon**2.
+
+    # check that the circulation averaging works as expected
+    delta_t_x = np.array(tgrid_x[1:]) - np.array(tgrid_x[:-1])
+    definite_integrated_circulation_x = np.array(int_out['int_out', 1:, 'integrated_circulation' + str(kite_test)]) - np.array(int_out['int_out', :-1, 'integrated_circulation' + str(kite_test)])
+    average_circulation_x = np.array([definite_integrated_circulation_x[idx] / delta_t_x[idx] for idx in range(delta_t_x.shape[0])])
+
+    cond3 = True
+    for ndx in range(average_circulation.shape[0]):
+        circulation_outputs = Outputs_init['coll_outputs', ndx, :, 'aerodynamics', 'circulation' + str(kite_test)]
+        average_is_less_than_max = average_circulation_x[ndx] < np.max(np.array(circulation_outputs))
+        average_is_more_than_min = average_circulation_x[ndx] > np.min(np.array(circulation_outputs))
+        cond3 = cond3 and average_is_less_than_max and average_is_more_than_min
+
+    criteria = cond1 and cond2 and cond3
+    if not criteria:
+        message = 'something went wrong when initializing the vortex ring strength variables. '
         awelogger.logger.error(message)
         raise Exception(message)
+
+    return None
+
+def append_specific_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids):
+
+    n_k = init_options['n_k']
+    d = init_options['collocation']['d']
+
+    kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = vortex_tools.get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, init_options, model.architecture)
 
     for kite_shed_or_parent_shed in kite_shed_or_parent_shed_list:
         for tip in tip_list:
             for wake_node_or_ring in wake_node_or_ring_list:
 
                 for ndx in range(n_k):
-                    V_init_scaled = get_specific_local_initialization(abbreviated_var_name, nlp_options, V_init_scaled, Outputs,
-                                                               Integral_outputs_scaled, model, time_grids,
-                                                               kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx)
+                    V_init_scaled = get_specific_local_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init,
+                                                                      Integral_outputs_scaled, model, time_grids,
+                                                                      kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx)
 
                     for ddx in range(d):
-                        V_init_scaled = get_specific_local_initialization(abbreviated_var_name, nlp_options, V_init_scaled, Outputs,
-                                                                       Integral_outputs_scaled, model,
-                                                                       time_grids, kite_shed_or_parent_shed, tip,
-                                                                       wake_node_or_ring, ndx, ddx)
+                        V_init_scaled = get_specific_local_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init,
+                                                                          Integral_outputs_scaled, model,
+                                                                          time_grids, kite_shed_or_parent_shed, tip,
+                                                                          wake_node_or_ring, ndx, ddx)
 
     return V_init_scaled
 
 
-def get_specific_local_initialization(abbreviated_var_name, nlp_options, V_init_scaled, Outputs, Integral_outputs_scaled, model, time_grids, kite_shed_or_parent_shed, tip,
+def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, architecture):
+    expected_radius = init_options['precompute']['radius']
+    expected_period = init_options['precompute']['winding_period']
+    epsilon = 0.01
+
+    for parent in architecture.layer_nodes:
+        outputs_radius = Outputs_init['coll_outputs', :, :, 'performance', 'average_radius' + str(parent)]
+        outputs_period = Outputs_init['coll_outputs', :, :, 'performance', 'average_period_of_rotation' + str(parent)]
+        
+        for ndx in range(len(outputs_radius)):
+            for ddx in range(len(outputs_radius[ndx])):
+                radius_error = (expected_radius - outputs_radius[ndx][ddx]) / expected_radius
+                radius_error_greater_than_theshhold = (radius_error**2. > epsilon**2.)
+
+                period_error = (expected_period - outputs_period[ndx][ddx]) / expected_period
+                period_error_greater_than_theshhold = (period_error ** 2. > epsilon ** 2.)
+
+                if radius_error_greater_than_theshhold or period_error_greater_than_theshhold:
+                    message = 'something went wrong when computing the outputs used to initialize the vortex variables. is it possible that the si and scaled inputs have gotten confused?'
+                    awelogger.logger.error(message)
+                    raise Exception(message)
+
+    return None
+
+def get_specific_local_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs, Integral_outputs_scaled, model, time_grids, kite_shed_or_parent_shed, tip,
                                       wake_node_or_ring, ndx, ddx=None):
 
     var_name = vortex_tools.get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
 
-    if ddx is None:
-        var_val_scaled = V_init_scaled['coll_var', ndx - 1, -1, 'xl', var_name]
+    # V['coll_var', ndx-1, -1, 'xl', var_name] = V['xl', ndx, var_name]
 
+    if (ddx is None):
+        ndx_find = ndx - 1
+        ddx_find = -1
     else:
-        # look-up the actual value from the Outputs. Keep the computing here minimal.
-        if abbreviated_var_name == 'wx':
-            var_val_si = alg_fixing.get_local_convected_position_value(nlp_options, V_init_scaled, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
-        elif abbreviated_var_name == 'wg':
-            var_val_si = alg_fixing.get_local_average_circulation_value(nlp_options, V_init_scaled, Integral_outputs_scaled, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-        elif abbreviated_var_name == 'wh':
-            var_val_si = alg_fixing.get_local_cylinder_pitch_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-        elif abbreviated_var_name == 'wx_center':
-            var_val_si = alg_fixing.get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-        else:
-            message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+        ndx_find = ndx
+        ddx_find = ddx
 
-        var_val_scaled = struct_op.var_si_to_scaled('xl', var_name, var_val_si, model.scaling)
+    # look-up the actual value from the Outputs. Keep the computing here minimal.
+    if abbreviated_var_name == 'wx':
+        var_val_si = alg_fixing.get_local_convected_position_value(init_options, V_init_scaled, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx_find, ddx_find)
+    elif abbreviated_var_name == 'wg':
+        var_val_si = alg_fixing.get_local_average_circulation_value(init_options, V_init_scaled, Integral_outputs_scaled, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx_find, ddx_find)
+    elif abbreviated_var_name == 'wh':
+        var_val_si = alg_fixing.get_local_cylinder_pitch_value(init_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx_find, ddx_find)
+    elif abbreviated_var_name == 'wx_center':
+        var_val_si = alg_fixing.get_local_cylinder_center_value(init_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx_find, ddx_find)
+    else:
+        message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    var_val_scaled = struct_op.var_si_to_scaled('xl', var_name, var_val_si, model.scaling)
 
     if ddx is None:
         V_init_scaled['xl', ndx, var_name] = var_val_scaled

@@ -680,11 +680,11 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
     gamma_scale = 0.5 * CL * airspeed_ref * c_ref
-    circulation_max_estimate = 5. * gamma_scale
+    circulation_max_estimate = 1.5 * gamma_scale
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
 
     for kite in architecture.kite_nodes:
-        options_tree.append(('model', 'scaling', 'xd', 'integrated_circulation' + str(kite), gamma_scale, ('????', None), 'x')),
+        options_tree.append(('model', 'scaling', 'xd', 'integrated_circulation' + str(kite), 1., ('????', None), 'x')),
 
     options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture)
 

@@ -52,27 +52,37 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 
-def build(options, architecture, variables_si, parameters):
+def build(model_options, architecture, variables_si, parameters):
 
     near_wake = obj_wake_substructure.WakeSubstructure(substructure_type='near')
-    for kite in architecture.kite_nodes:
-        filament_list = build_per_kite(options, kite, variables_si, parameters)
-        near_wake.append(filament_list)
 
-    dict_of_expected_number_of_elements = vortex_tools.get_expected_number_of_near_wake_elements_dict(options, architecture)
+    if there_are_enough_wake_nodes_to_require_a_near_wake(model_options):
+        for kite in architecture.kite_nodes:
+            filament_list = build_per_kite(model_options, kite, variables_si, parameters)
+            near_wake.append(filament_list)
+
+    dict_of_expected_number_of_elements = vortex_tools.get_expected_number_of_near_wake_elements_dict(model_options, architecture)
     near_wake.set_expected_number_of_elements_from_dict(dict_of_expected_number_of_elements)
     near_wake.confirm_all_lists_have_expected_dimensions(dict_of_expected_number_of_elements.keys())
 
     return near_wake
 
-def build_per_kite(options, kite, variables_si, parameters):
+def there_are_enough_wake_nodes_to_require_a_near_wake(model_options):
+    print_op.warn_about_temporary_functionality_removal(location='something is going wrong with the number of expected wake nodes? why is this passing?')
+    wake_nodes = general_tools.get_option_from_possible_dicts(model_options, 'wake_nodes', 'vortex')
+    if wake_nodes > 1:
+        return True
+    else:
+        return False
 
-    wake_nodes = general_tools.get_option_from_possible_dicts(options, 'wake_nodes', 'vortex')
+def build_per_kite(model_options, kite, variables_si, parameters):
+
+    wake_nodes = general_tools.get_option_from_possible_dicts(model_options, 'wake_nodes', 'vortex')
 
     filament_list = obj_element_list.ElementList(expected_number_of_elements= 3 * (wake_nodes-1))
 
     for ring in range(wake_nodes-1):
-        ring_filaments = build_per_kite_per_ring(options, kite, ring, variables_si, parameters)
+        ring_filaments = build_per_kite_per_ring(model_options, kite, ring, variables_si, parameters)
         filament_list.append(ring_filaments)
 
     filament_list.confirm_list_has_expected_dimensions()

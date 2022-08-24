@@ -32,7 +32,8 @@ _python-3.5 / casadi-3.4.5
 from awebox.logger.logger import Logger as awelogger
 import os
 import casadi.tools as cas
-
+import numpy as np
+import sys
 
 def print_single_timing(timing):
 
@@ -188,3 +189,14 @@ def print_test_outcome(test_passes, message, display_dict={}):
         print_dict_as_table(display_dict, type='error')
 
         raise Exception(message)
+
+def print_progress(index, total_count):
+    # warning: this does NOT log the progress, it only displays the progress, on-screen
+    progress_width = 20
+    progress = float(index) / float(total_count)
+    int_progress = int(np.floor(progress * float(progress_width)))
+    progress_message = (8 * " ") + ("[%-20s] %d%%" % ('=' * int_progress, progress * 100.))
+    sys.stdout.write('\r')
+    sys.stdout.write(progress_message)
+    sys.stdout.flush()
+    return None

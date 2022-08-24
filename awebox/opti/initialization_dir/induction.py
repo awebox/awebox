@@ -65,7 +65,7 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
         awelogger.logger.error(message)
         raise Exception(message)
 
-    vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
+    V_init = vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
 
     return V_init
 

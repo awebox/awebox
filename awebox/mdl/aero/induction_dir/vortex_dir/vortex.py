@@ -116,7 +116,8 @@ def get_biot_savart_cstr(wake, wind, variables_si, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
-    for substructure_type in wake.get_initialized_substructure_types():
+    for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+
         for kite_obs in architecture.kite_nodes:
             resi = wake.get_substructure(substructure_type).construct_biot_savart_at_kite_residuals(wind, variables_si, kite_obs,
                                                                                                     architecture.parent_map[kite_obs])
@@ -143,6 +144,7 @@ def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_g
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
     return ocp_cstr_list
+
 
 def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
 
@@ -172,7 +174,6 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, par
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
     test(test_includes_visualization)
-    # then do what we came here to do: build the wake
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
@@ -293,6 +294,9 @@ def test_that_model_constraint_residuals_have_correct_shape():
 
 def test(test_includes_visualization=False):
 
+    message = 'check vortex model functionality...'
+    awelogger.logger.info(message)
+
     vect_op.test_altitude()
     vect_op.test_elliptic_k()
     vect_op.test_elliptic_e()
@@ -314,6 +318,9 @@ def test(test_includes_visualization=False):
     state_representation.test(test_includes_visualization)
 
     test_that_model_constraint_residuals_have_correct_shape()
+
+    message = 'Vortex model functionality checked.'
+    awelogger.logger.info(message)
 
     return None
 

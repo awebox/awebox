@@ -28,6 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -82,3 +83,12 @@ def get_wingtip_position(variables_si, parameters, kite, parent, tip):
         sign = -1.
 
     x_wingtip = q + sign * ehat_span * b_ref / 2.
+
+
+def get_local_period_of_rotation(gamma, d_gamma_dt, dd_gamma_dd_t):
+    ehat_1 = vect_op.smooth_normalize(d_gamma_dt)
+    ehat_2 = vect_op.smooth_normalize(dd_gamma_dd_t - cas.mtimes(dd_gamma_dd_t.T, ehat_1) * ehat_1)
+    num = -1. * cas.mtimes(gamma.T, ehat_2)
+    den = cas.mtimes(dd_gamma_dd_t.T, ehat_2)
+    local_period = 2. * np.pi * ( vect_op.smooth_abs(num) / vect_op.smooth_abs(den) )**0.5
+    return local_period

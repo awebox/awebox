@@ -58,6 +58,15 @@ class Wake:
                           }
         return accepted_types
 
+    def get_initialized_substructure_types_with_at_least_one_element(self):
+        initialized_types = self.get_initialized_substructure_types()
+        types_with_elements = []
+        for substructure_type in initialized_types:
+            if self.__wake_dict[substructure_type].has_at_least_one_element():
+                types_with_elements += [substructure_type]
+        return types_with_elements
+
+
     def get_initialized_substructure_types(self):
         accepted_types = self.get_accepted_substructure_types()
         initialized_types = []

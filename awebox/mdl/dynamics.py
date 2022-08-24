@@ -112,7 +112,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
     derivative_dict_for_alongside_integration = {'e': power}
 
-    print_op.warn_about_temporary_functionality_removal(location='dynamics.ugly_code')
     derivative_of_integrated_circulation_dict = induction.get_derivative_dict_for_alongside_integration(options, outputs, architecture)
     for local_key, local_val in derivative_of_integrated_circulation_dict.items():
         if not local_key in derivative_dict_for_alongside_integration.keys():
