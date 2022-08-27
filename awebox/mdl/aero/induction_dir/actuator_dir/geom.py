@@ -36,24 +36,11 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
-import awebox.tools.print_operations as print_op
 
-import awebox.mdl.aero.induction_dir.general_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.general_dir.multi_kite_geom as multi_kite_geom
-import awebox.mdl.aero.induction_dir.general_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
+import awebox.mdl.aero.induction_dir.geom_dir.unit_normal as unit_normal
 
 # switches
-
-def get_kite_radius_vector(model_options, kite, variables, architecture):
-    number_siblings = architecture.get_number_siblings(kite)
-
-    if number_siblings > 1:
-        r_vec = multi_kite_geom.approx_kite_radius_vector(variables, architecture, kite)
-    else:
-        parent = architecture.parent_map[kite]
-        r_vec = path_based_geom.approx_kite_radius_vector(model_options, variables, kite, parent)
-    return r_vec
-
 
 def get_mu_radial_ratio(variables, kite, parent):
     varrho_var = get_varrho_var(variables, kite, parent)
@@ -147,7 +134,7 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
     parent = architecture.parent_map[kite]
     b_ref = parameters['theta0', 'geometry', 'b_ref']
 
-    radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
+    radius_vec = geom.get_vector_from_center_to_kite(model_options, variables, architecture, kite)
 
     y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
     z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)

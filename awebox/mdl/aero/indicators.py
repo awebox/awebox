@@ -29,19 +29,15 @@ _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-21
 '''
-import pdb
 
 import casadi.tools as cas
 import numpy as np
-from awebox.logger.logger import Logger as awelogger
 
-import awebox.mdl.aero.induction_dir.general_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
-import awebox.tools.print_operations as print_op
+
 
 def get_mach(options, atmos, ua, q):
     norm_ua = vect_op.smooth_norm(ua)
@@ -57,61 +53,38 @@ def get_reynolds(options, atmos, ua, q, parameters):
     reynolds = rho_infty * norm_ua * c_ref / mu_infty
     return reynolds
 
-def get_performance_outputs(options, atmos, wind, variables, outputs, parameters,architecture):
+def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
 
     if 'performance' not in list(outputs.keys()):
         outputs['performance'] = {}
 
     kite_nodes = architecture.kite_nodes
-    xd = variables['xd']
+    xd = variables_si['xd']
 
     outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(wind.get_velocity(xd['q10'][2]))
-    outputs['performance']['elevation'] = get_elevation_angle(variables['xd'])
+    outputs['performance']['elevation'] = get_elevation_angle(variables_si['xd'])
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
-        number_children = len(architecture.children_map[parent])
-
-        q_center = general_geom.get_center_point(options, parent, variables, architecture)
-        dq_center = general_geom.get_center_velocity(parent, variables, architecture)
-        u_infty_center = wind.get_velocity(q_center[2])
-        u_zero = u_infty_center - dq_center
-
-        outputs['performance']['actuator_center' + str(parent)] = q_center
-        outputs['performance']['actuator_velocity' + str(parent)] = dq_center
-        outputs['performance']['u_zero' + str(parent)] = u_zero
-
-        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(options, wind, parent, variables,
+        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(model_options, wind, parent, variables_si,
                                                                            architecture)
 
-        average_radius = 0.
         total_circulation = 0.
-        average_period_of_rotation = 0.
-
         for kite in architecture.children_map[parent]:
-            local_radius = outputs['local_performance']['radius_of_curvature' + str(kite)]
-            average_radius += local_radius / float(number_children)
-
-            local_period_of_rotation = outputs['local_performance']['period_of_rotation' + str(kite)]
-            average_period_of_rotation += local_period_of_rotation / float(number_children)
-
             local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
             total_circulation += local_circulation
-
-        outputs['performance']['average_radius' + str(parent)] = average_radius
-        average_curvature = 1./average_radius
-        outputs['performance']['average_curvature' + str(parent)] = average_curvature
-        outputs['performance']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
-
         outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation
-        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), u_zero, total_circulation, average_period_of_rotation)
+
+        vec_u_zero = outputs['geometry']['vec_u_zero' + str(parent)]
+        average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
+        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
 
     outputs['performance']['p_loyd_total'] = 0.
     for kite in kite_nodes:
         outputs['performance']['p_loyd_total'] += outputs['local_performance']['p_loyd' + str(kite)]
 
-    [current_power, phf, phf_hubheight, hubheight_power_availability] = get_power_harvesting_factor(options, atmos,
-                                                                                                    wind, variables, parameters,architecture)
+    [current_power, phf, phf_hubheight, hubheight_power_availability] = get_power_harvesting_factor(model_options, atmos,
+                                                                                                    wind, variables_si, parameters, architecture)
     outputs['performance']['phf'] = phf
     outputs['performance']['phf_hubheight'] = phf_hubheight
     outputs['performance']['hubheight_power_availability'] = hubheight_power_availability
@@ -363,14 +336,6 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables_si, p
     outputs['local_performance']['speed_ratio' + str(kite)] = airspeed / vect_op.norm(wind.get_velocity(q[2]))
     outputs['local_performance']['speed_ratio_loyd' + str(kite)] = speed_loyd / vect_op.norm(wind.get_velocity(q[2]))
 
-    outputs['local_performance']['radius_of_curvature' + str(kite)] = path_based_geom.get_radius_of_curvature(variables_si, kite, parent)
-
-    gamma_frenet = variables_si['xd']['q' + str(kite) + str(parent)]
-    d_gamma_d_t = variables_si['xd']['dq' + str(kite) + str(parent)]
-    dd_gamma_dd_t = variables_si['xddot']['ddq' + str(kite) + str(parent)]
-    period_of_rotation = general_geom.get_local_period_of_rotation(gamma_frenet, d_gamma_d_t, dd_gamma_dd_t)
-    outputs['local_performance']['period_of_rotation' + str(kite)] = period_of_rotation
-
     return outputs
 
 def collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outputs):
@@ -486,8 +451,3 @@ def get_power_density(atmos, wind, zz):
     power_density = .5 * atmos.get_density( zz) * vect_op.norm(wind.get_velocity(zz)) ** 3.
 
     return power_density
-
-
-def get_radius_inequality(model_options, variables, kite, parent, parameters):
-    inequality = path_based_geom.get_radius_inequality(model_options, variables, kite, parent, parameters)
-    return inequality

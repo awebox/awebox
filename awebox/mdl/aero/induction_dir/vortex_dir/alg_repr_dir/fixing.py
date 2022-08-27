@@ -256,7 +256,7 @@ def get_local_cylinder_center_value(nlp_options, Outputs, parent_shed, wake_node
     return wx_center
 
 def get_the_cylinder_center_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed):
-    wx_center = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'actuator_center' + str(parent_shed)]
+    wx_center = Outputs['coll_outputs', ndx_shed, ddx_shed, 'geometry', 'x_center' + str(parent_shed)]
     return wx_center
 
 
@@ -271,9 +271,9 @@ def get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, parent_she
     ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx)
 
     l_hat = model.wind.get_wind_direction()
-    vec_u_zero = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'u_zero' + str(parent_shed)]
+    vec_u_zero = Outputs['coll_outputs', ndx_shed, ddx_shed, 'geometry', 'vec_u_zero' + str(parent_shed)]
     total_circulation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'total_circulation' + str(parent_shed)]
-    average_period_of_rotation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'performance', 'average_period_of_rotation' + str(parent_shed)]
+    average_period_of_rotation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'geometry', 'average_period_of_rotation' + str(parent_shed)]
     resi = general_flow.get_far_wake_cylinder_residual(pitch_si, l_hat, vec_u_zero, total_circulation, average_period_of_rotation)
 
     return resi

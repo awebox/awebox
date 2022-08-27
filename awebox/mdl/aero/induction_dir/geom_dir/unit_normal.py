@@ -38,6 +38,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+import awebox.mdl.aero.induction_dir.geom_dir.frenet_geometry as frenet_geom
+
 def get_n_vec(model_options, parent, variables, parameters, architecture):
 
     model = model_options['aero']['actuator']['normal_vector_model']
@@ -51,7 +53,7 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
         n_vec = get_least_squares_n_vec(parent, variables, parameters, architecture)
 
     elif model == 'binormal':
-        n_vec = get_binormal_n_vec(parent, variables, parameters, architecture)
+        n_vec = get_binormal_n_vec(parent, variables, architecture)
 
     elif model == 'tether_parallel' and number_children > 1:
         n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
@@ -106,7 +108,7 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 
     # there is a potential failure here if the order of the kite nodes is not increaseing from kite0 -> kite1 -> kite2,
     # where the direction of the cross-product flips, based on initialization where the lower number kites have a
-    # smaller azimuthal angle. presumably, this should be resulved by the sorting above, but, just in case!
+    # smaller azimuthal angle. presumably, this should be resolved by the sorting above, but, just in case!
     if (kite0 > kite1) or (kite1 > kite2):
         awelogger.logger.warning('based on assignment order of kites, normal vector (by cross product) may point in reverse.')
 
@@ -145,17 +147,13 @@ def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture
 
     return n_vec
 
-def get_binormal_n_vec(parent, variables, parameters, architecture):
+def get_binormal_n_vec(parent, variables, architecture):
 
     children = architecture.kites_map[parent]
 
-    n_vec = np.zeros((3,1))
+    n_vec = cas.DM.zeros((3, 1))
     for kite in children:
-        dqk = variables['xddot']['dq' + str(kite) + str(parent)]
-        ddqk = variables['xddot']['ddq' + str(kite) + str(parent)]
-
-        binormal_dim = vect_op.cross(dqk, ddqk)
-
-        n_vec = n_vec + binormal_dim
+        local_binormal = frenet_geom.get_trajectory_binormal_unit_vector(variables, kite, parent)
+        n_vec += local_binormal
 
     return n_vec

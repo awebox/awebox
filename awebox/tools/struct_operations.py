@@ -923,16 +923,17 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
         sub_variables = variables[var_type]
 
     try:
-        if isinstance(sub_variables, cas.DM):
-            local_var = variables[var_type, name]
-        elif isinstance(sub_variables, cas.MX):
+        if isinstance(sub_variables, cas.MX):
             local_var = variables[var_type, name]
         elif isinstance(sub_variables, cas.structure3.SXStruct):
             local_var = variables[var_type][name]
+        elif '[' + var_type + ',' + name + ',0]' in variables.labels():
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.DM):
+            local_var = variables[var_type, name]
         else:
             local_var = variables[var_type, name]
     except:
-
         message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
         awelogger.logger.error(message)
         raise Exception(message)

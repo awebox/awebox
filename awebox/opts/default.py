@@ -101,11 +101,12 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'three_dof',  'dcoeff_min',   [-5., -80. * np.pi / 180],      ('include a bound on dcoeff', None), 'x'),
         ('params', 'model_bounds', None, 'coeff_compromised_max', np.array([1.5, 60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
         ('params', 'model_bounds', None, 'coeff_compromised_min', np.array([0., -60 * np.pi / 180.]), ('include a bound on dcoeff', None), 's'),
-        ('model', 'aero', 'three_dof', 'dcoeff_compromised_factor', 1., ('???', None), 's'),
+        ('model', 'aero', 'three_dof',  'dcoeff_compromised_factor', 1., ('???', None), 's'),
         ('model', 'aero', None,         'lift_aero_force',      True,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
 
         ('model', 'aero', None,         'induction_comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
+        ('model', 'aero', 'overwrite',  'geometry_type',        None,       ('which method should be used to estimate the geometry of the kite rotation', ['parent', 'averaged', 'frenet']), 'x'),
 
         ('model', 'aero', 'actuator',   'a_ref',        0.33,               ('reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None),'x'),
         ('model', 'aero', 'actuator',   'a_range',      [0., 0.5],          ('allowed range for induction factors', None),'x'),

@@ -32,9 +32,7 @@ import copy
 import pdb
 
 import numpy as np
-import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.fixing as alg_fixing
 
 import awebox.tools.struct_operations as struct_op
@@ -161,8 +159,8 @@ def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init
     epsilon = 0.01
 
     for parent in architecture.layer_nodes:
-        outputs_radius = Outputs_init['coll_outputs', :, :, 'performance', 'average_radius' + str(parent)]
-        outputs_period = Outputs_init['coll_outputs', :, :, 'performance', 'average_period_of_rotation' + str(parent)]
+        outputs_radius = Outputs_init['coll_outputs', :, :, 'geometry', 'average_radius' + str(parent)]
+        outputs_period = Outputs_init['coll_outputs', :, :, 'geometry', 'average_period_of_rotation' + str(parent)]
         
         for ndx in range(len(outputs_radius)):
             for ddx in range(len(outputs_radius[ndx])):

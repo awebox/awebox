@@ -27,12 +27,10 @@ vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-21
 '''
-import pdb
 
-import casadi.tools as cas
+import awebox.mdl.aero.induction_dir.geom_dir.unit_normal as unit_normal
 
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
-import awebox.mdl.aero.induction_dir.general_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools

@@ -34,9 +34,10 @@ import casadi.tools as cas
 import numpy as np
 import matplotlib.pyplot as plt
 
-import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
@@ -48,15 +49,13 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
 
 import awebox.tools.vector_operations as vect_op
-import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 def build(options, architecture, wind, variables_si, parameters):
 
     far_wake = obj_wake_substructure.WakeSubstructure(substructure_type='far')
     for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
-        filament_list = build_per_kite(options, kite, parent, wind, variables_si, parameters)
+        filament_list = build_per_kite(options, kite, wind, variables_si, parameters, architecture)
         far_wake.append(filament_list)
 
     dict_of_expected_number_of_elements = vortex_tools.get_expected_number_of_far_wake_elements_dict(options, architecture)
@@ -65,7 +64,7 @@ def build(options, architecture, wind, variables_si, parameters):
 
     return far_wake
 
-def build_per_kite(options, kite, parent, wind, variables_si, parameters):
+def build_per_kite(options, kite, wind, variables_si, parameters, architecture):
     far_wake_element_type = general_tools.get_option_from_possible_dicts(options, 'far_wake_element_type', 'vortex')
 
     if far_wake_element_type == 'finite_filament':
@@ -73,7 +72,9 @@ def build_per_kite(options, kite, parent, wind, variables_si, parameters):
     elif far_wake_element_type == 'semi_infinite_filament':
         list = build_semi_infinite_filament_per_kite(options, kite, wind, variables_si, parameters)
     elif far_wake_element_type == 'semi_infinite_cylinder':
-        list = build_semi_infinite_cylinders_per_kite(options, kite, parent, wind, variables_si, parameters)
+        list = build_semi_infinite_cylinders_per_kite(options, kite, wind, variables_si, architecture)
+    elif far_wake_element_type == 'not_in_use':
+        list = obj_element_list.ElementList(expected_number_of_elements=0)
     else:
         message = 'unexpected type of far-wake vortex element (' + far_wake_element_type + '). maybe, check your spelling?'
         awelogger.logger.error(message)
@@ -148,9 +149,11 @@ def build_semi_infinite_filament_per_kite(options, kite, wind, variables_si, par
 
     return filament_list
 
-def build_semi_infinite_cylinders_per_kite(options, kite, parent, wind, variables_si, parameters):
+def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_si, architecture):
 
-    ring = get_far_wake_ring_number(options)
+    parent = architecture.parent_map[kite]
+
+    ring = get_far_wake_ring_number(model_options)
     wake_node = ring
 
     wingtips_and_strength_directions = vortex_tools.get_wingtip_name_and_strength_direction_dict()
@@ -158,21 +161,22 @@ def build_semi_infinite_cylinders_per_kite(options, kite, parent, wind, variable
 
     circulation_total = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
 
-    print_op.warn_about_temporary_functionality_removal(location='alg.far_wake.kite_motion')
-    # if the kite was moving in the same direction as branlard's (standard).
-    kite_motion_directionality = 1.
-
     x_center = vortex_tools.get_far_wake_cylinder_center_position_si(variables_si, parent)
     pitch = vortex_tools.get_far_wake_cylinder_pitch_si(variables_si, parent)
 
-    epsilon_m = general_tools.get_option_from_possible_dicts(options, 'vortex_epsilon_m', 'vortex')
-    epsilon_r = general_tools.get_option_from_possible_dicts(options, 'vortex_epsilon_r', 'vortex')
+    # the direction of the tangential vorticity must be opposite to the direction of the kite rotation
+    kite_motion_is_right_hand_rule_positive_around_wind_direction = geom.kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, kite, architecture, wind)
+    # if y(x = 0) = -1 and y(x = 1) = +1 -> y = 2 x - 1
+    kite_motion_directionality = 2. * kite_motion_is_right_hand_rule_positive_around_wind_direction - 1.
+
+    epsilon_m = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_m', 'vortex')
+    epsilon_r = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_r', 'vortex')
 
     tan_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
     long_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
 
     for tip, tip_directionality in wingtips_and_strength_directions.items():
-        x_start = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
+        x_start = vortex_tools.get_wake_node_position_si(model_options, variables_si, kite, tip, wake_node)
         radius, l_start = obj_semi_infinite_cylinder.calculate_radius_and_l_start(x_start, x_center, l_hat)
 
         strength_tan = -1. * circulation_total / pitch * kite_motion_directionality * tip_directionality
@@ -398,6 +402,7 @@ def test_correct_semi_infinite_cylinders_defined():
     criteria = (total_conditions == 4)
 
     if not criteria:
+
         message = 'far_wake (semi-infinite cylinder) does not contain the expected vortex elements'
         awelogger.logger.error(message)
         raise Exception(message)

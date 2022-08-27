@@ -424,11 +424,11 @@ def superpose_induced_velocities_at_kite(wake, variables_si, kite_obs, substruct
 def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, variables, architecture):
     induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
     if induction_factor_normalizing_speed == 'u_zero':
-        u_vec = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+        u_vec = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     elif induction_factor_normalizing_speed == 'u_inf':
-        u_vec = general_flow.get_kite_uinfy_vec(variables, wind, kite, parent)
+        u_vec = general_flow.get_kite_vec_u_infty(variables, wind, kite, parent)
     elif induction_factor_normalizing_speed == 'u_ref':
-        u_vec = wind.get_speed_ref()
+        u_vec = wind.get_speed_ref() # * xhat
     else:
         message = 'desired induction_factor_normalizing_speed (' + induction_factor_normalizing_speed + ') is not yet available'
         awelogger.logger.error(message)

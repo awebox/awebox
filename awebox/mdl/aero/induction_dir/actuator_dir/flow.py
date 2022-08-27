@@ -38,7 +38,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -206,7 +206,7 @@ def get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, para
 
     # 3 constraints
 
-    u_vec_val = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    u_vec_val = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
 
     u_vec_length_var = get_uzero_vec_length_var(variables, parent)
@@ -270,10 +270,9 @@ def get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
 ## values
 
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
-
-    uzero = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    vec_u_zero = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     n_vec = actuator_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    gamma = vect_op.angle_between(n_vec, uzero)
+    gamma = vect_op.angle_between(n_vec, vec_u_zero)
     return gamma
 
 def get_gamma_check(model_options, wind, parent, variables, parameters, architecture):
@@ -360,7 +359,7 @@ def get_kite_effective_velocity(model_options, variables, parameters, architectu
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
-    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    center = geom.get_center_position(model_options, parent, variables, architecture)
     rho_infty = atmos.get_density(center[2])
 
     uzero_mag = get_uzero_vec_length_var(variables, parent)

@@ -137,7 +137,6 @@ def calculate_radius_and_l_start(x_start, x_center, l_hat):
     vec_dist = (x_start - x_center)
     l_start = cas.mtimes(vec_dist.T, l_hat)
     vec_radial = vec_dist - l_start * l_hat
-    print_op.warn_about_temporary_functionality_removal(location='si_cyl.radius')
     radius = vect_op.smooth_norm(vec_radial)
     return radius, l_start
 

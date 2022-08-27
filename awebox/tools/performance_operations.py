@@ -28,14 +28,10 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold alu-fr 2020
 '''
 
-import matplotlib.pylab as plt
-import scipy
-import scipy.io
-import scipy.sparse as sps
-
 import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 

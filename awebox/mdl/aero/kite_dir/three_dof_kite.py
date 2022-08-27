@@ -34,6 +34,7 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
@@ -127,23 +128,28 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
 
 
+def tether_vector(variables, architecture, node):
+
+    parent_map = architecture.parent_map
+    parent = parent_map[node]
+
+    q_node = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(node) + str(parent))
+
+    if parent in parent_map.keys():
+        grandparent = parent_map[parent]
+        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(parent) + str(grandparent))
+    else:
+        q_parent = np.zeros((3, 1))
+
+    tether = q_node - q_parent
+
+    return tether
 
 
-def get_planar_dmc(vec_u_eff, variables, kite, architecture):
-
-    parent = architecture.parent_map[kite]
+def get_planar_dcm(vec_u_eff, variables, kite, architecture):
 
     # get relevant variables for kite n
-    q = variables['xd']['q' + str(kite) + str(parent)]
-
-    # in kite body:
-    if parent > 0:
-        grandparent = architecture.parent_map[parent]
-        q_parent = variables['xd']['q' + str(parent) + str(grandparent)]
-    else:
-        q_parent = np.array([0., 0., 0.])
-
-    vec_t = q - q_parent # should be roughly "up-wards", ie, act like vec_w
+    vec_t = tether_vector(variables, architecture, kite) # should be roughly "up-wards", ie, act like vec_w
 
     vec_v = vect_op.cross(vec_t, vec_u_eff)
     vec_w = vect_op.cross(vec_u_eff, vec_v)
@@ -167,7 +173,7 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     coeff = variables['xd']['coeff' + str(kite) + str(parent)]
     psi = coeff[1]
 
-    planar_dcm = get_planar_dmc(vec_u_eff, variables, kite, architecture)
+    planar_dcm = get_planar_dcm(vec_u_eff, variables, kite, architecture)
     uhat = planar_dcm[:, 0]
     vhat = planar_dcm[:, 1]
     what = planar_dcm[:, 2]

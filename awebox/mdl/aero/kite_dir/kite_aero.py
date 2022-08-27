@@ -38,6 +38,7 @@ import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
 import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
+import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
@@ -47,6 +48,7 @@ import awebox.mdl.mdl_constraint as mdl_constraint
 def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
+    outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, architecture)
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):

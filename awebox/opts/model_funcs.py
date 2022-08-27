@@ -481,7 +481,15 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     psi_epsilon = np.pi
     options_tree.append(('model', 'system_bounds', 'xl', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
-
+    if options['model']['aero']['overwrite']['geometry_type'] is not None:
+        geometry_type = options['model']['aero']['overwrite']['geometry_type']
+    elif architecture.number_of_kites > 1:
+        geometry_type = 'averaged'
+    elif architecture.number_of_nodes > 1:
+        geometry_type = 'parent'
+    else:
+        geometry_type = 'frenet'
+    options_tree.append(('model', 'aero', None, 'geometry_type', geometry_type, ('descript', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -664,7 +672,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('nlp', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
 
     CL = estimate_CL(options)
-    b_ref = geometry['b_ref']
 
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)

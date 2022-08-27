@@ -28,21 +28,6 @@ to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 '''
-import copy
-import pdb
-
-import numpy as np
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.fixing as alg_fixing
-import awebox.tools.struct_operations as struct_op
-import casadi.tools as cas
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
-import awebox.tools.vector_operations as vect_op
-import awebox.ocp.var_struct as var_struct
-
-import awebox.tools.constraint_operations as cstr_op
 
 # ################# define the actual constraint
 #

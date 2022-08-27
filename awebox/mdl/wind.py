@@ -36,7 +36,7 @@ import awebox.tools.lagr_interpol as lagr_interpol
 
 
 class Wind:
-    def __init__(self, wind_model_options, params):
+    def __init__(self, wind_model_options, params, suppress_type_incompatibility_warning=False):
         self.__options = wind_model_options
         self.__params = params #NOTE: where do those parameters come from?
 
@@ -45,6 +45,7 @@ class Wind:
             # self.find_p_polynomial_from_datafile(params) # pressure is set as constant for now
 
         self.__type_incompatibility_warning_already_given = False
+        self.__suppress_type_incompatibility_warning = suppress_type_incompatibility_warning
 
     def get_velocity(self, zz):
 
@@ -66,7 +67,7 @@ class Wind:
             z0_air = options['log_wind']['z0_air']
             exp_ref = options['power_wind']['exp_ref']
 
-            if not self.__type_incompatibility_warning_already_given:
+            if not self.__type_incompatibility_warning_already_given and not self.__suppress_type_incompatibility_warning:
                 message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
                           'directly from options. this may interfere with expected operation, especially in sweeps.'
                 awelogger.logger.warning(message)

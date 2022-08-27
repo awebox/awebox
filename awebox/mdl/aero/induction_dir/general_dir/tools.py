@@ -37,6 +37,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
+import awebox.mdl.architecture as archi
 
 
 def get_option_from_possible_dicts(options, name, actuator_or_vortex):

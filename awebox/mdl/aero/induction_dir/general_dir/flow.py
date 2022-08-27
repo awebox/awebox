@@ -28,32 +28,28 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 """
-import pdb
 
-import awebox.mdl.aero.induction_dir.general_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
 
-import numpy as np
 import casadi.tools as cas
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
-    u_infty = get_kite_uinfy_vec(variables, wind, kite, parent)
+    u_infty = get_kite_vec_u_infty(variables, wind, kite, parent)
     u_kite = variables['xd']['dq' + str(kite) + str(parent)]
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
 
-def get_kite_uinfy_vec(variables, wind, kite, parent):
+def get_kite_vec_u_infty(variables, wind, kite, parent):
     q_kite = variables['xd']['q' + str(kite) + str(parent)]
     u_infty = wind.get_velocity(q_kite[2])
     return u_infty
 
-def get_uzero_vec(model_options, wind, parent, variables, architecture):
+def get_vec_u_zero(model_options, wind, parent, variables, architecture):
 
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    u_actuator = general_geom.get_center_velocity(parent, variables, architecture)
+    u_actuator = geom.get_center_velocity(model_options, parent, variables, architecture)
 
     u_apparent = u_infty - u_actuator
 
@@ -75,10 +71,8 @@ def get_f_val(model_options, wind, parent, variables, architecture):
     return f_val
 
 def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
-
-    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    center = geom.get_center_position(model_options, parent, variables, architecture)
     u_infty = wind.get_velocity(center[2])
-
     return u_infty
 
 

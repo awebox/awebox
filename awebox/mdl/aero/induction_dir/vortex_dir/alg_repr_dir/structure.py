@@ -70,6 +70,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     wake_nodes = 2
     rings = wake_nodes
     options['aero'] = {}
+    options['aero']['geometry_type'] = 'frenet'
     options['aero']['vortex'] = {}
     options['aero']['vortex']['wake_nodes'] = wake_nodes
     options['aero']['vortex']['rings'] = rings
@@ -94,14 +95,17 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     architecture = archi.Architecture({1: 0})
 
     system_lifted, system_states = vortex_tools.extend_system_variables(options, [], [], architecture)
-
+    system_derivatives = []
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
         system_states.extend([('q' + str(kite) + str(parent), (3, 1))])
+        system_states.extend([('dq' + str(kite) + str(parent), (3, 1))])
+        system_derivatives.extend([('ddq' + str(kite) + str(parent), (3, 1))])
 
-    system_variable_list = {}
-    system_variable_list['xl'] = system_lifted
-    system_variable_list['xd'] = system_states
+    system_variable_list = {'xl': system_lifted,
+                            'xd': system_states,
+                            'xddot': system_derivatives
+                            }
 
     var_struct, variables_dict = struct_op.generate_variable_struct(system_variable_list)
 
@@ -125,7 +129,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     wind_params['theta0', 'wind', 'u_ref'] = options['wind']['u_ref']
     wind_params['theta0', 'wind', 'z_ref'] = options['wind']['z_ref']
 
-    wind = wind_module.Wind(options['wind'], wind_params)
+    wind = wind_module.Wind(options['wind'], wind_params, suppress_type_incompatibility_warning=True)
 
     return options, architecture, wind, var_struct, param_struct, variables_dict
 
@@ -205,16 +209,25 @@ def construct_circular_flight_test_object(element_type='semi_infinite_cylinder')
     r_ext = radius_kite + b_span / 2.
     r_int = radius_kite - b_span / 2.
 
+    # notice, that this describes clockwise (right-hand-rule) rotation about positive xhat
+    x_kite = x_center + radius_kite * (np.cos(theta0) * a_hat + np.sin(theta0) * b_hat)
+    dx_kite = radius_kite * omega * (-1. * np.sin(theta0) * a_hat + np.cos(theta0) * b_hat)
+    ddx_kite = radius_kite * omega**2. * (-1. * np.cos(theta0) * a_hat - np.sin(theta0) * b_hat )
+
     x_center0 = x_center
     x_center1 = x_center0 + delta_t * vec_u_wind
 
-    x_PE_0 = x_center0 + r_ext * (np.sin(theta0) * a_hat + np.cos(theta0) * b_hat)
-    x_PE_1 = x_center1 + r_ext * (np.sin(theta1) * a_hat + np.cos(theta1) * b_hat)
+    x_PE_0 = x_center0 + r_ext * (np.cos(theta0) * a_hat + np.sin(theta0) * b_hat)
+    x_PE_1 = x_center1 + r_ext * (np.cos(theta1) * a_hat + np.sin(theta1) * b_hat)
 
-    x_NE_0 = x_center0 + r_int * (np.sin(theta0) * a_hat + np.cos(theta0) * b_hat)
-    x_NE_1 = x_center1 + r_int * (np.sin(theta1) * a_hat + np.cos(theta1) * b_hat)
+    x_NE_0 = x_center0 + r_int * (np.cos(theta0) * a_hat + np.sin(theta0) * b_hat)
+    x_NE_1 = x_center1 + r_int * (np.cos(theta1) * a_hat + np.sin(theta1) * b_hat)
 
     variables_si = var_struct(0.)
+
+    variables_si['xd', 'q10'] = x_kite
+    variables_si['xd', 'dq10'] = dx_kite
+    variables_si['xddot', 'ddq10'] = ddx_kite
 
     variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE_0
     variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE_0

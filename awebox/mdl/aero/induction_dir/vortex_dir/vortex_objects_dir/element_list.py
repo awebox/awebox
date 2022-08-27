@@ -58,7 +58,7 @@ class ElementList:
         self.set_biot_savart_fun(None)
         self.set_concatenated_biot_savart_fun(None)
 
-    def append(self, added_elem):
+    def append(self, added_elem, suppress_type_incompatibility_warning=False):
 
         is_element_list = isinstance(added_elem, ElementList)
         is_element = isinstance(added_elem, obj_element.Element)
@@ -66,16 +66,18 @@ class ElementList:
         has_correct_length = (self.__element_info_length is None) or (is_element and (self.__element_info_length == added_elem.info_length)) or (is_element_list and (self.__element_info_length == added_elem.element_info_length))
 
         if not is_element_list and not is_element:
-            message = 'tried to append to vortex element list, but proposed addition is neither a vortex element nor an element list. append instruction was skipped'
-            awelogger.logger.warning(message)
+            if not suppress_type_incompatibility_warning:
+                message = 'tried to append to vortex element list, but proposed addition is neither a vortex element nor an element list. append instruction was skipped'
+                awelogger.logger.warning(message)
 
         elif is_element_list and is_correct_type:
             for indiv_elem in added_elem.list:
                 self.append(indiv_elem)
 
         elif is_element_list and not is_correct_type:
-            message = 'tried to append element list to element list, but the types were incompatible so append instruction was skipped.'
-            awelogger.logger.warning(message)
+            if not suppress_type_incompatibility_warning:
+                message = 'tried to append element list to element list, but the types were incompatible so append instruction was skipped.'
+                awelogger.logger.warning(message)
 
         elif is_element and is_correct_type and has_correct_length:
             self.__list += [added_elem]
@@ -89,12 +91,14 @@ class ElementList:
                 self.set_expected_element_info_length(added_elem.expected_info_length)
 
         elif is_element and not is_correct_type:
-            message = 'tried to append vortex element to element list, but the types were incompatible so append instruction was skipped.'
-            awelogger.logger.warning(message)
+            if not suppress_type_incompatibility_warning:
+                message = 'tried to append vortex element to element list, but the types were incompatible so append instruction was skipped.'
+                awelogger.logger.warning(message)
 
         elif is_element and is_correct_type and not has_correct_length:
-            message = 'tried to append vortex element to element list, but the element did not have the correct length of information so append instruction was skipped.'
-            awelogger.logger.warning(message)
+            if not suppress_type_incompatibility_warning:
+                message = 'tried to append vortex element to element list, but the element did not have the correct length of information so append instruction was skipped.'
+                awelogger.logger.warning(message)
 
         else:
             message = 'tried to append vortex element to element list. something went wrong, so append instruction was skipped.'
@@ -565,7 +569,7 @@ def test_that_appending_different_types_is_ignored():
     filament_list.append(fil)
 
     tan_cyl = obj_semi_infinite_tangential_cylinder.construct_test_object()
-    filament_list.append(tan_cyl)
+    filament_list.append(tan_cyl, suppress_type_incompatibility_warning=True)
 
     found = filament_list.number_of_elements
     expected = 1
