@@ -224,7 +224,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
 
 def generate_generalized_coordinates(system_variables, system_gc):
     try:
-        test = system_variables['x', 'l_t']
+        test = system_variables['x', 'q10']
         struct_flag = 1
     except:
         struct_flag = 0

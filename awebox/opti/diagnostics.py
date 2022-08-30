@@ -115,10 +115,8 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    l_t_max = np.amax(plot_dict['x']['l_t'][0])
     z_av = np.mean(plot_dict['x']['q10'][2])
 
-    power_and_performance['l_t_max'] = l_t_max
     power_and_performance['z_av'] = z_av
 
     return power_and_performance

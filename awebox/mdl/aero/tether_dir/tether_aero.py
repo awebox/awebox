@@ -187,8 +187,12 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     secondary_tether = (upper_node in architecture.kite_nodes)
 
     if main_tether:
-        vars_containing_length = x
-        vars_sym = 'x'
+        if 'l_t' in x.keys():
+            vars_containing_length = x
+            vars_sym = 'x'
+        else:
+            vars_containing_length = theta
+            vars_sym = 'theta'
         length_sym = 'l_t'
         diam_sym = 'diam_t'
 

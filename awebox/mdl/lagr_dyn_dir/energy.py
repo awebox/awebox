@@ -69,7 +69,10 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     dq_n = variables_si['x']['dq' + label]
     if node == 1:
         q10 = variables_si['x']['q10']
-        l_t = variables_si['x']['l_t']
+        if 'l_t' in variables_si['x'].keys():
+            l_t = variables_si['x']['l_t']
+        else:
+            l_t = variables_si['theta']['l_t']
         e_t = q10/l_t
         dq_parent = cas.mtimes(e_t, cas.mtimes(dq_n.T, e_t))
     else:
@@ -142,7 +145,10 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs):
 
     dq10 = variables_si['x']['dq10']
     q10 = variables_si['x']['q10']
-    l_t = variables_si['x']['l_t']
+    if 'l_t' in variables_si['x'].keys():
+        l_t = variables_si['x']['l_t']
+    else:
+        l_t = variables_si['theta']['l_t']
 
     speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
 
