@@ -22,7 +22,11 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+
 from . import trajectory
 import numpy as np
 from . import tools

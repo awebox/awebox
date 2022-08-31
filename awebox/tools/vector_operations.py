@@ -27,9 +27,12 @@ file to provide vector operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, jochem de schutter alu-fr 2017-19
 '''
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
 import pdb
 
-import matplotlib.pylab as plt
 import scipy
 import scipy.io
 import scipy.special as special

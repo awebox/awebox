@@ -39,7 +39,6 @@ import os
 
 import matplotlib
 matplotlib.use('TkAgg')
-
 import matplotlib.pyplot as plt
 
 from awebox.logger.logger import Logger as awelogger

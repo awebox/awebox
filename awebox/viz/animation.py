@@ -27,10 +27,14 @@ animation routines for awebox trajectories
 python-3.5 / casadi 3.0.0
 - authors: jochem de schutter, rachel leuthold alu-fr 2018-2020
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+
 import pdb
 import sys
 
-import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op

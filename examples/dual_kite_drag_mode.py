@@ -1,8 +1,9 @@
 #!/usr/bin/python3
-
-import awebox as awe
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+import awebox as awe
 
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)

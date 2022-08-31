@@ -22,10 +22,14 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 import matplotlib.ticker as mtick
-import matplotlib.pyplot as plt
 import awebox.viz.tools as tools
 from awebox.logger.logger import Logger as awelogger
 

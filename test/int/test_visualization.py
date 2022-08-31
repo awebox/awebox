@@ -3,11 +3,13 @@
 
 @author: Thilo Bronnenmeyer
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import os
 import awebox as awe
 import logging
-import matplotlib.pyplot as plt
 plt.rcParams.update({'figure.max_open_warning': 0})
 
 logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)

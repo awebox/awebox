@@ -27,12 +27,14 @@ Periodic MPC routines for awebox models
 
 :author: Jochem De Schutter (ALU Freiburg 2019)
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import awebox as awe
 import awebox.viz.tools as viz_tools
 import casadi.tools as ct
 from awebox.logger.logger import Logger as awelogger
-import matplotlib.pyplot as plt
 import numpy as np
 import copy
 

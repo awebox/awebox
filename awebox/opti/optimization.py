@@ -25,6 +25,11 @@
 ##################################
 # Class Optimization solves the NLP of the multi-kite system
 ###################################
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+
 import pdb
 
 from . import scheduling
@@ -40,7 +45,6 @@ import awebox.tools.callback as callback
 
 from numpy import linspace
 
-import matplotlib.pyplot as plt
 import resource
 import copy
 

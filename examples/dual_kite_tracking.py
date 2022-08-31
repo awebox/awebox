@@ -1,7 +1,9 @@
 #!/usr/bin/python3
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import awebox as awe
-import matplotlib.pyplot as plt
 
 
 ########################

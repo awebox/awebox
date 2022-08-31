@@ -28,6 +28,10 @@ Class sweep contains functions to manipulate multiple trials at once
 @author: jochem de schutter alu-freiburg 2018
 edit: rachel leuthold, alu-fr, 2020
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
@@ -36,7 +40,6 @@ import copy
 from collections import OrderedDict
 import awebox.trial as trial
 import awebox.tools.save_operations as save_op
-import matplotlib.pyplot as plt
 import awebox.viz.comparison as comparison
 import awebox.viz.tools as tools
 

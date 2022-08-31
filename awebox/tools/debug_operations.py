@@ -28,9 +28,11 @@ _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
 - edit, rachel leuthold 2018-21
 '''
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import casadi.tools as cas
-import matplotlib.pylab as plt
 import numpy as np
 import numpy.ma as ma
 import scipy.linalg as scila

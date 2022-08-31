@@ -22,10 +22,13 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
 import pdb
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
@@ -38,9 +41,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 
-
-import matplotlib
-matplotlib.use('TkAgg')
 
 def plot_wake(plot_dict, cosmetics, fig_name, side):
 

@@ -22,7 +22,10 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 import awebox.viz.tools as tools
 from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from mpl_toolkits.mplot3d import axes3d
@@ -31,9 +34,6 @@ import numpy as np
 import awebox.viz.tools as tools
 import awebox.viz.wake as wake
 import casadi.tools as cas
-
-import matplotlib
-matplotlib.use('TkAgg')
 
 
 import matplotlib.animation as manimation

@@ -22,11 +22,15 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+
 import pdb
 
 import casadi.tools as cas
 import numpy as np
-import matplotlib.pyplot as plt
 import awebox.tools.struct_operations as struct_op
 from itertools import chain
 import matplotlib.colors as colors
