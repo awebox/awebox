@@ -28,12 +28,14 @@ _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
 - edited: rachel leuthold, alu-fr 2018-2022
 '''
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
 import os
 import casadi.tools as cas
 import numpy as np
 import sys
+import inspect
 
 def print_single_timing(timing):
 
@@ -107,9 +109,10 @@ def make_beep_in_linux():
     freq = 440  # Hz
     os.system('play --no-show-progress --null --channels 1 synth %s sine %f' % (duration, freq))
 
-def warn_about_temporary_functionality_removal(location='unspecified', editor='an editor'):
-    awelogger.logger.warning(
-        editor + ' has temporarily removed awebox functionality, in order to improve the code. location: ' + location)
+def warn_about_temporary_functionality_alteration(editor='an editor', reason='improve the code'):
+    location = inspect.getouterframes(inspect.currentframe(), 2)[1][1]
+    message = editor + ' has temporarily altered awebox functionality, in order to ' + reason + ', at location: \n' + location
+    awelogger.logger.warning(message)
     return None
 
 

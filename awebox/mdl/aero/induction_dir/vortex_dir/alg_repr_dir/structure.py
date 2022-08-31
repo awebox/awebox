@@ -76,6 +76,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     options['aero']['vortex']['rings'] = rings
     options['aero']['vortex']['core_to_chord_ratio'] = 0.1
     options['aero']['vortex']['far_wake_element_type'] = element_type
+    options['aero']['vortex']['approximation_order_for_elliptic_integrals'] = 3
 
     options['induction'] = {}
     options['induction']['vortex_wake_nodes'] = wake_nodes
@@ -110,7 +111,8 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     var_struct, variables_dict = struct_op.generate_variable_struct(system_variable_list)
 
     geometry_struct = cas.struct([
-        cas.entry("c_ref", shape=(1, 1))
+        cas.entry("c_ref", shape=(1, 1)),
+        cas.entry("b_ref", shape=(1, 1))
     ])
     wind_struct = cas.struct([
         cas.entry('u_ref', shape=(1, 1)),

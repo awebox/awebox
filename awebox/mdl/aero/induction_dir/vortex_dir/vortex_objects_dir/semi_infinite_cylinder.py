@@ -45,12 +45,13 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 class SemiInfiniteCylinder(obj_element.Element):
-    def __init__(self, info_dict):
+    def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):
         super().__init__(info_dict)
         self.set_element_type('semi_infinite_cylinder')
         self.define_info_order()
         packed_info = self.pack_info()
         self.set_info(packed_info)
+        self.set_approximation_order_for_elliptic_integrals(approximation_order_for_elliptic_integrals)
 
     def define_info_order(self):
         order = {0: ('x_center', 3),
@@ -64,19 +65,18 @@ class SemiInfiniteCylinder(obj_element.Element):
         self.set_info_order(order)
         return None
 
-    def get_r_obs(self, x_obs):
-        unpacked = self.unpack_info()
-        x_center = unpacked['x_center']
-        l_hat = unpacked['l_hat']
+    def get_r_obs(self, unpacked, x_obs):
+
+        x_center = vect_op.columnize(unpacked['x_center'])
+        l_hat = vect_op.columnize(unpacked['l_hat'])
 
         x_axis_2 = x_center + l_hat
         r_obs = vect_op.get_altitude(x_center - x_obs, x_axis_2 - x_obs)
 
         return r_obs
 
-    def get_z_obs(self, x_obs):
+    def get_z_obs(self, unpacked, x_obs):
 
-        unpacked = self.unpack_info()
         l_start = unpacked['l_start']
         l_hat = unpacked['l_hat']
         x_center = unpacked['x_center']
@@ -87,8 +87,7 @@ class SemiInfiniteCylinder(obj_element.Element):
 
         return z_obs
 
-    def get_observational_axes(self, x_obs):
-        unpacked = self.unpack_info()
+    def get_observational_axes(self, unpacked, x_obs):
         x_center = unpacked['x_center']
         l_hat = unpacked['l_hat']
         epsilon_r = unpacked['epsilon_r']
@@ -105,9 +104,8 @@ class SemiInfiniteCylinder(obj_element.Element):
 
         return r_hat, theta_hat, l_hat
 
-    def get_regularized_elliptic_m_from_r_and_z(self, r_obs, z_obs):
+    def get_regularized_elliptic_m_from_r_and_z(self, unpacked, r_obs, z_obs):
 
-        unpacked = self.unpack_info()
         r_cyl = unpacked['radius']
         epsilon_r = unpacked['epsilon_r']
 
@@ -116,22 +114,36 @@ class SemiInfiniteCylinder(obj_element.Element):
         m = m_num/m_den
         return m
 
-    def get_regularized_elliptic_m(self, x_obs):
-        r_obs = self.get_r_obs(x_obs)
-        z_obs = self.get_z_obs(x_obs)
+    def get_regularized_elliptic_m(self, unpacked, x_obs):
+        r_obs = self.get_r_obs(unpacked, x_obs)
+        z_obs = self.get_z_obs(unpacked, x_obs)
 
-        m = self.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+        m = self.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
         return m
 
-    def get_regularized_elliptic_m_zero_from_r(self, r_obs):
+    def get_regularized_elliptic_m_zero_from_r(self, unpacked, r_obs):
         z_obs = cas.DM.zeros((1,1))
-        m = self.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+        m = self.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
         return m
 
-    def get_regularized_elliptic_m_zero(self, x_obs):
-        r_obs = self.get_r_obs(x_obs)
-        m0 = self.get_regularized_elliptic_m_zero_from_r(r_obs)
+    def get_regularized_elliptic_m_zero(self, unpacked, x_obs):
+        r_obs = self.get_r_obs(unpacked, x_obs)
+        m0 = self.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
         return m0
+
+    @property
+    def approximation_order_for_elliptic_integrals(self):
+        return self.__approximation_order_for_elliptic_integrals
+
+    @approximation_order_for_elliptic_integrals.setter
+    def approximation_order_for_elliptic_integrals(self, value):
+        awelogger.logger.error('Cannot set approximation_order_for_elliptic_integrals object.')
+
+    def set_approximation_order_for_elliptic_integrals(self, value):
+        self.__approximation_order_for_elliptic_integrals = value
+        return None
+
+
 
 def calculate_radius_and_l_start(x_start, x_center, l_hat):
     vec_dist = (x_start - x_center)
@@ -170,7 +182,7 @@ def test_r_val_on_axis(cyl, epsilon=1.e-4):
     expected = 0.
     x_obs = 10. * vect_op.xhat_dm() + expected * vect_op.zhat_dm()
 
-    found = cyl.get_r_obs(x_obs)
+    found = cyl.get_r_obs(cyl.info_dict, x_obs)
     diff = found - expected
 
     test_val = vect_op.norm(diff)
@@ -185,7 +197,7 @@ def test_r_val_off_axis(cyl, epsilon=1.e-4):
     expected = 3.
     x_obs = 10. * vect_op.xhat_dm() + expected * vect_op.zhat_dm()
 
-    found = cyl.get_r_obs(x_obs)
+    found = cyl.get_r_obs(cyl.info_dict, x_obs)
     diff = found - expected
 
     test_val = vect_op.norm(diff)
@@ -200,7 +212,7 @@ def test_z_val_before_cylinder(cyl, epsilon=1.e-4):
     expected = -10.
     x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
 
-    found = cyl.get_z_obs(x_obs)
+    found = cyl.get_z_obs(cyl.info_dict, x_obs)
     diff = found - expected
 
     test_val = vect_op.norm(diff)
@@ -215,7 +227,7 @@ def test_z_val_at_start(cyl, epsilon=1.e-4):
     expected = 0.
     x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
 
-    found = cyl.get_z_obs(x_obs)
+    found = cyl.get_z_obs(cyl.info_dict, x_obs)
     diff = found - expected
 
     test_val = vect_op.norm(diff)
@@ -230,7 +242,7 @@ def test_z_val_on_cylinder(cyl, epsilon=1.e-4):
     expected = 10.
     x_obs = expected * vect_op.xhat_dm() + 6. * vect_op.zhat_dm()
 
-    found = cyl.get_z_obs(x_obs)
+    found = cyl.get_z_obs(cyl.info_dict, x_obs)
     diff = found - expected
 
     test_val = vect_op.norm(diff)
@@ -247,7 +259,7 @@ def test_regularized_m_value_at_critical_point(cyl, epsilon=1.e-4):
 
     r_obs = r_cyl
     z_obs = 0.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     expected = (4. * r_cyl**2.) / (4. * r_cyl**2. + 1.)
     diff = found - expected
@@ -266,7 +278,7 @@ def test_regularized_m_value_does_not_reach_one_at_critical_point(cyl, epsilon=1
 
     r_obs = r_cyl
     z_obs = 0.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     distance = (found - 1.)
 
@@ -282,7 +294,7 @@ def test_regularized_m_value_reaches_zero_on_axis(cyl, epsilon=1.e-4):
 
     r_obs = 0.
     z_obs = 0.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     criteria = (found ** 2. < epsilon ** 2.)
 
@@ -295,7 +307,7 @@ def test_regularized_m_value_reaches_zero_on_axis(cyl, epsilon=1.e-4):
 def test_regularized_m_value_approaches_zero_at_large_radius(cyl, epsilon=1.e-4):
     r_obs = 10.**8
     z_obs = 10.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     criteria = (found ** 2. < epsilon ** 2.)
 
@@ -311,7 +323,7 @@ def test_regularized_m_value_approaches_zero_far_downstream(cyl, epsilon=1.e-4):
 
     r_obs = 1.2 * r_cyl
     z_obs = 10.**8.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     criteria = (found ** 2. < epsilon ** 2.)
 
@@ -327,7 +339,7 @@ def test_regularized_m_value_approaches_zero_far_upstream(cyl, epsilon=1.e-4):
 
     r_obs = 1.2 * r_cyl
     z_obs = -1. * 10.**8.
-    found = cyl.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    found = cyl.get_regularized_elliptic_m_from_r_and_z(cyl.info_dict, r_obs, z_obs)
 
     criteria = (found ** 2. < epsilon ** 2.)
 
@@ -342,7 +354,7 @@ def test_axes_when_observer_is_on_x_hat(cyl, epsilon=1.e-6):
 
     x_obs = 3. * vect_op.xhat_dm()
 
-    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(cyl.info_dict, x_obs)
 
     expected_r_hat = vect_op.zhat_dm()
     expected_theta_hat = -1. * vect_op.yhat_dm()
@@ -367,7 +379,7 @@ def test_axes_when_observer_is_on_z_hat(cyl, epsilon=1.e-6):
 
     x_obs = 3. * vect_op.zhat_dm()
 
-    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(cyl.info_dict, x_obs)
 
     expected_r_hat = vect_op.zhat_dm()
     expected_theta_hat = -1. * vect_op.yhat_dm()
@@ -392,7 +404,7 @@ def test_axes_when_observer_is_on_y_hat(cyl, epsilon=1.e-4):
 
     x_obs = 3. * vect_op.yhat_dm()
 
-    r_hat, theta_hat, l_hat = cyl.get_observational_axes(x_obs)
+    r_hat, theta_hat, l_hat = cyl.get_observational_axes(cyl.info_dict, x_obs)
 
     expected_r_hat = vect_op.yhat_dm()
     expected_theta_hat = vect_op.zhat_dm()

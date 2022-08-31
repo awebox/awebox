@@ -348,7 +348,7 @@ def get_kite_induced_velocity(model_options, variables, parameters, architecture
     return u_ind_kite
 
 def get_kite_effective_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
-    print_op.warn_about_temporary_functionality_removal(location='this_is_defined_twice.flow?')
+    print_op.warn_about_temporary_functionality_alteration(reason='check if this is defined twice')
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     u_ind_kite = get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)

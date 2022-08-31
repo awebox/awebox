@@ -68,12 +68,8 @@ def build(model_options, architecture, variables_si, parameters):
     return near_wake
 
 def there_are_enough_wake_nodes_to_require_a_near_wake(model_options):
-    print_op.warn_about_temporary_functionality_removal(location='something is going wrong with the number of expected wake nodes? why is this passing?')
     wake_nodes = general_tools.get_option_from_possible_dicts(model_options, 'wake_nodes', 'vortex')
-    if wake_nodes > 1:
-        return True
-    else:
-        return False
+    return (wake_nodes > 1)
 
 def build_per_kite(model_options, kite, variables_si, parameters):
 

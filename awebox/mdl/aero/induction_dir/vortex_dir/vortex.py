@@ -27,6 +27,7 @@ vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-21
 '''
+import pdb
 
 import awebox.mdl.aero.induction_dir.geom_dir.unit_normal as unit_normal
 
@@ -66,7 +67,7 @@ def build(model_options, architecture, wind, variables_si, parameters):
     if vortex_representation == 'alg':
         return algebraic_representation.build(model_options, architecture, wind, variables_si, parameters)
     elif vortex_representation == 'state':
-        print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+        print_op.warn_about_temporary_functionality_alteration()
         return state_representation.build(model_options, architecture, wind, variables_si, parameters)
     else:
         vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
@@ -74,19 +75,19 @@ def build(model_options, architecture, wind, variables_si, parameters):
     return None
 
 
-def get_model_constraints(model_options, wake, wind, variables_si, architecture):
+def get_model_constraints(model_options, wake, wind, variables_si, parameters, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
     superposition_cstr = get_superposition_cstr(wake, wind, variables_si, architecture)
     cstr_list.append(superposition_cstr)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, wind, variables_si, architecture)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture)
     cstr_list.append(biot_savart_cstr)
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'state':
-        print_op.warn_about_temporary_functionality_removal(location='vortex.model_constraints:state_convection_resi')
+        print_op.warn_about_temporary_functionality_alteration()
 
     return cstr_list
 
@@ -110,15 +111,15 @@ def get_superposition_cstr(wake, wind, variables_si, architecture):
 
     return cstr_list
 
-def get_biot_savart_cstr(wake, wind, variables_si, architecture):
+def get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
     for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
 
         for kite_obs in architecture.kite_nodes:
-            resi = wake.get_substructure(substructure_type).construct_biot_savart_at_kite_residuals(wind, variables_si, kite_obs,
-                                                                                                    architecture.parent_map[kite_obs])
+            resi = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, wind, variables_si, parameters, kite_obs,
+                                                                                                   architecture.parent_map[kite_obs])
 
             local_cstr = cstr_op.Constraint(expr=resi,
                                             name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
@@ -136,7 +137,7 @@ def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_g
         if vortex_representation == 'alg':
             return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
         elif vortex_representation == 'state':
-            print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+            print_op.warn_about_temporary_functionality_alteration()
             return state_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
         else:
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
@@ -152,7 +153,7 @@ def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
         if vortex_representation == 'alg':
             return algebraic_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
         elif vortex_representation == 'state':
-            print_op.warn_about_temporary_functionality_removal(location='vortex.state')
+            print_op.warn_about_temporary_functionality_alteration(location='vortex.state')
             return state_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
         else:
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
@@ -264,21 +265,22 @@ def get_derivative_dict_for_alongside_integration(outputs, architecture):
 
 def test_that_model_constraint_residuals_have_correct_shape():
 
-    options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures()
-    wake = build(options, architecture, wind, var_struct, param_struct)
+    model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures()
+    wake = build(model_options, architecture, wind, var_struct, param_struct)
 
-    total_number_of_elements = vortex_tools.get_total_number_of_vortex_elements(options, architecture)
+    total_number_of_elements = vortex_tools.get_total_number_of_vortex_elements(model_options, architecture)
     number_of_observers = architecture.number_of_kites
     dimension_of_velocity = 3
 
     variables_si = var_struct
+    parameters = param_struct
 
     superposition_cstr = get_superposition_cstr(wake, wind, variables_si, architecture)
     found_superposition_shape = superposition_cstr.get_expression_list('all').shape
     expected_superposition_shape = (number_of_observers * dimension_of_velocity, 1)
     cond1 = (found_superposition_shape == expected_superposition_shape)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, wind, variables_si, architecture)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture)
     found_biot_savart_shape = biot_savart_cstr.get_expression_list('all').shape
     expected_biot_savart_shape = (total_number_of_elements * number_of_observers * dimension_of_velocity, 1)
     cond2 = (found_biot_savart_shape == expected_biot_savart_shape)

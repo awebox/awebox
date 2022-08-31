@@ -172,6 +172,9 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
     epsilon_m = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_m', 'vortex')
     epsilon_r = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_r', 'vortex')
 
+    approximation_order_for_elliptic_integrals = general_tools.get_option_from_possible_dicts(model_options, 'approximation_order_for_elliptic_integrals', 'vortex')
+
+
     tan_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
     long_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
 
@@ -190,7 +193,8 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
                       'epsilon_r': epsilon_r,
                       'strength': strength_tan
                       }
-        tan_cyl = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(order_tan)
+        tan_cyl = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(order_tan,
+            approximation_order_for_elliptic_integrals)
         tan_cyl_list.append(tan_cyl)
 
         order_long = {'x_center': x_center,
@@ -201,7 +205,8 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
                       'epsilon_r': epsilon_r,
                       'strength': strength_long
                       }
-        long_cyl = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(order_long)
+        long_cyl = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(order_long,
+            approximation_order_for_elliptic_integrals)
         long_cyl_list.append(long_cyl)
 
     return [tan_cyl_list, long_cyl_list]

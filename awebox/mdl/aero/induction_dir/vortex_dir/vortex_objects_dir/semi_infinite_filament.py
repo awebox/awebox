@@ -62,12 +62,7 @@ class SemiInfiniteFilament(obj_element.Element):
         self.set_info_order(order)
         return None
 
-    def define_biot_savart_induction_function(self):
-        expected_info_length = self.expected_info_length
-        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
-        unpacked_sym = self.unpack_info(external_info=packed_sym)
-
-        x_obs = cas.SX.sym('x_obs', (3, 1))
+    def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
 
         x_0 = unpacked_sym['x_start']
         l_hat = unpacked_sym['l_hat']
@@ -85,12 +80,22 @@ class SemiInfiniteFilament(obj_element.Element):
         den2 = r_0 * cas.mtimes(l_hat.T, vec_0)
         den3 = r_core**2.
 
+        num = factor * num1
+        den = den1 + den2 + den3
+
         value = factor * num1 / (den1 + den2 + den3)
 
-        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
-        self.set_biot_savart_fun(biot_savart_fun)
+        return value, num, den
 
-        return None
+
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+        r_ref = b_ref/2.
+
+        u_ref = wind.get_speed_ref()
+
+        den_ref = r_ref**2. * u_ref
+        return den_ref
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
 

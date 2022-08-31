@@ -33,8 +33,10 @@ import pdb
 import casadi.tools as cas
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.special
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
@@ -51,68 +53,69 @@ matplotlib.use('TkAgg')
 class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCylinder):
     # Branlard, Emmanuel & Gaunaa, Mac.(2014). Cylindrical vortex wake model: Right cylinder. Wind Energy. 524. 10.1002/we.1800.
 
-    def __init__(self, info_dict):
-        super().__init__(info_dict)
+    def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):
+        super().__init__(info_dict, approximation_order_for_elliptic_integrals)
         self.set_element_type('semi_infinite_tangential_cylinder')
 
 
     ##### radial induction parts
 
-    def get_regularized_biot_savart_induction_radial_component_strength_part(self):
+    def get_regularized_biot_savart_induction_radial_component_strength_part(self, unpacked):
 
-        unpacked = self.info_dict
         strength = unpacked['strength']
 
         part_1 = -1. * strength / (2. * np.pi)
 
         return part_1
 
-    def get_regularized_biot_savart_induction_radial_component_middle_part(self, r_obs, z_obs):
-
-        unpacked = self.info_dict
+    def get_regularized_biot_savart_induction_radial_component_middle_part(self, unpacked, r_obs, z_obs):
 
         r_cyl = unpacked['radius']
         epsilon_r = unpacked['epsilon_r']
 
         part_2a = ((r_cyl + r_obs) ** 2. + z_obs ** 2. + epsilon_r**2.)**0.5
         part_2b = r_obs + epsilon_r
-        part_2 = part_2a / part_2b
 
-        return part_2
+        num = part_2a
+        den = part_2b
+        part_2 = num / den
 
-    def get_regularized_biot_savart_induction_radial_component_elliptic_part(self, elliptic_m):
+        return part_2, num, den
+
+    def get_regularized_biot_savart_induction_radial_component_elliptic_part(self, unpacked, elliptic_m):
+
+        approximation_order_for_elliptic_integrals = self.approximation_order_for_elliptic_integrals
 
         part_3a = 1. - 0.5 * elliptic_m
-        part_3b = vect_op.elliptic_k(m=elliptic_m)
-        part_3c = vect_op.elliptic_e(m=elliptic_m)
+        part_3b = vect_op.elliptic_k(m=elliptic_m, approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals)
+        part_3c = vect_op.elliptic_e(m=elliptic_m, approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals)
         part_3 = part_3a * part_3b - part_3c
 
         return part_3
 
-    def get_regularized_biot_savart_induction_radial_component(self, r_obs, z_obs, elliptic_m):
+    def get_regularized_biot_savart_induction_radial_component(self, unpacked, r_obs, z_obs, elliptic_m):
 
-        part_1 = self.get_regularized_biot_savart_induction_radial_component_strength_part()
-        part_2 = self.get_regularized_biot_savart_induction_radial_component_middle_part(r_obs, z_obs)
-        part_3 = self.get_regularized_biot_savart_induction_radial_component_elliptic_part(elliptic_m)
+        part_1 = self.get_regularized_biot_savart_induction_radial_component_strength_part(unpacked)
+        _, num2, den2 = self.get_regularized_biot_savart_induction_radial_component_middle_part(unpacked, r_obs, z_obs)
+        part_3 = self.get_regularized_biot_savart_induction_radial_component_elliptic_part(unpacked, elliptic_m)
 
-        found = part_1 * part_2 * part_3
+        num = part_1 * num2 * part_3
+        den = den2
+        found = num / den
 
-        return found
+        return found, num, den
 
     ##### longitudinal induction parts
 
-    def get_regularized_biot_savart_induction_longitudinal_component_strength_part(self):
+    def get_regularized_biot_savart_induction_longitudinal_component_strength_part(self, unpacked):
 
-        unpacked = self.info_dict
         strength = unpacked['strength']
 
         part_1 = strength / 2.
 
         return part_1
 
-    def get_regularized_biot_savart_induction_longitudinal_component_middle_part(self, r_obs):
-
-        unpacked = self.info_dict
+    def get_regularized_biot_savart_induction_longitudinal_component_middle_part(self, unpacked, r_obs):
 
         r_cyl = unpacked['radius']
         epsilon_r = unpacked['epsilon_r']
@@ -125,62 +128,74 @@ class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCyli
 
         return part_2
 
-    def get_regularized_biot_savart_induction_longitudinal_component_elliptic_part(self, r_obs, z_obs, elliptic_m0, elliptic_m):
+    def get_regularized_biot_savart_induction_longitudinal_component_elliptic_part(self, unpacked, r_obs, z_obs, elliptic_m0, elliptic_m):
 
-        unpacked = self.info_dict
         r_cyl = unpacked['radius']
         epsilon_r = unpacked['epsilon_r']
 
+        approximation_order_for_elliptic_integrals = self.approximation_order_for_elliptic_integrals
+
         num_1 = z_obs / np.pi
-        num_2 = vect_op.elliptic_k(m=elliptic_m)
-        num_3a = (r_cyl - r_obs) / (r_cyl + r_obs + epsilon_r)
-        num_3b = vect_op.elliptic_pi(n=elliptic_m0, m=elliptic_m)
+        num_2 = vect_op.elliptic_k(m=elliptic_m, approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals)
+
+        num_3a = (r_cyl - r_obs)
+        den_3a = (r_cyl + r_obs + epsilon_r)
+        num_3b = vect_op.elliptic_pi(n=elliptic_m0, m=elliptic_m, approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals)
         num_3 = num_3a * num_3b
 
-        num = num_1 * (num_2 + num_3)
+        num = num_1 * (num_2 * den_3a + num_3)
 
-        den = ( (r_cyl + r_obs)**2. + z_obs**2. + epsilon_r**2)**0.5
+        den_4 = ( (r_cyl + r_obs)**2. + z_obs**2. + epsilon_r**2)**0.5
+        den = den_3a * den_4
 
-        part_3 = num/den
+        part_3 = num / den
 
-        return part_3
+        return part_3, num, den
 
-    def get_regularized_biot_savart_induction_longitudinal_component(self, r_obs, z_obs, elliptic_m0, elliptic_m):
+    def get_regularized_biot_savart_induction_longitudinal_component(self, unpacked, r_obs, z_obs, elliptic_m0, elliptic_m):
 
-        part_1 = self.get_regularized_biot_savart_induction_longitudinal_component_strength_part()
-        part_2 = self.get_regularized_biot_savart_induction_longitudinal_component_middle_part(r_obs)
-        part_3 = self.get_regularized_biot_savart_induction_longitudinal_component_elliptic_part(r_obs, z_obs, elliptic_m0, elliptic_m)
+        part_1 = self.get_regularized_biot_savart_induction_longitudinal_component_strength_part(unpacked)
+        part_2 = self.get_regularized_biot_savart_induction_longitudinal_component_middle_part(unpacked, r_obs)
+        _, num3, den3 = self.get_regularized_biot_savart_induction_longitudinal_component_elliptic_part(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
-        found = part_1 * (part_2 + part_3)
+        num = part_1 * (part_2 * den3 + num3)
+        den = den3
+        found = num / den
 
-        return found
+        return found, num, den
 
     ########### together
 
-    def define_biot_savart_induction_function(self):
+    def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
 
-        expected_info_length = self.expected_info_length
-        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
+        r_obs = self.get_r_obs(unpacked_sym, x_obs)
+        z_obs = self.get_z_obs(unpacked_sym, x_obs)
 
-        x_obs = cas.SX.sym('x_obs', (3, 1))
+        elliptic_m = self.get_regularized_elliptic_m_from_r_and_z(unpacked_sym, r_obs, z_obs)
+        elliptic_m0 = self.get_regularized_elliptic_m_zero_from_r(unpacked_sym, r_obs)
 
-        r_obs = self.get_r_obs(x_obs)
-        z_obs = self.get_z_obs(x_obs)
+        _, num_rad, den_rad = self.get_regularized_biot_savart_induction_radial_component(unpacked=unpacked_sym, r_obs=r_obs, z_obs=z_obs, elliptic_m=elliptic_m)
+        _, num_long, den_long = self.get_regularized_biot_savart_induction_longitudinal_component(unpacked=unpacked_sym, r_obs=r_obs, z_obs=z_obs, elliptic_m0=elliptic_m0, elliptic_m=elliptic_m)
 
-        elliptic_m = self.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-        elliptic_m0 = self.get_regularized_elliptic_m_zero_from_r(r_obs)
+        r_hat, _, l_hat = self.get_observational_axes(unpacked_sym, x_obs)
 
-        radial_component = self.get_regularized_biot_savart_induction_radial_component(r_obs=r_obs, z_obs=z_obs, elliptic_m=elliptic_m)
-        longitudinal_component = self.get_regularized_biot_savart_induction_longitudinal_component(r_obs=r_obs, z_obs=z_obs, elliptic_m0=elliptic_m0, elliptic_m=elliptic_m)
+        num = num_rad * r_hat * den_long + num_long * l_hat * den_rad
+        den = den_rad * den_long
 
-        r_hat, _, l_hat = self.get_observational_axes(x_obs)
+        found = num / den
 
-        value = radial_component * r_hat + longitudinal_component * l_hat
+        return found, num, den
 
-        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
-        self.set_biot_savart_fun(biot_savart_fun)
 
-        return None
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
+
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+        varrho_ref = general_tools.get_option_from_possible_dicts(model_options, 'varrho_ref', 'vortex')
+        r_ref = varrho_ref * b_ref
+
+        u_ref = wind.get_speed_ref()
+        den_ref = r_ref**3. * u_ref
+        return den_ref
 
     ###### draw
 
@@ -194,7 +209,7 @@ class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCyli
         l_start = unpacked['l_start']
 
         x_obs = vect_op.zhat_np()
-        a_hat, b_hat, _ = self.get_observational_axes(x_obs)
+        a_hat, b_hat, _ = self.get_observational_axes(unpacked, x_obs)
 
         s_start = l_start
         s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
@@ -289,12 +304,14 @@ def test_regularized_biot_savart_induction_radial_component_on_axis(cyl_regulari
 
     pretest_is_regularized_cylinder(cyl_regularized, epsilon)
 
+    unpacked = cyl_regularized.unpack_info()
+
     r_obs = 0.
     z_obs = 100.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
 
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component(r_obs, z_obs, elliptic_m)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_radial_component(unpacked, r_obs, z_obs, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -310,12 +327,14 @@ def test_regularized_biot_savart_induction_radial_component_at_large_radius(cyl_
 
     pretest_is_regularized_cylinder(cyl_regularized, epsilon)
 
+    unpacked = cyl_regularized.unpack_info()
+
     r_obs = 10.**8.
     z_obs = 10.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
 
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component(r_obs, z_obs, elliptic_m)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_radial_component(unpacked, r_obs, z_obs, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -339,7 +358,7 @@ def test_biot_savart_induction_radial_component_middle_part_at_critical_point(cy
     r_obs = r_cyl
     z_obs = 0.
 
-    found = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(unpacked, r_obs, z_obs)
     # expected = np.sqrt(5.)/2. if regularized
     expected = 2.
 
@@ -355,16 +374,16 @@ def test_biot_savart_induction_radial_component_middle_part_at_critical_point(cy
 
 def test_regularized_biot_savart_induction_radial_component_elliptical_part_at_critical_point(cyl_regularized, epsilon=1.e-4):
 
+    pretest_is_regularized_cylinder(cyl_regularized, epsilon=epsilon)
+
     unpacked = cyl_regularized.unpack_info()
     r_cyl = unpacked['radius']
-
-    pretest_is_regularized_cylinder(cyl_regularized, epsilon=epsilon)
 
     r_obs = r_cyl
     z_obs = 0.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(elliptic_m)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(unpacked, elliptic_m)
     expected = 0.175833
 
     diff = found - expected
@@ -386,7 +405,7 @@ def test_biot_savart_induction_radial_component_middle_part_far_upstream(cyl_unr
     r_obs = 1.2 * r_cyl
     z_obs = -1. * 10.**5.
 
-    found = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(unpacked, r_obs, z_obs)
     # expected = 45454.5 if regularized
 
     part_2a = vect_op.abs(z_obs)
@@ -411,8 +430,8 @@ def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_
     r_obs = 1.2 * r_cyl
     z_obs = -1. * 10.**5.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(elliptic_m)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(unpacked, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -434,9 +453,9 @@ def test_regularized_biot_savart_induction_radial_component_far_upstream(cyl_reg
     r_obs = 1.2 * r_cyl
     z_obs = -1. * 10.**5.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
 
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component(r_obs, z_obs, elliptic_m)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_radial_component(unpacked, r_obs, z_obs, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -458,7 +477,7 @@ def test_biot_savart_induction_radial_component_middle_part_far_downstream(cyl_u
     r_obs = 0.8 * r_cyl
     z_obs = 10.**5.
 
-    found = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_radial_component_middle_part(unpacked, r_obs, z_obs)
     # expected = 55555.555 if regularized
 
     part_2a = z_obs
@@ -469,6 +488,7 @@ def test_biot_savart_induction_radial_component_middle_part_far_downstream(cyl_u
     criteria = ( (diff/expected) ** 2. < epsilon ** 2.)
 
     if not criteria:
+
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, radial-component, middle part, computation does not behave as expected far downstream'
         awelogger.logger.error(message)
         raise Exception(message)
@@ -483,8 +503,8 @@ def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_
     r_obs = 0.8 * r_cyl
     z_obs = 10.**5.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(elliptic_m)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component_elliptic_part(unpacked, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -506,9 +526,9 @@ def test_regularized_biot_savart_induction_radial_component_far_downstream(cyl_r
     r_obs = 0.8 * r_cyl
     z_obs = 10.**5.
 
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
 
-    found = cyl_regularized.get_regularized_biot_savart_induction_radial_component(r_obs, z_obs, elliptic_m)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_radial_component(unpacked, r_obs, z_obs, elliptic_m)
     expected = 0.
 
     diff = found - expected
@@ -551,9 +571,9 @@ def test_biot_savart_induction_longitudinal_component_on_axis(cyl_unregularized,
     r_obs = 0.
     z_obs = 100.
 
-    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = (strength / 2.) * ( 1. + z_obs / ( (r_cyl**2. + z_obs**2.)**0.5 ) )
 
@@ -578,9 +598,9 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_at_start(c
     r_obs = r_cyl / 3.
     z_obs = 0.
 
-    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = strength / 2.
 
@@ -605,9 +625,9 @@ def test_biot_savart_induction_longitudinal_component_outside_cylinder_at_start(
     r_obs = 2. * r_cyl
     z_obs = 0.
 
-    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = 0.
 
@@ -627,15 +647,14 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_far_upstre
     pretest_is_unregularized_cylinder(cyl_unregularized, epsilon)
 
     unpacked = cyl_unregularized.info_dict
-    strength = unpacked['strength']
     r_cyl = unpacked['radius']
 
     r_obs = r_cyl / 3.
     z_obs = -1. * 10**6.
 
-    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = 0.
 
@@ -660,9 +679,9 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_far_downst
     r_obs = r_cyl / 3.
     z_obs = 10**4.
 
-    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_unregularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_unregularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = strength
 
@@ -688,9 +707,9 @@ def test_regularized_biot_savart_induction_longitudinal_component_outside_cylind
     r_obs = 10. * r_cyl
     z_obs = 10.**8.
 
-    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     elliptic_k = (4. * r_cyl * r_obs / ((r_cyl + r_obs)**2. + z_obs**2. + epsilon_r**2.))**0.5
     elliptic_k0 = (4. * r_cyl * r_obs / ((r_cyl + r_obs)**2. + 0.**2. + epsilon_r**2.))**0.5
@@ -728,9 +747,9 @@ def test_regularized_biot_savart_induction_longitudinal_component_on_surface(cyl
     r_obs = r_cyl
     z_obs = 10.
 
-    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     elliptic_k = (4. / (4. + z_obs**2. + epsilon_r**2.))**0.5
     part_1 = strength/2.
@@ -763,9 +782,9 @@ def test_regularized_biot_savart_induction_longitudinal_component_at_critical_po
     r_obs = r_cyl
     z_obs = 0.
 
-    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(r_obs)
-    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(r_obs, z_obs)
-    found = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(r_obs, z_obs, elliptic_m0, elliptic_m)
+    elliptic_m0 = cyl_regularized.get_regularized_elliptic_m_zero_from_r(unpacked, r_obs)
+    elliptic_m = cyl_regularized.get_regularized_elliptic_m_from_r_and_z(unpacked, r_obs, z_obs)
+    found, _, _ = cyl_regularized.get_regularized_biot_savart_induction_longitudinal_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     part_1 = strength/2.
     part_2 = 0.5

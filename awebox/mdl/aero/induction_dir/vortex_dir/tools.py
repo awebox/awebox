@@ -178,6 +178,9 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
                     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
                     options_tree.append(('model', 'scaling', 'xl', var_name, wu_ind_element_scale, ('descript', None), 'x'))
 
+    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    options_tree.append(('model', 'aero', 'vortex', 'varrho_ref', varrho_ref, ('descript', None), 'x'))
+
     return options_tree
 
 

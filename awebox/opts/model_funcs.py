@@ -676,7 +676,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
 
-    print_op.warn_about_temporary_functionality_removal(location='opts.model_funcs.is_this_necesary?')
+    print_op.warn_about_temporary_functionality_alteration(reason='decide if this is necessary')
 
     rings = wake_nodes
 

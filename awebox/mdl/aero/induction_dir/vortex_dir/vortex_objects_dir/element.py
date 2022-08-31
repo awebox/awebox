@@ -48,7 +48,9 @@ class Element:
         self.__info_dict = info_dict
         self.set_element_type('element')
         self.set_biot_savart_fun(None)
+        self.set_biot_savart_residual_fun(None)
         self.set_info_fun(None)
+
 
         if info_order is not None:
             self.set_info_order(info_order)
@@ -172,10 +174,43 @@ class Element:
         color = cmap(strength_scaled)
         return color
 
-    def define_biot_savart_induction_function(self):
-        message = 'cannot define the biot savart induction function for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+    def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
+        message = 'cannot calculate the biot savart induction for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         awelogger.logger.error(message)
         raise Exception(message)
+
+        return None
+
+    def define_biot_savart_induction_function(self):
+        expected_info_length = self.expected_info_length
+        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
+        unpacked_sym = self.unpack_info(external_info=packed_sym)
+
+        x_obs = cas.SX.sym('x_obs', (3, 1))
+
+        value, _, _ = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
+
+        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
+        self.set_biot_savart_fun(biot_savart_fun)
+
+        return None
+
+    def define_biot_savart_induction_residual_function(self):
+        expected_info_length = self.expected_info_length
+        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
+        unpacked_sym = self.unpack_info(external_info=packed_sym)
+
+        x_obs = cas.SX.sym('x_obs', (3, 1))
+        vec_u_ind = cas.SX.sym('vec_u_ind', (3, 1))
+
+        _, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
+
+        resi = den * vec_u_ind - num
+
+        biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+        self.set_biot_savart_residual_fun(biot_savart_residual_fun)
+
+        return None
 
     def define_model_variables_to_info_function(self, model_variables, model_parameters):
         info_fun = cas.Function('info_fun', [model_variables, model_parameters], [self.__info])
@@ -186,11 +221,15 @@ class Element:
     def evaluate_info(self, variables_scaled, parameters):
         return self.__info_fun(variables_scaled, parameters)
 
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
+        message = 'cannot determine the biot-savart reference denominator for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         awelogger.logger.error(message)
         raise Exception(message)
-
 
     def construct_fake_cosmetics(self, unpacked=None):
         cosmetics = {}
@@ -297,7 +336,7 @@ class Element:
 
     def test_basic_criteria(self, expected_object_type='element'):
         self.test_object_type(expected_object_type)
-        self.test_has_expected_info_length()
+        self.test_info_length()
         return None
 
     def test_object_type(self, expected_object_type='element'):
@@ -310,7 +349,7 @@ class Element:
 
         return None
 
-    def test_has_expected_info_length(self):
+    def test_info_length(self):
 
         if self.info_order is not None:
 
@@ -328,10 +367,6 @@ class Element:
 
         return None
 
-    def test_biot_savart(self):
-        message = 'cannot test the biot-savart induction from this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
 
     def test_draw(self, test_includes_visualization=False):
 
@@ -418,6 +453,16 @@ class Element:
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
 
+    @property
+    def biot_savart_residual_fun(self):
+        return self.__biot_savart_residual_fun
+
+    @biot_savart_residual_fun.setter
+    def biot_savart_residual_fun(self, value):
+        awelogger.logger.error('Cannot set biot_savart_residual_fun object.')
+
+    def set_biot_savart_residual_fun(self, value):
+        self.__biot_savart_residual_fun = value
 
 def construct_test_object(alpha=1.1):
 

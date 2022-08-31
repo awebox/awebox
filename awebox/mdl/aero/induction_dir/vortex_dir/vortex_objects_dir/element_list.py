@@ -34,7 +34,9 @@ import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_semi_infinite_tangential_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_semi_infinite_longitudinal_cylinder
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -53,10 +55,11 @@ class ElementList:
         self.__element_info_length = None
         self.__expected_element_info_length = None
 
-        self.__model_induction_fun = None
-        self.__model_induction_factor_fun = None
         self.set_biot_savart_fun(None)
         self.set_concatenated_biot_savart_fun(None)
+        self.set_biot_savart_residual_fun(None)
+        self.set_concatenated_biot_savart_residual_fun(None)
+
 
     def append(self, added_elem, suppress_type_incompatibility_warning=False):
 
@@ -161,12 +164,34 @@ class ElementList:
         number_symbolics = self.__expected_element_info_length + 3
         return number_symbolics
 
+    def get_number_of_symbolics_for_concatenated_biot_savart_residual(self):
+        number_symbolics = self.__expected_element_info_length + 6
+        return number_symbolics
+
     def get_element_info_from_concatenated_inputs(self, concatenated):
-        elem_info = concatenated[:-3]
+        elem_info = concatenated[:self.__expected_element_info_length]
         return elem_info
 
     def get_observer_info_from_concatenated_inputs(self, concatenated):
-        obs_info = concatenated[-3:]
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart():
+            obs_info = concatenated[self.__expected_element_info_length:self.__expected_element_info_length+3]
+        else:
+            message = 'trying to pull observer info from an unconcatenated list.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+        return obs_info
+
+    def get_velocity_info_from_concatenated_inputs(self, concatenated):
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual():
+            obs_info = concatenated[self.__expected_element_info_length+3:self.__expected_element_info_length+6]
+        else:
+            message = 'trying to pull velocity info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
         return obs_info
 
     def get_decolumnized_list_concatenated_with_observer_info(self, x_obs=cas.DM.zeros(3, 1)):
@@ -178,6 +203,29 @@ class ElementList:
 
         return concatenated_list
 
+    def dimension_of_the_concatenated_list_that_stores_entries(self):
+        return 1
+
+    def dimension_of_the_concatenated_list_that_stores_entry_info(self):
+        return 0
+
+    def get_concatenated_list_concatenated_with_velocity_info(self, concatenated_list, vec_u_ind_list):
+
+        entry_dim = self.dimension_of_the_concatenated_list_that_stores_entries()
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+
+        both_lists_have_the_same_number_of_entries = (concatenated_list.shape[entry_dim] == vec_u_ind_list.shape[entry_dim])
+        entry_velocity_is_given_in_three_dimensions = (vec_u_ind_list.shape[info_dim] == 3)
+
+        if both_lists_have_the_same_number_of_entries and entry_velocity_is_given_in_three_dimensions:
+            concatenated_list = cas.vertcat(concatenated_list, vec_u_ind_list)
+        else:
+            message = 'unable to concatenate vec_u_ind_list onto a concatenated list, due to a dimension error. maybe check that the velocity list has the individual entry velocities stored in columns?'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+        return concatenated_list
+
     def define_model_variables_to_info_function(self, model_variables, model_parameters):
         for elem in self.__list:
             if elem.info_fun is not None:
@@ -186,31 +234,61 @@ class ElementList:
         return None
 
     def define_biot_savart_induction_function(self):
+        elem = self.get_example_element()
+
+        if elem.biot_savart_fun is None:
+            elem.define_biot_savart_induction_function()
+
+        biot_savart_fun = elem.biot_savart_fun
+        self.set_biot_savart_fun(biot_savart_fun)
+
+        number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart()
+        concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
+        elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
+        x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
+
+        biot_savart_output = biot_savart_fun(elem_info, x_obs)
+
+        concatenated_biot_savart_fun = cas.Function('concatenated_biot_savart_fun', [concatenated_sym], [biot_savart_output])
+        self.set_concatenated_biot_savart_fun(concatenated_biot_savart_fun)
+
+        return None
+
+
+    def define_biot_savart_induction_residual_function(self):
+        elem = self.get_example_element()
+
+        if elem.biot_savart_residual_fun is None:
+            elem.define_biot_savart_induction_residual_function()
+
+        biot_savart_residual_fun = elem.biot_savart_residual_fun
+        self.set_biot_savart_residual_fun(biot_savart_residual_fun)
+
+        number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart_residual()
+        concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
+        elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
+        x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
+        vec_u_ind = self.get_velocity_info_from_concatenated_inputs(concatenated_sym)
+
+        biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind)
+
+        concatenated_biot_savart_residual_fun = cas.Function('concatenated_biot_savart_residual_fun', [concatenated_sym], [biot_savart_residual_output])
+        self.set_concatenated_biot_savart_residual_fun(concatenated_biot_savart_residual_fun)
+
+        return None
+
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
+        elem = self.get_example_element()
+        return elem.get_biot_savart_reference_denominator(model_options, parameters, wind)
+
+    def get_example_element(self):
         if len(self.__list) > 0:
-            elem = self.__list[0]
-
-            if elem.biot_savart_fun is None:
-                elem.define_biot_savart_induction_function()
-
-            biot_savart_fun = elem.biot_savart_fun
-            self.set_biot_savart_fun(biot_savart_fun)
-
-            number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart()
-            concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
-            elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
-            x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
-
-            biot_savart_output = biot_savart_fun(elem_info, x_obs)
-
-            concatenated_biot_savart_fun = cas.Function('concatenated_biot_savart_fun', [concatenated_sym], [biot_savart_output])
-            self.set_concatenated_biot_savart_fun(concatenated_biot_savart_fun)
-
+            return self.__list[0]
         else:
-            message = 'unable to define the biot_savart_induction_function for the vortex element list of type ' + self.element_type
+            message = 'the current task requires an example vortex element, but we cannot retrieve an example vortex element from this element list, because this list does not yet have any elements.'
             awelogger.logger.error(message)
             raise Exception(message)
 
-        return None
 
     def define_model_variables_to_info_functions(self, model_variables, model_parameters):
         for elem in self.__list:
@@ -237,6 +315,21 @@ class ElementList:
         u_ind = cas.sum2(all)
         return u_ind
 
+    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list):
+
+        if self.concatenated_biot_savart_residual_fun is None:
+            self.define_biot_savart_induction_residual_function()
+
+        concatenated_biot_savart_residual_fun = self.__concatenated_biot_savart_residual_fun
+        concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
+        concatenated_list = self.get_concatenated_list_concatenated_with_velocity_info(concatenated_list, vec_u_ind_list)
+
+        number_of_elements = self.number_of_elements
+        concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'openmp')
+        all = concatenated_biot_savart_residual_map(concatenated_list)
+
+        return all
+
     def get_max_abs_strength(self):
         if self.__number_of_elements > 0:
             all_strengths = [elem.info_dict['strength'] for elem in self.__list]
@@ -250,15 +343,12 @@ class ElementList:
         return 1.
 
     def construct_fake_cosmetics(self):
-        if self.__number_of_elements > 0:
-            example_element = self.__list[0]
-            cosmetics = example_element.construct_fake_cosmetics()
+        example_element = self.get_example_element()
+        cosmetics = example_element.construct_fake_cosmetics()
 
-            max_abs_strength = self.get_max_abs_strength()
-            cosmetics['trajectory']['circulation_max_estimate'] = max_abs_strength
-            return cosmetics
-
-        return None
+        max_abs_strength = self.get_max_abs_strength()
+        cosmetics['trajectory']['circulation_max_estimate'] = max_abs_strength
+        return cosmetics
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
 
@@ -285,6 +375,7 @@ class ElementList:
                     return True
 
         return False
+
 
     @property
     def list(self):
@@ -350,20 +441,26 @@ class ElementList:
         self.__concatenated_biot_savart_fun = value
 
     @property
-    def model_induction_fun(self):
-        return self.__model_induction_fun
+    def biot_savart_residual_fun(self):
+        return self.__biot_savart_residual_fun
 
-    @model_induction_fun.setter
-    def model_induction_fun(self, value):
-        self.__model_induction_fun = value
+    @biot_savart_residual_fun.setter
+    def biot_savart_residual_fun(self, value):
+        awelogger.logger.error('Cannot set biot_savart_residual_fun object.')
+
+    def set_biot_savart_residual_fun(self, value):
+        self.__biot_savart_residual_fun = value
 
     @property
-    def model_induction_factor_fun(self):
-        return self.__model_induction_factor_fun
+    def concatenated_biot_savart_residual_fun(self):
+        return self.__concatenated_biot_savart_residual_fun
 
-    @model_induction_factor_fun.setter
-    def model_induction_factor_fun(self, value):
-        self.__model_induction_factor_fun = value
+    @concatenated_biot_savart_residual_fun.setter
+    def concatenated_biot_savart_residual_fun(self, value):
+        awelogger.logger.error('Cannot set concatenated_biot_savart_residual_fun object.')
+
+    def set_concatenated_biot_savart_residual_fun(self, value):
+        self.__concatenated_biot_savart_residual_fun = value
 
     @property
     def element_type(self):
@@ -589,10 +686,137 @@ def test_appending():
 
     return None
 
+#########
+
+def construct_test_semi_infinite_filament_list():
+    filament_list = ElementList()
+
+    fil0 = obj_semi_infinite_filament.construct_test_object()
+    filament_list.append(fil0)
+
+    x_start1 = 5. * vect_op.zhat_np()
+    l_hat = vect_op.yhat_dm()
+    r_core = 1.e-10
+    strength1 = 1.
+    dict_info1 = {'x_start': x_start1,
+                  'l_hat': l_hat,
+                  'r_core': r_core,
+                  'strength': strength1}
+
+    fil1 = obj_semi_infinite_filament.SemiInfiniteFilament(dict_info1)
+    filament_list.append(fil1)
+
+    return filament_list
+
+def construct_test_semi_infinite_tangential_cylinder_list():
+    cyl_list = ElementList()
+
+    cyl0 = obj_semi_infinite_tangential_cylinder.construct_test_object()
+    cyl_list.append(cyl0)
+
+    x_center = cas.DM([1., 1., 1.])
+    radius = 4.
+    l_start = -2.
+    l_hat = vect_op.zhat_np()
+
+    epsilon_m = 10. ** (-5.)
+    epsilon_r = 1.
+
+    strength = 3.
+    unpacked = {'x_center': x_center,
+                'l_hat': l_hat,
+                'radius': radius,
+                'l_start': l_start,
+                'epsilon_m': epsilon_m,
+                'epsilon_r': epsilon_r,
+                'strength': strength
+                }
+
+    cyl1 = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(unpacked)
+    cyl_list.append(cyl1)
+
+    return cyl_list
+
+def construct_test_semi_infinite_longitudinal_cylinder_list():
+    cyl_list = ElementList()
+
+    cyl0 = obj_semi_infinite_longitudinal_cylinder.construct_test_object()
+    cyl_list.append(cyl0)
+
+    x_center = cas.DM([1., 1., 1.])
+    radius = 4.
+    l_start = -2.
+    l_hat = vect_op.zhat_np()
+
+    epsilon_m = 10. ** (-5.)
+    epsilon_r = 1.
+
+    strength = 3.
+    unpacked = {'x_center': x_center,
+                'l_hat': l_hat,
+                'radius': radius,
+                'l_start': l_start,
+                'epsilon_m': epsilon_m,
+                'epsilon_r': epsilon_r,
+                'strength': strength
+                }
+
+    cyl1 = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(unpacked)
+    cyl_list.append(cyl1)
+
+    return cyl_list
+
+
+def test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(element_list, epsilon=1.e-4):
+
+    number_of_elements = element_list.number_of_elements
+
+    if number_of_elements < 2:
+        message = 'cannot test that the biot-savart function actually evaluates differently on different elements, because the given element list has less than two elements.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    element_is_different = [not element_list.list[edx].is_equal(element_list.list[0]) for edx in range(1, number_of_elements)]
+    if not any(element_is_different):
+        message = 'cannot test that the biot-savart function actually evaluates differently on different elements, because the elements of the given list are not actually different.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    x_obs = cas.DM([1., 2., 3.])
+    all_vec_u = element_list.evaluate_biot_savart_induction_for_all_elements(x_obs)
+    vec_u_is_different = [cas.mtimes((all_vec_u[:, edx] - all_vec_u[:, 0]).T, (all_vec_u[:, edx] - all_vec_u[:, 0])) > epsilon**2. for edx in range(1, number_of_elements)]
+    condition = any(vec_u_is_different)
+
+    criteria = condition
+
+    if not criteria:
+        message = 'something went wrong when building the biot-savart function for a ' + element_list.element_type + ' element list: the biot-savart function does not evaluate differently for different elements'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+def test_that_biot_savart_function_evaluates_differently_for_different_elements(epsilon=1.e-4):
+
+    filament_list = construct_test_filament_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(filament_list, epsilon)
+
+    semi_infinite_filament_list = construct_test_semi_infinite_filament_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(semi_infinite_filament_list, epsilon)
+
+    si_long_cylinder_list = construct_test_semi_infinite_longitudinal_cylinder_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_long_cylinder_list, epsilon)
+
+    si_tan_cylinder_list = construct_test_semi_infinite_tangential_cylinder_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_tan_cylinder_list, epsilon)
+
+    return None
+
 #############
 
-def test():
+def test(epsilon=1.e-4):
     test_filament_list()
     test_appending()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements(epsilon)
 
-# test()
+test()

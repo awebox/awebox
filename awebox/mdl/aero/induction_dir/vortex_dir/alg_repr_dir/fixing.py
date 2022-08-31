@@ -208,8 +208,6 @@ def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model,
     int_name = 'integrated_circulation' + str(kite_shed)
     local_scaling = model.scaling['xd'][int_name]
 
-    n_k = nlp_options['n_k']
-
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
     tgrid_coll = time_grids['coll'](t_f_si)

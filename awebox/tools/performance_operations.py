@@ -41,9 +41,8 @@ def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
     return p_loyd
 
 def get_loyd_phf(CL, CD, elevation_angle=0.):
-    epsilon = 1.e-4 #8
-    print_op.warn_about_temporary_functionality_removal(location='perf_op.loyd_phf:smooth_sqrt, epsilon?')
-    CR = CL * vect_op.smooth_sqrt(1. + (CD / (CL + epsilon))**2.)
+    epsilon = 1.e-6
+    CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
 
     phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
     return phf

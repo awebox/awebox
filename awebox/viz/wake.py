@@ -171,7 +171,7 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
 
 def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, idx_at_eval, kdx, specified='radial_yz'):
 
-    print_op.warn_about_temporary_functionality_removal(location='viz.wake.compute_vortex_verification')
+    print_op.warn_about_temporary_functionality_alteration()
     #
     # local_variables = get_local_variables()
     # local_parameters = get_local_parameters()

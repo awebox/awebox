@@ -65,12 +65,7 @@ class FiniteFilament(obj_element.Element):
 
         return None
 
-    def define_biot_savart_induction_function(self):
-        expected_info_length = self.expected_info_length
-        packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
-        unpacked_sym = self.unpack_info(external_info=packed_sym)
-
-        x_obs = cas.SX.sym('x_obs', (3, 1))
+    def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
 
         x_0 = unpacked_sym['x_start']
         x_1 = unpacked_sym['x_end']
@@ -82,8 +77,8 @@ class FiniteFilament(obj_element.Element):
 
         r_squared_0 = cas.mtimes(vec_0.T, vec_0)
         r_squared_1 = cas.mtimes(vec_1.T, vec_1)
-        r_0 = r_squared_0**0.5
-        r_1 = r_squared_1**0.5
+        r_0 = r_squared_0 ** 0.5
+        r_1 = r_squared_1 ** 0.5
 
         # notice, that we're using the cut-off model as described in
         # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
@@ -91,21 +86,29 @@ class FiniteFilament(obj_element.Element):
         # A. van Garrel. Development of a Wind Turbine Aerodynamics Simulation Module. Technical report,
         # Energy research Centre of the Netherlands. ECN-C–03-079, aug 2003
         length = vect_op.norm(x_1 - x_0)
-        epsilon_vortex = r_core**2. * length**2.
+        epsilon_vortex = r_core ** 2. * length ** 2.
 
-        factor = strength/(4. * np.pi)
+        factor = strength / (4. * np.pi)
         num1 = r_0 + r_1
         num2 = vect_op.cross(vec_0, vec_1)
         den1 = r_squared_0 * r_squared_1
         den2 = r_0 * r_1 * cas.mtimes(vec_0.T, vec_1)
         den3 = epsilon_vortex
 
-        value = factor * num1 * num2 / (den1 + den2 + den3)
+        num = factor * num1 * num2
+        den = den1 + den2 + den3
 
-        biot_savart_fun = cas.Function('biot_savart_fun', [packed_sym, x_obs], [value])
-        self.set_biot_savart_fun(biot_savart_fun)
+        value = num / den
 
-        return None
+        return value, num, den
+
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+        r_ref = b_ref/2.
+
+        u_ref = wind.get_speed_ref()
+        den_ref = r_ref**4. * u_ref
+        return den_ref
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)

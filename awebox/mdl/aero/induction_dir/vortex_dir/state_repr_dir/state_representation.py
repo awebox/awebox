@@ -56,7 +56,7 @@ def get_wake(options, architecture, wind, variables_si, parameters):
     tools.check_positive_vortex_wake_nodes(options)
 
     wake_dict = None
-    print_op.warn_about_temporary_functionality_removal(location='state_representation')
+    print_op.warn_about_temporary_functionality_alteration()
     #
     # variables_scaled = system_variables['scaled']
     # variables_si = system_variables['SI']

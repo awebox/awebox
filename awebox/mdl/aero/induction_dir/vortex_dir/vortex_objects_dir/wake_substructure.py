@@ -61,18 +61,23 @@ class WakeSubstructure:
         self.__semi_infinite_longitudinal_cylinder_list = None
 
         self.__mapped_biot_savart_fun_dict = {}
+        self.__mapped_biot_savart_residual_fun_dict = {}
         for element_type in self.get_accepted_element_types():
             self.set_mapped_biot_savart_fun(element_type, None)
+            self.set_mapped_biot_savart_residual_fun(element_type, None)
 
     def mapped_biot_savart_function_is_defined_for_initialized_lists(self):
         return all([(self.get_mapped_biot_savart_fun(elem_type) is not None) for elem_type in self.get_initialized_element_types()])
+
+    def mapped_biot_savart_residual_function_is_defined_for_initialized_lists(self):
+        return all([(self.get_mapped_biot_savart_residual_fun(elem_type) is not None) for elem_type in self.get_initialized_element_types()])
 
     def define_biot_savart_induction_functions(self):
 
         x_obs = cas.SX.sym('x_obs', (3, 1))
 
-        initalized_types = self.get_initialized_element_types()
-        for element_type in initalized_types:
+        initialized_types = self.get_initialized_element_types()
+        for element_type in initialized_types:
             if self.get_mapped_biot_savart_fun(element_type) is None:
                 self.get_list(element_type).define_biot_savart_induction_function()
                 all = self.get_list(element_type).evaluate_biot_savart_induction_for_all_elements(x_obs)
@@ -82,37 +87,56 @@ class WakeSubstructure:
 
         return None
 
+    def define_biot_savart_induction_residual_functions(self):
+
+        x_obs = cas.SX.sym('x_obs', (3, 1))
+
+        initialized_types = self.get_initialized_element_types()
+        for element_type in initialized_types:
+            if self.get_mapped_biot_savart_residual_fun(element_type) is None:
+                number_of_elements = self.get_list(element_type).number_of_elements
+                vec_u_ind_list = cas.SX.sym('vec_u_ind_list', (3, number_of_elements))
+
+                self.get_list(element_type).define_biot_savart_induction_residual_function()
+                all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list)
+
+                mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all])
+                self.set_mapped_biot_savart_residual_fun(element_type, mapped_biot_savart_residual_fun)
+
+        return None
+
+
     def define_model_variables_to_info_functions(self, model_variables, model_parameters):
         initalized_types = self.get_initialized_element_types()
         for element_type in initalized_types:
             self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
         return None
 
-    def construct_biot_savart_at_kite_residuals(self, wind, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_residual_at_kite(self, model_options, wind, variables_si, parameters, kite_obs, parent_obs):
         resi = []
         for elem_type in self.get_initialized_element_types():
-            local_resi = self.construct_biot_savart_at_kite_residuals_by_element_type(elem_type, wind, variables_si, kite_obs, parent_obs)
+            local_resi = self.construct_biot_savart_residual_at_kite_by_element_type(elem_type, model_options, wind, variables_si, parameters, kite_obs, parent_obs)
             resi = cas.vertcat(resi, local_resi)
         return resi
 
-    def construct_biot_savart_at_kite_residuals_by_element_type(self, element_type, wind, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_residual_at_kite_by_element_type(self, element_type, model_options, wind, variables_si, parameters, kite_obs, parent_obs):
 
-        u_ref = wind.get_speed_ref()
+        if not self.mapped_biot_savart_residual_function_is_defined_for_initialized_lists():
+            self.define_biot_savart_induction_residual_functions()
 
-        if not self.mapped_biot_savart_function_is_defined_for_initialized_lists():
-            self.define_biot_savart_induction_functions()
-
-        vars = []
+        vec_u_ind_list = []
         number_of_elements = self.get_list(element_type).number_of_elements
         for edx in range(number_of_elements):
             local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
-            vars = cas.horzcat(vars, local_var)
+            vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
 
         x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'q' + str(kite_obs) + str(parent_obs))
-        found = self.get_mapped_biot_savart_fun(element_type)(x_obs)
+        resi = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
 
-        resi = (vars - found) / u_ref
-        resi_reshaped = vect_op.columnize(resi)
+        scale = self.get_list(element_type).get_biot_savart_reference_denominator(model_options, parameters, wind)
+
+        resi_scaled = resi / scale
+        resi_reshaped = vect_op.columnize(resi_scaled)
 
         return resi_reshaped
 
@@ -297,6 +321,11 @@ class WakeSubstructure:
     def set_mapped_biot_savart_fun(self, element_type, value):
         self.__mapped_biot_savart_fun_dict[element_type] = value
 
+    def get_mapped_biot_savart_residual_fun(self, element_type):
+        return self.__mapped_biot_savart_residual_fun_dict[element_type]
+
+    def set_mapped_biot_savart_residual_fun(self, element_type, value):
+        self.__mapped_biot_savart_residual_fun_dict[element_type] = value
 
     @property
     def substructure_type(self):
@@ -384,10 +413,43 @@ def test_mapped_biot_savart():
 
     return None
 
+def test_mapped_biot_savart_residual(epsilon=1.e-4):
+    local_substructure = construct_test_object()
+    local_substructure.define_biot_savart_induction_functions()
+    local_substructure.define_biot_savart_induction_residual_functions()
 
-def test():
+    x_obs = cas.DM([1., 2., 3.])
+
+    conditions = {}
+    total_conditions = 0
+    initialized_types = local_substructure.get_initialized_element_types()
+    for elem_type in initialized_types:
+        mapped_biot_savart_fun = local_substructure.get_mapped_biot_savart_fun(elem_type)
+        vec_u_ind_list = mapped_biot_savart_fun(x_obs)
+
+        mapped_biot_savart_residual_fun = local_substructure.get_mapped_biot_savart_residual_fun(elem_type)
+        resi = mapped_biot_savart_residual_fun(x_obs, vec_u_ind_list)
+
+        resi_columnized = vect_op.columnize(resi)
+
+        local_condition = all(local_resi**2. < epsilon**2. for local_resi in np.array(resi_columnized))
+        conditions[elem_type] = local_condition
+        total_conditions += local_condition
+
+    criteria = (total_conditions == len(initialized_types))
+
+    if not criteria:
+        message = 'something went wrong with the biot-savart or biot-savart residuals or their mapping: the output of the mapped biot-savart function does not satisfy the mapped biot-savart residual function'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    return None
+
+
+def test(epsilon=1.e-4):
     test_append()
     test_check_expected_dimensions()
     test_mapped_biot_savart()
+    test_mapped_biot_savart_residual(epsilon)
 
 # test()

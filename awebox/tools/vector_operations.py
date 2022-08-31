@@ -288,8 +288,23 @@ def lower_triangular_inclusive(matrix):
     return elements
 
 def columnize(matrix):
-    # only allows 2D matrices for variable
 
+    if not hasattr(matrix, 'shape'):
+        message = 'the columnize function is not yet available for objects that do not have a shape attribute'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    shape = matrix.shape
+
+    if len(shape) == 1:
+        if isinstance(matrix, np.ndarray):
+            matrix = cas.DM(matrix)
+        else:
+            message = 'the columnize function is not yet available for 1D objects that are not numpy ndarrays.'
+            awelogger.logger.error(message)
+            raise Exception(message)
+
+    # only procede with 2D matrices for variable
     [counted_rows, counted_columns] = matrix.shape
     number_elements = counted_rows * counted_columns
 
@@ -429,79 +444,120 @@ def rotation_matrix_to_euler_angles(dcm):
 def mtimes_elementwise(a, b):
     return np.diag(np.array(cas.mtimes(a, b.T)))
 
-def elliptic_k(k=None, m=None):
+def elliptic_k(approximation_order_for_elliptic_integrals=6, k=None, m=None):
 
-    if (k is not None) and (m is None):
-        m = k**2.
-    elif (m is None) and (k is None):
-        message = 'no acceptable argument given for elliptic_k approximation'
+    m = get_elliptic_m_from_m_or_k(k=k, m=m)
+
+    if approximation_order_for_elliptic_integrals == 0:
+        aa = cas.DM([np.pi / 2.])
+        bb = cas.DM([0.429204])
+
+    elif approximation_order_for_elliptic_integrals == 1:
+        aa = cas.DM([1.40832, 0.162481])
+        bb = cas.DM([0.495222, 0.0608882])
+
+    elif approximation_order_for_elliptic_integrals == 2:
+        aa = cas.DM([1.38807, 0.130564, 0.0521589])
+        bb = cas.DM([0.499693, 0.110545, 0.0173617])
+
+    elif approximation_order_for_elliptic_integrals == 3:
+        aa = cas.DM([1.38642, 0.103929, 0.0608376, 0.0196065])
+        bb = cas.DM([0.499981, 0.122766, 0.0485613, 0.00581447])
+
+    elif approximation_order_for_elliptic_integrals == 4:
+        aa = cas.DM([1.3863, 0.0976991, 0.0435461, 0.0355245, 0.00772332])
+        bb = cas.DM([0.499999, 0.12472, 0.0644774, 0.0236746, 0.00208671])
+
+    elif approximation_order_for_elliptic_integrals == 5:
+        aa = cas.DM([1.38629, 0.0967156, 0.0342165, 0.0296768, 0.0207886, 0.00310389])
+        bb = cas.DM([0.5, 0.124969, 0.0691274, 0.0389237, 0.0117541, 0.000777829])
+
+    elif approximation_order_for_elliptic_integrals == 6:
+        aa = cas.DM([1.38629, 0.0965894, 0.0315497, 0.0209059, 0.0224215, 0.0117732, 0.00126104])
+        bb = cas.DM([0.5, 0.124997, 0.0701137, 0.0459352, 0.0240693, 0.00581644, 0.000296896])
+
+    else:
+        message = 'elliptic_k approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
         awelogger.logger.error(message)
         raise Exception(message)
-    elif (m is not None) and (k is not None):
-        message = 'too many arguments given for elliptic_k approximation'
-        awelogger.logger.error(message)
-        raise Exception(message)
 
-    if (isinstance(m, float)) or (isinstance(m, int)) or (isinstance(m, cas.DM)):
-        if not (m >= 0 or m < 1):
-            message = 'm argument of elliptic integral K(m) is outside of acceptable range.'
-            awelogger.logger.error(message)
-            raise Exception(message)
-    # else:
-        # be advised: as the argument of elliptic integral K(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
 
-    a0 = 1.3862944
-    a1 = 0.1119723
-    a2 = 0.0725296
-    b0 = 0.5
-    b1 = 0.1213478
-    b2 = 0.0288729
+    # correct for rounding errors in the coefficients at initial condition (m=0)
+    if aa.shape[0] > 1:
+        aa[-1] = scipy.special.ellipk(0.) - sum(aa[:-1])
 
     one_minus_m = 1. - m
 
-    part_1 = a0 + a1 * one_minus_m**1. + a2 * one_minus_m**2.
-    part_2 = cas.log(1./one_minus_m) * ( b0 + b1 * one_minus_m**1. + b2 * one_minus_m**2. )
+    part_1 = 0.
+    part_2 = 0.
+    for ndx in range(approximation_order_for_elliptic_integrals + 1):
+        part_1 += aa[ndx] * one_minus_m**ndx
+        part_2 += bb[ndx] * one_minus_m**ndx
+
+    part_2 = part_2 * cas.log(1./one_minus_m)
 
     found = part_1 + part_2
 
     return found
 
-def elliptic_k_approximation_max_error():
-    return 2.e-5
+def elliptic_k_approximation_max_abs_error(approximation_order_for_elliptic_integrals):
+    if approximation_order_for_elliptic_integrals == 0:
+        max_abs_error = 0.141593
 
-def test_elliptic_k(epsilon=1.e-6):
+    elif approximation_order_for_elliptic_integrals == 1:
+        max_abs_error = 0.00955592
 
-    # boundary case
-    m = 0.
-    found = elliptic_k(m=m)
-    expected = special.ellipk(m)
-    error_bound = elliptic_k_approximation_max_error() * expected
+    elif approximation_order_for_elliptic_integrals == 2:
+        max_abs_error = 0.000614075
 
-    error = found - expected
-    if (error**2. > error_bound**2.):
-        message = '(boundary) elliptic integral K(m) approximation did not work as expected'
+    elif approximation_order_for_elliptic_integrals == 3:
+        max_abs_error = 0.0000389314
+
+    elif approximation_order_for_elliptic_integrals == 4:
+        max_abs_error = 2.45442e-6
+
+    elif approximation_order_for_elliptic_integrals == 5:
+        max_abs_error = 1.54298e-7
+
+    elif approximation_order_for_elliptic_integrals == 6:
+        max_abs_error = 7.67115e-7
+
+    else:
+        message = 'elliptic_k approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
         awelogger.logger.error(message)
         raise Exception(message)
 
+    return max_abs_error
 
-    # intermediate value
-    m = 0.5
-    found = elliptic_k(m=m)
-    expected = special.ellipk(m)
-    error_bound = elliptic_k_approximation_max_error() * expected
+def get_available_approximation_orders_for_elliptic_integrals():
+    return range(7)
 
-    error = found - expected
-    if (error ** 2. > error_bound ** 2.):
-        message = '(intermediate) elliptic integral K(m) approximation did not work as expected'
+def test_elliptic_k_at_position(approximation_order_for_elliptic_integrals, elliptic_m, epsilon=1.e-5):
+
+    found = elliptic_k(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, m=elliptic_m)
+    expected = special.ellipk(elliptic_m)
+    error_bound = elliptic_k_approximation_max_abs_error(approximation_order_for_elliptic_integrals) + epsilon
+
+    diff = found - expected
+    error = diff / expected
+    if (abs(error) > error_bound):
+        message = 'the error of the elliptic integral K(m) approximation (N=' + str(approximation_order_for_elliptic_integrals) + ') was not within the expected range, at m = ' + str(elliptic_m)
         awelogger.logger.error(message)
         raise Exception(message)
-
     return None
 
-def elliptic_pi(n=None, m=None):
+def test_elliptic_k(epsilon=1.e-5):
+    for approximation_order_for_elliptic_integrals in get_available_approximation_orders_for_elliptic_integrals():
+        test_elliptic_k_at_position(approximation_order_for_elliptic_integrals, elliptic_m=0., epsilon=epsilon)
+        test_elliptic_k_at_position(approximation_order_for_elliptic_integrals, elliptic_m=0.5, epsilon=epsilon)
+        delta = 1.e-4
+        test_elliptic_k_at_position(approximation_order_for_elliptic_integrals, elliptic_m=(1.0-delta), epsilon=epsilon)
+    return None
 
+def elliptic_pi(approximation_order_for_elliptic_integrals=6, n=None, m=None):
 
-    sqrt_one_minus_n = cas.sqrt(1. - n)
+    one_minus_n = 1. - n
+    sqrt_one_minus_n = cas.sqrt(one_minus_n)
 
     psi = cas.atan2(m-n, m+n)
 
@@ -513,12 +569,12 @@ def elliptic_pi(n=None, m=None):
     pinned_a1_expr = np.pi/(2. * sqrt_one_minus_n)
 
     pinned_a2_loc = pin_at_psi_negative_quarter * pin_at_psi_positive_quarter
-    pinned_a2_expr = -2. * elliptic_e(m=(n/(n-1.))) / sqrt_one_minus_n
+    pinned_a2_expr = elliptic_e(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, m=n) / one_minus_n
 
     pinned_a3_loc = pin_at_psi_0 * pin_at_psi_negative_quarter
-    pinned_a3_expr = elliptic_k(m=m)
+    pinned_a3_expr = elliptic_k(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, m=m)
 
-    pinned = 8. / np.pi**2. * (pinned_a1_loc * pinned_a1_expr + pinned_a2_loc * pinned_a2_expr + pinned_a3_loc * pinned_a3_expr)
+    pinned = 8. / np.pi**2. * (pinned_a1_loc * pinned_a1_expr - 2. * pinned_a2_loc * pinned_a2_expr + pinned_a3_loc * pinned_a3_expr)
 
     a1 = -4.96273
     a2 = 18.6521
@@ -535,20 +591,20 @@ def elliptic_pi(n=None, m=None):
     found = pinned + diff
     return found
 
-def elliptic_pi_approximation_max_error():
-    return 1.
-
 def test_elliptic_pi(epsilon=1.e-4):
+
+    error_bound = epsilon
+
+    approximation_order_for_elliptic_integrals=6
+
     # origin case
     n = 0.
     m = 0.
-    found = elliptic_pi(n=n, m=m)
+    found = elliptic_pi(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, n=n, m=m)
     expected = np.pi/2.
-    error_bound = epsilon
 
-    error = found - expected
+    error = (found - expected) / expected
     if (error**2. > error_bound**2.):
-
         message = '(origin) elliptic integral Pi(n|alpha) approximation did not work as expected'
         awelogger.logger.error(message)
         raise Exception(message)
@@ -556,10 +612,10 @@ def test_elliptic_pi(epsilon=1.e-4):
     # m = 0 case
     n = 0.5
     m = 0.
-    found = elliptic_pi(n=n, m=m)
+    found = elliptic_pi(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, n=n, m=m)
     expected = np.pi / (2. * (1. - n)**0.5)
 
-    error = found - expected
+    error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(m=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
         awelogger.logger.error(message)
@@ -569,10 +625,10 @@ def test_elliptic_pi(epsilon=1.e-4):
     # n = 0 case
     n = 0.
     m = 0.5
-    found = elliptic_pi(n=n, m=m)
+    found = elliptic_pi(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, n=n, m=m)
     expected = special.ellipk(m=m)
 
-    error = found - expected
+    error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(n=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
         awelogger.logger.error(message)
@@ -582,11 +638,10 @@ def test_elliptic_pi(epsilon=1.e-4):
     # center case
     n = 0.5
     m = 0.5
-    found = elliptic_pi(n=n, m=m)
+    found = elliptic_pi(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, n=n, m=m)
     expected = 2.70129
-    error_bound = elliptic_pi_approximation_max_error() * expected
 
-    error = found - expected
+    error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(center) elliptic integral Pi(n|alpha) approximation did not work as expected'
         awelogger.logger.error(message)
@@ -594,87 +649,134 @@ def test_elliptic_pi(epsilon=1.e-4):
 
     return None
 
-def elliptic_e(k=None, m=None):
-
+def get_elliptic_m_from_m_or_k(k=None, m=None):
     if (k is not None) and (m is None):
         m = k**2.
     elif (m is None) and (k is None):
-        message = 'no acceptable argument given for elliptic_e approximation'
+        message = 'no acceptable argument given for elliptic integral approximation'
         awelogger.logger.error(message)
         raise Exception(message)
     elif (m is not None) and (k is not None):
-        message = 'too many arguments given for elliptic_e approximation'
+        message = 'too many arguments given for elliptic integral approximation'
         awelogger.logger.error(message)
         raise Exception(message)
 
     if (isinstance(m, float)) or (isinstance(m, int)) or (isinstance(m, cas.DM)):
-        if not (m >= 0 or m < 1):
-            message = 'm argument of elliptic integral E(m) is outside of acceptable range.'
+        if not (m >= 0 and m <= 1):
+            message = 'm argument of elliptic integral is outside of acceptable range.'
             awelogger.logger.error(message)
             raise Exception(message)
     # else:
-        # be advised: as the argument of elliptic integral E(m) is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
+        # be advised: as the argument of elliptic integral is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
 
-    # a0 = 1.
-    a1 = 0.4630151
-    a2 = 0.1077812
-    # b0 = 0.
-    b1 = 0.2452727
-    b2 = 0.0412496
+    return m
+
+def elliptic_e(approximation_order_for_elliptic_integrals=3, k=None, m=None):
+
+    m = get_elliptic_m_from_m_or_k(k=k, m=m)
+
+    if approximation_order_for_elliptic_integrals == 0:
+        aa = cas.DM([np.pi / 2.])
+        bb = cas.DM([0.])
+
+    elif approximation_order_for_elliptic_integrals == 1:
+        aa = cas.DM([1.00826, 0.562537])
+        bb = cas.DM([0., 0.175222])
+
+    elif approximation_order_for_elliptic_integrals == 2:
+        aa = cas.DM([1.00029, 0.477105, 0.0934031])
+        bb = cas.DM([0., 0.239135, 0.0321714])
+
+    elif approximation_order_for_elliptic_integrals == 3:
+        aa = cas.DM([1.00001, 0.448231, 0.091466, 0.0310873])
+        bb = cas.DM([0., 0.248772, 0.0733862, 0.00956869])
+
+    elif approximation_order_for_elliptic_integrals == 4:
+        aa = cas.DM([1., 0.443741, 0.0682298, 0.0471662, 0.0116587])
+        bb = cas.DM([0., 0.249879, 0.0892654, 0.0332429, 0.00324792])
+
+    elif approximation_order_for_elliptic_integrals == 5:
+        aa = cas.DM([1., 0.443208, 0.0592761, 0.0367837, 0.0269668, 0.004562])
+        bb = cas.DM([0., 0.249989, 0.0929817, 0.0498747, 0.0160718, 0.00117209])
+
+    elif approximation_order_for_elliptic_integrals == 6:
+        aa = cas.DM([1., 0.443153, 0.057224, 0.0270174, 0.0263564, 0.0152242, 0.00182195])
+        bb = cas.DM([0., 0.249999, 0.0936388, 0.0563518, 0.0301448, 0.0078578, 0.000438041])
+
+    else:
+        message = 'elliptic_e approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
+        awelogger.logger.error(message)
+        raise Exception(message)
+
+    # correct for rounding errors in the coefficients at initial condition (m=0)
+    if aa.shape[0] > 1:
+        aa[-1] = scipy.special.ellipe(0.) - sum(aa[:-1])
 
     one_minus_m = 1. - m
-    epsilon_m = 1.e-8
 
-    part_1 = 1. + a1 * one_minus_m**1. + a2 * one_minus_m**2.
-    part_2 = cas.log(1./(one_minus_m + epsilon_m)) * (b1 * one_minus_m**1. + b2 * one_minus_m**2. )
+    part_1 = 0.
+    part_2 = 0.
+    for ndx in range(approximation_order_for_elliptic_integrals + 1):
+        part_1 += aa[ndx] * one_minus_m**ndx
+        part_2 += bb[ndx] * one_minus_m**ndx
+
+    part_2 = part_2 * cas.log(1./one_minus_m)
 
     found = part_1 + part_2
 
     return found
 
-def elliptic_e_approximation_max_error():
-    return 4.e-5
+def elliptic_e_approximation_max_abs_error(approximation_order_for_elliptic_integrals):
+    if approximation_order_for_elliptic_integrals == 0:
+        max_abs_error = 0.570796
 
-def test_elliptic_e():
+    elif approximation_order_for_elliptic_integrals == 1:
+        max_abs_error = 0.00825932
 
-    # boundary case
-    m = 0.
-    found = elliptic_e(m=m)
-    expected = special.ellipe(m)
-    error_bound = elliptic_e_approximation_max_error() * expected
+    elif approximation_order_for_elliptic_integrals == 2:
+        max_abs_error = 0.000288165
 
-    error = found - expected
-    if (error**2. > error_bound**2.):
-        message = '(boundary 0) elliptic integral E(m) approximation did not work as expected'
+    elif approximation_order_for_elliptic_integrals == 3:
+        max_abs_error = 1.7184e-6
+
+    elif approximation_order_for_elliptic_integrals == 4:
+        max_abs_error = 5.96923e-7
+
+    elif approximation_order_for_elliptic_integrals == 5:
+        max_abs_error = 2.40275e-9
+
+    elif approximation_order_for_elliptic_integrals == 6:
+        max_abs_error = 2.59103e-7
+
+    else:
+        message = 'elliptic_e approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
         awelogger.logger.error(message)
         raise Exception(message)
 
+    return max_abs_error
 
-    # intermediate value
-    m = 0.5
-    found = elliptic_e(m=m)
-    expected = special.ellipe(m)
-    error_bound = elliptic_e_approximation_max_error() * expected
+def test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m, epsilon=1.e-5):
 
-    error = found - expected
-    if (error ** 2. > error_bound ** 2.):
-        message = '(intermediate) elliptic integral K(m) approximation did not work as expected'
+    found = elliptic_e(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, m=elliptic_m)
+    expected = special.ellipe(elliptic_m)
+    error_bound = elliptic_e_approximation_max_abs_error(approximation_order_for_elliptic_integrals) + epsilon
+
+    diff = found - expected
+    error = diff / expected
+    if (abs(error) > error_bound):
+        message = 'the error of the elliptic integral E(m) approximation (N=' + str(approximation_order_for_elliptic_integrals) + ') was not within the expected range, at m = ' + str(elliptic_m)
         awelogger.logger.error(message)
         raise Exception(message)
-
-    # boundary case
-    m = 1.
-    found = elliptic_e(m=m)
-    expected = special.ellipe(m)
-    error_bound = elliptic_e_approximation_max_error() * expected
-
-    error = found - expected
-    if (error**2. > error_bound**2.):
-        message = '(boundary 1) elliptic integral E(m) approximation did not work as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
     return None
+
+def test_elliptic_e(epsilon=1.e-5):
+    for approximation_order_for_elliptic_integrals in get_available_approximation_orders_for_elliptic_integrals():
+        test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m=0., epsilon=epsilon)
+        test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m=0.5, epsilon=epsilon)
+        delta = 1.e-4
+        test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m=(1.0 - delta), epsilon=epsilon)
+    return None
+
 
 def get_altitude(vec_1, vec_2):
     vec_a = cross(vec_1, vec_2)
