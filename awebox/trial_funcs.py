@@ -182,7 +182,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
 
     for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
         V_plot = plot_dict['V_plot']
-        variable_length = plot_dict['variables']['theta',variable].shape[0]
+        variable_length = V_plot['theta',variable].shape[0]
         for index in range(variable_length):
             if k == 0:
                 write_csv_dict['theta_' + variable + '_' + str(index)] = str(V_plot['theta', variable, index])
