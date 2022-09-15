@@ -127,6 +127,19 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape = (1,1)))
 
+    if nlp_options['phase_fix'] == 'single_reelout':
+        cstr_list = ocp_constraint.OcpConstraintList()
+        t_f = ocp_outputs.find_time_period(nlp_options, V)
+        t_f_max = t_f - model.variable_bounds['theta']['t_f']['ub']
+        t_f_min = model.variable_bounds['theta']['t_f']['lb'] - t_f
+        t_f_cstr = cstr_op.Constraint(expr= cas.vertcat(t_f_max, t_f_min),
+                                    name='t_f_bounds',
+                                    cstr_type='ineq')
+        cstr_list.append(t_f_cstr)
+
+        ocp_cstr_list.append(cstr_list)
+        ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape = (2,1)))
+
     # Constraints structure
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 

@@ -82,8 +82,13 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
         elif (var_type == 'theta'):
-            vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
-            vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
+            if name == 't_f':
+                if nlp_options['phase_fix'] == 'simple':
+                    vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
+            else:
+                vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
 
         elif (var_type == 'phi'):
             vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
