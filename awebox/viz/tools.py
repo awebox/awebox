@@ -312,14 +312,7 @@ def merge_output_values(output_vals, kk, plot_dict, cosmetics, ref = False):
     else:
         tgrid_u = plot_dict['time_grids']['ref']['u']
 
-    if discretization == 'multiple_shooting':
-        # take interval values
-        output_values = np.array(cas.vertcat(*output_vals['outputs',:,output_type,output_name,dim]).full())
-        tgrid = tgrid_u
-
-        ndim = output_vals['outputs',0,output_type,output_name].shape[0]
-
-    elif discretization == 'direct_collocation':
+    if discretization == 'direct_collocation':
         if scheme != 'radau':
             output_values = output_vals[kk,:]
             tgrid = tgrid_u_coll
