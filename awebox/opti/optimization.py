@@ -631,14 +631,17 @@ class Optimization(object):
 
         # general outputs
         [nlp_outputs, nlp_output_fun] = nlp.output_components
-        outputs_init = nlp_outputs(nlp_output_fun(V_initial, self.__p_fix_num))
-        outputs_opt = nlp_outputs(nlp_output_fun(V_final, self.__p_fix_num))
-        outputs_ref = nlp_outputs(nlp_output_fun(self.__V_ref, self.__p_fix_num))
+        outputs_init = nlp_output_fun(V_initial, self.__p_fix_num)
+        outputs_opt = nlp_output_fun(V_final, self.__p_fix_num)
+        outputs_ref = nlp_output_fun(self.__V_ref, self.__p_fix_num)
 
         # integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = nlp.integral_output_components
         integral_outputs_init = nlp_integral_outputs(nlp_integral_outputs_fun(V_initial, self.__p_fix_num))
         integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_final, self.__p_fix_num))
+
+        # global outputs
+        global_outputs_opt = nlp.global_outputs(nlp.global_outputs_fun(V_final, self.__p_fix_num))
 
         # time grids
         time_grids = {'ref':{}}
@@ -650,6 +653,7 @@ class Optimization(object):
         self.__outputs_opt = outputs_opt
         self.__outputs_init = outputs_init
         self.__outputs_ref = outputs_ref
+        self.__global_outputs_opt = global_outputs_opt
         self.__integral_outputs_init = integral_outputs_init
         self.__integral_outputs_opt = integral_outputs_opt
         self.__integral_outputs_fun = nlp_integral_outputs_fun
@@ -799,6 +803,10 @@ class Optimization(object):
     @property
     def output_vals(self):
         return [self.__outputs_init, self.__outputs_opt, self.__outputs_ref]
+
+    @property
+    def global_outputs_opt(self):
+        return self.__global_outputs_opt
 
     @property
     def integral_output_vals(self):

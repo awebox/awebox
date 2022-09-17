@@ -264,7 +264,13 @@ def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx,
 
     plt.subplot(plot_table_r, plot_table_c, idx)
     for n in kite_nodes:
-        output_values, tgrid, ndim = merge_output_values(output, output_type, output_name+str(n), dim, reload_dict, cosmetics)
+
+        kk = 0
+        can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
+        while not (can_index[0] == output_type and can_index[1] == output_name):
+            kk += 1
+            can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_values, tgrid, ndim = merge_output_values(output, kk, reload_dict, cosmetics)
 
         idx = kite_nodes.index(n)
         plt.plot(tgrid, output_values, color=cosmetics['diagnostics']['colors'][idx])
@@ -281,7 +287,7 @@ def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx,
     else:
         plt.title(output_name)
 
-def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, cosmetics, ref = False):
+def merge_output_values(output_vals, kk, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
@@ -306,45 +312,21 @@ def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, c
     else:
         tgrid_u = plot_dict['time_grids']['ref']['u']
 
-    if discretization == 'multiple_shooting':
-        # take interval values
-        output_values = np.array(cas.vertcat(*output_vals['outputs',:,output_type,output_name,dim]).full())
-        tgrid = tgrid_u
-
-        ndim = output_vals['outputs',0,output_type,output_name].shape[0]
-
-    elif discretization == 'direct_collocation':
+    if discretization == 'direct_collocation':
         if scheme != 'radau':
-            output_values = []
-            # merge interval and node values
-            for k in range(plot_dict['n_k']):
-                # add interval values
-                output_values = cas.vertcat(output_values, output_vals['outputs',k, output_type, output_name,dim])
-                if cosmetics['plot_coll']:
-                    # add node values
-                    output_values = cas.vertcat(output_values, cas.vertcat(*output_vals['coll_outputs',k, :, output_type, output_name,dim]))
-            output_values = np.array(output_values)
-            if cosmetics['plot_coll']:
-                tgrid = tgrid_u_coll
-            else:
-                tgrid = tgrid_u
-            ndim = output_vals['outputs',0,output_type,output_name].shape[0]
-
+            output_values = output_vals[kk,:]
+            tgrid = tgrid_u_coll
         else:
-            if cosmetics['plot_coll']:
-                # add only node values for radau case
-                output_values = np.array(struct_op.coll_slice_to_vec(output_vals['coll_outputs',:,:,output_type,output_name,dim]))
-                tgrid = tgrid_coll
-                ndim = output_vals['coll_outputs',0,0,output_type,output_name].shape[0]
-            else:
-                output_values = []
-                tgrid = []
-                ndim = 1
-
+            output_values = []
+            for k in range(plot_dict['n_k']):
+                output_values.append(output_vals[kk, k*(plot_dict['d']+1) + 1: k*(plot_dict['d']+1) + plot_dict['d']+1])
+            output_values = cas.horzcat(*output_values)
+            tgrid = tgrid_coll
+        ndim = 1
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    output_values = list(chain.from_iterable(output_values))
+    output_values = output_values.full().squeeze()
 
     return output_values, tgrid, ndim
 
@@ -751,6 +733,7 @@ def calibrate_visualization(model, nlp, name, options):
     # model information
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
+    plot_dict['outputs_struct'] = model.outputs
     plot_dict['architecture'] = model.architecture
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
@@ -764,7 +747,7 @@ def calibrate_visualization(model, nlp, name, options):
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, iterations=None, return_status_numeric=None, timings=None, N=None, ):
+def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, N=None, ): 
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -789,7 +772,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     # get new outputs
     plot_dict['output_vals'] = output_vals
     plot_dict['integral_outputs_final'] = integral_outputs_final
-
+    plot_dict['global_outputs'] = global_outputs
     # get new time grids
     plot_dict['time_grids'] = time_grids
     if plot_dict['discretization'] == 'direct_collocation':
@@ -918,16 +901,21 @@ def interpolate_data(plot_dict, cosmetics):
             plot_dict['u'][name] += [values_ip]
 
     # output values
-    for output_type in list(outputs_dict.keys()):
-        plot_dict['outputs'][output_type] = {}
-        for name in list(outputs_dict[output_type].keys()):
+    for kk in range(output_vals.shape[0]):
+        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_type = can_index[0]
+        name = can_index[1]
+        j = can_index[2]
+        if output_type not in list(plot_dict['outputs'].keys()):
+            plot_dict['outputs'][output_type] = {}
+        if name not in list(plot_dict['outputs'][output_type].keys()):
             plot_dict['outputs'][output_type][name] = []
-            for j in range(outputs_dict[output_type][name].shape[0]):
-                # merge values
-                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
-                # inteprolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-                plot_dict['outputs'][output_type][name] += [values_ip]
+
+        # merge values
+        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
+        # inteprolate
+        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+        plot_dict['outputs'][output_type][name] += [values_ip]
 
     # integral outptus
     if plot_dict['discretization'] == 'direct_collocation':
@@ -1010,16 +998,21 @@ def interpolate_ref_data(plot_dict, cosmetics):
             plot_dict['ref']['u'][name] += [values_ip]
 
     # output values
-    for output_type in list(outputs_dict.keys()):
-        plot_dict['ref']['outputs'][output_type] = {}
-        for name in list(outputs_dict[output_type].keys()):
+    for kk in range(output_vals.shape[0]):
+        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_type = can_index[0]
+        name = can_index[1]
+        j = can_index[2]
+        if output_type not in list(plot_dict['outputs'].keys()):
+            plot_dict['ref']['outputs'][output_type] = {}
+        if name not in list(plot_dict['outputs'][output_type].keys()):
             plot_dict['ref']['outputs'][output_type][name] = []
-            for j in range(outputs_dict[output_type][name].shape[0]):
-                # merge values
-                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics, ref = True)
-                # interpolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
-                plot_dict['ref']['outputs'][output_type][name] += [values_ip]
+
+        # merge values
+        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
+        # inteprolate
+        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+        plot_dict['ref']['outputs'][output_type][name] += [values_ip]
 
     return plot_dict
 
