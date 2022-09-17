@@ -1003,9 +1003,9 @@ def interpolate_ref_data(plot_dict, cosmetics):
         output_type = can_index[0]
         name = can_index[1]
         j = can_index[2]
-        if output_type not in list(plot_dict['outputs'].keys()):
+        if output_type not in list(plot_dict['ref']['outputs'].keys()):
             plot_dict['ref']['outputs'][output_type] = {}
-        if name not in list(plot_dict['outputs'][output_type].keys()):
+        if name not in list(plot_dict['ref']['outputs'][output_type].keys()):
             plot_dict['ref']['outputs'][output_type][name] = []
 
         # merge values

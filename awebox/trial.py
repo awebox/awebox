@@ -169,8 +169,8 @@ class Trial(object):
                                             self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
                                             cost, self.name, self.__optimization.V_ref, self.__optimization.global_outputs_opt)
 
-        # perform quality check
-        self.__quality.check_quality(self)
+            # perform quality check
+            self.__quality.check_quality(self)
 
         # print solution
         self.print_solution()
@@ -236,13 +236,19 @@ class Trial(object):
 
     def print_solution(self):
 
-        headers = ['Parameter / output', 'Optimal value', 'Dimension']
-        plot_dict = self.visualization.plot_dict
-        P_avg = plot_dict['power_and_performance']['avg_power']
-        table = [['Average power output', str(P_avg/1e3), 'kW']]
+        # the actual power indicators
+        if 'e' in self.__model.integral_outputs.keys():
+            e_final = self.__optimization.integral_outputs_final['int_out',-1,'e']
+        else:
+            e_final = self.__optimization.V_final['x', -1, 'e'][-1]
 
-        T = round(plot_dict['power_and_performance']['time_period'].full()[0][0], 3)
-        table.append(['Time period', str(T), 's'])
+        time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
+        avg_power = e_final / time_period
+
+        headers = ['Parameter / output', 'Optimal value', 'Dimension']
+
+        table = [['Average power output', str(avg_power/1e3), 'kW']]
+        table.append(['Time period', str(time_period), 's'])
         import numpy as np
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),

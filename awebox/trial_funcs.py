@@ -130,7 +130,8 @@ def interpolate_data(trial, freq):
     name = trial.name
     parametric_options = trial.options
     V_ref = trial.optimization.V_ref
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, N=N)
+    global_outputs = trial.optimization.global_outputs_opt
+    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs, N=N)
 
     return plot_dict
 
