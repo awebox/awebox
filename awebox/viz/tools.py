@@ -872,7 +872,7 @@ def interpolate_data(plot_dict, cosmetics):
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
                 values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'x')
-            plot_dict['x'][name] += [values_ip.full()]
+            plot_dict['x'][name] += [values_ip.full().squeeze()]
 
     # z-values
     for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
@@ -1003,9 +1003,9 @@ def interpolate_ref_data(plot_dict, cosmetics):
         output_type = can_index[0]
         name = can_index[1]
         j = can_index[2]
-        if output_type not in list(plot_dict['outputs'].keys()):
+        if output_type not in list(plot_dict['ref']['outputs'].keys()):
             plot_dict['ref']['outputs'][output_type] = {}
-        if name not in list(plot_dict['outputs'][output_type].keys()):
+        if name not in list(plot_dict['ref']['outputs'][output_type].keys()):
             plot_dict['ref']['outputs'][output_type][name] = []
 
         # merge values

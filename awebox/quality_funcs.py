@@ -102,7 +102,7 @@ def test_invariants(trial, test_param_dict, results):
             out_local = trial.visualization.plot_dict['output_vals'][i]
 
             c_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
-            dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
+            dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'dc{}{}'.format(node, parent))
 
             c_sol = np.max(np.abs(out_local[c_idx, :]))
             dc_sol = np.max(np.abs(out_local[dc_idx, :]))
@@ -119,24 +119,24 @@ def test_invariants(trial, test_param_dict, results):
                 suffix = 'init'
             elif i == 1:
                 suffix = ''
-                if c_sol > c_max:
-                    awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                    results['c' + str(node) + str(parent)] = False
-                else:
-                    results['c' + str(node) + str(parent)] = True
+            if c_sol > c_max:
+                awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                results['c' + str(node) + str(parent)] = False
+            else:
+                results['c' + str(node) + str(parent)] = True
 
-                if dc_sol > dc_max:
-                    awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
-                    results['dc' + str(node) + str(parent)] = False
-                else:
-                    results['dc' + str(node) + str(parent)] = True
+            if dc_sol > dc_max:
+                awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
+                results['dc' + str(node) + str(parent)] = False
+            else:
+                results['dc' + str(node) + str(parent)] = True
 
-                if DOF6 and node in architecture.kite_nodes:
-                    if r_sol > r_max:
-                        awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                        results['r' + str(node) + str(parent)] = False
-                    else:
-                        results['r' + str(node) + str(parent)] = True
+            if DOF6 and node in architecture.kite_nodes:
+                if r_sol > r_max:
+                    awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                    results['r' + str(node) + str(parent)] = False
+                else:
+                    results['r' + str(node) + str(parent)] = True
 
     return results
 
