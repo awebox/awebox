@@ -589,7 +589,7 @@ class Optimization(object):
         return_status_number = struct_op.convert_return_status_string_to_number(self.__stats['return_status'])
 
         # check if optimization was successful
-        if return_status_number > 3:
+        if return_status_number > 3 and not return_status_number == 8:
 
             self.__solve_succeeded = False
             awelogger.logger.info('')
