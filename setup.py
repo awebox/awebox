@@ -60,6 +60,7 @@ setup(name='awebox',
         'python-dateutil==2.8.2',
         'scipy==1.9.0rc3',
         'six==1.16.0',
-        'tk==0.1.0'
+        'tk==0.1.0',
+	'tabulate==0.8.10'
    ],
 )
