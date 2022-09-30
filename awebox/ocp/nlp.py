@@ -88,7 +88,9 @@ class NLP(object):
         Integral_outputs_fun,
         time_grids,
         Collocation,
-        Multiple_shooting] = discretization.discretize(nlp_options,model,formulation)
+        Multiple_shooting,
+        global_outputs,
+        global_outputs_fun] = discretization.discretize(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
 
         ocp_cstr_list.scale(nlp_options['constraint_scale'])
@@ -108,6 +110,8 @@ class NLP(object):
         self.__time_grids = time_grids
         self.__Collocation = Collocation
         self.__Multiple_shooting = Multiple_shooting
+        self.__global_outputs = global_outputs
+        self.__global_outputs_fun = global_outputs_fun
 
         self.__g = ocp_cstr_struct(ocp_cstr_list.get_expression_list('all'))
         self.__g_fun = ocp_cstr_list.get_function(nlp_options, V, P, 'all')
@@ -127,7 +131,7 @@ class NLP(object):
     def __generate_objective(self, nlp_options, model):
 
         timer = time.time()
-        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), self.__Outputs(self.__Outputs_fun(self.__V, self.__P)), model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), self.__Outputs_fun(self.__V, self.__P), model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 
@@ -316,6 +320,22 @@ class NLP(object):
     @Outputs.setter
     def Outputs(self, value):
         awelogger.logger.warning('Cannot set Outputs object.')
+
+    @property
+    def global_outputs(self):
+        return self.__global_outputs
+
+    @global_outputs.setter
+    def global_outputs(self, value):
+        awelogger.logger.warning('Cannot set global_outputs object.')
+
+    @property
+    def global_outputs_fun(self):
+        return self.__global_outputs_fun
+
+    @global_outputs_fun.setter
+    def global_outputs_fun(self, value):
+        awelogger.logger.warning('Cannot set global_outputs_fun object.')
 
     @property
     def timings(self):

@@ -886,6 +886,16 @@ def generate_variable_struct(variable_list):
 
     return variable_struct, structs
 
+def find_output_idx(outputs, output_type, output_name, output_dim = 0):
+
+    kk = 0
+    can_index = outputs.getCanonicalIndex(kk)
+    while not (can_index[0] == output_type and can_index[1] == output_name and can_index[2] == output_dim):
+        kk += 1
+        can_index = outputs.getCanonicalIndex(kk)
+
+    return kk
+
 def get_variable_from_model_or_reconstruction(variables, var_type, name):
 
     if var_type in variables.keys():

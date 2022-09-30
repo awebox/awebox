@@ -54,7 +54,6 @@ class Quality(object):
 
         # run tests
         results = quality_funcs.test_invariants(trial, test_param_dict, results)
-        results = quality_funcs.test_outputs(trial, test_param_dict, results)
         results = quality_funcs.test_variables(trial, test_param_dict, results)
         results = quality_funcs.test_numerics(trial, test_param_dict, results)
         results = quality_funcs.test_power_balance(trial, test_param_dict, results)

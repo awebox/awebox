@@ -102,7 +102,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     else:
         e_final = plot_dict['x']['e'][0][-1]
 
-    time_period = plot_dict['output_vals'][1]['final', 'time_period', 'val']
+    time_period = plot_dict['global_outputs']['time_period'].full()[0][0]
     avg_power = e_final / time_period
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
     power_per_surface_area = avg_power / surface_area

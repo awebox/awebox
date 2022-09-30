@@ -300,8 +300,6 @@ def discretize(nlp_options, model, formulation):
     global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
     global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
-    Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
-
     #-------------------------------------------
     # COLLOCATE OUTPUTS
     #-------------------------------------------
@@ -329,12 +327,16 @@ def discretize(nlp_options, model, formulation):
                     Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
                 elif nlp_options['collocation']['u_param'] == 'poly':
                     Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
-    Outputs_list.append(global_outputs_fun(V, P))
 
-    # Create Outputs struct and function
+ # Create Outputs struct and function
     if nlp_options['induction']['induction_model'] == 'vortex': # outputs are need for vortex constraint construction
+        Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
         Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
-    Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
+        Outputs_list.append(global_outputs_fun(V, P))
+        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
+    else:
+        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
+        Outputs_struct = None
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
@@ -351,6 +353,6 @@ def discretize(nlp_options, model, formulation):
         Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf,
             ms_vars, ms_params, Outputs_struct, time_grids)
 
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 

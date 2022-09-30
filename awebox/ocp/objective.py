@@ -397,13 +397,17 @@ def find_homotopy_cost(component_costs):
     return homotopy_cost
 
 def find_beta_cost(nlp_options, model, Outputs, P):
-
+    
     int_weights = find_int_weights(nlp_options)
+    d = nlp_options['collocation']['d']
     beta_cost = 0.0
     for kite in model.architecture.kite_nodes:
+
+        idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
+
         for k in range(nlp_options['n_k']):
-            for j in range(nlp_options['collocation']['d']):
-                beta_cost += int_weights[j]*Outputs['coll_outputs', k, j, 'aerodynamics', 'beta{}'.format(kite)]**2
+            for j in range(d):
+                beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
 
     beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
 
