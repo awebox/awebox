@@ -372,6 +372,7 @@ def calculate_kdx(params, V, t):
             kdx = int(k_reelout + int(n_k * (t - t_reelout) / V['theta','t_f',1]))
             tau = (t - t_reelout)/ V['theta','t_f',1]*n_k - (kdx-k_reelout)
     else:
+        t = t % V['theta', 't_f', 0].full()[0][0]
         kdx = int(n_k * t / V['theta','t_f'])
         tau = t / V['theta', 't_f']*n_k - kdx
 

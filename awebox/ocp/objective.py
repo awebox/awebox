@@ -400,16 +400,20 @@ def find_beta_cost(nlp_options, model, Outputs, P):
     
     int_weights = find_int_weights(nlp_options)
     d = nlp_options['collocation']['d']
-    beta_cost = 0.0
-    for kite in model.architecture.kite_nodes:
 
-        idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
+    if model.kite_dof == 6:
+        beta_cost = 0.0
+        for kite in model.architecture.kite_nodes:
 
-        for k in range(nlp_options['n_k']):
-            for j in range(d):
-                beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
+            idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
 
-    beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
+            for k in range(nlp_options['n_k']):
+                for j in range(d):
+                    beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
+
+        beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
+    else:
+        beta_cost = 0
 
     return beta_cost
 
