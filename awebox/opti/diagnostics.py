@@ -194,17 +194,20 @@ def compute_position_indicators(power_and_performance, plot_dict):
     for i in range(q10[0].shape[0]):
         # cone angle
         if 'l_t' in plot_dict['x'].keys():
-            l_t = plot_dict['x']['l_t'][0]
+            l_t = plot_dict['x']['l_t'][0][i]
         else:
             l_t = plot_dict['theta']['l_t']
 
-        if plot_dict['architecture'].number_of_nodes > 1:
+        if plot_dict['architecture'].number_of_nodes > 2:
             q21_0 = plot_dict['x']['q21'][0][i]
             q21_1 = plot_dict['x']['q21'][1][i]
             q21_2 = plot_dict['x']['q21'][2][i]
             l_s = plot_dict['theta']['l_s']
             cone_angle += [np.arccos(np.dot(np.array([q21_0 - q10_0, q21_1 - q10_1, q21_2 - q10_2])/l_s, e_tether))]
         else:
+            q10_0 = q10[0][i]
+            q10_1 = q10[1][i]
+            q10_2 = q10[2][i]
             cone_angle += [np.arccos(np.dot(np.array([q10_0, q10_1, q10_2])/l_t, e_tether))]
 
   
