@@ -172,13 +172,49 @@ def compute_position_indicators(power_and_performance, plot_dict):
     # elevation angle
     q10 = plot_dict['x']['q10']
     elevation = []
+    azimuth = []
+    cone_angle = []
+
     for i in range(q10[0].shape[0]):
-        q10_0 = q10[0][i][0]
-        q10_1 = q10[1][i][0]
-        q10_2 = q10[2][i][0]
+        q10_0 = q10[0][i]
+        q10_1 = q10[1][i]
+        q10_2 = q10[2][i]
         elevation += [np.arccos(np.linalg.norm(np.array([q10_0, q10_1, 0.0])) / np.linalg.norm(np.array([q10_0, q10_1, q10_2])))]
-    elevation = np.mean(elevation) * 180 / np.pi
+        azimuth += [np.arctan2(q10_1, q10_0)]
+        
+    # (average) main tether vector
+    elevation = np.rad2deg(np.mean(elevation))
+    azimuth = np.rad2deg(np.mean(azimuth))
+    e_tether = np.array([np.cos(elevation)*np.cos(azimuth), np.cos(elevation)*np.sin(azimuth), np.sin(elevation)])
+
+    # (average) tether frame
+    ez_hat = np.cross(np.array([1,0,0]), e_tether)
+    ey_hat = np.cross(ez_hat, e_tether)
+
+    for i in range(q10[0].shape[0]):
+        # cone angle
+        if 'l_t' in plot_dict['x'].keys():
+            l_t = plot_dict['x']['l_t'][0]
+        else:
+            l_t = plot_dict['theta']['l_t']
+
+        if plot_dict['architecture'].number_of_nodes > 1:
+            q21_0 = plot_dict['x']['q21'][0][i]
+            q21_1 = plot_dict['x']['q21'][1][i]
+            q21_2 = plot_dict['x']['q21'][2][i]
+            l_s = plot_dict['theta']['l_s']
+            cone_angle += [np.arccos(np.dot(np.array([q21_0 - q10_0, q21_1 - q10_1, q21_2 - q10_2])/l_s, e_tether))]
+        else:
+            cone_angle += [np.arccos(np.dot(np.array([q10_0, q10_1, q10_2])/l_t, e_tether))]
+
+  
+    cone_angle = np.rad2deg(np.mean(cone_angle))
     power_and_performance['elevation'] = elevation
+    power_and_performance['azimuth'] = azimuth
+    power_and_performance['cone_angle'] = cone_angle
+
+    # average flight speed
+    # power_and_performance['flight_speed'] = ...
 
     # average velocity of kites (maybe?)
     parent_map = plot_dict['architecture'].parent_map
