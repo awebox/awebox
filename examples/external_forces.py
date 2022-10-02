@@ -69,7 +69,7 @@ if EXTERNAL_FORCES:
 p0['param'] = params
 
 # make casadi collocation integrator
-ts = 0.001 # sampling time
+ts = 0.1 # sampling time
 int_opts = {}
 int_opts['tf'] = ts
 int_opts['number_of_finite_elements'] = 40
@@ -79,26 +79,34 @@ int_opts['rootfinder'] = 'fast_newton'
 integrator = ca.integrator('integrator', 'collocation', dae.dae, int_opts)
 
 # simulate system (TBD)
-# u0 = system_model.variables_dict['u'](0.0) # initialize controls
-# x0 = ... / scaling['x']['q10'] # initialize system state (scaled!)
-# z0 = dae.z(0.0) # algebraic variables initial guess
+u0 = system_model.variables_dict['u'](0.0) # initialize controls
+x0 = system_model.variables_dict['x'](0.0) # initialize controls
+x0['q10'] = np.array([50, 0, 50]) / scaling['x']['q10']
+x0['r10'] = ca.reshape(np.eye(3), 9, 1)
+x0['l_t'] = np.sqrt(50**2 + 50**2) / scaling['x']['l_t']
+z0 = dae.z(0.0) # algebraic variables initial guess
 
-# for k in range(Nsim):
+xsim = [x0.cat.full().squeeze()]
+for k in range(100):
 
-#     # fill in controls
-#     u0['f_fict10'] = ... / scaling['u']['f_fict10'] # external force
-#     u0['m_fict10'] = ... / scaling['u']['f_fict10'] # external moment
-#     u0['ddl_t'] = ... / scaling['u']['ddl_t'] # tether acceleration control (scaled)
-#     u0['ddelta10'] = 0.0 / scaling['u']['ddelta10'] # not relevant in case of external forces (scaled)
+    # fill in controls
+    # u0['f_fict10'] = np.array([.., .., ..]) / scaling['u']['f_fict10'] # external force
+    # u0['m_fict10'] = np.array([.., .., ..]) / scaling['u']['m_fict10'] # external moment
+    # u0['ddl_t'] = ... / scaling['u']['ddl_t'] # tether acceleration control (scaled)
+    # u0['ddelta10'] = 0.0 / scaling['u']['ddelta10'] # not relevant in case of external forces (scaled)
     
-#     # fill controls into dae parameters
-#     p0['u'] = u0
+    # fill controls into dae parameters
+    p0['u'] = u0
 
-#     # if desired, change model parameter (e.g. wind speed, relevant for tether drag)
-#     params['theta0', 'wind', 'u_ref'] = 10.0
-#     p0['param'] = params
+    # if desired, change model parameter (e.g. wind speed, relevant for tether drag)
+    params['theta0', 'wind', 'u_ref'] = 10.0
+    p0['param'] = params
 
-#     # evaluate integrator
-#     out = integrator(x0 = x0, p = p0, z0 = z0)
-#     z0 = out['zf']
-#     x0 = out['xf']
+    # evaluate integrator
+    out = integrator(x0 = x0, p = p0, z0 = z0)
+    z0 = out['zf']
+    x0 = out['xf']
+    xsim.append(out['xf'].full().squeeze())
+
+plt.plot([x[0] for x in xsim], [x[2] for x in xsim])
+plt.show()
