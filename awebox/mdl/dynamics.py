@@ -312,9 +312,11 @@ def get_power(options, system_variables, parameters, outputs, architecture):
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
+        outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables, architecture)
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        outputs['performance']['p_current'] = power
 
     return power, outputs
 
