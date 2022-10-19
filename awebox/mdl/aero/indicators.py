@@ -104,8 +104,6 @@ def get_performance_outputs(options, atmos, wind, variables, outputs, parameters
 
     outputs['performance']['phf_loyd_total'] = outputs['performance']['p_loyd_total'] / hubheight_power_availability
 
-    outputs['performance']['p_current'] = current_power
-
     epsilon = 1.0e-8
     p_loyd_total = outputs['performance']['p_loyd_total']
     outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
