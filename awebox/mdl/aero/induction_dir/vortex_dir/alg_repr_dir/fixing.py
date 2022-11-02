@@ -91,36 +91,31 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
     cstr_name = 'fixing_' + var_name + '_' + str(ndx)
 
     if ddx is None:
-        var_local_scaled = V['xl', ndx, var_name]
+        var_symbolic_scaled = V['xl', ndx, var_name]
+        var_val_scaled = V['coll_var', ndx - 1, -1, 'xl', var_name]
+        resi_scaled = var_symbolic_scaled - var_val_scaled
+
     else:
         cstr_name += ',' + str(ddx)
-        var_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-    var_local_si = struct_op.var_scaled_to_si('xl', var_name, var_local_scaled, model.scaling)
+        var_symbolic_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
+        var_symbolic_si = struct_op.var_scaled_to_si('xl', var_name, var_symbolic_scaled, model.scaling)
 
-    if ddx is None:
-        var_val_scaled = V['coll_var', ndx - 1, -1, 'xl', var_name]
-        var_val_si = struct_op.var_scaled_to_si('xl', var_name, var_val_scaled, model.scaling)
-        resi_si = var_local_si - var_val_si
-
-    else:
         # look-up the actual value from the Outputs. Keep the computing here minimal.
         if abbreviated_var_name == 'wx':
-            var_val_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
-            resi_si = var_local_si - var_val_si
+            var_value_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
+            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         elif abbreviated_var_name == 'wg':
-            var_val_si = get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-            resi_si = var_local_si - var_val_si
+            var_value_si = get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         elif abbreviated_var_name == 'wh':
-            resi_si = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_scaled = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
         elif abbreviated_var_name == 'wx_center':
-            var_val_si = get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-            resi_si = var_local_si - var_val_si
+            var_value_si = get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         else:
             message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
             awelogger.logger.error(message)
             raise Exception(message)
-
-    resi_scaled = struct_op.var_si_to_scaled('xl', var_name, resi_si, model.scaling)
 
     local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                     name=cstr_name,
@@ -128,6 +123,10 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
 
     return local_cstr
 
+def get_simple_residual(var_name, var_symbolic_si, var_value_si, model_scaling):
+    resi_si = var_symbolic_si - var_value_si
+    resi_scaled = struct_op.var_si_to_scaled('xl', var_name, resi_si, model_scaling)
+    return resi_scaled
 
 def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx=None):
 
@@ -274,7 +273,12 @@ def get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, parent_she
     average_period_of_rotation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'geometry', 'average_period_of_rotation' + str(parent_shed)]
     resi = general_flow.get_far_wake_cylinder_residual(pitch_si, l_hat, vec_u_zero, total_circulation, average_period_of_rotation)
 
-    return resi
+    pitch_ref = struct_op.var_scaled_to_si('xl', var_name, 1., model.scaling)
+    scale = pitch_ref**2.
+
+    resi_scaled = resi / scale
+
+    return resi_scaled
 
 
 def get_local_cylinder_pitch_value(nlp_options, Outputs, parent_shed, wake_node, ndx, ddx=None):

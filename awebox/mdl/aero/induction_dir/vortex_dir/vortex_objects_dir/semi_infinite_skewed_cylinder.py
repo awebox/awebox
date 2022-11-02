@@ -44,10 +44,10 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class SemiInfiniteCylinder(obj_element.Element):
+class SemiInfiniteRightCylinder(obj_element.Element):
     def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):
         super().__init__(info_dict)
-        self.set_element_type('semi_infinite_cylinder')
+        self.set_element_type('semi_infinite_right_cylinder')
         self.define_info_order()
         packed_info = self.pack_info()
         self.set_info(packed_info)
@@ -56,11 +56,12 @@ class SemiInfiniteCylinder(obj_element.Element):
     def define_info_order(self):
         order = {0: ('x_center', 3),
                  1: ('l_hat', 3),
-                 2: ('radius', 1),
-                 3: ('l_start', 1),
-                 4: ('epsilon_m', 1),
-                 5: ('epsilon_r', 1),
-                 6: ('strength', 1)
+                 2: ('n_hat', 3),
+                 3: ('radius', 1),
+                 4: ('l_start', 1),
+                 5: ('epsilon_m', 1),
+                 6: ('epsilon_r', 1),
+                 7: ('strength', 1)
                  }
         self.set_info_order(order)
         return None
@@ -175,7 +176,7 @@ def construct_test_object(regularized=True):
                 'strength': strength
                 }
 
-    cyl = SemiInfiniteCylinder(unpacked)
+    cyl = SemiInfiniteRightCylinder(unpacked)
     return cyl
 
 def test_r_val_on_axis(cyl, epsilon=1.e-4):
@@ -428,7 +429,7 @@ def test_axes_when_observer_is_on_y_hat(cyl, epsilon=1.e-4):
 
 def test():
     cyl = construct_test_object()
-    cyl.test_basic_criteria(expected_object_type='semi_infinite_cylinder')
+    cyl.test_basic_criteria(expected_object_type='semi_infinite_right_cylinder')
 
     test_r_val_on_axis(cyl)
     test_r_val_off_axis(cyl)

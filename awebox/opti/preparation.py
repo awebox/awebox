@@ -245,23 +245,22 @@ def generate_default_solver_options(options):
 
     return opts
 
-def generate_solvers(awebox_callback, model, nlp, formulation, options):
 
+def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     initial_opts = generate_default_solver_options(options)
     middle_opts = generate_default_solver_options(options)
     final_opts = generate_default_solver_options(options)
 
-    if options['hippo_strategy']:
-        initial_opts['ipopt.mu_target'] = options['mu_hippo']
-        initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
-        initial_opts['ipopt.tol'] = options['tol_hippo']
+    initial_opts['ipopt.mu_target'] = options['mu_hippo']
+    initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']  # 5
+    initial_opts['ipopt.tol'] = options['tol_hippo']
 
-        middle_opts['ipopt.mu_init'] = options['mu_hippo']
-        middle_opts['ipopt.mu_target'] = options['mu_hippo']
-        middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
-        middle_opts['ipopt.tol'] = options['tol_hippo']
+    middle_opts['ipopt.mu_init'] = options['mu_hippo']
+    middle_opts['ipopt.mu_target'] = options['mu_hippo']
+    middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']  # 5
+    middle_opts['ipopt.tol'] = options['tol_hippo']
 
-        final_opts['ipopt.mu_init'] = options['mu_hippo']
+    final_opts['ipopt.mu_init'] = options['mu_hippo']
 
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
@@ -273,18 +272,41 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         final_opts['iteration_callback'] = awebox_callback
         final_opts['iteration_callback_step'] = options['callback_step']
 
-    if 'lift_mode' == 'lift_mode':  # todo: get from formulation property
-        # do whatever it is that depends on lift-mode here....
-        32.0
 
+    solvers = {}
     initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
     middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
     final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
 
-    solvers = {}
     solvers['initial'] = initial_solver
     solvers['middle'] = middle_solver
     solvers['final'] = final_solver
+
+    return solvers
+
+
+def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
+    opts = generate_default_solver_options(options)
+
+    if options['callback']:
+        opts['iteration_callback'] = awebox_callback
+        opts['iteration_callback_step'] = options['callback_step']
+
+    solvers = {}
+    solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), opts)
+    solvers['all'] = solver
+
+    return solvers
+
+
+def generate_solvers(awebox_callback, nlp, options):
+
+    use_hippo_strategy = options['hippo_strategy']
+
+    if use_hippo_strategy:
+        solvers = generate_hippo_strategy_solvers(awebox_callback, nlp, options)
+    else:
+        solvers = generate_nonhippo_strategy_solvers(awebox_callback, nlp, options)
 
     return solvers
 

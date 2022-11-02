@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -34,6 +36,7 @@ import awebox.viz.tools as tools
 from awebox.logger.logger import Logger as awelogger
 
 import casadi.tools as cas
+import awebox.tools.vector_operations as vect_op
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_top_name, fig_num=None, epigraph=None):
 
@@ -43,6 +46,24 @@ def plot_outputs(plot_dict, cosmetics, fig_name, output_top_name, fig_num=None, 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num=fig_num, epigraph=epigraph)
 
     return None
+
+def get_dictionary_with_output_dimensions(interesting_outputs, outputs, architecture):
+    output_dimensions = {}
+    for odx in range(len(interesting_outputs)):
+        opt = interesting_outputs[odx]
+        category = opt[0]
+        base_name = opt[1]
+
+        output_is_systemwide = base_name in outputs[category].keys()
+
+        if output_is_systemwide:
+            number_of_output_dims = len(outputs[opt[0]][base_name])
+        else:
+            kite = architecture.kite_nodes[0]
+            number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
+
+        output_dimensions[opt] = number_of_output_dims
+    return output_dimensions
 
 def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=None, epigraph=None):
 
@@ -55,21 +76,24 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
     if options_are_not_empty:
         number_of_opts = len(interesting_outputs)
 
-        if number_of_opts == 1:
+        output_dimensions_dict = get_dictionary_with_output_dimensions(interesting_outputs, outputs, architecture)
+        number_of_individual_plots = number_of_opts
+
+        if number_of_individual_plots == 1:
             plot_table_r = 1
             plot_table_c = 1
-        elif np.mod(number_of_opts, 3) == 0:
+        elif np.mod(number_of_individual_plots, 3) == 0:
             plot_table_r = 3
-            plot_table_c = int(number_of_opts / plot_table_r)
-        elif np.mod(number_of_opts, 4) == 0:
+            plot_table_c = int(number_of_individual_plots / plot_table_r)
+        elif np.mod(number_of_individual_plots, 4) == 0:
             plot_table_r = 4
-            plot_table_c = int(number_of_opts / plot_table_r)
-        elif np.mod(number_of_opts, 5) == 0:
+            plot_table_c = int(number_of_individual_plots / plot_table_r)
+        elif np.mod(number_of_individual_plots, 5) == 0:
             plot_table_r = 5
-            plot_table_c = int(number_of_opts / plot_table_r)
+            plot_table_c = int(number_of_individual_plots / plot_table_r)
         else:
             plot_table_r = 3
-            plot_table_c = int(np.ceil(np.float(number_of_opts) / np.float(plot_table_r)))
+            plot_table_c = int(np.ceil(np.float(number_of_individual_plots) / np.float(plot_table_r)))
 
         # create new figure if desired
         if fig_num is not None:
@@ -89,50 +113,59 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         kite_nodes = architecture.kite_nodes
 
-        for odx in range(number_of_opts):
-            axes[odx].set_xlabel('t [s]')
-
+        cdx = 0
         for odx in range(len(interesting_outputs)):
 
             opt = interesting_outputs[odx]
             category = opt[0]
             base_name = opt[1]
-
+            number_of_output_dims = output_dimensions_dict[opt]
             output_is_systemwide = base_name in outputs[category].keys()
 
-            if output_is_systemwide:
-                data = np.array(outputs[opt[0]][base_name][0])
-                local_color = cosmetics['trajectory']['colors'][0]
+            for jdx in range(number_of_output_dims):
 
-                axes[odx].plot(tgrid_ip, data, color=local_color)
+                cmap = plt.get_cmap('brg')
+                strength_scaled = float(jdx - 0) / float(number_of_output_dims)
+                local_color = cmap(strength_scaled)
 
-            else:
-                for kite in kite_nodes:
-                    data = np.array(outputs[opt[0]][base_name + str(kite)][0])
-                    local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
+                if output_is_systemwide:
+                    data = np.array(outputs[opt[0]][base_name][jdx])
+                    axes[odx].plot(tgrid_ip, data, color=local_color)
+
+                else:
+                    for kite in kite_nodes:
+                        data = np.array(outputs[opt[0]][base_name + str(kite)][jdx])
+
+                        if number_of_opts == 1:
+                            axes.plot(tgrid_ip, data, color=local_color)
+                        else:
+                            axes[cdx].plot(tgrid_ip, data, color=local_color)
+
+                if (epigraph is not None) and (isinstance(epigraph, float)):
 
                     if number_of_opts == 1:
-                        axes.plot(tgrid_ip, data, color=local_color)
+                        axes.axhline(y=epigraph, color='gray', linestyle='--')
                     else:
-                        axes[odx].plot(tgrid_ip, data, color=local_color)
+                        axes[cdx].axhline(y=epigraph, color='gray', linestyle='--')
 
-            if (epigraph is not None) and (isinstance(epigraph, float)):
+                if 't_switch' in plot_dict['time_grids'].keys():
+                    t_switch = float(plot_dict['time_grids']['t_switch'])
 
-                if number_of_opts == 1:
-                    axes.axhline(y=epigraph, color='gray', linestyle='--')
-                else:
-                    axes[odx].axhline(y=epigraph, color='gray', linestyle='--')
+                    axes[cdx].axvline(x=t_switch, color='gray', linestyle='--')
 
-            if 't_switch' in plot_dict['time_grids'].keys():
-                t_switch = float(plot_dict['time_grids']['t_switch'])
+                axes[cdx].set_ylabel(opt[1])
 
-                axes[odx].axvline(x=t_switch, color='gray', linestyle='--')
+            cdx += 1
 
-            axes[odx].set_ylabel(opt[1])
+        if not (cdx == number_of_individual_plots):
+            message = 'something went wrong when drawing the output plots, because ' + str(number_of_individual_plots) + ' were expected and ' + str(cdx) + ' were draw'
+            awelogger.logger.error(message)
+            raise Exception(message)
 
-        for adx in range(number_of_opts):
-            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+        for cdx in range(number_of_individual_plots):
+            axes[cdx].set_xlabel('t [s]')
+            axes[cdx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[cdx].yaxis.set_major_locator(MaxNLocator(3))
 
         plt.suptitle(fig_name)
         fig.canvas.draw()

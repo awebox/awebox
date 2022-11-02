@@ -244,7 +244,7 @@ class Optimization(object):
 
         awelogger.logger.info('generate solvers...')
 
-        self.__solvers = preparation.generate_solvers(awe_callback, model, nlp, formulation, options)
+        self.__solvers = preparation.generate_solvers(awe_callback, nlp, options)
 
         return None
 
@@ -333,22 +333,28 @@ class Optimization(object):
 
         return None
 
+    def get_appropriate_solver_for_step(self, step_name):
+        if 'all' in self.__solvers.keys():
+            return self.__solvers['all']
+        elif step_name == 'initial':
+            return self.__solvers['initial']
+        elif step_name == 'final':
+            return self.__solvers['final']
+        else:
+            return self.__solvers['middle']
+
+
     def solve_specific_homotopy_step(self, step_name, final_homotopy_step, nlp, model, options, visualization):
 
-        initial_solver = self.__solvers['initial']
-        middle_solver = self.__solvers['middle']
-        final_solver = self.__solvers['final']
+        local_solver = self.get_appropriate_solver_for_step(step_name)
 
-        if step_name == 'initial':
-            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, initial_solver, visualization)
-
-        elif step_name == 'final':
-            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, final_solver, visualization)
+        if (step_name == 'initial') or (step_name == 'final'):
+            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, local_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
             for homotopy_part in range(number_of_steps):
-                self.solve_general_homotopy_step(step_name, final_homotopy_step, homotopy_part, options, nlp, model, middle_solver, visualization)
+                self.solve_general_homotopy_step(step_name, final_homotopy_step, homotopy_part, options, nlp, model, local_solver, visualization)
 
         return None
 

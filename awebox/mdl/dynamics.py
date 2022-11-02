@@ -105,7 +105,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     # induction constraint
     if not (options['induction_model'] == 'not_in_use'):
-        induction_cstr = induction.get_model_constraints(options, wake, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+        induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration

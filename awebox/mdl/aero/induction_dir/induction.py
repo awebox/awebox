@@ -45,7 +45,7 @@ def get_wake_if_vortex_model_is_included_in_comparison(model_options, architectu
 
     return None
 
-def get_model_constraints(model_options, wake, atmos, wind, variables_si, parameters, outputs, architecture):
+def get_model_constraints(model_options, wake, scaling, atmos, wind, variables_si, parameters, outputs, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -58,7 +58,7 @@ def get_model_constraints(model_options, wake, atmos, wind, variables_si, parame
         cstr_list.append(actuator_cstr)
 
     if vortex.model_is_included_in_comparison(model_options):
-        vortex_cstr = vortex.get_model_constraints(model_options, wake, wind, variables_si, parameters, architecture)
+        vortex_cstr = vortex.get_model_constraints(model_options, wake, scaling, wind, variables_si, parameters, architecture)
         cstr_list.append(vortex_cstr)
 
     return cstr_list

@@ -35,8 +35,8 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_semi_infinite_longitudinal_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_right_cylinder as obj_semi_infinite_tangential_right_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_right_cylinder as obj_semi_infinite_longitudinal_right_cylinder
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -665,7 +665,7 @@ def test_that_appending_different_types_is_ignored():
     fil = obj_finite_filament.construct_test_object(r_core = 0.01)
     filament_list.append(fil)
 
-    tan_cyl = obj_semi_infinite_tangential_cylinder.construct_test_object()
+    tan_cyl = obj_semi_infinite_tangential_right_cylinder.construct_test_object()
     filament_list.append(tan_cyl, suppress_type_incompatibility_warning=True)
 
     found = filament_list.number_of_elements
@@ -708,10 +708,10 @@ def construct_test_semi_infinite_filament_list():
 
     return filament_list
 
-def construct_test_semi_infinite_tangential_cylinder_list():
+def construct_test_semi_infinite_tangential_right_cylinder_list():
     cyl_list = ElementList()
 
-    cyl0 = obj_semi_infinite_tangential_cylinder.construct_test_object()
+    cyl0 = obj_semi_infinite_tangential_right_cylinder.construct_test_object()
     cyl_list.append(cyl0)
 
     x_center = cas.DM([1., 1., 1.])
@@ -732,15 +732,15 @@ def construct_test_semi_infinite_tangential_cylinder_list():
                 'strength': strength
                 }
 
-    cyl1 = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(unpacked)
+    cyl1 = obj_semi_infinite_tangential_right_cylinder.SemiInfiniteTangentialRightCylinder(unpacked)
     cyl_list.append(cyl1)
 
     return cyl_list
 
-def construct_test_semi_infinite_longitudinal_cylinder_list():
+def construct_test_semi_infinite_longitudinal_right_cylinder_list():
     cyl_list = ElementList()
 
-    cyl0 = obj_semi_infinite_longitudinal_cylinder.construct_test_object()
+    cyl0 = obj_semi_infinite_longitudinal_right_cylinder.construct_test_object()
     cyl_list.append(cyl0)
 
     x_center = cas.DM([1., 1., 1.])
@@ -761,7 +761,7 @@ def construct_test_semi_infinite_longitudinal_cylinder_list():
                 'strength': strength
                 }
 
-    cyl1 = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(unpacked)
+    cyl1 = obj_semi_infinite_longitudinal_right_cylinder.SemiInfiniteLongitudinalRightCylinder(unpacked)
     cyl_list.append(cyl1)
 
     return cyl_list
@@ -804,11 +804,11 @@ def test_that_biot_savart_function_evaluates_differently_for_different_elements(
     semi_infinite_filament_list = construct_test_semi_infinite_filament_list()
     test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(semi_infinite_filament_list, epsilon)
 
-    si_long_cylinder_list = construct_test_semi_infinite_longitudinal_cylinder_list()
-    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_long_cylinder_list, epsilon)
+    si_long_right_cylinder_list = construct_test_semi_infinite_longitudinal_right_cylinder_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_long_right_cylinder_list, epsilon)
 
-    si_tan_cylinder_list = construct_test_semi_infinite_tangential_cylinder_list()
-    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_tan_cylinder_list, epsilon)
+    si_tan_right_cylinder_list = construct_test_semi_infinite_tangential_right_cylinder_list()
+    test_that_biot_savart_function_evaluates_differently_for_different_elements_for_given_list(si_tan_right_cylinder_list, epsilon)
 
     return None
 

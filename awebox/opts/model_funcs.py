@@ -27,6 +27,7 @@ options_tree extension functions for options initially related to heading 'model
 _python-3.5 / casadi-3.4.5
 - author: jochem de scutter, rachel leuthold, thilo bronnenmeyer, alu-fr/kiteswarms 2017-20
 '''
+import pdb
 
 import numpy as np
 import awebox as awe
@@ -485,10 +486,11 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
         geometry_type = options['model']['aero']['overwrite']['geometry_type']
     elif architecture.number_of_kites > 1:
         geometry_type = 'averaged'
-    elif architecture.number_of_nodes > 1:
-        geometry_type = 'parent'
-    else:
+    elif (architecture.number_of_kites == 1) and (architecture.parent_map[architecture.kite_nodes[0]] == 0):
         geometry_type = 'frenet'
+    else:
+        geometry_type = 'parent'
+
     options_tree.append(('model', 'aero', None, 'geometry_type', geometry_type, ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -651,11 +653,11 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
     vortex_epsilon_r = options['model']['aero']['vortex']['epsilon_r']
     options_tree.append(
-        ('solver', 'initialization', 'induction', 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
+        ('solver', 'initialization', 'induction', 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
+    options_tree.append(('model', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
     options_tree.append(
-        ('formulation', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_m, ('????', None), 'x')),
+        ('formulation', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
+    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
 
     vortex_representation = options['model']['aero']['vortex']['representation']
     options_tree.append(('model', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),

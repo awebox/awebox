@@ -137,6 +137,8 @@ class Visualization(object):
         variables_dict = self.plot_dict['variables_dict']
         integral_variables = self.plot_dict['integral_variables']
 
+        #rela: the scaling isn't working properly
+
         plot_logic_dict = {}
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})
         plot_logic_dict['projected_xy'] = (trajectory.plot_trajectory, {'side':'xy'})

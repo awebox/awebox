@@ -45,9 +45,9 @@ import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_st
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_semi_infinite_longitudinal_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_right_cylinder as obj_semi_infinite_right_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_right_cylinder as obj_semi_infinite_tangential_right_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_right_cylinder as obj_semi_infinite_longitudinal_right_cylinder
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
 
 import awebox.tools.vector_operations as vect_op
@@ -73,8 +73,8 @@ def build_per_kite(options, kite, wind, variables_si, parameters, architecture):
         list = build_finite_filament_per_kite(options, kite, wind, variables_si, parameters)
     elif far_wake_element_type == 'semi_infinite_filament':
         list = build_semi_infinite_filament_per_kite(options, kite, wind, variables_si, parameters)
-    elif far_wake_element_type == 'semi_infinite_cylinder':
-        list = build_semi_infinite_cylinders_per_kite(options, kite, wind, variables_si, architecture)
+    elif far_wake_element_type == 'semi_infinite_right_cylinder':
+        list = build_semi_infinite_right_cylinders_per_kite(options, kite, wind, variables_si, architecture)
     elif far_wake_element_type == 'not_in_use':
         list = obj_element_list.ElementList(expected_number_of_elements=0)
     else:
@@ -151,7 +151,7 @@ def build_semi_infinite_filament_per_kite(options, kite, wind, variables_si, par
 
     return filament_list
 
-def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_si, architecture):
+def build_semi_infinite_right_cylinders_per_kite(model_options, kite, wind, variables_si, architecture):
 
     parent = architecture.parent_map[kite]
 
@@ -182,7 +182,7 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
 
     for tip, tip_directionality in wingtips_and_strength_directions.items():
         x_start = vortex_tools.get_wake_node_position_si(model_options, variables_si, kite, tip, wake_node)
-        radius, l_start = obj_semi_infinite_cylinder.calculate_radius_and_l_start(x_start, x_center, l_hat)
+        radius, l_start = obj_semi_infinite_right_cylinder.calculate_radius_and_l_start(x_start, x_center, l_hat)
 
         strength_tan = -1. * circulation_total / pitch * kite_motion_directionality * tip_directionality
         strength_long = circulation_total / (2. * np.pi * radius) * tip_directionality
@@ -195,8 +195,8 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
                       'epsilon_r': epsilon_r,
                       'strength': strength_tan
                       }
-        tan_cyl = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(order_tan,
-            approximation_order_for_elliptic_integrals)
+        tan_cyl = obj_semi_infinite_tangential_right_cylinder.SemiInfiniteTangentialRightCylinder(order_tan,
+                                                                                                  approximation_order_for_elliptic_integrals)
         tan_cyl_list.append(tan_cyl)
 
         order_long = {'x_center': x_center,
@@ -207,8 +207,8 @@ def build_semi_infinite_cylinders_per_kite(model_options, kite, wind, variables_
                       'epsilon_r': epsilon_r,
                       'strength': strength_long
                       }
-        long_cyl = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(order_long,
-            approximation_order_for_elliptic_integrals)
+        long_cyl = obj_semi_infinite_longitudinal_right_cylinder.SemiInfiniteLongitudinalRightCylinder(order_long,
+                                                                                                       approximation_order_for_elliptic_integrals)
         long_cyl_list.append(long_cyl)
 
     return [tan_cyl_list, long_cyl_list]
@@ -328,10 +328,10 @@ def test_semi_infinite_filament_drawing(test_includes_visualization=False):
 
     return None
 
-def test_semi_infinite_cylinder_drawing(test_includes_visualization=False):
+def test_semi_infinite_right_cylinder_drawing(test_includes_visualization=False):
     if test_includes_visualization:
 
-        test_type = 'semi_infinite_cylinder'
+        test_type = 'semi_infinite_right_cylinder'
         options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_circular_flight_test_object(test_type)
         far_wake = build(options, architecture, wind, variables_si, parameters)
 
@@ -343,14 +343,14 @@ def test_semi_infinite_cylinder_drawing(test_includes_visualization=False):
 
     return None
 
-def test_correct_semi_infinite_cylinders_defined():
-    test_type = 'semi_infinite_cylinder'
+def test_correct_semi_infinite_right_cylinders_defined():
+    test_type = 'semi_infinite_right_cylinder'
     options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters = alg_structure.construct_circular_flight_test_object(test_type)
     far_wake = build(options, architecture, wind, variables_si, parameters)
 
-    far_wake.confirm_all_lists_have_expected_dimensions(['semi_infinite_tangential_cylinder', 'semi_infinite_longitudinal_cylinder'])
-    tan_cyl_list = far_wake.get_list('semi_infinite_tangential_cylinder')
-    long_cyl_list = far_wake.get_list('semi_infinite_longitudinal_cylinder')
+    far_wake.confirm_all_lists_have_expected_dimensions(['semi_infinite_tangential_right_cylinder', 'semi_infinite_longitudinal_right_cylinder'])
+    tan_cyl_list = far_wake.get_list('semi_infinite_tangential_right_cylinder')
+    long_cyl_list = far_wake.get_list('semi_infinite_longitudinal_right_cylinder')
 
     x_center = cas.DM.zeros((3, 1))
     l_hat = vect_op.xhat()
@@ -397,12 +397,12 @@ def test_correct_semi_infinite_cylinders_defined():
             order['strength'] = strength[tip][dir]
 
             if dir == 'tan':
-                tan_cyl = obj_semi_infinite_tangential_cylinder.SemiInfiniteTangentialCylinder(order)
+                tan_cyl = obj_semi_infinite_tangential_right_cylinder.SemiInfiniteTangentialRightCylinder(order)
                 conditions[tip][dir] = (tan_cyl_list.is_element_in_list(tan_cyl) == True)
                 total_conditions += conditions[tip][dir]
 
             elif dir == 'long':
-                long_cyl = obj_semi_infinite_longitudinal_cylinder.SemiInfiniteLongitudinalCylinder(order)
+                long_cyl = obj_semi_infinite_longitudinal_right_cylinder.SemiInfiniteLongitudinalRightCylinder(order)
                 conditions[tip][dir] = (long_cyl_list.is_element_in_list(long_cyl) == True)
                 total_conditions += conditions[tip][dir]
 
@@ -410,7 +410,7 @@ def test_correct_semi_infinite_cylinders_defined():
 
     if not criteria:
 
-        message = 'far_wake (semi-infinite cylinder) does not contain the expected vortex elements'
+        message = 'far_wake (semi-infinite right cylinder) does not contain the expected vortex elements'
         awelogger.logger.error(message)
         raise Exception(message)
 
@@ -423,8 +423,8 @@ def test(test_includes_visualization=False):
     test_semi_infinite_filament_drawing(test_includes_visualization)
     test_correct_semi_infinite_filaments_defined()
 
-    test_semi_infinite_cylinder_drawing(test_includes_visualization)
-    test_correct_semi_infinite_cylinders_defined()
+    test_semi_infinite_right_cylinder_drawing(test_includes_visualization)
+    test_correct_semi_infinite_right_cylinders_defined()
 
     return None
 

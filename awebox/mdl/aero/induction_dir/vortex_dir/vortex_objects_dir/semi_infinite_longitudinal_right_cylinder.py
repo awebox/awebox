@@ -35,7 +35,7 @@ import scipy.special as special
 
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_right_cylinder as obj_semi_infinite_right_cylinder
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 
 import awebox.tools.struct_operations as struct_op
@@ -48,12 +48,12 @@ import matplotlib
 matplotlib.use('TkAgg')
 
 
-class SemiInfiniteLongitudinalCylinder(obj_semi_infinite_cylinder.SemiInfiniteCylinder):
+class SemiInfiniteLongitudinalRightCylinder(obj_semi_infinite_right_cylinder.SemiInfiniteRightCylinder):
     # Branlard, Emmanuel & Gaunaa, Mac.(2014). Cylindrical vortex wake model: Right cylinder. Wind Energy. 524. 10.1002/we.1800.
 
     def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):
         super().__init__(info_dict, approximation_order_for_elliptic_integrals)
-        self.set_element_type('semi_infinite_longitudinal_cylinder')
+        self.set_element_type('semi_infinite_longitudinal_right_cylinder')
 
     ##### tangential induction parts
 
@@ -180,9 +180,9 @@ class SemiInfiniteLongitudinalCylinder(obj_semi_infinite_cylinder.SemiInfiniteCy
 
 
 def construct_test_object(regularized=True):
-    cyl = obj_semi_infinite_cylinder.construct_test_object(regularized)
+    cyl = obj_semi_infinite_right_cylinder.construct_test_object(regularized)
     unpacked = cyl.info_dict
-    long_cyl = SemiInfiniteLongitudinalCylinder(unpacked)
+    long_cyl = SemiInfiniteLongitudinalRightCylinder(unpacked)
     long_cyl.define_biot_savart_induction_function()
     return long_cyl
 
@@ -734,10 +734,10 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 def test(test_includes_visualization=False):
 
     cyl_regularized = construct_test_object(regularized=True)
-    cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_cylinder')
+    cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_right_cylinder')
 
     cyl_unregularized = construct_test_object(regularized=False)
-    cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_cylinder')
+    cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_right_cylinder')
 
     test_regularized_biot_savart_induction_tangential_component(cyl_regularized, cyl_unregularized)
     test_biot_savart_function(cyl_unregularized)

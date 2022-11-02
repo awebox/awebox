@@ -43,7 +43,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_fin_fli
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_si_long_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_right_cylinder as obj_si_long_right_cyl
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -57,8 +57,8 @@ class WakeSubstructure:
 
         self.__finite_filament_list = None
         self.__semi_infinite_filament_list = None
-        self.__semi_infinite_tangential_cylinder_list = None
-        self.__semi_infinite_longitudinal_cylinder_list = None
+        self.__semi_infinite_tangential_right_cylinder_list = None
+        self.__semi_infinite_longitudinal_right_cylinder_list = None
 
         self.__mapped_biot_savart_fun_dict = {}
         self.__mapped_biot_savart_residual_fun_dict = {}
@@ -132,13 +132,21 @@ class WakeSubstructure:
 
         x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'q' + str(kite_obs) + str(parent_obs))
         resi = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
+        resi_reshaped = vect_op.columnize(resi)
 
-        scale = self.get_list(element_type).get_biot_savart_reference_denominator(model_options, parameters, wind)
+        scale_matrix = cas.DM.ones(resi.shape)
+        wake_type = self.substructure_type
+        for element_type in self.get_initialized_element_types():
+            for element_number in range(number_of_elements):
+                var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
+                local_scale = 1. / model_options['scaling']['xl'][var_name]
+                scale_matrix[:, element_number] = local_scale * cas.DM.ones((3, 1))
 
-        resi_scaled = resi / scale
-        resi_reshaped = vect_op.columnize(resi_scaled)
+        scale_matrix_reshaped = cas.diag(vect_op.columnize(scale_matrix))
 
-        return resi_reshaped
+        resi_scaled = cas.mtimes(scale_matrix_reshaped, resi_reshaped)
+
+        return resi_scaled
 
 
     def append(self, added_elem):
@@ -183,11 +191,11 @@ class WakeSubstructure:
             elif element_type == 'semi_infinite_filament':
                 self.__semi_infinite_filament_list = obj_element_list.ElementList()
 
-            elif element_type == 'semi_infinite_tangential_cylinder':
-                self.__semi_infinite_tangential_cylinder_list = obj_element_list.ElementList()
+            elif element_type == 'semi_infinite_tangential_right_cylinder':
+                self.__semi_infinite_tangential_right_cylinder_list = obj_element_list.ElementList()
 
-            elif element_type == 'semi_infinite_longitudinal_cylinder':
-                self.__semi_infinite_longitudinal_cylinder_list = obj_element_list.ElementList()
+            elif element_type == 'semi_infinite_longitudinal_right_cylinder':
+                self.__semi_infinite_longitudinal_right_cylinder_list = obj_element_list.ElementList()
 
             else:
                 message = 'cannot recognize vortex object list for ' + element_type + ' objects'
@@ -240,8 +248,8 @@ class WakeSubstructure:
     def get_accepted_element_types(self):
         accepted_types = {'finite_filament',
                           'semi_infinite_filament',
-                          'semi_infinite_tangential_cylinder',
-                          'semi_infinite_longitudinal_cylinder'
+                          'semi_infinite_tangential_right_cylinder',
+                          'semi_infinite_longitudinal_right_cylinder'
                           }
         return accepted_types
 
@@ -265,11 +273,11 @@ class WakeSubstructure:
         elif element_type == 'semi_infinite_filament':
             return self.__semi_infinite_filament_list
 
-        elif element_type == 'semi_infinite_tangential_cylinder':
-            return self.__semi_infinite_tangential_cylinder_list
+        elif element_type == 'semi_infinite_tangential_right_cylinder':
+            return self.__semi_infinite_tangential_right_cylinder_list
 
-        elif element_type == 'semi_infinite_longitudinal_cylinder':
-            return self.__semi_infinite_longitudinal_cylinder_list
+        elif element_type == 'semi_infinite_longitudinal_right_cylinder':
+            return self.__semi_infinite_longitudinal_right_cylinder_list
 
         else:
             message = 'unable to interpret the element type (' + element_type + '). maybe check your spelling.'
@@ -344,7 +352,7 @@ def construct_test_object():
     local_substructure.append(fil)
     local_substructure.append(fil)
 
-    long_cyl = obj_si_long_cyl.construct_test_object()
+    long_cyl = obj_si_long_right_cyl.construct_test_object()
     local_substructure.append(long_cyl)
 
     return local_substructure
@@ -353,8 +361,8 @@ def test_append():
     local_substructure = construct_test_object()
     condition_1 = (local_substructure.get_list('finite_filament').number_of_elements == 2)
     condition_2 = (local_substructure.get_list('semi_infinite_filament') is None)
-    condition_3 = (local_substructure.get_list('semi_infinite_tangential_cylinder') is None)
-    condition_4 = (local_substructure.get_list('semi_infinite_longitudinal_cylinder').number_of_elements == 1)
+    condition_3 = (local_substructure.get_list('semi_infinite_tangential_right_cylinder') is None)
+    condition_4 = (local_substructure.get_list('semi_infinite_longitudinal_right_cylinder').number_of_elements == 1)
 
     criteria = (condition_1 and condition_2 and condition_3 and condition_4)
 
@@ -368,7 +376,7 @@ def test_append():
 def test_check_expected_dimensions():
     local_substructure = construct_test_object()
     number_of_elements_dict = {'finite_filament':2,
-                               'semi_infinite_longitudinal_cylinder':1
+                               'semi_infinite_longitudinal_right_cylinder':1
                                }
     local_substructure.set_expected_number_of_elements_from_dict(number_of_elements_dict)
 

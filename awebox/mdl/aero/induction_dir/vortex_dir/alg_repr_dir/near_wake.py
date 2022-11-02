@@ -46,9 +46,9 @@ import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_st
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_semi_infinite_tangential_cylinder
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_semi_infinite_longitudinal_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_right_cylinder as obj_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_right_cylinder as obj_semi_infinite_tangential_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_right_cylinder as obj_semi_infinite_longitudinal_cylinder
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
 
 import awebox.tools.vector_operations as vect_op
@@ -91,14 +91,25 @@ def build_per_kite(model_options, kite, variables_si, parameters):
 
 
 def build_per_kite_per_ring(options, kite, ring, variables_si, parameters):
+    filament_ordering = vortex_tools.ordering_of_near_wake_filaments_in_vortex_horseshoe()
+    expected_number_of_elements = len(filament_ordering.keys())
+    filament_list = obj_element_list.ElementList(expected_number_of_elements=expected_number_of_elements)
 
-    filament_list = obj_element_list.ElementList(expected_number_of_elements=3)
+    for pdx in range(expected_number_of_elements):
+        local_filament_position = filament_ordering[pdx]
 
-    trailing_filaments = build_trailing_per_kite_per_ring(options, kite, ring, variables_si, parameters)
-    filament_list.append(trailing_filaments)
+        if (local_filament_position == 'ext') or (local_filament_position == 'int'):
+            trailing_filaments = build_single_trailing_per_kite_per_ring(options, kite, ring, variables_si, parameters, local_filament_position)
+            filament_list.append(trailing_filaments)
 
-    closing_filament = build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameters)
-    filament_list.append(closing_filament)
+        elif local_filament_position == 'closing':
+            closing_filament = build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameters)
+            filament_list.append(closing_filament)
+
+        else:
+            message = 'unexpected type of near wake vortex filament (' + local_filament_position + ')'
+            awelogger.logger.error(message)
+            raise Exception(message)
 
     filament_list.confirm_list_has_expected_dimensions()
 
@@ -130,27 +141,27 @@ def build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameter
     return fil
 
 
-def build_trailing_per_kite_per_ring(options, kite, ring, variables_si, parameters):
+def build_single_trailing_per_kite_per_ring(options, kite, ring, variables_si, parameters, tip):
 
     wake_node = ring
 
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
     r_core = vortex_tools.get_r_core(options, parameters)
 
-    filament_list = obj_element_list.ElementList(expected_number_of_elements=2)
+    filament_list = obj_element_list.ElementList(expected_number_of_elements=1)
 
     wingtips_and_strength_directions = vortex_tools.get_wingtip_name_and_strength_direction_dict()
-    for tip, tip_directionality in wingtips_and_strength_directions.items():
-        x_start = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
-        x_end = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node + 1)
+    tip_directionality = wingtips_and_strength_directions[tip]
+    x_start = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
+    x_end = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node + 1)
 
-        dict_info = {'x_start': x_start,
-                     'x_end': x_end,
-                     'r_core': r_core,
-                     'strength': tip_directionality * strength
-                     }
-        fil = obj_finite_filament.FiniteFilament(dict_info)
-        filament_list.append(fil)
+    dict_info = {'x_start': x_start,
+                 'x_end': x_end,
+                 'r_core': r_core,
+                 'strength': tip_directionality * strength
+                 }
+    fil = obj_finite_filament.FiniteFilament(dict_info)
+    filament_list.append(fil)
 
     filament_list.confirm_list_has_expected_dimensions()
 

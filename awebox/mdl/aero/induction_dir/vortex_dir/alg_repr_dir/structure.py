@@ -81,6 +81,15 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     options['aero']['vortex']['far_wake_element_type'] = element_type
     options['aero']['vortex']['approximation_order_for_elliptic_integrals'] = 3
 
+    options['scaling'] = {}
+    options['scaling']['xl'] = {'wu_near_finite_filament_0_1': 1.,
+                                'wu_near_finite_filament_1_1': 1.,
+                                'wu_bound_finite_filament_0_1': 1.,
+                                'wu_far_finite_filament_0_1': 1.,
+                                'wu_far_finite_filament_1_1': 1.,
+                                'wu_near_finite_filament_2_1': 1.
+                                }
+
     options['induction'] = {}
     options['induction']['vortex_wake_nodes'] = wake_nodes
     options['induction']['vortex_rings'] = rings
@@ -189,7 +198,7 @@ def construct_vortex_ring_test_object(element_type='semi_infinite_filament'):
     return options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters
 
 
-def construct_circular_flight_test_object(element_type='semi_infinite_cylinder'):
+def construct_circular_flight_test_object(element_type='semi_infinite_right_cylinder'):
     options, architecture, wind, var_struct, param_struct, variables_dict = construct_test_model_variable_structures(
         element_type)
     kite = architecture.kite_nodes[0]

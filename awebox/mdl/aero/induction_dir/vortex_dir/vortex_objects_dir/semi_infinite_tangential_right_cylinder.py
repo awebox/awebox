@@ -38,7 +38,7 @@ import casadi.tools as cas
 import numpy as np
 import scipy.special
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_semi_infinite_cylinder
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_right_cylinder as obj_semi_infinite_right_cylinder
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 
 import awebox.tools.struct_operations as struct_op
@@ -53,12 +53,12 @@ import scipy.special as special
 matplotlib.use('TkAgg')
 
 
-class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCylinder):
+class SemiInfiniteTangentialRightCylinder(obj_semi_infinite_right_cylinder.SemiInfiniteRightCylinder):
     # Branlard, Emmanuel & Gaunaa, Mac.(2014). Cylindrical vortex wake model: Right cylinder. Wind Energy. 524. 10.1002/we.1800.
 
     def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):
         super().__init__(info_dict, approximation_order_for_elliptic_integrals)
-        self.set_element_type('semi_infinite_tangential_cylinder')
+        self.set_element_type('semi_infinite_tangential_right_cylinder')
 
 
     ##### radial induction parts
@@ -214,15 +214,16 @@ class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCyli
         x_obs = vect_op.zhat_np()
         a_hat, b_hat, _ = self.get_observational_axes(unpacked, x_obs)
 
-        s_start = l_start
-        s_end = s_start + cosmetics['trajectory']['cylinder_s_length']
-
         n_theta = cosmetics['trajectory']['cylinder_n_theta']
         n_s = cosmetics['trajectory']['cylinder_n_s']
 
+        s_start = l_start
+        delta_s = cosmetics['trajectory']['cylinder_s_length'] / float(n_s - 1)
+        s_end = s_start + delta_s
+
         for sdx in range(n_s):
 
-            ss = s_start + (s_end - s_start) / float(n_s-1) * float(sdx)
+            ss = s_start + float(sdx) * s_end
 
             for tdx in range(n_theta):
 
@@ -239,9 +240,9 @@ class SemiInfiniteTangentialCylinder(obj_semi_infinite_cylinder.SemiInfiniteCyli
         return None
 
 def construct_test_object(regularized=True):
-    cyl = obj_semi_infinite_cylinder.construct_test_object(regularized)
+    cyl = obj_semi_infinite_right_cylinder.construct_test_object(regularized)
     unpacked = cyl.info_dict
-    tan_cyl = SemiInfiniteTangentialCylinder(unpacked)
+    tan_cyl = SemiInfiniteTangentialRightCylinder(unpacked)
     tan_cyl.define_biot_savart_induction_function()
     return tan_cyl
 
@@ -877,10 +878,10 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 def test(test_includes_visualization=False):
 
     cyl_regularized = construct_test_object(regularized=True)
-    cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_cylinder')
+    cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_right_cylinder')
 
     cyl_unregularized = construct_test_object(regularized=False)
-    cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_cylinder')
+    cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_right_cylinder')
 
     test_regularized_biot_savart_induction_radial_component(cyl_regularized, cyl_unregularized)
     test_regularized_biot_savart_induction_longitudinal_component(cyl_regularized, cyl_unregularized)

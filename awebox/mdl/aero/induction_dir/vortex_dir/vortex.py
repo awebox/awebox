@@ -39,9 +39,9 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as ob
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_fin_fil
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_si_fil
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_cylinder as obj_si_cyl
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_cylinder as obj_si_tan_cyl
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_cylinder as obj_si_long_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_right_cylinder as obj_si_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_tangential_right_cylinder as obj_si_tan_cyl
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_longitudinal_right_cylinder as obj_si_long_cyl
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as obj_wake
 
@@ -53,6 +53,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.ocp.ocp_constraint as ocp_constraint
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -75,7 +76,7 @@ def build(model_options, architecture, wind, variables_si, parameters):
     return None
 
 
-def get_model_constraints(model_options, wake, wind, variables_si, parameters, architecture):
+def get_model_constraints(model_options, wake, scaling, wind, variables_si, parameters, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -102,9 +103,10 @@ def get_superposition_cstr(wake, wind, variables_si, architecture):
 
         vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
 
-        resi = (vec_u_ind - vec_u_superposition) / u_ref
+        resi_si = vec_u_ind - vec_u_superposition
+        resi_scaled = resi_si / u_ref
 
-        local_cstr = cstr_op.Constraint(expr=resi,
+        local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                         name='superposition_' + str(kite_obs),
                                         cstr_type='eq')
         cstr_list.append(local_cstr)

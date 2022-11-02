@@ -99,6 +99,8 @@ def animate_monitor_plot(plot_dict, cosmetics, fig_name, init_colors=bool(False)
             txt_glb.remove()
             txt_loc.remove()
 
+        print_op.print_progress(N, N)
+
     return None
 
 

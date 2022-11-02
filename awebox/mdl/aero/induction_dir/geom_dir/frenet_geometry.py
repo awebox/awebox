@@ -176,7 +176,15 @@ def get_ddgamma_ddt(variables, kite, parent):
     return ddgamma_ddt
 
 def variables_have_third_derivative_information(variables, kite, parent):
-    return ('[xddot,dddq' + str(kite) + str(parent) + ',0]' in variables.labels())
+    label = 'dddq' + str(kite) + str(parent) + ',0'
+    if (isinstance(variables, dict)) and ('xddot' in variables.keys()):
+        return ('[' + label + ']' in variables['xddot'].labels())
+    if (isinstance(variables, dict)) and not ('xddot' in variables.keys()):
+        message = 'cannot determine if the variables have third degree-of-freedom information'
+        awelogger.logger.error(message)
+        raise Exception(message)
+    else:
+        return ('[xddot,' + label + ']' in variables.labels())
 
 def get_dddgamma_dddt(variables_si, kite, parent):
     if variables_have_third_derivative_information(variables_si, kite, parent):

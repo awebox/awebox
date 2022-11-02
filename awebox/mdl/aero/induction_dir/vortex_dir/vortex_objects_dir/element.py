@@ -206,11 +206,17 @@ class Element:
         x_obs = cas.SX.sym('x_obs', (3, 1))
         vec_u_ind = cas.SX.sym('vec_u_ind', (3, 1))
 
-        _, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
+        # _, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
+        #
+        # resi = den * vec_u_ind - num
+        #
+        # biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+        #
 
-        resi = den * vec_u_ind - num
-
+        value, _, _ = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
+        resi = vec_u_ind - value
         biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
 
         return None

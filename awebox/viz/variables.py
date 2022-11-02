@@ -22,9 +22,12 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import awebox.tools.struct_operations as struct_op
 
 from . import tools
 import numpy as np
@@ -311,15 +314,28 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
 
     variables_dict = plot_dict['variables_dict']
     tgrid_ip = plot_dict['time_grids']['ip']
+    si_or_scaled = cosmetics['variables']['si_or_scaled']
+    scaling = plot_dict['scaling']
 
     ax = plt.axes(ax)
     for jdx in range(variables_dict[var_type][var_name].shape[0]):
-        p = plt.plot(tgrid_ip, plot_dict[var_type][var_name][jdx])
+
+        variable_data = plot_dict[var_type][var_name][jdx]
+        if si_or_scaled == 'scaled':
+            for vdx in range(variable_data.shape[0]):
+                variable_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, variable_data[vdx], scaling)
+        p = plt.plot(tgrid_ip, variable_data)
+
         if cosmetics['plot_bounds']:
             tools.plot_bounds(plot_dict, var_type, var_name, jdx, tgrid_ip, p)
+
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref'][var_type][var_name][jdx],
-                     linestyle='--', color=p[-1].get_color())
+            tgrid_ref_ip = plot_dict['time_grids']['ref']['ip']
+            ref_data = plot_dict['ref'][var_type][var_name][jdx]
+            if si_or_scaled == 'scaled':
+                for vdx in range(ref_data.shape[0]):
+                    ref_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, ref_data[vdx], scaling)
+            plt.plot(tgrid_ref_ip, ref_data, linestyle='--', color=p[-1].get_color())
 
     plt.title(var_name)
     ax.tick_params(axis='both', which='major')

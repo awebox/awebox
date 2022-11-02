@@ -73,8 +73,6 @@ def build(options, architecture, wind, variables_si, parameters):
 
     return wake
 
-
-
 def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
     return alg_fixing.get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
 
