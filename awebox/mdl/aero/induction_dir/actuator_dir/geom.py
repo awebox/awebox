@@ -52,31 +52,31 @@ def get_mu_radial_ratio(variables, kite, parent):
 # variables
 
 def get_area_var(variables, parent):
-    area_var = variables['xl']['area' + str(parent)]
+    area_var = variables['z']['area' + str(parent)]
     return area_var
 
 def get_bar_varrho_var(variables, parent):
-    varrho_var = variables['xl']['bar_varrho' + str(parent)]
+    varrho_var = variables['z']['bar_varrho' + str(parent)]
     return varrho_var
 
 def get_varrho_var(variables, kite, parent):
-    varrho_var = variables['xl']['varrho' + str(kite) + str(parent)]
+    varrho_var = variables['z']['varrho' + str(kite) + str(parent)]
     return varrho_var
 
 def get_psi_var(variables, kite, parent):
-    psi_var = variables['xl']['psi' + str(kite) + str(parent)]
+    psi_var = variables['z']['psi' + str(kite) + str(parent)]
     return psi_var
 
 def get_cospsi_var(variables, kite, parent):
-    cospsi_var = variables['xl']['cospsi' + str(kite) + str(parent)]
+    cospsi_var = variables['z']['cospsi' + str(kite) + str(parent)]
     return cospsi_var
 
 def get_sinpsi_var(variables, kite, parent):
-    sinpsi_var = variables['xl']['sinpsi' + str(kite) + str(parent)]
+    sinpsi_var = variables['z']['sinpsi' + str(kite) + str(parent)]
     return sinpsi_var
 
 def get_n_vec_length_var(variables, parent):
-    len_var = variables['xl']['n_vec_length' + str(parent)]
+    len_var = variables['z']['n_vec_length' + str(parent)]
     return len_var
 
 
@@ -90,7 +90,7 @@ def get_tstar_ref(parameters, wind):
 
 
 def get_n_vec_length_ref(model_options):
-    return model_options['scaling']['xl']['n_vec_length']
+    return model_options['scaling']['z']['n_vec_length']
 
 def get_varrho_ref(model_options):
     varrho_ref = model_options['aero']['actuator']['varrho_ref']
@@ -243,7 +243,7 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
 
     if int(model_options['kite_dof']) == 6:
 
-        r_column = variables['xd']['r' + str(kite) + str(parent)]
+        r_column = variables['x']['r' + str(kite) + str(parent)]
         r = cas.reshape(r_column, (3, 3))
         ehat2 = r[:, 1]  # spanwise, from pe to ne
 
@@ -281,7 +281,7 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
 def get_act_dcm_var(variables, parent):
 
     name = 'act_dcm' + str(parent)
-    rot_cols = variables['xl'][name]
+    rot_cols = variables['z'][name]
     act_dcm = cas.reshape(rot_cols, (3, 3))
 
     return act_dcm
@@ -302,7 +302,7 @@ def get_z_rotor_hat_var(variables, parent):
     return y_hat
 
 def get_z_vec_length_var(variables, parent):
-    len_var = variables['xl']['z_vec_length' + str(parent)]
+    len_var = variables['z']['z_vec_length' + str(parent)]
     return len_var
 
 

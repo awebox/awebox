@@ -159,110 +159,116 @@ def generate_options_dict():
     """
 
     # set options
-    single_kite_options = options.Options(internal_access = True)
-    single_kite_options['user_options']['system_model']['architecture'] = {1:0}
-    single_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 3
-    single_kite_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    single_kite_options['user_options']['system_model']['kite_dof'] = 3
-    single_kite_options['user_options']['induction_model'] = 'not_in_use'
-    single_kite_options['user_options']['tether_drag_model'] = 'split'
+    single_kite_options = {}
+    single_kite_options['user_options.system_model.architecture'] = {1:0}
+    single_kite_options['user_options.trajectory.lift_mode.windings'] = 3
+    single_kite_options['user_options.kite_standard'] = ampyx_data.data_dict()
+    single_kite_options['user_options.system_model.kite_dof'] = 3
+    single_kite_options['user_options.induction_model'] = 'not_in_use'
+    single_kite_options['user_options.tether_drag_model'] = 'split'
 
     drag_mode_options = copy.deepcopy(single_kite_options)
-    drag_mode_options['user_options']['trajectory']['system_type'] = 'drag_mode'
-    drag_mode_options['quality']['test_param']['power_balance_thresh'] = 2.
+    drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
+    drag_mode_options['quality.test_param.power_balance_thresh'] = 2.
 
     save_trial_options = copy.deepcopy(single_kite_options)
-    save_trial_options['solver']['save_trial'] = True
+    save_trial_options['solver.save_trial'] = True
 
     multi_tether_options = copy.deepcopy(single_kite_options)
-    multi_tether_options['user_options']['tether_drag_model'] = 'multi'
+    multi_tether_options['user_options.tether_drag_model'] = 'multi'
 
     dual_kite_options = copy.deepcopy(single_kite_options)
-    dual_kite_options['user_options']['system_model']['architecture'] = {1:0, 2:1, 3:1}
+    dual_kite_options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
-    dual_kite_6_dof_options['user_options']['system_model']['kite_dof'] = 6
+    dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
-    small_dual_kite_options['user_options']['kite_standard'] = bubbledancer_data.data_dict()
-    small_dual_kite_options['user_options']['trajectory']['lift_mode']['windings'] = 1
+    small_dual_kite_options['user_options.kite_standard'] = bubbledancer_data.data_dict()
+    small_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
 
-    actuator_qaxi_options = options.Options(internal_access=True)
-    actuator_qaxi_options['user_options']['system_model']['architecture'] = {1: 0, 2: 1, 3: 1}
-    actuator_qaxi_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    actuator_qaxi_options['user_options']['system_model']['kite_dof'] = 6
-    actuator_qaxi_options['user_options']['tether_drag_model'] = 'split'
-    actuator_qaxi_options['user_options']['induction_model'] = 'actuator'
-    actuator_qaxi_options['model']['aero']['actuator']['steadyness'] = 'quasi-steady'
-    actuator_qaxi_options['model']['aero']['actuator']['symmetry'] = 'axisymmetric'
-    actuator_qaxi_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    actuator_qaxi_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
-    actuator_qaxi_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
-    actuator_qaxi_options['model']['aero']['overwrite']['beta_max_deg'] = 20.
-    actuator_qaxi_options['model']['aero']['overwrite']['beta_min_deg'] = -20.
-    actuator_qaxi_options['model']['model_bounds']['tether_stress']['scaling'] = 10.
-    actuator_qaxi_options['solver']['cost']['fictitious'][0] = 1.e3
-    actuator_qaxi_options['nlp']['n_k'] = 15
+    actuator_qaxi_options = {}
+    actuator_qaxi_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    actuator_qaxi_options['user_options.kite_standard'] = ampyx_data.data_dict()
+    actuator_qaxi_options['user_options.system_model.kite_dof'] = 6
+    actuator_qaxi_options['user_options.tether_drag_model'] = 'split'
+    actuator_qaxi_options['user_options.induction_model'] = 'actuator'
+    actuator_qaxi_options['model.aero.actuator.steadyness'] = 'quasi-steady'
+    actuator_qaxi_options['model.aero.actuator.symmetry'] = 'axisymmetric'
+    actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 1
+    actuator_qaxi_options['model.aero.overwrite.alpha_max_deg'] = 20.
+    actuator_qaxi_options['model.aero.overwrite.alpha_min_deg'] = -20.
+    actuator_qaxi_options['model.aero.overwrite.beta_max_deg'] = 20.
+    actuator_qaxi_options['model.aero.overwrite.beta_min_deg'] = -20.
+    actuator_qaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
+    actuator_qaxi_options['model.tether.lift_tether_force'] = True
+    actuator_qaxi_options['model.aero.lift_aero_force'] = True
+    actuator_qaxi_options['nlp.collocation.u_param'] = 'zoh'
+    actuator_qaxi_options['solver.cost.fictitious.0'] = 1.e3
+    actuator_qaxi_options['nlp.n_k'] = 15
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
-    actuator_uaxi_options['model']['aero']['actuator']['steadyness'] = 'unsteady'
-    actuator_uaxi_options['model']['model_bounds']['tether_stress']['scaling'] = 10.
+    actuator_uaxi_options['model.aero.actuator.steadyness'] = 'unsteady'
+    actuator_uaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
-    actuator_qasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
-    actuator_qasym_options['solver']['cost']['psi'][1] = 1.e1
+    actuator_qasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
+    actuator_qasym_options['solver.cost.psi.1'] = 1.e1
 
     actuator_uasym_options = copy.deepcopy(actuator_qaxi_options)
-    actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
-    actuator_uasym_options['model']['aero']['actuator']['symmetry'] = 'asymmetric'
-    actuator_uasym_options['solver']['cost']['psi'][1] = 1.e1
+    actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
+    actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
+    actuator_uasym_options['solver.cost.psi.1'] = 1.e1
 
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
-    actuator_comparison_options['model']['aero']['actuator']['steadyness_comparison'] = ['q', 'u']
-    actuator_comparison_options['user_options']['system_model']['kite_dof'] = 6
+    actuator_comparison_options['model.aero.actuator.steadyness_comparison'] = ['q', 'u']
+    actuator_comparison_options['user_options.system_model.kite_dof'] = 6
 
-    vortex_options = options.Options(internal_access=True)
-    vortex_options['user_options']['system_model']['architecture'] = {1: 0}
-    vortex_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    vortex_options['user_options']['kite_standard'] = ampyx_data.data_dict()
-    vortex_options['user_options']['system_model']['kite_dof'] = 6
-    vortex_options['user_options']['induction_model'] = 'vortex'
-    vortex_options['user_options']['tether_drag_model'] = 'split'
-    vortex_options['nlp']['n_k'] = 8
-    vortex_options['model']['aero']['vortex']['wake_nodes'] = 10
-    vortex_options['model']['aero']['vortex']['representation'] = 'alg'
-    vortex_options['model']['aero']['overwrite']['alpha_max_deg'] = 20.
-    vortex_options['model']['aero']['overwrite']['alpha_min_deg'] = -20.
+    vortex_options = {}
+    vortex_options['user_options.system_model.architecture'] = {1: 0}
+    vortex_options['user_options.trajectory.lift_mode.windings'] = 1
+    vortex_options['user_options.kite_standard'] = ampyx_data.data_dict()
+    vortex_options['user_options.system_model.kite_dof'] = 6
+    vortex_options['user_options.induction_model'] = 'vortex'
+    vortex_options['user_options.tether_drag_model'] = 'split'
+    vortex_options['nlp.n_k'] = 8
+    vortex_options['model.aero.vortex.wake_nodes'] = 10
+    vortex_options['model.aero.vortex.representation'] = 'alg'
+    vortex_options['model.aero.overwrite.alpha_max_deg'] = 20.
+    vortex_options['model.aero.overwrite.alpha_min_deg'] = -20.
+    vortex_options['model.tether.lift_tether_force'] = True
+    vortex_options['model.aero.lift_aero_force'] = True
+    vortex_options['nlp.collocation.u_param'] = 'zoh'
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
-    dual_kite_tracking_options['user_options']['trajectory']['type'] = 'tracking'
-    dual_kite_tracking_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    dual_kite_tracking_options['user_options']['trajectory']['tracking']['fix_tether_length'] = True
-    dual_kite_tracking_options['nlp']['n_k'] = 20
+    dual_kite_tracking_options['user_options.trajectory.type'] = 'tracking'
+    dual_kite_tracking_options['user_options.trajectory.lift_mode.windings'] = 1
+    dual_kite_tracking_options['user_options.trajectory.tracking.fix_tether_length'] = True
+    dual_kite_tracking_options['nlp.n_k'] = 20
 
     dual_kite_tracking_winch_options = copy.deepcopy(dual_kite_tracking_options)
-    dual_kite_tracking_winch_options['user_options']['trajectory']['tracking']['fix_tether_length'] = False
+    dual_kite_tracking_winch_options['user_options.trajectory.tracking.fix_tether_length'] = False
 
     # nominal landing
     nominal_landing_options = copy.deepcopy(dual_kite_options)
-    nominal_landing_options['user_options']['trajectory']['type'] = 'nominal_landing'
-    nominal_landing_options['user_options']['trajectory']['transition']['initial_trajectory'] = 'dual_kite_trial.dict'
-    nominal_landing_options['solver']['initialization']['initialization_type'] = 'modular'
+    nominal_landing_options['user_options.trajectory.type'] = 'nominal_landing'
+    nominal_landing_options['user_options.trajectory.transition.initial_trajectory'] = 'dual_kite_trial.dict'
+    nominal_landing_options['solver.initialization.initialization_type'] = 'modular'
 
     # compromised landing
     compromised_landing_options = copy.deepcopy(nominal_landing_options)
-    compromised_landing_options['user_options']['trajectory']['type'] = 'compromised_landing'
-    compromised_landing_options['model']['model_bounds']['dcoeff_compromised_factor'] = 0.0
-    compromised_landing_options['user_options']['trajectory']['compromised_landing']['emergency_scenario'] = ('broken_roll', 2)
-    compromised_landing_options['user_options']['trajectory']['compromised_landing']['xi_0_initial'] = 0.8
+    compromised_landing_options['user_options.trajectory.type'] = 'compromised_landing'
+    compromised_landing_options['model.model_bounds.dcoeff_compromised_factor'] = 0.0
+    compromised_landing_options['user_options.trajectory.compromised_landing.emergency_scenario'] = ('broken_roll', 2)
+    compromised_landing_options['user_options.trajectory.compromised_landing.xi_0_initial'] = 0.8
 
     basic_health_options = copy.deepcopy(single_kite_options)
-    basic_health_options['user_options']['trajectory']['lift_mode']['windings'] = 1
-    basic_health_options['nlp']['n_k'] = 10
-    basic_health_options['solver']['health_check']['when']['failure'] = True
-    basic_health_options['solver']['health_check']['when']['final'] = True
-    basic_health_options['solver']['health_check']['raise_exception'] = True
+    basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
+    basic_health_options['nlp.n_k'] = 10
+    basic_health_options['solver.health_check.when.failure'] = True
+    basic_health_options['solver.health_check.when.final'] = True
+    basic_health_options['solver.health_check.raise_exception'] = True
 
     # define options list
     options_dict = collections.OrderedDict()
@@ -324,5 +330,3 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
-
-test_actuator_uasym()

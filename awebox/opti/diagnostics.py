@@ -60,9 +60,9 @@ def print_homotopy_values(nlp, solution, p_fix_num):
 def print_runtime_values(stats):
     awelogger.logger.debug('')
 
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('solver return status', stats['return_status']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('number of iterations', stats['iter_count']))
-    awelogger.logger.info("{0:.<30}: {1:<30}".format('total wall time', stats['t_wall_total']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Solver return status', stats['return_status']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Number of iterations', stats['iter_count']))
+    awelogger.logger.info("{0:.<30}: {1:<30}".format('Total wall time', str(stats['t_wall_total'])+'s'))
 
     awelogger.logger.info('')
 
@@ -100,9 +100,9 @@ def compute_power_indicators(power_and_performance, plot_dict):
     if 'e' in plot_dict['integral_variables']:
         e_final = plot_dict['integral_outputs_final']['int_out',-1,'e']
     else:
-        e_final = plot_dict['xd']['e'][0][-1]
+        e_final = plot_dict['x']['e'][0][-1]
 
-    time_period = plot_dict['output_vals'][1]['final', 'time_period', 'val']
+    time_period = plot_dict['global_outputs']['time_period'].full()[0][0]
     avg_power = e_final / time_period
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
     power_per_surface_area = avg_power / surface_area
@@ -115,10 +115,8 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    l_t_max = np.amax(plot_dict['xd']['l_t'][0])
-    z_av = np.mean(plot_dict['xd']['q10'][2])
+    z_av = np.mean(plot_dict['x']['q10'][2])
 
-    power_and_performance['l_t_max'] = l_t_max
     power_and_performance['z_av'] = z_av
 
     return power_and_performance
@@ -172,12 +170,54 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
 def compute_position_indicators(power_and_performance, plot_dict):
 
     # elevation angle
-    q10 = plot_dict['xd']['q10']
+    q10 = plot_dict['x']['q10']
     elevation = []
+    azimuth = []
+    cone_angle = []
+
     for i in range(q10[0].shape[0]):
-        elevation += [np.arccos(np.linalg.norm(np.array([q10[0][i], q10[1][i], 0.0])) / np.linalg.norm(np.array([q10[0][i], q10[1][i], q10[2][i]])))]
-    elevation = np.mean(elevation) * 180 / np.pi
+        q10_0 = q10[0][i]
+        q10_1 = q10[1][i]
+        q10_2 = q10[2][i]
+        elevation += [np.arccos(np.linalg.norm(np.array([q10_0, q10_1, 0.0])) / np.linalg.norm(np.array([q10_0, q10_1, q10_2])))]
+        azimuth += [np.arctan2(q10_1, q10_0)]
+        
+    # (average) main tether vector
+    elevation = np.rad2deg(np.mean(elevation))
+    azimuth = np.rad2deg(np.mean(azimuth))
+    e_tether = np.array([np.cos(elevation)*np.cos(azimuth), np.cos(elevation)*np.sin(azimuth), np.sin(elevation)])
+
+    # (average) tether frame
+    ez_hat = np.cross(np.array([1,0,0]), e_tether)
+    ey_hat = np.cross(ez_hat, e_tether)
+
+    for i in range(q10[0].shape[0]):
+        # cone angle
+        if 'l_t' in plot_dict['x'].keys():
+            l_t = plot_dict['x']['l_t'][0][i]
+        else:
+            l_t = plot_dict['theta']['l_t']
+
+        if plot_dict['architecture'].number_of_nodes > 2:
+            q21_0 = plot_dict['x']['q21'][0][i]
+            q21_1 = plot_dict['x']['q21'][1][i]
+            q21_2 = plot_dict['x']['q21'][2][i]
+            l_s = plot_dict['theta']['l_s']
+            cone_angle += [np.arccos(np.dot(np.array([q21_0 - q10_0, q21_1 - q10_1, q21_2 - q10_2])/l_s, e_tether))]
+        else:
+            q10_0 = q10[0][i]
+            q10_1 = q10[1][i]
+            q10_2 = q10[2][i]
+            cone_angle += [np.arccos(np.dot(np.array([q10_0, q10_1, q10_2])/l_t, e_tether))]
+
+  
+    cone_angle = np.rad2deg(np.mean(cone_angle))
     power_and_performance['elevation'] = elevation
+    power_and_performance['azimuth'] = azimuth
+    power_and_performance['cone_angle'] = cone_angle
+
+    # average flight speed
+    # power_and_performance['flight_speed'] = ...
 
     # average velocity of kites (maybe?)
     parent_map = plot_dict['architecture'].parent_map
@@ -185,7 +225,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     dq_final = 0.
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
-        dq = plot_dict['xd']['dq' + str(node) + str(parent)]
+        dq = plot_dict['x']['dq' + str(node) + str(parent)]
         parent = parent_map[node]
         dq_array = cas.vertcat(dq[0][-1], dq[1][-1], dq[2][-1])
         dq_norm_float = float(vect_op.norm(dq_array))
@@ -195,13 +235,13 @@ def compute_position_indicators(power_and_performance, plot_dict):
     power_and_performance['dq_final'] = dq_final
 
     # average connex-point velocity
-    dq10 = plot_dict['xd']['dq10']
+    dq10 = plot_dict['x']['dq10']
     dq10hat = []
     for i in range(dq10[0].shape[0]):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
         q = np.array([q10[0][i], q10[1][i], q10[2][i]])
         dq10hat += [np.linalg.norm(
-            dq - np.matmul(dq.T, q / np.linalg.norm(q)) * q / np.linalg.norm(q))]
+            dq.squeeze() - np.dot(dq.squeeze().T, q.squeeze() / np.linalg.norm(q)) * q.squeeze() / np.linalg.norm(q))]
 
     dq10_av = np.mean(np.array(dq10hat))
     power_and_performance['dq10_av'] = dq10_av
@@ -239,8 +279,8 @@ def compute_control_frequency(power_and_performance, plot_dict):
     parent = plot_dict['architecture'].parent_map[first_kite]
     tentative_var_name = 'delta' + str(first_kite) + str(parent)
 
-    if tentative_var_name in plot_dict['xd'].keys():
-        var_type = 'xd'
+    if tentative_var_name in plot_dict['x'].keys():
+        var_type = 'x'
     elif tentative_var_name in plot_dict['u'].keys():
         var_type = 'u'
     else:
@@ -272,7 +312,7 @@ def compute_control_frequency(power_and_performance, plot_dict):
 
 def compute_windings(power_and_performance, plot_dict):
 
-    n_interpolation = plot_dict['xd']['q10'][0].shape[0]
+    n_interpolation = plot_dict['x']['q10'][0].shape[0]
     total_steps = float(n_interpolation)
 
     parent_map = plot_dict['architecture'].parent_map
@@ -283,7 +323,7 @@ def compute_windings(power_and_performance, plot_dict):
     ehat_tether_z = 0.
 
     for idx in range(n_interpolation):
-        q10 = cas.vertcat(plot_dict['xd']['q10'][0][idx], plot_dict['xd']['q10'][1][idx], plot_dict['xd']['q10'][2][idx])
+        q10 = cas.vertcat(plot_dict['x']['q10'][0][idx], plot_dict['x']['q10'][1][idx], plot_dict['x']['q10'][2][idx])
         local_ehat = vect_op.normalize(q10)
         ehat_tether_x += local_ehat[0] / total_steps
         ehat_tether_y += local_ehat[1] / total_steps
@@ -308,8 +348,8 @@ def compute_windings(power_and_performance, plot_dict):
         origin = np.zeros((3, 1))
         for idx in range(n_interpolation):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
-                              plot_dict['xd'][name][2][idx])
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
 
             origin = origin + q_in_plane / total_steps
@@ -317,14 +357,14 @@ def compute_windings(power_and_performance, plot_dict):
         # recenter the plane about origin
         for idx in range(n_interpolation-1):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['xd'][name][0][idx], plot_dict['xd'][name][1][idx],
-                              plot_dict['xd'][name][2][idx])
+            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
+                              plot_dict['x'][name][2][idx])
 
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
             q_recentered = q_in_plane - origin
 
-            q_next = cas.vertcat(plot_dict['xd'][name][0][idx+1], plot_dict['xd'][name][1][idx+1],
-                              plot_dict['xd'][name][2][idx+1])
+            q_next = cas.vertcat(plot_dict['x'][name][0][idx+1], plot_dict['x'][name][1][idx+1],
+                              plot_dict['x'][name][2][idx+1])
             q_next_in_plane = q_next - vect_op.dot(q_next, ehat_tether) * ehat_tether
             q_next_recentered = q_next_in_plane - origin
 

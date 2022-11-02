@@ -105,13 +105,6 @@ def battery_model_parameters(coeff_max, coeff_min):
 def aero():
     # commented values are not currently supported, future implementation
 
-    stab_derivs = {}
-
-    stab_derivs['frame'] = {}
-    stab_derivs['frame']['force'] = 'wind'
-    stab_derivs['frame']['moment'] = 'control'
-
-
     # A reference model for airborne wind energy systems for optimization and control
     # Article
     # March 2019 Renewable Energy

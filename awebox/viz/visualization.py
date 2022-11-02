@@ -68,13 +68,13 @@ class Visualization(object):
 
         return None
 
-    def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref):
+    def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs):
 
-        self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref)
+        self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
 
         return None
 
-    def plot(self, V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, name, sweep_toggle, V_ref, fig_name='plot', fig_num = None, recalibrate = True):
+    def plot(self, V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, name, sweep_toggle, V_ref, global_outputs, fig_name='plot', fig_num = None, recalibrate = True):
         """
         Generate plots with given parametric and visualization options
         :param V_plot: plot data (scaled)
@@ -85,7 +85,7 @@ class Visualization(object):
 
         # recalibrate plot_dict
         if recalibrate:
-            self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref)
+            self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
 
         if type(flags) is not list:
             flags = [flags]
@@ -137,8 +137,6 @@ class Visualization(object):
         variables_dict = self.plot_dict['variables_dict']
         integral_variables = self.plot_dict['integral_variables']
 
-        #rela: the scaling isn't working properly
-
         plot_logic_dict = {}
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})
         plot_logic_dict['projected_xy'] = (trajectory.plot_trajectory, {'side':'xy'})
@@ -160,7 +158,7 @@ class Visualization(object):
         plot_logic_dict['circulation'] = (output.plot_circulation, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
-        for variable in list(variables_dict['xd'].keys()) + integral_variables:
+        for variable in list(variables_dict['x'].keys()) + integral_variables:
             plot_logic_dict['states:' + variable] = (variables.plot_states, {'individual_state':variable})
         plot_logic_dict['controls'] = (variables.plot_controls, None)
         for control in list(variables_dict['u'].keys()):

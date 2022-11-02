@@ -72,7 +72,7 @@ def init_write_csv_dict(plot_dict):
     write_csv_dict = collections.OrderedDict()
 
     # create empty entries corresponding to the structure of plot_dict
-    for variable_type in ['xd', 'xa', 'xl', 'u', 'outputs']:
+    for variable_type in ['x', 'z', 'u', 'outputs']:
         for variable in list(plot_dict[variable_type].keys()):
 
             # check for sub_variables in case there are some
@@ -90,6 +90,11 @@ def init_write_csv_dict(plot_dict):
 
     # add time stamp
     write_csv_dict['time'] = None
+
+    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
+        variable_length = plot_dict['variables']['theta', variable].shape[0]
+        for index in range(variable_length):
+            write_csv_dict['theta_' + variable + '_' + str(index)] = None
 
     # add architecture information
     write_csv_dict['nodes'] = None
@@ -125,7 +130,8 @@ def interpolate_data(trial, freq):
     name = trial.name
     parametric_options = trial.options
     V_ref = trial.optimization.V_ref
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, N=N)
+    global_outputs = trial.optimization.global_outputs_opt
+    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs, N=N)
 
     return plot_dict
 
@@ -141,7 +147,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
     """
 
     # loop over variables
-    for variable_type in ['xd', 'xa', 'xl', 'u', 'outputs']:
+    for variable_type in ['x', 'z', 'u', 'outputs']:
         for variable in list(plot_dict[variable_type].keys()):
 
             # check whether sub_variables exist
@@ -174,6 +180,15 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
 
     write_csv_dict['time'] = tgrid_ip[k]
+
+    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
+        V_plot = plot_dict['V_plot']
+        variable_length = V_plot['theta',variable].shape[0]
+        for index in range(variable_length):
+            if k == 0:
+                write_csv_dict['theta_' + variable + '_' + str(index)] = str(V_plot['theta', variable, index])
+            else:
+                write_csv_dict['theta_' + variable + '_' + str(index)] = None
 
     parent_map = plot_dict['architecture'].parent_map
     if k < plot_dict['architecture'].number_of_nodes-1:
@@ -237,6 +252,8 @@ def generate_optimal_model(trial, param_options = None):
 
                 else:
                     parameters['theta0',param_type,param] = param_options[param_type][param]
+        else:
+            parameters['theta0', param_type] = param_options[param_type]
 
     # create stage cost function
     import awebox.ocp.objective as obj
@@ -245,10 +262,19 @@ def generate_optimal_model(trial, param_options = None):
     weights = obj.get_regularization_weights(trial.model.variables, trial.optimization.p_fix_num, trial.options['nlp']).cat
     refs = struct_op.get_variables_at_time(trial.options['nlp'], trial.nlp.V(trial.optimization.p_fix_num['p','ref']), trial.nlp.Xdot(0.0), trial.model.variables, 0, 0)
     var = trial.model.variables
-    u_reg = reg_costs_struct(reg_costs_fun(var, refs, weights))['u_regularisation_cost']
-    power = trial.model.integral_outputs_fun(var, trial.model.parameters)
+    xdot_reg = reg_costs_fun(var, refs, weights)[1]
+    u_reg = reg_costs_fun(var, refs, weights)[2]
+    beta_reg = 0.0
+    for kite in trial.model.architecture.kite_nodes:
+        beta_sq = trial.model.outputs(trial.model.outputs_fun(variables, parameters))['aerodynamics', 'beta{}'.format(kite)]**2
+        beta_reg += trial.optimization.p_fix_num['cost', 'beta']*beta_sq / trial.options['nlp']['cost']['normalization']['beta']
+    if not 'e' in trial.model.variables_dict['x'].keys():
+        power = trial.model.integral_outputs_fun(var, trial.model.parameters)
+    else:
+        outputs_eval = trial.model.outputs(trial.model.outputs_fun(var, trial.model.parameters))
+        power = outputs_eval['performance','p_current']/trial.model.scaling['x']['e']
     cost_weighting = discr.setup_nlp_cost()(trial.optimization.p_fix_num['cost'])
-    stage_cost = - cost_weighting['power']*power/t_f.full()[0][0] + cost_weighting['u_regularisation']*u_reg
+    stage_cost = - cost_weighting['power']*power/t_f.full()[0][0] + u_reg + xdot_reg + beta_reg
     quadrature = cas.Function('quad', [var, trial.model.parameters], [stage_cost])
 
     # create dae object based on numerical parameters
@@ -276,8 +302,9 @@ def generate_optimal_model(trial, param_options = None):
     model['var_bounds_fun'] = cas.Function(
         'var_bounds',
         [*f_args],
-        [generate_var_bounds_fun(trial.model)(variables)]
+        [generate_var_bounds_fun(trial.model)[0](variables)]
         )
+    model['var_constr_str'] = generate_var_bounds_fun(trial.model)[1]
     model['t_f'] = t_f.full()[0][0]
     model['rootfinder'] = model_dae.rootfinder
 
@@ -286,10 +313,11 @@ def generate_optimal_model(trial, param_options = None):
 def generate_var_bounds_fun(model):
 
     var_constraints = []
+    var_constr_str = []
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
 
-        if var_type in ['xd','u','xa']:
+        if var_type in ['x','u','z']:
 
             for var in list(model.variables_dict[var_type].keys()):
 
@@ -301,20 +329,25 @@ def generate_var_bounds_fun(model):
                             var_constraints.append(
                                 model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(i)+' ub')
 
                         if var_bounds[var_type][var]['lb'][i] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(i)+' lb')
                 else:
                         if var_bounds[var_type][var]['ub'] != np.inf:
                             var_constraints.append(
                                 model.variables[var_type,var] - var_bounds[var_type][var]['ub']
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(0)+' ub')
 
                         if var_bounds[var_type][var]['lb'] != -np.inf:
                             var_constraints.append(
                                 - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
                             )
+                            var_constr_str.append(var_type+' '+var+' '+str(0)+' lb')
 
-    return cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
+    var_bounds_fun = cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
+    return [var_bounds_fun, var_constr_str]

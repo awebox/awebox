@@ -21,40 +21,22 @@ It is optional but highly recommended to use HSL linear solvers as a plugin with
      git clone https://github.com/awebox/awebox.git
      ```
 
-2.   Install CasADI version **3.5** for Python 3, following these [installation instructions](https://github.com/casadi/casadi/wiki/InstallationInstructions).
+2.   Install using pip
 
-3.   In order to get the HSL solvers and render them visible to CasADi, follow these [instructions](https://github.com/casadi/casadi/wiki/Obtaining-HSL).
+     ```
+     pip3 install awebox/
+     ```
 
-Additional installation instructions can be found [here](https://github.com/awebox/awebox/blob/develop/INSTALLATION.md).
+3.   In order to get the HSL solvers and render them visible to CasADi, follow these [instructions](https://github.com/casadi/casadi/wiki/Obtaining-HSL). Additional installation instructions can be found [here](https://github.com/awebox/awebox/blob/develop/INSTALLATION.md).
 
 
 ## Getting started
-
-Add awebox to the PYTHONPATH environment variable (add those lines to your .bashrc or .zshrc to set the paths permanently).
-
-```
-export PYTHONPATH=<path_to_awebox_root_folder>:$PYTHONPATH
-```
-
 
 To run one of the examples from the `awebox` root folder:
 
 ```
 python3 examples/single_kite_lift_mode_simple.py
 ```
-
-## Options
-
-For an overview of the available options, first have a look at the different examples.  
-An exhaustive overview can be found in `awebox/opts/default.py`.
-In order to alter non-user options: generate the `Options`-object with internal access rights switched on:
-
-```python
-import awebox as awe
-options = awe.Options(internal_access = True)
-```
-
-and set the according fields in the `Options`-subdicts to the desired values.
 
 ## Acknowledgments
 

@@ -68,7 +68,7 @@ def get_force_var(variables_si, upper_node, architecture):
 
     lower_node = architecture.parent_map[upper_node]
     name = str(upper_node) + str(lower_node)
-    var = variables_si['xl']['f_tether' + name]
+    var = variables_si['z']['f_tether' + name]
     return var
 
 def distribute_tether_drag_forces(options, variables_si, architecture, outputs):
@@ -108,7 +108,7 @@ def get_tether_cstr(options, variables_si, architecture, outputs):
         f_tether_val = tether_drag_forces['f' + str(node) + str(parent)]
         local_resi_unscaled = (f_tether_var - f_tether_val)
 
-        scale = options['scaling']['xl']['f_tether']
+        scale = options['scaling']['z']['f_tether']
         local_resi = local_resi_unscaled / scale
 
         f_cstr = cstr_op.Constraint(expr=local_resi,
@@ -178,7 +178,7 @@ def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_n
 
 def get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node):
 
-    xd = variables_si['xd']
+    x = variables_si['x']
     theta = variables_si['theta']
     scaling = options['scaling']
 
@@ -187,8 +187,12 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     secondary_tether = (upper_node in architecture.kite_nodes)
 
     if main_tether:
-        vars_containing_length = xd
-        vars_sym = 'xd'
+        if 'l_t' in x.keys():
+            vars_containing_length = x
+            vars_sym = 'x'
+        else:
+            vars_containing_length = theta
+            vars_sym = 'theta'
         length_sym = 'l_t'
         diam_sym = 'diam_t'
 

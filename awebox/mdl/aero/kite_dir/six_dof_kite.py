@@ -50,7 +50,7 @@ from awebox.logger.logger import Logger as awelogger
 
 def get_kite_dcm(kite, variables, architecture):
     parent = architecture.parent_map[kite]
-    kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+    kite_dcm = cas.reshape(variables['x']['r' + str(kite) + str(parent)], (3, 3))
     return kite_dcm
 
 
@@ -60,7 +60,7 @@ def get_force_and_moment_vector(options, variables, atmos, wind, architecture, p
 
     parent = architecture.parent_map[kite]
 
-    kite_dcm = cas.reshape(variables['xd']['r' + str(kite) + str(parent)], (3, 3))
+    kite_dcm = cas.reshape(variables['x']['r' + str(kite) + str(parent)], (3, 3))
 
     vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
                                                               parameters, outputs)
@@ -68,10 +68,10 @@ def get_force_and_moment_vector(options, variables, atmos, wind, architecture, p
     if int(surface_control) == 0:
         delta = variables['u']['delta' + str(kite) + str(parent)]
     elif int(surface_control) == 1:
-        delta = variables['xd']['delta' + str(kite) + str(parent)]
+        delta = variables['x']['delta' + str(kite) + str(parent)]
 
-    omega = variables['xd']['omega' + str(kite) + str(parent)]
-    q = variables['xd']['q' + str(kite) + str(parent)]
+    omega = variables['x']['omega' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
     rho = atmos.get_density(q[2])
     force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
 
@@ -178,8 +178,8 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
 def get_wingtip_position(kite, architecture, variables_si, parameters, tip):
 
     parent = architecture.parent_map[kite]
-    q_kite = variables_si['xd', 'q' + str(kite) + str(parent)]
-    dcm_square = variables_si['xd', 'r' + str(kite) + str(parent)]
+    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+    dcm_square = variables_si['x', 'r' + str(kite) + str(parent)]
     dcm_kite = cas.reshape(dcm_square, (3, 3))
     wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 

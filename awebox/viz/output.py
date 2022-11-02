@@ -164,6 +164,8 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         for cdx in range(number_of_individual_plots):
             axes[cdx].set_xlabel('t [s]')
+            axes[cdx].autoscale(enable=True, axis='x', tight=True)
+            axes[cdx].grid(True)
             axes[cdx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
             axes[cdx].yaxis.set_major_locator(MaxNLocator(3))
 

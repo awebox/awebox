@@ -120,10 +120,10 @@ def construct_time_grids(nlp_options):
 
 def setup_nlp_cost():
 
-    cost = cas.struct_symSX([(
+    cost = cas.struct_symMX([(
         cas.entry('tracking'),
         cas.entry('u_regularisation'),
-        cas.entry('xddot_regularisation'),
+        cas.entry('xdot_regularisation'),
         cas.entry('gamma'),
         cas.entry('iota'),
         cas.entry('psi'),
@@ -133,12 +133,15 @@ def setup_nlp_cost():
         cas.entry('upsilon'),
         cas.entry('fictitious'),
         cas.entry('power'),
+        cas.entry('power_derivative'),
         cas.entry('t_f'),
         cas.entry('theta_regularisation'),
         cas.entry('nominal_landing'),
         cas.entry('compromised_battery'),
         cas.entry('transition'),
-        cas.entry('slack')
+        cas.entry('slack'),
+        cas.entry('beta'),
+        cas.entry('P_max')
     )])
 
     return cost
@@ -147,7 +150,7 @@ def setup_nlp_cost():
 def setup_nlp_p_fix(V, model):
 
     # fixed system parameters
-    p_fix = cas.struct_symSX([(
+    p_fix = cas.struct_symMX([(
         cas.entry('ref', struct=V),     # tracking reference for cost function
         cas.entry('weights', struct=model.variables)  # weights for cost function
     )])
@@ -210,10 +213,16 @@ def setup_output_structure(nlp_options, model_outputs, global_outputs):
         scheme = nlp_options['collocation']['scheme']
 
         # define outputs on interval and collocation nodes
-        entry_tuple += (
-            cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
-            cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
-        )
+        if nlp_options['collocation']['u_param'] == 'poly':
+            entry_tuple += (
+                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+            )
+
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            entry_tuple += (
+                cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
+                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+            )
 
     elif nlp_options['discretization'] == 'multiple_shooting':
 
@@ -222,7 +231,7 @@ def setup_output_structure(nlp_options, model_outputs, global_outputs):
             cas.entry('outputs', repeat = [nk], struct = model_outputs),
         )
 
-    Outputs = cas.struct_symSX([entry_tuple]
+    Outputs = cas.struct_symMX([entry_tuple]
                            + [cas.entry('final', struct=global_outputs)])
 
     return Outputs
@@ -293,8 +302,6 @@ def discretize(nlp_options, model, formulation):
     global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
     global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
-    Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
-
     #-------------------------------------------
     # COLLOCATE OUTPUTS
     #-------------------------------------------
@@ -311,25 +318,34 @@ def discretize(nlp_options, model, formulation):
     if direct_collocation:
         for kdx in range(nk):
 
-            Outputs_list.append(coll_outputs[:,kdx*(d+1)])
+            if nlp_options['collocation']['u_param'] == 'zoh':
+                Outputs_list.append(coll_outputs[:,kdx*(d+1)])
 
             # add outputs on collocation nodes
             for ddx in range(d):
+
                 # compute outputs for this time interval
-                Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
+                if nlp_options['collocation']['u_param'] == 'zoh':
+                    Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
+                elif nlp_options['collocation']['u_param'] == 'poly':
+                    Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
 
-    Outputs_list.append(global_outputs_fun(V, P))
-
-    # Create Outputs struct and function
-    Outputs = Outputs_struct(cas.vertcat(*Outputs_list))
-    Outputs_fun = cas.Function('Outputs_fun', [V, P], [Outputs.cat])
+ # Create Outputs struct and function
+    if nlp_options['induction']['induction_model'] == 'vortex': # outputs are need for vortex constraint construction
+        Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
+        Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
+        Outputs_list.append(global_outputs_fun(V, P))
+        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
+    else:
+        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
+        Outputs_struct = None
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
-    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs.cat])
+    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
-    Xdot_struct = struct_op.construct_Xdot_struct(nlp_options, model.variables_dict)
+    Xdot_struct = Xdot
     Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
 
     # -------------------------------------------
@@ -338,7 +354,9 @@ def discretize(nlp_options, model, formulation):
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
             ms_vars, ms_params, Outputs, Integral_outputs, time_grids)
+        Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf,
+            ms_vars, ms_params, Outputs_struct, time_grids)
 
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 

@@ -44,7 +44,7 @@ def get_loyd_phf(CL, CD, elevation_angle=0.):
     epsilon = 1.e-6
     CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
 
-    phf = 4. / 27. * CR * (CR / CD) ** 2. * np.cos(elevation_angle) ** 3.
+    phf = 4. / 27. * CR * (CR / CD) ** 2. * cas.cos(elevation_angle) ** 3.
     return phf
 
 

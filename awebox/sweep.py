@@ -42,6 +42,7 @@ import awebox.trial as trial
 import awebox.tools.save_operations as save_op
 import awebox.viz.comparison as comparison
 import awebox.viz.tools as tools
+import awebox.opts.options as opts
 
 
 class Sweep:
@@ -51,7 +52,8 @@ class Sweep:
 
         if type(seed) == list:
 
-            [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(options, seed)
+            default_options = opts.Options()
+            [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(default_options, seed)
 
             self.__trials_opts = trials_opts
             self.__params_opts = params_opts
@@ -114,16 +116,13 @@ class Sweep:
             for param in list(self.__param_dict.keys()):
 
                 awelogger.logger.info('Optimize trial (%s) with parametric setting (%s)',trial_to_run, param)
-
                 if param == 'base_options':
                     # take the existing trial options for optimizing
-                    param_options = single_trial.options
+                    param_options = self.__base_options
 
                 else:
-                    # add parametric sweep options to trial options and re-build
-                    param_options = sweep_funcs.set_single_trial_options(single_trial.options, self.__param_dict[param], 'param')[0]
-                    param_options.build(single_trial.model.architecture)
-                    self.__trial_dict[trial_to_run].formulation.generate_parameterization_settings(param_options['formulation'])
+                    # add parametric sweep options to trial options
+                    param_options = sweep_funcs.set_single_trial_options(self.__base_options, self.__param_dict[param], 'param')[0]
 
                 # optimize trial
                 warmstart_file, prev_trial_save_name = sweep_funcs.make_warmstarting_decisions(self.__name,
@@ -131,15 +130,25 @@ class Sweep:
                                                                                                apply_sweeping_warmstart=apply_sweeping_warmstart,
                                                                                                have_already_saved_prev_trial=have_already_saved_prev_trial)
 
-                single_trial.optimize(options = param_options,
-                                      final_homotopy_step =
-                                      final_homotopy_step, debug_flags =
-                                      debug_flags, debug_locations =
-                                      debug_locations, warmstart_file = warmstart_file)
+                if apply_sweeping_warmstart:
+                    single_trial.optimize(options_seed = param_options,
+                                        final_homotopy_step =
+                                        final_homotopy_step, debug_flags =
+                                        debug_flags, debug_locations =
+                                        debug_locations, warmstart_file = warmstart_file,
+                                        intermediate_solve = True)
+                    warmstart_file = single_trial.solution_dict
 
-                if apply_sweeping_warmstart and single_trial.return_status_numeric < 3:
-                    single_trial.save(fn=prev_trial_save_name)
-                    have_already_saved_prev_trial = True
+                    if single_trial.return_status_numeric < 3:
+                        single_trial.save(fn=prev_trial_save_name)
+                        have_already_saved_prev_trial = True
+
+                single_trial.optimize(options_seed = param_options,
+                    final_homotopy_step =
+                    final_homotopy_step, debug_flags =
+                    debug_flags, debug_locations =
+                    debug_locations, warmstart_file = warmstart_file,
+                    intermediate_solve = False)
 
                 recalibrated_plot_dict = sweep_funcs.recalibrate_visualization(single_trial)
                 self.__plot_dict[trial_to_run][param] = copy.deepcopy(recalibrated_plot_dict)

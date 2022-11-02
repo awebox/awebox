@@ -71,16 +71,13 @@ class Formulation(object):
 
             self.__status = 'I am a formulation.'
             self.__timings['overall'] = time.time() - timer
-            awelogger.logger.info('Formulation built.')
-            awelogger.logger.info('Formulation construction time: %s', print_op.print_single_timing(self.__timings['overall']))
-            awelogger.logger.info('')
 
         else:
             raise ValueError('Cannot build formulation without building model.')
 
     def determine_operation_conditions(self, options):
 
-        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
+        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions] = operation.get_operation_conditions(options)
 
         self.__induction_model = options['induction']['induction_model']
         self.__traj_type = options['trajectory']['type']
@@ -91,18 +88,15 @@ class Formulation(object):
         self.__enforce_initial_conditions = initial_conditions
         self.__enforce_param_initial_conditions = param_initial_conditions
         self.__enforce_param_terminal_conditions = param_terminal_conditions
+        self.__enforce_terminal_conditions = terminal_conditions
 
         return None
 
     def generate_parameters(self, options):
 
-        awelogger.logger.info('generate parameters...')
-
         self.__parameters = None
 
     def generate_variables(self, options):
-
-        awelogger.logger.info('generate variables...')
 
         self.__variables = None
 
@@ -110,15 +104,11 @@ class Formulation(object):
 
     def generate_variable_bounds(self, options):
 
-        awelogger.logger.info('generate variable bounds...')
-
         self.__variable_bounds = None
 
         return None
 
     def generate_parameter_bounds(self,options):
-
-        awelogger.logger.info('generate parameter bounds...')
 
         self.__parameter_bounds = None
 
@@ -151,7 +141,7 @@ class Formulation(object):
 
     def generate_parameterization_settings(self, options):
 
-        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints] = operation.get_operation_conditions(options)
+        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints,_] = operation.get_operation_conditions(options)
 
         xi = var_struct.get_xi_struct()
         xi_bounds = {}
@@ -195,7 +185,6 @@ class Formulation(object):
 
     def generate_outputs(self, options):
 
-        awelogger.logger.info('generate outputs...')
         self.__outputs = {}
         if self.__traj_type == 'compromised_landing':
             self.__outputs['compromised_landing'] = {'emergency_scenario':options['compromised_landing']['emergency_scenario']}
@@ -205,8 +194,6 @@ class Formulation(object):
         return None
 
     def generate_integral_constraints(self, options, model):
-
-        awelogger.logger.info('generate integral constraints...')
 
         variables = model.variables(cas.MX.sym('variables', model.variables.cat.shape))
         parameters = model.parameters(cas.MX.sym('parameters', model.parameters.cat.shape))

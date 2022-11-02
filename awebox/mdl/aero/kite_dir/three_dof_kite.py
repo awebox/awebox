@@ -89,8 +89,8 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     parent = architecture.parent_map[kite]
 
     # get relevant variables for kite n
-    q = variables['xd']['q' + str(kite) + str(parent)]
-    coeff = variables['xd']['coeff' + str(kite) + str(parent)]
+    q = variables['x']['q' + str(kite) + str(parent)]
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
 
     # wind parameters
     rho_infty = atmos.get_density(q[2])
@@ -137,7 +137,7 @@ def tether_vector(variables, architecture, node):
 
     if parent in parent_map.keys():
         grandparent = parent_map[parent]
-        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(parent) + str(grandparent))
+        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
     else:
         q_parent = np.zeros((3, 1))
 
@@ -170,7 +170,7 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
 
     # roll angle
-    coeff = variables['xd']['coeff' + str(kite) + str(parent)]
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
     psi = coeff[1]
 
     planar_dcm = get_planar_dcm(vec_u_eff, variables, kite, architecture)
@@ -179,8 +179,8 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     what = planar_dcm[:, 2]
 
     ehat1 = uhat
-    ehat2 = np.cos(psi) * vhat + np.sin(psi) * what
-    ehat3 = np.cos(psi) * what - np.sin(psi) * vhat
+    ehat2 = cas.cos(psi) * vhat + cas.sin(psi) * what
+    ehat3 = cas.cos(psi) * what - cas.sin(psi) * vhat
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
@@ -189,7 +189,7 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
 
 def get_wingtip_position(kite, options, wind, architecture, variables_si, parameters, tip):
     parent = architecture.parent_map[kite]
-    q_kite = variables_si['xd', 'q' + str(kite) + str(parent)]
+    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
     dcm_kite = get_kite_dcm(options, variables_si, wind, kite, architecture)
     wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 

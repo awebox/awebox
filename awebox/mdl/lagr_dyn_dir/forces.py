@@ -82,7 +82,7 @@ def generate_drag_mode_forces(variables_si, outputs, architecture):
         parent = architecture.parent_map[n]
 
         # compute generator force
-        kappa = variables_si['xd']['kappa{}{}'.format(n, parent)]
+        kappa = variables_si['x']['kappa{}{}'.format(n, parent)]
         speed = outputs['aerodynamics']['airspeed{}'.format(n)]
         v_app = outputs['aerodynamics']['air_velocity{}'.format(n)]
         gen_force = kappa * speed * v_app
@@ -169,7 +169,7 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    xd_si = variables_si['xd']
+    x_si = variables_si['x']
 
     if int(options['kite_dof']) == 6:
         outputs['tether_moments'] = {}
@@ -177,7 +177,7 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
             parent = parent_map[kite]
 
             # tether constraint contribution
-            tether_moment = 2 * vect_op.jacobian_dcm(holonomic_constraints, xd_si, variables_scaled, kite, parent).T
+            tether_moment = 2 * vect_op.jacobian_dcm(holonomic_constraints, x_si, variables_scaled, kite, parent).T
             outputs['tether_moments']['n{}{}'.format(kite, parent)] = tether_moment
 
     return outputs

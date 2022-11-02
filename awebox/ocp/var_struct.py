@@ -52,7 +52,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
 
     # define interval struct entries for controls and states
     entry_tuple = (
-        cas.entry('xd', repeat = [nk+1], struct = variables_dict['xd']),
+        cas.entry('x', repeat = [nk+1], struct = variables_dict['x']),
         )
 
     # add additional variables according to provided options
@@ -61,15 +61,13 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
             cas.entry('u',  repeat = [nk],   struct = variables_dict['u']),
         )
 
-    # add state derivative variables at interval
-    entry_tuple += (
-        cas.entry('xddot', repeat = [nk], struct= variables_dict['xddot']),
-    )
+        # add state derivative variables at interval
+        entry_tuple += (
+            cas.entry('xdot', repeat = [nk], struct= variables_dict['xdot']),
+        )
 
-    # add algebraic variables at shooting nodes for constraint evaluation
-    entry_tuple += (cas.entry('xa', repeat = [nk],   struct= variables_dict['xa']),)
-    if 'xl' in list(variables_dict.keys()):
-        entry_tuple += (cas.entry('xl', repeat = [nk],   struct= variables_dict['xl']),)
+        # add algebraic variables at shooting nodes for constraint evaluation
+        entry_tuple += (cas.entry('z', repeat = [nk],   struct= variables_dict['z']),)
 
     if direct_collocation:
 
@@ -94,7 +92,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     # generate structure
     V = cas.struct_symMX(entry_list)
 
-    print_op.print_variable_info('NLP', V)
+    # print_op.print_variable_info('NLP', V)
 
     return V
 

@@ -210,18 +210,27 @@ def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
 
-    l_t = init_options['xd']['l_t']
+    if 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    else:
+        l_t = init_options['theta']['l_t']
+
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
-    uu = get_wind_velocity(init_options)
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
+    vec_u_infty = get_wind_velocity(init_options)
+    vec_u_app = dq_kite - vec_u_infty
+    airspeed = float(vect_op.norm(vec_u_app))
 
     return airspeed
 
 def get_wind_velocity(init_options):
-    l_t = init_options['xd']['l_t']
+
+    if 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    else:
+        l_t = init_options['theta']['l_t']
+
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
@@ -238,11 +247,11 @@ def get_wind_velocity(init_options):
 def insert_dict(dict, var_type, name, name_stripped, V_init):
     init_val = dict[name_stripped]
 
-    try:
+    if not isinstance(init_val, float):
         for idx in range(init_val.shape[0]):
             V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
-    except:
-        pdb.set_trace()
+    else:
+        V_init = insert_val(V_init, var_type, name, init_val)
 
     return V_init
 
@@ -252,10 +261,11 @@ def insert_val(V_init, var_type, name, init_val, idx = 0):
     # initialize on collocation nodes
     V_init['coll_var', :, :, var_type, name, idx] = init_val
 
-    if var_type in ['xd', 'xl','xa']:
+    if var_type in ['x', 'z']:
+        if var_type in list(V_init.keys()):
         # initialize on interval nodes
         # V_init[var_type, :, :, name] = init_val
 
-        V_init[var_type, :, name, idx] = init_val
+            V_init[var_type, :, name, idx] = init_val
 
     return V_init

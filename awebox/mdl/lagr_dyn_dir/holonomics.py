@@ -19,8 +19,8 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
     kite_nodes = architecture.kite_nodes
 
     # extract necessary SI variables
-    xd_si = variables['SI']['xd']
-    xa_si = variables['SI']['xa']
+    x_si = variables['SI']['x']
+    z_si = variables['SI']['z']
 
     # scaled variables struct
     var_scaled = variables['scaled']
@@ -55,7 +55,24 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         # outputs['tether_length']['c' + str(node) + str(parent)] = g[-1]
         outputs['tether_length']['dc' + str(node) + str(parent)] = dg_local
         outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
-        holonomic_constraints += xa_si['lambda{}{}'.format(node, parent)] * g_local
+        holonomic_constraints += z_si['lambda{}{}'.format(node, parent)] * g_local
+
+        if node in kite_nodes:
+            if 'r' + str(node) + str(parent) in list(x_si.keys()):
+                r = cas.reshape(var_scaled['x', 'r' + str(node) + str(parent)], (3, 3))
+                orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
+                orthonormality = cas.reshape(orthonormality, (9, 1))
+
+                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
+
+                dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
+                dr_dt = cas.reshape(dr_dt, (3, 3))
+                omega = variables['SI']['x']['omega' + str(node) + str(parent)]
+                omega_skew = vect_op.skew(omega)
+                dr = cas.mtimes(r, omega_skew)
+                rot_kinematics = dr_dt - dr
+                rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
+                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -95,25 +112,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 outputs['tether_length']['ddc{}'.format(n01)] = ddg_local
 
                 # add to holonomic constraints
-                holonomic_constraints += xa_si['lambda{}'.format(n01)] * g_local
-
-        if node in kite_nodes:
-            if 'r' + str(node) + str(parent) in list(xd_si.keys()):
-                r = cas.reshape(var_scaled['xd', 'r' + str(node) + str(parent)], (3, 3))
-                orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
-                orthonormality = cas.reshape(orthonormality, (9, 1))
-
-                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
-
-                dr_dt = variables['SI']['xddot']['dr' + str(node) + str(parent)]
-                dr_dt = cas.reshape(dr_dt, (3, 3))
-                omega = variables['SI']['xd']['omega' + str(node) + str(parent)]
-                omega_skew = vect_op.skew(omega)
-                dr = cas.mtimes(r, omega_skew)
-                rot_kinematics = dr_dt - dr
-                rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
-
-                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
+                holonomic_constraints += z_si['lambda{}'.format(n01)] * g_local
 
     g_cat = cas.vertcat(*g)
     gdot_cat = cas.vertcat(*gdot)
@@ -123,7 +122,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
 
 def get_cross_tether_length_constraint(options, vars_si, parameters, architecture):
 
-    xd_si = vars_si['xd']
+    x_si = vars_si['x']
     theta_si = vars_si['theta']
 
     g_dict = {}
@@ -152,8 +151,8 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
 
                 # center-of-mass attachment
                 if options['tether']['cross_tether']['attachment'] == 'com':
-                    first_node = xd_si['q{}'.format(n0)]
-                    second_node = xd_si['q{}'.format(n1)]
+                    first_node = x_si['q{}'.format(n0)]
+                    second_node = x_si['q{}'.format(n1)]
 
                 # stick or wing-tip attachment
                 else:
@@ -162,8 +161,8 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
                     if int(options['kite_dof']) == 6:
 
                         # rotation matrices of relevant kites
-                        dcm_first = cas.reshape(xd_si['r{}'.format(n0)], (3, 3))
-                        dcm_second = cas.reshape(xd_si['r{}'.format(n1)], (3, 3))
+                        dcm_first = cas.reshape(x_si['r{}'.format(n0)], (3, 3))
+                        dcm_second = cas.reshape(x_si['r{}'.format(n1)], (3, 3))
 
                         # stick: same attachment point as secondary tether
                         if options['tether']['cross_tether']['attachment'] == 'stick':
@@ -179,8 +178,8 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
                                 options['tether']['cross_tether']['attachment']))
 
                         # create attachment nodes
-                        first_node = xd_si['q{}'.format(n0)] + cas.mtimes(dcm_first, r_tether)
-                        second_node = xd_si['q{}'.format(n1)] + cas.mtimes(dcm_second, r_tether)
+                        first_node = x_si['q{}'.format(n0)] + cas.mtimes(dcm_first, r_tether)
+                        second_node = x_si['q{}'.format(n1)] + cas.mtimes(dcm_second, r_tether)
 
                     # not implemented for 3DOF
                     elif int(options['kite_dof']) == 3:
@@ -201,7 +200,7 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
 
 def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
-    xd_si = vars_si['xd']
+    x_si = vars_si['x']
     theta_si = vars_si['theta']
 
     g_dict = {}
@@ -222,7 +221,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
     for node in range(1, number_of_nodes):
 
         parent = parent_map[node]
-        q_si = xd_si['q' + str(node) + str(parent)]
+        q_si = x_si['q' + str(node) + str(parent)]
 
         node_is_a_kite = (node in kite_nodes)
         has_extended_arm = node_is_a_kite and stick_attachment
@@ -233,21 +232,24 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
             raise Exception(message)
 
         if has_extended_arm:
-            dcm = cas.reshape(xd_si['r{}{}'.format(node, parent)], (3, 3))
+            dcm = cas.reshape(x_si['r{}{}'.format(node, parent)], (3, 3))
             current_node = q_si + cas.mtimes(dcm, parameters['theta0', 'geometry', 'r_tether'])
         else:
             current_node = q_si
 
         if node == 1:
             previous_node = cas.DM.zeros((3, 1))
-            segment_length = xd_si['l_t']
+            if 'l_t' in x_si.keys():
+                segment_length = x_si['l_t']
+            else:
+                segment_length = theta_si['l_t']
         elif node in kite_nodes:
             grandparent = parent_map[parent]
-            previous_node = xd_si['q' + str(parent) + str(grandparent)]
+            previous_node = x_si['q' + str(parent) + str(grandparent)]
             segment_length = theta_si['l_s']
         else:
             grandparent = parent_map[parent]
-            previous_node = xd_si['q' + str(parent) + str(grandparent)]
+            previous_node = x_si['q' + str(parent) + str(grandparent)]
             segment_length = theta_si['l_i']
 
         # holonomic constraint

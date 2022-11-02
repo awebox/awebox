@@ -158,17 +158,19 @@ def generate_structure(options, architecture):
                     )
 
     # _add global states and controls
-    system_states.extend([('l_t', (1, 1)), ('dl_t', (1, 1))]) # main tether length and speed
+    if options['trajectory']['system_type'] == 'lift_mode':
+        system_states.extend([('l_t', (1, 1))])
+        system_states.extend([('dl_t', (1, 1))])
 
-    # _energy + main tether length and speed
-    if tether_control_var == 'ddl_t':
-        system_controls.extend([('ddl_t', (1, 1))])  # main tether acceleration
-    elif tether_control_var == 'dddl_t':
-        system_states.extend([('ddl_t', (1, 1))]) # main tether acceleration
-        system_controls.extend([('dddl_t', (1, 1))])  # main tether jerk
-    else:
-        raise ValueError('invalid tether control variable chosen')
-
+        # _energy + main tether length and speed
+        if tether_control_var == 'ddl_t':
+            system_controls.extend([('ddl_t', (1, 1))])  # main tether acceleration
+        elif tether_control_var == 'dddl_t':
+            system_states.extend([('ddl_t', (1, 1))]) # main tether acceleration
+            system_controls.extend([('dddl_t', (1, 1))])  # main tether jerk
+        else:
+            raise ValueError('invalid tether control variable chosen')
+        
     if options['integral_outputs']:
         32.0
     else:
@@ -183,10 +185,27 @@ def generate_structure(options, architecture):
         system_derivatives.extend([('d'+system_states[i][0], system_states[i][1])])
 
     # system parameters
-    system_parameters = [('l_s', (1, 1)), ('l_i', (1, 1)), ('diam_s', (1, 1)), ('diam_t', (1, 1)), ('t_f',(1,1))]
+    system_parameters = [('diam_t', (1, 1)), ('t_f',(1,1))]
+    if options['trajectory']['system_type'] == 'drag_mode':
+        system_parameters.extend([('l_t', (1, 1))])
+
+    if len(architecture.kite_nodes) > 1:
+        system_parameters += [('l_s', (1, 1)), ('diam_s', (1, 1))]
+    if len(architecture.layer_nodes) > 1:
+        system_parameters += [('l_i', (1, 1)), ('diam_i', (1, 1))]
+
     if options['tether']['use_wound_tether']:
         system_parameters += [('l_t_full', (1, 1))]
+    
+    if 'P_max' in options['system_bounds']['theta'].keys():
+        system_parameters += [('P_max', (1, 1))] # max power
 
+    if options['model_bounds']['ellipsoidal_flight_region']['include']:
+        system_parameters += [('ell_radius', (1, 1))] # max power
+
+    if options['induction_model'] == 'averaged':
+        system_parameters += [('a', (1,1))] # average induction
+        system_parameters += [('ell_theta', (1,1))]
 
     # add cross-tether lengths and diameters
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -198,14 +217,11 @@ def generate_structure(options, architecture):
             )
 
     # store variables in dict
-    system_variables_list = {'xd':system_states,
-                             'xddot':system_derivatives,
+    system_variables_list = {'x':system_states,
+                             'xdot':system_derivatives,
                              'u':system_controls,
-                             'xa':system_multipliers,
+                             'z':system_multipliers+system_lifted,
                              'theta':system_parameters}
-
-    if not system_lifted == []:
-        system_variables_list['xl'] = system_lifted
 
     return system_variables_list, system_gc
 
@@ -324,6 +340,7 @@ def define_bounds(options, variables):
             else:
                 variable_bounds[variable_type][name]['lb'] = -cas.inf
                 variable_bounds[variable_type][name]['ub'] = cas.inf
+
     return variable_bounds
 
 def scale_variable(variables, var_si, scaling):

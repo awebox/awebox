@@ -24,6 +24,8 @@
 #
 
 import numpy as np
+import copy
+import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
@@ -127,21 +129,24 @@ def share_trajectory_type(options, options_tree=[]):
     if trajectory_type in ['power_cycle', 'tracking']:
         if (user_options['trajectory']['lift_mode']['max_l_t'] != None):
 
-            options_tree.append(('model', 'system_bounds', 'xd', 'l_t', [options['model']['system_bounds']['xd']['l_t'][0],
+            options_tree.append(('model', 'system_bounds', 'x', 'l_t', [options['model']['system_bounds']['x']['l_t'][0],
                          user_options['trajectory']['lift_mode']['max_l_t']],
                          ('user input for maximum main tether length', None),'x'))
 
         if user_options['trajectory']['lift_mode']['pumping_range']:
-            pumping_range = user_options['trajectory']['lift_mode']['pumping_range']
+            pumping_range = copy.copy(user_options['trajectory']['lift_mode']['pumping_range'])
             for i in range(len(pumping_range)):
                 if pumping_range[i]:
-                    pumping_range[i] = pumping_range[i]/options['model']['scaling']['xd']['l_t']
+                    pumping_range[i] = pumping_range[i]/options['model']['scaling']['x']['l_t']
             options_tree.append(('nlp',None,None,'pumping_range', pumping_range, ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'))
 
     if trajectory_type in ['transition','nominal_landing','compromised_landing']:
         options_tree.append(('formulation', 'trajectory', 'transition', 'initial_trajectory', user_options['trajectory']['transition']['initial_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
     if trajectory_type in ['transition','launch']:
         options_tree.append(('formulation', 'trajectory', 'transition', 'terminal_trajectory', user_options['trajectory']['transition']['terminal_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
+
+    if system_type == 'drag_mode':
+        options_tree.append(('model', 'system_bounds', 'theta', 'l_t', options['model']['system_bounds']['x']['l_t'], ('user input for maximum main tether length', None),'x'))
 
     return options_tree
 
@@ -163,12 +168,15 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
 
     n_k = options['nlp']['n_k']
-    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k,             ('tracking cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k,             ('regularisation cost normalization', None),'x'))
+    N_n = architecture.number_of_nodes
+    N_k = architecture.number_of_kites
+    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k*N_n,             ('tracking cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k*N_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'xddot_regularisation', n_k,             ('xddot_regularisation cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k,             ('fictitious cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  n_k*N_n,             ('xdot_regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k*N_k,             ('fictitious cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 n_k*N_k,             ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
 
@@ -198,6 +206,24 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     elif options['nlp']['integrator']['type'] == 'rk4root':
         options_tree.append(('nlp', 'integrator', None, 'num_steps', options['nlp']['integrator']['num_steps_rk4root'],  ('number of internal integrator steps', (True, False)),'x'))
 
+    options_tree.append(('nlp', 'mpc', None, 'terminal_point_constr', options['formulation']['mpc']['terminal_point_constr'], ('????', None), 'x'))
+
+    if options['nlp']['cost']['P_max']:
+        _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
+        options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [1e-3, cas.inf], ('????', None), 'x'))
+        options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('????', None), 'x'))
+        options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('????', None), 'x'))
+
+    if options['nlp']['cost']['PDGA']:
+        options_tree.append(('model', 'scaling', 'theta', 'ell_radius', 50.0, ('????', None), 'x'))
+        options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
+        options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
+
+    # else:
+    #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
+    #     options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
+    #     options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [power, power], ('????', None), 'x'))
+
     return options_tree, phase_fix
 
 
@@ -215,7 +241,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options_tree.append(('solver', None, None, 'tol_hippo',       1e-4,        ('tolerance for interior point homotop parameter for hippo strategy [float]', None),'x'))
 
     # initialize theta params with standard scaling length or fixed length
-    initialization_theta = options['model']['scaling']['theta']
+    initialization_theta = options['solver']['initialization']['theta']
     for param in list(user_options['trajectory']['fixed_params'].keys()):
         initialization_theta[param] = user_options['trajectory']['fixed_params'][param]
     for param in list(fixed_params.keys()):
@@ -231,14 +257,6 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     rotation_bounds = options['params']['model_bounds']['rot_angles'][0]
     options_tree.append(('solver', 'initialization', None, 'rotation_bounds', np.pi/2-rotation_bounds, ('enable cross-tether',[True,False]),'x'))
 
-    # solver weights:
-    if options['solver']['weights_overwrite']['dddl_t'] is None:
-        jerk_scale = 1.e-3 #1.e1
-        jerk_weight = jerk_scale * options['model']['scaling']['xd']['l_t']**2 # make independent of tether length scaling
-    else:
-        jerk_weight = options['solver']['weights_overwrite']['dddl_t']
-    options_tree.append(('solver', 'weights', None, 'dddl_t', jerk_weight,('optimization weight for control variable dddl_t [-]', None),'s'))
-
     # expand MX -> SX in solver
     expand = True
     if options['solver']['expand_overwrite'] is not None:
@@ -250,11 +268,13 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
-    options_tree.append(('solver',  'initialization', 'xd', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+    if user_options['trajectory']['system_type'] == 'lift_mode':
+        options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+    else:
+        options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
 
     options_tree.append(
         ('solver', 'initialization', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
@@ -275,7 +295,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     if user_options['trajectory']['type'] == 'tracking' and user_options['trajectory']['tracking']['fix_tether_length']:
         options['solver']['initialization']['fix_tether_length'] = True
 
-    if options['solver']['homotopy_method'] not in ['penalty', 'classic']:
+    if options['solver']['homotopy_method']['gamma'] not in ['penalty', 'classic']:
         awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
 
     options_tree.append(('solver', 'initialization', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
@@ -300,8 +320,8 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(
         ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
-        coeff_max = np.array(options['model']['aero']['three_dof']['coeff_max'])
-        coeff_min = np.array(options['model']['aero']['three_dof']['coeff_min'])
+        coeff_max = options['model']['system_bounds']['x']['coeff'][1]
+        coeff_min = options['model']['system_bounds']['x']['coeff'][0]
         battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
         for name in list(battery_model_parameters.keys()):
             if options['formulation']['compromised_landing']['battery'][name] is None:

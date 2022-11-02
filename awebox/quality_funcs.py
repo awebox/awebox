@@ -32,6 +32,7 @@
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
+import awebox.tools.struct_operations as struct_op
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -81,11 +82,18 @@ def test_invariants(trial, test_param_dict, results):
     c_max = test_param_dict['c_max']
     dc_max = test_param_dict['dc_max']
     ddc_max = test_param_dict['ddc_max']
+    r_max = test_param_dict['r_max']
 
     # get architecture
     architecture = trial.model.architecture
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
+
+    # DOF
+    DOF6 = trial.options['user_options']['system_model']['kite_dof'] == 6
+
+    # model outputs
+    outputs = trial.model.outputs
 
     # loop over nodes
     for node in range(1,number_of_nodes):
@@ -93,91 +101,42 @@ def test_invariants(trial, test_param_dict, results):
             parent = parent_map[node]
             out_local = trial.visualization.plot_dict['output_vals'][i]
 
-            if discretization == 'direct_collocation':
-                c_list = out_local['coll_outputs', :, :, 'tether_length', 'c' + str(node) + str(parent)]
-                dc_list = out_local['coll_outputs', :, :, 'tether_length', 'dc' + str(node) + str(parent)]
-                ddc_list = out_local['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)]
+            c_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
+            dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'dc{}{}'.format(node, parent))
 
-            elif discretization == 'multiple_shooting':
-                c_list = out_local['outputs', :, 'tether_length', 'c' + str(node) + str(parent)]
-                dc_list = out_local['outputs', :, 'tether_length', 'dc' + str(node) + str(parent)]
-                ddc_list = out_local['outputs', :, 'tether_length', 'ddc' + str(node) + str(parent)]
+            c_sol = np.max(np.abs(out_local[c_idx, :]))
+            dc_sol = np.max(np.abs(out_local[dc_idx, :]))
 
-            c_avg = np.average(abs(np.array(c_list)))
-            dc_avg = np.average(abs(np.array(dc_list)))
-            ddc_avg = np.average(abs(np.array(ddc_list)))
+            if DOF6 and node in architecture.kite_nodes:
+                r_list = []
+                for jdx in range(9):
+                    r_idx = struct_op.find_output_idx(outputs, 'tether_length', 'orthonormality{}{}'.format(node,parent), jdx)
+                    r_list.append(np.max(np.abs(out_local[r_idx, :])))
+                r_sol = max(r_list)
 
             # test whether invariants are small enough
             if i == 0:
                 suffix = 'init'
             elif i == 1:
                 suffix = ''
-                if c_avg > c_max:
-                    awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                    results['c' + str(node) + str(parent)] = False
+            if c_sol > c_max:
+                awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                results['c' + str(node) + str(parent)] = False
+            else:
+                results['c' + str(node) + str(parent)] = True
+
+            if dc_sol > dc_max:
+                awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
+                results['dc' + str(node) + str(parent)] = False
+            else:
+                results['dc' + str(node) + str(parent)] = True
+
+            if DOF6 and node in architecture.kite_nodes:
+                if r_sol > r_max:
+                    awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
+                    results['r' + str(node) + str(parent)] = False
                 else:
-                    results['c' + str(node) + str(parent)] = True
-
-                if dc_avg > dc_max:
-                    awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
-                    results['dc' + str(node) + str(parent)] = False
-                else:
-                    results['dc' + str(node) + str(parent)] = True
-
-                if ddc_avg > ddc_max:
-                    awelogger.logger.warning('Invariant ddc' + str(node) + str(parent) + ' > ' + str(ddc_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                    results['ddc' + str(node) + str(parent)] = False
-                else:
-                    results['ddc' + str(node) + str(parent)] = True
-
-    return results
-
-def test_outputs(trial, test_param_dict, results):
-    """
-    Test whether outputs are of reasonable size/have correct signs
-    :return: test results
-    """
-
-    # get discretization
-    discretization = trial.options['nlp']['discretization']
-
-    # check if loyd factor is sensible
-    max_loyd_factor = test_param_dict['max_loyd_factor']
-    if discretization == 'direct_collocation':
-        loyd_factor = np.array(trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'loyd_factor'])
-    elif discretization == 'multiple_shooting':
-        loyd_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'loyd_factor'])
-    avg_loyd_factor = np.average(loyd_factor)
-    if avg_loyd_factor > max_loyd_factor:
-        awelogger.logger.warning('Average Loyd factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name + '. Average Loyd factor is ' + str(avg_loyd_factor))
-        results['loyd_factor'] = False
-    else:
-        results['loyd_factor'] = True
-
-    # check if loyd factor is sensible
-    max_power_harvesting_factor = test_param_dict['max_power_harvesting_factor']
-    if discretization == 'direct_collocation':
-        power_harvesting_factor = np.array(trial.optimization.output_vals[1]['coll_outputs', :, :, 'performance', 'phf'])
-    elif discretization == 'multiple_shooting':
-        power_harvesting_factor = np.array(trial.optimization.output_vals[1]['outputs', :, 'performance', 'phf'])
-    avg_power_harvesting_factor = np.average(power_harvesting_factor)
-    if avg_power_harvesting_factor > max_power_harvesting_factor:
-        awelogger.logger.warning('Average power harvesting factor > ' + str(max_loyd_factor) + ' for trial ' + trial.name)
-        results['power_harvesting_factor'] = False
-    else:
-        results['power_harvesting_factor'] = True
-
-    # check if maximum tether stress is sensible
-    max_tension = test_param_dict['max_tension']
-    l_t = trial.visualization.plot_dict['xd']['l_t']
-    lambda10 = trial.visualization.plot_dict['xa']['lambda10']
-    main_tension = l_t[0] * lambda10[0]
-    tension = np.max(main_tension)
-    if tension > max_tension:
-        awelogger.logger.warning('Max main tether tension > ' + str(max_tension*1e-6) + ' MN for trial ' + trial.name)
-        results['tau_max'] = False
-    else:
-        results['tau_max'] = True
+                    results['r' + str(node) + str(parent)] = True
 
     return results
 
@@ -202,12 +161,12 @@ def test_variables(trial, test_param_dict, results):
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
-        heights_xd = np.array(V_final['xd',:,node_str,2])
+        heights_x = np.array(V_final['x',:,node_str,2])
         if discretization == 'direct_collocation':
-            heights_coll_var = np.array(V_final['coll_var',:,:,'xd',node_str,2])
+            heights_coll_var = np.array(V_final['coll_var',:,:,'x',node_str,2])
             if np.min(heights_coll_var) < 0.:
                 coll_height_flag = True
-        if np.min(heights_xd) < 0.:
+        if np.min(heights_x) < 0.:
             awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
             results['min_node_height'] = False
         if discretization == 'direct_collocation':
@@ -322,17 +281,17 @@ def power_balance_key_belongs_to_node(keyname, node):
 
 def test_slack_equalities(trial, test_param_dict, results):
 
-    if 'xl' in trial.model.variables.keys():
+    if 'z' in trial.model.variables.keys():
 
         V_final = trial.optimization.V_final
-        xl_vars = trial.model.variables['xl']
+        z_vars = trial.model.variables['z']
         epsilon = test_param_dict['slacks_thresh']
 
         discretization = trial.options['nlp']['discretization']
         if discretization == 'direct_collocation':
 
-            for idx in range(xl_vars.shape[0]):
-                var_name = str(xl_vars[idx])
+            for idx in range(z_vars.shape[0]):
+                var_name = str(z_vars[idx])
 
                 if 'slack' in var_name:
                     slack_name = var_name[3:-2]
@@ -342,7 +301,7 @@ def test_slack_equalities(trial, test_param_dict, results):
                     for ndx in range(trial.nlp.n_k):
                         for ddx in range(trial.nlp.d):
 
-                            data = np.array(V_final['coll_var', ndx, ddx, 'xl', slack_name])
+                            data = np.array(V_final['coll_var', ndx, ddx, 'z', slack_name])
                             max_val = np.max([np.max(data), max_val])
 
                     if max_val < epsilon:
@@ -386,6 +345,7 @@ def generate_test_param_dict(options):
     test_param_dict['c_max'] = options['test_param']['c_max']
     test_param_dict['dc_max'] = options['test_param']['dc_max']
     test_param_dict['ddc_max'] = options['test_param']['ddc_max']
+    test_param_dict['r_max'] = options['test_param']['r_max']
     test_param_dict['max_loyd_factor'] = options['test_param']['max_loyd_factor']
     test_param_dict['max_power_harvesting_factor'] = options['test_param']['max_power_harvesting_factor']
     test_param_dict['max_tension'] = options['test_param']['max_tension']

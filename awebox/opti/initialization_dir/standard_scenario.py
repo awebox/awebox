@@ -67,11 +67,15 @@ def guess_final_time(init_options, model):
 
 def guess_values_at_time(t, init_options, model):
     ret = {}
-    for name in struct_op.subkeys(model.variables, 'xd'):
+    for name in struct_op.subkeys(model.variables, 'x'):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    ret['l_t'] = init_options['xd']['l_t']
+    if 'l_t' in init_options['x'].keys():
+        ret['l_t'] = init_options['x']['l_t']
+    else:
+        ret['l_t'] = init_options['theta']['l_t']
+
     ret['dl_t'] = 0.0
 
     number_of_nodes = model.architecture.number_of_nodes
@@ -165,19 +169,17 @@ def precompute_path_parameters(init_options, model):
     init_options = set_fixed_hypotenuse(init_options, model)
     init_options = set_fixed_max_cone_angle(init_options, model)
 
+    init_options = set_user_radius(init_options)
     init_options = set_user_winding_period(init_options)
     init_options = set_user_groundspeed(init_options)
 
     # clipping and adjusting
-    for step in range(adjustment_steps):
-        init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
-        init_options = set_precomputed_radius(init_options)  # depends on groundspeed and winding_period
-
-        init_options = clip_radius(init_options)  # clipping depends on hypotenuse and max cone angle
-        init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
-
-        init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
-        init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
+    if init_options['init_clipping']:
+        for step in range(adjustment_steps):
+            init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
+            init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
+            init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
+            init_options = set_precomputed_groundspeed(init_options)  # depends on radius and winding_period
 
     init_options = set_dependent_time_final(init_options)  # depends on winding_period
     init_options = set_dependent_height(init_options)  # depends on radius and hypotenuse
@@ -190,7 +192,10 @@ def precompute_path_parameters(init_options, model):
 def set_fixed_hypotenuse(init_options, model):
     number_kites = model.architecture.number_of_kites
     if number_kites == 1:
-        hypotenuse = init_options['xd']['l_t']
+        if 'l_t' in init_options['x'].keys():
+            hypotenuse = init_options['x']['l_t']
+        else:
+            hypotenuse = init_options['theta']['l_t']
     else:
         hypotenuse = init_options['theta']['l_s']
 
@@ -216,8 +221,23 @@ def set_fixed_max_cone_angle(init_options, model):
 
 ####### user given initial guesses - starting point for search for feasible point, but unreliable
 
+def set_user_radius(init_options):
+
+    cone_angle = init_options['cone_deg']*np.pi/180.0
+    length = init_options['precompute']['hypotenuse']
+    radius = length * np.sin(cone_angle)
+    init_options['precompute']['radius'] = radius
+
+    return init_options
+
 def set_user_winding_period(init_options):
-    init_options['precompute']['winding_period'] = init_options['winding_period']
+
+    ground_speed = init_options['groundspeed']
+    windings = init_options['windings']
+    radius = init_options['precompute']['radius']
+    time_period = (2. * np.pi * windings * radius) / ground_speed
+    init_options['precompute']['winding_period'] = time_period
+
     return init_options
 
 
@@ -227,19 +247,6 @@ def set_user_groundspeed(init_options):
 
 
 ###### precompute various values, as dependents of givens and existing guesses
-
-
-def set_precomputed_radius(init_options):
-    winding_period = init_options['precompute']['winding_period']
-    groundspeed = init_options['precompute']['groundspeed']
-
-    circumference = groundspeed * winding_period
-    radius = circumference / 2. / np.pi
-
-    init_options['precompute']['radius'] = radius
-
-    return init_options
-
 
 def set_precomputed_winding_period(init_options):
     groundspeed = init_options['precompute']['groundspeed']
@@ -288,32 +295,6 @@ def clip_winding_period(init_options):
     init_options['precompute']['winding_period'] = winding_period
 
     return init_options
-
-
-def clip_radius(init_options):
-    radius = init_options['precompute']['radius']
-    hypotenuse = init_options['precompute']['hypotenuse']
-    max_cone_angle = init_options['precompute']['max_cone_angle']
-
-    b_ref = init_options['sys_params_num']['geometry']['b_ref']
-    min_radius = init_options['min_rel_radius'] * b_ref
-
-    if radius < min_radius:
-        radius = min_radius
-        awelogger.logger.warning(
-            'proposed initial radius is below the minimum radius. radius will be clipped to ' + str(radius) + 'm.')
-
-    max_radius = np.sin(max_cone_angle * np.pi / 180.) * hypotenuse
-    if radius > max_radius:
-        radius = max_radius
-        awelogger.logger.warning(
-            'proposed initial radius implies a cone angle above the maximum value. radius will be clipped to ' + str(
-                radius) + 'm.')
-
-    init_options['precompute']['radius'] = radius
-
-    return init_options
-
 
 def clip_groundspeed(init_options):
     groundspeed = init_options['precompute']['groundspeed']

@@ -59,14 +59,17 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
         outputs['performance'] = {}
 
     kite_nodes = architecture.kite_nodes
-    xd = variables_si['xd']
+    x = variables_si['x']
 
-    outputs['performance']['freelout'] = xd['dl_t'] / vect_op.norm(wind.get_velocity(xd['q10'][2]))
-    outputs['performance']['elevation'] = get_elevation_angle(variables_si['xd'])
+    if 'dl_t' in x.keys():
+        outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
+    outputs['performance']['elevation'] = get_elevation_angle(variables['x'])
 
     layer_nodes = architecture.layer_nodes
     for parent in layer_nodes:
-        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(model_options, wind, parent, variables_si,
+        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent,
+                                                                                                variables, architecture)
+        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(options, wind, parent, variables,
                                                                            architecture)
 
         total_circulation = 0.
@@ -90,8 +93,6 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
     outputs['performance']['hubheight_power_availability'] = hubheight_power_availability
 
     outputs['performance']['phf_loyd_total'] = outputs['performance']['p_loyd_total'] / hubheight_power_availability
-
-    outputs['performance']['p_current'] = current_power
 
     epsilon = 1.0e-8
     p_loyd_total = outputs['performance']['p_loyd_total']
@@ -223,7 +224,7 @@ def collect_power_balance_outputs(options, architecture, variables, base_aerodyn
 
     # kite velocity
     parent = architecture.parent_map[kite]
-    dq = variables['xd']['dq'+str(kite)+str(parent)]
+    dq = variables['x']['dq'+str(kite)+str(parent)]
 
     f_lift_earth = outputs['aerodynamics']['f_lift_earth' + str(kite)]
     f_drag_earth = outputs['aerodynamics']['f_drag_earth' + str(kite)]
@@ -235,7 +236,7 @@ def collect_power_balance_outputs(options, architecture, variables, base_aerodyn
     outputs['power_balance']['P_side' + str(kite)] = cas.mtimes(f_side_earth.T, dq)
 
     if int(options['kite_dof']) == 6:
-        omega = variables['xd']['omega'+str(kite)+str(parent)]
+        omega = variables['x']['omega'+str(kite)+str(parent)]
         m_aero_body = outputs['aerodynamics']['m_aero_body'+str(kite)]
         outputs['power_balance']['P_moment'+str(kite)] = cas.mtimes(m_aero_body.T, omega)
 
@@ -250,7 +251,7 @@ def collect_tether_drag_losses(variables, tether_drag_forces, outputs, architect
     # get dissipation power from tether drag
     for n in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[n]
-        dq_n = variables['xd']['dq' + str(n) + str(parent)]  # node velocity
+        dq_n = variables['x']['dq' + str(n) + str(parent)]  # node velocity
         force = tether_drag_forces['f' + str(n) + str(parent)]
         outputs['power_balance']['P_tetherdrag' + str(n)] = cas.mtimes(force.T, dq_n)
 
@@ -302,10 +303,11 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
     outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
+
     CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
     CD_min = options['model_bounds']['aero_validity']['CD_min']
-    drag_lb = CD_min - CD
-    outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
+    # drag_lb = CD_min - CD
+    # outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
 
 
     return outputs
@@ -318,15 +320,15 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables_si, p
     CL = base_aerodynamic_quantities['aero_coefficients']['CL']
     CD = base_aerodynamic_quantities['aero_coefficients']['CD']
 
-    xd = variables_si['xd']
-    elevation_angle = get_elevation_angle(xd)
+    x = variables['x']
+    elevation_angle = get_elevation_angle(x)
 
     parent = architecture.parent_map[kite]
 
     if 'local_performance' not in list(outputs.keys()):
         outputs['local_performance'] = {}
 
-    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, xd, kite, parent, CL, CD, parameters, elevation_angle)
+    [CR, phf_loyd, p_loyd, speed_loyd] = get_loyd_comparison(atmos, wind, x, kite, parent, CL, CD, parameters, elevation_angle)
 
     outputs['local_performance']['CR' + str(kite)] = CR
     outputs['local_performance']['p_loyd' + str(kite)] = p_loyd
@@ -354,10 +356,10 @@ def collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outp
     return outputs
 
 
-def get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevation_angle=0.):
+def get_loyd_comparison(atmos, wind, x, n, parent, CL, CD, parameters, elevation_angle=0.):
     # for elevation angle cosine losses see Van der Lind, p. 477, AWE book
 
-    q = xd['q' + str(n) + str(parent)]
+    q = x['q' + str(n) + str(parent)]
 
     epsilon = 1.e-8
     CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
@@ -370,7 +372,7 @@ def get_loyd_comparison(atmos, wind, xd, n, parent, CL, CD, parameters, elevatio
     s_ref = parameters['theta0','geometry','s_ref']
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
-    speed_loyd = 2. * CR / 3. / CD * windspeed * np.cos(elevation_angle)
+    speed_loyd = 2. * CR / 3. / CD * windspeed * cas.cos(elevation_angle)
 
     return [CR, phf_loyd, p_loyd, speed_loyd]
 
@@ -378,21 +380,23 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
     number_of_kites = architecture.number_of_kites
 
-    xd = variables['xd']
-    xa = variables['xa']
+    x = variables['x']
+    z = variables['z']
 
     s_ref = parameters['theta0', 'geometry', 's_ref']
 
     available_power_at_kites = 0.
     for n in architecture.kite_nodes:
         parent = architecture.parent_map[n]
-        height = xd['q' + str(n) + str(parent)][2]
+        height = x['q' + str(n) + str(parent)][2]
 
         available_power_at_kites += get_power_density(atmos, wind, height) * s_ref
 
-    current_power = xa['lambda10'] * xd['l_t'] * xd['dl_t']
-
-    node_1_height = xd['q10'][2]
+    if 'l_t' in x.keys():
+        current_power = z['lambda10'] * x['l_t'] * x['dl_t']
+    else:
+        current_power = z['lambda10'] * variables['theta']['l_t']
+    node_1_height = x['q10'][2]
     available_power_at_node_1_height = get_power_density(atmos, wind, node_1_height) * s_ref * number_of_kites
 
     phf = current_power / available_power_at_kites
@@ -400,9 +404,9 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
 
     return [current_power, phf, phf_hubheight, available_power_at_node_1_height]
 
-def get_elevation_angle(xd):
-    length_along_ground = (xd['q10'][0] ** 2. + xd['q10'][1] ** 2.) ** 0.5
-    elevation_angle = np.arctan2(xd['q10'][2], length_along_ground)
+def get_elevation_angle(x):
+    length_along_ground = (x['q10'][0] ** 2. + x['q10'][1] ** 2.) ** 0.5
+    elevation_angle = cas.arctan2(x['q10'][2], length_along_ground)
 
     return elevation_angle
 

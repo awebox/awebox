@@ -1,7 +1,11 @@
 
+awebox.egg-info/
+
 # Python
 *.pyc
 .pytest_cache/
+build/
+dist/
 
 # Figures
 figures/
@@ -16,6 +20,7 @@ figures/
 *.p
 *.awe
 *.dict
+*.ipynb
 
 # Code-generated files
 *.c

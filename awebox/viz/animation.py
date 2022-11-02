@@ -163,9 +163,9 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
             local_color = init_colors
 
         parent = parent_map[n]
-        vertically_stacked_kite_locations = cas.horzcat(plot_dict['xd']['q' + str(n) + str(parent)][0],
-                                                        plot_dict['xd']['q' + str(n) + str(parent)][1],
-                                                        plot_dict['xd']['q' + str(n) + str(parent)][2])
+        vertically_stacked_kite_locations = cas.horzcat(plot_dict['x']['q' + str(n) + str(parent)][0],
+                                                        plot_dict['x']['q' + str(n) + str(parent)][1],
+                                                        plot_dict['x']['q' + str(n) + str(parent)][2])
 
         for dim in dims:
             ax = 'ax_' + dim
@@ -221,7 +221,7 @@ def fill_in_dashboard(fig, plot_dict,index):
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    dl_t = plot_dict['xd']['dl_t'][0][index].toarray().round(1)[0][0]
+    dl_t = plot_dict['x']['dl_t'][0][index].toarray().round(1)[0][0]
     global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
 
 

@@ -66,11 +66,17 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     # add tether translational kinetic energy
     m_t = outputs['masses']['m_tether{}'.format(node)]
-    dq_n = variables_si['xd']['dq' + label]
+    dq_n = variables_si['x']['dq' + label]
     if node == 1:
-        dq_parent = cas.DM.zeros((3, 1))
+        q10 = variables_si['x']['q10']
+        if 'l_t' in variables_si['x'].keys():
+            l_t = variables_si['x']['l_t']
+        else:
+            l_t = variables_si['theta']['l_t']
+        e_t = q10/l_t
+        dq_parent = cas.mtimes(e_t, cas.mtimes(dq_n.T, e_t))
     else:
-        dq_parent = variables_si['xd']['dq' + parent_label]
+        dq_parent = variables_si['x']['dq' + parent_label]
     e_kin_trans = 0.5 * m_t/3 * (cas.mtimes(dq_n.T, dq_n) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_n.T, dq_parent))
     
     # add kite translational kinetic energy
@@ -80,7 +86,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     # add kite rotational energy
     if node_has_rotational_energy:
-        omega = variables_si['xd']['omega' + label]
+        omega = variables_si['x']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
         e_kin_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
 
@@ -104,11 +110,11 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     gravity = parameters['theta0', 'atmosphere', 'g']
 
     m_t = outputs['masses']['m_tether{}'.format(node)]
-    q_n = variables_si['xd']['q' + label]
+    q_n = variables_si['x']['q' + label]
     if node == 1:
         q_parent = cas.DM.zeros((3,1))
     else:
-        q_parent = variables_si['xd']['q'+label]
+        q_parent = variables_si['x']['q'+label]
     e_potential = gravity * m_t/2 *(q_n[2] + q_parent[2])
 
     if node_has_a_kite:
@@ -137,13 +143,16 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs):
 
     total_ground_station_mass = outputs['masses']['ground_station']
 
-    dq10 = variables_si['xd']['dq10']
-    q10 = variables_si['xd']['q10']
-    l_t = variables_si['xd']['l_t']
+    dq10 = variables_si['x']['dq10']
+    q10 = variables_si['x']['q10']
+    if 'l_t' in variables_si['x'].keys():
+        l_t = variables_si['x']['l_t']
+    else:
+        l_t = variables_si['theta']['l_t']
 
     speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
 
-    e_kinetic = 0.25 * total_ground_station_mass * speed_ground_station ** 2.
+    e_kinetic = 0.5 * total_ground_station_mass * speed_ground_station ** 2.
 
     outputs['e_kinetic']['ground_station'] = e_kinetic
 

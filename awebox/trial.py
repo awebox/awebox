@@ -38,9 +38,10 @@ import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
 import awebox.tools.save_operations as data_tools
-import awebox.opts.options as options
+import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
+from tabulate import tabulate
 import copy
 import pdb
 
@@ -56,8 +57,8 @@ class Trial(object):
 
     def __init__(self, seed, name = 'trial'):
 
-        # check if constructed with dict
-        if type(seed) == dict:
+        # check if constructed with solved trial dict
+        if 'solution_dict' in seed.keys():
 
             self.__solution_dict = seed['solution_dict']
             self.__visualization = visualization.Visualization()
@@ -66,10 +67,11 @@ class Trial(object):
             self.__visualization.create_plot_logic_dict()
             self.__options = seed['solution_dict']['options']
 
-        # check if constructed with options
-        elif type(seed) == options.Options:
+        else:
 
-            self.__options        = seed
+            self.__options_seed   = seed
+            self.__options        = opts.Options()
+            self.__options.fill_in_seed(self.__options_seed)
             self.__model          = model.Model()
             self.__formulation    = formulation.Formulation()
             self.__nlp            = nlp.NLP()
@@ -95,9 +97,9 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Build method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        awelogger.logger.info('')
-
-        awelogger.logger.info('Building trial (%s) ...', self.__name)
+        awelogger.logger.info(60*'=')
+        awelogger.logger.info(12*' '+'Building trial "%s" ...', self.__name)
+        awelogger.logger.info(60*'=')
         awelogger.logger.info('')
 
         architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
@@ -109,16 +111,25 @@ class Trial(object):
         self.__visualization.build(self.__model, self.__nlp, self.__name, self.__options)
         self.__quality.build(self.__options['quality'], self.__name)
         self.set_timings('construction')
-        awelogger.logger.info('Trial (%s) built.', self.__name)
+        awelogger.logger.info('Trial "%s" built.', self.__name)
         awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
         awelogger.logger.info('')
 
-    def optimize(self, options = [], final_homotopy_step = 'final',
+    def optimize(self, options_seed = [], final_homotopy_step = 'final',
                  warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False):
+                 debug_locations = [], save_flag = False, intermediate_solve = False, recalibrate_viz = True):
 
-        if not options:
+        if not options_seed:
             options = self.__options
+        else:
+            # regenerate nlp bounds for parametric sweeps
+            options = opts.Options()
+            options.fill_in_seed(options_seed)
+            architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
+            options.build(architecture)
+            import awebox.mdl.dynamics as dyn
+            self.__model.generate_scaled_variable_bounds(options['model'])
+            self.__nlp.generate_variable_bounds(options['nlp'], self.__model)
 
         # get save_flag
         self.__save_flag = save_flag
@@ -126,14 +137,18 @@ class Trial(object):
         if self.__options['user_options']['trajectory']['type'] == 'mpc':
             raise ValueError('Optimize method not supported for MPC trials. Use PMPC wrapper instead.')
 
-        awelogger.logger.info('Optimizing trial (%s) ...', self.__name)
+        awelogger.logger.info(60*'=')
+        awelogger.logger.info(12*' '+'Optimizing trial "%s" ...', self.__name)
+        awelogger.logger.info(60*'=')
         awelogger.logger.info('')
+
 
         self.__optimization.solve(options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
                                   final_homotopy_step, warmstart_file, vortex_linearization_file,
                                   debug_flags = debug_flags, debug_locations =
-                                  debug_locations)
+                                  debug_locations, intermediate_solve = intermediate_solve)
+
         self.__solution_dict = self.generate_solution_dict()
 
         self.set_timings('optimization')
@@ -141,21 +156,25 @@ class Trial(object):
         self.__return_status_numeric = self.__optimization.return_status_numeric['optimization']
 
         if self.__optimization.solve_succeeded:
-            awelogger.logger.info('Trial (%s) optimized.', self.__name)
+            awelogger.logger.info('Trial "%s" optimized.', self.__name)
             awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
 
         else:
 
             awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
-        cost_fun = self.nlp.cost_components[0]
-        cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
-        self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
-                                        self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
-                                        cost, self.name, self.__optimization.V_ref)
+        if (not intermediate_solve and recalibrate_viz):
+            cost_fun = self.nlp.cost_components[0]
+            cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
+            self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
+                                            self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
+                                            cost, self.name, self.__optimization.V_ref, self.__optimization.global_outputs_opt)
 
-        # perform quality check
-        self.__quality.check_quality(self)
+            # perform quality check
+            self.__quality.check_quality(self)
+
+        # print solution
+        self.print_solution()
 
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
@@ -168,6 +187,7 @@ class Trial(object):
 
         if V_plot is None:
             V_plot = self.__solution_dict['V_opt']
+            recalibrate = False
         if parametric_options is None:
             parametric_options = self.__options
         if output_vals == None:
@@ -179,7 +199,7 @@ class Trial(object):
         V_ref = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, 'plot',fig_num)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, self.__optimization.global_outputs_opt, 'plot',fig_num, recalibrate = recalibrate)
 
         return None
 
@@ -214,6 +234,47 @@ class Trial(object):
         awelogger.logger.info(print_op.hline('&'))
         awelogger.logger.info('')
         awelogger.logger.info('')
+
+    def print_solution(self):
+
+        # the actual power indicators
+        if 'e' in self.__model.integral_outputs.keys():
+            e_final = self.__optimization.integral_outputs_final['int_out',-1,'e']
+        else:
+            e_final = self.__optimization.V_final['x', -1, 'e'][-1]
+
+        time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
+        avg_power = e_final / time_period
+
+        headers = ['Parameter / output', 'Optimal value', 'Dimension']
+
+        table = [['Average power output', str(avg_power/1e3), 'kW']]
+        table.append(['Time period', str(time_period), 's'])
+        import numpy as np
+        theta_info = {
+            'diam_t': ('Main tether diameter', 1e3, 'mm'),
+            'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
+            'l_s': ('Secondary tether length', 1, 'm'),
+            'l_t': ('Main tether length', 1, 'm'),
+            'l_i': ('Intermediate tether length', 1, 'm'),
+            'diam_i': ('Intermediate tether diameter', 1e3, 'mm'),
+            'l_t_full': ('Wound tether length', 1, 'm'),
+            'P_max': ('Peak power', 1e3, 'kW'),
+            'ell_radius': ('Ellipse radius', 1, 'm'),
+            'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
+            'ell_theta': ('Ellipse division angle', 180.0/np.pi, 'deg'), 
+            'a': ('Average induction', 1, '-'),
+        }
+
+        for theta in self.model.variables_dict['theta'].keys():
+            if theta != 't_f':
+                info = theta_info[theta]
+                table.append([
+                    info[0],
+                    str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
+                    info[2]]
+                    )
+        print(tabulate(table, headers=headers))
 
     def save_to_awe(self, fn):
 
@@ -304,6 +365,10 @@ class Trial(object):
 
     def generate_optimal_model(self, param_options = None):
         return trial_funcs.generate_optimal_model(self, param_options= param_options)
+
+    @property
+    def options_seed(self):
+        return self.__options_seed
 
     @property
     def options(self):
@@ -405,8 +470,16 @@ class Trial(object):
     def return_status_numeric(self, value):
         print('Cannot set return_status_numeric object.')
 
+    @property
+    def solution_dict(self):
+        return self.__solution_dict
+
+    @solution_dict.setter
+    def solution_dict(self, value):
+        print('Cannot set solution_dict object.')
+
 def generate_initial_state(model, V_init):
-    x0 = model.struct_list['xd'](0.)
-    for name in list(model.struct_list['xd'].keys()):
-        x0[name] = V_init['xd',0,0,name]
+    x0 = model.struct_list['x'](0.)
+    for name in list(model.struct_list['x'].keys()):
+        x0[name] = V_init['x',0,0,name]
     return x0

@@ -80,24 +80,23 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
 
 
 def initial_guess_actuator(init_options, nlp, model, V_init):
-    V_init = initial_guess_actuator_xd(init_options, model, V_init)
-    V_init = initial_guess_actuator_xl(init_options, model, V_init)
+    V_init = initial_guess_actuator_x(init_options, model, V_init)
+    V_init = initial_guess_actuator_z(init_options, model, V_init)
     V_init = set_azimuth_variables(V_init, init_options, model, nlp)
 
     return V_init
 
 
-def initial_guess_actuator_xd(init_options, model, V_init):
+def initial_guess_actuator_x(init_options, model, V_init):
 
     dict = {}
-    dict['a'] = cas.DM(init_options['xd']['a'])
+    dict['a'] = cas.DM(init_options['x']['a'])
     dict['asin_uasym'] = cas.DM(0.)
     dict['acos_uasym'] = cas.DM(0.)
     dict['a_uaxi'] = dict['a']
     dict['a_uasym'] = dict['a']
 
-
-    var_type = 'xd'
+    var_type = 'x'
     for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 
@@ -122,34 +121,36 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
 
     time_final = init_options['precompute']['time_final']
-    tgrid_xd = nlp.time_grids['x'](time_final)
+    tgrid_x = nlp.time_grids['x'](time_final)
     tgrid_coll = nlp.time_grids['coll'](time_final)
 
     for ndx in range(nlp.n_k):
 
-        t = tgrid_xd[ndx]
+        t = tgrid_x[ndx]
         psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-        V_init['xl', ndx, 'psi' + str(kite_parent)] = psi
 
-        if '[xl,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['xl', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
-        if '[xl,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-            V_init['xl', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
+        if 'z' in list(V_init.keys()):
+            V_init['z', ndx, 'psi' + str(kite_parent)] = psi
+
+            if '[z,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['z', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if '[z,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['z', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
         for ddx in range(nlp.d):
             t = tgrid_coll[ndx, ddx]
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
-            V_init['coll_var', ndx, ddx, 'xl', 'psi' + str(kite_parent)] = psi
+            V_init['coll_var', ndx, ddx, 'z', 'psi' + str(kite_parent)] = psi
 
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'xl', 'cospsi' + str(kite_parent)] = np.cos(psi)
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'xl,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'xl', 'sinpsi' + str(kite_parent)] = np.sin(psi)
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'z', 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['collvar', ndx, ddx, 'z', 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
     return V_init
 
 
-def initial_guess_actuator_xl(init_options, model, V_init):
+def initial_guess_actuator_z(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     wind_dcm = cas.horzcat(u_hat, v_hat, w_hat)
@@ -162,7 +163,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
 
     dict = {}
-    dict['a'] = cas.DM(init_options['xl']['a'])
+    dict['a'] = cas.DM(init_options['z']['a'])
     dict['a_qaxi'] = dict['a']
     dict['a_qasym'] = dict['a']
     dict['local_a'] = dict['a']
@@ -181,7 +182,7 @@ def initial_guess_actuator_xl(init_options, model, V_init):
     dict['cosgamma'] = np.cos(dict['gamma'])
     dict['singamma'] = np.sin(dict['gamma'])
 
-    var_type = 'xl'
+    var_type = 'z'
     for name in struct_op.subkeys(model.variables, var_type):
         name_stripped, _ = struct_op.split_name_and_node_identifier(name)
 

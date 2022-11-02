@@ -77,6 +77,7 @@ class Collocation(object):
 
         # coefficients of the collocation equation
         coeff_collocation = np.zeros((d + 1, d + 1))
+        coeff_collocation_u = np.zeros((d, d))
 
         # coefficients of the continuity equation
         coeff_continuity = np.zeros(d + 1)
@@ -120,7 +121,11 @@ class Collocation(object):
                 for r in range(1,d+1):
                     if r != j:
                         l *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                lfcn = cas.Function('lfcn', [tau], [l])
                 ls_u = cas.vertcat(ls_u, l)
+                tfcn = cas.Function('lfcntan',[tau],[cas.jacobian(l,tau)])
+                for r in range(1,d+1):
+                    coeff_collocation_u[j-1][r-1] = tfcn(tau_root[r])
 
         # interpolating function for all polynomials
         lfcns = cas.Function('lfcns',[tau],[ls])
@@ -128,6 +133,7 @@ class Collocation(object):
 
         self.__coeff_continuity = coeff_continuity
         self.__coeff_collocation = coeff_collocation
+        self.__coeff_collocation_u = coeff_collocation_u
         self.__coeff_fun = lfcns
         self.__coeff_fun_u = lfcns_u
 
@@ -146,17 +152,17 @@ class Collocation(object):
             """Interpolating function
 
             @param time_grid list with time points
-            @param name xd variable name
-            @param dim xd variable dimension index
+            @param name x variable name
+            @param dim x variable dimension index
             """
 
             vals = []
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
-                if var_type == 'xd':
-                    poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
+                if var_type == 'x':
+                    poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
-                elif var_type in ['u', 'xa', 'xl']:
+                elif var_type in ['u', 'z']:
                     poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
@@ -210,6 +216,12 @@ class Collocation(object):
                 xdot = xp_jk / h / tf
                 store_derivatives = cas.vertcat(store_derivatives, xdot)
 
+            for j in range(1,self.__d+1):
+                if j > 0:
+                    zp_jk = self.__calculate_collocation_deriv_u(V, k, j, 'z')
+                    zdot = zp_jk / h / tf
+                    store_derivatives = cas.vertcat(store_derivatives, zdot)
+
         Xdot = Vdot(store_derivatives)
 
         return Xdot
@@ -222,21 +234,26 @@ class Collocation(object):
         xp_jk = 0
         for r in range(self.__d + 1):
             if r == 0:
-                xp_jk += self.__coeff_collocation[r, j] * V['xd', k]
+                xp_jk += self.__coeff_collocation[r, j] * V['x', k]
             else:
-                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'xd']
+                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
 
         return xp_jk
+
+    def __calculate_collocation_deriv_u(self, V, k, j, var_type):
+
+        zp_jk = 0
+        for r in range(1,self.__d+1):
+            zp_jk += self.__coeff_collocation_u[r-1, j-1] * V['coll_var', k, r-1, var_type]
+
+        return zp_jk
 
     def get_collocation_variables_struct(self, variables_dict, u_param):
 
         entry_list = [
-            cas.entry('xd', struct = variables_dict['xd']),
-            cas.entry('xa', struct = variables_dict['xa'])
+            cas.entry('x', struct = variables_dict['x']),
+            cas.entry('z', struct = variables_dict['z'])
         ]
-
-        if 'xl' in list(variables_dict.keys()):
-            entry_list += [cas.entry('xl', struct = variables_dict['xl'])]
 
         if u_param == 'poly':
             entry_list += [cas.entry('u', struct = variables_dict['u'])]
@@ -296,12 +313,12 @@ class Collocation(object):
         xf_k = 0
         for ddx in range(self.__d + 1):
             if ddx == 0:
-                xf_k += self.__coeff_continuity[ddx] * V['xd', kdx]
+                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
             else:
-                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'xd']
+                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
 
         # pin the end of the control interval to the start of the new control interval
-        g_continuity = V['xd', kdx + 1] - xf_k
+        g_continuity = V['x', kdx + 1] - xf_k
 
         cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity_{}'.format(kdx),
@@ -325,8 +342,9 @@ class Collocation(object):
             integral constraints on all nodes
         """
         # construct list of all shooting node variables and parameters
-        shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
-        shooting_params = struct_op.get_shooting_params(options, V, P, model)
+        if not (options['discretization'] == 'direct_collocation' and options['collocation']['u_param'] == 'poly'):
+            shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
+            shooting_params = struct_op.get_shooting_params(options, V, P, model)
 
         # construct list of all collocation node variables and parameters
         coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
@@ -342,7 +360,8 @@ class Collocation(object):
         # evaluate functions in for loop
         for kdx in range(self.__n_k):
 
-            coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
+            if options['collocation']['u_param'] == 'zoh':
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
 
             for ddx in range(self.__d):
                 idx = ddx + kdx * self.__d
@@ -380,3 +399,11 @@ class Collocation(object):
     @coeff_collocation.setter
     def coeff_collocation(self, value):
         awelogger.logger.warning('Cannot set coeff_collocation object.')
+
+    @property
+    def coeff_collocation_u(self):
+        return self.__coeff_collocation_u
+
+    @coeff_collocation_u.setter
+    def coeff_collocation_u(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation_u object.')

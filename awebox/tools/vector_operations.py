@@ -127,12 +127,12 @@ def dot(a, b):
     return v
 
 def angle_between(a, b):
-    theta = np.arctan2(norm(cross(a, b)), dot(a, b))
+    theta = cas.arctan2(norm(cross(a, b)), dot(a, b))
 
     return theta
 
 def angle_between_resi(a, b, theta):
-    resi = np.tan(theta) * dot(a, b) - norm(cross(a, b))
+    resi = cas.tan(theta) * dot(a, b) - norm(cross(a, b))
     return resi
 
 def zeros_mx(shape):
@@ -245,11 +245,11 @@ def rotation(R, A):
     "Rotation operator as defined in Gros2013b"
     return  unskew(cas.mtimes(R.T,A))
 
-def jacobian_dcm(expr, xd_si, variables_scaled, kite, parent):
+def jacobian_dcm(expr, x_si, variables_scaled, kite, parent):
     """ Differentiate expression w.r.t. kite direct cosine matrix"""
 
-    dcm_si = xd_si['r{}{}'.format(kite, parent)]
-    dcm_scaled = variables_scaled['xd', 'r{}{}'.format(kite, parent)]
+    dcm_si = x_si['r{}{}'.format(kite, parent)]
+    dcm_scaled = variables_scaled['x', 'r{}{}'.format(kite, parent)]
 
     jac_dcm = rotation(
             cas.reshape(dcm_si, (3,3)),
@@ -344,7 +344,7 @@ def find_zero_cols(matrix, tol):
     return zero_cols
 
 def unitstep(val, eps=1e-8):
-    heavi = np.arctan(val / eps) / np.pi + 0.5
+    heavi = cas.arctan(val / eps) / np.pi + 0.5
     return heavi
 
 def step_in_out(number, step_in, step_out, eps=1e-4):

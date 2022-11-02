@@ -95,7 +95,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-'):
+def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-', plot_tether = False):
     vsa = np.array(cas.DM(vertically_stacked_array))
 
     if vsa.shape[0] == 3 and (not vsa.shape[1] == 3):
@@ -103,6 +103,9 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
 
     if side == 'isometric':
         ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
+        if plot_tether:
+            for kk in range(int(vsa.shape[0]/5)-1):
+                ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
     else:
         side_num = ''
         for sdx in side:
@@ -117,6 +120,9 @@ def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker='
         jdx = int(side_num[1])
 
         ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
+        if plot_tether:
+            for kk in range(int(vsa.shape[0]/5)-1):
+                ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
 
     return None
 
@@ -300,7 +306,13 @@ def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx,
 
     plt.subplot(plot_table_r, plot_table_c, idx)
     for n in kite_nodes:
-        output_values, tgrid, ndim = merge_output_values(output, output_type, output_name+str(n), dim, reload_dict, cosmetics)
+
+        kk = 0
+        can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
+        while not (can_index[0] == output_type and can_index[1] == output_name):
+            kk += 1
+            can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_values, tgrid, ndim = merge_output_values(output, kk, reload_dict, cosmetics)
 
         idx = kite_nodes.index(n)
         plt.plot(tgrid, output_values, color=cosmetics['diagnostics']['colors'][idx])
@@ -317,94 +329,88 @@ def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx,
     else:
         plt.title(output_name)
 
-def merge_output_values(output_vals, output_type, output_name, dim, plot_dict, cosmetics):
+def merge_output_values(output_vals, kk, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if  discretization == 'direct_collocation':
 
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
 
-        # total time points
-        tgrid_u_coll = plot_dict['time_grids']['x_coll'][:-1]
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+
+            # total time points
+            tgrid_u_coll = plot_dict['time_grids']['x_coll'][:-1]
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+
+            # total time points
+            tgrid_u_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]  
 
     # interval time points
-    tgrid_u = plot_dict['time_grids']['u']
+    if not ref:
+        tgrid_u = plot_dict['time_grids']['u']
+    else:
+        tgrid_u = plot_dict['time_grids']['ref']['u']
 
-    if discretization == 'multiple_shooting':
-        # take interval values
-        output_values = np.array(cas.vertcat(*output_vals['outputs',:,output_type,output_name,dim]).full())
-        tgrid = tgrid_u
-
-        ndim = output_vals['outputs',0,output_type,output_name].shape[0]
-
-    elif discretization == 'direct_collocation':
+    if discretization == 'direct_collocation':
         if scheme != 'radau':
-            output_values = []
-            # merge interval and node values
-            for k in range(plot_dict['n_k']):
-                # add interval values
-                output_values = cas.vertcat(output_values, output_vals['outputs',k, output_type, output_name,dim])
-                if cosmetics['plot_coll']:
-                    # add node values
-                    output_values = cas.vertcat(output_values, cas.vertcat(*output_vals['coll_outputs',k, :, output_type, output_name,dim]))
-            output_values = np.array(output_values)
-            if cosmetics['plot_coll']:
-                tgrid = tgrid_u_coll
-            else:
-                tgrid = tgrid_u
-            ndim = output_vals['outputs',0,output_type,output_name].shape[0]
-
+            output_values = output_vals[kk,:]
+            tgrid = tgrid_u_coll
         else:
-            if cosmetics['plot_coll']:
-                # add only node values for radau case
-                output_values = np.array(struct_op.coll_slice_to_vec(output_vals['coll_outputs',:,:,output_type,output_name,dim]))
-                tgrid = tgrid_coll
-                ndim = output_vals['coll_outputs',0,0,output_type,output_name].shape[0]
-            else:
-                output_values = []
-                tgrid = []
-                ndim = 1
-
+            output_values = []
+            for k in range(plot_dict['n_k']):
+                output_values.append(output_vals[kk, k*(plot_dict['d']+1) + 1: k*(plot_dict['d']+1) + plot_dict['d']+1])
+            output_values = cas.horzcat(*output_values)
+            tgrid = tgrid_coll
+        ndim = 1
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    output_values = list(chain.from_iterable(output_values))
+    output_values = output_values.full().squeeze()
 
     return output_values, tgrid, ndim
 
-def merge_xd_values(V ,name, dim, plot_dict, cosmetics):
+def merge_x_values(V ,name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs
 
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
 
-        # total time points
-        tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            # total time points
+            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll'] 
 
-        # interval time points
-    tgrid_x = plot_dict['time_grids']['x']
+    # interval time points
+    if not ref:
+        tgrid_x = plot_dict['time_grids']['x']
+    else:
+        tgrid_x = plot_dict['time_grids']['ref']['x']
 
     if discretization == 'multiple_shooting':
         # take interval values
-        xd_values = np.array(cas.vertcat(*V['xd',:,name,dim]).full())
+        x_values = np.array(cas.vertcat(*V['x',:,name,dim]).full())
         tgrid = tgrid_x
 
     elif discretization == 'direct_collocation':
         if scheme != 'radau':
-            xd_values = []
+            x_values = []
             # merge interval and node values
             for k in range(plot_dict['n_k']+1):
                 # add interval values
-                xd_values = cas.vertcat(xd_values, V['xd',k, name,dim])
+                x_values = cas.vertcat(x_values, V['x',k, name,dim])
                 if (cosmetics['plot_coll'] and k < plot_dict['n_k']):
                     # add node values
-                    xd_values = cas.vertcat(xd_values, cas.vertcat(*V['coll_var',k, :, 'xd', name,dim]).full())
-            xd_values = np.array(xd_values)
+                    x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var',k, :, 'x', name,dim]).full())
+            x_values = np.array(x_values)
             if cosmetics['plot_coll']:
                 tgrid = tgrid_x_coll
             else:
@@ -413,77 +419,92 @@ def merge_xd_values(V ,name, dim, plot_dict, cosmetics):
         elif scheme == 'radau':
             if cosmetics['plot_coll']:
                 # add node values
-                xd_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, 'xd', name,dim]))
+                x_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
                 tgrid = tgrid_coll
             else:
-                xd_values = []
+                x_values = []
                 tgrid = []
 
     # make list of time grid
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    xd_values = list(chain.from_iterable(xd_values))
+    x_values = list(chain.from_iterable(x_values))
 
-    return xd_values, tgrid
+    return x_values, tgrid
 
-def merge_xa_values(V, var_type, name, dim, plot_dict, cosmetics):
+def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         scheme = plot_dict['options']['nlp']['collocation']['scheme']
-        tgrid_coll = plot_dict['time_grids']['coll']
-        # total time points
-        tgrid_xa_coll = plot_dict['time_grids']['x_coll'][:-1]
+
+        if not ref:
+            tgrid_coll = plot_dict['time_grids']['coll']
+            # total time points
+            tgrid_z_coll = plot_dict['time_grids']['x_coll'][:-1]
+        else:
+            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            # total time points
+            tgrid_z_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]   
 
     # interval time points
-    tgrid_xa = plot_dict['time_grids']['u']
+    if not ref:
+        tgrid_z = plot_dict['time_grids']['u']
+    else:
+        tgrid_z = plot_dict['time_grids']['ref']['u']
 
     if discretization == 'multiple_shooting':
         # take interval values
-        xa_values = np.array(cas.vertcat(*V[var_type,:,name,dim]).full())
-        tgrid = tgrid_xa
+        z_values = np.array(cas.vertcat(*V[var_type,:,name,dim]).full())
+        tgrid = tgrid_z
 
     elif discretization == 'direct_collocation':
         if scheme != 'radau':
-            xa_values = []
+            z_values = []
             # merge interval and node values
             for k in range(plot_dict['n_k']):
                 # add interval values
-                xa_values = cas.vertcat(xa_values, V[var_type,k, name,dim])
+                z_values = cas.vertcat(z_values, V[var_type,k, name,dim])
                 if cosmetics['plot_coll']:
                     # add node values
-                    xa_values = cas.vertcat(xa_values, cas.vertcat(*V['coll_var',k, :, var_type, name,dim]))
-            xa_values = np.array(xa_values)
+                    z_values = cas.vertcat(z_values, cas.vertcat(*V['coll_var',k, :, var_type, name,dim]))
+            z_values = np.array(z_values)
             if cosmetics['plot_coll']:
-                tgrid = tgrid_xa_coll
+                tgrid = tgrid_z_coll
             else:
-                tgrid = tgrid_xa
+                tgrid = tgrid_z
 
         elif scheme == 'radau':
             if cosmetics['plot_coll']:
                 # add node values
-                xa_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, var_type, name,dim]))
+                z_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, var_type, name,dim]))
                 tgrid = tgrid_coll
             else:
-                xa_values = []
+                z_values = []
                 tgrid = []
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    xa_values = list(chain.from_iterable(xa_values))
+    z_values = list(chain.from_iterable(z_values))
 
-    return xa_values, tgrid
+    return z_values, tgrid
 
-def merge_integral_output_values(int_out, name, plot_dict, cosmetics):
+def merge_integral_output_values(int_out, name, plot_dict, cosmetics, ref = False):
 
     # read in inputs
     discretization = plot_dict['discretization']
     if discretization == 'direct_collocation':
         # total time points
-        tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        if not ref:
+            tgrid_x_coll = plot_dict['time_grids']['x_coll']
+        else:
+            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll']
 
     # interval time points
-    tgrid_x = plot_dict['time_grids']['x']
+    if not ref:
+        tgrid_x = plot_dict['time_grids']['x']
+    else:
+        tgrid_x = plot_dict['time_grids']['ref']['x']
 
     if discretization == 'multiple_shooting':
         # take interval values
@@ -535,10 +556,10 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
         for dim in range(3):
             traj.append(
-                cas.vertcat(plot_dict['xd']['q' + str(kite) + str(parent)][dim])#,
+                cas.vertcat(plot_dict['x']['q' + str(kite) + str(parent)][dim])#,
             )
             if cosmetics['plot_ref']:
-                traj_ref.append(cas.vertcat(plot_dict['ref']['xd']['q' + str(kite) + str(parent)][dim]))
+                traj_ref.append(cas.vertcat(plot_dict['ref']['x']['q' + str(kite) + str(parent)][dim]))
 
             for dim in range(9):
                 rot.append(plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim])
@@ -548,6 +569,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         kite_rotations.append(rot)
 
     old_label = None
+    plot_tether = (len(kite_nodes) == 1)
     for kdx in range(len(kite_nodes)):
 
 
@@ -561,7 +583,6 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         vertically_stacked_kite_locations = cas.horzcat(kite_locations[kdx][0],
                                                     kite_locations[kdx][1],
                                                     kite_locations[kdx][2])
-
 
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
 
@@ -580,16 +601,15 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
         if old_label == label:
             label = None
-        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label)
+        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label, plot_tether = plot_tether)
 
         if cosmetics['plot_ref']:
             vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[kdx][0],
                                                         kite_ref_locations[kdx][1],
                                                         kite_ref_locations[kdx][2])
-            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--')
+            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--', plot_tether = plot_tether)
 
         old_label = label
-
 
 def get_q_limits(plot_dict, cosmetics):
     dims = ['x', 'y', 'z']
@@ -632,13 +652,13 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
         message = 'selected dimension for q_limits not supported. setting dimension to x'
         awelogger.logger.warning(message)
 
-    for name in list(plot_dict['xd'].keys()):
+    for name in list(plot_dict['x'].keys()):
         if name[0] == 'q':
-            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict['xd'][name][jdx])))
-            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['xd'][name][jdx])))
+            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict['x'][name][jdx])))
+            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['x'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['xd'][name]))
+            vals = np.array(cas.vertcat(*plot_dict['x'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 
@@ -698,6 +718,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
                     linestyle =  '--', color = p[-1].get_color())
     plt.grid(True)
     plt.title(name)
+    plt.autoscale(enable=True, axis= 'x', tight = True)
 
 def get_sweep_colors(number_of_trials):
 
@@ -754,6 +775,7 @@ def calibrate_visualization(model, nlp, name, options):
     # model information
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
+    plot_dict['outputs_struct'] = model.outputs
     plot_dict['architecture'] = model.architecture
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
@@ -771,7 +793,7 @@ def calibrate_visualization(model, nlp, name, options):
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, iterations=None, return_status_numeric=None, timings=None, N=None, ):
+def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, N=None, ): 
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -797,7 +819,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     # get new outputs
     plot_dict['output_vals'] = output_vals
     plot_dict['integral_outputs_final'] = integral_outputs_final
-
+    plot_dict['global_outputs'] = global_outputs
     # get new time grids
     plot_dict['time_grids'] = time_grids
     if plot_dict['discretization'] == 'direct_collocation':
@@ -827,13 +849,15 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['power_and_performance'] = diagnostics.compute_power_and_performance(plot_dict)
 
     # plot scaling
-    plot_dict['max_x'] = np.max(np.array(V_plot['xd', :, 'q10', 0])) * 1.2
-    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot['xd', :, 'q10', 1]))) * 1.2
-    plot_dict['max_z'] = np.max(np.array(V_plot['xd', :, 'q10', 2])) * 1.2
-    plot_dict['maxlim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
+    plot_dict['max_x'] = np.max(np.array(V_plot['x', :, 'q10', 0])) * 1.2
+    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot['x', :, 'q10', 1]))) * 1.2
+    plot_dict['max_z'] = np.max(np.array(V_plot['x', :, 'q10', 2])) * 1.2
+    plot_dict['mazim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
     plot_dict['scale_power'] = 1.  # e-3
-    plot_dict['scale_axes'] = np.float(V_plot['xd', 0, 'l_t'])
-
+    try:
+        plot_dict['scale_axes'] = np.float(V_plot['x', 0, 'l_t'])
+    except:
+        plot_dict['scale_axes'] = np.float(V_plot['theta', 'l_t'])
 
     dashes = []
     for ldx in range(20):
@@ -872,40 +896,40 @@ def interpolate_data(plot_dict, cosmetics):
         u_param = 'zoh'
 
     # add states and outputs to plotting dict
-    plot_dict['xd'] = {}
-    plot_dict['xa'] = {}
-    plot_dict['xl'] = {}
+    plot_dict['x'] = {}
+    plot_dict['z'] = {}
     plot_dict['u'] = {}
+    plot_dict['theta'] = {}
     plot_dict['outputs'] = {}
     plot_dict['integral_outputs'] = {}
 
     # interpolating time grid
     n_points = cosmetics['interpolation']['N']
 
-    # xd-values
-    for name in list(struct_op.subkeys(variables_dict, 'xd')):
-        plot_dict['xd'][name] = []
-        for j in range(variables_dict['xd',name].shape[0]):
+    # x-values
+    for name in list(struct_op.subkeys(variables_dict, 'x')):
+        plot_dict['x'][name] = []
+        for j in range(variables_dict['x',name].shape[0]):
             # merge values
-            values, time_grid = merge_xd_values(V_plot, name, j, plot_dict, cosmetics)
+            values, time_grid = merge_x_values(V_plot, name, j, plot_dict, cosmetics)
             plot_dict['time_grids']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
 
             # interpolate
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'xd')
-            plot_dict['xd'][name] += [values_ip]
+                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'x')
+            plot_dict['x'][name] += [values_ip.full().squeeze()]
 
-    # xa-values
-    for var_type in set(variables_dict.keys()) - set(['xd', 'u', 'xddot', 'theta']):
+    # z-values
+    for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
         for name in list(struct_op.subkeys(variables_dict,var_type)):
             plot_dict[var_type][name] = []
             for j in range(variables_dict[var_type,name].shape[0]):
                 if plot_dict['discretization'] == 'direct_collocation':
                     values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
                 else:
-                    values, time_grid = merge_xa_values(V_plot, var_type, name, j, plot_dict, cosmetics)
+                    values, time_grid = merge_z_values(V_plot, var_type, name, j, plot_dict, cosmetics)
                     # interpolate
                     values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
                 plot_dict[var_type][name] += [values_ip]
@@ -924,22 +948,30 @@ def interpolate_data(plot_dict, cosmetics):
             plot_dict['u'][name] += [values_ip]
 
     # output values
-    for output_type in list(outputs_dict.keys()):
-        plot_dict['outputs'][output_type] = {}
-        for name in list(outputs_dict[output_type].keys()):
+    for kk in range(output_vals.shape[0]):
+        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_type = can_index[0]
+        name = can_index[1]
+        j = can_index[2]
+        if output_type not in list(plot_dict['outputs'].keys()):
+            plot_dict['outputs'][output_type] = {}
+        if name not in list(plot_dict['outputs'][output_type].keys()):
             plot_dict['outputs'][output_type][name] = []
-            for j in range(outputs_dict[output_type][name].shape[0]):
-                # merge values
-                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
-                # inteprolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-                plot_dict['outputs'][output_type][name] += [values_ip]
+
+        # merge values
+        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
+        # inteprolate
+        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+        plot_dict['outputs'][output_type][name] += [values_ip]
 
     # integral outptus
     if plot_dict['discretization'] == 'direct_collocation':
         for name in plot_dict['integral_variables']:
             values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
             plot_dict['integral_outputs'][name] = [values_ip]
+
+    for name in list(struct_op.subkeys(variables_dict,'theta')):
+        plot_dict['theta'][name] = plot_dict['V_plot']['theta', name].full()[0][0]
 
     return plot_dict
 
@@ -967,35 +999,35 @@ def interpolate_ref_data(plot_dict, cosmetics):
         u_param = 'zoh'
 
     # add states and outputs to plotting dict
-    plot_dict['ref'] = {'xd': {},'u':{},'xa':{},'xl':{},'time_grids':{},'outputs':{}}
+    plot_dict['ref'] = {'x': {},'u':{},'z':{},'time_grids':{},'outputs':{}}
 
     # interpolating time grid
-    plot_dict['time_grids']['ref']['ip'] =  plot_dict['time_grids']['ip']
     n_points = plot_dict['time_grids']['ip'].shape[0]
 
-    # xd-values
-    for name in list(struct_op.subkeys(variables_dict, 'xd')):
-        plot_dict['ref']['xd'][name] = []
-        for j in range(variables_dict['xd',name].shape[0]):
+    # x-values
+    for name in list(struct_op.subkeys(variables_dict, 'x')):
+        plot_dict['ref']['x'][name] = []
+        for j in range(variables_dict['x',name].shape[0]):
             # merge values
-            values, time_grid = merge_xd_values(V_ref, name, j, plot_dict, cosmetics)
+            values, time_grid = merge_x_values(V_ref, name, j, plot_dict, cosmetics, ref = True)
+            plot_dict['time_grids']['ref']['ip'] =  np.linspace(time_grid[0], time_grid[-1], n_points)
 
             # interpolate
             if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
                 values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
             elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'xd')
-            plot_dict['ref']['xd'][name] += [values_ip]
+                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'x')
+            plot_dict['ref']['x'][name] += [values_ip.full()]
 
-    # xa-values
-    for var_type in set(variables_dict.keys()) - set(['xd', 'u', 'xddot', 'theta']):
+    # z-values
+    for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
         for name in list(struct_op.subkeys(variables_dict,var_type)):
             plot_dict['ref'][var_type][name] = []
             for j in range(variables_dict[var_type,name].shape[0]):
                 if plot_dict['discretization'] == 'direct_collocation':
                     values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, var_type)
                 else:
-                    values, time_grid = merge_xa_values(V_ref, var_type, name, j, plot_dict, cosmetics)
+                    values, time_grid = merge_z_values(V_ref, var_type, name, j, plot_dict, cosmetics, ref = True)
                     # interpolate
                     values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
                 plot_dict['ref'][var_type][name] += [values_ip]
@@ -1014,16 +1046,21 @@ def interpolate_ref_data(plot_dict, cosmetics):
             plot_dict['ref']['u'][name] += [values_ip]
 
     # output values
-    for output_type in list(outputs_dict.keys()):
-        plot_dict['ref']['outputs'][output_type] = {}
-        for name in list(outputs_dict[output_type].keys()):
+    for kk in range(output_vals.shape[0]):
+        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
+        output_type = can_index[0]
+        name = can_index[1]
+        j = can_index[2]
+        if output_type not in list(plot_dict['ref']['outputs'].keys()):
+            plot_dict['ref']['outputs'][output_type] = {}
+        if name not in list(plot_dict['ref']['outputs'][output_type].keys()):
             plot_dict['ref']['outputs'][output_type][name] = []
-            for j in range(outputs_dict[output_type][name].shape[0]):
-                # merge values
-                values, time_grid, ndim = merge_output_values(output_vals, output_type, name, j, plot_dict, cosmetics)
-                # inteprolate
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
-                plot_dict['ref']['outputs'][output_type][name] += [values_ip]
+
+        # merge values
+        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
+        # inteprolate
+        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
+        plot_dict['ref']['outputs'][output_type][name] += [values_ip]
 
     return plot_dict
 
