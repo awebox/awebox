@@ -42,7 +42,9 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 
-def initialize_arg(nlp, formulation, model, options, p_fix_num):
+def initialize_arg(nlp, formulation, model, options):
+
+    p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
 
     if options['initialization']['initialization_type'] == 'default':
         V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'], p_fix_num)
@@ -51,7 +53,7 @@ def initialize_arg(nlp, formulation, model, options, p_fix_num):
 
     V_ref = reference.get_reference(nlp, model, V_init, options)
 
-    p_fix_num = initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options)
+    p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
 
     [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
 
@@ -74,7 +76,7 @@ def initialize_arg(nlp, formulation, model, options, p_fix_num):
 
 
 
-def initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options):
+def initialize_opti_parameters_with_model_parameters(nlp, options):
     # --------------------
     # parameter values
     # --------------------
@@ -83,6 +85,28 @@ def initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options)
 
     P = nlp.P
     p_fix_num = P(0.)
+
+    # system parameters
+    param_options = options['initialization']['sys_params_num']
+    for param_type in list(param_options.keys()):
+        if isinstance(param_options[param_type],dict):
+            for param in list(param_options[param_type].keys()):
+                if isinstance(param_options[param_type][param],dict):
+                    for subparam in list(param_options[param_type][param].keys()):
+                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
+
+                else:
+                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
+
+        else:
+            p_fix_num['theta0',param_type] = param_options[param_type]
+
+    return p_fix_num
+
+
+
+def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options):
+
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
@@ -116,20 +140,6 @@ def initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options)
                 if 'coll_var' in list(V_ref.keys()):
                     p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
 
-    # system parameters
-    param_options = options['initialization']['sys_params_num']
-    for param_type in list(param_options.keys()):
-        if isinstance(param_options[param_type],dict):
-            for param in list(param_options[param_type].keys()):
-                if isinstance(param_options[param_type][param],dict):
-                    for subparam in list(param_options[param_type][param].keys()):
-                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
-
-                else:
-                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
-
-        else:
-            p_fix_num['theta0',param_type] = param_options[param_type]
 
     return p_fix_num
 

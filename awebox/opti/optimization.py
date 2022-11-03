@@ -389,18 +389,36 @@ class Optimization(object):
         # prepare for second part of homotopy step
         self.__V_bounds['ub']['phi',phi_name] = 0
         self.__V_bounds['lb']['phi',phi_name] = 0
+
+        return None
+
+    def __save_stats(self, step_name):
+
+        # add up iterations of multi-step homotopies
+        if step_name not in list(self.__iterations.keys()):
+            self.__iterations[step_name] = 0.
+            self.__t_wall[step_name] = 0.
+        self.__iterations[step_name] += self.__stats['iter_count']
+        self.__t_wall[step_name] += self.__stats['t_wall_total']
+        if 't_wall_callback_fun' in self.__stats.keys():
+            self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
+
         return None
 
 
-    def define_standard_args(self, nlp, formulation, model, options, visualization):
+    ### arguments
 
-        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, p_fix_num)
+    def define_standard_args(self, nlp, formulation, model, options, visualization, warmstart_solution_dict = None):
+
+        self.__arg = preparation.initialize_arg(nlp, formulation, model, options)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
 
         self.__V_init = nlp.V(self.__arg['x0'])
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
+
+        self.__V_ref = nlp.V(self.__p_fix_num['p','ref'])
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')
