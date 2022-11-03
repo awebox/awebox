@@ -43,8 +43,6 @@ import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 import awebox.mdl.aero.induction_dir.induction as induction
 
-import awebox.mdl.mdl_constraint as mdl_constraint
-
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
 
@@ -79,7 +77,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # -----------------------------------
     # prepare empty constraints list and outputs
     # -----------------------------------
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
     outputs = {}
 
     # ---------------------------------
@@ -262,7 +260,7 @@ def manage_alongside_integration(options, derivative_dict_for_alongside_integrat
     integral_scaling = {}
     integral_outputs_expr_entries = []
     integral_outputs_struct_entries = []
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for integral_var_name, integral_derivative_expression_si in derivative_dict_for_alongside_integration.items():
         # for example, integral_var_scaled = 'e' with integral_derivative_expression = power / options['scaling']['xd']['e']
@@ -507,7 +505,7 @@ def anticollision_inequality(options, variables, parameters, architecture):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['anticollision']['include']:
 
@@ -533,7 +531,7 @@ def anticollision_inequality(options, variables, parameters, architecture):
 
 def dcoeff_actuation_inequality(options, variables_si, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['dcoeff_actuation']['include']:
 
@@ -583,7 +581,7 @@ def dcoeff_actuation_inequality(options, variables_si, parameters, architecture)
 
 def coeff_actuation_inequality(options, variables_si, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['coeff_actuation']['include']:
 
@@ -633,7 +631,7 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
 
 def P_max_inequality(options, variables, power, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if 'P_max' in variables['theta'].keys():
         max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max']
@@ -647,7 +645,7 @@ def P_max_inequality(options, variables, power, parameters, architecture):
 
 def ellipsoidal_flight_constraint(options, variables, parameters, architecture, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
     if 'ell_radius' in list(variables['theta'].keys()):
@@ -688,7 +686,7 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
 def acceleration_inequality(options, variables):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['acceleration']['include']:
 
@@ -715,7 +713,7 @@ def acceleration_inequality(options, variables):
 
 def airspeed_inequality(options, outputs, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['airspeed']['include']:
 
@@ -749,7 +747,7 @@ def airspeed_inequality(options, outputs, parameters, architecture):
 
 def aero_validity_inequality(options, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['aero_validity']['include']:
         for name in outputs['aero_validity'].keys():
@@ -764,7 +762,7 @@ def aero_validity_inequality(options, outputs):
 
 def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
@@ -881,7 +879,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
 def wound_tether_length_inequality(options, variables):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
 
     if options['model_bounds']['wound_tether_length']['include']:
@@ -1105,7 +1103,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
     x = variables['x']
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     kite_has_6_dof = (options['kite_dof'] == 6)
     if kite_has_6_dof:

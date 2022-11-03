@@ -13,7 +13,6 @@ import awebox.mdl.lagr_dyn_dir.energy as energy_comp
 import awebox.mdl.lagr_dyn_dir.forces as forces_comp
 
 import numpy as np
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake):
 
@@ -56,7 +55,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], holonomic_constraints, outputs,
                                                   architecture)
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     # --------------------------------
     # translational dynamics
@@ -180,7 +179,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
     x = variables['SI']['x']
     xdot = variables['SI']['xdot']
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for kite in kite_nodes:
         parent = parent_map[kite]

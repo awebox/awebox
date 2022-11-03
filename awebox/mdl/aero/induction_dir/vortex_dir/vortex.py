@@ -51,7 +51,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.state_representat
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
-import awebox.ocp.ocp_constraint as ocp_constraint
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 
@@ -132,7 +131,7 @@ def get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, ar
 
 def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
 
-    ocp_cstr_list = ocp_constraint.OcpConstraintList()
+    ocp_cstr_list = cstr_op.OcpConstraintList()
 
     if model_is_included_in_comparison(nlp_options):
         vortex_representation = general_tools.get_option_from_possible_dicts(nlp_options, 'representation', 'vortex')

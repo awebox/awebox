@@ -34,9 +34,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-
-import awebox.mdl.mdl_constraint as mdl_constraint
-
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.stability_derivatives as stability_derivatives
 import awebox.mdl.aero.kite_dir.frames as frames
@@ -89,7 +86,7 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
 

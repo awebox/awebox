@@ -42,8 +42,6 @@ import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
-import numpy as np
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)

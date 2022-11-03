@@ -37,8 +37,6 @@ import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 import awebox.ocp.operation as operation
-import awebox.ocp.ocp_constraint as ocp_constraint
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
@@ -49,7 +47,7 @@ from awebox.logger.logger import Logger as awelogger
 
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, Integral_outputs, time_grids):
 
-    ocp_cstr_list = ocp_constraint.OcpConstraintList()
+    ocp_cstr_list = cstr_op.OcpConstraintList()
     ocp_cstr_entry_list = []
 
     if nlp_options['generate_constraints']:
@@ -110,7 +108,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     if nlp_options['induction']['induction_model'] == 'averaged':
 
-        cstr_list = ocp_constraint.OcpConstraintList()
+        cstr_list = cstr_op.OcpConstraintList()
         t_f = ocp_outputs.find_time_period(nlp_options, V)
         nk_reelout = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
         F_avg = Integral_outputs['int_out', nk_reelout, 'tether_force_int']
@@ -126,7 +124,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape = (1,1)))
 
     if nlp_options['phase_fix'] == 'single_reelout':
-        cstr_list = ocp_constraint.OcpConstraintList()
+        cstr_list = cstr_op.OcpConstraintList()
         t_f = ocp_outputs.find_time_period(nlp_options, V)
         t_f_max = t_f - model.variable_bounds['theta']['t_f']['ub']
         t_f_min = model.variable_bounds['theta']['t_f']['lb'] - t_f
@@ -158,7 +156,7 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
     relevant_shooting_vars = []
     for var_type in (set(model_variables.keys()) - set(['x'])):
         relevant_shooting_vars = cas.vertcat(relevant_shooting_vars, model_variables[var_type])
-    mdl_shooting_cstr_sublist = mdl_constraint.MdlConstraintList()
+    mdl_shooting_cstr_sublist = cstr_op.MdlConstraintList()
 
     for cstr in model_constraints_list.get_list('eq'):
 
@@ -190,7 +188,7 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
 
 def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
     entry_tuple = ()     # entry tuple for nested constraints
 
     n_k = nlp_options['n_k']
@@ -342,7 +340,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     entry_tuple += (cas.entry('dynamics', repeat=[n_k], struct=model.variables_dict['x']),)
     entry_tuple += (cas.entry('algebraic', repeat=[n_k], shape=(nz, 1)),)
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     model_variables = model.variables
     model_parameters = model.parameters
@@ -401,7 +399,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
 
 def get_integral_constraints(integral_list, integral_constants):
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     # nu = V['phi','nu']
     integral_sum = {}

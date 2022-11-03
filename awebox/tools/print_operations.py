@@ -36,6 +36,7 @@ import casadi.tools as cas
 import numpy as np
 import sys
 import inspect
+from tabulate import tabulate
 
 def print_single_timing(timing):
 
@@ -169,29 +170,153 @@ def print_variable_info(object_name, variable_struct):
 
     return None
 
-def print_dict_as_table(dict, type='info'):
-    for key in dict.keys():
-        if isinstance(dict[key], float):
-            message = '{:>30}: {:.2e}'.format(key, dict[key])
+class Table:
+    def __init__(self):
+        self.__column_headers = set([])
+        self.__dict = {}
+
+    def add_column_headers(self, list_of_headers):
+        for head in list_of_headers:
+            self.__column_headers.add(head)
+        return None
+
+    def get_row_headers(self):
+        return self.__dict.keys()
+
+    def get_column_headers(self):
+        for row_head, row_dict in self.__dict.items():
+            self.add_column_headers(row_dict.keys())
+        return self.__column_headers
+
+    def is_row_empty(self, row_head):
+        if row_head in self.__dict.keys():
+            row_dict = self.__dict[row_head]
+            if hasattr(row_dict, 'keys'):
+                return False
+            elif row_dict is None:
+                return True
+            else:
+                message = 'unexpected entry in row'
+                awelogger.logger.error(message)
+                raise Exception(message)
         else:
-            message = '{:>30}: '.format(key) + str(dict[key])
+            return True
 
-        if type == 'error':
-            awelogger.logger.error(message)
-        elif type == 'warning':
-            awelogger.logger.warning(message)
+    def insert_empty_cell_without_overwrite(self, row_head, column_head):
+        if row_head not in self.__dict.keys():
+            self.__dict[row_head] = {}
+
+        if column_head not in self.__dict[row_head].keys():
+            self.__dict[row_head][column_head] = None
+
+        return None
+
+    def insert_empty_row_without_overwrite(self, row_head):
+        for column_head in self.__column_headers:
+            self.insert_empty_cell_without_overwrite(row_head, column_head)
+
+        return None
+
+    def update_column_headers(self):
+        existing_column_headers = self.get_column_headers()
+        self.add_column_headers(existing_column_headers)
+        return None
+
+    def uniformify_column_headers(self):
+        self.update_column_headers()
+        for row_head, row_dict in self.__dict.items():
+            self.insert_empty_row_without_overwrite(row_head)
+
+
+    def get_number_of_columns(self):
+        self.uniformify_column_headers()
+        return len(self.__column_headers)
+
+    def get_number_of_rows(self):
+        return len(self.__dict.keys())
+
+    def append_row_with_overwrite(self, row_dict={}, row_head=None):
+
+        if row_head is None:
+            row_head = str(self.get_number_of_rows())
+
+        if row_head not in self.__dict.keys():
+            self.__dict[row_head] = {}
+
+        for column_head, value in row_dict.items():
+            self.__dict[row_head][column_head] = value
+
+        self.uniformify_column_headers()
+
+    def to_string(self):
+        self.uniformify_column_headers()
+
+        table = []
+
+        for row_head, row_dict in self.__dict.items():
+            local_row = row_dict.values()
+            table += [local_row]
+
+        headers = row_dict.keys()
+
+        message = tabulate(table, headers=headers)
+        return message
+
+    def print(self, level='info'):
+        if level == 'info':
+            awelogger.logger.info(self.to_string())
+        elif level == 'warning':
+            awelogger.logger.warning(self.to_string())
+        elif level == 'error':
+            awelogger.logger.error(self.to_string())
         else:
-            awelogger.logger.info(message)
+            print(self.to_string())
+        return None
 
-    return None
 
-def print_test_outcome(test_passes, message, display_dict={}):
-    if not test_passes:
+    @property
+    def dict(self):
+        return self.__dict
+
+    @dict.setter
+    def dict(self, value):
+        awelogger.logger.warning('Cannot set dict object.')
+
+    @property
+    def column_headers(self):
+        return self.__column_headers
+
+    @column_headers.setter
+    def column_headers(self, value):
+        awelogger.logger.warning('Cannot set column_headers object.')
+
+
+def test_table_print():
+
+    table = [["Sun", 696000, 1989100000], ["Earth", 6371, 5973.6], ["Moon", 1737, 73.5], ["Mars", 3390, 641.85]]
+    headers = ["Planet", "R (km)", "mass (x 10^29 kg)"]
+    tabulate_string = tabulate(table, headers=headers)
+
+    tab = Table()
+
+    body_label = headers[0]
+    radius_label = headers[1]
+    mass_label = headers[2]
+
+    for entry in table:
+        local_row = {body_label:entry[0],
+                     radius_label:entry[1],
+                     mass_label:entry[2]
+                     }
+        tab.append_row_with_overwrite(local_row)
+    test_string = tab.to_string()
+
+    criteria = (test_string == tabulate_string)
+    if not criteria:
+        message = 'table to_string does not work as expected.'
         awelogger.logger.error(message)
-
-        print_dict_as_table(display_dict, type='error')
-
         raise Exception(message)
+        pdb.set_trace()
 
 def print_progress(index, total_count):
     # warning: this does NOT log the progress, it only displays the progress, on-screen
@@ -203,3 +328,6 @@ def print_progress(index, total_count):
     sys.stdout.write(progress_message)
     sys.stdout.flush()
     return None
+
+def test():
+    test_table_print()

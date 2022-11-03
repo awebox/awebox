@@ -41,7 +41,6 @@ import awebox.tools.constraint_operations as cstr_op
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 
 
@@ -101,7 +100,7 @@ def get_tether_cstr(options, variables_si, architecture, outputs):
 
     tether_drag_forces = distribute_tether_drag_forces(options, variables_si, architecture, outputs)
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
         f_tether_var = get_force_var(variables_si, node, architecture)

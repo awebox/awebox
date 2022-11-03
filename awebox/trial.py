@@ -31,7 +31,6 @@ import awebox.tools.print_operations as print_op
 import awebox.trial_funcs as trial_funcs
 import awebox.ocp.nlp as nlp
 import awebox.opti.optimization as optimization
-import awebox.sim as sim
 import awebox.mdl.model as model
 import awebox.mdl.architecture as archi
 import awebox.ocp.formulation as formulation
@@ -41,7 +40,9 @@ import awebox.tools.save_operations as data_tools
 import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
-from tabulate import tabulate
+
+import numpy as np
+
 import copy
 import pdb
 
@@ -246,11 +247,17 @@ class Trial(object):
         time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
         avg_power = e_final / time_period
 
-        headers = ['Parameter / output', 'Optimal value', 'Dimension']
+        parameter_label = 'Parameter or Output'
+        optimal_label = 'Value at Optimal Solution'
+        dimension_label = 'Dimension'
 
-        table = [['Average power output', str(avg_power/1e3), 'kW']]
-        table.append(['Time period', str(time_period), 's'])
-        import numpy as np
+        table = print_op.Table()
+        table.append_row_with_overwrite({parameter_label: 'Average power output',
+                                         optimal_label: str(avg_power/1.e3),
+                                         dimension_label: 'kW'})
+        table.append_row_with_overwrite({parameter_label: 'Time period',
+                                         optimal_label: str(time_period),
+                                         dimension_label: 's'})
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
@@ -269,12 +276,12 @@ class Trial(object):
         for theta in self.model.variables_dict['theta'].keys():
             if theta != 't_f':
                 info = theta_info[theta]
-                table.append([
-                    info[0],
-                    str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
-                    info[2]]
-                    )
-        print(tabulate(table, headers=headers))
+                table.append_row_with_overwrite({parameter_label: info[0],
+                                                 optimal_label: str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
+                                                 dimension_label: info[2]})
+        table.print(level='info')
+
+        return None
 
     def save_to_awe(self, fn):
 

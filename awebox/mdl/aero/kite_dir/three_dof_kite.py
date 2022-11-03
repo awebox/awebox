@@ -39,7 +39,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.indicators as indicators
-import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
 
@@ -60,7 +59,7 @@ def get_force_vector(options, variables, atmos, wind, architecture, parameters, 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]

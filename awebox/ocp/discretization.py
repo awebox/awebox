@@ -352,10 +352,8 @@ def discretize(nlp_options, model, formulation):
     # GET CONSTRAINTS
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
-        Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs, Integral_outputs, time_grids)
         Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs_struct, time_grids)
+            ms_vars, ms_params, Outputs, Integral_outputs, time_grids)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 

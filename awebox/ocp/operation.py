@@ -42,8 +42,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.parameterization as parameterization
 import awebox.tools.constraint_operations as cstr_op
 
-import awebox.ocp.ocp_constraint as ocp_constraint
-
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 from awebox.logger.logger import Logger as awelogger
@@ -89,7 +87,7 @@ def determine_if_param_terminal_conditions(options):
 
 def get_initial_constraints(options, initial_variables, ref_variables, model, xi_dict):
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     # list all initial equalities ==> put SX expressions in dict
     if 'e' in list(model.variables_dict['x'].keys()):
@@ -160,7 +158,7 @@ def generate_integral_constraints(options, variables, parameters, model):
 
 def get_terminal_constraints(options, terminal_variables, ref_variables, model, xi_dict):
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions = get_operation_conditions(options)
 
@@ -204,7 +202,7 @@ def make_terminal_point_constraint(terminal_variables, ref_variables, model):
     return cas.vertcat(*terminal_point_constr)
 
 def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     periodic, _, _, _, _, _, _ = get_operation_conditions(options)
 
