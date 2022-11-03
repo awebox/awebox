@@ -33,16 +33,17 @@ python-3.5 / casadi-3.4.5
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options, homotopy_method_type):
+def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
 
     schedule = {}
-    schedule['cost'] = define_cost_update_schedule(cost_solver_options)
+    schedule['cost'] = define_cost_update_schedule(solver_options['cost'])
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
     schedule['homotopy'] = define_homotopy_schedule(formulation)
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
-    
+
+    homotopy_method_type = solver_options['homotopy_method']['type']
     if homotopy_method_type == 'single':
         schedule = compress_homotopy_schedule(schedule)
     
@@ -88,7 +89,7 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-    # if tether_drag_model in set([multi']):
+    # if tether_drag_model in set(['multi']):
     #     homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule

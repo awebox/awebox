@@ -132,7 +132,7 @@ def tether_vector(variables, architecture, node):
     parent_map = architecture.parent_map
     parent = parent_map[node]
 
-    q_node = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(node) + str(parent))
+    q_node = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(node) + str(parent))
 
     if parent in parent_map.keys():
         grandparent = parent_map[parent]

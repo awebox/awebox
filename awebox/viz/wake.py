@@ -316,9 +316,9 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     average_radius = plot_dict['outputs']['performance']['average_radius' + str(layer)][0][idx_at_eval]
     kite_plane_induction_params['average_radius'] = average_radius
 
-    center_x = plot_dict['outputs']['performance']['actuator_center' + str(layer)][0][idx_at_eval]
-    center_y = plot_dict['outputs']['performance']['actuator_center' + str(layer)][1][idx_at_eval]
-    center_z = plot_dict['outputs']['performance']['actuator_center' + str(layer)][2][idx_at_eval]
+    center_x = plot_dict['outputs']['performance']['trajectory_center' + str(layer)][0][idx_at_eval]
+    center_y = plot_dict['outputs']['performance']['trajectory_center' + str(layer)][1][idx_at_eval]
+    center_z = plot_dict['outputs']['performance']['trajectory_center' + str(layer)][2][idx_at_eval]
 
     center = cas.vertcat(center_x, center_y, center_z)
     kite_plane_induction_params['center'] = center

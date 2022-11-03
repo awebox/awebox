@@ -29,20 +29,20 @@ _python-3.5 / casadi-3.4.5
 - edit: jochem de schutter, alu-fr 2019
 """
 
-import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.geometry as geom
 
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 
 def get_kite_apparent_velocity(variables, wind, kite, parent):
     u_infty = get_kite_vec_u_infty(variables, wind, kite, parent)
-    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
+    u_kite = variables['x']['dq' + str(kite) + str(parent)]
     u_app_kite = u_infty - u_kite
 
     return u_app_kite
 
 def get_kite_vec_u_infty(variables, wind, kite, parent):
-    q_kite = variables['xd']['q' + str(kite) + str(parent)]
+    q_kite = variables['x']['q' + str(kite) + str(parent)]
     u_infty = wind.get_velocity(q_kite[2])
     return u_infty
 
@@ -61,14 +61,6 @@ def compute_induction_factor(vec_u_ind, n_hat, u_normalizing):
     a_calc = -1. * u_projected / u_normalizing
 
     return a_calc
-
-
-def get_f_val(model_options, wind, parent, variables, architecture):
-    dl_t = variables['xd']['dl_t']
-    u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    f_val = dl_t / vect_op.smooth_norm(u_infty)
-
-    return f_val
 
 def get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture):
     center = geom.get_center_position(model_options, parent, variables, architecture)

@@ -28,7 +28,7 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
 
-from .initialization_dir import modular as initialization_modular, initialization
+from . initialization_dir import modular as initialization_modular, initialization
 
 from . import reference
 
@@ -42,28 +42,16 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 
-def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
+def initialize_arg(nlp, formulation, model, options, p_fix_num):
 
-    p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
-
-    # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
     if options['initialization']['initialization_type'] == 'default':
         V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'], p_fix_num)
     elif options['initialization']['initialization_type'] == 'modular':
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
-    use_warmstart = not (warmstart_solution_dict == None)
-    if use_warmstart:
-        [V_init_proposed, _, _] = struct_op.setup_warmstart_data(nlp, warmstart_solution_dict)
-        V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
-        if V_shape_matches:
-            V_init = V_init_proposed
-        else:
-            raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
-
     V_ref = reference.get_reference(nlp, model, V_init, options)
 
-    p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
+    p_fix_num = initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options)
 
     [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
 
@@ -86,7 +74,7 @@ def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = N
 
 
 
-def initialize_opti_parameters_with_model_parameters(nlp, options):
+def initialize_opti_parameters_with_model_parameters(V_ref, nlp, model, options):
     # --------------------
     # parameter values
     # --------------------
@@ -143,15 +131,10 @@ def initialize_opti_parameters_with_model_parameters(nlp, options):
         else:
             p_fix_num['theta0',param_type] = param_options[param_type]
 
-    use_vortex_linearization = 'lin' in P.keys()
-    if use_vortex_linearization:
-        p_fix_num['lin'] = V_init
-
     return p_fix_num
 
 def set_initial_bounds(nlp, model, formulation, options, V_init):
     V_bounds = {}
-
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
 

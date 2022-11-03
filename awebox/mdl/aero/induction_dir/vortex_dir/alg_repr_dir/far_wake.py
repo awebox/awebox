@@ -39,7 +39,7 @@ import numpy as np
 
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list

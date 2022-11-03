@@ -52,7 +52,7 @@ def get_center_position(parent, variables, architecture):
 
     if parent > 0:
         grandparent = parent_map[parent]
-        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(parent) + str(grandparent))
+        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
     else:
         q_parent = cas.DM.zeros((3, 1))
 
@@ -65,7 +65,7 @@ def get_center_velocity(parent, variables, architecture):
 
     if parent > 0:
         grandparent = parent_map[parent]
-        dq_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'dq' + str(parent) + str(grandparent))
+        dq_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(parent) + str(grandparent))
     else:
         dq_parent = cas.DM.zeros((3, 1))
 

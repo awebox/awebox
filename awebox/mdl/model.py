@@ -58,7 +58,7 @@ class Model(object):
             self.__generate_atmosphere(options['atmosphere'])
             self.__generate_wind(options['wind'])
             self.__generate_system_dynamics(options)
-            self.generate_scaled_variable_bounds(options)
+            self.__generate_scaled_variable_bounds(options)
             self.__generate_parameter_bounds(options)
             self.__options = options
 
@@ -133,7 +133,7 @@ class Model(object):
 
         return model_dae
 
-    def generate_scaled_variable_bounds(self, options):
+    def __generate_scaled_variable_bounds(self, options):
 
         # define bounds for all system variables (except pfix) in SI units
         variable_bounds = system.define_bounds(options['system_bounds'],

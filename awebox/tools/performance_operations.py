@@ -47,6 +47,16 @@ def get_loyd_phf(CL, CD, elevation_angle=0.):
     phf = 4. / 27. * CR * (CR / CD) ** 2. * cas.cos(elevation_angle) ** 3.
     return phf
 
+def get_reelout_factor_with_respect_to_wind_at_position(variables_si, position, wind):
+    if 'dl_t' in variables_si['x'].keys():
+        dl_t = variables_si['x']['dl_t']
+    else:
+        dl_t = cas.DM.zeros((1, 1))
+
+    vec_u_infty = wind.get_velocity(position[2])
+    f_val = dl_t / vect_op.smooth_norm(vec_u_infty)
+    return f_val
+
 
 def determine_if_periodic(options):
 

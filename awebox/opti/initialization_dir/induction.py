@@ -48,7 +48,6 @@ import pdb
 
 def initial_guess_induction(init_options, nlp, model, V_init, p_fix_num):
 
-
     if actuator.model_is_included_in_comparison(init_options):
         V_init = initial_guess_actuator(init_options, nlp, model, V_init)
 

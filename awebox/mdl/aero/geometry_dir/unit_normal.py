@@ -38,7 +38,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.aero.induction_dir.geom_dir.frenet_geometry as frenet_geom
+import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
 
 def get_n_vec(model_options, parent, variables, parameters, architecture):
 

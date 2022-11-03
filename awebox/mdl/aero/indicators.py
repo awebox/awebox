@@ -33,6 +33,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.tools.vector_operations as vect_op
@@ -53,25 +54,36 @@ def get_reynolds(options, atmos, ua, q, parameters):
     reynolds = rho_infty * norm_ua * c_ref / mu_infty
     return reynolds
 
-def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
-
-    if 'performance' not in list(outputs.keys()):
-        outputs['performance'] = {}
-
-    kite_nodes = architecture.kite_nodes
-    x = variables_si['x']
-
-    if 'dl_t' in x.keys():
-        outputs['performance']['freelout'] = x['dl_t'] / vect_op.norm(wind.get_velocity(x['q10'][2]))
-    outputs['performance']['elevation'] = get_elevation_angle(variables['x'])
-
+def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
     layer_nodes = architecture.layer_nodes
-    for parent in layer_nodes:
-        outputs['performance']['actuator_center' + str(parent)] = general_geom.get_center_point(options, parent,
-                                                                                                variables, architecture)
-        outputs['performance']['f' + str(parent)] = general_flow.get_f_val(options, wind, parent, variables,
-                                                                           architecture)
+    kite_nodes = architecture.kite_nodes
 
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
+
+    for kite in kite_nodes:
+        f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
+        f_lift_norm = f_aero_wind[2]
+        f_lift_earth_overwrite = model_options['aero']['overwrite']['f_lift_earth']
+        if f_lift_earth_overwrite is not None:
+            f_lift_earth = f_lift_earth_overwrite
+            f_lift_norm = vect_op.smooth_norm(f_lift_earth)
+
+        rho = outputs['aerodynamics']['air_density' + str(kite)]
+
+        air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
+        airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
+        ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
+        CL = outputs['aerodynamics']['CL' + str(kite)]
+
+        circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+        circulation_cl = 0.5 * airspeed**2. * CL * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+
+        outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
+        outputs['aerodynamics']['circulation_cl' + str(kite)] = circulation_cl
+        outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
+
+    for parent in layer_nodes:
         total_circulation = 0.
         for kite in architecture.children_map[parent]:
             local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
@@ -81,6 +93,26 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
         vec_u_zero = outputs['geometry']['vec_u_zero' + str(parent)]
         average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
         outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
+
+    return outputs
+
+def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
+    layer_nodes = architecture.layer_nodes
+    kite_nodes = architecture.kite_nodes
+
+    if 'performance' not in list(outputs.keys()):
+        outputs['performance'] = {}
+
+    x = variables_si['x']
+
+    outputs['performance']['f'] = perf_op.get_reelout_factor_with_respect_to_wind_at_position(variables_si, x['q10'], wind)
+
+    outputs['performance']['elevation'] = get_elevation_angle(variables_si['x'])
+
+    for parent in layer_nodes:
+        center_postion = geom.get_center_position(model_options, parent, variables_si, architecture)
+        outputs['performance']['trajectory_center' + str(parent)] = center_postion
+        outputs['performance']['f' + str(parent)] = perf_op.get_reelout_factor_with_respect_to_wind_at_position(variables_si, center_postion, wind)
 
     outputs['performance']['p_loyd_total'] = 0.
     for kite in kite_nodes:
@@ -112,33 +144,25 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     # unpack
     kite = base_aerodynamic_quantities['kite']
     air_velocity = base_aerodynamic_quantities['air_velocity']
-    aero_coefficients = base_aerodynamic_quantities['aero_coefficients']
-    f_aero_earth = base_aerodynamic_quantities['f_aero_earth']
-    f_aero_body = base_aerodynamic_quantities['f_aero_body']
-
-    f_aero_control = base_aerodynamic_quantities['f_aero_control']
-    f_aero_wind = base_aerodynamic_quantities['f_aero_wind']
-    f_lift_earth = base_aerodynamic_quantities['f_lift_earth']
-    f_drag_earth = base_aerodynamic_quantities['f_drag_earth']
-    f_side_earth = base_aerodynamic_quantities['f_side_earth']
-    f_lift_norm = base_aerodynamic_quantities['f_lift_norm']
     m_aero_body = base_aerodynamic_quantities['m_aero_body']
     kite_dcm = base_aerodynamic_quantities['kite_dcm']
     q = base_aerodynamic_quantities['q']
 
     parent = architecture.parent_map[kite]
 
-    f_lift_earth_overwrite = options['aero']['overwrite']['f_lift_earth']
-    if f_lift_earth_overwrite is not None:
-        f_lift_earth = f_lift_earth_overwrite
-        f_lift_norm = vect_op.smooth_norm(f_lift_earth)
+    for name, value in base_aerodynamic_quantities.items():
+        if name not in ['kite', 'kite_dcm']:
+            local_name = name + str(kite)
+            if local_name not in outputs['aerodynamics'].keys():
 
-    for name in set(base_aerodynamic_quantities['aero_coefficients'].keys()):
-        outputs['aerodynamics'][name + str(kite)] = base_aerodynamic_quantities['aero_coefficients'][name]
+                if name == 'aero_coefficients':
+                    for coeff_name in set(base_aerodynamic_quantities['aero_coefficients'].keys()):
+                        outputs['aerodynamics'][coeff_name + str(kite)] = base_aerodynamic_quantities['aero_coefficients'][coeff_name]
 
-    outputs['aerodynamics']['air_velocity' + str(kite)] = air_velocity
-    airspeed = vect_op.norm(air_velocity)
-    outputs['aerodynamics']['airspeed' + str(kite)] = airspeed
+                else:
+                    outputs['aerodynamics'][local_name] = value
+
+    outputs['aerodynamics']['airspeed' + str(kite)] = vect_op.norm(outputs['aerodynamics']['air_velocity' + str(kite)])
     outputs['aerodynamics']['u_infty' + str(kite)] = wind.get_velocity(q[2])
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
@@ -156,28 +180,19 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['ehat_span' + str(kite)] = ehat_span
     outputs['aerodynamics']['ehat_up' + str(kite)] = ehat_up
 
-    outputs['aerodynamics']['f_aero_body' + str(kite)] = f_aero_body
-    outputs['aerodynamics']['f_aero_control' + str(kite)] = f_aero_control
-    outputs['aerodynamics']['f_aero_earth' + str(kite)] = f_aero_earth
-    outputs['aerodynamics']['f_aero_wind' + str(kite)] = f_aero_wind
-
     ortho = cas.reshape(cas.mtimes(kite_dcm.T, kite_dcm) - np.eye(3), (9, 1))
     ortho_resi = cas.mtimes(ortho.T, ortho)
     outputs['aerodynamics']['ortho_resi' + str(kite)] = ortho_resi
-
-    outputs['aerodynamics']['f_lift_earth' + str(kite)] = f_lift_earth
-    outputs['aerodynamics']['f_drag_earth' + str(kite)] = f_drag_earth
-    outputs['aerodynamics']['f_side_earth' + str(kite)] = f_side_earth
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     if int(options['kite_dof']) == 6:
-        omega = variables['xd']['omega' + str(kite) + str(parent)]
+        omega = variables['x']['omega' + str(kite) + str(parent)]
     else:
         omega = cas.DM.zeros((3, 1))
 
-    u_kite = variables['xd']['dq' + str(kite) + str(parent)]
+    u_kite = variables['x']['dq' + str(kite) + str(parent)]
     for tip in ['ext', 'int']:
 
         if tip == 'ext':
@@ -194,12 +209,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
         outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
 
-    circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
-    circulation_cl = 0.5 * airspeed**2. * aero_coefficients['CL'] * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
-
-    outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
-    outputs['aerodynamics']['circulation_cl' + str(kite)] = circulation_cl
-    outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
 
     outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
 
@@ -320,7 +329,7 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables_si, p
     CL = base_aerodynamic_quantities['aero_coefficients']['CL']
     CD = base_aerodynamic_quantities['aero_coefficients']['CD']
 
-    x = variables['x']
+    x = variables_si['x']
     elevation_angle = get_elevation_angle(x)
 
     parent = architecture.parent_map[kite]

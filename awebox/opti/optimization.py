@@ -104,7 +104,7 @@ class Optimization(object):
         return None
 
     def solve(self, options, nlp, model, formulation, visualization,
-              final_homotopy_step='final', warmstart_file = None, vortex_linearization_file = None, debug_flags =
+              final_homotopy_step='final', warmstart_file = None, debug_flags =
               [], debug_locations = [], intermediate_solve = False):
 
         self.__debug_flags = debug_flags
@@ -122,7 +122,7 @@ class Optimization(object):
             # reset timings / iteration counters
             self.reset_timings_and_counters()
 
-           # schedule the homotopy steps
+            # schedule the homotopy steps
             self.define_homotopy_update_schedule(model, formulation, nlp, options)
 
             # prepare problem
@@ -133,7 +133,6 @@ class Optimization(object):
 
             # classifications
             use_warmstart = not (warmstart_file == None)
-            use_vortex_linearization = 'lin' in model.parameters_dict.keys()
             make_steps = not (final_homotopy_step == 'initial_guess')
 
             # solve the problem
@@ -141,10 +140,7 @@ class Optimization(object):
                 if use_warmstart:
                     self.solve_from_warmstart(nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization)
                 else:
-                    if use_vortex_linearization:
-                        self.solve_with_vortex_linearization(nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization)
-                    else:
-                        self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
+                    self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
 
             else:
                 self.__generate_outputs_from_V(nlp, self.__V_init)
@@ -204,6 +200,8 @@ class Optimization(object):
 
         return None
 
+
+
     def update_runtime_info(self, timer, step_name):
 
         self.__timings[step_name] = time.time() - timer
@@ -249,9 +247,9 @@ class Optimization(object):
 
         self.__solve_succeeded = True
 
-        warmstart_solution_dict = save_op.extract_solution_dict_from_file(warmstart_file)
-        self.modify_args_for_warmstart(nlp, formulation, model, options, visualization, warmstart_solution_dict = warmstart_solution_dict)
-        self.modify_schedule_for_warmstart(final_homotopy_step, warmstart_solution_dict, nlp, model)
+        warmstart_trial = self.extract_warmstart_trial(warmstart_file)
+        self.set_warmstart_args(warmstart_trial, nlp)
+        self.define_warmstart_schedule(final_homotopy_step, warmstart_trial, nlp, model)
 
         # solve homotopy with warmstart
         self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
@@ -260,41 +258,6 @@ class Optimization(object):
 
         return None
 
-    def solve_with_vortex_linearization(self, nlp, model, formulation, options, vortex_linearization_file, final_homotopy_step, visualization):
-
-        if vortex_linearization_file == None:
-            self.solve_with_vortex_linearization_setup(nlp, model, options, final_homotopy_step, visualization)
-        else:
-            self.solve_with_vortex_linearization_iterative(nlp, formulation, model, options, vortex_linearization_file,
-                                                      final_homotopy_step, visualization)
-
-        return None
-
-    def solve_with_vortex_linearization_setup(self, nlp, model, options, final_homotopy_step, visualization):
-
-        self.__solve_succeeded = True
-
-        # solve set-up problem with homotopy (omitting the induction steps)
-        self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
-
-        awelogger.logger.info(print_op.hline('#'))
-
-        return None
-
-    def solve_with_vortex_linearization_iterative(self, nlp, formulation, model, options, vortex_linearization_file, final_homotopy_step, visualization):
-
-        self.__solve_succeeded = True
-
-        warmstart_solution_dict = save_op.extract_solution_dict_from_file(vortex_linearization_file)
-        self.modify_args_for_warmstart(nlp, formulation, model, options, visualization, warmstart_solution_dict=warmstart_solution_dict)
-        self.modify_schedule_for_vortex_linearization_iterative(final_homotopy_step, nlp, model)
-
-        # solve homotopy with warmstart
-        self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
-
-        awelogger.logger.info(print_op.hline('#'))
-
-        return None
 
     def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
 
@@ -426,36 +389,18 @@ class Optimization(object):
         # prepare for second part of homotopy step
         self.__V_bounds['ub']['phi',phi_name] = 0
         self.__V_bounds['lb']['phi',phi_name] = 0
-
-        return None
-
-    def __save_stats(self, step_name):
-
-        # add up iterations of multi-step homotopies
-        if step_name not in list(self.__iterations.keys()):
-            self.__iterations[step_name] = 0.
-            self.__t_wall[step_name] = 0.
-        self.__iterations[step_name] += self.__stats['iter_count']
-        self.__t_wall[step_name] += self.__stats['t_wall_total']
-        if 't_wall_callback_fun' in self.__stats.keys():
-            self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
-
         return None
 
 
-    ### arguments
+    def define_standard_args(self, nlp, formulation, model, options, visualization):
 
-    def define_standard_args(self, nlp, formulation, model, options, visualization, warmstart_solution_dict = None):
-
-        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = warmstart_solution_dict)
+        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, p_fix_num)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
 
         self.__V_init = nlp.V(self.__arg['x0'])
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
-
-        self.__V_ref = nlp.V(self.__p_fix_num['p','ref'])
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')
@@ -468,25 +413,37 @@ class Optimization(object):
         self.__V_bounds['lb'] = self.__arg['lbx']
         self.__V_bounds['ub'] = self.__arg['ubx']
 
+        self.__cost_update_counter = scheduling.initialize_cost_update_counter(nlp.P)
+
         return None
 
-    def modify_args_for_warmstart(self, nlp, formulation, model, options, visualization, warmstart_solution_dict):
 
-        use_vortex_linearization = 'lin' in nlp.P.keys()
+    def extract_warmstart_trial(self, warmstart_file):
+        if type(warmstart_file) == str:
+            try:
+                filehandler = open(warmstart_file, 'r')
+                load_trial = pickle.load(filehandler)
+                warmstart_trial = load_trial.generate_solution_dict()
+            except:
+                raise ValueError('Specified warmstart trial does not exist.')
+        elif type(warmstart_file) == dict:
+            warmstart_trial = warmstart_file
+        else:
+            warmstart_trial = warmstart_file.generate_solution_dict()
+
+        return warmstart_trial
+
+    def set_warmstart_args(self, warmstart_trial, nlp):
 
         # set up warmstart
         [V_init_proposed,
         lam_x_proposed,
-        lam_g_proposed] = struct_op.setup_warmstart_data(nlp, warmstart_solution_dict)
+        lam_g_proposed] = struct_op.setup_warmstart_data(nlp, warmstart_trial)
 
         V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
         if V_shape_matches:
             self.__V_init = V_init_proposed
             self.__arg['x0'] = self.__V_init.cat
-
-            if use_vortex_linearization:
-                self.__p_fix_num['lin'] = V_init_proposed
-
         else:
             raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
 
@@ -522,44 +479,16 @@ class Optimization(object):
         self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options)
         return None
 
-    def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_solution_dict, nlp, model):
+    def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_trial, nlp, model):
 
         # final homotopy step of warmstart file
-        warmstart_step = warmstart_solution_dict['final_homotopy_step']
+        warmstart_step = warmstart_trial['final_homotopy_step']
         initial_index = self.__schedule['homotopy'].index(warmstart_step)
 
         # check if schedule is still consistent
         final_index = self.__schedule['homotopy'].index(final_homotopy_step)
         if final_index < initial_index:
-            raise ValueError('Final homotopy step has a lower schedule index than specified initial (warmstart) step')
-
-        # adjust homotopy schedule
-        homotopy_schedule = self.__schedule['homotopy'][initial_index:]
-
-        self.__solve_succeeded = True
-
-        # ensure that problem is the correct problem
-        for step_name in self.__schedule['homotopy'][:initial_index]:
-            if step_name == 'initial' or step_name == 'final':
-                self.advance_counters_for_warmstart(step_name, 0, nlp, model)
-            else:
-                self.advance_counters_for_warmstart(step_name, 0, nlp, model)
-                self.advance_counters_for_warmstart(step_name, 1, nlp, model)
-
-        self.__schedule['homotopy'] = homotopy_schedule
-
-        return None
-
-    def modify_schedule_for_vortex_linearization_iterative(self, final_homotopy_step, nlp, model):
-
-        # starting homotopy step for iterative problem
-        initial_step = 'final'
-        initial_index = self.__schedule['homotopy'].index(initial_step)
-
-        # check if schedule is still consistent
-        final_index = self.__schedule['homotopy'].index(final_homotopy_step)
-        if final_index < initial_index:
-            raise ValueError('Final homotopy step has a lower schedule index than specified initial (warmstart) step')
+            raise ValueError('Final homotopy step has a lower schedule index than final step of warmstart file')
 
         # adjust homotopy schedule
         homotopy_schedule = self.__schedule['homotopy'][initial_index:]

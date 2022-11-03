@@ -36,9 +36,9 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.architecture as archi
 import awebox.mdl.wind as wind_module
 
-import awebox.mdl.aero.induction_dir.geom_dir.frenet_geometry as frenet_geom
-import awebox.mdl.aero.induction_dir.geom_dir.averaged_geometry as averaged_geom
-import awebox.mdl.aero.induction_dir.geom_dir.parent_geometry as parent_geom
+import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
+import awebox.mdl.aero.geometry_dir.averaged_geometry as averaged_geom
+import awebox.mdl.aero.geometry_dir.parent_geometry as parent_geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -106,7 +106,7 @@ def get_local_period_of_rotation(model_options, variables, kite, architecture):
 
     parent = architecture.parent_map[kite]
 
-    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'dq' + str(kite) + str(parent))
+    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(kite) + str(parent))
     dx_center = get_center_velocity(model_options, parent, variables, architecture)
     vec_v = dq_kite - dx_center
 
@@ -129,7 +129,7 @@ def get_vector_from_center_to_kite(model_options, variables, architecture, kite)
 
     parent = architecture.parent_map[kite]
 
-    q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(kite) + str(parent))
+    q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(kite) + str(parent))
     center = get_center_position(model_options, parent, variables, architecture)
 
     radius_vec = q_kite - center
@@ -139,8 +139,8 @@ def get_vector_from_center_to_kite(model_options, variables, architecture, kite)
 def kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, kite, architecture, wind):
     parent = architecture.parent_map[kite]
 
-    q_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'q' + str(kite) + str(parent))
-    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'dq' + str(kite) + str(parent))
+    q_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(kite) + str(parent))
+    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'dq' + str(kite) + str(parent))
 
     x_center = get_center_position(model_options, parent, variables_si, architecture)
     dx_center = get_center_velocity(model_options, parent, variables_si, architecture)

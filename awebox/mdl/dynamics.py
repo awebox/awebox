@@ -108,43 +108,38 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(induction_cstr)
 
     # ensure that energy matches power integration
-    power = get_power(options, system_variables['SI'], parameters, outputs, architecture)
+    power, _ = get_power(options, system_variables, parameters, outputs, architecture)
     derivative_dict_for_alongside_integration = {'e': power}
+    integral_scaling = {'e': options['scaling']['x']['e']}
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # entry_list = [cas.entry('e', expr=power / options['scaling']['x']['e'])]
-    #
-    # if options['trajectory']['system_type'] == 'drag_mode':
-    #     entry_list += [cas.entry('power_derivative_sq', expr=outputs['performance']['power_derivative'] ** 2)]
-    #     integral_scaling['power_derivative_sq'] = 1.0
-    #
-    # if options['induction_model'] == 'averaged':
-    #     tether_forces = 0.0
-    #     WdA = 0.0
-    #     for kite in architecture.kite_nodes:
-    #         tether_forces += outputs['local_performance']['tether_force{}'.format(architecture.node_label(kite))]
-    #         q = system_variables['SI']['x']['q{}'.format(architecture.node_label(kite))]
-    #         rho = atmos.get_density(q[2])[0]
-    #         u_inf = wind.get_velocity(q[2])[0]
-    #         dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
-    #         b = parameters['theta0', 'geometry', 'b_ref']
-    #         WdA += 0.5 * b * vect_op.norm(dq) * rho * u_inf ** 2
-    #     entry_list += [cas.entry('tether_force_int', expr=tether_forces)]
-    #     entry_list += [cas.entry('area_int', expr=WdA)]
-    #     integral_scaling['tether_force_int'] = 1.0
-    #     integral_scaling['area_int'] = 1.0
-    #
-    # integral_outputs = cas.struct_SX(entry_list)
-    #
-    # integral_scaling['e'] = options['scaling']['x']['e']
-    #
+    if options['trajectory']['system_type'] == 'drag_mode':
+        derivative_dict_for_alongside_integration['power_derivative_sq'] = outputs['performance']['power_derivative']**2
+        integral_scaling['power_derivative_sq'] = 1.0
+
+    if options['induction_model'] == 'averaged':
+        tether_forces = 0.0
+        WdA = 0.0
+        for kite in architecture.kite_nodes:
+            tether_forces += outputs['local_performance']['tether_force{}'.format(architecture.node_label(kite))]
+            q = system_variables['SI']['x']['q{}'.format(architecture.node_label(kite))]
+            rho = atmos.get_density(q[2])[0]
+            u_inf = wind.get_velocity(q[2])[0]
+            dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
+            b = parameters['theta0', 'geometry', 'b_ref']
+            WdA += 0.5 * b * vect_op.norm(dq) * rho * u_inf ** 2
+        derivative_dict_for_alongside_integration['tether_force_int'] = tether_forces
+        derivative_dict_for_alongside_integration['area_int'] = WdA
+        integral_scaling['tether_force_int'] = 1.0
+        integral_scaling['area_int'] = 1.0
+
     derivative_of_integrated_circulation_dict = induction.get_derivative_dict_for_alongside_integration(options, outputs, architecture)
     for local_key, local_val in derivative_of_integrated_circulation_dict.items():
         if not local_key in derivative_dict_for_alongside_integration.keys():
             derivative_dict_for_alongside_integration[local_key] = local_val
 
-    integral_outputs_fun, integral_outputs_struct, integral_scaling, alongside_integration_cstr = manage_alongside_integration(options,
+    integral_outputs, integral_outputs_fun, integral_scaling, alongside_integration_cstr = manage_alongside_integration(options,
                                                                                                                 derivative_dict_for_alongside_integration,
+                                                                                                                integral_scaling,
                                                                                                                 system_variables,
                                                                                                                 parameters)
     cstr_list.append(alongside_integration_cstr)
@@ -178,9 +173,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     # ensure that energy matches power integration
     power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
-    integral_outputs, integral_outputs_fun, integral_scaling, energy_cstr = manage_power_integration(options, power, outputs, system_variables, parameters, architecture, atmos, wind)
-    cstr_list.append(energy_cstr)
-
     P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
     cstr_list.append(P_max_cstr)
 
@@ -246,7 +238,7 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 
     return None
 
-def manage_alongside_integration(options, derivative_dict_for_alongside_integration, system_variables, parameters, architecture, atmos, wind):
+def manage_alongside_integration(options, derivative_dict_for_alongside_integration, integral_scaling, system_variables, parameters):
 
     # dynamics function options
     if options['jit_code_gen']['include']:
@@ -254,10 +246,6 @@ def manage_alongside_integration(options, derivative_dict_for_alongside_integrat
     else:
         opts = {}
 
-    # generate empty integral_outputs struct
-    integral_outputs = cas.struct_SX([])
-
-    integral_scaling = {}
     integral_outputs_expr_entries = []
     integral_outputs_struct_entries = []
     cstr_list = cstr_op.MdlConstraintList()
@@ -265,7 +253,7 @@ def manage_alongside_integration(options, derivative_dict_for_alongside_integrat
     for integral_var_name, integral_derivative_expression_si in derivative_dict_for_alongside_integration.items():
         # for example, integral_var_scaled = 'e' with integral_derivative_expression = power / options['scaling']['xd']['e']
 
-        local_scaling = options['scaling']['xd'][integral_var_name]
+        local_scaling = integral_scaling[integral_var_name]
         local_expression_scaled = integral_derivative_expression_si / local_scaling
 
         if options['integral_outputs']:
@@ -276,15 +264,15 @@ def manage_alongside_integration(options, derivative_dict_for_alongside_integrat
             local_shape = integral_derivative_expression_si.shape
             integral_outputs_struct_entries += [cas.entry(integral_var_name, shape=local_shape)]
 
-            integral_scaling[integral_var_name] = local_scaling
-
         else:
-            local_resi = (system_variables['scaled']['xddot']['d' + integral_var_name] - local_expression_scaled)
+            local_resi = (system_variables['scaled']['xdot']['d' + integral_var_name] - local_expression_scaled)
 
             local_cstr = cstr_op.Constraint(expr=local_resi,
                                            name='integral_' + integral_var_name,
                                            cstr_type='eq')
             cstr_list.append(local_cstr)
+
+    integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
 
     # dynamics function options
     if options['jit_code_gen']['include']:

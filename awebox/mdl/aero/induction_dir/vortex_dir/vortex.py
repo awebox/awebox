@@ -29,7 +29,7 @@ _python-3.5 / casadi-3.4.5
 '''
 import pdb
 
-import awebox.mdl.aero.induction_dir.geom_dir.unit_normal as unit_normal
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
@@ -47,7 +47,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake as obj_w
 
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.algebraic_representation as algebraic_representation
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
-import awebox.mdl.aero.induction_dir.vortex_dir.state_repr_dir.state_representation as state_representation
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
@@ -66,9 +65,6 @@ def build(model_options, architecture, wind, variables_si, parameters):
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'alg':
         return algebraic_representation.build(model_options, architecture, wind, variables_si, parameters)
-    elif vortex_representation == 'state':
-        print_op.warn_about_temporary_functionality_alteration()
-        return state_representation.build(model_options, architecture, wind, variables_si, parameters)
     else:
         vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
@@ -87,7 +83,7 @@ def get_model_constraints(model_options, wake, scaling, wind, variables_si, para
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'state':
-        print_op.warn_about_temporary_functionality_alteration()
+        vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
     return cstr_list
 
@@ -137,9 +133,6 @@ def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_g
         vortex_representation = general_tools.get_option_from_possible_dicts(nlp_options, 'representation', 'vortex')
         if vortex_representation == 'alg':
             return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
-        elif vortex_representation == 'state':
-            print_op.warn_about_temporary_functionality_alteration()
-            return state_representation.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
         else:
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
@@ -153,9 +146,6 @@ def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
 
         if vortex_representation == 'alg':
             return algebraic_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
-        elif vortex_representation == 'state':
-            print_op.warn_about_temporary_functionality_alteration(location='vortex.state')
-            return state_representation.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
         else:
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 

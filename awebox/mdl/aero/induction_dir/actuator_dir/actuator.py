@@ -41,7 +41,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
-import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.geometry as geom
 
 import awebox.tools.constraint_operations as cstr_op
 

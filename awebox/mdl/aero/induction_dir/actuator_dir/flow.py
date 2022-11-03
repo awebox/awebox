@@ -38,7 +38,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.geom_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.geometry as geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op

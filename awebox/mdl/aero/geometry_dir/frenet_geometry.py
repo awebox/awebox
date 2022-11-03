@@ -164,31 +164,31 @@ def get_radius_of_curvature(variables_si, kite, parent):
     return radius
 
 def get_gamma(variables, kite, parent):
-    gamma = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(kite) + str(parent))
+    gamma = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(kite) + str(parent))
     return gamma
 
 def get_dgamma_dt(variables, kite, parent):
-    dgamma_dt = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'dq' + str(kite) + str(parent))
+    dgamma_dt = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(kite) + str(parent))
     return dgamma_dt
 
 def get_ddgamma_ddt(variables, kite, parent):
-    ddgamma_ddt = struct_op.get_variable_from_model_or_reconstruction(variables, 'xddot', 'ddq' + str(kite) + str(parent))
+    ddgamma_ddt = struct_op.get_variable_from_model_or_reconstruction(variables, 'xdot', 'ddq' + str(kite) + str(parent))
     return ddgamma_ddt
 
 def variables_have_third_derivative_information(variables, kite, parent):
     label = 'dddq' + str(kite) + str(parent) + ',0'
-    if (isinstance(variables, dict)) and ('xddot' in variables.keys()):
-        return ('[' + label + ']' in variables['xddot'].labels())
-    if (isinstance(variables, dict)) and not ('xddot' in variables.keys()):
+    if (isinstance(variables, dict)) and ('xdot' in variables.keys()):
+        return ('[' + label + ']' in variables['xdot'].labels())
+    if (isinstance(variables, dict)) and not ('xdot' in variables.keys()):
         message = 'cannot determine if the variables have third degree-of-freedom information'
         awelogger.logger.error(message)
         raise Exception(message)
     else:
-        return ('[xddot,' + label + ']' in variables.labels())
+        return ('[xdot,' + label + ']' in variables.labels())
 
 def get_dddgamma_dddt(variables_si, kite, parent):
     if variables_have_third_derivative_information(variables_si, kite, parent):
-        dddgamma_dddt = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xddot',
+        dddgamma_dddt = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xdot',
                                                                           'dddq' + str(kite) + str(parent))
     else:
         dddgamma_dddt = cas.DM.zeros((3, 1))

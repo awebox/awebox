@@ -50,7 +50,7 @@ def get_center_position(parent, variables, architecture):
 
     center = np.zeros((3, 1))
     for kite in children:
-        q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'q' + str(kite) + str(parent))
+        q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(kite) + str(parent))
         center += q_kite / number_children
 
     return center
@@ -62,7 +62,7 @@ def get_center_velocity(parent, variables, architecture):
 
     dcenter = np.zeros((3, 1))
     for kite in children:
-        dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'xd', 'dq' + str(kite) + str(parent))
+        dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(kite) + str(parent))
         dcenter += dq_kite / number_children
 
     return dcenter

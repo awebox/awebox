@@ -77,19 +77,7 @@ def get_shooting_params(nlp_options, V, P, model):
     shooting_nodes = count_shooting_nodes(nlp_options)
 
     parameters = model.parameters
-
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
-
-        coll_params = []
-        for kdx in range(shooting_nodes):
-            loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx)
-            coll_params = cas.horzcat(coll_params, loc_params)
-
-    else:
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
-
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
     return coll_params
 
 
@@ -116,20 +104,7 @@ def get_coll_params(nlp_options, V, P, model):
     N_coll = n_k * d # collocation points
 
     parameters = model.parameters
-
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
-
-        coll_params = []
-        for kdx in range(n_k):
-            for ddx in range(d):
-                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx, ddx)
-                coll_params = cas.horzcat(coll_params, loc_params)
-
-    else:
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
-
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
     return coll_params
 
 
@@ -151,11 +126,6 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
     N_ms = n_k  # collocation points
 
     parameters = model.parameters
-
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        message = 'vortex induction model not yet supported for multiple shooting problems.'
-        awelogger.logger.error(message)
 
     ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
 
