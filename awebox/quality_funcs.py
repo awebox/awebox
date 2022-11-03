@@ -26,6 +26,7 @@
 # This file stores all quality tests
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 # edit: Rachel Leuthold, ALU-FR, 2019-20
+import pdb
 
 ######################################
 
@@ -104,7 +105,11 @@ def test_invariants(trial, test_param_dict, results):
             c_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
             dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'dc{}{}'.format(node, parent))
 
-            c_sol = np.max(np.abs(out_local[c_idx, :]))
+            try:
+                c_sol = np.max(np.abs(out_local[c_idx, :]))
+            except:
+                pdb.set_trace()
+
             dc_sol = np.max(np.abs(out_local[dc_idx, :]))
 
             if DOF6 and node in architecture.kite_nodes:
