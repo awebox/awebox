@@ -5,6 +5,7 @@ MPC-based closed loop simulation example for a single 3DOF kite system.
 
 # imports
 import awebox as awe
+import awebox.sim as sim
 import casadi as ca
 import copy
 import matplotlib.pyplot as plt
@@ -71,7 +72,7 @@ options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initializatio
 options['sim.sys_params']['wind']['u_ref'] = 1.0*options['sim.sys_params']['wind']['u_ref']
 
 # make simulator
-closed_loop_sim = awe.sim.Simulation(trial, 'closed_loop', ts, options)
+closed_loop_sim = sim.Simulation(trial, 'closed_loop', ts, options)
 closed_loop_sim.run(N_sim)
 closed_loop_sim.plot(['isometric','states'])
 plt.show()

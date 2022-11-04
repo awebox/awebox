@@ -51,7 +51,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     ocp_cstr_entry_list = []
 
     if nlp_options['generate_constraints']:
-        awelogger.logger.info('generate constraints...')
+        awelogger.logger.info('Generating constraints...')
 
         direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
         multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')

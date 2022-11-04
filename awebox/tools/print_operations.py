@@ -268,16 +268,8 @@ class Table:
         return message
 
     def print(self, level='info'):
-        if level == 'info':
-            awelogger.logger.info(self.to_string())
-        elif level == 'warning':
-            awelogger.logger.warning(self.to_string())
-        elif level == 'error':
-            awelogger.logger.error(self.to_string())
-        else:
-            print(self.to_string())
+        base_print(self.to_string())
         return None
-
 
     @property
     def dict(self):
@@ -322,16 +314,73 @@ def test_table_print():
         log_and_raise_error(message)
 
 
-def print_dict_as_dot_separated_two_column_table(dict):
-    for name, value in dict.items():
-        print_dot_separated_info(name, value)
-    awelogger.logger.info('')
+def get_depth_of_dict(dict):
+    local_dict = dict
+    depth = 0
+    while hasattr(local_dict, 'keys'):
+        depth += 1
+        local_dict = [value for value in local_dict.values()][0]
+    return depth
+
+def test_depth_function():
+
+    dict0 = 0.3
+    expected = 0
+    condition_0 = (get_depth_of_dict(dict0) == expected)
+
+    dict1 = {'a':1.}
+    expected = 1
+    condition_1 = (get_depth_of_dict(dict1) == expected)
+
+    dict2 = {'a':{'b':1}}
+    expected = 2
+    condition_2 = (get_depth_of_dict(dict2) == expected)
+
+    criteria = condition_0 and condition_1 and condition_2
+    if not criteria:
+        message = 'something went wrong in the depth_of_dict function'
+        log_and_raise_error(message)
+
+def base_print(string, level='info'):
+    if level == 'info':
+        awelogger.logger.info(string)
+    elif level == 'warning':
+        awelogger.logger.warning(string)
+    elif level == 'error':
+        awelogger.logger.error(string)
+    else:
+        print(string)
+
+
+def print_dict_as_table(dict, level='info'):
+    depth = get_depth_of_dict(dict)
+
+    if depth == 0:
+        base_print(dict, level=level)
+    elif depth == 1:
+        print_dict_as_dot_separated_two_column_table(dict, level=level)
+
+    elif depth == 2:
+        tab = Table()
+        for row_head, row_dict in dict.items():
+            tab.append_row_with_overwrite(row_dict=row_dict, row_head=row_head)
+        tab.print(level=level)
+    else:
+        message = 'function to print_dict_as_table is not available for dicts of depth ' + str(depth)
+        log_and_raise_error(message)
 
     return None
 
-def print_dot_separated_info(name, value):
+def print_dict_as_dot_separated_two_column_table(dict, level='info'):
+    for name, value in dict.items():
+        print_dot_separated_info(name, value, level=level)
+    base_print('', level=level)
+
+    return None
+
+def print_dot_separated_info(name, value, level='info'):
     message = "{:.<26}: {}".format(name, value)
-    awelogger.logger.info(message)
+    base_print(message, level=level)
     return None
 
 
@@ -348,3 +397,6 @@ def print_progress(index, total_count):
 
 def test():
     test_table_print()
+    test_depth_function()
+
+test_depth_function()

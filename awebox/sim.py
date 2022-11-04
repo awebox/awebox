@@ -35,13 +35,12 @@ import awebox.pmpc as pmpc
 import awebox.tools.integrator_routines as awe_integrators
 import awebox.viz.visualization as visualization
 import awebox.viz.tools as viz_tools
-import awebox.opts.options
-import awebox.mdl.architecture as archi
 import copy
 import numpy as np
+import pdb
 
 class Simulation:
-    def __init__(self, trial, sim_type, ts, options_seed):
+    def __init__(self, trial, sim_type, ts, options):
         """ Constructor.
         """
 
@@ -51,8 +50,9 @@ class Simulation:
         self.__sim_type = sim_type
         self.__trial = trial
         self.__ts = ts
-        options = awebox.opts.options.Options()
-        options.fill_in_seed(options_seed)
+        
+        pdb.set_trace()
+        
         self.__sim_options = options['sim']
         self.__mpc_options = options['mpc']
         self.__build()
@@ -87,7 +87,7 @@ class Simulation:
         #  initialize and build visualization
         self.__visualization = visualization.Visualization()
         self.__visualization.build(self.__trial.model, self.__trial.nlp, 'simulation', self.__trial.options)
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
             self.__visualization.plot_dict[var_type] = {}
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 self.__visualization.plot_dict[var_type][name] = []
@@ -128,7 +128,7 @@ class Simulation:
                 u0 = self.__u_sim[:,i]
 
             # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
+            var_next = self.__F(x0 = x0, p = u0, z0 = self.__z0)
             self.__store_results(x0, u0, var_next['qf'])
 
             # shift initial state
@@ -144,7 +144,7 @@ class Simulation:
 
         # take first state of optimization trial
         if x0 is None:
-            x0 = self.__trial.optimization.V_opt['x',0]
+            x0 = self.__trial.optimization.V_opt['xd',0]
 
         # set-up open loop controls
         if self.__sim_type == 'open_loop':
@@ -154,7 +154,7 @@ class Simulation:
                 self.__trial.optimization.V_opt)
             T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
             t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
-            self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
+            self.__t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
             for name in list(self.__trial.model.variables_dict['u'].keys()):
                 for j in range(self.__trial.variables_dict['u'][name].shape[0]):
                     values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
@@ -194,34 +194,36 @@ class Simulation:
 
     def __store_results(self, x0, u0, qf):
 
-        x = self.__trial.model.variables_dict['x'](x0)
+        x = self.__trial.model.variables_dict['xd'](x0)
         variables = self.__trial.model.variables(0.1)
-        variables['x'] = x0
+        variables['xd'] = x0
         variables['u']  = u0
         variables['theta'] = self.__theta
         x, z, p = self.__dae.fill_in_dae_variables(variables, self.__parameters_num)
         z0 = self.__dae.dae['z'](self.__dae.rootfinder(z, x, p))
 
-        variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
-        variables['xdot'] = self.__trial.model.variables_dict['xdot'](z0['xdot'])
+        variables['xa'] = self.__trial.model.variables_dict['xa'](z0['xa'])
+        if 'xl' in list(variables.keys()):
+            variables['xl'] = self.__trial.model.variables_dict['xl'](z0['xl'])
+        variables['xddot'] = self.__trial.model.variables_dict['xddot'](z0['xddot'])
 
         # evaluate system outputs
         outputs = self.__trial.model.outputs(self.__trial.model.outputs_fun(variables, self.__parameters_num))
         qf = self.__trial.model.integral_outputs(qf)
 
         # store results
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type][name])
+                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim]*self.__trial.model.scaling[var_type][name])
 
         for output_type in list(self.__trial.model.outputs.keys()):
             for name in list(self.__trial.model.outputs_dict[output_type].keys()):
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
-                    self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim].full()[0][0])
+                    self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim])
 
         for name in self.__visualization.plot_dict['integral_variables']:
-            self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name].full()[0][0])
+            self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name])
 
         return None
 
@@ -239,10 +241,10 @@ class Simulation:
         """
 
         # vectorize result lists for plotting
-        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xddot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    self.__visualization.plot_dict[var_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict[var_type][name][dim]).full().squeeze()
+                    self.__visualization.plot_dict[var_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict[var_type][name][dim])
 
         for output_type in list(self.__trial.model.outputs.keys()):
             for name in list(self.__trial.model.outputs_dict[output_type].keys()):

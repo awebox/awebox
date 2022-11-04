@@ -180,7 +180,7 @@ class Model(object):
         if self.__options['cross_tether']:
             options_dict['Cross-tether attachment'] = self.__options['tether']['cross_tether']['attachment']
 
-        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
+        print_op.print_dict_as_table(options_dict)
 
         awelogger.logger.info('Model dimensions:')
         dimensions_dict = {
@@ -190,7 +190,7 @@ class Model(object):
             'np_var': self.variables_dict['theta'].shape[0],
             'np_fix': self.parameters_dict['theta0'].shape[0]
         }
-        print_op.print_dict_as_dot_separated_two_column_table(dimensions_dict)
+        print_op.print_dict_as_table(dimensions_dict)
 
         awelogger.logger.info('Model constraints:')
 

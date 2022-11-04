@@ -160,6 +160,7 @@ def generate_options_dict():
 
     # set options
     single_kite_options = {}
+    single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['user_options.system_model.architecture'] = {1:0}
     single_kite_options['user_options.trajectory.lift_mode.windings'] = 3
     single_kite_options['user_options.kite_standard'] = ampyx_data.data_dict()

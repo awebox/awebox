@@ -667,7 +667,7 @@ class Optimization(object):
         if self.__options['homotopy_method'] == 'classic':
             options_dict['Homotopy step'] = self.__options['homotopy_step']
 
-        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
+        print_op.print_dict_as_table(options_dict)
 
         return None
 

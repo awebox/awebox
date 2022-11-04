@@ -312,7 +312,6 @@ def set_default_options(default_user_options, help_options):
 
 
         ### solver options
-        # todo: embed other solvers
         ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
         ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
         ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),

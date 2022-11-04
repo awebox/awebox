@@ -172,7 +172,7 @@ class NLP(object):
         if self.__options['system_type'] == 'lift_mode':
             options_dict['Phase-fix strategy'] = self.__options['phase_fix']
 
-        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
+        print_op.print_dict_as_table(options_dict)
 
         return None
 
@@ -186,7 +186,7 @@ class NLP(object):
             'n_eq': self.ocp_cstr_list.get_expression_list('eq').shape[0],
             'n_ineq': self.ocp_cstr_list.get_expression_list('ineq').shape[0]
         }
-        print_op.print_dict_as_dot_separated_two_column_table(dimension_dict)
+        print_op.print_dict_as_table(dimension_dict)
 
         return None
 

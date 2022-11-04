@@ -251,13 +251,14 @@ class Trial(object):
         optimal_label = 'Value at Optimal Solution'
         dimension_label = 'Dimension'
 
-        table = print_op.Table()
-        table.append_row_with_overwrite({parameter_label: 'Average power output',
+        dict_parameters = {
+            0: {parameter_label: 'Average power output',
                                          optimal_label: str(avg_power/1.e3),
-                                         dimension_label: 'kW'})
-        table.append_row_with_overwrite({parameter_label: 'Time period',
+                                         dimension_label: 'kW'},
+            1: {parameter_label: 'Time period',
                                          optimal_label: str(time_period),
-                                         dimension_label: 's'})
+                                         dimension_label: 's'}
+            }
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
@@ -276,10 +277,11 @@ class Trial(object):
         for theta in self.model.variables_dict['theta'].keys():
             if theta != 't_f':
                 info = theta_info[theta]
-                table.append_row_with_overwrite({parameter_label: info[0],
+                dict_parameters[len(dict_parameters.keys())] = {parameter_label: info[0],
                                                  optimal_label: str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
-                                                 dimension_label: info[2]})
-        table.print(level='info')
+                                                 dimension_label: info[2]}
+
+        print_op.print_dict_as_table(dict_parameters)
 
         return None
 
@@ -353,12 +355,12 @@ class Trial(object):
         message = '... cost components at solution are:'
         awelogger.logger.info(message)
 
-        print_op.print_dict_as_dot_separated_two_column_table(cost_dict)
+        print_op.print_dict_as_table(cost_dict)
 
         awelogger.logger.info('')
 
         total_dict = {'total_cost': self.nlp.f_fun(V_solution_scaled, p_fix_num)}
-        print_op.print_dict_as_dot_separated_two_column_table(total_dict)
+        print_op.print_dict_as_table(total_dict)
 
         return None
 
