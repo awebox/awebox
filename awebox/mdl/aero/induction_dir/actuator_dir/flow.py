@@ -56,7 +56,8 @@ def get_a_var_type(label):
     elif label[0] == 'u':
         var_type = 'x'
     else:
-        raise Exception('Invalid steadyness option for actuator disk model chosen')
+        message = "Invalid steadyness option (" + str(label[0]) + ") for actuator disk model chosen"
+        print_op.error(message)
 
     return var_type
 
@@ -326,8 +327,7 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
 
     else:
         message = 'an unfamiliar actuator model label was entered when computing the local induction factor'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return a_local
 
@@ -410,9 +410,9 @@ def get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameter
     elif wake_skew == 'not_in_use':
         chi_val = 0.
     else:
-        chi_val = 0.
         message = 'unknown wake skew angle (chi) model selected'
-        raise Exception(message)
+        print_op.error(message)
+
     return chi_val
 
 
@@ -439,8 +439,7 @@ def get_label(model_options):
     else:
         message = 'unrecognized actuator option (' + steadyness + ', ' + symmetry + ') indicated. available ' \
                 'options are: ' + repr(accepted_steadyness_dict.keys()) + ' and ' + repr(accepted_symmetry_dict.keys())
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return label
 
@@ -489,9 +488,8 @@ def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, par
         corr_val = get_corr_val_simple(model_options, variables, parent, label)
 
     else:
-        message = 'unknown actuator angle correction model selected'
-        raise Exception(message)
-        corr_val = get_corr_val_simple(model_options, variables, parent, label)
+        message = 'unknown actuator angle correction model selected: ' + actuator_skew
+        print_op.error(message)
 
     return corr_val
 

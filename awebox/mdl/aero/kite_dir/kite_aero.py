@@ -40,7 +40,9 @@ import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.geometry_dir.geometry as geom
 from awebox.logger.logger import Logger as awelogger
+
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
 import casadi.tools as cas
 
 def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
@@ -72,7 +74,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        awelogger.logger.error(message)
+        print_op.error(message)
 
     if int(options['kite_dof']) == 3:
 
@@ -107,7 +109,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
 
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        awelogger.logger.error(message)
+        print_op.error(message)
 
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 

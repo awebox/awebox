@@ -61,8 +61,7 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
 
     if not nlp.discretization == 'direct_collocation':
         message = 'vortex induction model is only defined for direct-collocation model, at this point'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     V_init = vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
 

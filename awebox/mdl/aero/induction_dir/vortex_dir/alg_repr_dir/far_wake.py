@@ -51,6 +51,8 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.wake_substructure as obj_wake_substructure
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+
 from awebox.logger.logger import Logger as awelogger
 
 def build(options, architecture, wind, variables_si, parameters):
@@ -79,8 +81,7 @@ def build_per_kite(options, kite, wind, variables_si, parameters, architecture):
         list = obj_element_list.ElementList(expected_number_of_elements=0)
     else:
         message = 'unexpected type of far-wake vortex element (' + far_wake_element_type + '). maybe, check your spelling?'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return list
 
@@ -253,8 +254,7 @@ def test_correct_finite_filaments_defined():
     criteria = condition1 and condition2 and condition3
     if not criteria:
         message = 'far_wake (finite filament) does not contain the expected vortex elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -308,8 +308,7 @@ def test_correct_semi_infinite_filaments_defined():
     criteria = condition1 and condition2 and condition3
     if not criteria:
         message = 'far_wake (semi-infinite filament) does not contain the expected vortex elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -411,8 +410,7 @@ def test_correct_semi_infinite_right_cylinders_defined():
     if not criteria:
 
         message = 'far_wake (semi-infinite right cylinder) does not contain the expected vortex elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

@@ -34,6 +34,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -105,18 +106,14 @@ def test_invariants(trial, test_param_dict, results):
             c_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
             dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'dc{}{}'.format(node, parent))
 
-            try:
-                c_sol = np.max(np.abs(out_local[c_idx, :]))
-            except:
-                pdb.set_trace()
-
-            dc_sol = np.max(np.abs(out_local[dc_idx, :]))
+            c_sol = np.max(np.abs(np.array(out_local[c_idx, :])))
+            dc_sol = np.max(np.abs(np.array(out_local[dc_idx, :])))
 
             if DOF6 and node in architecture.kite_nodes:
                 r_list = []
                 for jdx in range(9):
                     r_idx = struct_op.find_output_idx(outputs, 'tether_length', 'orthonormality{}{}'.format(node,parent), jdx)
-                    r_list.append(np.max(np.abs(out_local[r_idx, :])))
+                    r_list.append(np.max(np.abs(np.array(out_local[r_idx, :]))))
                 r_sol = max(r_list)
 
             # test whether invariants are small enough
@@ -162,24 +159,27 @@ def test_variables(trial, test_param_dict, results):
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
 
+    results['min_node_height'] = True
+
     # test if height of all nodes is positive
     for node in range(1, number_of_nodes):
+
+        error_message = 'Node ' + node_str + ' has negative height for trial ' + trial.name
+
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
+
         heights_x = np.array(V_final['x',:,node_str,2])
+        if np.min(heights_x) < 0.:
+            results['min_node_height'] = False
+
         if discretization == 'direct_collocation':
             heights_coll_var = np.array(V_final['coll_var',:,:,'x',node_str,2])
-            if np.min(heights_coll_var) < 0.:
-                coll_height_flag = True
-        if np.min(heights_x) < 0.:
-            awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
-            results['min_node_height'] = False
-        if discretization == 'direct_collocation':
             if np.min(heights_coll_var) < 0:
-                awelogger.logger.warning('Node ' + node_str + ' has negative height for trial ' + trial.name)
                 results['min_node_height'] = False
-        else:
-            results['min_node_height'] = True
+
+        if not results['min_node_height']:
+            print_op.error(error_message)
 
     return results
 

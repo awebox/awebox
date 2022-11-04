@@ -129,13 +129,16 @@ class Formulation(object):
                 V_pickle = parameterized_trial.optimization.V_final
                 plot_dict_pickle = parameterized_trial.visualization.plot_dict
             elif relative_path[-2:] == '.p':
-                awelogger.logger.error('Error: reading in of pickled trajectories as .p files not supported anymore. Please use .awe files.')
+                message = 'reading in of pickled trajectories as .p files not supported anymore. Please use .awe files.'
+                print_op.error(message)
+
             elif relative_path[-5:] == '.dict':
                 parameterized_trial_seed = pickle.load(open(relative_path, 'rb'))
                 V_pickle = parameterized_trial_seed['solution_dict']['V_final']
                 plot_dict_pickle = parameterized_trial_seed['plot_dict']
             else:
-                raise ValueError(initial_or_terminal.capitalize() + ' trajectory must be supplied in form of an .awe')
+                message = initial_or_terminal.capitalize() + ' trajectory must be supplied in form of an .awe'
+                print_op.error(message)
 
         return V_pickle, plot_dict_pickle
 

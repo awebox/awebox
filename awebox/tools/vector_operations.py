@@ -294,8 +294,7 @@ def columnize(matrix):
 
     if not hasattr(matrix, 'shape'):
         message = 'the columnize function is not yet available for objects that do not have a shape attribute'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     shape = matrix.shape
 
@@ -304,8 +303,7 @@ def columnize(matrix):
             matrix = cas.DM(matrix)
         else:
             message = 'the columnize function is not yet available for 1D objects that are not numpy ndarrays.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     # only procede with 2D matrices for variable
     [counted_rows, counted_columns] = matrix.shape
@@ -326,7 +324,7 @@ def resquare(column):
         return cas.reshape(column, (side, side))
     else:
         message = 'column matrix cannot be re-squared. inappropriate number of entries: ' + str(entries)
-        awelogger.logger.error(message)
+        print_op.error(message)
         return column
 
 def sign(val, eps=1e-8):
@@ -486,8 +484,7 @@ def elliptic_k(approximation_order_for_elliptic_integrals=6, k=None, m=None):
 
     else:
         message = 'elliptic_k approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
     # correct for rounding errors in the coefficients at initial condition (m=0)
@@ -532,8 +529,7 @@ def elliptic_k_approximation_max_abs_error(approximation_order_for_elliptic_inte
 
     else:
         message = 'elliptic_k approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return max_abs_error
 
@@ -550,8 +546,8 @@ def test_elliptic_k_at_position(approximation_order_for_elliptic_integrals, elli
     error = diff / expected
     if (abs(error) > error_bound):
         message = 'the error of the elliptic integral K(m) approximation (N=' + str(approximation_order_for_elliptic_integrals) + ') was not within the expected range, at m = ' + str(elliptic_m)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
+
     return None
 
 def test_elliptic_k(epsilon=1.e-5):
@@ -614,8 +610,7 @@ def test_elliptic_pi(epsilon=1.e-4):
     error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(origin) elliptic integral Pi(n|alpha) approximation did not work as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     # m = 0 case
     n = 0.5
@@ -626,8 +621,7 @@ def test_elliptic_pi(epsilon=1.e-4):
     error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(m=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
     # n = 0 case
@@ -639,9 +633,7 @@ def test_elliptic_pi(epsilon=1.e-4):
     error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(n=0 case) elliptic integral Pi(n|m) approximation did not work as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
     # center case
     n = 0.5
@@ -652,8 +644,7 @@ def test_elliptic_pi(epsilon=1.e-4):
     error = (found - expected) / expected
     if (error**2. > error_bound**2.):
         message = '(center) elliptic integral Pi(n|alpha) approximation did not work as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -662,18 +653,17 @@ def get_elliptic_m_from_m_or_k(k=None, m=None):
         m = k**2.
     elif (m is None) and (k is None):
         message = 'no acceptable argument given for elliptic integral approximation'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
+
     elif (m is not None) and (k is not None):
         message = 'too many arguments given for elliptic integral approximation'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     if (isinstance(m, float)) or (isinstance(m, int)) or (isinstance(m, cas.DM)):
         if not (m >= 0 and m <= 1):
             message = 'm argument of elliptic integral is outside of acceptable range.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
+
     # else:
         # be advised: as the argument of elliptic integral is a casadi symbolic, cannot automatically check that m is within acceptable range of 0 <= m < 1
 
@@ -713,8 +703,7 @@ def elliptic_e(approximation_order_for_elliptic_integrals=3, k=None, m=None):
 
     else:
         message = 'elliptic_e approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     # correct for rounding errors in the coefficients at initial condition (m=0)
     if aa.shape[0] > 1:
@@ -758,8 +747,7 @@ def elliptic_e_approximation_max_abs_error(approximation_order_for_elliptic_inte
 
     else:
         message = 'elliptic_e approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return max_abs_error
 
@@ -773,8 +761,7 @@ def test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elli
     error = diff / expected
     if (abs(error) > error_bound):
         message = 'the error of the elliptic integral E(m) approximation (N=' + str(approximation_order_for_elliptic_integrals) + ') was not within the expected range, at m = ' + str(elliptic_m)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
     return None
 
 def test_elliptic_e(epsilon=1.e-5):
@@ -803,8 +790,7 @@ def test_altitude():
     thresh = 1.e-6
     if thresh < difference**2.:
         message = 'biot-savart right-triangle altitude test gives error of size: ' + str(difference)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     # obtuse triangle
     x_1 = 1. * xhat_np()
@@ -813,8 +799,7 @@ def test_altitude():
     thresh = 1.e-6
     if thresh < difference**2.:
         message = 'biot-savart obtuse-triangle altitude test gives error of size: ' + str(difference)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

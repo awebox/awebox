@@ -123,8 +123,7 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
     criteria = cond1 and cond2 and cond3
     if not criteria:
         message = 'something went wrong when initializing the vortex ring strength variables. '
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -172,8 +171,7 @@ def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init
 
                 if radius_error_greater_than_theshhold or period_error_greater_than_theshhold:
                     message = 'something went wrong when computing the outputs used to initialize the vortex variables. is it possible that the si and scaled inputs have gotten confused?'
-                    awelogger.logger.error(message)
-                    raise Exception(message)
+                    print_op.error(message)
 
     return None
 
@@ -202,8 +200,7 @@ def get_specific_local_initialization(abbreviated_var_name, init_options, V_init
         var_val_si = alg_fixing.get_local_cylinder_center_value(init_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx_find, ddx_find)
     else:
         message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     var_val_scaled = struct_op.var_si_to_scaled('xl', var_name, var_val_si, model.scaling)
 

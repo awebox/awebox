@@ -129,7 +129,7 @@ def from_named_frame_to_body(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        awelogger.logger.error(message)
+        print_op.error(message)
 
         return vector
 
@@ -146,7 +146,7 @@ def from_named_frame_to_control(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        awelogger.logger.error(message)
+        print_op.error(message)
 
         return vector
 
@@ -163,7 +163,7 @@ def from_named_frame_to_earth(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        awelogger.logger.error(message)
+        print_op.error(message)
 
         return vector
 
@@ -180,7 +180,7 @@ def from_named_frame_to_wind(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        awelogger.logger.error(message)
+        print_op.error(message)
 
         return vector
 
@@ -197,7 +197,7 @@ def from_named_frame_to_named_frame(from_name, to_name, vec_u, kite_dcm, vector)
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(to_name) +'. Proceding ' + \
                     'without frame conversion.'
-        awelogger.logger.error(message)
+        print_op.error(message)
 
         return vector
 
@@ -232,56 +232,32 @@ def test_horizontal_body_earth(epsilon):
     dir = 'chord body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat1_k)
     reference = ehat_chord
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'span body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat2_k)
     reference = ehat_span
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'up body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat3_k)
     reference = ehat_up
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'chord earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_chord)
     reference = ehat1_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'span earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_span)
     reference = ehat2_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'up earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_up)
     reference = ehat3_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        awelogger.logger.error(message)
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     return None
 
@@ -305,60 +281,44 @@ def test_vertical_body_earth(epsilon):
     dir = 'chord body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat1_k)
     reference = ehat_chord
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'span body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat2_k)
     reference = ehat_span
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'up body->earth'
     transformed = from_body_to_earth(kite_dcm, ehat3_k)
     reference = ehat_up
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'chord earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_chord)
     reference = ehat1_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'span earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_span)
     reference = ehat2_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'up earth->body'
     transformed = from_earth_to_body(kite_dcm, ehat_up)
     reference = ehat3_k
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     return None
 
 
+def kite_frame_transformation_check(transformed, reference, epsilon, name, dir):
+    diff = transformed - reference
+    resi = cas.mtimes(diff.T, diff)
+
+    if resi > epsilon:
+        message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
+        print_op.error(message)
+    return None
 
 
 def get_test_wind(alpha, beta, kite_dcm):
@@ -391,31 +351,19 @@ def test_level_body_wind(epsilon):
     test = vect_op.xhat_np()
     reference = vect_op.xhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'y body->wind'
     test = vect_op.yhat_np()
     reference = vect_op.yhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'z body->wind'
     test = vect_op.zhat_np()
     reference = vect_op.zhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     return None
 
@@ -435,60 +383,36 @@ def test_right_body_wind(epsilon):
     test = vect_op.xhat_np()
     reference = -1. * vect_op.zhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'y body->wind'
     test = vect_op.yhat_np()
     reference = vect_op.yhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'z body->wind'
     test = vect_op.zhat_np()
     reference = vect_op.xhat_np()
     transformed = from_body_to_wind(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'x wind->body'
     test = vect_op.xhat_np()
     reference = vect_op.zhat_np()
     transformed = from_wind_to_body(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'y wind->body'
     test = vect_op.yhat_np()
     reference = vect_op.yhat_np()
     transformed = from_wind_to_body(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     dir = 'z wind->body'
     test = vect_op.zhat_np()
     reference = -1. * vect_op.xhat_np()
     transformed = from_wind_to_body(u_test, kite_dcm, test)
-    diff = transformed - reference
-    resi = cas.mtimes(diff.T, diff)
-    if resi > epsilon:
-        awelogger.logger.error(
-            'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi))
+    kite_frame_transformation_check(transformed, reference, epsilon, name, dir)
 
     return None

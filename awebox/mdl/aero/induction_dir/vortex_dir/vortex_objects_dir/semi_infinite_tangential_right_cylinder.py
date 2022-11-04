@@ -262,8 +262,7 @@ def pretest_strength_and_radius(cyl, epsilon=1.e-6):
     if not (cylinder_radius_is_as_expected and strength_is_as_expected):
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has radius = ' + str(r_cyl_desired)
         message += ' and strength = ' + str(strength_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -279,8 +278,7 @@ def pretest_is_regularized_cylinder(cyl, epsilon=1.e-6):
     if not epsilon_r_is_as_expected:
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has espilon_r = '
         message += str(epsilon_r_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -296,8 +294,7 @@ def pretest_is_unregularized_cylinder(cyl, epsilon=1.e-6):
     if not epsilon_r_is_as_expected:
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has espilon_r = '
         message += str(epsilon_r_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -323,9 +320,7 @@ def test_regularized_biot_savart_induction_radial_component_on_axis(cyl_regulari
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, computation does not behave as expected on the axis'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_regularized_biot_savart_induction_radial_component_at_large_radius(cyl_regularized, epsilon=1.e-4):
 
@@ -346,9 +341,7 @@ def test_regularized_biot_savart_induction_radial_component_at_large_radius(cyl_
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, computation does not behave as expected at large radius'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_induction_radial_component_middle_part_at_critical_point(cyl_unregularized, epsilon=1.e-4):
 
@@ -371,9 +364,7 @@ def test_biot_savart_induction_radial_component_middle_part_at_critical_point(cy
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, radial-component, middle part, computation does not behave as expected at criticial point'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 
 def test_regularized_biot_savart_induction_radial_component_elliptical_part_at_critical_point(cyl_regularized, epsilon=1.e-4):
@@ -395,9 +386,7 @@ def test_regularized_biot_savart_induction_radial_component_elliptical_part_at_c
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, elliptic part, computation does not behave as expected at criticial point'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_induction_radial_component_middle_part_far_upstream(cyl_unregularized, epsilon=1.e-4):
 
@@ -421,8 +410,7 @@ def test_biot_savart_induction_radial_component_middle_part_far_upstream(cyl_unr
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, radial-component, middle part, computation does not behave as expected far upstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_upstream(cyl_regularized, epsilon=1.e-4):
 
@@ -443,9 +431,7 @@ def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, elliptic part, computation does not behave as expected far-upstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_regularized_biot_savart_induction_radial_component_far_upstream(cyl_regularized, epsilon=1.e-4):
 
@@ -467,9 +453,7 @@ def test_regularized_biot_savart_induction_radial_component_far_upstream(cyl_reg
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, computation does not behave as expected far-upstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_induction_radial_component_middle_part_far_downstream(cyl_unregularized, epsilon=1.e-4):
 
@@ -492,10 +476,8 @@ def test_biot_savart_induction_radial_component_middle_part_far_downstream(cyl_u
     criteria = ( (diff/expected) ** 2. < epsilon ** 2.)
 
     if not criteria:
-
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, radial-component, middle part, computation does not behave as expected far downstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_downstream(cyl_regularized, epsilon=1.e-4):
 
@@ -516,9 +498,7 @@ def test_regularized_biot_savart_induction_radial_component_elliptical_part_far_
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, elliptic part, computation does not behave as expected far-downstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_regularized_biot_savart_induction_radial_component_far_downstream(cyl_regularized, epsilon=1.e-4):
 
@@ -540,8 +520,7 @@ def test_regularized_biot_savart_induction_radial_component_far_downstream(cyl_r
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, radial-component, computation does not behave as expected far-downstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_regularized_biot_savart_induction_radial_component(cyl_regularized, cyl_unregularized):
@@ -586,8 +565,7 @@ def test_biot_savart_induction_longitudinal_component_on_axis(cyl_unregularized,
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, longitudinal-component, computation does not behave as expected on-axis'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -613,8 +591,7 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_at_start(c
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, longitudinal-component, computation does not behave inside cylinder at start'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -640,8 +617,7 @@ def test_biot_savart_induction_longitudinal_component_outside_cylinder_at_start(
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, longitudinal-component, computation does not behave outside cylinder at start'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -667,8 +643,7 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_far_upstre
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, longitudinal-component, computation does not behave far-upstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -694,8 +669,7 @@ def test_biot_savart_induction_longitudinal_component_inside_cylinder_far_downst
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, longitudinal-component, computation does not behave far-downstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -732,8 +706,7 @@ def test_regularized_biot_savart_induction_longitudinal_component_outside_cylind
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, longitudinal-component, computation does not outside cylinder, far-downstream'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -769,8 +742,7 @@ def test_regularized_biot_savart_induction_longitudinal_component_on_surface(cyl
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, longitudinal-component, computation does not behave on cylinder surface'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -800,8 +772,7 @@ def test_regularized_biot_savart_induction_longitudinal_component_at_critical_po
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, longitudinal-component, computation does not behave at critical point'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -867,8 +838,7 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart function does not work as intended.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

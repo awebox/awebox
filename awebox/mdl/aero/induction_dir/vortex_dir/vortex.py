@@ -279,8 +279,7 @@ def test_that_model_constraint_residuals_have_correct_shape():
     criteria = cond1 and cond2
     if not criteria:
         message = 'an incorrect number of induction residuals have been defined for the algebraic-representation vortex wake'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test(test_includes_visualization=False):

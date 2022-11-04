@@ -143,9 +143,7 @@ def test_biot_savart_infinitely_far_away(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite filament: influence of the vortex does not vanish far from the vortex'
-        awelogger.logger.error(message)
-
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
     x_obs = 1. * vect_op.zhat_dm()
@@ -160,9 +158,7 @@ def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
     if not criteria:
 
         message = 'vortex semi-infinite filament: direction of induced velocity does not satisfy the right-hand-rule'
-        awelogger.logger.error(message)
-
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_inverse_radius_behavior(fil, epsilon=1.e-4):
     x_obs = 1. * vect_op.zhat_dm()
@@ -180,8 +176,7 @@ def test_biot_savart_inverse_radius_behavior(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite filament: the inverse-radius relationship is not satisfied'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
     x_obs = -1. * vect_op.xhat_dm()
@@ -195,9 +190,7 @@ def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite filament: singularities DO occur on the axis, off of the vortex filament'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon=1.e-4):
     x_obs = 1. * vect_op.xhat_dm()
@@ -211,8 +204,7 @@ def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radiu
 
     if not criteria:
         message = 'vortex semi-infinite filament: regularization does not remove the singularities on the vortex filament'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
     x_obs = 10. * vect_op.xhat_dm() + 4.59612 * (vect_op.yhat_dm() + vect_op.zhat_dm())
@@ -229,8 +221,7 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex filament: computation gives unreasonable values at off-axis position'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test(test_includes_visualization=False):
 

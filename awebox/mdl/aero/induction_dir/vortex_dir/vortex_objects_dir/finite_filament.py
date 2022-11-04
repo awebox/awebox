@@ -176,9 +176,7 @@ def test_biot_savart_infinitely_far_away(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex finite filament: influence of the vortex does not vanish far from the vortex'
-        awelogger.logger.error(message)
-
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
     x_obs = 1. * vect_op.zhat_dm()
@@ -193,9 +191,7 @@ def test_biot_savart_right_hand_rule(fil, epsilon=1.e-4):
     if not criteria:
 
         message = 'vortex finite filament: direction of induced velocity does not satisfy the right-hand-rule'
-        awelogger.logger.error(message)
-
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_2D_behavior(fil, epsilon=1.e-4):
 
@@ -231,8 +227,7 @@ def test_biot_savart_2D_behavior(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex finite filament: in an approximately 2D situation, the inverse-radius relationship is not satisfied'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-4):
     x_obs = 1.e2 * vect_op.zhat_dm()
@@ -250,9 +245,7 @@ def test_biot_savart_point_vortex_behavior(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex finite filament: in an approximately point-vortex situation, the inverse-squared-radius relationship is not satisfied'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
     x_obs = 1.5 * vect_op.xhat_dm()
@@ -266,9 +259,7 @@ def test_biot_savart_unregularized_singularity_removed(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex finite filament: singularities DO occur on the axis, outside of the endpoints'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radius, epsilon=1.e-4):
     x_obs = fil_with_nonzero_core_radius.info_dict['x_start']
@@ -282,8 +273,7 @@ def test_biot_savart_regularized_singularity_removed(fil_with_nonzero_core_radiu
 
     if not criteria:
         message = 'vortex finite filament: regularization does not remove the singularities on the vortex finite filament'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
     x_obs = 1.5 * vect_op.xhat_dm() + 0.112325 * (vect_op.yhat_dm() + vect_op.zhat_dm())
@@ -300,8 +290,7 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex finite filament: computation gives unreasonable values at off-axis position'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test(test_includes_visualization=False):
 

@@ -44,6 +44,7 @@ import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.geometry_dir.geometry as geom
 
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
 def model_is_included_in_comparison(options):
     comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'actuator')
@@ -102,7 +103,8 @@ def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, pa
 
     else:
         resi = []
-        awelogger.logger.error('model not yet implemented.')
+        message = 'model not yet implemented.'
+        print_op.error(message)
 
     name = 'actuator_induction_factor_' + label + '_' + str(parent)
     cstr = cstr_op.Constraint(expr=resi,

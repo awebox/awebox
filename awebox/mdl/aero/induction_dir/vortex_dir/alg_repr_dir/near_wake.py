@@ -108,8 +108,7 @@ def build_per_kite_per_ring(options, kite, ring, variables_si, parameters):
 
         else:
             message = 'unexpected type of near wake vortex filament (' + local_filament_position + ')'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     filament_list.confirm_list_has_expected_dimensions()
 
@@ -222,8 +221,7 @@ def test_correct_finite_filaments_defined():
     criteria = condition1 and condition2 and condition3 and condition4
     if not criteria:
         message = 'near_wake does not contain the expected vortex elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

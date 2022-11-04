@@ -73,8 +73,7 @@ class Element:
             self.__expected_info_length = expected_info_length
         else:
             message = 'cannot determine expected info length for vortex element, because info order has not yet been set'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -84,8 +83,7 @@ class Element:
 
         else:
             message = 'cannot determine number of info values for vortex element, because info order has not yet been set'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -118,8 +116,7 @@ class Element:
 
         else:
             message = 'cannot unpack the info vector for vortex element, because info order has not yet been set'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -147,8 +144,7 @@ class Element:
 
         else:
             message = 'cannot pack the info dictionary for vortex element, because info order has not yet been set'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -179,8 +175,7 @@ class Element:
 
     def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
         message = 'cannot calculate the biot savart induction for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
         return None
 
@@ -232,13 +227,11 @@ class Element:
 
     def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
         message = 'cannot determine the biot-savart reference denominator for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     def construct_fake_cosmetics(self, unpacked=None):
         cosmetics = {}
@@ -353,8 +346,7 @@ class Element:
 
         if not criteria:
             message = 'object of type ' + self.__element_type + ' is not of the expected object type ' + expected_object_type
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -366,13 +358,10 @@ class Element:
 
             if not criteria:
                 message = 'vortex object with info length ' + str(self.__info_length) + ' does not have the expected info length ' + str(self.__expected_info_length)
-                awelogger.logger.error(message)
-                raise Exception(message)
-
+                print_op.error(message)
         else:
             message = 'cannot confirm that this element has the correct info length, because info order has not yet been set'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -392,7 +381,8 @@ class Element:
 
     @info_fun.setter
     def info_fun(self, value):
-        awelogger.logger.error('Cannot set info_fun object.')
+        message = 'Cannot set info_fun object.'
+        print_op.error(message)
 
     def set_info_fun(self, value):
         self.__info_fun = value
@@ -403,7 +393,8 @@ class Element:
 
     @info.setter
     def info(self, value):
-        awelogger.logger.error('Cannot set info object.')
+        message = 'Cannot set info object.'
+        print_op.error(message)
 
     @property
     def info_order(self):
@@ -426,7 +417,8 @@ class Element:
 
     @info_dict.setter
     def info_dict(self, value):
-        awelogger.logger.error('Cannot set info_dict object.')
+        message = 'Cannot set info_dict object.'
+        print_op.error(message)
 
     @property
     def info_length(self):
@@ -438,7 +430,7 @@ class Element:
 
     @element_type.setter
     def element_type(self, value):
-        awelogger.logger.error('Cannot set element_type object.')
+        print_op.error('Cannot set element_type object.')
 
     def set_element_type(self, value):
         self.__element_type = value
@@ -449,7 +441,7 @@ class Element:
 
     @expected_info_length.setter
     def expected_info_length(self, value):
-        awelogger.logger.error('Cannot set info_length object.')
+        print_op.error('Cannot set info_length object.')
 
     @property
     def biot_savart_fun(self):
@@ -457,7 +449,7 @@ class Element:
 
     @biot_savart_fun.setter
     def biot_savart_fun(self, value):
-        awelogger.logger.error('Cannot set biot_savart_fun object.')
+        print_op.error('Cannot set biot_savart_fun object.')
 
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
@@ -468,7 +460,7 @@ class Element:
 
     @biot_savart_residual_fun.setter
     def biot_savart_residual_fun(self, value):
-        awelogger.logger.error('Cannot set biot_savart_residual_fun object.')
+        print_op.error('Cannot set biot_savart_residual_fun object.')
 
     def set_biot_savart_residual_fun(self, value):
         self.__biot_savart_residual_fun = value
@@ -496,8 +488,7 @@ def test_number_of_info_values(elem):
 
     if not criteria:
         message = 'vortex element: wrong number of info values being recorded'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_pack_internal_info(elem):
     packed = elem.pack_info()
@@ -507,8 +498,7 @@ def test_pack_internal_info(elem):
 
     if not criteria:
         message = 'vortex element: internal info is being packed incorrectly'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_unpack_internal_info(elem):
     unpacked = elem.unpack_info()
@@ -520,8 +510,7 @@ def test_unpack_internal_info(elem):
 
     if not criteria:
         message = 'vortex element: internal info is being unpacked incorrectly'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_pack_external_info(elem):
 
@@ -535,8 +524,7 @@ def test_pack_external_info(elem):
 
     if not criteria:
         message = 'vortex element: external info is being packed incorrectly'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_unpack_external_info(elem):
@@ -552,8 +540,7 @@ def test_unpack_external_info(elem):
 
     if not criteria:
         message = 'vortex element: external info is being unpacked incorrectly'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_is_equal():
     obj1 = construct_test_object(alpha=1.1)
@@ -580,8 +567,7 @@ def test_is_equal():
 
     if not criteria:
         message = 'the function checking whether another vortex element is the same as this vortex element, does not behave as expected'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

@@ -115,14 +115,14 @@ class ElementList:
 
         if (expected_number_of_elements is not None) and (not number_of_elements == expected_number_of_elements):
             message = 'unexpected number of vortex elements in list'
-            raise Exception(message)
+            print_op.error(message)
 
         element_info_length = self.element_info_length
         expected_element_info_length = self.expected_element_info_length
 
         if (expected_element_info_length is not None) and (not element_info_length == expected_element_info_length):
             message = 'unexpected info length for vortex element in list'
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -155,8 +155,7 @@ class ElementList:
         list_shape_is_correct_for_mapping = (decolumnized_list.shape == (element_info_length, number_of_elements))
         if not list_shape_is_correct_for_mapping:
             message = 'something went wrong when creating the vortex element list\'s decolumnized info list'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return None
 
@@ -178,8 +177,7 @@ class ElementList:
             obs_info = concatenated[self.__expected_element_info_length:self.__expected_element_info_length+3]
         else:
             message = 'trying to pull observer info from an unconcatenated list.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return obs_info
 
@@ -189,8 +187,7 @@ class ElementList:
             obs_info = concatenated[self.__expected_element_info_length+3:self.__expected_element_info_length+6]
         else:
             message = 'trying to pull velocity info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return obs_info
 
@@ -221,8 +218,7 @@ class ElementList:
             concatenated_list = cas.vertcat(concatenated_list, vec_u_ind_list)
         else:
             message = 'unable to concatenate vec_u_ind_list onto a concatenated list, due to a dimension error. maybe check that the velocity list has the individual entry velocities stored in columns?'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         return concatenated_list
 
@@ -286,8 +282,7 @@ class ElementList:
             return self.__list[0]
         else:
             message = 'the current task requires an example vortex element, but we cannot retrieve an example vortex element from this element list, because this list does not yet have any elements.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
 
     def define_model_variables_to_info_functions(self, model_variables, model_parameters):
@@ -383,7 +378,7 @@ class ElementList:
 
     @list.setter
     def list(self, value):
-        awelogger.logger.error('Cannot set list object.')
+        print_op.error('Cannot set list object.')
 
     @property
     def number_of_elements(self):
@@ -391,7 +386,7 @@ class ElementList:
 
     @number_of_elements.setter
     def number_of_elements(self, value):
-        awelogger.logger.error('Cannot set number_of_elements object.')
+        print_op.error('Cannot set number_of_elements object.')
 
     @property
     def expected_number_of_elements(self):
@@ -399,12 +394,12 @@ class ElementList:
 
     @expected_number_of_elements.setter
     def expected_number_of_elements(self, value):
-        awelogger.logger.error('Cannot set expected_number_of_elements object.')
+        print_op.error('Cannot set expected_number_of_elements object.')
         return None
 
     def set_expected_number_of_elements(self, value):
         if self.__expected_number_of_elements is not None:
-            awelogger.logger.error('Cannot set expected_number_of_elements object.')
+            print_op.error('Cannot set expected_number_of_elements object.')
         else:
             self.__expected_number_of_elements = value
         return None
@@ -416,7 +411,7 @@ class ElementList:
 
     @element_info_length.setter
     def element_info_length(self, value):
-        awelogger.logger.error('Cannot set element_info_length object.')
+        print_op.error('Cannot set element_info_length object.')
 
     @property
     def biot_savart_fun(self):
@@ -424,7 +419,7 @@ class ElementList:
 
     @biot_savart_fun.setter
     def biot_savart_fun(self, value):
-        awelogger.logger.error('Cannot set biot_savart_fun object.')
+        print_op.error('Cannot set biot_savart_fun object.')
 
     def set_biot_savart_fun(self, value):
         self.__biot_savart_fun = value
@@ -435,7 +430,7 @@ class ElementList:
 
     @concatenated_biot_savart_fun.setter
     def concatenated_biot_savart_fun(self, value):
-        awelogger.logger.error('Cannot set concatenated_biot_savart_fun object.')
+        print_op.error('Cannot set concatenated_biot_savart_fun object.')
 
     def set_concatenated_biot_savart_fun(self, value):
         self.__concatenated_biot_savart_fun = value
@@ -446,7 +441,7 @@ class ElementList:
 
     @biot_savart_residual_fun.setter
     def biot_savart_residual_fun(self, value):
-        awelogger.logger.error('Cannot set biot_savart_residual_fun object.')
+        print_op.error('Cannot set biot_savart_residual_fun object.')
 
     def set_biot_savart_residual_fun(self, value):
         self.__biot_savart_residual_fun = value
@@ -457,7 +452,7 @@ class ElementList:
 
     @concatenated_biot_savart_residual_fun.setter
     def concatenated_biot_savart_residual_fun(self, value):
-        awelogger.logger.error('Cannot set concatenated_biot_savart_residual_fun object.')
+        print_op.error('Cannot set concatenated_biot_savart_residual_fun object.')
 
     def set_concatenated_biot_savart_residual_fun(self, value):
         self.__concatenated_biot_savart_residual_fun = value
@@ -468,7 +463,7 @@ class ElementList:
 
     @element_type.setter
     def element_type(self, value):
-        awelogger.logger.error('Cannot set element_type object.')
+        print_op.error('Cannot set element_type object.')
 
     def set_element_type(self, value):
         self.__element_type = value
@@ -479,12 +474,12 @@ class ElementList:
 
     @expected_element_info_length.setter
     def expected_element_info_length(self, value):
-        awelogger.logger.error('Cannot set expected_element_info_length object.')
+        print_op.error('Cannot set expected_element_info_length object.')
         return None
 
     def set_expected_element_info_length(self, value):
         if self.__expected_element_info_length is not None:
-            awelogger.logger.error('Cannot set expected_element_info_length object.')
+            print_op.error('Cannot set expected_element_info_length object.')
         else:
             self.__expected_element_info_length = value
         return None
@@ -554,8 +549,7 @@ def test_filament_list_biot_savart_at_default_observer(filament_list, epsilon=1.
 
     if not criteria:
         message = 'vortex element list: something went wrong when computing the total induced velocity at the default observer (origin)'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -577,8 +571,7 @@ def test_filament_list_biot_savart_summation(filament_list, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex element list: something went wrong when summing the total induced velocity at a specified observer'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -600,8 +593,7 @@ def test_filament_list_biot_savart_computation(filament_list, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex element list: something went wrong when computing the total induced velocity at a specified observer'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -633,9 +625,7 @@ def test_appending_multiple_times():
 
     if not criteria:
         message = 'something went wrong when appending multiple vortex objects of the same type to a vortex list'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
 
 def test_is_elem_in_list():
     filament_list = ElementList()
@@ -654,8 +644,7 @@ def test_is_elem_in_list():
 
     if not criteria:
         message = 'the query "is this element in the element list" does not work as expected.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -674,8 +663,7 @@ def test_that_appending_different_types_is_ignored():
 
     if not criteria:
         message = 'something went wrong when (trying to) append multiple vortex objects of different type to a vortex list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -773,14 +761,12 @@ def test_that_biot_savart_function_evaluates_differently_for_different_elements_
 
     if number_of_elements < 2:
         message = 'cannot test that the biot-savart function actually evaluates differently on different elements, because the given element list has less than two elements.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     element_is_different = [not element_list.list[edx].is_equal(element_list.list[0]) for edx in range(1, number_of_elements)]
     if not any(element_is_different):
         message = 'cannot test that the biot-savart function actually evaluates differently on different elements, because the elements of the given list are not actually different.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     x_obs = cas.DM([1., 2., 3.])
     all_vec_u = element_list.evaluate_biot_savart_induction_for_all_elements(x_obs)
@@ -791,8 +777,7 @@ def test_that_biot_savart_function_evaluates_differently_for_different_elements_
 
     if not criteria:
         message = 'something went wrong when building the biot-savart function for a ' + element_list.element_type + ' element list: the biot-savart function does not evaluate differently for different elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

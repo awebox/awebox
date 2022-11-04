@@ -75,9 +75,8 @@ class Sweep:
             self.__generate_plot_logic_dict()
 
         else:
-            error_str = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
-            awelogger.logger.error(error_str)
-            raise TypeError(error_str)
+            message = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
+            print_op.error(message)
 
     def build(self):
 
@@ -301,7 +300,8 @@ class Sweep:
         elif saving_method == 'dict':
             self.save_to_dict()
         else:
-            awelogger.logger.error(saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!')
+            message = saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!'
+            print_op.error(message)
 
         awelogger.logger.info('Sweep (%s) saved.', self.__name)
         awelogger.logger.info('')

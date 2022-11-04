@@ -32,7 +32,7 @@ import pdb
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
-from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 
 def get_ehat_tether(init_options):
@@ -198,8 +198,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     else:
         message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 

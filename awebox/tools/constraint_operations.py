@@ -287,9 +287,8 @@ class ConstraintList:
         elif cstr_type == 'all':
             list = self.__all_list
         else:
-            message = 'unexpected model constraint type'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            message = 'unexpected model constraint type: ' + repr(cstr_type)
+            print_op.error(message)
 
         return list
 
@@ -517,8 +516,7 @@ def test_that_constraint_list_appending_works_for_distinct_individual_constraint
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending distinct individual constraints.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_that_constraint_list_appending_works_for_distinct_constraint_lists():
@@ -534,8 +532,7 @@ def test_that_constraint_list_appending_works_for_distinct_constraint_lists():
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending two distinct constraint lists'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_that_constraint_list_appending_works_for_constraint_list_onto_ocp_constraint_list():
@@ -548,8 +545,7 @@ def test_that_constraint_list_appending_works_for_constraint_list_onto_ocp_const
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending constraint list onto ocp constraint list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_that_constraint_list_appending_works_for_constraint_list_onto_mdl_constraint_list():
     cstr_list = make_test_mdl_constraint_list(addition=0.)
@@ -561,8 +557,7 @@ def test_that_constraint_list_appending_works_for_constraint_list_onto_mdl_const
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending constraint list onto mdl constraint list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_that_constraint_list_ignores_append_if_specialized_constraint_lists_are_added_to_regular_constraint_list():
 
@@ -580,8 +575,7 @@ def test_that_constraint_list_ignores_append_if_specialized_constraint_lists_are
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending specialized constraint list onto regular constraint list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_that_constraint_list_ignores_append_if_mdl_constraint_lists_is_added_to_ocp_constraint_list():
@@ -596,11 +590,8 @@ def test_that_constraint_list_ignores_append_if_mdl_constraint_lists_is_added_to
 
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
-
-        pdb.set_trace()
         message = 'something went wrong when appending mdl constraint list onto ocp constraint list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_that_constraint_list_ignores_append_if_ocp_constraint_lists_is_added_to_mdl_constraint_list():
@@ -616,8 +607,7 @@ def test_that_constraint_list_ignores_append_if_ocp_constraint_lists_is_added_to
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending ocp constraint list onto mdl constraint list'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 def test_that_constraint_list_ignores_append_for_incomplete_constraints():
     cstr_list = ConstraintList()
@@ -655,8 +645,7 @@ def test_that_constraint_list_ignores_append_for_incomplete_constraints():
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending incomplete constraints'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_that_constraint_list_ignores_append_for_repeated_constraints():
@@ -672,8 +661,7 @@ def test_that_constraint_list_ignores_append_for_repeated_constraints():
     criteria = correct_number_of_constraints_total and correct_number_of_equality_constraints and correct_number_of_inequality_constraints
     if not criteria:
         message = 'something went wrong when appending repeated individual constraints.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
 
 def test_constraint_list():

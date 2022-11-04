@@ -314,25 +314,25 @@ def clip_groundspeed(init_options):
 
             if groundspeed <= 0.:
                 adjust_count = 10 + max_adjustments
-                awelogger.logger.error(
-                    'proposed initial kite speed is not positive. does not satisfy airspeed limits, and cannot be adjusted to do so.')
+                message = 'proposed initial kite speed is not positive. does not satisfy airspeed limits, and cannot be adjusted to do so.'
+                print_op.error(message)
 
             elif (not above_min) and (not below_max):
                 adjust_count = 10 + max_adjustments
-                awelogger.logger.error(
-                    'proposed initial kite speed does not satisfy airspeed limits, and cannot be adjusted to do so.')
+                message = 'proposed initial kite speed does not satisfy airspeed limits, and cannot be adjusted to do so.'
+                print_op.error(message)
 
             elif (not above_min):
                 groundspeed += increment
-                awelogger.logger.warning(
-                    'proposed initial kite speed does not satisfy the minimum airspeed limits. kite speed will be incremented to ' + str(
-                        groundspeed) + 'm/s.')
+                message = 'proposed initial kite speed does not satisfy the minimum airspeed limits. kite speed will be incremented to ' + str(
+                        groundspeed) + 'm/s.'
+                print_op.error(message)
 
             elif (not below_max):
                 groundspeed -= increment
-                awelogger.logger.warning(
-                    'proposed initial kite speed does not satisfy the maximum airspeed limits. kite speed will be decremented to ' + str(
-                        groundspeed) + 'm/s.')
+                message = 'proposed initial kite speed does not satisfy the maximum airspeed limits. kite speed will be decremented to ' + str(
+                        groundspeed) + 'm/s.'
+                print_op.error(message)
 
             else:
                 # we have finally found a working value!
@@ -341,9 +341,9 @@ def clip_groundspeed(init_options):
 
             adjust_count += 1
 
-        awelogger.logger.error(
-            'proposed initial kite speed does not satisfy airspeed limits, and could not be adjusted to do so within ' + str(
-                max_adjustments) + ' adjustments. kite speed remains as specified by user.')
+        message = 'proposed initial kite speed does not satisfy airspeed limits, and could not be adjusted to do so within ' + str(
+                max_adjustments) + ' adjustments. kite speed remains as specified by user.'
+        print_op.error(message)
 
     return init_options
 

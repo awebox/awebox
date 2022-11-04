@@ -203,8 +203,7 @@ def pretest_strength_and_radius(cyl, epsilon=1.e-6):
 
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has radius = ' + str(r_cyl_desired)
         message += ' and strength = ' + str(strength_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -220,8 +219,7 @@ def pretest_is_regularized_cylinder(cyl, epsilon=1.e-6):
     if not epsilon_r_is_as_expected:
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has espilon_r = '
         message += str(epsilon_r_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -237,8 +235,7 @@ def pretest_is_unregularized_cylinder(cyl, epsilon=1.e-6):
     if not epsilon_r_is_as_expected:
         message = 'something went wrong in a vortex ' + cyl.element_type + ' test. check that test cylinder has espilon_r = '
         message += str(epsilon_r_desired)
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -264,8 +261,7 @@ def test_biot_savart_induction_tangential_component_on_axis(cyl_unregularized, e
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave as expected on-axis'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -291,8 +287,7 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_at_start(cyl
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave inside cylinder at start'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -320,8 +315,7 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_at_start(cy
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave outside cylinder at start'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -358,8 +352,7 @@ def test_regularized_biot_savart_induction_tangential_component_inside_cylinder_
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave far-upstream, inside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -385,8 +378,7 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_far_upstream
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave far-upstream, inside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -423,8 +415,7 @@ def test_regularized_biot_savart_induction_tangential_component_inside_cylinder_
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave far-downstream, inside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -450,8 +441,7 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_far_downstre
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave far-downstream, inside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -489,8 +479,7 @@ def test_regularized_biot_savart_induction_tangential_component_outside_cylinder
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave far-upstream, outside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -516,8 +505,7 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_far_upstrea
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave far-upstream, outside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -555,8 +543,7 @@ def test_regularized_biot_savart_induction_tangential_component_outside_cylinder
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave far-downstream, outside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -583,8 +570,7 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_far_downstr
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave far-downstream, outside cylinder'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -619,8 +605,7 @@ def test_regularized_biot_savart_induction_tangential_component_on_surface(cyl_r
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave on surface'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -650,8 +635,7 @@ def test_regularized_biot_savart_induction_tangential_component_at_critical_poin
 
     if not criteria:
         message = 'vortex ' + cyl_regularized.element_type + ': regularized biot-savart induction, tangential-component, computation does not behave at critical point'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -724,9 +708,7 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart function does not work as intended.'
-        awelogger.logger.error(message)
-        raise Exception(message)
-
+        print_op.error(message)
     return None
 
 

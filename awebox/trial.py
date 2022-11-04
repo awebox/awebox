@@ -225,7 +225,8 @@ class Trial(object):
         elif saving_method == 'dict':
             self.save_to_dict(fn)
         else:
-            awelogger.logger.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
+            message = saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!'
+            print_op.error(message)
 
         # log that save is complete
         awelogger.logger.info('Trial (%s) saved.', self.__name)

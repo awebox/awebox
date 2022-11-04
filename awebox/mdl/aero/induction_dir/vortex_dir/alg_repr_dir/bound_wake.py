@@ -123,8 +123,7 @@ def test_correct_filaments_defined():
     criteria = condition1 and condition2
     if not criteria:
         message = 'bound_wake does not contain the expected vortex elements'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

@@ -37,6 +37,7 @@ import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 def generate_trial_data_csv(trial, name, freq, rotation_representation):
@@ -172,7 +173,9 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                     for index in range(3):
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
                 elif rotation_representation not in ['euler', 'dcm']:
-                    awelogger.logger.error('Error: Only euler angles and direct cosine matrix supported.')
+                    message = 'Error: Only euler angles and direct cosine matrix supported.'
+                    print_op.error(message)
+
                 else:
                     var = plot_dict[variable_type][variable]
                     variable_length = len(var)

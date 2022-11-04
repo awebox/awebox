@@ -38,7 +38,8 @@ def build_options_dict(options, help_options, architecture):
 
     # check for unsupported settings
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        awelogger.logger.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+        message = user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.'
+        print_op.error(message)
 
     # initialize additional options tree
     options_tree = []
@@ -296,7 +297,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options['solver']['initialization']['fix_tether_length'] = True
 
     if options['solver']['homotopy_method']['gamma'] not in ['penalty', 'classic']:
-        awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
+        message = 'homotopy method "' + options['solver']['homotopy_method'] + '" unknown!'
+        print_op.error(message)
 
     options_tree.append(('solver', 'initialization', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
 

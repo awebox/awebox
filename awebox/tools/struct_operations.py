@@ -37,7 +37,7 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
 
 
 def subkeys(casadi_struct, key):
@@ -259,8 +259,7 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return var_at_time
 
@@ -471,8 +470,7 @@ def si_to_scaled(V_ori, scaling):
             V['coll_var', kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
         else:
             message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables from si'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     return V
 
@@ -505,8 +503,7 @@ def scaled_to_si(V_ori, scaling):
             V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
         else:
             message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables to si'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     return V
 
@@ -552,8 +549,7 @@ def get_variable_type(model, name):
         return 'xdot'
 
     message = 'variable ' + name + ' not found in variables dictionary'
-    awelogger.logger.error(message)
-    raise Exception(message)
+    print_op.error(message)
 
     return None
 
@@ -638,8 +634,7 @@ def get_V_index(canonical):
 
         else:
             message = 'unexpected (distinct) canonical_index handing'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     return [var_is_coll_var, var_type, kdx, ddx, name, dim]
 
@@ -915,7 +910,6 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
             local_var = variables[var_type, name]
     except:
         message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return local_var

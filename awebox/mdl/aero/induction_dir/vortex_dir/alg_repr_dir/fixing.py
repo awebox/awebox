@@ -114,8 +114,7 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
             resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         else:
             message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                     name=cstr_name,
@@ -358,8 +357,7 @@ def test_the_convection_time(epsilon=1.e-4):
 
         if not criteria:
             message = 'something went wrong when computing how long a given wake node has been convecting, ' + case_description_string
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     return None
 

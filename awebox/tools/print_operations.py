@@ -116,6 +116,12 @@ def warn_about_temporary_functionality_alteration(editor='an editor', reason='im
     awelogger.logger.warning(message)
     return None
 
+def error(message):
+    location = inspect.getouterframes(inspect.currentframe(), 2)[1][1]
+    message += '\n' + location
+    awelogger.logger.error(message)
+    raise Exception(message)
+    return None
 
 def print_variable_info(object_name, variable_struct):
 
@@ -160,9 +166,8 @@ def print_variable_info(object_name, variable_struct):
                 message += ', ' + sub_type + ' ' + var_type + ' (' + shape_string + ')'
 
     if counter != expected_count:
-        error = 'not all variables in structure of ' + object_name + ' have been found! counted: ' + str(counter) + ', expected: ' + str(expected_count)
-        awelogger.logger.error(error)
-        raise Exception(error)
+        message = 'not all variables in structure of ' + object_name + ' have been found! counted: ' + str(counter) + ', expected: ' + str(expected_count)
+        error(message)
 
     message = preface + message[1:]
 
@@ -197,8 +202,7 @@ class Table:
                 return True
             else:
                 message = 'unexpected entry in row'
-                awelogger.logger.error(message)
-                raise Exception(message)
+                print_op.error(message)
         else:
             return True
 
@@ -280,7 +284,7 @@ class Table:
 
     @dict.setter
     def dict(self, value):
-        awelogger.logger.warning('Cannot set dict object.')
+        error('Cannot set dict object.')
 
     @property
     def column_headers(self):
@@ -314,9 +318,7 @@ def test_table_print():
     criteria = (test_string == tabulate_string)
     if not criteria:
         message = 'table to_string does not work as expected.'
-        awelogger.logger.error(message)
-        raise Exception(message)
-        pdb.set_trace()
+        print_op.error(message)
 
 def print_progress(index, total_count):
     # warning: this does NOT log the progress, it only displays the progress, on-screen

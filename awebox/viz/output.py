@@ -159,8 +159,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         if not (cdx == number_of_individual_plots):
             message = 'something went wrong when drawing the output plots, because ' + str(number_of_individual_plots) + ' were expected and ' + str(cdx) + ' were draw'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         for cdx in range(number_of_individual_plots):
             axes[cdx].set_xlabel('t [s]')

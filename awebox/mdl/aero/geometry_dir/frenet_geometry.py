@@ -181,8 +181,8 @@ def variables_have_third_derivative_information(variables, kite, parent):
         return ('[' + label + ']' in variables['xdot'].labels())
     if (isinstance(variables, dict)) and not ('xdot' in variables.keys()):
         message = 'cannot determine if the variables have third degree-of-freedom information'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
+
     else:
         return ('[xdot,' + label + ']' in variables.labels())
 

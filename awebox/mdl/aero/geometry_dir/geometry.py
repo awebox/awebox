@@ -42,6 +42,7 @@ import awebox.mdl.aero.geometry_dir.parent_geometry as parent_geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 def get_available_geometry_types():
     return ['averaged', 'parent', 'frenet']
@@ -54,8 +55,7 @@ def raise_and_log_unavailable_geometry_type_error(model_options):
     geometry_type = get_geometry_type(model_options)
     if geometry_type not in get_available_geometry_types():
         message = geometry_type + ' aerodynamic geometry type is not yet available. perhaps check your spelling?'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 
@@ -314,8 +314,7 @@ def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
 
     if not criteria:
         message = 'geometry type (' + geometry_type + ') does not behave as expected in the highly-simplified test-case'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return None
 

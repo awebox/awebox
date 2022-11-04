@@ -1217,19 +1217,14 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         else:
-
-            pdb.set_trace()
-
             message = 'unrecognized variable type or name when re-assembling a (model) variable from interpolated data.'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     try:
         vars_si = model_variables(collected_vals)
     except:
         message = 'unable to assign re-assembled interpolated data into a (model) variable structure'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return vars_si
 
@@ -1274,23 +1269,17 @@ def assemble_model_parameters(plot_dict):
 
             except:
                 message = 'error in parameters theta0 assembly'
-                awelogger.logger.error(message)
-                raise Exception(message)
+                print_op.error(message)
 
         elif (kdx == 0):
-
             message = 'unrecognized parameter type or name when re-assembling a (model) parameter from solution data'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
     try:
         params = model_parameters(collected_vals)
     except:
-
-        pdb.set_trace()
         message = 'unable to assign re-assembled interpolated data into a (model) parameters structure'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     return params
 

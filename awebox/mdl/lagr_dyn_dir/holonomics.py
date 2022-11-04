@@ -215,8 +215,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
     if not (com_attachment or stick_attachment):
         message = 'Unknown tether attachment option: {}'.format(options['tether']['attachment'])
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     for node in range(1, number_of_nodes):
 
@@ -228,8 +227,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
         if has_extended_arm and not kite_has_6dof:
             message = 'Stick tether attachment option not implemented for 3DOF kites'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.error(message)
 
         if has_extended_arm:
             dcm = cas.reshape(x_si['r{}{}'.format(node, parent)], (3, 3))

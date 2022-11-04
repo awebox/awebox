@@ -69,7 +69,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     if not exact_licq_holds:
-        awelogger.logger.info('')
+        awelogger.logger.warning('')
         message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
         awelogger.logger.info(message)
         identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
@@ -79,7 +79,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     if not licq_holds:
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
-        awelogger.logger.error(message)
+        awelogger.logger.warning(message)
         identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
@@ -88,13 +88,13 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info('')
         message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
                   'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
-        awelogger.logger.error(message)
+        awelogger.logger.warning(message)
 
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
     if problem_is_ill_conditioned:
         awelogger.logger.info('')
         message = 'problem appears to be ill-conditioned'
-        awelogger.logger.info(message)
+        awelogger.logger.warning(message)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
@@ -109,10 +109,11 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
-        awelogger.logger.info(message)
 
         if health_solver_options['raise_exception']:
-            raise Exception(message)
+            print_op.error(message)
+        else:
+            awelogger.logger.warning(message)
 
     return problem_is_healthy
 

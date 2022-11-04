@@ -45,8 +45,7 @@ def construct_wingtip_position(q_kite, dcm_kite, parameters, tip):
         span_sign = -1.
     else:
         message = 'wingtip ' + tip + ' is not recognized'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.error(message)
 
     ehat_span = dcm_kite[:, 1]
 
@@ -66,7 +65,7 @@ def get_f_aero_var(variables, kite, parent):
     if var_name in variables[var_type].keys():
         f_aero_si = variables[var_type][var_name]
     else:
-        awelogger.logger.error('lifted aero forces not found.')
+        print_op.error('lifted aero forces not found.')
 
     return f_aero_si
 
@@ -78,7 +77,7 @@ def get_m_aero_var(variables, kite, parent):
     if var_name in variables[var_type].keys():
         m_aero_si = variables[var_type][var_name]
     else:
-        awelogger.logger.error('lifted aero moments not found.')
+        print_op.error('lifted aero moments not found.')
 
     return m_aero_si
 
