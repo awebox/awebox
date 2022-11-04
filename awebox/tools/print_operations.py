@@ -264,7 +264,7 @@ class Table:
 
         headers = row_dict.keys()
 
-        message = tabulate(table, headers=headers)
+        message = '\n' + tabulate(table, headers=headers)
         return message
 
     def print(self, level='info'):
