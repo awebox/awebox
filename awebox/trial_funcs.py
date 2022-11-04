@@ -174,7 +174,7 @@ def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                         write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
                 elif rotation_representation not in ['euler', 'dcm']:
                     message = 'Error: Only euler angles and direct cosine matrix supported.'
-                    print_op.error(message)
+                    print_op.log_and_raise_error(message)
 
                 else:
                     var = plot_dict[variable_type][variable]

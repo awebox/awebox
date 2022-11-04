@@ -73,6 +73,6 @@ def get_option_from_possible_dicts(options, name, actuator_or_vortex):
         value = options['model']['aero'][actuator_or_vortex][name]
     else:
         message = 'no available information about the desired option (' + name + ') found.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return value

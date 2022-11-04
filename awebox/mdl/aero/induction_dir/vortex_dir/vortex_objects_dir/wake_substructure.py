@@ -159,7 +159,7 @@ class WakeSubstructure:
                 [isinstance(elem, obj_element.Element) for elem in added_elem])
             if not (all_items_in_list_are_element_lists or all_items_in_list_are_elements):
                 message = 'the only type of list that can be appended to vortex wake_substructure objects are ElementLists, lists of Elements or lists of ElementLists.'
-                print_op.error(message)
+                print_op.log_and_raise_error(message)
 
         is_element_list = isinstance(added_elem, obj_element_list.ElementList)
         is_element = isinstance(added_elem, obj_element.Element)
@@ -175,7 +175,7 @@ class WakeSubstructure:
                 self.append(local_elem)
         else:
             message = 'something went wrong when trying to append to this vortex wake_substructure object.'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         return None
 
@@ -197,7 +197,7 @@ class WakeSubstructure:
 
             else:
                 message = 'cannot recognize vortex object list for ' + element_type + ' objects'
-                print_op.error(message)
+                print_op.log_and_raise_error(message)
 
         return None
 
@@ -234,7 +234,7 @@ class WakeSubstructure:
 
         if not criteria:
             message = 'vortex wake: the set of vortex element types that are expected to be initialized is not the same as the set of the vortex element types that *are* initialized.'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         for element_type in types_expected_to_be_initialized:
             self.get_list(element_type).confirm_list_has_expected_dimensions()
@@ -277,7 +277,7 @@ class WakeSubstructure:
 
         else:
             message = 'unable to interpret the element type (' + element_type + '). maybe check your spelling.'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     def get_max_abs_strength(self):
         if self.has_initialized_element_types():
@@ -337,7 +337,7 @@ class WakeSubstructure:
     @substructure_type.setter
     def substructure_type(self, value):
         message = 'Cannot set substructure_type object.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 
 def construct_test_object():
@@ -363,7 +363,7 @@ def test_append():
 
     if not criteria:
         message = 'something went wrong when appending vortex objects to a wake_substructure object'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -410,7 +410,7 @@ def test_mapped_biot_savart():
 
     if not criteria:
         message = 'something went wrong when trying to make mapped biot-savart functions for the wake_substructure object'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -441,7 +441,7 @@ def test_mapped_biot_savart_residual(epsilon=1.e-4):
 
     if not criteria:
         message = 'something went wrong with the biot-savart or biot-savart residuals or their mapping: the output of the mapped biot-savart function does not satisfy the mapped biot-savart residual function'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 

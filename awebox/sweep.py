@@ -76,7 +76,7 @@ class Sweep:
 
         else:
             message = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     def build(self):
 
@@ -165,7 +165,7 @@ class Sweep:
                     self.__sweep_dict[trial_to_run][param]['output_vals'][i] = copy.deepcopy(single_trial_solution_dict['output_vals'][i])
                 self.__sweep_labels[trial_to_run][param] = trial_to_run + '_' + param
 
-        awelogger.logger.info('Sweep (' + self.__name +  ') completed.')
+        awelogger.logger.info('Sweep (' + self.__name + ') completed.')
 
     def plot(self, flags):
 
@@ -301,7 +301,7 @@ class Sweep:
             self.save_to_dict()
         else:
             message = saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         awelogger.logger.info('Sweep (%s) saved.', self.__name)
         awelogger.logger.info('')

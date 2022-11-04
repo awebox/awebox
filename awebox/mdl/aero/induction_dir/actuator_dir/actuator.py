@@ -104,7 +104,7 @@ def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, pa
     else:
         resi = []
         message = 'model not yet implemented.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     name = 'actuator_induction_factor_' + label + '_' + str(parent)
     cstr = cstr_op.Constraint(expr=resi,

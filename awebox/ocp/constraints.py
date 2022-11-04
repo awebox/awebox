@@ -75,7 +75,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
         else:
             message = 'unexpected ocp discretization method selected: ' + nlp_options['discretization']
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         # add stage and continuity constraints to list
         ocp_cstr_entry_list.append(entry_tuple)

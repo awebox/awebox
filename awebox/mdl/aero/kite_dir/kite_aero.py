@@ -74,7 +74,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     if int(options['kite_dof']) == 3:
 
@@ -109,7 +109,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
 
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 

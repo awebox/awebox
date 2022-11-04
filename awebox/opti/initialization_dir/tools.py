@@ -198,7 +198,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     else:
         message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 

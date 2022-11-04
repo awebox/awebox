@@ -85,7 +85,7 @@ class Wake:
             return self.__wake_dict[substucture_type]
         else:
             message = 'the substructure type (' + substucture_type + ') is not among the recognized wake substructure types'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         return None
 
@@ -98,7 +98,7 @@ class Wake:
 
     def log_and_raise_overwrite_error(self, substructure_type):
         message = 'there is already a wake substructure stored as the ' + substructure_type + ' wake substructure.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
         return None
 
     def get_max_abs_strength(self):

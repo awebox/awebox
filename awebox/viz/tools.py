@@ -1218,13 +1218,13 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
 
         else:
             message = 'unrecognized variable type or name when re-assembling a (model) variable from interpolated data.'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     try:
         vars_si = model_variables(collected_vals)
     except:
         message = 'unable to assign re-assembled interpolated data into a (model) variable structure'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return vars_si
 
@@ -1269,17 +1269,17 @@ def assemble_model_parameters(plot_dict):
 
             except:
                 message = 'error in parameters theta0 assembly'
-                print_op.error(message)
+                print_op.log_and_raise_error(message)
 
         elif (kdx == 0):
             message = 'unrecognized parameter type or name when re-assembling a (model) parameter from solution data'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     try:
         params = model_parameters(collected_vals)
     except:
         message = 'unable to assign re-assembled interpolated data into a (model) parameters structure'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return params
 

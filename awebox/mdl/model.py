@@ -160,37 +160,39 @@ class Model(object):
 
         awelogger.logger.info('')
         awelogger.logger.info('Model options:')
-        awelogger.logger.info('')
-        awelogger.logger.info('Atmosphere model'+7*'.'+': {}'.format(self.__options['atmosphere']['model']))
-        awelogger.logger.info('Wind model'+13*'.'+': {}'.format(self.__options['wind']['model']))
-        awelogger.logger.info('Induction model'+8*'.'+': {}'.format(self.__options['induction_model']))
-        awelogger.logger.info('System type'+12*'.'+': {}'.format(self.__options['trajectory']['system_type']))
-        awelogger.logger.info('Aircraft DOF'+11*'.'+': {}'.format(self.__options['kite_dof']))
-        awelogger.logger.info('Number of aircraft'+5*'.'+': {}'.format(self.__architecture.number_of_kites))
-        awelogger.logger.info('Number of layers'+7*'.'+': {}'.format(self.__architecture.layers))
-        awelogger.logger.info('Tether attachment'+6*'.'+': {}'.format(self.__options['tether']['attachment']))
-        awelogger.logger.info('Tether control var'+5*'.'+': {}'.format(self.__options['tether']['control_var']))
-        awelogger.logger.info('Tether drag model'+6*'.'+': {}'.format(self.__options['tether']['tether_drag']['model_type']))
+        options_dict = {
+            'Atmosphere model':self.__options['atmosphere']['model'],
+            'Wind model':self.__options['wind']['model'],
+            'System type':self.__options['trajectory']['system_type'],
+            'Aircraft DOF':self.__options['kite_dof'],
+            'Number of aircraft':self.__architecture.number_of_kites,
+            'Number of layers':self.__architecture.layers,
+            'Ground station model':self.__options['tether']['use_wound_tether'],
+            'Tether attachment':self.__options['tether']['attachment'],
+            'Tether control var':self.__options['tether']['control_var'],
+            'Tether drag model':self.__options['tether']['tether_drag']['model_type']
+        }
+
         if self.__options['tether']['tether_drag']['model_type'] == 'multi':
-            awelogger.logger.info('Tether drag elements'+3*'.'+': {}'.format(self.__options['tether']['aero_elements']))
+            options_dict['Tether drag elements'] = self.__options['tether']['aero_elements']
         if self.__architecture.number_of_kites > 1:
-            awelogger.logger.info('Cross-tether'+11*'.'+': {}'.format(self.__options['cross_tether']))
+            options_dict['Cross-tether'] = self.__options['cross_tether']
         if self.__options['cross_tether']:
-            awelogger.logger.info('Cross-tether attachment'+': {}'.format(self.__options['tether']['cross_tether']['attachment']))
-        awelogger.logger.info('Ground station model'+3*'.'+': {}'.format(self.__options['tether']['use_wound_tether']))
+            options_dict['Cross-tether attachment'] = self.__options['tether']['cross_tether']['attachment']
 
-        awelogger.logger.info('')
+        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
+
         awelogger.logger.info('Model dimensions:')
-        awelogger.logger.info('')
-        awelogger.logger.info('nx........: {}'.format(self.variables_dict['x'].shape[0]))
-        awelogger.logger.info('nu........: {}'.format(self.variables_dict['u'].shape[0]))
-        awelogger.logger.info('nz........: {}'.format(self.variables_dict['z'].shape[0]))
-        awelogger.logger.info('np_var....: {}'.format(self.variables_dict['theta'].shape[0]))
-        awelogger.logger.info('np_fix....: {}'.format(self.parameters_dict['theta0'].shape[0]))
+        dimensions_dict = {
+            'nx': self.variables_dict['x'].shape[0],
+            'nu': self.variables_dict['u'].shape[0],
+            'nz': self.variables_dict['z'].shape[0],
+            'np_var': self.variables_dict['theta'].shape[0],
+            'np_fix': self.parameters_dict['theta0'].shape[0]
+        }
+        print_op.print_dict_as_dot_separated_two_column_table(dimensions_dict)
 
-        awelogger.logger.info('')
         awelogger.logger.info('Model constraints:')
-        awelogger.logger.info('')
 
         cstr_list = []
         for cstr in self.constraints_dict['inequality'].keys():

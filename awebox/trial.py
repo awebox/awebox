@@ -226,7 +226,7 @@ class Trial(object):
             self.save_to_dict(fn)
         else:
             message = saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         # log that save is complete
         awelogger.logger.info('Trial (%s) saved.', self.__name)
@@ -353,12 +353,12 @@ class Trial(object):
         message = '... cost components at solution are:'
         awelogger.logger.info(message)
 
-        print_op.print_dict_as_table(cost_dict)
+        print_op.print_dict_as_dot_separated_two_column_table(cost_dict)
 
         awelogger.logger.info('')
 
         total_dict = {'total_cost': self.nlp.f_fun(V_solution_scaled, p_fix_num)}
-        print_op.print_dict_as_table(total_dict)
+        print_op.print_dict_as_dot_separated_two_column_table(total_dict)
 
         return None
 

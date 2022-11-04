@@ -655,15 +655,19 @@ class Optimization(object):
 
         awelogger.logger.info('')
         awelogger.logger.info('Solver options:')
-        awelogger.logger.info('')
-        awelogger.logger.info('NLP solver'+14*'.'+': {}'.format(self.__options['nlp_solver']))
-        awelogger.logger.info('Linear solver'+11*'.'+': {}'.format(self.__options['linear_solver']))
-        awelogger.logger.info('Max. iterations'+9*'.'+': {}'.format(self.__options['max_iter']))
-        awelogger.logger.info('Homotopy method'+9*'.'+': {}'.format(self.__options['homotopy_method']))
+
+        options_dict = {
+            'NLP solver':self.__options['nlp_solver'],
+            'Linear solver':self.__options['linear_solver'],
+            'Max. iterations':self.__options['max_iter'],
+            'Homotopy barrier param':self.__options['mu_hippo'],
+            'Homotopy method':self.__options['homotopy_method']
+        }
+
         if self.__options['homotopy_method'] == 'classic':
-            awelogger.logger.info('Homotopy step'+11*'.'+': {}'.format(self.__options['homotopy_step']))
-        awelogger.logger.info('Homotopy barrier param'+2*'.'+': {}'.format(self.__options['mu_hippo']))
-        awelogger.logger.info('')
+            options_dict['Homotopy step'] = self.__options['homotopy_step']
+
+        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
 
         return None
 

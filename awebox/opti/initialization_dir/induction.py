@@ -61,7 +61,7 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
 
     if not nlp.discretization == 'direct_collocation':
         message = 'vortex induction model is only defined for direct-collocation model, at this point'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     V_init = vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
 

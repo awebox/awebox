@@ -58,7 +58,7 @@ class NLP(object):
 
             timer = time.time()
             self.__options = nlp_options
-            self.print_nlp_info()
+            self.print_nlp_options()
             self.__generate_discretization(nlp_options, model,formulation)
             self.generate_variable_bounds(nlp_options, model)
             self.__generate_objective(nlp_options, model)
@@ -155,19 +155,24 @@ class NLP(object):
     def get_f_jacobian_fun(self):
         return objective.get_cost_derivatives(self.__V, self.__P, self.__f_fun)
 
-    def print_nlp_info(self):
+    def print_nlp_options(self):
 
         awelogger.logger.info('')
         awelogger.logger.info('NLP options:')
-        awelogger.logger.info('')
-        awelogger.logger.info('Number of intervals'+7*'.'+': {}'.format(self.__options['n_k']))
-        awelogger.logger.info('Discretization method'+5*'.'+': {}'.format(self.__options['discretization']))
+        options_dict = {
+            'Number of intervals':self.__options['n_k'],
+            'Discretization method':self.__options['discretization']
+        }
+
         if self.__options['discretization'] == 'direct_collocation':
-            awelogger.logger.info('Collocation scheme'+8*'.'+': {}'.format(self.__options['collocation']['scheme']))
-            awelogger.logger.info('Collocation order'+9*'.'+': {}'.format(self.__options['collocation']['d']))
-            awelogger.logger.info('Control parameterization'+2*'.'+': {}'.format(self.__options['collocation']['u_param']))
+            options_dict['Collocation scheme'] = self.__options['collocation']['scheme']
+            options_dict['Collocation order'] = self.__options['collocation']['d']
+            options_dict['Control parameterization'] = self.__options['collocation']['u_param']
+
         if self.__options['system_type'] == 'lift_mode':
-            awelogger.logger.info('Phase-fix strategy'+8*'.'+': {}'.format(self.__options['phase_fix']))
+            options_dict['Phase-fix strategy'] = self.__options['phase_fix']
+
+        print_op.print_dict_as_dot_separated_two_column_table(options_dict)
 
         return None
 
@@ -175,13 +180,13 @@ class NLP(object):
 
         awelogger.logger.info('')
         awelogger.logger.info('NLP dimensions:')
-        awelogger.logger.info('')
-
-        awelogger.logger.info('n_var....: {}'.format(self.__V.shape[0]))
-        awelogger.logger.info('n_param..: {}'.format(self.__P.shape[0]))
-        awelogger.logger.info('n_eq.....: {}'.format(self.ocp_cstr_list.get_expression_list('eq').shape[0]))
-        awelogger.logger.info('n_ineq...: {}'.format(self.ocp_cstr_list.get_expression_list('ineq').shape[0]))
-        awelogger.logger.info('')
+        dimension_dict = {
+            'n_var': self.__V.shape[0],
+            'n_param': self.__P.shape[0],
+            'n_eq': self.ocp_cstr_list.get_expression_list('eq').shape[0],
+            'n_ineq': self.ocp_cstr_list.get_expression_list('ineq').shape[0]
+        }
+        print_op.print_dict_as_dot_separated_two_column_table(dimension_dict)
 
         return None
 

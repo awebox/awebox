@@ -137,7 +137,7 @@ class SemiInfiniteRightCylinder(obj_element.Element):
 
     @approximation_order_for_elliptic_integrals.setter
     def approximation_order_for_elliptic_integrals(self, value):
-        print_op.error('Cannot set approximation_order_for_elliptic_integrals object.')
+        print_op.log_and_raise_error('Cannot set approximation_order_for_elliptic_integrals object.')
 
     def set_approximation_order_for_elliptic_integrals(self, value):
         self.__approximation_order_for_elliptic_integrals = value
@@ -190,7 +190,7 @@ def test_r_val_on_axis(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: computation does not find correct radius on axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_r_val_off_axis(cyl, epsilon=1.e-4):
     expected = 3.
@@ -204,7 +204,7 @@ def test_r_val_off_axis(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: computation does not find correct radius off axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_z_val_before_cylinder(cyl, epsilon=1.e-4):
     expected = -10.
@@ -218,7 +218,7 @@ def test_z_val_before_cylinder(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: computation does not find correct longitude prior to cylinder'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_z_val_at_start(cyl, epsilon=1.e-4):
     expected = 0.
@@ -232,7 +232,7 @@ def test_z_val_at_start(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: computation does not find correct longitude on start of cylinder'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_z_val_on_cylinder(cyl, epsilon=1.e-4):
     expected = 10.
@@ -246,7 +246,7 @@ def test_z_val_on_cylinder(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: computation does not find correct longitude on cylinder'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_at_critical_point(cyl, epsilon=1.e-4):
     unpacked = cyl.unpack_info()
@@ -263,7 +263,7 @@ def test_regularized_m_value_at_critical_point(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not give expected value at critical point (on cylinder starting circle)'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_does_not_reach_one_at_critical_point(cyl, epsilon=1.e-4):
     unpacked = cyl.unpack_info()
@@ -279,7 +279,7 @@ def test_regularized_m_value_does_not_reach_one_at_critical_point(cyl, epsilon=1
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, at critical point (on cylinder starting circle)'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_reaches_zero_on_axis(cyl, epsilon=1.e-4):
 
@@ -291,7 +291,7 @@ def test_regularized_m_value_reaches_zero_on_axis(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, on cylinder axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_approaches_zero_at_large_radius(cyl, epsilon=1.e-4):
     r_obs = 10.**8
@@ -302,7 +302,7 @@ def test_regularized_m_value_approaches_zero_at_large_radius(cyl, epsilon=1.e-4)
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, at large radius'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_approaches_zero_far_downstream(cyl, epsilon=1.e-4):
     unpacked = cyl.unpack_info()
@@ -316,7 +316,7 @@ def test_regularized_m_value_approaches_zero_far_downstream(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, far downstream'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def test_regularized_m_value_approaches_zero_far_upstream(cyl, epsilon=1.e-4):
     unpacked = cyl.unpack_info()
@@ -330,7 +330,7 @@ def test_regularized_m_value_approaches_zero_far_upstream(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: elliptic_m regularization does not work as intended, far upstream'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 ###### test axes
 
@@ -354,7 +354,7 @@ def test_axes_when_observer_is_on_x_hat(cyl, epsilon=1.e-6):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on x_hat axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -378,7 +378,7 @@ def test_axes_when_observer_is_on_z_hat(cyl, epsilon=1.e-6):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on z_hat axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -402,7 +402,7 @@ def test_axes_when_observer_is_on_y_hat(cyl, epsilon=1.e-4):
 
     if not criteria:
         message = 'vortex semi-infinite cylinder: axes generation does not work as intended, on y_hat axis'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 

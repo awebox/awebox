@@ -62,7 +62,7 @@ def check_associated_coeffs_defined_for_frame(associated_coeffs, frame, type='')
     if not frame in associated_coeffs.keys():
         message = 'desired ' + type + ' frame ' + frame + ' is not in the list of ' \
             + 'expected frames: ' + repr(associated_coeffs.keys())
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -77,7 +77,7 @@ def check_associated_coeffs_exist_in_coeff_data(coeffs, associated_coeffs, frame
     if not all(expected_in_coeffs):
         message = 'the associated coefficients (' + repr(coeffs_associated_to_frame) + ') for the reference frame ' \
             + frame + ' do not all exist in the computed stability derivative data.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -178,7 +178,7 @@ def collect_contributions(parameters, inputs):
                 if not input_name in inputs.keys():
                     message = 'desired stability derivative input ' + input_name + ' is not recognized. ' \
                         + 'The following inputs are defined: ' + repr(inputs.keys())
-                    print_op.error(message)
+                    print_op.log_and_raise_error(message)
 
                 input_val = inputs[input_name]
                 alpha_val = inputs['alpha']

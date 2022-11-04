@@ -90,7 +90,7 @@ def get_induction_cstr(options, wind, variables_si, parameters, architecture):
 
 def log_and_raise_unknown_induction_model_error(induction_model):
     message = 'induction model (' + induction_model + ') is not recognized'
-    print_op.error(message)
+    print_op.log_and_raise_error(message)
     return None
 
 ## velocities

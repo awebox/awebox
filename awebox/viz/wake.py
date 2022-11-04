@@ -205,7 +205,7 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     #                                                                                       idx_at_eval, kdx)
     # else:
     #     message = 'desired observer-coordinate-distribution (' + specified + ') is not yet available'
-    #     print_op.error(message)
+    #     print_op.log_and_raise_error(message)
     #
     #
     # # Calculated the points according to that distribution

@@ -261,7 +261,7 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
         tip_radius = tip_radius + half_span_proj
     else:
         message = 'invalid tip designated'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return tip_radius
 

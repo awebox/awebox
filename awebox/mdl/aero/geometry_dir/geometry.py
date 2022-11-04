@@ -55,7 +55,7 @@ def raise_and_log_unavailable_geometry_type_error(model_options):
     geometry_type = get_geometry_type(model_options)
     if geometry_type not in get_available_geometry_types():
         message = geometry_type + ' aerodynamic geometry type is not yet available. perhaps check your spelling?'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -314,7 +314,7 @@ def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
 
     if not criteria:
         message = 'geometry type (' + geometry_type + ') does not behave as expected in the highly-simplified test-case'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 

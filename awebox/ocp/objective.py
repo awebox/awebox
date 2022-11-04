@@ -29,6 +29,8 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
+import pdb
+
 import casadi.tools as cas
 import numpy as np
 from . import collocation
@@ -402,16 +404,15 @@ def find_beta_cost(nlp_options, model, Outputs, P):
     d = nlp_options['collocation']['d']
 
     if model.kite_dof == 6:
-        beta_cost = 0.0
+        beta_cost = cas.DM(0.)
         for kite in model.architecture.kite_nodes:
 
             idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
+            for kdx in range(nlp_options['n_k']):
+                for ddx in range(d):
+                    beta_cost += int_weights[ddx] * Outputs[idx, kdx * d + ddx]**2
 
-            for k in range(nlp_options['n_k']):
-                for j in range(d):
-                    beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
-
-        beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
+        beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']
     else:
         beta_cost = 0
 

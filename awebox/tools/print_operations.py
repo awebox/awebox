@@ -116,12 +116,13 @@ def warn_about_temporary_functionality_alteration(editor='an editor', reason='im
     awelogger.logger.warning(message)
     return None
 
-def error(message):
+def log_and_raise_error(message):
     location = inspect.getouterframes(inspect.currentframe(), 2)[1][1]
     message += '\n' + location
     awelogger.logger.error(message)
     raise Exception(message)
     return None
+
 
 def print_variable_info(object_name, variable_struct):
 
@@ -167,7 +168,7 @@ def print_variable_info(object_name, variable_struct):
 
     if counter != expected_count:
         message = 'not all variables in structure of ' + object_name + ' have been found! counted: ' + str(counter) + ', expected: ' + str(expected_count)
-        error(message)
+        log_and_raise_error(message)
 
     message = preface + message[1:]
 
@@ -202,7 +203,7 @@ class Table:
                 return True
             else:
                 message = 'unexpected entry in row'
-                print_op.error(message)
+                log_and_raise_error(message)
         else:
             return True
 
@@ -284,7 +285,7 @@ class Table:
 
     @dict.setter
     def dict(self, value):
-        error('Cannot set dict object.')
+        log_and_raise_error('Cannot set dict object.')
 
     @property
     def column_headers(self):
@@ -318,7 +319,21 @@ def test_table_print():
     criteria = (test_string == tabulate_string)
     if not criteria:
         message = 'table to_string does not work as expected.'
-        print_op.error(message)
+        log_and_raise_error(message)
+
+
+def print_dict_as_dot_separated_two_column_table(dict):
+    for name, value in dict.items():
+        print_dot_separated_info(name, value)
+    awelogger.logger.info('')
+
+    return None
+
+def print_dot_separated_info(name, value):
+    message = "{:.<26}: {}".format(name, value)
+    awelogger.logger.info(message)
+    return None
+
 
 def print_progress(index, total_count):
     # warning: this does NOT log the progress, it only displays the progress, on-screen

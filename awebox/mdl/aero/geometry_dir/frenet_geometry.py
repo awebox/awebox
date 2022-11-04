@@ -181,7 +181,7 @@ def variables_have_third_derivative_information(variables, kite, parent):
         return ('[' + label + ']' in variables['xdot'].labels())
     if (isinstance(variables, dict)) and not ('xdot' in variables.keys()):
         message = 'cannot determine if the variables have third degree-of-freedom information'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     else:
         return ('[xdot,' + label + ']' in variables.labels())

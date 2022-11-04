@@ -89,7 +89,7 @@ def extend_specific_geometric_variable(abbreviated_var_name, model_options, syst
 
                 else:
                     message = 'unexpected variable type: (' + var_type + ')'
-                    print_op.error(message)
+                    print_op.log_and_raise_error(message)
 
     return system_lifted, system_states
 
@@ -125,7 +125,7 @@ def get_position_of_near_wake_element_in_horseshoe(options, element_number):
 
     if not (element_number_in_ring in filament_ordering.keys()):
         message = 'something went wrong when trying to determine the position of a particular near-wake vortex filament'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
     else:
         return filament_ordering[element_number_in_ring]
 
@@ -146,17 +146,16 @@ def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, e
             return wake_node_at_most_recently_shed_edge_of_ring + 1
         else:
             message = 'unfamiliar vortex filament position found (' + filament_position + ')'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     elif 'bound' in wake_type:
         return 0
 
     elif 'far' in wake_type:
         return wake_nodes - 1
-    
     else:
-	    message = 'unfamiliar wake [substructure] type found (' + wake_type + ')'
-        print_op.error(message)
+        message = 'unfamiliar wake [substructure] type found (' + wake_type + ')'
+        print_op.log_and_raise_error(message)
 
 def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number):
 
@@ -209,7 +208,7 @@ def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_cir
         wingtip_sign = +1.
     else:
         message = 'unfamiliar wingtip abbreviation (' + wingtip + ')'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     approx_downstream_distance = expected_delta_t * u_ref    
     
@@ -316,7 +315,7 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
 
 def log_and_raise_unknown_representation_error(vortex_representation):
     message = 'vortex representation (' + vortex_representation + ') is not recognized'
-    print_op.error(message)
+    print_op.log_and_raise_error(message)
     return None
 
 
@@ -406,7 +405,7 @@ def get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbrev
         wake_node_or_ring_list = [wake_nodes - 1]
     else:
         message = 'get_specific_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list
 
@@ -421,7 +420,7 @@ def get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=None, tip=None, 
         return get_far_wake_cylinder_pitch_name(parent_shed=kite_shed_or_parent_shed)
     else:
         message = 'get_var_name function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
 def get_wake_node_position_name(kite_shed, tip, wake_node):
     var_name = 'wx_' + str(kite_shed) + '_' + tip + '_' + str(wake_node)
@@ -501,7 +500,7 @@ def get_expected_number_of_far_wake_elements_dict(options, architecture):
         return {}
     else:
         message = 'unexpected type of far-wake vortex element (' + far_wake_element_type + '). maybe, check your spelling?'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return expected_dict
 
@@ -526,7 +525,7 @@ def check_positive_vortex_wake_nodes(options):
     wake_nodes = options['induction']['vortex_wake_nodes']
     if wake_nodes < 0:
         message = 'insufficient wake nodes for creating a filament list: wake_nodes = ' + str(wake_nodes)
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
     return None
 
 def superpose_induced_velocities_at_kite(wake, variables_si, kite_obs, substructure_types = None):
@@ -557,7 +556,7 @@ def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, va
         u_vec = wind.get_speed_ref() # * xhat
     else:
         message = 'desired induction_factor_normalizing_speed (' + induction_factor_normalizing_speed + ') is not yet available'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     u_normalizing = vect_op.smooth_norm(u_vec)
     return u_normalizing

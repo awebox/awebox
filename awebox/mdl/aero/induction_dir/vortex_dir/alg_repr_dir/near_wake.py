@@ -108,7 +108,7 @@ def build_per_kite_per_ring(options, kite, ring, variables_si, parameters):
 
         else:
             message = 'unexpected type of near wake vortex filament (' + local_filament_position + ')'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
     filament_list.confirm_list_has_expected_dimensions()
 
@@ -221,7 +221,7 @@ def test_correct_finite_filaments_defined():
     criteria = condition1 and condition2 and condition3 and condition4
     if not criteria:
         message = 'near_wake does not contain the expected vortex elements'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 

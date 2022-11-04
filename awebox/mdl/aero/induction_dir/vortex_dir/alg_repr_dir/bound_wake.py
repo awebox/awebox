@@ -123,7 +123,7 @@ def test_correct_filaments_defined():
     criteria = condition1 and condition2
     if not criteria:
         message = 'bound_wake does not contain the expected vortex elements'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 

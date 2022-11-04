@@ -129,7 +129,7 @@ def from_named_frame_to_body(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
         return vector
 
@@ -146,7 +146,7 @@ def from_named_frame_to_control(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
         return vector
 
@@ -163,7 +163,7 @@ def from_named_frame_to_earth(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
         return vector
 
@@ -180,7 +180,7 @@ def from_named_frame_to_wind(name, vec_u, kite_dcm, vector):
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(name) +'. Proceding ' + \
                     'without frame conversion.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
         return vector
 
@@ -197,7 +197,7 @@ def from_named_frame_to_named_frame(from_name, to_name, vec_u, kite_dcm, vector)
     else:
         message = 'aerodynamic coefficients defined in unfamiliar reference frame: ' + str(to_name) +'. Proceding ' + \
                     'without frame conversion.'
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
 
         return vector
 
@@ -317,7 +317,7 @@ def kite_frame_transformation_check(transformed, reference, epsilon, name, dir):
 
     if resi > epsilon:
         message = 'kite frame transformation test (' + name + ' ' + dir + ') gives error of size: ' + str(resi)
-        print_op.error(message)
+        print_op.log_and_raise_error(message)
     return None
 
 

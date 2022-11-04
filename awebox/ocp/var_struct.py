@@ -74,7 +74,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
         # add collocation node variables
         if Collocation is None:
             message = 'a None instance of Collocation was passed to the NLP variable structure generator'
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
 
         d = nlp_options['collocation']['d'] # interpolating polynomial order
         coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_options['collocation']['u_param'])

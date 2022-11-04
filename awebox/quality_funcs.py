@@ -164,10 +164,9 @@ def test_variables(trial, test_param_dict, results):
     # test if height of all nodes is positive
     for node in range(1, number_of_nodes):
 
-        error_message = 'Node ' + node_str + ' has negative height for trial ' + trial.name
-
         parent = parent_map[node]
         node_str = 'q' + str(node) + str(parent)
+        error_message = 'Node ' + node_str + ' has negative height for trial ' + trial.name
 
         heights_x = np.array(V_final['x',:,node_str,2])
         if np.min(heights_x) < 0.:
@@ -179,7 +178,7 @@ def test_variables(trial, test_param_dict, results):
                 results['min_node_height'] = False
 
         if not results['min_node_height']:
-            print_op.error(error_message)
+            print_op.log_and_raise_error(error_message)
 
     return results
 

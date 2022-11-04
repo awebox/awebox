@@ -111,7 +111,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         message = 'OCP appears to be unhealthy'
 
         if health_solver_options['raise_exception']:
-            print_op.error(message)
+            print_op.log_and_raise_error(message)
         else:
             awelogger.logger.warning(message)
 
@@ -150,7 +150,7 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
     tractability['min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
 
     awelogger.logger.info('tractability indicator report')
-    print_op.print_dict_as_table(tractability)
+    print_op.print_dict_as_dot_separated_two_column_table(tractability)
 
     return tractability
 
