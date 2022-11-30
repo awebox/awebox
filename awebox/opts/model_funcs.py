@@ -881,6 +881,7 @@ def get_u_at_altitude(options, zz):
 
     model = options['user_options']['wind']['model']
     u_ref = get_u_ref(options['user_options'])
+    u_ref = 10.0
     z_ref = options['params']['wind']['z_ref']
     z0_air = options['params']['wind']['log_wind']['z0_air']
     exp_ref = options['params']['wind']['power_wind']['exp_ref']
