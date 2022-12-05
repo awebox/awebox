@@ -11,7 +11,6 @@ Preprints 2022, 2022120018 (doi: 10.20944/preprints202212.0018.v1).
 
 import awebox as awe
 import reference_options as ref
-import numpy as np
 import pickle
 import copy
 
@@ -65,6 +64,8 @@ if __name__ == "__main__":
 
     print('Fixing optimal design parameters:')
     print(fixed_params)
+
+    intermediate_sol = None # init
 
     if HOMOTOPY == 'SIPH':
         
