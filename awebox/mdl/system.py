@@ -172,7 +172,7 @@ def generate_structure(options, architecture):
             raise ValueError('invalid tether control variable chosen')
         
     if options['integral_outputs']:
-        32.0
+        pass
     else:
         system_states.extend([('e', (1, 1))]) # energy
 

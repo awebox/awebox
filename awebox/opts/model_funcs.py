@@ -145,7 +145,7 @@ def get_geometry_params(basic_options_params, geometry_options, geometry_data):
     overwrite_set = set(geometry_options.keys())
     for name in overwrite_set:
         if geometry_options[name] is None:
-            32.0
+            pass
         else:
             geometry[name] = geometry_options[name]
 

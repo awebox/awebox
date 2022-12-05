@@ -646,7 +646,7 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
             if lbx_idx == -cas.inf and ubx_idx == cas.inf:
                 # var is not bounded
                 # do not add constraint to relevant list -> do nothing
-                32.0
+                pass
 
             if ubx_idx == lbx_idx:
                 # equality constraint

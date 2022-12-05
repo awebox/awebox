@@ -36,6 +36,11 @@ options['user_options.wind.u_ref'] = 10.
 options['nlp.n_k'] = 60
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
 
+
+options['user_options.trajectory.lift_mode.windings'] = 1
+options['nlp.n_k'] = 20
+options['solver.linear_solver'] = 'ma57'
+
 # set-up sweep options
 sweep_opts = [('user_options.wind.u_ref', np.linspace(5,9,5, endpoint=True))]
 

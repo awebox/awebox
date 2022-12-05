@@ -642,8 +642,11 @@ class Pmpc(object):
 
         # initialize
         import awebox.opti.preparation as prep
+        import awebox.tools.print_operations as print_op
         V_dummy = self.__trial.nlp.V(0.0)
-        p_fix_num = prep.set_p_fix_num(V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
+
+        p_fix_num = prep.initialize_opti_parameters_with_model_parameters(self.__trial.nlp, self.__trial.options['solver'])
+        p_fix_num = prep.add_weights_and_refs_to_opti_parameters(p_fix_num, V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
         x0 = self.__trial.model.variables_dict['x'](self.__p['x0'])
         xN = self.__trial.model.variables_dict['x'](self.__trial.nlp.V(self.__p['ref'])['x',-1])
 
