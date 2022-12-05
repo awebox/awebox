@@ -154,7 +154,6 @@ def test_drag_mode_model():
     integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
     assert(cas.jacobian(integral_outputs,model.variables['x','kappa21']).nnz()!=0)
     assert(cas.jacobian(integral_outputs,model.variables['x','kappa31']).nnz()!=0)
-    assert(cas.jacobian(integral_outputs,model.variables['theta','l_t']).nnz()==0)
     assert(cas.jacobian(integral_outputs,model.variables['z','lambda10']).nnz()==0)
 
     # test variable bounds
@@ -282,7 +281,7 @@ def test_tether_moments():
         var_si['x', 'ddl_t'] = 9.49347e-13
 
     var_si['z'] = 45.024
-    var_si['theta'] = np.array([0.005, 3.93805, 152.184])
+    var_si['theta'] = np.array([0.005, 3.93805])
 
     # scaled variables
     scaling = model.scaling
