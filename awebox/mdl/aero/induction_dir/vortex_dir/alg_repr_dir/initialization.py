@@ -102,8 +102,8 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
     average_circulation = definite_integrated_circulation / delta_t
 
     expected_strength = average_circulation
-    found_strength = V_init_si['coll_var', ndx_test, ddx_test, 'xl', 'wg_' + str(kite_test) + '_0']
-    non_coll_found = V_init_si['xl', ndx_test+1, 'wg_' + str(kite_test) + '_0']
+    found_strength = V_init_si['coll_var', ndx_test, ddx_test, 'z', 'wg_' + str(kite_test) + '_0']
+    non_coll_found = V_init_si['z', ndx_test+1, 'wg_' + str(kite_test) + '_0']
 
     cond1 = (found_strength/expected_strength - 1.)**2. < epsilon**2.
     cond2 = (non_coll_found/expected_strength - 1.)**2. < epsilon**2.
@@ -180,7 +180,7 @@ def get_specific_local_initialization(abbreviated_var_name, init_options, V_init
 
     var_name = vortex_tools.get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
 
-    # V['coll_var', ndx-1, -1, 'xl', var_name] = V['xl', ndx, var_name]
+    # V['coll_var', ndx-1, -1, 'z', var_name] = V['z', ndx, var_name]
 
     if (ddx is None):
         ndx_find = ndx - 1
@@ -205,11 +205,11 @@ def get_specific_local_initialization(abbreviated_var_name, init_options, V_init
         message = 'get_specific_local_constraint function is not set up for this abbreviation (' + abbreviated_var_name + ') yet.'
         print_op.log_and_raise_error(message)
 
-    var_val_scaled = struct_op.var_si_to_scaled('xl', var_name, var_val_si, model.scaling)
+    var_val_scaled = struct_op.var_si_to_scaled('z', var_name, var_val_si, model.scaling)
 
     if ddx is None:
-        V_init_scaled['xl', ndx, var_name] = var_val_scaled
+        V_init_scaled['z', ndx, var_name] = var_val_scaled
     else:
-        V_init_scaled['coll_var', ndx, ddx, 'xl', var_name] = var_val_scaled
+        V_init_scaled['coll_var', ndx, ddx, 'z', var_name] = var_val_scaled
 
     return V_init_scaled

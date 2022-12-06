@@ -91,14 +91,14 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
     cstr_name = 'fixing_' + var_name + '_' + str(ndx)
 
     if ddx is None:
-        var_symbolic_scaled = V['xl', ndx, var_name]
-        var_val_scaled = V['coll_var', ndx - 1, -1, 'xl', var_name]
+        var_symbolic_scaled = V['z', ndx, var_name]
+        var_val_scaled = V['coll_var', ndx - 1, -1, 'z', var_name]
         resi_scaled = var_symbolic_scaled - var_val_scaled
 
     else:
         cstr_name += ',' + str(ddx)
-        var_symbolic_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-        var_symbolic_si = struct_op.var_scaled_to_si('xl', var_name, var_symbolic_scaled, model.scaling)
+        var_symbolic_scaled = V['coll_var', ndx, ddx, 'z', var_name]
+        var_symbolic_si = struct_op.var_scaled_to_si('z', var_name, var_symbolic_scaled, model.scaling)
 
         # look-up the actual value from the Outputs. Keep the computing here minimal.
         if abbreviated_var_name == 'wx':
@@ -124,12 +124,12 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
 
 def get_simple_residual(var_name, var_symbolic_si, var_value_si, model_scaling):
     resi_si = var_symbolic_si - var_value_si
-    resi_scaled = struct_op.var_si_to_scaled('xl', var_name, resi_si, model_scaling)
+    resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, model_scaling)
     return resi_scaled
 
 def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx=None):
 
-    # V['coll_var', ndx-1, -1, 'xl', var_name] = V['xl', ndx, var_name]
+    # V['coll_var', ndx-1, -1, 'z', var_name] = V['z', ndx, var_name]
 
     if ddx is None:
         ndx = ndx - 1
@@ -204,7 +204,7 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
 
     int_name = 'integrated_circulation' + str(kite_shed)
-    local_scaling = model.scaling['xd'][int_name]
+    local_scaling = model.scaling['x'][int_name]
 
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
@@ -261,8 +261,8 @@ def get_the_cylinder_center_at_shedding_indices(Outputs, parent_shed, ndx_shed, 
 def get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, parent_shed, wake_node, ndx, ddx=None):
     var_name = vortex_tools.get_var_name('wh', kite_shed_or_parent_shed=parent_shed,
                                          tip=None, wake_node_or_ring=wake_node)
-    var_local_scaled = V['coll_var', ndx, ddx, 'xl', var_name]
-    pitch_si = struct_op.var_scaled_to_si('xl', var_name, var_local_scaled, model.scaling)
+    var_local_scaled = V['coll_var', ndx, ddx, 'z', var_name]
+    pitch_si = struct_op.var_scaled_to_si('z', var_name, var_local_scaled, model.scaling)
 
     ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx)
 
@@ -272,7 +272,7 @@ def get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, parent_she
     average_period_of_rotation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'geometry', 'average_period_of_rotation' + str(parent_shed)]
     resi = general_flow.get_far_wake_cylinder_residual(pitch_si, l_hat, vec_u_zero, total_circulation, average_period_of_rotation)
 
-    pitch_ref = struct_op.var_scaled_to_si('xl', var_name, 1., model.scaling)
+    pitch_ref = struct_op.var_scaled_to_si('z', var_name, 1., model.scaling)
     scale = pitch_ref**2.
 
     resi_scaled = resi / scale

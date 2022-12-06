@@ -11,7 +11,6 @@ import casadi as cas
 import awebox.mdl.architecture as archi
 import numpy as np
 import awebox.mdl.system as system
-import awebox.mdl.mdl_constraint as mdl_constraint
 import awebox.tools.constraint_operations as cstr_op
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
@@ -320,7 +319,7 @@ def test_constraint_mechanism():
     rdx += 1
 
     # can we make a MdlConstraintList?
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     # are the lengths of the eq_list and ineq_list both zero?
     results[rdx] = (len(cstr_list.eq_list) == 0) and (len(cstr_list.ineq_list) == 0)
@@ -364,7 +363,7 @@ def test_constraint_mechanism():
     rdx += 1
 
     # can we make an empty list?
-    cstr_list_empty = mdl_constraint.MdlConstraintList()
+    cstr_list_empty = cstr_op.MdlConstraintList()
 
     # can we add the empty list to the existing list?
     cstr_list.append(cstr_list_empty)
@@ -374,7 +373,7 @@ def test_constraint_mechanism():
     rdx += 1
 
     # can we make a non-empty list, and append it to the main list?
-    cstr_list_nonempty = mdl_constraint.MdlConstraintList()
+    cstr_list_nonempty = cstr_op.MdlConstraintList()
     expr4 = var + 8.
     cstr_type4 = 'ineq'
     name4 = 'cstr4'

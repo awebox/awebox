@@ -238,8 +238,8 @@ def construct_geometry_test_object(geometry_type='averaged'):
         system_derivatives.extend([('dd' + var_name, (3, 1))])
 
     system_variable_list = {}
-    system_variable_list['xddot'] = system_derivatives
-    system_variable_list['xd'] = system_states
+    system_variable_list['xdot'] = system_derivatives
+    system_variable_list['x'] = system_states
 
     var_struct, variables_dict = struct_op.generate_variable_struct(system_variable_list)
 
@@ -264,9 +264,9 @@ def construct_geometry_test_object(geometry_type='averaged'):
 
     period = 2. * np.pi / omega
 
-    variables_si['xd', 'q10'] = x_center
-    variables_si['xd', 'dq10'] = dx_center
-    variables_si['xddot', 'ddq10'] = ddx_center
+    variables_si['x', 'q10'] = x_center
+    variables_si['x', 'dq10'] = dx_center
+    variables_si['xdot', 'ddq10'] = ddx_center
 
     for kdx in range(len(architecture.kite_nodes)):
 
@@ -280,9 +280,9 @@ def construct_geometry_test_object(geometry_type='averaged'):
 
         kite = architecture.kite_nodes[kdx]
         parent = architecture.parent_map[kite]
-        variables_si['xd', 'q' + str(kite) + str(parent)] = q_kite
-        variables_si['xd', 'dq' + str(kite) + str(parent)] = dq_kite
-        variables_si['xddot', 'ddq' + str(kite) + str(parent)] = ddq_kite
+        variables_si['x', 'q' + str(kite) + str(parent)] = q_kite
+        variables_si['x', 'dq' + str(kite) + str(parent)] = dq_kite
+        variables_si['xdot', 'ddq' + str(kite) + str(parent)] = ddq_kite
 
     return model_options, variables_si, architecture, wind, x_center, dx_center, period, clockwise
 

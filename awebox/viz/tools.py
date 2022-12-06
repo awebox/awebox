@@ -283,7 +283,7 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
         # kite position information
         q_kite = []
         for j in range(3):
-            q_kite = cas.vertcat(q_kite, plot_dict['xd']['q' + str(kite) + str(parent)][j][index])
+            q_kite = cas.vertcat(q_kite, plot_dict['x']['q' + str(kite) + str(parent)][j][index])
 
         # dcm information
         r_dcm = []
@@ -1221,9 +1221,9 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
             local_val = plot_dict['V_plot']['theta', 't_f', kdx]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
-        elif (var_type == 'xddot'):
-            if (var_name in plot_dict['xd'].keys()):
-                local_val = plot_dict['xd'][var_name][kdx][index]
+        elif (var_type == 'xdot'):
+            if (var_name in plot_dict['x'].keys()):
+                local_val = plot_dict['x'][var_name][kdx][index]
             else:
                 # be advised: this function does not compute dynamics
                 local_val = cas.DM.zeros((1,1))

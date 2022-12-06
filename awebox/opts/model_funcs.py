@@ -705,7 +705,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
     for kite in architecture.kite_nodes:
-        options_tree.append(('model', 'scaling', 'xd', 'integrated_circulation' + str(kite), 1., ('????', None), 'x')),
+        options_tree.append(('model', 'scaling', 'x', 'integrated_circulation' + str(kite), 1., ('????', None), 'x')),
 
     options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture)
 

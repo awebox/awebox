@@ -1,5 +1,5 @@
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
-import awebox.mdl.aero.induction_dir.geom_dir.geometry as geometry
+import awebox.mdl.aero.geometry_dir.geometry as geometry
 
 def test_vortex_components():
     vortex.test()

@@ -82,7 +82,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     options['aero']['vortex']['approximation_order_for_elliptic_integrals'] = 3
 
     options['scaling'] = {}
-    options['scaling']['xl'] = {'wu_near_finite_filament_0_1': 1.,
+    options['scaling']['z'] = {'wu_near_finite_filament_0_1': 1.,
                                 'wu_near_finite_filament_1_1': 1.,
                                 'wu_bound_finite_filament_0_1': 1.,
                                 'wu_far_finite_filament_0_1': 1.,
@@ -115,9 +115,9 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
         system_states.extend([('dq' + str(kite) + str(parent), (3, 1))])
         system_derivatives.extend([('ddq' + str(kite) + str(parent), (3, 1))])
 
-    system_variable_list = {'xl': system_lifted,
-                            'xd': system_states,
-                            'xddot': system_derivatives
+    system_variable_list = {'z': system_lifted,
+                            'x': system_states,
+                            'xdot': system_derivatives
                             }
 
     var_struct, variables_dict = struct_op.generate_variable_struct(system_variable_list)
@@ -160,12 +160,12 @@ def construct_straight_flight_test_object(element_type='finite_filament'):
 
     variables_si = var_struct(0.)
 
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1
@@ -185,12 +185,12 @@ def construct_vortex_ring_test_object(element_type='semi_infinite_filament'):
 
     variables_si = var_struct(0.)
 
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(0.)
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE + vect_op.xhat_dm()
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE + vect_op.xhat_dm()
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(0.)
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1
@@ -239,19 +239,19 @@ def construct_circular_flight_test_object(element_type='semi_infinite_right_cyli
 
     variables_si = var_struct(0.)
 
-    variables_si['xd', 'q10'] = x_kite
-    variables_si['xd', 'dq10'] = dx_kite
-    variables_si['xddot', 'ddq10'] = ddx_kite
+    variables_si['x', 'q10'] = x_kite
+    variables_si['x', 'dq10'] = dx_kite
+    variables_si['xdot', 'ddq10'] = ddx_kite
 
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE_0
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE_0
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE_1
-    variables_si['xl', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE_1
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
-    variables_si['xl', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 0)] = x_PE_0
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 0)] = x_NE_0
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'ext', 1)] = x_PE_1
+    variables_si['z', vortex_tools.get_wake_node_position_name(kite, 'int', 1)] = x_NE_1
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 0)] = cas.DM(4.)
+    variables_si['z', vortex_tools.get_vortex_ring_strength_name(kite, 1)] = cas.DM(1.)
 
-    variables_si['xl', vortex_tools.get_far_wake_cylinder_center_position_name(parent)] = x_center
-    variables_si['xl', vortex_tools.get_far_wake_cylinder_pitch_name(parent)] = pitch
+    variables_si['z', vortex_tools.get_far_wake_cylinder_center_position_name(parent)] = x_center
+    variables_si['z', vortex_tools.get_far_wake_cylinder_pitch_name(parent)] = pitch
 
     parameters = param_struct(0.)
     parameters['theta0', 'geometry', 'c_ref'] = 0.1

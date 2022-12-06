@@ -68,7 +68,7 @@ def extend_specific_geometric_variable(abbreviated_var_name, model_options, syst
     if abbreviated_var_name == 'wx':
         var_type = get_wake_node_position_var_type(model_options)
     else:
-        var_type = 'xl'
+        var_type = 'z'
 
     if abbreviated_var_name[:2] == 'wx':
         var_shape = (3, 1)
@@ -81,9 +81,9 @@ def extend_specific_geometric_variable(abbreviated_var_name, model_options, syst
 
                 var_name = get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
 
-                if var_type == 'xl':
+                if var_type == 'z':
                     system_lifted.extend([(var_name, var_shape)])
-                elif var_type == 'xd':
+                elif var_type == 'x':
                     system_states.extend([(var_name, var_shape)])
                     system_states.extend([('d' + var_name, var_shape)])
 
@@ -255,13 +255,13 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
                 var_type = get_wake_node_position_var_type(options['model'])
                 options_tree.append(('model', 'scaling', var_type, var_name, wx_scale, ('descript', None), 'x'))
 
-                if var_type == 'xd':
-                    options_tree.append(('model', 'scaling', 'xd', 'd' + var_name, wx_scale, ('descript', None), 'x'))
-                    options_tree.append(('model', 'scaling', 'xd', 'dd' + var_name, wx_scale, ('descript', None), 'x'))
+                if var_type == 'x':
+                    options_tree.append(('model', 'scaling', 'x', 'd' + var_name, wx_scale, ('descript', None), 'x'))
+                    options_tree.append(('model', 'scaling', 'x', 'dd' + var_name, wx_scale, ('descript', None), 'x'))
 
         for ring in range(rings):
             var_name = get_vortex_ring_strength_name(kite_shed, ring)
-            options_tree.append(('model', 'scaling', 'xl', var_name, wg_scale, ('descript', None), 'x'))
+            options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
 
     far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
     if (far_wake_element_type == 'semi_infinite_right_cylinder'):
@@ -272,18 +272,18 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
 
         for parent_shed in set([architecture.parent_map[kite] for kite in architecture.kite_nodes]):
             var_name = get_far_wake_cylinder_center_position_name(parent_shed=parent_shed)
-            options_tree.append(('model', 'scaling', 'xl', var_name, wx_center_scale, ('descript', None), 'x'))
+            options_tree.append(('model', 'scaling', 'z', var_name, wx_center_scale, ('descript', None), 'x'))
 
             var_name = get_far_wake_cylinder_pitch_name(parent_shed=parent_shed)
-            options_tree.append(('model', 'scaling', 'xl', var_name, wh_scale, ('descript', None), 'x')),
-            options_tree.append(('model', 'system_bounds', 'xl', var_name, [0.0, cas.inf], ('', None), 'x'))
+            options_tree.append(('model', 'scaling', 'z', var_name, wh_scale, ('descript', None), 'x')),
+            options_tree.append(('model', 'system_bounds', 'z', var_name, [0.0, cas.inf], ('', None), 'x'))
 
     # induced velocity part: the part that depends on the wake types and wake structure
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(options, architecture)
 
     for kite_obs in architecture.kite_nodes:
         var_name = get_induced_velocity_at_kite_name(kite_obs)
-        options_tree.append(('model', 'scaling', 'xl', var_name, wu_ind_scale, ('descript', None), 'x'))
+        options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))
 
         for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
             for element_type, expected_number in local_expected_number_of_elements_dict.items():
@@ -303,7 +303,7 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
 
                         local_wu_ind_element_scale *= local_adjustment_factor
 
-                    options_tree.append(('model', 'scaling', 'xl', var_name, local_wu_ind_element_scale, ('descript', None), 'x'))
+                    options_tree.append(('model', 'scaling', 'z', var_name, local_wu_ind_element_scale, ('descript', None), 'x'))
 
     varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('model', 'aero', 'vortex', 'varrho_ref', varrho_ref, ('descript', None), 'x'))
@@ -332,9 +332,9 @@ def get_define_wake_types():
 def get_wake_node_position_var_type(model_options):
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'alg':
-        var_type = 'xl'
+        var_type = 'z'
     elif vortex_representation == 'state':
-        var_type = 'xd'
+        var_type = 'x'
     else:
         log_and_raise_unknown_representation_error(vortex_representation)
 
@@ -348,36 +348,28 @@ def get_wake_node_position_si(model_options, variables, kite_shed, tip, wake_nod
 
 def get_vortex_ring_strength_si(variables, kite_shed, ring, scaling=None):
     var_name = get_vortex_ring_strength_name(kite_shed, ring)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
 def get_element_induced_velocity_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
 def get_induced_velocity_at_kite_si(variables, kite_obs, scaling=None):
     var_name = get_induced_velocity_at_kite_name(kite_obs)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
 def get_far_wake_finite_filament_pathwise_convection_velocity_si(variables, kite_shed, scaling=None):
     var_name = get_far_wake_finite_filament_pathwise_convection_velocity_name(kite_shed)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
 def get_far_wake_cylinder_center_position_si(variables, parent_shed, scaling=None):
     var_name = get_far_wake_cylinder_center_position_name(parent_shed)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
 def get_far_wake_cylinder_pitch_si(variables, parent_shed, scaling=None):
     var_name = get_far_wake_cylinder_pitch_name(parent_shed)
-    return get_variable_si(variables, 'xl', var_name, scaling)
+    return get_variable_si(variables, 'z', var_name, scaling)
 
-def get_lifted_vortex_wake_related_degrees_of_freedom(variables):
-    lifted_variables = struct_op.subkeys(variables, 'xl')
-
-    dof = 0
-    for var_name in lifted_variables:
-        dof += variables['xl', var_name].shape[0]
-
-    return dof
 
 def get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, nlp_options, architecture):
 

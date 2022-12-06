@@ -31,6 +31,7 @@ _python-3.5 / casadi-3.4.5
 import pdb
 
 from awebox.logger.logger import Logger as awelogger
+
 import os
 import casadi.tools as cas
 import numpy as np
@@ -292,7 +293,7 @@ def test_table_print():
 
     table = [["Sun", 696000, 1989100000], ["Earth", 6371, 5973.6], ["Moon", 1737, 73.5], ["Mars", 3390, 641.85]]
     headers = ["Planet", "R (km)", "mass (x 10^29 kg)"]
-    tabulate_string = tabulate(table, headers=headers)
+    tabulate_string = '\n' + tabulate(table, headers=headers)
 
     tab = Table()
 
@@ -310,6 +311,7 @@ def test_table_print():
 
     criteria = (test_string == tabulate_string)
     if not criteria:
+        pdb.set_trace()
         message = 'table to_string does not work as expected.'
         log_and_raise_error(message)
 
@@ -398,5 +400,3 @@ def print_progress(index, total_count):
 def test():
     test_table_print()
     test_depth_function()
-
-test_depth_function()

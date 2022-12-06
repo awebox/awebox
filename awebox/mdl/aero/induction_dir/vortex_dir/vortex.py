@@ -306,7 +306,6 @@ def test(test_includes_visualization=False):
     obj_wake.test()
 
     algebraic_representation.test(test_includes_visualization)
-    state_representation.test(test_includes_visualization)
 
     test_that_model_constraint_residuals_have_correct_shape()
 

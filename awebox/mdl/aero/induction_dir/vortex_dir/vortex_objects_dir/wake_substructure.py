@@ -130,7 +130,7 @@ class WakeSubstructure:
             local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
             vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
 
-        x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'xd', 'q' + str(kite_obs) + str(parent_obs))
+        x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(kite_obs) + str(parent_obs))
         resi = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
         resi_reshaped = vect_op.columnize(resi)
 
@@ -139,7 +139,7 @@ class WakeSubstructure:
         for element_type in self.get_initialized_element_types():
             for element_number in range(number_of_elements):
                 var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                local_scale = 1. / model_options['scaling']['xl'][var_name]
+                local_scale = 1. / model_options['scaling']['z'][var_name]
                 scale_matrix[:, element_number] = local_scale * cas.DM.ones((3, 1))
 
         scale_matrix_reshaped = cas.diag(vect_op.columnize(scale_matrix))
