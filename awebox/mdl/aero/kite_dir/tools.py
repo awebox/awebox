@@ -189,7 +189,7 @@ def get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, arch
         vec_u_eff_mawes_in_earth_frame = uw_infty - dq
 
     else:
-        vec_u_eff_mawes_in_earth_frame = induction.get_kite_effective_velocity(options, variables, wind, kite, architecture)
+        vec_u_eff_mawes_in_earth_frame = induction.get_kite_effective_velocity(variables, wind, kite, architecture)
     return vec_u_eff_mawes_in_earth_frame
 
 

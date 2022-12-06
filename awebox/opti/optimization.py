@@ -29,13 +29,10 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-
 import pdb
-
+import pickle
 from . import scheduling
-
 from . import preparation
-
 from . import diagnostics
 
 import awebox.tools.struct_operations as struct_op
@@ -640,14 +637,14 @@ class Optimization(object):
 
         integral_outputs_si = copy.deepcopy(self.__integral_outputs_opt)
 
-        for k in range(nk+1):
+        for ndx in range(nk+1):
             for name in list(model.integral_outputs.keys()):
-                integral_outputs_si['int_out',k,name] = self.__integral_outputs_opt['int_out',k,name]*model.integral_scaling[name]
+                integral_outputs_si['int_out', ndx, name] = self.__integral_outputs_opt['int_out', ndx, name] * model.integral_scaling[name]
 
-            if direct_collocation and (k < nk):
-                for j in range(d):
+            if direct_collocation and (ndx < nk):
+                for ddx in range(d):
                     for name in list(model.integral_outputs.keys()):
-                        integral_outputs_si['coll_int_out',k,j,name] = self.__integral_outputs_opt['coll_int_out',k,j,name]*model.integral_scaling[name]
+                        integral_outputs_si['coll_int_out', ndx, ddx, name] = self.__integral_outputs_opt['coll_int_out', ndx, ddx, name] * model.integral_scaling[name]
 
         return integral_outputs_si
 

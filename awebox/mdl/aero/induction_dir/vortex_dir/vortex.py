@@ -245,12 +245,13 @@ def compute_global_performance(power_and_performance, plot_dict):
     return power_and_performance
 
 
-def get_derivative_dict_for_alongside_integration(outputs, architecture):
+def get_dictionary_of_derivatives(outputs, architecture):
     derivative_dict = {}
 
+    local_scaling = 1.
     for kite in architecture.kite_nodes:
         local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
-        derivative_dict['integrated_circulation' + str(kite)] = local_circulation
+        derivative_dict['integrated_circulation' + str(kite)] = (local_circulation, local_scaling)
 
     return derivative_dict
 

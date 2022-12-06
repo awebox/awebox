@@ -316,7 +316,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
             outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(variables, parent, label)
 
         center = geom.get_center_position(model_options, parent, variables, architecture)
-        velocity = geom.get_center_velocity(parent, variables, architecture)
+        velocity = geom.get_center_velocity(model_options, parent, variables, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
         avg_radius = actuator_geom.get_average_radius(model_options, variables, parent, architecture, parameters)
         nhat = actuator_geom.get_n_hat_var(variables, parent)

@@ -291,23 +291,26 @@ def find_time_cost(nlp_options, V, P):
     return time_cost
 
 
-def find_power_cost(nlp_options, V, P, Integral_outputs):
+def find_power_cost(nlp_options, model, V, P, Integral_outputs):
 
     # maximization term for average power
     time_period = ocp_outputs.find_time_period(nlp_options, V)
 
     if not nlp_options['cost']['output_quadrature']:
-        average_power = V['x', -1, 'e'] / time_period
+        total_energy_scaled = V['x', -1, 'e']
     else:
-        average_power = Integral_outputs['int_out',-1,'e'] / time_period
+        total_energy_si = Integral_outputs['int_out',-1,'e']
+        total_energy_scaled = struct_op.var_si_to_scaled('x', 'e', total_energy_si, model.scaling)
+
+    average_scaled_power = total_energy_scaled / time_period
 
     if nlp_options['cost']['P_max']:
         max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
-        power_cost = P['cost', 'power'] * (-1.) * average_power + max_power_cost
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power + max_power_cost
     elif nlp_options['cost']['PDGA']:
-        power_cost = P['cost', 'power'] * (-1.) * average_power / (V['theta', 'ell_radius']**2)
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power / (V['theta', 'ell_radius']**2)
     else:
-        power_cost = P['cost', 'power'] * (-1.) * average_power
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power
 
     return power_cost
 
@@ -447,7 +450,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
-    component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
+    component_costs['power_cost'] = find_power_cost(nlp_options, model, V, P, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Outputs, P)

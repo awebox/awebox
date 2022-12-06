@@ -33,8 +33,10 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.averaged as averaged
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
@@ -49,17 +51,22 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, variables_s
 
     cstr_list = cstr_op.ConstraintList()
 
-    induction_cstr = get_induction_cstr(model_options, wind, variables_si, parameters, architecture)
-    cstr_list.append(induction_cstr)
+    if model_options['induction_model'] is 'averaged':
+        ellipse_half_cstr = averaged.get_ellipse_half_constraint(model_options, variables_si, parameters, architecture, outputs)
+        cstr_list.append(ellipse_half_cstr)
 
-    if actuator.model_is_included_in_comparison(model_options):
-        actuator_cstr = actuator.get_model_constraints(model_options, atmos, wind, variables_si, parameters, outputs,
-                                                   architecture)
-        cstr_list.append(actuator_cstr)
+    else:
+        induction_cstr = get_induction_cstr(model_options, wind, variables_si, parameters, architecture)
+        cstr_list.append(induction_cstr)
 
-    if vortex.model_is_included_in_comparison(model_options):
-        vortex_cstr = vortex.get_model_constraints(model_options, wake, scaling, wind, variables_si, parameters, architecture)
-        cstr_list.append(vortex_cstr)
+        if actuator.model_is_included_in_comparison(model_options):
+            actuator_cstr = actuator.get_model_constraints(model_options, atmos, wind, variables_si, parameters, outputs,
+                                                       architecture)
+            cstr_list.append(actuator_cstr)
+
+        if vortex.model_is_included_in_comparison(model_options):
+            vortex_cstr = vortex.get_model_constraints(model_options, wake, scaling, wind, variables_si, parameters, architecture)
+            cstr_list.append(vortex_cstr)
 
     return cstr_list
 
@@ -141,12 +148,18 @@ def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameter
 
     return outputs
 
-def get_derivative_dict_for_alongside_integration(model_options, outputs, architecture):
+def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture):
     derivative_dict = {}
-    if vortex.model_is_included_in_comparison(model_options):
-        local_dict = vortex.get_derivative_dict_for_alongside_integration(outputs, architecture)
 
-        for local_key, local_val in local_dict.items():
+    if model_options['induction_model'] == 'averaged':
+        averaged_derivative_dict = averaged.get_dictionary_of_derivatives(system_variables, parameters, atmos, wind, outputs, architecture)
+        for local_key, local_val in averaged_derivative_dict.items():
+            if not local_key in derivative_dict.keys():
+                derivative_dict[local_key] = local_val
+
+    if vortex.model_is_included_in_comparison(model_options):
+        vortex_derivative_dict = vortex.get_dictionary_of_derivatives(outputs, architecture)
+        for local_key, local_val in vortex_derivative_dict.items():
             if not local_key in derivative_dict.keys():
                 derivative_dict[local_key] = local_val
 

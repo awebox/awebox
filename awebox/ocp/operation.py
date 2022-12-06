@@ -33,6 +33,7 @@ constraints are divided as initial, terminal and periodic constraints, that are 
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-21
 '''
+import pdb
 
 import casadi.tools as cas
 
@@ -85,17 +86,19 @@ def determine_if_initial_conditions(options):
 def determine_if_param_terminal_conditions(options):
     return (options['trajectory']['type'] in ['transition', 'launch'])
 
+
 def get_initial_constraints(options, initial_variables, ref_variables, model, xi_dict):
+    # list all initial equalities ==> put SX expressions in dict
 
     cstr_list = cstr_op.OcpConstraintList()
 
-    # list all initial equalities ==> put SX expressions in dict
-    if 'e' in list(model.variables_dict['x'].keys()):
-        init_energy_eq = make_initial_energy_equality(initial_variables, ref_variables)
-        init_energy_cstr = cstr_op.Constraint(expr=init_energy_eq,
-                                    name='initial_energy',
-                                    cstr_type='eq')
-        cstr_list.append(init_energy_cstr)
+    for possibly_integrated_variable in model.integral_scaling.keys():
+        if possibly_integrated_variable in list(model.variables_dict['x'].keys()):
+            local_initial_integration_eq = make_initial_integration_equality(initial_variables, ref_variables, possibly_integrated_variable)
+            local_initial_integration_cstr = cstr_op.Constraint(expr=local_initial_integration_eq,
+                                        name='initial_' + possibly_integrated_variable,
+                                        cstr_type='eq')
+            cstr_list.append(local_initial_integration_cstr)
 
     _, initial_conditions, param_initial_conditions, _, _, _, _ = get_operation_conditions(options)
 
@@ -201,14 +204,14 @@ def make_terminal_point_constraint(terminal_variables, ref_variables, model):
 
     return cas.vertcat(*terminal_point_constr)
 
-def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
+def get_periodic_constraints(options, model, initial_model_variables, terminal_model_variables):
     cstr_list = cstr_op.OcpConstraintList()
 
     periodic, _, _, _, _, _, _ = get_operation_conditions(options)
 
     # list all periodic equalities ==> put SX expressions in dict
     if periodic:
-        periodic_eq = make_periodicity_equality(initial_model_variables, terminal_model_variables, options)
+        periodic_eq = make_periodicity_equality(model, initial_model_variables, terminal_model_variables, options)
         cstr = cstr_op.Constraint(expr=periodic_eq,
                                   name='state_periodicity',
                                   cstr_type='eq')
@@ -216,14 +219,11 @@ def get_periodic_constraints(options, initial_model_variables, terminal_model_va
 
     return cstr_list
 
-def make_initial_energy_equality(initial_model_variables, ref_variables):
-
-    initial_energy = initial_model_variables['x', 'e']
-    e_0 = ref_variables['x', 'e']
-
-    initial_energy_eq = initial_energy - e_0
-
-    return initial_energy_eq
+def make_initial_integration_equality(initial_model_variables, ref_variables, integrated_variable_name):
+    initial_value = initial_model_variables['x', integrated_variable_name]
+    reference_value = ref_variables['x', integrated_variable_name]
+    initial_integration_equality = initial_value - reference_value
+    return initial_integration_equality
 
 def is_induction_variable_from_comparison_model(name, options):
 
@@ -239,15 +239,18 @@ def is_induction_variable_from_comparison_model(name, options):
         return False
 
 
-def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
+def make_periodicity_equality(model, initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
 
     for name in struct_op.subkeys(initial_model_variables, 'x'):
 
-        from_comparison_model = is_induction_variable_from_comparison_model(name, options)
+        variable_is_an_integration_variable = name in model.integral_scaling.keys()
+        variable_is_a_wake_variable = (name[0] == 'w') or (name[:2] == 'dw')
+        variable_is_from_comparison_model = is_induction_variable_from_comparison_model(name, options)
 
-        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not from_comparison_model):
+        variable_is_not_periodic = variable_is_an_integration_variable or variable_is_a_wake_variable or variable_is_from_comparison_model
+        if not variable_is_not_periodic:
 
             initial_value = vect_op.columnize(initial_model_variables['x', name])
             final_value = vect_op.columnize(terminal_model_variables['x', name])

@@ -128,7 +128,6 @@ class Trial(object):
             options.fill_in_seed(options_seed)
             architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
             options.build(architecture)
-            import awebox.mdl.dynamics as dyn
             self.__model.generate_scaled_variable_bounds(options['model'])
             self.__nlp.generate_variable_bounds(options['nlp'], self.__model)
 

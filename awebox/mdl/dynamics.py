@@ -101,47 +101,20 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    if not (options['induction_model'] in ['not_in_use', 'averaged']):
-        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
-    if not (options['induction_model'] == 'not_in_use'):
+    if options['induction_model'] is 'not_in_use':
+        pass
+    else:
         induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
 
-    # ensure that energy matches power integration
-    power, _ = get_power(options, system_variables, parameters, outputs, architecture)
-    derivative_dict_for_alongside_integration = {'e': power}
-    integral_scaling = {'e': options['scaling']['x']['e']}
-
-    if options['trajectory']['system_type'] == 'drag_mode':
-        derivative_dict_for_alongside_integration['power_derivative_sq'] = outputs['performance']['power_derivative']**2
-        integral_scaling['power_derivative_sq'] = 1.0
-
-    if options['induction_model'] == 'averaged':
-        tether_forces = 0.0
-        WdA = 0.0
-        for kite in architecture.kite_nodes:
-            tether_forces += outputs['local_performance']['tether_force{}'.format(architecture.node_label(kite))]
-            q = system_variables['SI']['x']['q{}'.format(architecture.node_label(kite))]
-            rho = atmos.get_density(q[2])[0]
-            u_inf = wind.get_velocity(q[2])[0]
-            dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
-            b = parameters['theta0', 'geometry', 'b_ref']
-            WdA += 0.5 * b * vect_op.norm(dq) * rho * u_inf ** 2
-        derivative_dict_for_alongside_integration['tether_force_int'] = tether_forces
-        derivative_dict_for_alongside_integration['area_int'] = WdA
-        integral_scaling['tether_force_int'] = 1.0
-        integral_scaling['area_int'] = 1.0
-
-    derivative_of_integrated_circulation_dict = induction.get_derivative_dict_for_alongside_integration(options, outputs, architecture)
-    for local_key, local_val in derivative_of_integrated_circulation_dict.items():
-        if not local_key in derivative_dict_for_alongside_integration.keys():
-            derivative_dict_for_alongside_integration[local_key] = local_val
-
+    # specify the required integrations, including that
+    # the energy is the integral of the instantaneous power
+    derivative_dict = get_dictionary_of_derivatives(options, system_variables, parameters, atmos, wind, outputs, architecture)
     integral_outputs, integral_outputs_fun, integral_scaling, alongside_integration_cstr = manage_alongside_integration(options,
-                                                                                                                derivative_dict_for_alongside_integration,
-                                                                                                                integral_scaling,
+                                                                                                                derivative_dict,
                                                                                                                 system_variables,
                                                                                                                 parameters)
+
     cstr_list.append(alongside_integration_cstr)
 
 
@@ -170,11 +143,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
-
-    # ensure that energy matches power integration
+ 
     power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
-    P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
-    cstr_list.append(P_max_cstr)
+    max_power_cstr = max_power_inequality(options, system_variables['SI'], power)
+    cstr_list.append(max_power_cstr)
 
     outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(ellips_cstr)
@@ -238,35 +210,56 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 
     return None
 
-def manage_alongside_integration(options, derivative_dict_for_alongside_integration, integral_scaling, system_variables, parameters):
+def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture):
 
-    # dynamics function options
-    if options['jit_code_gen']['include']:
-        opts = {'jit': True, 'compiler': options['jit_code_gen']['compiler']}
-    else:
-        opts = {}
+    # ensure that energy matches power integration
+    power, _ = get_power(model_options, system_variables, parameters, outputs, architecture)
+    energy_scaling = model_options['scaling']['x']['e']
+    derivative_dict = {'e': (power, energy_scaling)}
+
+    if model_options['trajectory']['system_type'] == 'drag_mode':
+        power_derivative_sq_scaling = 1.
+        power_derivative_sq = outputs['performance']['power_derivative']**2
+        derivative_dict['power_derivative_sq'] =(power_derivative_sq, power_derivative_sq_scaling)
+
+    induction_derivative_dict = induction.get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture)
+    for local_key, local_val in induction_derivative_dict.items():
+        if not local_key in derivative_dict.keys():
+            derivative_dict[local_key] = local_val
+
+    if model_options['integration']['include_integration_test']:
+        derivative_dict['total_time_unscaled'] = (cas.DM(1.), cas.DM(1.))
+        total_time_scaling = model_options['scaling']['x']['total_time_scaled']
+        derivative_dict['total_time_scaled'] = (cas.DM(1.), total_time_scaling)  # second value is some arbitrary large number.
+
+    return derivative_dict
+
+
+def manage_alongside_integration(model_options, derivative_dict, system_variables, parameters):
 
     integral_outputs_expr_entries = []
     integral_outputs_struct_entries = []
     cstr_list = cstr_op.MdlConstraintList()
 
-    for integral_var_name, integral_derivative_expression_si in derivative_dict_for_alongside_integration.items():
-        # for example, integral_var_scaled = 'e' with integral_derivative_expression = power / options['scaling']['xd']['e']
+    integral_scaling = {}
 
-        local_scaling = integral_scaling[integral_var_name]
+    for integral_var_name, integral_derivative_tuple in derivative_dict.items():
+
+        integral_derivative_expression_si = integral_derivative_tuple[0]
+        local_scaling = integral_derivative_tuple[1]
+
         local_expression_scaled = integral_derivative_expression_si / local_scaling
+        integral_scaling[integral_var_name] = local_scaling
 
-        if options['integral_outputs']:
-
-            local_expr = integral_derivative_expression_si
+        if model_options['integral_outputs']:
+            local_expr = local_expression_scaled
             integral_outputs_expr_entries += [cas.entry(integral_var_name, expr=local_expr)]
 
             local_shape = integral_derivative_expression_si.shape
             integral_outputs_struct_entries += [cas.entry(integral_var_name, shape=local_shape)]
 
         else:
-            local_resi = (system_variables['scaled']['xdot']['d' + integral_var_name] - local_expression_scaled)
-
+            local_resi = (system_variables['scaled']['xdot', 'd' + integral_var_name] - local_expression_scaled)
             local_cstr = cstr_op.Constraint(expr=local_resi,
                                            name='integral_' + integral_var_name,
                                            cstr_type='eq')
@@ -275,8 +268,8 @@ def manage_alongside_integration(options, derivative_dict_for_alongside_integrat
     integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
 
     # dynamics function options
-    if options['jit_code_gen']['include']:
-        opts = {'jit': True, 'compiler': options['jit_code_gen']['compiler']}
+    if model_options['jit_code_gen']['include']:
+        opts = {'jit': True, 'compiler': model_options['jit_code_gen']['compiler']}
     else:
         opts = {}
 
@@ -617,17 +610,17 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
     return cstr_list
 
 
-def P_max_inequality(options, variables, power, parameters, architecture):
+def max_power_inequality(options, variables, power):
 
     cstr_list = cstr_op.MdlConstraintList()
 
     if 'P_max' in variables['theta'].keys():
         max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max']
 
-        P_max_cstr = cstr_op.Constraint(expr=max_power_ineq,
-                                    name='P_max_cstr',
+        max_power_cstr = cstr_op.Constraint(expr=max_power_ineq,
+                                    name='max_power_cstr',
                                     cstr_type='ineq')
-        cstr_list.append(P_max_cstr)
+        cstr_list.append(max_power_cstr)
 
     return cstr_list
 
@@ -653,22 +646,6 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
                                         cstr_type='ineq')
             cstr_list.append(ellipse_cstr)
 
-        if options['induction_model'] == 'averaged':
-            ell_theta = variables['theta']['ell_theta']
-            for kite in architecture.kite_nodes:
-                q = variables['x']['q{}'.format(architecture.node_label(kite))]
-
-                yy = q[1]
-                zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
-                if kite == 2:
-                    ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
-                elif kite == 3:
-                    ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz
-
-                ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
-                                            name='ellipse_half' + architecture.node_label(kite),
-                                            cstr_type='ineq')
-                cstr_list.append(ellipse_half_cstr)
     return outputs, cstr_list
 
 

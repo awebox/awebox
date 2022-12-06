@@ -166,7 +166,7 @@ def generate_structure(options, architecture):
         if tether_control_var == 'ddl_t':
             system_controls.extend([('ddl_t', (1, 1))])  # main tether acceleration
         elif tether_control_var == 'dddl_t':
-            system_states.extend([('ddl_t', (1, 1))]) # main tether acceleration
+            system_states.extend([('ddl_t', (1, 1))])  # main tether acceleration
             system_controls.extend([('dddl_t', (1, 1))])  # main tether jerk
         else:
             raise ValueError('invalid tether control variable chosen')
@@ -174,7 +174,11 @@ def generate_structure(options, architecture):
     if options['integral_outputs']:
         pass
     else:
-        system_states.extend([('e', (1, 1))]) # energy
+        system_states.extend([('e', (1, 1))])  # energy
+
+        if options['integration']['include_integration_test']:
+            system_states.extend([('total_time_unscaled', (1, 1))])
+            system_states.extend([('total_time_scaled', (1, 1))])
 
     # introduce aerodynamics variables
     system_lifted, system_states = extend_aerodynamics(options, system_lifted, system_states, architecture)

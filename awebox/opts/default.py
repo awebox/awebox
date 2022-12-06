@@ -240,16 +240,19 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
 
-        ('model',  'jit_code_gen',     None, 'include',              False,                  ('generate code with jit for model functions'),'t'),
-        ('model',  'jit_code_gen',     None, 'compiler',             'clang',                ('compiler for generated code'),'t'),
+        ('model',  'jit_code_gen',  None, 'include',                    False,                  ('generate code with jit for model functions'),'t'),
+        ('model',  'jit_code_gen',  None, 'compiler',                   'clang',                ('compiler for generated code'),'t'),
 
-        ('params',   None,       None,   'kappa_r',  1.,         ('baumgarte stabilization constant for dcm dynamics', None),'x'),
+        ('params',   None,          None, 'kappa_r',                    1.,                     ('baumgarte stabilization constant for dcm dynamics', None),'x'),
+
+        ('model',   'integration',  None, 'method',                     'integral_outputs',     ('how to perform the quadrature integration, such as the power, with integral_outputs or with constraints', ['integral_outputs', 'constraints']),'x'),
+        ('model',   'integration',  None, 'include_integration_test',   False,                  ('add an integration into the output-integrals to check for correct implementation', None), 'x'),
 
         #### ground_station
-        ('params', 'ground_station', None, 'r_gen',         0.25,   ('winch generator drum radius [m]',None),'x'),
-        ('params', 'ground_station', None, 'm_gen',         50.,    ('effective mass of generator [kg], guessed',None),'x'),
-        ('model', 'ground_station', None, 'ddl_t_max',      15.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
-        ('model', 'ground_station', None, 'dddl_t_max',     100.,   ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
+        ('params', 'ground_station',    None, 'r_gen',          0.25,   ('winch generator drum radius [m]',None),'x'),
+        ('params', 'ground_station',    None, 'm_gen',          50.,    ('effective mass of generator [kg], guessed',None),'x'),
+        ('model', 'ground_station',     None, 'ddl_t_max',      15.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
+        ('model', 'ground_station',     None, 'dddl_t_max',     100.,   ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
@@ -268,8 +271,7 @@ def set_default_options(default_user_options, help_options):
         ('formulation', 'compromised_landing', 'battery', 'defl_lift_0', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'defl_roll_0', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'voltage', None, ('???', None), 'x'),
-        ('formulation', 'compromised_landing', 'battery', 'mAh', None, ('???', None), 'x'),
-        ('formulation', 'compromised_landing', 'battery', 'charge', None, ('???', None), 'x'),
+        ('formulation', 'compromised_landing', 'battery', 'mAh', None, ('???', None), 'x'),        ('formulation', 'compromised_landing', 'battery', 'charge', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'number_of_cells', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'conversion_efficiency', None, ('???', None), 'x'),
         ('formulation', 'compromised_landing', 'battery', 'power_controller', None, ('???', None), 'x'),
@@ -289,7 +291,6 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
-        ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_stop',       0.9,                    ('stop of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),

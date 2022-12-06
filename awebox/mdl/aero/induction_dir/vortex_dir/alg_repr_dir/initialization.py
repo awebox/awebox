@@ -185,6 +185,9 @@ def get_specific_local_initialization(abbreviated_var_name, init_options, V_init
     if (ddx is None):
         ndx_find = ndx - 1
         ddx_find = -1
+        # notice that this implies/requires periodicity.
+        # todo: add check to ensure that periodic operation is expected
+
     else:
         ndx_find = ndx
         ddx_find = ddx

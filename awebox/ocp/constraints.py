@@ -89,7 +89,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
             ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.get_expression_list('all').shape))
 
         # add periodic constraints
-        periodic_cstr = operation.get_periodic_constraints(nlp_options, var_initial, var_terminal)
+        periodic_cstr = operation.get_periodic_constraints(nlp_options, model, var_initial, var_terminal)
         ocp_cstr_list.append(periodic_cstr)
         if len(periodic_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('periodic', shape = periodic_cstr.get_expression_list('all').shape))

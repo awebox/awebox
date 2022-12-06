@@ -363,7 +363,16 @@ def get_windings(user_options):
 
 def build_integral_options(options, options_tree, fixed_params):
 
-    options_tree.append(('model', None, None, 'integral_outputs', options['nlp']['cost']['output_quadrature'], ('do not include integral outputs as system states',[True,False]),'x'))
+    integration_method = options['model']['integration']['method']
+
+    if integration_method not in ['integral_outputs', 'constraints']:
+        message = 'unexpected model integration method specified (' + integration_method + ')'
+        print_op.log_and_raise_error(message)
+
+    use_integral_outputs = (integration_method == 'integral_outputs')
+
+    options_tree.append(('nlp', 'cost', None, 'output_quadrature', use_integral_outputs, ('use quadrature for integral system outputs in cost function', (True, False)), 't'))
+    options_tree.append(('model', None, None, 'integral_outputs', use_integral_outputs, ('do not include integral outputs as system states',[True,False]),'x'))
 
     check_energy_summation = options['quality']['test_param']['check_energy_summation']
     options_tree.append(('model', 'test', None, 'check_energy_summation', check_energy_summation, ('check that no kinetic or potential energy source has gotten lost', None), 'x'))
@@ -677,8 +686,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
 
     groundspeed = options['solver']['initialization']['groundspeed']
     airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
-
-    print_op.warn_about_temporary_functionality_alteration(reason='decide if this is necessary')
 
     rings = wake_nodes
 
@@ -995,11 +1002,15 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
         options_tree.append(('model', 'scaling', 'z', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
-
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
     options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('Max. power scaling factor', None),'x'))
     options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('Max. power initialization', None),'x'))
+
+    if options['model']['integration']['include_integration_test']:
+        arbitrary_integration_scaling = 7287.
+        options_tree.append(('model', 'scaling', 'x', 'total_time_unscaled', 1., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'total_time_scaled', arbitrary_integration_scaling, ('???', None), 'x'))
 
     return options_tree, fixed_params
 

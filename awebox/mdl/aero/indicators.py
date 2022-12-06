@@ -85,7 +85,7 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
 
     for parent in layer_nodes:
         total_circulation = 0.
-        for kite in architecture.children_map[parent]:
+        for kite in set(architecture.children_map[parent]).intersection(architecture.kite_nodes):
             local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
             total_circulation += local_circulation
         outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation

@@ -182,7 +182,7 @@ class Simulation:
         # create reference
         T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
 
-        # there may be some sort of strange recursion error going on here.
+        # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
         original_plot_dict = self.__trial.visualization.plot_dict
         trial_plot_dict = {}
         for name, val in original_plot_dict.items():
