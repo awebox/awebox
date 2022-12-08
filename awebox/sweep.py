@@ -161,8 +161,9 @@ class Sweep:
                 self.__sweep_dict[trial_to_run][param] = copy.deepcopy(single_trial_solution_dict)
 
                 # overwrite outputs to work around pickle bug
-                for i in range(len(single_trial_solution_dict['output_vals'])):
-                    self.__sweep_dict[trial_to_run][param]['output_vals'][i] = copy.deepcopy(single_trial_solution_dict['output_vals'][i])
+                for label in ['ref', 'opt', 'init']:
+                    for i in range(len(single_trial_solution_dict['output_vals'])):
+                        self.__sweep_dict[trial_to_run][param]['output_vals'][label] = copy.deepcopy(single_trial_solution_dict['output_vals'][label])
                 self.__sweep_labels[trial_to_run][param] = trial_to_run + '_' + param
 
         awelogger.logger.info('Sweep (' + self.__name + ') completed.')

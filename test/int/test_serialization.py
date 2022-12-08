@@ -6,57 +6,70 @@ whithout compromising functionality.
 """
 
 import os
+import pdb
+
 import awebox as awe
 import logging
 import pickle
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
-def test_trial_serial():
+def build_optimize_and_save_trial_for_serialization(nlp_discretization='direct_collocation'):
+
+    trial_name = 'serialization_trial_' + nlp_discretization
 
     # set-up trial options
+    if nlp_discretization is 'direct_collocation':
+        n_k = 2
+    elif nlp_discretization is 'multiple_shooting':
+        n_k = 10
+    else:
+        message = 'unfamiliar nlp_discretization selected (' + nlp_discretization + ')'
+        raise Exception(message)
+
     options = {}
     options['user_options.system_model.architecture'] = {1:0}
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.induction_model'] = 'not_in_use'
-    options['nlp.n_k'] = 2
+    options['nlp.discretization'] = nlp_discretization
+    options['nlp.n_k'] = n_k
     options['solver.max_iter'] = 0
 
-    # build collocation trial
-    trial = awe.Trial(name = 'serial_test', seed = options)
+    # build, optimize and save trial
+    trial = awe.Trial(name=trial_name, seed=options)
     trial.build()
-    trial.optimize(final_homotopy_step = 'initial')
+    trial.optimize(final_homotopy_step='initial')
     trial.save('dict')
 
+    return trial_name
+
+def load_trial_from_saved_dict_and_plot(trial_name):
+
+    filename = trial_name + '.dict'
+
     # load and test collocation trial
-    file_pi = open('serial_test.dict','rb')
-    dict_test = pickle.load(file_pi)
+    filehandler = open(filename, 'rb')
+    dict_test = pickle.load(filehandler)
+
     trial_test = awe.Trial(dict_test)
-    file_pi.close()
-    os.remove("serial_test.dict")
+    filehandler.close()
+    os.remove(filename)
 
     trial_test.plot('all')
 
-    # set-up ms trial options
-    options['nlp.discretization'] = 'multiple_shooting'
-    options['nlp.n_k'] = 10
+    return None
 
-    # build multiple shooting trial
-    trialMS = awe.Trial(name = 'serial_test_MS', seed = options)
-    trialMS.build()
-    trialMS.optimize(final_homotopy_step='initial')
-    trialMS.save('dict')
+def test_trial_serial():
+    print('WARNING!!!!')
+    # discretizations = ['direct_collocation', 'multiple_shooting']
+    discretizations = ['direct_collocation']
 
-    # load and test multiple shooting trial
-    file_pi_serial = open('serial_test_MS.dict','rb')
-    dict_testMS = pickle.load(file_pi_serial)
-    trial_testMS = awe.Trial(dict_testMS)
+    for nlp_discretization in discretizations:
+        trial_name = build_optimize_and_save_trial_for_serialization(nlp_discretization=nlp_discretization)
+        load_trial_from_saved_dict_and_plot(trial_name)
 
-    file_pi_serial.close()
-    os.remove("serial_test_MS.dict")
-
-    trial_testMS.plot('all')
+    return None
 
 def test_sweep_serial():
 
@@ -88,3 +101,5 @@ def test_sweep_serial():
     os.remove("serial_test.dict")
 
     sweep_test.plot(['all','comp_all'])
+
+test_trial_serial()

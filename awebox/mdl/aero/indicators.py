@@ -107,7 +107,7 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
 
     outputs['performance']['f'] = perf_op.get_reelout_factor_with_respect_to_wind_at_position(variables_si, x['q10'], wind)
 
-    outputs['performance']['elevation'] = get_elevation_angle(variables_si['x'])
+    outputs['performance']['elevation'] = perf_op.get_elevation_angle(variables_si['x']['q10'])
 
     for parent in layer_nodes:
         center_postion = geom.get_center_position(model_options, parent, variables_si, architecture)
@@ -330,7 +330,7 @@ def collect_local_performance_outputs(architecture, atmos, wind, variables_si, p
     CD = base_aerodynamic_quantities['aero_coefficients']['CD']
 
     x = variables_si['x']
-    elevation_angle = get_elevation_angle(x)
+    elevation_angle = perf_op.get_elevation_angle(x['q10'])
 
     parent = architecture.parent_map[kite]
 
@@ -412,12 +412,6 @@ def get_power_harvesting_factor(options, atmos, wind, variables, parameters,arch
     phf_hubheight = current_power / available_power_at_node_1_height
 
     return [current_power, phf, phf_hubheight, available_power_at_node_1_height]
-
-def get_elevation_angle(x):
-    length_along_ground = (x['q10'][0] ** 2. + x['q10'][1] ** 2.) ** 0.5
-    elevation_angle = cas.arctan2(x['q10'][2], length_along_ground)
-
-    return elevation_angle
 
 
 

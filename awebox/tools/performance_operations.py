@@ -65,3 +65,57 @@ def determine_if_periodic(options):
          enforce_periodicity = bool(False)
 
     return enforce_periodicity
+
+def get_elevation_angle(q10):
+    length_along_ground = (q10[0] ** 2. + q10[1] ** 2.) ** 0.5
+    elevation_angle = cas.arctan2(q10[2], length_along_ground)
+    return elevation_angle
+
+def test_elevation_angle(epsilon=1.e-4):
+    expected_angle = np.pi/4.
+    q10 = 1. * vect_op.xhat_np() + 1. * vect_op.zhat_np()
+    found_angle = get_elevation_angle(q10)
+
+    criteria = ((expected_angle - found_angle)**2. < epsilon**2.)
+    if not criteria:
+        message = 'elevation angle computation does not work as expected'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+
+def get_cone_angle(position_kite, position_parent, position_grandparent):
+    ehat_tether = vect_op.normalize(position_parent - position_grandparent)
+    altitude = vect_op.norm(vect_op.dot(position_kite - position_parent, ehat_tether))
+    hypotenuse = vect_op.norm(position_kite - position_parent)
+    cone_angle = cas.arccos(altitude/hypotenuse)
+    return cone_angle
+
+def test_cone_angle(epsilon=1.e-3):
+
+    ehat_tether = vect_op.xhat_np()
+    ehat_normal = vect_op.zhat_np()
+
+    position_parent = 0. * ehat_tether
+    position_grandparent = -1. * ehat_tether
+
+    expected_cone_angle = np.pi/4.
+    altitude = 1.
+    leg = 1.
+
+    position_kite = position_parent + altitude * ehat_tether + leg * ehat_normal
+    found_cone_angle = get_cone_angle(position_kite, position_parent, position_grandparent)
+
+    criteria = ((expected_cone_angle - found_cone_angle)**2 < epsilon**2.)
+
+    if not criteria:
+        message = 'cone angle computation does not work as expected'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+def test():
+    test_elevation_angle()
+    test_cone_angle()
+
+# test()

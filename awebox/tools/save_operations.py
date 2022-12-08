@@ -29,6 +29,7 @@ Stores helper functions for saving data
 """
 
 import pickle
+import awebox.tools.print_operations as print_op
 
 def save(data, file_name, file_type):
 
@@ -38,36 +39,19 @@ def save(data, file_name, file_type):
 
     return None
 
-def extract_solution_dict_from_file(file):
+def load_saved_data_from_dict(filename):
 
-    solution_dict = None
+    if isinstance(filename, str):
+        if not (filename[-5:] == '.dict'):
+            filename = filename + '.dict'
 
-    if type(file) == str:
-
-        if not (file[-5:] == '.dict'):
-            file = file + '.dict'
-
-        try:
-            filehandler = open(file, 'rb')
-            saved_dict = pickle.load(filehandler)
-            solution_dict = saved_dict['solution_dict']
-        except:
-            raise ValueError('Specified file cannot be imported. Please check whether correct filename was given.')
-
-    elif type(file) == dict:
-        saved_dict = file
-        if 'solution_dict' in saved_dict.keys():
-            solution_dict = saved_dict['solution_dict']
-        elif 'options' in saved_dict.keys():
-            solution_dict = saved_dict
-        else:
-            raise ValueError('Specified file dictionary does not correspond to expected format.')
+        filehandler = open(filename, 'rb')
+        data = pickle.load(filehandler)
+        filehandler.close()
+        return data
 
     else:
-        # assuming that the file is already a "trial"
-        try:
-            solution_dict = file.generate_solution_dict()
-        except:
-            raise ValueError('Specified file format is not yet accepted.')
+        message = 'the awebox is not currently set up to load saved data from anything other than a saved file (name)'
+        print_op.log_and_raise_error(message)
 
-    return solution_dict
+    return None

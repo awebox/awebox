@@ -58,18 +58,22 @@ class Trial(object):
 
     def __init__(self, seed, name = 'trial'):
 
+        if isinstance(seed, str):
+            filename = seed
+            seed = data_tools.load_saved_data_from_dict(filename)
+
         # check if constructed with solved trial dict
         if 'solution_dict' in seed.keys():
-
             self.__solution_dict = seed['solution_dict']
-            self.__visualization = visualization.Visualization()
-            self.__visualization.options = seed['solution_dict']['options']
-            self.__visualization.plot_dict = seed['plot_dict']
-            self.__visualization.create_plot_logic_dict()
             self.__options = seed['solution_dict']['options']
 
-        else:
+            self.__visualization = visualization.Visualization()
+            self.__visualization.options = seed['solution_dict']['options']['visualization']
 
+            self.__visualization.plot_dict = seed['plot_dict']
+            self.__visualization.create_plot_logic_dict()
+
+        else:
             self.__options_seed   = seed
             self.__options        = opts.Options()
             self.__options.fill_in_seed(self.__options_seed)
@@ -162,14 +166,8 @@ class Trial(object):
 
             awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
+        # perform quality check
         if (not intermediate_solve and recalibrate_viz):
-            cost_fun = self.nlp.cost_components[0]
-            cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
-            self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
-                                            self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
-                                            cost, self.name, self.__optimization.V_ref, self.__optimization.global_outputs_opt)
-
-            # perform quality check
             self.__quality.check_quality(self)
 
         # print solution
@@ -197,8 +195,9 @@ class Trial(object):
         integral_outputs_final = self.__solution_dict['integral_outputs_final']
         V_ref = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
+        global_outputs_opt = self.__solution_dict['global_outputs_opt']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, self.__optimization.global_outputs_opt, 'plot',fig_num, recalibrate = recalibrate)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate = recalibrate)
 
         return None
 
@@ -320,11 +319,7 @@ class Trial(object):
         solution_dict['V_final'] = self.__optimization.V_final
         solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
-        solution_dict['output_vals'] = [
-            copy.deepcopy(self.__optimization.output_vals[0]),
-            copy.deepcopy(self.__optimization.output_vals[1]),
-            copy.deepcopy(self.__optimization.output_vals[2])
-        ]
+        solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
         solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
         solution_dict['stats'] = self.__optimization.stats
         solution_dict['iterations'] = self.__optimization.iterations
@@ -332,6 +327,7 @@ class Trial(object):
         cost_fun = self.__nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['cost'] = cost
+        solution_dict['global_outputs_opt'] = self.__optimization.global_outputs_opt
 
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step

@@ -814,6 +814,73 @@ def is_numeric_scalar(val):
     else:
         return False
 
-# test_elliptic_e()
-# test_elliptic_k()
-# test_elliptic_pi()
+def interpolate_1D(x_data, y_data, x_points, interpolation_type, nlp_discretization, collocation_interpolator=None):
+    if (interpolation_type == 'spline') or (nlp_discretization == 'multiple_shooting'):
+        y_points = spline_interpolation(x_data, y_data, x_points)
+    elif (interpolation_type == 'poly') and (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
+        y_points = collocation_interpolator(x_points, name, j, 'x')
+    else:
+        message = 'interpolation is not yet set-up for a combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
+        print_op.log_and_raise_error(message)
+    return y_points
+
+
+def spline_interpolation(x_data, y_data, x_points):
+    """ Interpolate solution values with b-splines
+    """
+    n_points = columnize(cas.DM(x_points)).shape[0]
+
+    # can't use splines if all y_data values are zero
+    if isinstance(y_data, cas.DM):
+        all_zeros = y_data.is_zero()
+    else:
+        all_zeros = all([y_value == 0 for y_value in y_data])
+    if all_zeros:
+        return np.zeros(n_points)
+
+    # create interpolating function
+    name = 'spline_' + str(np.random.randint(10**5)) # hopefully unique name
+    spline = cas.interpolant(name, 'bspline', [x_data], y_data, {})
+
+    # function map to new discretization
+    spline = spline.map(n_points)
+    # interpolate
+    y_points = spline(x_points).full()[0]
+
+    return y_points
+
+def test_spline_interpolation(epsilon=1.e-6):
+
+    def cubic_function(xx):
+        return 0.1235 * xx ** 3 - 2.3993 * xx ** 2. + 0.7344 * xx ** 1. - 3.231
+    def parametrized(ss):
+        x_max = 5.
+        x_min = -1.
+        return x_min + ss * (x_max - x_min)
+
+    s_data = np.linspace(0., 1., 6)
+    x_data = np.array([parametrized(ss) for ss in s_data])
+    y_data = np.array([cubic_function(x_val) for x_val in x_data])
+
+    x_test = np.array([parametrized(0.), parametrized(1./100.), parametrized(7./17.), parametrized(1.)])
+    y_expected = columnize(cas.DM(np.array([cubic_function(x_val) for x_val in x_test])))
+    y_found = columnize(spline_interpolation(x_data, y_data, x_points=x_test))
+
+    diff = y_expected - y_found
+    criteria = (cas.mtimes(diff.T, diff) < epsilon**2.)
+
+    if not criteria:
+        message = 'spline interpolation does not work as expected'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+def test():
+    test_altitude()
+    test_elliptic_e()
+    test_elliptic_k()
+    test_elliptic_pi()
+    test_spline_interpolation()
+    return None
+
+# test()

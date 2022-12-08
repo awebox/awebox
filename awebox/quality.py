@@ -27,9 +27,11 @@
 # information about quality check results
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.quality_funcs as quality_funcs
+import awebox.tools.struct_operations as struct_op
 
 class Quality(object):
 
@@ -46,20 +48,49 @@ class Quality(object):
         else:
             self.__test_param_dict = test_param_dict
 
+    def get_test_inputs(self, trial):
+        time_grids = trial.optimization.time_grids
+        quality_options = trial.options['quality']
+        variables_dict = trial.model.variables_dict
+        V_opt = trial.optimization.V_opt
+        outputs_dict = struct_op.strip_of_contents(trial.model.outputs_dict)
+        output_opt = trial.optimization.outputs_opt
+        integral_output_names = trial.model.integral_outputs.keys()
+        integral_outputs_opt = trial.optimization.integral_outputs_opt
+        Collocation = trial.nlp.Collocation
+
+        n_points = trial.options['quality']['interpolation']['n_points']
+        quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
+        time_grids['quality'] = quality_time_grid
+
+        quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt,
+                                                              outputs_dict, output_opt,
+                                                              integral_output_names, integral_outputs_opt,
+                                                              Collocation=Collocation,
+                                                              timegrid_label='quality')
+
+        self.__input_values = quality_input_values
+        self.__input_time_grid = time_grids
+
+        return None
+
     def run_tests(self, trial):
+
+        # prepare relevant inputs
+        self.get_test_inputs(trial)
 
         # get relevant self params
         results = self.__results
         test_param_dict = self.__test_param_dict
 
         # run tests
-        results = quality_funcs.test_invariants(trial, test_param_dict, results)
-        results = quality_funcs.test_variables(trial, test_param_dict, results)
-        results = quality_funcs.test_numerics(trial, test_param_dict, results)
-        results = quality_funcs.test_power_balance(trial, test_param_dict, results)
         results = quality_funcs.test_opti_success(trial, test_param_dict, results)
+        results = quality_funcs.test_numerics(trial, test_param_dict, results)
+        results = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values)
+        results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
+        results = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values)
         results = quality_funcs.test_slack_equalities(trial, test_param_dict, results)
-        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results)
+        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values)
 
         # save test results
         self.__results = results

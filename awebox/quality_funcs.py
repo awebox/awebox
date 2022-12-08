@@ -72,18 +72,15 @@ def test_numerics(trial, test_param_dict, results):
 
     return results
 
-def test_invariants(trial, test_param_dict, results):
+def test_invariants(trial, test_param_dict, results, input_values):
     """
     Test whether invariants reasonably sized
     :return: test results
     """
-    # get discretization
-    discretization = trial.options['nlp']['discretization']
 
     # set test parameters from dictionary
     c_max = test_param_dict['c_max']
     dc_max = test_param_dict['dc_max']
-    ddc_max = test_param_dict['ddc_max']
     r_max = test_param_dict['r_max']
 
     # get architecture
@@ -99,50 +96,44 @@ def test_invariants(trial, test_param_dict, results):
 
     # loop over nodes
     for node in range(1,number_of_nodes):
-        for i in [0, 1]:
-            parent = parent_map[node]
-            out_local = trial.visualization.plot_dict['output_vals'][i]
+        parent = parent_map[node]
 
-            c_idx = struct_op.find_output_idx(outputs, 'tether_length', 'c{}{}'.format(node, parent))
-            dc_idx = struct_op.find_output_idx(outputs, 'tether_length', 'dc{}{}'.format(node, parent))
+        c_search = input_values['outputs']['invariants']['c' + str(node) + str(parent)][0]
+        dc_search = input_values['outputs']['invariants']['dc' + str(node) + str(parent)][0]
 
-            c_sol = np.max(np.abs(np.array(out_local[c_idx, :])))
-            dc_sol = np.max(np.abs(np.array(out_local[dc_idx, :])))
+        c_sol = np.max(np.abs(np.array(c_search)))
+        dc_sol = np.max(np.abs(np.array(dc_search)))
 
-            if DOF6 and node in architecture.kite_nodes:
-                r_list = []
-                for jdx in range(9):
-                    r_idx = struct_op.find_output_idx(outputs, 'tether_length', 'orthonormality{}{}'.format(node,parent), jdx)
-                    r_list.append(np.max(np.abs(np.array(out_local[r_idx, :]))))
-                r_sol = max(r_list)
+        if DOF6 and node in architecture.kite_nodes:
+            r_list = []
+            for jdx in range(9):
+                r_search = input_values['outputs']['invariants']['orthonormality' + str(node) + str(parent)][jdx]
+                r_list.append(np.max(np.abs(np.array(r_search))))
+
+            r_sol = max(r_list)
 
             # test whether invariants are small enough
-            if i == 0:
-                suffix = 'init'
-            elif i == 1:
-                suffix = ''
-            if c_sol > c_max:
-                awelogger.logger.warning('Invariant c' + str(node) + str(parent) + ' > ' + str(c_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                results['c' + str(node) + str(parent)] = False
-            else:
-                results['c' + str(node) + str(parent)] = True
-
-            if dc_sol > dc_max:
-                awelogger.logger.warning('Invariant dc' + str(node) + str(parent) + ' > ' + str(dc_max) + ' of V' + suffix + '  for trial ' + trial.name)
-                results['dc' + str(node) + str(parent)] = False
-            else:
-                results['dc' + str(node) + str(parent)] = True
+            results = include_result_of_allowed_invariant_test(results, 'c', node, parent, c_sol, c_max, trial.name)
+            results = include_result_of_allowed_invariant_test(results, 'dc', node, parent, dc_sol, dc_max, trial.name)
 
             if DOF6 and node in architecture.kite_nodes:
-                if r_sol > r_max:
-                    awelogger.logger.warning('Invariant r' + str(node) + str(parent) + ' > ' + str(r_max) + ' of V' + suffix + ' for trial ' + trial.name)
-                    results['r' + str(node) + str(parent)] = False
-                else:
-                    results['r' + str(node) + str(parent)] = True
+                results = include_result_of_allowed_invariant_test(results, 'r', node, parent, r_sol, r_max, trial.name)
 
     return results
 
-def test_variables(trial, test_param_dict, results):
+def include_result_of_allowed_invariant_test(results, name, node, parent, sol_value, max_value, trial_name):
+    combined_name = name + str(node) + str(parent)
+    if sol_value > max_value:
+        message = 'Invariant ' + combined_name + ' has value ' + str(sol_value) + ' > ' + str(max_value) + ' of V for trial ' + trial_name
+        awelogger.logger.warning(message)
+        results[combined_name] = False
+    else:
+        results[combined_name] = True
+
+    return results
+
+
+def test_node_altitude(trial, test_param_dict, results):
     """
     Test whether variables are of reasonable size and have correct signs
     :return: test results
@@ -160,6 +151,7 @@ def test_variables(trial, test_param_dict, results):
     parent_map = architecture.parent_map
 
     results['min_node_height'] = True
+    z_min = test_param_dict['z_min']
 
     # test if height of all nodes is positive
     for node in range(1, number_of_nodes):
@@ -168,13 +160,13 @@ def test_variables(trial, test_param_dict, results):
         node_str = 'q' + str(node) + str(parent)
         error_message = 'Node ' + node_str + ' has negative height for trial ' + trial.name
 
-        heights_x = np.array(V_final['x',:,node_str,2])
-        if np.min(heights_x) < 0.:
+        heights_x = np.array(V_final['x', :, node_str, 2])
+        if np.min(heights_x) < z_min:
             results['min_node_height'] = False
 
         if discretization == 'direct_collocation':
-            heights_coll_var = np.array(V_final['coll_var',:,:,'x',node_str,2])
-            if np.min(heights_coll_var) < 0:
+            heights_coll_var = np.array(V_final['coll_var', :, :, 'x', node_str, 2])
+            if np.min(heights_coll_var) < z_min:
                 results['min_node_height'] = False
 
         if not results['min_node_height']:
@@ -182,18 +174,18 @@ def test_variables(trial, test_param_dict, results):
 
     return results
 
-def test_power_balance(trial, test_param_dict, results):
+def test_power_balance(trial, test_param_dict, results, input_values):
     """Test whether conservation of energy holds at all nodes and for the entire system.
     :return: test results
     """
 
     # extract info
-    tgrid = trial.visualization.plot_dict['time_grids']['ip']
-    power_balance = trial.visualization.plot_dict['outputs']['power_balance']
+    tgrid = input_values['time_grids']['ip']
+    power_balance = input_values['outputs']['power_balance']
 
     check_energy_summation = test_param_dict['check_energy_summation']
     if check_energy_summation:
-        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results)
+        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results, input_values)
 
     balance = {}
     max_abs_system_power = 1.e-15
@@ -246,17 +238,17 @@ def test_power_balance(trial, test_param_dict, results):
 
     return results
 
-def summation_check_on_potential_and_kinetic_power(trial, thresh, results):
+def summation_check_on_potential_and_kinetic_power(trial, thresh, results, input_values):
 
     types = ['pot', 'kin']
 
-    kin_comp = np.array(trial.visualization.plot_dict['outputs']['power_balance_comparison']['kinetic'][0])
-    pot_comp = np.array(trial.visualization.plot_dict['outputs']['power_balance_comparison']['potential'][0])
+    kin_comp = np.array(input_values['outputs']['power_balance_comparison']['kinetic'][0])
+    pot_comp = np.array(input_values['outputs']['power_balance_comparison']['potential'][0])
     comp_timeseries = {'pot': pot_comp, 'kin': kin_comp}
 
     # extract info
-    tgrid = trial.visualization.plot_dict['time_grids']['ip']
-    power_balance = trial.visualization.plot_dict['outputs']['power_balance']
+    tgrid = input_values['time_grids']['quality']
+    power_balance = input_values['outputs']['power_balance']
 
     for type in types:
         sum_timeseries = np.zeros(tgrid.shape)
@@ -321,14 +313,12 @@ def test_slack_equalities(trial, test_param_dict, results):
 
     return results
 
-def test_tracked_vortex_periods(trial, test_param_dict, results):
+def test_tracked_vortex_periods(trial, test_param_dict, results, input_values):
 
-    plot_dict = trial.visualization.plot_dict
-
-    if 'vortex' in plot_dict['outputs']:
+    if 'vortex' in input_values['outputs']:
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        max_est_truncation_error = plot_dict['power_and_performance']['vortex_max_est_truncation_error']
+        max_est_truncation_error = input_values['power_and_performance']['vortex_max_est_truncation_error']
         if max_est_truncation_error > vortex_truncation_error_thresh:
             message = 'Vortex model estimates a large truncation error' \
                       + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \
@@ -348,7 +338,8 @@ def generate_test_param_dict(options):
     test_param_dict = {}
     test_param_dict['c_max'] = options['test_param']['c_max']
     test_param_dict['dc_max'] = options['test_param']['dc_max']
-    test_param_dict['ddc_max'] = options['test_param']['ddc_max']
+    # test_param_dict['ddc_max'] = options['test_param']['ddc_max']
+    test_param_dict['z_min'] = options['test_param']['z_min']
     test_param_dict['r_max'] = options['test_param']['r_max']
     test_param_dict['max_loyd_factor'] = options['test_param']['max_loyd_factor']
     test_param_dict['max_power_harvesting_factor'] = options['test_param']['max_power_harvesting_factor']

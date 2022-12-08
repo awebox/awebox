@@ -766,7 +766,21 @@ class Optimization(object):
 
     @property
     def output_vals(self):
-        return [self.__outputs_init, self.__outputs_opt, self.__outputs_ref]
+        return {'init': self.__outputs_init,
+                'opt': self.__outputs_opt,
+                'ref': self.__outputs_ref}
+
+    @property
+    def outputs_init(self):
+        return self.__outputs_init
+
+    @property
+    def outputs_opt(self):
+        return self.__outputs_opt
+
+    @property
+    def outputs_ref(self):
+        return self.__outputs_ref
 
     @property
     def global_outputs_opt(self):
@@ -775,6 +789,14 @@ class Optimization(object):
     @property
     def integral_output_vals(self):
         return [self.__integral_outputs_init, self.__integral_outputs_opt]
+
+    @property
+    def integral_outputs_init(self):
+        return self.____integral_outputs_init
+
+    @property
+    def integral_outputs_opt(self):
+        return self.____integral_outputs_opt
 
     @output_vals.setter
     def output_vals(self, value):

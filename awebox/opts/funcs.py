@@ -53,6 +53,8 @@ def build_options_dict(options, help_options, architecture):
     options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
     options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
     options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_quality_options(options, options_tree)
+    options_tree = build_visualization_options(options, options_tree)
 
     # assemble all of the options into a complete options tree
     options, help_options = assemble_options_tree(options_tree, options, help_options)
@@ -304,7 +306,36 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     return options_tree
 
+def build_visualization_options(options, options_tree):
+    options_tree.append(
+        ('visualization', 'cosmetics', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
+    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
+    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    return options_tree
 
+
+def build_quality_options(options, options_tree):
+    options_tree.append(
+        ('quality', None, None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
+    options_tree.append(('quality', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
+    options_tree.append(('quality', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    return options_tree
 
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
@@ -312,13 +343,13 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
     options_tree.append(
         ('formulation', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
     options_tree.append(
         ('formulation', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-
     options_tree.append(
         ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:

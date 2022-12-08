@@ -40,6 +40,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
+#todo: are we still using any of this? if so, why isn't it in reasonable places within the awebox?
+
 def generate_trial_data_csv(trial, name, freq, rotation_representation):
     """
     Generate an output .csv file containing all information from the trial
@@ -112,6 +114,9 @@ def interpolate_data(trial, freq):
     :param freq: sampling frequency
     :return: dictionary with trial data, interpolation time grid
     """
+
+    # todo: this function should either be renamed, or it should be limited to doing what it says it's doing: interpolating data
+    # todo: also, it probably shouldn't depend on visualization. see struct_op for other options
 
     # extract info
     tf = trial.optimization.V_final['theta', 't_f', 0]  # TODO: phase fix tf

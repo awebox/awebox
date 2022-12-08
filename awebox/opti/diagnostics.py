@@ -28,10 +28,12 @@ various diagnostics for the optimization object
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, jochem de schutter alu-fr 2018
 '''
+import pdb
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
+import awebox.tools.performance_operations as perf_op
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
@@ -170,51 +172,81 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
 def compute_position_indicators(power_and_performance, plot_dict):
 
     # elevation angle
+    architecture = plot_dict['architecture']
     q10 = plot_dict['x']['q10']
+
+    n_interpolation = q10[0].shape[0]
+
     elevation = []
     azimuth = []
-    cone_angle = []
+    average_cone_angle = []
 
-    for i in range(q10[0].shape[0]):
-        q10_0 = q10[0][i]
-        q10_1 = q10[1][i]
-        q10_2 = q10[2][i]
-        elevation += [np.arccos(np.linalg.norm(np.array([q10_0, q10_1, 0.0])) / np.linalg.norm(np.array([q10_0, q10_1, q10_2])))]
+    for idx in range(n_interpolation):
+        q10_0 = q10[0][idx]
+        q10_1 = q10[1][idx]
+        q10_2 = q10[2][idx]
+        position_parent = np.array([q10_0, q10_1, q10_2])
+
+        local_elevation = perf_op.get_elevation_angle(position_parent)
+        elevation += [local_elevation]
+
         azimuth += [np.arctan2(q10_1, q10_0)]
-        
-    # (average) main tether vector
-    elevation = np.rad2deg(np.mean(elevation))
-    azimuth = np.rad2deg(np.mean(azimuth))
-    e_tether = np.array([np.cos(elevation)*np.cos(azimuth), np.cos(elevation)*np.sin(azimuth), np.sin(elevation)])
 
-    # (average) tether frame
-    ez_hat = np.cross(np.array([1,0,0]), e_tether)
-    ey_hat = np.cross(ez_hat, e_tether)
+        lowest_layer_node = architecture.parent_map[np.min(np.array(architecture.kite_nodes))]
 
-    for i in range(q10[0].shape[0]):
-        # cone angle
-        if 'l_t' in plot_dict['x'].keys():
-            l_t = plot_dict['x']['l_t'][0][i]
-        else:
-            l_t = plot_dict['theta']['l_t']
+        local_average_cone_angle = 0.
+        set_of_kites_in_lowest_layer = set(architecture.kite_nodes).intersection(set(architecture.children_map[lowest_layer_node]))
+        number_of_kites_in_lowest_layer = len(set_of_kites_in_lowest_layer)
+        for kite in set_of_kites_in_lowest_layer:
 
-        if plot_dict['architecture'].number_of_nodes > 2:
-            q21_0 = plot_dict['x']['q21'][0][i]
-            q21_1 = plot_dict['x']['q21'][1][i]
-            q21_2 = plot_dict['x']['q21'][2][i]
-            l_s = plot_dict['theta']['l_s']
-            cone_angle += [np.arccos(np.dot(np.array([q21_0 - q10_0, q21_1 - q10_1, q21_2 - q10_2])/l_s, e_tether))]
-        else:
-            q10_0 = q10[0][i]
-            q10_1 = q10[1][i]
-            q10_2 = q10[2][i]
-            cone_angle += [np.arccos(np.dot(np.array([q10_0, q10_1, q10_2])/l_t, e_tether))]
+            parent = architecture.parent_map[kite]
 
-  
-    cone_angle = np.rad2deg(np.mean(cone_angle))
-    power_and_performance['elevation'] = elevation
-    power_and_performance['azimuth'] = azimuth
-    power_and_performance['cone_angle'] = cone_angle
+            label = 'q' + str(kite) + str(parent)
+            qkp_0 = plot_dict['x'][label][0][idx]
+            qkp_1 = plot_dict['x'][label][1][idx]
+            qkp_2 = plot_dict['x'][label][2][idx]
+            position_kite = np.array([qkp_0, qkp_1, qkp_2])
+
+            if parent == 0:
+                position_parent = np.zeros((3, 1))
+
+                average_tether_x = np.mean(np.array(plot_dict['x']['q10'][0]))
+                average_tether_y = np.mean(np.array(plot_dict['x']['q10'][1]))
+                average_tether_z = np.mean(np.array(plot_dict['x']['q10'][2]))
+                average_tether_vector = np.array([[average_tether_x], [average_tether_y], [average_tether_z]])
+                position_grandparent = position_parent - average_tether_vector
+            else:
+                grandparent = architecture.parent_map[parent]
+
+                label_parent = 'q' + str(parent) + str(grandparent)
+                qpg_0 = plot_dict['x'][label_parent][0][idx]
+                qpg_1 = plot_dict['x'][label_parent][1][idx]
+                qpg_2 = plot_dict['x'][label_parent][2][idx]
+                position_parent = np.array([qpg_0, qpg_1, qpg_2])
+
+                if grandparent == 0:
+                    position_grandparent = np.zeros((3, 1))
+                else:
+                    great_grandparent = architecture.parent_map[grandparent]
+
+                    label_grandparent = 'q' + str(grandparent) + str(great_grandparent)
+                    qgg_0 = plot_dict['x'][label_grandparent][0][idx]
+                    qgg_1 = plot_dict['x'][label_grandparent][1][idx]
+                    qgg_2 = plot_dict['x'][label_grandparent][2][idx]
+                    position_grandparent = np.array([qgg_0, qgg_1, qgg_2])
+
+            local_kite_cone_angle = perf_op.get_cone_angle(position_kite, position_parent, position_grandparent)
+            local_average_cone_angle += local_kite_cone_angle / float(number_of_kites_in_lowest_layer)
+        average_cone_angle += [float(local_average_cone_angle)]
+
+    # average, then convert to degrees
+    elevation_deg = np.rad2deg(np.mean(elevation))
+    azimuth_deg = np.rad2deg(np.mean(azimuth))
+    average_cone_angle_deg = np.rad2deg(np.mean(np.array(average_cone_angle)))
+
+    power_and_performance['elevation'] = elevation_deg
+    power_and_performance['azimuth'] = azimuth_deg
+    power_and_performance['cone_angle'] = average_cone_angle_deg
 
     # average flight speed
     # power_and_performance['flight_speed'] = ...
@@ -251,9 +283,9 @@ def compute_position_indicators(power_and_performance, plot_dict):
 def compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict):
 
     cmax = 0.0
-    for constraint in list(plot_dict['outputs']['tether_length'].keys()):
+    for constraint in list(plot_dict['outputs']['invariants'].keys()):
         if constraint[0] == 'c':
-            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['outputs']['tether_length'][constraint]))])
+            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['outputs']['invariants'][constraint]))])
     power_and_performance['cmax'] = cmax
 
     return power_and_performance

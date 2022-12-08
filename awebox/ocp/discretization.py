@@ -258,7 +258,6 @@ def discretize(nlp_options, model, formulation):
         ms_vars = None
         ms_params = None
 
-
     if multiple_shooting:
         dae = model.get_dae()
         Multiple_shooting = ms_module.Multiple_shooting(nk, dae, nlp_options['integrator'])

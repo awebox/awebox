@@ -60,7 +60,10 @@ def get_dictionary_with_output_dimensions(interesting_outputs, outputs, architec
             number_of_output_dims = len(outputs[opt[0]][base_name])
         else:
             kite = architecture.kite_nodes[0]
-            number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
+            try:
+                number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
+            except:
+                pdb.set_trace()
 
         output_dimensions[opt] = number_of_output_dims
     return output_dimensions

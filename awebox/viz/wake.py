@@ -364,7 +364,7 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
 def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    vortex_info_exists = determine_if_vortex_info_exists(plot_dict)
+    vortex_info_exists = (plot_dict['wake'] is not None)
     if vortex_info_exists:
 
         idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']

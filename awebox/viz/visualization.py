@@ -26,6 +26,7 @@
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
 ###################################
+import pdb
 
 from . import tools
 from . import trajectory
@@ -40,7 +41,7 @@ import os
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
@@ -50,8 +51,9 @@ from awebox.logger.logger import Logger as awelogger
 class Visualization(object):
 
     def __init__(self):
-
         self.__plot_dict = None
+        self.__has_been_initially_calibrated = False
+        self.__has_been_recalibrated = False
 
     def build(self, model, nlp, name, options):
         """
@@ -63,14 +65,16 @@ class Visualization(object):
         """
 
         self.__plot_dict = tools.calibrate_visualization(model, nlp, name, options)
+        self.__has_been_initially_calibrated = True
+
         self.create_plot_logic_dict()
         self.__options = options
 
         return None
 
     def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs):
-
         self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
+        self.__has_been_recalibrated = True
 
         return None
 
@@ -84,7 +88,7 @@ class Visualization(object):
         """
 
         # recalibrate plot_dict
-        if recalibrate:
+        if recalibrate or (not self.__has_been_recalibrated):
             self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
 
         if type(flags) is not list:
@@ -168,6 +172,7 @@ class Visualization(object):
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, None)
+
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
 
@@ -226,6 +231,14 @@ class Visualization(object):
     @options.setter
     def options(self, value):
        self.__options = value
+
+    @property
+    def has_been_initially_calibrated(self):
+        return self.__has_been_initially_calibrated
+
+    @property
+    def has_been_recalibrated(self):
+        return self.__has_been_recalibrated
 
     @property
     def plot_logic_dict(self):

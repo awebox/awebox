@@ -38,7 +38,8 @@ import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
-
+import awebox.tools.vector_operations as vect_op
+from itertools import chain
 
 def subkeys(casadi_struct, key):
 
@@ -913,3 +914,340 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
         print_op.log_and_raise_error(message)
 
     return local_var
+
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip'):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param nlp_options: the options of the nlp. notice that this should contain information about the nlp discretization, as well as the number of points desired for interpolation
+    :param V_opt: the solution that we want to interpolate. remember, that for 'si' output, the numeric V input here, should also be in 'si' units. (for interpolating over the reference V, input optimization.V_ref here)
+    :param time_grids: the time grids of the discretized problem. (for interpolating over the reference V, input optimization.time_grids['ref'] here)
+    :return: a dictionary with entries corresponding to the interpolated variables
+    '''
+
+    nlp_discretization = local_options['discretization']
+    collocation_scheme = local_options['collocation']['scheme']
+    control_parametrization = local_options['collocation']['u_param']
+    n_points = local_options['interpolation']['n_points']
+    interpolation_type = local_options['interpolation']['type']
+
+    if Collocation is not None:
+        collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
+        integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
+    else:
+        control_parametrization = 'zoh'
+
+    # add states and outputs to plotting dict
+    interpolation = {'x': {}, 'u': {}, 'z': {}, 'theta': {}, 'time_grids': {}, 'outputs': {}, 'integral_outputs': {}}
+
+    # time
+    time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+    time_grids['ip'] = time_grid_interpolated
+    interpolation['time_grids'] = time_grids
+
+    # x-values
+    Vx_interpolated = interpolate_Vx(time_grids, variables_dict, V_opt, interpolation_type, nlp_discretization,
+                                     collocation_scheme=collocation_scheme,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['x'] = Vx_interpolated
+
+    # z-values
+    Vz_interpolated = interpolate_Vz(time_grids, variables_dict, V_opt, nlp_discretization,
+                                     collocation_scheme=collocation_scheme,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['z'] = Vz_interpolated
+
+    # u-values
+    Vu_interpolated = interpolate_Vu(time_grids, variables_dict, V_opt,
+                                     control_parameterization=control_parametrization,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['u'] = Vu_interpolated
+
+    # theta values
+    for name in list(subkeys(V_opt, 'theta')):
+        interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
+
+    # output values
+    interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
+                                                   collocation_scheme=collocation_scheme,
+                                                   timegrid_label=timegrid_label)
+
+    # integral-output values
+    if nlp_discretization is 'direct_collocation':
+        for name in integral_output_names:
+            values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, 0, 'int_out')
+            interpolation['integral_outputs'][name] = [values_ip]
+
+    return interpolation
+
+def build_time_grid_for_interpolation(time_grids, n_points):
+    time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
+    return time_grid_interpolated
+
+def interpolate_outputs_by_index(time_grids, output_vals, odx, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+
+    # merge values
+    values, time_grid = merge_output_values(output_vals, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme)
+
+    # interpolate
+    values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
+    return values_ip
+
+
+def interpolate_outputs(time_grids, outputs_dict, output_vals, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+
+    outputs_interpolated = {}
+
+    expected_number_of_outputs = output_vals.shape[0]
+
+    odx = 0
+    for output_type in outputs_dict.keys():
+        if output_type not in list(outputs_interpolated.keys()):
+            outputs_interpolated[output_type] = {}
+
+        for name in outputs_dict[output_type].keys():
+            if name not in list(outputs_interpolated[output_type].keys()):
+                outputs_interpolated[output_type][name] = []
+
+            for dim in range(outputs_dict[output_type][name].shape[0]):
+                # interpolate
+                values_ip = interpolate_outputs_by_index(time_grids, output_vals, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label)
+
+                # store
+                outputs_interpolated[output_type][name] += [values_ip]
+                odx += 1
+
+    if odx is not expected_number_of_outputs:
+        message = 'something went wrong when interpolating outputs. the number of outputs that were interpolated is ' + str(odx) + ' when it should have been ' + str(expected_number_of_outputs)
+        print_op.log_and_raise_error(message)
+
+    return outputs_interpolated
+
+
+def interpolate_Vu(time_grids, variables_dict, V, control_parameterization='zoh', collocation_interpolator=None, timegrid_label='ip'):
+
+    Vu_interpolated = {}
+
+    var_type = 'u'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vu_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+
+            if control_parameterization == 'zoh':
+                control = V['u', :, name, dim]
+                values_ip = sample_and_hold_controls(time_grids, control, timegrid_label=timegrid_label)
+
+            elif (control_parameterization == 'poly') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'u')
+
+        Vu_interpolated[name] += [values_ip]
+    return Vu_interpolated
+
+
+def interpolate_Vz(time_grids, variables_dict, V, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
+
+    Vz_interpolated = {}
+
+    var_type = 'z'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vz_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+
+            if (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'z')
+            else:
+                values, time_grid_data = merge_z_values(V, name, dim, time_grids, nlp_discretization,
+                                                   collocation_scheme=collocation_scheme,
+                                                   include_collocation=include_collocation)
+                # interpolate
+                values_ip = vect_op.spline_interpolation(time_grid_data, values, time_grids[timegrid_label])
+
+            Vz_interpolated[name] += [values_ip.full()]
+    return Vz_interpolated
+
+
+def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
+
+    Vx_interpolated = {}
+
+    var_type = 'x'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vx_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+
+            # interpolate
+            if (interpolation_type == 'spline') or (nlp_discretization == 'multiple_shooting'):
+                values_data, time_grid_data = merge_x_values(V, name, dim, time_grids, nlp_discretization,
+                                                             collocation_scheme=collocation_scheme,
+                                                             include_collocation=include_collocation)
+                values_ip = vect_op.spline_interpolation(time_grid_data, values_data, time_grids[timegrid_label])
+
+            elif (interpolation_type == 'poly') and (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'x')
+
+            else:
+                message = 'interpolation not yet enabled for the combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
+                print_op.log_and_raise_error(message)
+
+            Vx_interpolated[name] += [values_ip.full()]
+
+    return Vx_interpolated
+
+
+def merge_output_values(output_vals, odx, time_grids, nlp_discretization, collocation_scheme='radau'):
+
+    using_collocation = (nlp_discretization == 'direct_collocation')
+
+    # read in inputs
+    if using_collocation:
+        output_values = output_vals[odx, :]
+
+        using_radau = (collocation_scheme == 'radau')
+        if using_radau:
+            tgrid = time_grids['coll']
+        else:
+            tgrid = time_grids['x_coll'][:-1]
+    else:
+        message = 'the awebox does not yet support the merging of output_values in the multiple_shooting case'
+        print_op.log_and_raise_error(message)
+
+    # make list of time grid and values
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    output_values = output_values.full().squeeze()
+
+    # check that this actually worked in a reasonable way
+    time_length = len(tgrid)
+    output_length = len(output_values)
+    if not (time_length == output_length):
+        message = 'something went wrong when merging output values. time data has length (' + str(time_length) + ') and output data has length (' + str(output_length) + ')'
+        print_op.log_and_raise_error(message)
+
+    return output_values, tgrid
+
+
+
+def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
+
+    # read in inputs
+    if nlp_discretization == 'direct_collocation':
+        tgrid_coll = time_grids['coll']
+        # total time points
+        tgrid_z_coll = time_grids['x_coll'][:-1]
+
+    # interval time points
+    tgrid_z = time_grids['u']
+    n_k = tgrid_z.shape[0]
+
+    if nlp_discretization == 'multiple_shooting':
+        # take interval values
+        z_values = np.array(cas.vertcat(*V['z', :, name, dim]).full())
+        tgrid = tgrid_z
+
+    elif nlp_discretization == 'direct_collocation':
+        if collocation_scheme is not 'radau':
+            z_values = []
+            # merge interval and node values
+            for ndx in range(n_k):
+                # add interval values
+                z_values = cas.vertcat(z_values, V['z', ndx, name, dim])
+                if include_collocation:
+                    # add node values
+                    z_values = cas.vertcat(z_values, cas.vertcat(*V['coll_var', ndx, :, 'z', name, dim]))
+            z_values = np.array(z_values)
+
+            if include_collocation:
+                tgrid = tgrid_z_coll
+            else:
+                tgrid = tgrid_z
+
+        elif collocation_scheme is 'radau':
+            if include_collocation:
+                # add node values
+                z_values = np.array(coll_slice_to_vec(V['coll_var', :, :, 'z', name, dim]))
+                tgrid = tgrid_coll
+            else:
+                z_values = []
+                tgrid = []
+
+    # make list of time grid and values
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    z_values = list(chain.from_iterable(z_values))
+
+    return z_values, tgrid
+
+
+def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
+
+    # read in inputs
+    if nlp_discretization == 'direct_collocation':
+        tgrid_coll = time_grids['coll']
+        # total time points
+        tgrid_x_coll = time_grids['x_coll']
+
+    # interval time points
+    tgrid_x = time_grids['x']
+    n_k = tgrid_x.shape[0] - 1
+
+    if nlp_discretization == 'multiple_shooting':
+        # take interval values
+        x_values = np.array(cas.vertcat(*V['x', :, name, dim]).full())
+        tgrid = tgrid_x
+
+    elif nlp_discretization == 'direct_collocation':
+        if collocation_scheme is not 'radau':
+            x_values = []
+            # merge interval and node values
+            for ndx in range(n_k + 1):
+                # add interval values
+                x_values = cas.vertcat(x_values, V['x', ndx, name, dim])
+                if (include_collocation and ndx < n_k):
+                    # add node values
+                    x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var', ndx, :, 'x', name, dim]).full())
+
+            x_values = np.array(x_values)
+            if include_collocation:
+                tgrid = tgrid_x_coll
+            else:
+                tgrid = tgrid_x
+
+        elif collocation_scheme is 'radau':
+            if include_collocation:
+                # add node values
+                x_values = np.array(coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
+                tgrid = tgrid_coll
+            else:
+                x_values = []
+                tgrid = []
+
+    # make list of time grid
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    x_values = list(chain.from_iterable(x_values))
+
+    return x_values, tgrid
+
+def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
+
+    tgrid_u = time_grids['u']
+    tgrid_ip = time_grids[timegrid_label]
+    values_ip = np.zeros(len(tgrid_ip),)
+    for index in range(len(tgrid_ip)):
+        for j in range(tgrid_u.shape[0] - 1):
+            if tgrid_u[j] < tgrid_ip[index] and tgrid_ip[index] < tgrid_u[j + 1]:
+                values_ip[index] = control[j]
+                break
+        if tgrid_u[-1] < tgrid_ip[index]:
+            values_ip[index] = control[-1]
+
+    return values_ip

@@ -25,12 +25,12 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
     # scaled variables struct
     var_scaled = variables['scaled']
 
-    if 'tether_length' not in list(outputs.keys()):
-        outputs['tether_length'] = {}
+    if 'invariants' not in list(outputs.keys()):
+        outputs['invariants'] = {}
 
     # build constraints with si variables
     g_dict = get_tether_length_constraint(options, variables['SI'], parameters, architecture)
-    outputs['tether_length'].update(g_dict)
+    outputs['invariants'].update(g_dict)
 
     g = []
     gdot = []
@@ -52,9 +52,9 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         ddg_local = tools.time_derivative(dg_local, variables, architecture)
         gddot.append(ddg_local)
 
-        # outputs['tether_length']['c' + str(node) + str(parent)] = g[-1]
-        outputs['tether_length']['dc' + str(node) + str(parent)] = dg_local
-        outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
+        # outputs['invariants']['c' + str(node) + str(parent)] = g[-1]
+        outputs['invariants']['dc' + str(node) + str(parent)] = dg_local
+        outputs['invariants']['ddc' + str(node) + str(parent)] = ddg_local
         holonomic_constraints += z_si['lambda{}{}'.format(node, parent)] * g_local
 
         if node in kite_nodes:
@@ -63,7 +63,7 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
                 orthonormality = cas.reshape(orthonormality, (9, 1))
 
-                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
+                outputs['invariants']['orthonormality' + str(node) + str(parent)] = orthonormality
 
                 dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
                 dr_dt = cas.reshape(dr_dt, (3, 3))
@@ -72,13 +72,13 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 dr = cas.mtimes(r, omega_skew)
                 rot_kinematics = dr_dt - dr
                 rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
-                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
+                outputs['invariants']['rot_kinematics10'] = rot_kinematics
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
 
         g_dict = get_cross_tether_length_constraint(options, variables['SI'], parameters, architecture)
-        outputs['tether_length'].update(g_dict)
+        outputs['invariants'].update(g_dict)
 
         for l in architecture.layer_nodes:
             kite_children = architecture.kites_map[l]
@@ -108,8 +108,8 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 gddot.append(ddg_local)
 
                 # save invariants to outputs
-                outputs['tether_length']['dc{}'.format(n01)] = dg_local
-                outputs['tether_length']['ddc{}'.format(n01)] = ddg_local
+                outputs['invariants']['dc{}'.format(n01)] = dg_local
+                outputs['invariants']['ddc{}'.format(n01)] = ddg_local
 
                 # add to holonomic constraints
                 holonomic_constraints += z_si['lambda{}'.format(n01)] * g_local
