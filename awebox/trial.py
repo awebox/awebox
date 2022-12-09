@@ -122,7 +122,7 @@ class Trial(object):
 
     def optimize(self, options_seed = [], final_homotopy_step = 'final',
                  warmstart_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False, intermediate_solve = False, recalibrate_viz = True):
+                 debug_locations = [], save_flag = False, intermediate_solve = False):
 
         if not options_seed:
             options = self.__options
@@ -167,8 +167,12 @@ class Trial(object):
             awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
         # perform quality check
-        if (not intermediate_solve and recalibrate_viz):
-            self.__quality.check_quality(self)
+        if not intermediate_solve:
+            if self.__options['quality']['autorun']:
+                self.__quality.check_quality(self)
+            else:
+                message = 'WARNING: solution quality was not checked!'
+                awelogger.logger.info(message)
 
         # print solution
         self.print_solution()
@@ -181,6 +185,8 @@ class Trial(object):
         awelogger.logger.info('')
 
     def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
+
+        recalibrate = True
 
         if V_plot is None:
             V_plot = self.__solution_dict['V_opt']
@@ -197,7 +203,7 @@ class Trial(object):
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate = recalibrate)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 
@@ -380,7 +386,7 @@ class Trial(object):
 
     @options.setter
     def options(self, value):
-        print('Cannot set options object.')
+        print_op.log_and_raise_error('Cannot set options object.')
 
     @property
     def status(self):
@@ -392,7 +398,7 @@ class Trial(object):
 
     @status.setter
     def status(self, value):
-        print('Cannot set status object.')
+        print_op.log_and_raise_error('Cannot set status object.')
 
     @property
     def model(self):
@@ -400,7 +406,7 @@ class Trial(object):
 
     @model.setter
     def model(self, value):
-        print('Cannot set model object.')
+        print_op.log_and_raise_error('Cannot set model object.')
 
     @property
     def nlp(self):
@@ -408,7 +414,7 @@ class Trial(object):
 
     @nlp.setter
     def nlp(self, value):
-        print('Cannot set nlp object.')
+        print_op.log_and_raise_error('Cannot set nlp object.')
 
     @property
     def optimization(self):
@@ -416,7 +422,7 @@ class Trial(object):
 
     @optimization.setter
     def optimization(self, value):
-        print('Cannot set optimization object.')
+        print_op.log_and_raise_error('Cannot set optimization object.')
 
     @property
     def formulation(self):
@@ -424,7 +430,7 @@ class Trial(object):
 
     @formulation.setter
     def formulation(self, value):
-        print('Cannot set formulation object.')
+        print_op.log_and_raise_error('Cannot set formulation object.')
 
     @property
     def type(self):
@@ -432,7 +438,7 @@ class Trial(object):
 
     @type.setter
     def type(self, value):
-        print('Cannot set type object.')
+        print_op.log_and_raise_error('Cannot set type object.')
 
     @property
     def name(self):
@@ -440,7 +446,7 @@ class Trial(object):
 
     @name.setter
     def name(self, value):
-        print('Cannot set name object.')
+        print_op.log_and_raise_error('Cannot set name object.')
 
     @property
     def timings(self):
@@ -448,7 +454,7 @@ class Trial(object):
 
     @timings.setter
     def timings(self, value):
-        print('Cannot set timings object.')
+        print_op.log_and_raise_error('Cannot set timings object.')
 
     @property
     def visualization(self):
@@ -456,7 +462,7 @@ class Trial(object):
 
     @visualization.setter
     def visualization(self, value):
-        print('Cannot set visualization object.')
+        print_op.log_and_raise_error('Cannot set visualization object.')
 
     @property
     def quality(self):
@@ -464,7 +470,7 @@ class Trial(object):
 
     @quality.setter
     def quality(self, value):
-        print('Cannot set quality object.')
+        print_op.log_and_raise_error('Cannot set quality object.')
 
     @property
     def return_status_numeric(self):
@@ -472,7 +478,7 @@ class Trial(object):
 
     @return_status_numeric.setter
     def return_status_numeric(self, value):
-        print('Cannot set return_status_numeric object.')
+        print_op.log_and_raise_error('Cannot set return_status_numeric object.')
 
     @property
     def solution_dict(self):
@@ -480,9 +486,10 @@ class Trial(object):
 
     @solution_dict.setter
     def solution_dict(self, value):
-        print('Cannot set solution_dict object.')
+        print_op.log_and_raise_error('Cannot set solution_dict object.')
 
 def generate_initial_state(model, V_init):
+    # todo: is this being used anywhere?
     x0 = model.struct_list['x'](0.)
     for name in list(model.struct_list['x'].keys()):
         x0[name] = V_init['x',0,0,name]

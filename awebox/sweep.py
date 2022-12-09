@@ -28,6 +28,8 @@ Class sweep contains functions to manipulate multiple trials at once
 @author: jochem de schutter alu-freiburg 2018
 edit: rachel leuthold, alu-fr, 2020
 """
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -91,9 +93,6 @@ class Sweep:
     def __getitem__(self, key):
         return self.__trial_dict[key]
 
-
-
-
     def run(self, final_homotopy_step = 'final', warmstart_file = None, apply_sweeping_warmstart = False, debug_flags = [],
             debug_locations = []):
 
@@ -150,7 +149,12 @@ class Sweep:
                     intermediate_solve = False)
 
                 recalibrated_plot_dict = sweep_funcs.recalibrate_visualization(single_trial)
-                self.__plot_dict[trial_to_run][param] = copy.deepcopy(recalibrated_plot_dict)
+
+                # deepcopy occasionally has difficulty with casadi/complicated structures.
+                # so, decrease the dict depth for better performance
+                self.__plot_dict[trial_to_run][param] = {}
+                for name, value in recalibrated_plot_dict.items():
+                    self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
 
                 # overwrite outputs to work around pickle bug
                 for key in recalibrated_plot_dict['outputs']:
@@ -183,6 +187,7 @@ class Sweep:
             flags += list(self.__plot_dict[first_trial][first_param]['plot_logic_dict'])
             flags.remove('animation')
             flags = [flag for flag in flags if 'outputs:' not in flag]
+
         for flag in flags:
             if flag[:5] == 'comp_':
                 if flag in list(self.__plot_logic_dict.keys()):
@@ -362,7 +367,7 @@ class Sweep:
 
     @param_dict.setter
     def param_dict(self, value):
-        print('Cannot set param_dict object.')
+        print_op.log_and_raise_error('Cannot set param_dict object.')
 
     @property
     def sweep_labels(self):
@@ -370,7 +375,7 @@ class Sweep:
 
     @sweep_labels.setter
     def sweep_labels(self, value):
-        print('Cannot set sweep_labels object.')
+        print_op.log_and_raise_error('Cannot set sweep_labels object.')
 
 
     @property
@@ -379,7 +384,7 @@ class Sweep:
 
     @plot_dict.setter
     def plot_dict(self, value):
-        print('Cannot set plot_dict object.')
+        print_op.log_and_raise_error('Cannot set plot_dict object.')
 
     @property
     def plot_logic_dict(self):
@@ -387,7 +392,7 @@ class Sweep:
 
     @plot_logic_dict.setter
     def plot_logic_dict(self, value):
-        print('Cannot set plot_logic_dict object.')
+        print_op.log_and_raise_error('Cannot set plot_logic_dict object.')
 
 
     @property
@@ -396,4 +401,4 @@ class Sweep:
 
     @type.setter
     def type(self, value):
-        print('Cannot set type object.')
+        print_op.log_and_raise_error('Cannot set type object.')

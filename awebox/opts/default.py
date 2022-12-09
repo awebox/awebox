@@ -507,6 +507,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
 
         # quality check options
+        ('quality', None,               None, 'autorun',    True,           ('run a quality-check on the final solution. CAUTION: strongly recommended!', [True, False]),'x'),
         ('quality', 'interpolation',    None, 'type',       'poly',         ('type of interpolation desired. be advised, not all combinations may be possible with all nlp discretization types', ['poly', 'spline']), 'x'),
         ('quality', 'interpolation',    None, 'n_points',   100,            ('number of interpolation points. must be an integer value', None), 'x'),
         ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),

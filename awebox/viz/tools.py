@@ -610,6 +610,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['output_vals'] = output_vals
     plot_dict['integral_outputs_final'] = integral_outputs_final
     plot_dict['global_outputs'] = global_outputs
+
     # get new time grids
     plot_dict['time_grids'] = time_grids
     if plot_dict['discretization'] == 'direct_collocation':
@@ -690,13 +691,8 @@ def interpolate_data(plot_dict, cosmetics):
                                                    Collocation=Collocation)
 
     # store the interpolation
-    plot_dict['time_grids'] = interpolation['time_grids']
-    plot_dict['x'] = interpolation['x']
-    plot_dict['z'] = interpolation['z']
-    plot_dict['u'] = interpolation['u']
-    plot_dict['theta'] = interpolation['theta']
-    plot_dict['outputs'] = interpolation['outputs']
-    plot_dict['integral_outputs'] = interpolation['integral_outputs']
+    for name, value in interpolation.items():
+        plot_dict[name] = value
 
     return plot_dict
 
@@ -729,13 +725,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
                                                    Collocation=Collocation)
 
     # store the interpolation
-    plot_dict['time_grids']['ref'] = interpolation['time_grids']
-    plot_dict['ref']['x'] = interpolation['x']
-    plot_dict['ref']['z'] = interpolation['z']
-    plot_dict['ref']['u'] = interpolation['u']
-    plot_dict['ref']['theta'] = interpolation['theta']
-    plot_dict['ref']['outputs'] = interpolation['outputs']
-    plot_dict['ref']['integral_outputs'] = interpolation['integral_outputs']
+    for name, value in interpolation.items():
+        plot_dict['ref'][name] = value
 
     return plot_dict
 
@@ -859,22 +850,26 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
         canonical = model_variables.getCanonicalIndex(jdx)
         var_type = canonical[0]
         var_name = canonical[1]
-        kdx = canonical[2]
+        dim = canonical[2]
 
         if (var_type == 'theta'):
-            local_val = plot_dict['V_plot']['theta', 't_f', kdx]
+            category = plot_dict['theta'][var_name]
+            if category.shape == ():
+                local_val = category
+            else:
+                local_val = category[dim]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         elif (var_type == 'xdot'):
             if (var_name in plot_dict['x'].keys()):
-                local_val = plot_dict['x'][var_name][kdx][index]
+                local_val = plot_dict['x'][var_name][dim][index]
             else:
                 # be advised: this function does not compute dynamics
                 local_val = cas.DM.zeros((1,1))
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         elif (var_type in plot_dict.keys()) and (var_name in plot_dict[var_type].keys()):
-            local_val = plot_dict[var_type][var_name][kdx][index]
+            local_val = plot_dict[var_type][var_name][dim][index]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         else:

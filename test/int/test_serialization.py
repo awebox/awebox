@@ -18,9 +18,9 @@ def build_optimize_and_save_trial_for_serialization(nlp_discretization='direct_c
     trial_name = 'serialization_trial_' + nlp_discretization
 
     # set-up trial options
-    if nlp_discretization is 'direct_collocation':
+    if nlp_discretization == 'direct_collocation':
         n_k = 2
-    elif nlp_discretization is 'multiple_shooting':
+    elif nlp_discretization == 'multiple_shooting':
         n_k = 10
     else:
         message = 'unfamiliar nlp_discretization selected (' + nlp_discretization + ')'
@@ -48,7 +48,7 @@ def load_trial_from_saved_dict_and_plot(trial_name):
 
     filename = trial_name + '.dict'
 
-    # load and test collocation trial
+    # load and test trial
     filehandler = open(filename, 'rb')
     dict_test = pickle.load(filehandler)
 
@@ -60,18 +60,40 @@ def load_trial_from_saved_dict_and_plot(trial_name):
 
     return None
 
-def test_trial_serial():
-    print('WARNING!!!!')
-    # discretizations = ['direct_collocation', 'multiple_shooting']
-    discretizations = ['direct_collocation']
-
-    for nlp_discretization in discretizations:
-        trial_name = build_optimize_and_save_trial_for_serialization(nlp_discretization=nlp_discretization)
-        load_trial_from_saved_dict_and_plot(trial_name)
-
+def perform_trial_serial(nlp_discretization):
+    trial_name = build_optimize_and_save_trial_for_serialization(nlp_discretization=nlp_discretization)
+    load_trial_from_saved_dict_and_plot(trial_name)
     return None
 
-def test_sweep_serial():
+def test_trial_serial_direct_collocation():
+    nlp_discretization = 'direct_collocation'
+    perform_trial_serial(nlp_discretization)
+    return None
+    
+def test_trial_serial_multiple_shooting():
+    nlp_discretization = 'multiple_shooting'
+    perform_trial_serial(nlp_discretization)
+    return None
+
+############### sweep
+
+def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
+
+    sweep_name = 'serialization_sweep_' + sweep_type
+
+    # set-up sweep options
+    if sweep_type == 'parametric':
+        sweep_opts = [('user_options.wind.u_ref', [5.,5.5])] # parametric sweep    
+        quality_autorun = True
+        n_k = 2
+    elif sweep_type == 'trial':
+        sweep_opts = [('nlp.discretization', ['direct_collocation','multiple_shooting'])] # trial sweep
+        n_k = 8
+        quality_autorun = False
+    else:
+        message = 'unfamiliar sweep_type selected (' + sweep_type + ')'
+        raise Exception(message)
+
 
     # set-up trial options
     options = {}
@@ -80,26 +102,45 @@ def test_sweep_serial():
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.induction_model'] = 'not_in_use'
-    options['nlp.n_k'] = 2
+    options['nlp.n_k'] = n_k
+    options['quality.autorun'] = quality_autorun
     options['solver.max_iter'] = 0
 
-    # set-up sweep options
-    sweep_opts = [('nlp.discretization', ['direct_collocation','multiple_shooting'])] # trial sweep
-    sweep_opts = [('user_options.wind.u_ref', [5.,5.5])] # parametric sweep
-
     # build, run and save sweep
-    sweep = awe.Sweep(name = 'serial_test', options = options, seed = sweep_opts)
+    sweep = awe.Sweep(name=sweep_name, options=options, seed=sweep_opts)
     sweep.build()
     sweep.run(final_homotopy_step = 'initial')
     sweep.save('dict')
 
+    return sweep_name
+
+def load_sweep_from_saved_dict_and_plot(sweep_name):
+
+    filename = sweep_name + '.dict'
+
     # load and test sweep
-    file_pi = open('serial_test.dict','rb')
-    dict_test = pickle.load(file_pi)
-    sweep_test = awe.Sweep(dict_test)
-    file_pi.close()
-    os.remove("serial_test.dict")
+    filehandler = open(filename, 'rb')
+    dict_test = pickle.load(filehandler)
 
-    sweep_test.plot(['all','comp_all'])
+    trial_sweep = awe.Sweep(dict_test)
+    filehandler.close()
+    os.remove(filename)
 
-test_trial_serial()
+    trial_sweep.plot(['all', 'comp_all'])
+
+    return None
+
+
+def perform_sweep_serial(sweep_type):
+    sweep_name = build_optimize_and_save_sweep_for_serialization(sweep_type=sweep_type)
+    load_sweep_from_saved_dict_and_plot(sweep_name)
+    return None
+
+def test_sweep_serial_trial():
+    sweep_type = 'trial'
+    perform_sweep_serial(sweep_type)
+    return None
+
+def test_sweep_serial_parametric():
+    sweep_type = 'parametric'
+    perform_sweep_serial(sweep_type)

@@ -26,6 +26,7 @@
 Sweep helper functions to manipulate multiple trials at once
 
 @author: jochem de schutter alu-freiburg 2018
+@edit: rcleuthold, alu-fr, 2022
 """
 import pdb
 
@@ -128,6 +129,7 @@ def make_warmstarting_decisions(name, user_defined_warmstarting_file = None, app
 
 def recalibrate_visualization(single_trial):
     V_plot = single_trial.optimization.V_opt
+    plot_dict = single_trial.visualization.plot_dict
     p_fix_num = single_trial.optimization.p_fix_num
     output_vals = single_trial.optimization.output_vals
     time_grids = single_trial.optimization.time_grids
@@ -140,6 +142,8 @@ def recalibrate_visualization(single_trial):
     cost_fun = single_trial.nlp.cost_components[0]
     cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
     V_ref = single_trial.optimization.V_ref
-    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, single_trial.visualization.plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+    global_outputs_opt = single_trial.optimization.global_outputs_opt
+
+    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
 
     return recalibrated_plot_dict

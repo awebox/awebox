@@ -268,7 +268,7 @@ class Simulation:
 
     @trial.setter
     def trial(self, value):
-        print('Cannot set trial object.')
+        print_op.log_and_raise_error('Cannot set trial object.')
 
     @property
     def mpc(self):
@@ -278,7 +278,7 @@ class Simulation:
 
     @mpc.setter
     def mpc(self, value):
-        print('Cannot set mpc object.')
+        print_op.log_and_raise_error('Cannot set mpc object.')
 
     @property
     def F(self):
@@ -288,7 +288,7 @@ class Simulation:
 
     @F.setter
     def F(self, value):
-        print('Cannot set F object.')
+        print_op.log_and_raise_error('Cannot set F object.')
 
     @property
     def visualization(self):
@@ -298,4 +298,4 @@ class Simulation:
 
     @visualization.setter
     def visualization(self, value):
-        print('Cannot set visualization object.')
+        print_op.log_and_raise_error('Cannot set visualization object.')

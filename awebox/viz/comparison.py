@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -31,6 +33,7 @@ from . import trajectory
 import numpy as np
 from . import tools
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 
 def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
 
@@ -48,13 +51,27 @@ def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
     plot_table_r = 2
     plot_table_c = 2
 
+    local_print_dict = {}
+
     for stat_name in interesting_stats:
+
+        if stat_name not in local_print_dict.keys():
+            local_print_dict[stat_name] = {'trial': stat_name}
+
         counter += 1
         ax = plt.subplot(plot_table_r, plot_table_c, counter)
 
         values, labels = get_stats_values_over_sweep(plot_dict, stat_name)
-        print((values, labels))
         plot_bar_x(ax, values, labels, stat_name, rgb_tuple_colors)
+
+        for idx in range(len(labels)):
+            local_label = labels[idx]
+            local_value = values[idx]
+            local_print_dict[stat_name][local_label] = local_value
+
+    print_op.print_dict_as_table(local_print_dict)
+
+    return None
 
 def compare_tracking_cost(plot_dict, cosmetics, fig_name):
 
@@ -78,12 +95,12 @@ def compare_stats(sweep_dict, cosmetics, fig_name):
 
 def compare_parameters(plot_dict, cosmetics, fig_name):
 
-    interesting_params = ['l_s', 't_f','l_t_max','cmax']
+    interesting_params = ['l_s', 't_f', 'l_t_max','cmax']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_params)
 
 def compare_efficiency(plot_dict, cosmetics, fig_name):
 
-    interesting_params = ['dq10_av', 'l_s','elevation','z_av']
+    interesting_params = ['dq10_av', 'l_s', 'elevation', 'z_av']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_params)
 
 def plot_bar_x(ax, values, trial_labels, comparison_label, rgb_tuple_colors):
@@ -156,7 +173,11 @@ def get_stats_values_from_trial(plot_dict, stat_name):
         return plot_dict['power_and_performance']['power_per_surface_area'].full()*1e-3
 
     elif stat_name == 't_f':
-        return plot_dict['power_and_performance']['time_period'].full()
+        local_value = plot_dict['power_and_performance']['time_period']
+        if hasattr(local_value, 'shape') and (local_value.shape == ()):
+            return local_value
+        else:
+            return local_value.full()
 
     elif stat_name == 'l_s':
         no_kites = len(plot_dict['architecture'].kite_nodes)

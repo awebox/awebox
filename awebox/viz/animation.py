@@ -221,9 +221,11 @@ def fill_in_dashboard(fig, plot_dict,index):
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    dl_t = plot_dict['x']['dl_t'][0][index].toarray().round(1)[0][0]
+    if 'dl_t' in plot_dict['x'].keys():
+        dl_t = plot_dict['x']['dl_t'][0][index][0]
+    else:
+        dl_t = 0.
     global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
-
 
     # LOCAL INFORMATION
     local_string = 'kite 1:\n'

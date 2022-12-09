@@ -39,8 +39,6 @@ import scipy.linalg as scila
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-
-
 from awebox.logger.logger import Logger as awelogger
 
 def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
@@ -726,3 +724,8 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     var_constraint_functions['rel_labels'] = relevant_labels
 
     return var_constraint_functions
+
+def test():
+    # todo
+    awelogger.logger.warning('no tests currently defined for debug_operations')
+    return None

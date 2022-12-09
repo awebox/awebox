@@ -220,11 +220,11 @@ def test_cross_tether_model():
     assert('diam_c1' in list(theta.keys()))
 
     # check constraints
-    assert('c10' in outputs['tether_length'].keys())
-    assert('c21' in outputs['tether_length'].keys())
-    assert('c31' in outputs['tether_length'].keys())
-    assert('c23' in outputs['tether_length'].keys())
-    assert('c32' not in outputs['tether_length'].keys())
+    assert('c10' in outputs['invariants'].keys())
+    assert('c21' in outputs['invariants'].keys())
+    assert('c31' in outputs['invariants'].keys())
+    assert('c23' in outputs['invariants'].keys())
+    assert('c32' not in outputs['invariants'].keys())
 
     assert (constraints['inequality']['tether_stress10'].shape[0] == 1)
     assert (constraints['inequality']['tether_stress21'].shape[0] == 1)

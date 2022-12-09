@@ -676,4 +676,5 @@ def test_constraint_list():
     test_that_constraint_list_ignores_append_for_incomplete_constraints()
     test_that_constraint_list_ignores_append_for_repeated_constraints()
 
-# test_constraint_list()
+def test():
+    test_constraint_list()

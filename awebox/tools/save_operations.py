@@ -30,6 +30,8 @@ Stores helper functions for saving data
 
 import pickle
 import awebox.tools.print_operations as print_op
+from awebox.logger.logger import Logger as awelogger
+
 
 def save(data, file_name, file_type):
 
@@ -54,4 +56,10 @@ def load_saved_data_from_dict(filename):
         message = 'the awebox is not currently set up to load saved data from anything other than a saved file (name)'
         print_op.log_and_raise_error(message)
 
+    return None
+
+
+def test():
+    # todo
+    awelogger.logger.warning('no tests currently defined for save_operations')
     return None

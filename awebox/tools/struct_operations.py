@@ -936,6 +936,8 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
         integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
     else:
         control_parametrization = 'zoh'
+        collocation_interpolator = None
+        integral_collocation_interpolator = None
 
     # add states and outputs to plotting dict
     interpolation = {'x': {}, 'u': {}, 'z': {}, 'theta': {}, 'time_grids': {}, 'outputs': {}, 'integral_outputs': {}}
@@ -976,7 +978,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
                                                    timegrid_label=timegrid_label)
 
     # integral-output values
-    if nlp_discretization is 'direct_collocation':
+    if nlp_discretization == 'direct_collocation':
         for name in integral_output_names:
             values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, 0, 'int_out')
             interpolation['integral_outputs'][name] = [values_ip]
@@ -1020,7 +1022,7 @@ def interpolate_outputs(time_grids, outputs_dict, output_vals, nlp_discretizatio
                 outputs_interpolated[output_type][name] += [values_ip]
                 odx += 1
 
-    if odx is not expected_number_of_outputs:
+    if not odx == expected_number_of_outputs:
         message = 'something went wrong when interpolating outputs. the number of outputs that were interpolated is ' + str(odx) + ' when it should have been ' + str(expected_number_of_outputs)
         print_op.log_and_raise_error(message)
 
@@ -1038,7 +1040,6 @@ def interpolate_Vu(time_grids, variables_dict, V, control_parameterization='zoh'
 
         variable_dimension = variables_dict[var_type][name].shape[0]
         for dim in range(variable_dimension):
-
             if control_parameterization == 'zoh':
                 control = V['u', :, name, dim]
                 values_ip = sample_and_hold_controls(time_grids, control, timegrid_label=timegrid_label)
@@ -1046,7 +1047,8 @@ def interpolate_Vu(time_grids, variables_dict, V, control_parameterization='zoh'
             elif (control_parameterization == 'poly') and (collocation_interpolator is not None):
                 values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'u')
 
-        Vu_interpolated[name] += [values_ip]
+            Vu_interpolated[name] += [values_ip]
+
     return Vu_interpolated
 
 
@@ -1156,7 +1158,15 @@ def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
         tgrid = tgrid_z
 
     elif nlp_discretization == 'direct_collocation':
-        if collocation_scheme is not 'radau':
+        if collocation_scheme == 'radau':
+            if include_collocation:
+                # add node values
+                z_values = np.array(coll_slice_to_vec(V['coll_var', :, :, 'z', name, dim]))
+                tgrid = tgrid_coll
+            else:
+                z_values = []
+                tgrid = []
+        else:
             z_values = []
             # merge interval and node values
             for ndx in range(n_k):
@@ -1171,15 +1181,6 @@ def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
                 tgrid = tgrid_z_coll
             else:
                 tgrid = tgrid_z
-
-        elif collocation_scheme is 'radau':
-            if include_collocation:
-                # add node values
-                z_values = np.array(coll_slice_to_vec(V['coll_var', :, :, 'z', name, dim]))
-                tgrid = tgrid_coll
-            else:
-                z_values = []
-                tgrid = []
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
@@ -1206,7 +1207,16 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
         tgrid = tgrid_x
 
     elif nlp_discretization == 'direct_collocation':
-        if collocation_scheme is not 'radau':
+        if collocation_scheme == 'radau':
+            if include_collocation:
+                # add node values
+                x_values = np.array(coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
+                tgrid = tgrid_coll
+            else:
+                x_values = []
+                tgrid = []
+
+        else:
             x_values = []
             # merge interval and node values
             for ndx in range(n_k + 1):
@@ -1222,15 +1232,6 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
             else:
                 tgrid = tgrid_x
 
-        elif collocation_scheme is 'radau':
-            if include_collocation:
-                # add node values
-                x_values = np.array(coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
-                tgrid = tgrid_coll
-            else:
-                x_values = []
-                tgrid = []
-
     # make list of time grid
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     x_values = list(chain.from_iterable(x_values))
@@ -1242,12 +1243,17 @@ def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
     tgrid_u = time_grids['u']
     tgrid_ip = time_grids[timegrid_label]
     values_ip = np.zeros(len(tgrid_ip),)
-    for index in range(len(tgrid_ip)):
-        for j in range(tgrid_u.shape[0] - 1):
-            if tgrid_u[j] < tgrid_ip[index] and tgrid_ip[index] < tgrid_u[j + 1]:
-                values_ip[index] = control[j]
+    for idx in range(len(tgrid_ip)):
+        for jdx in range(tgrid_u.shape[0] - 1):
+            if tgrid_u[jdx] < tgrid_ip[idx] and tgrid_ip[idx] < tgrid_u[jdx + 1]:
+                values_ip[idx] = control[jdx]
                 break
-        if tgrid_u[-1] < tgrid_ip[index]:
-            values_ip[index] = control[-1]
+        if tgrid_u[-1] < tgrid_ip[idx]:
+            values_ip[idx] = control[-1]
 
     return values_ip
+
+def test():
+    # todo
+    awelogger.logger.warning('no tests currently defined for struct_operations')
+    return None

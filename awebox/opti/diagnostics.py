@@ -43,6 +43,9 @@ import numpy as np
 
 
 def print_homotopy_values(nlp, solution, p_fix_num):
+
+    # todo: use print_operations here, to avoid the manual spacing
+
     V = nlp.V
 
     # print the phi values:
@@ -94,6 +97,8 @@ def print_constraint_violations(nlp, V_vals, p_fix_num):
 
 def compute_power_indicators(power_and_performance, plot_dict):
 
+    # todo: this probably shouldn't depend on plot_dict specifically, since it's living in the optimization directory
+
     # geometric stuff
     kite_geometry = plot_dict['options']['solver']['initialization']['sys_params_num']['geometry']
     s_ref = kite_geometry['s_ref']
@@ -116,6 +121,11 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['avg_power'] = avg_power
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
+
+    if 'l_t' in plot_dict['x'].keys():
+        power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['x']['l_t'])))
+    else:
+        power_and_performance['l_t_max'] = plot_dict['theta']['l_t']
 
     z_av = np.mean(plot_dict['x']['q10'][2])
 

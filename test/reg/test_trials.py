@@ -24,7 +24,7 @@ awelogger.logger.setLevel(10)
 
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
-def test_singe_kite():
+def test_single_kite():
 
     options_dict = generate_options_dict()
     trial_name = 'single_kite_trial'
@@ -32,6 +32,11 @@ def test_singe_kite():
 
     return None
 
+def test_multiple_shooting():
+    options_dict = generate_options_dict()
+    trial_name = 'multiple_shooting_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+    return None
 
 def test_basic_health():
 
@@ -168,6 +173,11 @@ def generate_options_dict():
     single_kite_options['user_options.induction_model'] = 'not_in_use'
     single_kite_options['user_options.tether_drag_model'] = 'split'
 
+    multiple_shooting_options = copy.deepcopy(single_kite_options)
+    multiple_shooting_options['user_options.trajectory.lift_mode.windings'] = 1
+    multiple_shooting_options['nlp.n_k'] = 50
+    multiple_shooting_options['nlp.discretization'] = 'multiple_shooting'
+
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
     drag_mode_options['quality.test_param.power_balance_thresh'] = 2.
@@ -274,6 +284,7 @@ def generate_options_dict():
     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
+    options_dict['multiple_shooting_trial'] = multiple_shooting_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
     # options_dict['multi_tether_trial'] = multi_tether_options
@@ -331,3 +342,5 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+test_multiple_shooting()

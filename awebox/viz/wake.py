@@ -87,7 +87,7 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
 
 def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
-    if 'wake' in plot_dict.keys():
+    if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
 
         model_variables = plot_dict['variables']
         model_parameters = plot_dict['parameters']

@@ -190,10 +190,10 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
     fig.clf()
     legend_names = []
     tgrid_ip = plot_dict['time_grids']['ip']
-    invariants = plot_dict['outputs']['tether_length']
+    invariants = plot_dict['outputs']['invariants']
     if cosmetics['plot_ref']:
-        ref_invariants = plot_dict['ref']['outputs']['tether_length']
-        ref_tgrid_ip = plot_dict['time_grids']['ref']['ip']
+        ref_invariants = plot_dict['ref']['outputs']['invariants']
+        ref_tgrid_ip = plot_dict['ref']['time_grids']['ip']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]

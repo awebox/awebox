@@ -60,10 +60,7 @@ def get_dictionary_with_output_dimensions(interesting_outputs, outputs, architec
             number_of_output_dims = len(outputs[opt[0]][base_name])
         else:
             kite = architecture.kite_nodes[0]
-            try:
-                number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
-            except:
-                pdb.set_trace()
+            number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
 
         output_dimensions[opt] = number_of_output_dims
     return output_dimensions
@@ -207,7 +204,7 @@ def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = [('performance', 'phf_loyd_total'),
                            ('performance', 'loyd_factor'),
                            ('performance', 'p_loyd_total'),
-                           ('performance', 'freelout')]
+                           ('performance', 'f0')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):

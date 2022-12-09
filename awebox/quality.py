@@ -32,6 +32,7 @@ import pdb
 from awebox.logger.logger import Logger as awelogger
 import awebox.quality_funcs as quality_funcs
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 class Quality(object):
 
@@ -96,7 +97,7 @@ class Quality(object):
         self.__results = results
 
     def check_quality(self, trial):
-
+    
         self.run_tests(trial)
         self.__interpret_test_results()
 
@@ -122,14 +123,20 @@ class Quality(object):
     def print_results(self):
 
         results = self.__results
+
+        pass_label = 'PASSED'
+        fail_label = 'FAILED'
+
+        pass_fail_dict = {}
+        for name, value in results.key():
+            if value:
+                pass_fail_dict[name] = pass_label
+            else:
+                pass_fail_dict[name] = fail_label
+
         print('########################################')
         print('QUALITY CHECK details:')
-        for key in list(results.keys()):
-            if results[key]:
-                result = 'PASSED'
-            else:
-                result = 'FAILED'
-            print((key + ':  ' + result))
+        print_op.print_dict_as_table(pass_fail_dict)
         print('#######################################')
 
     @property
@@ -138,7 +145,7 @@ class Quality(object):
 
     @results.setter
     def results(self, value):
-        print('Cannot set results object.')
+        print_op.log_and_raise_error('Cannot set results object.')
 
     def all_tests_passed(self):
         return (self.__number_of_passed == self.__number_of_tests)
