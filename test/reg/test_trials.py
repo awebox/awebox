@@ -18,6 +18,7 @@ import awebox.trial as awe_trial
 import awebox.tools.print_operations as print_op
 
 from awebox.logger.logger import Logger as awelogger
+import matplotlib.pyplot as plt
 awelogger.logger.setLevel(10)
 
 
@@ -35,7 +36,11 @@ def test_single_kite():
 def test_multiple_shooting():
     options_dict = generate_options_dict()
     trial_name = 'multiple_shooting_trial'
-    solve_and_check(options_dict[trial_name], trial_name)
+    trial = awe_trial.Trial(options_dict[trial_name], trial_name)
+    trial.build()
+    trial.optimize(final_homotopy_step='initial')
+    trial.plot('all')
+    plt.show()
     return None
 
 def test_basic_health():
@@ -175,8 +180,18 @@ def generate_options_dict():
 
     multiple_shooting_options = copy.deepcopy(single_kite_options)
     multiple_shooting_options['user_options.trajectory.lift_mode.windings'] = 1
-    multiple_shooting_options['nlp.n_k'] = 50
+    multiple_shooting_options['nlp.n_k'] = 10
     multiple_shooting_options['nlp.discretization'] = 'multiple_shooting'
+    multiple_shooting_options['solver.homotopy_method.advance_despite_max_iter'] = False
+    multiple_shooting_options['model.model_bounds.tether_stress.include'] = False
+    multiple_shooting_options['model.model_bounds.tether_force.include'] = False
+    multiple_shooting_options['model.model_bounds.airspeed.include'] = False
+    multiple_shooting_options['model.model_bounds.aero_validity.include'] = False
+    multiple_shooting_options['model.model_bounds.anticollision.include'] = False
+    multiple_shooting_options['model.model_bounds.acceleration.include'] = False
+    multiple_shooting_options['model.model_bounds.rotation.include'] = False
+    multiple_shooting_options['model.model_bounds.ellipsoidal_flight_region.include'] = False
+    multiple_shooting_options['quality.autorun'] = False
 
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'

@@ -814,17 +814,6 @@ def is_numeric_scalar(val):
     else:
         return False
 
-def interpolate_1D(x_data, y_data, x_points, interpolation_type, nlp_discretization, collocation_interpolator=None):
-    if (interpolation_type == 'spline') or (nlp_discretization == 'multiple_shooting'):
-        y_points = spline_interpolation(x_data, y_data, x_points)
-    elif (interpolation_type == 'poly') and (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
-        y_points = collocation_interpolator(x_points, name, j, 'x')
-    else:
-        message = 'interpolation is not yet set-up for a combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
-        print_op.log_and_raise_error(message)
-    return y_points
-
-
 def spline_interpolation(x_data, y_data, x_points):
     """ Interpolate solution values with b-splines
     """

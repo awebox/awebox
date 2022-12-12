@@ -541,8 +541,13 @@ class Optimization(object):
 
         return_status_number = struct_op.convert_return_status_string_to_number(self.__stats['return_status'])
 
-        # check if optimization was successful
-        if return_status_number > 3 and not return_status_number == 8:
+        previous_step_failed = (return_status_number > 3)
+        failure_due_to_max_iter = (return_status_number == 8)
+        advance_despite_max_iter = self.__options['homotopy_method']['advance_despite_max_iter']
+        excuse_failure_due_to_max_iter = failure_due_to_max_iter and advance_despite_max_iter
+
+        should_not_advance = previous_step_failed and not excuse_failure_due_to_max_iter
+        if should_not_advance:
 
             self.__solve_succeeded = False
             awelogger.logger.info('')

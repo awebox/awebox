@@ -978,16 +978,49 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
                                                    timegrid_label=timegrid_label)
 
     # integral-output values
-    if nlp_discretization == 'direct_collocation':
-        for name in integral_output_names:
-            values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, 0, 'int_out')
-            interpolation['integral_outputs'][name] = [values_ip]
+    interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
+                                                                     integral_outputs_opt, nlp_discretization,
+                                                                     collocation_scheme=collocation_scheme,
+                                                                     timegrid_label=timegrid_label,
+                                                                     integral_collocation_interpolator=integral_collocation_interpolator)
 
     return interpolation
 
 def build_time_grid_for_interpolation(time_grids, n_points):
     time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
     return time_grid_interpolated
+
+def interpolate_integral_outputs(time_grids, integral_output_names, integral_outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', integral_collocation_interpolator=None):
+
+    integral_outputs_interpolated = {}
+
+    # integral-output values
+    for name in integral_output_names:
+        if name not in list(integral_outputs_interpolated.keys()):
+            integral_outputs_interpolated[name] = []
+
+        integral_output_dimension = integral_outputs_opt['int_out', 0, name].shape[0]
+
+        for dim in range(integral_output_dimension):
+            if (nlp_discretization == 'direct_collocation'):
+                if (integral_collocation_interpolator is not None):
+                    values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, dim, 'int_out')
+                else:
+                    message = 'awebox is not yet able to interpolate integral_outputs for direct collocation without the use of the integral_collocation_interpolator'
+                    print_op.log_and_raise_error(message)
+            else:
+                output_values = cas.DM(integral_outputs_opt['int_out', :, name, dim])
+                tgrid = time_grids['x']
+
+                # make list of time grid and values
+                tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+                output_values = output_values.full().squeeze()
+
+                values_ip = vect_op.spline_interpolation(tgrid, output_values, time_grids[timegrid_label])
+
+            integral_outputs_interpolated[name] += [values_ip]
+
+    return integral_outputs_interpolated
 
 def interpolate_outputs_by_index(time_grids, output_vals, odx, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
 
@@ -1073,7 +1106,11 @@ def interpolate_Vz(time_grids, variables_dict, V, nlp_discretization, collocatio
                 # interpolate
                 values_ip = vect_op.spline_interpolation(time_grid_data, values, time_grids[timegrid_label])
 
-            Vz_interpolated[name] += [values_ip.full()]
+            if hasattr(values_ip, 'full'):
+                Vz_interpolated[name] += [values_ip.full()]
+            else:
+                Vz_interpolated[name] += [values_ip]
+
     return Vz_interpolated
 
 
@@ -1103,7 +1140,10 @@ def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discre
                 message = 'interpolation not yet enabled for the combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
                 print_op.log_and_raise_error(message)
 
-            Vx_interpolated[name] += [values_ip.full()]
+            if hasattr(values_ip, 'full'):
+                Vx_interpolated[name] += [values_ip.full()]
+            else:
+                Vx_interpolated[name] += [values_ip]
 
     return Vx_interpolated
 
@@ -1112,24 +1152,23 @@ def merge_output_values(output_vals, odx, time_grids, nlp_discretization, colloc
 
     using_collocation = (nlp_discretization == 'direct_collocation')
 
+    output_values = output_vals[odx, :]
+
     # read in inputs
     if using_collocation:
-        output_values = output_vals[odx, :]
-
         using_radau = (collocation_scheme == 'radau')
         if using_radau:
             tgrid = time_grids['coll']
         else:
             tgrid = time_grids['x_coll'][:-1]
     else:
-        message = 'the awebox does not yet support the merging of output_values in the multiple_shooting case'
-        print_op.log_and_raise_error(message)
+        tgrid = time_grids['x'][:-1]
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     output_values = output_values.full().squeeze()
 
-    # check that this actually worked in a reasonable way
+    # check that this didn't fail in a really obviously un-interpolatable way
     time_length = len(tgrid)
     output_length = len(output_values)
     if not (time_length == output_length):

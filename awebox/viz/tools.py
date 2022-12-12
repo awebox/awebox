@@ -299,40 +299,6 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
 
     return None
 
-def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx, output_type, output_name, cosmetics, reload_dict, dim=0):
-
-    # kite nodes
-    kite_nodes = params['model']['architecture'].kite_nodes
-
-    plt.subplot(plot_table_r, plot_table_c, idx)
-    for kite in kite_nodes:
-
-        odx = 0
-        can_index = reload_dict['outputs_struct'].getCanonicalIndex(odx)
-        have_not_reached_desired_output = not (can_index[0] == output_type and can_index[1] == output_name)
-        while have_not_reached_desired_output:
-            odx += 1
-            can_index = reload_dict['outputs_struct'].getCanonicalIndex(odx)
-            have_not_reached_desired_output = not (can_index[0] == output_type and can_index[1] == output_name)
-
-        output_values, tgrid = struct_op.merge_output_values(output, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme)
-        output_values, tgrid, ndim = merge_output_values(output, odx, reload_dict)
-
-        idx = kite_nodes.index(kite)
-        plt.plot(tgrid, output_values, color=cosmetics['diagnostics']['colors'][idx])
-        plt.grid('on')
-
-    if ndim > 1:
-        if dim == 0:
-            dimname = 'x'
-        elif dim == 1:
-            dimname = 'y'
-        else:
-            dimname = 'z'
-        plt.title(output_name + ' (' + dimname + ' hat)')
-    else:
-        plt.title(output_name)
-
 
 def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None):
 
