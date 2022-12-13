@@ -55,7 +55,7 @@ class Quality(object):
         variables_dict = trial.model.variables_dict
         V_opt = trial.optimization.V_opt
         outputs_dict = struct_op.strip_of_contents(trial.model.outputs_dict)
-        output_opt = trial.optimization.outputs_opt
+        outputs_opt = trial.optimization.outputs_opt
         integral_output_names = trial.model.integral_outputs.keys()
         integral_outputs_opt = trial.optimization.integral_outputs_opt
         Collocation = trial.nlp.Collocation
@@ -65,7 +65,7 @@ class Quality(object):
         time_grids['quality'] = quality_time_grid
 
         quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt,
-                                                              outputs_dict, output_opt,
+                                                              outputs_dict, outputs_opt,
                                                               integral_output_names, integral_outputs_opt,
                                                               Collocation=Collocation,
                                                               timegrid_label='quality')

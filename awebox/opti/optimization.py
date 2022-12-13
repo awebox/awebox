@@ -191,9 +191,9 @@ class Optimization(object):
         cost_fun = nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
         V_ref = self.__V_ref
-        visualization.plot(V_plot, visualization.options, [self.__outputs_init,
-                                                           self.__outputs_opt, self.__outputs_ref],
-                           self.__integral_outputs_opt, self.__debug_flags, self.__time_grids, cost, self.__name, sweep_toggle, V_ref, fig_name=fig_name)
+        visualization.plot(V_plot, visualization.options, self.output_vals,
+                           self.integral_output_vals, self.__debug_flags, self.__time_grids, cost,
+                           self.__name, sweep_toggle, V_ref, self.__global_outputs_opt, fig_name=fig_name)
 
         return None
 
@@ -596,6 +596,7 @@ class Optimization(object):
         [nlp_integral_outputs, nlp_integral_outputs_fun] = nlp.integral_output_components
         integral_outputs_init = nlp_integral_outputs(nlp_integral_outputs_fun(V_initial, self.__p_fix_num))
         integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_final, self.__p_fix_num))
+        integral_outputs_ref = nlp_integral_outputs(nlp_integral_outputs_fun(self.__V_ref, self.__p_fix_num))
 
         # global outputs
         global_outputs_opt = nlp.global_outputs(nlp.global_outputs_fun(V_final, self.__p_fix_num))
@@ -613,9 +614,11 @@ class Optimization(object):
         self.__global_outputs_opt = global_outputs_opt
         self.__integral_outputs_init = integral_outputs_init
         self.__integral_outputs_opt = integral_outputs_opt
+        self.__integral_outputs_ref = integral_outputs_ref
         self.__integral_outputs_fun = nlp_integral_outputs_fun
         self.__time_grids = time_grids
 
+        return None
 
     def process_solution(self, options, nlp, model, final_homotopy_step):
 
@@ -793,7 +796,9 @@ class Optimization(object):
 
     @property
     def integral_output_vals(self):
-        return [self.__integral_outputs_init, self.__integral_outputs_opt]
+        return {'init':self.__integral_outputs_init,
+                'opt':self.__integral_outputs_opt,
+                'ref':self.__integral_outputs_ref}
 
     @property
     def integral_outputs_init(self):

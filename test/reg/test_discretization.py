@@ -51,7 +51,7 @@ def test_integrators():
     # extract solution data
     V_final = trial.optimization.V_opt
     P       = trial.optimization.p_fix_num
-    Int_outputs = trial.optimization.integral_output_vals[1]
+    Int_outputs = trial.optimization.integral_output_vals['opt']
     model   = trial.model
     dae     = model.get_dae()
 

@@ -102,7 +102,6 @@ def smooth_sqrt(arg, epsilon=1e-8):
 
 def normalize(a):
     normed = a / norm(a)
-
     return normed
 
 def smooth_normalize(a, epsilon=1e-8):

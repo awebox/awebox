@@ -180,7 +180,7 @@ class Trial(object):
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
             saving_method = self.__options['solver']['save_format']
-            self.save(saving_method = saving_method)
+            self.save(saving_method=saving_method)
 
         awelogger.logger.info('')
 
@@ -198,12 +198,12 @@ class Trial(object):
         if cost == None:
             cost = self.__solution_dict['cost']
         time_grids = self.__solution_dict['time_grids']
-        integral_outputs_final = self.__solution_dict['integral_outputs_final']
+        integral_output_vals = self.__solution_dict['integral_output_vals']
         V_ref = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
+        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 
@@ -326,7 +326,7 @@ class Trial(object):
         solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
-        solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
+        solution_dict['integral_output_vals'] = self.__optimization.integral_output_vals
         solution_dict['stats'] = self.__optimization.stats
         solution_dict['iterations'] = self.__optimization.iterations
         solution_dict['timings'] = self.__optimization.timings

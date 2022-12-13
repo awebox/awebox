@@ -64,7 +64,7 @@ def test_animation():
     options['solver.max_iter'] = 0
 
     options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    options['visualization.cosmetics.interpolation.N'] = 2
+    options['visualization.cosmetics.interpolation.n_points'] = 2
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')

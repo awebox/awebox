@@ -166,8 +166,7 @@ class Sweep:
 
                 # overwrite outputs to work around pickle bug
                 for label in ['ref', 'opt', 'init']:
-                    for i in range(len(single_trial_solution_dict['output_vals'])):
-                        self.__sweep_dict[trial_to_run][param]['output_vals'][label] = copy.deepcopy(single_trial_solution_dict['output_vals'][label])
+                    self.__sweep_dict[trial_to_run][param]['output_vals'][label] = copy.deepcopy(single_trial_solution_dict['output_vals'][label])
                 self.__sweep_labels[trial_to_run][param] = trial_to_run + '_' + param
 
         awelogger.logger.info('Sweep (' + self.__name + ') completed.')
@@ -204,7 +203,7 @@ class Sweep:
                             output_vals = self.__sweep_dict[trial_to_plot][param]['output_vals']
                             trial_seed = {'solution_dict': self.__sweep_dict[trial_to_plot][param], 'plot_dict': self.__plot_dict[trial_to_plot][param]}
                             seeded_trial = trial.Trial(trial_seed)
-                            seeded_trial.plot([flag[5:]], V_plot=V_plot, cost=cost, parametric_options=parametric_options, output_vals = output_vals, sweep_toggle=True, fig_num = flag[5:])
+                            seeded_trial.plot([flag[5:]], V_plot=V_plot, cost=cost, parametric_options=parametric_options, output_vals=output_vals, sweep_toggle=True, fig_num = flag[5:])
 
             else:
                 for trial_to_plot in list(self.__plot_dict.keys()):

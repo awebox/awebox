@@ -118,7 +118,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
     # read in inputs
-    integral_outputs = plot_dict['integral_outputs_final']
+    integral_outputs = plot_dict['integral_output_vals']['opt']
     variables_dict = plot_dict['variables_dict']
     tgrid_ip = plot_dict['time_grids']['ip']
 

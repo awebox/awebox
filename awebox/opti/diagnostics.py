@@ -105,7 +105,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
 
     # the actual power indicators
     if 'e' in plot_dict['integral_variables']:
-        e_final = plot_dict['integral_outputs_final']['int_out',-1,'e']
+        e_final = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
     else:
         e_final = plot_dict['x']['e'][0][-1]
 
@@ -215,7 +215,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
             qkp_0 = plot_dict['x'][label][0][idx]
             qkp_1 = plot_dict['x'][label][1][idx]
             qkp_2 = plot_dict['x'][label][2][idx]
-            position_kite = np.array([[qkp_0], [qkp_1], [qkp_2]])
+            position_kite = np.reshape(np.array([qkp_0, qkp_1, qkp_2]), (3, 1))
 
             if parent == 0:
                 position_parent = np.zeros((3, 1))
@@ -223,7 +223,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
                 average_tether_x = np.mean(np.array(plot_dict['x']['q10'][0]))
                 average_tether_y = np.mean(np.array(plot_dict['x']['q10'][1]))
                 average_tether_z = np.mean(np.array(plot_dict['x']['q10'][2]))
-                average_tether_vector = np.array([[average_tether_x], [average_tether_y], [average_tether_z]])
+                average_tether_vector = np.reshape(np.array([average_tether_x, average_tether_y, average_tether_z]), (3, 1))
                 position_grandparent = position_parent - average_tether_vector
             else:
                 grandparent = architecture.parent_map[parent]
@@ -232,7 +232,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
                 qpg_0 = plot_dict['x'][label_parent][0][idx]
                 qpg_1 = plot_dict['x'][label_parent][1][idx]
                 qpg_2 = plot_dict['x'][label_parent][2][idx]
-                position_parent = np.array([[qpg_0], [qpg_1], [qpg_2]])
+                position_parent = np.reshape(np.array([qpg_0, qpg_1, qpg_2]), (3, 1))
 
                 if grandparent == 0:
                     position_grandparent = np.zeros((3, 1))
@@ -243,7 +243,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
                     qgg_0 = plot_dict['x'][label_grandparent][0][idx]
                     qgg_1 = plot_dict['x'][label_grandparent][1][idx]
                     qgg_2 = plot_dict['x'][label_grandparent][2][idx]
-                    position_grandparent = np.array([[qgg_0], [qgg_1], [qgg_2]])
+                    position_grandparent = np.reshape(np.array([qgg_0, qgg_1, qgg_2]), (3, 1))
 
             local_kite_cone_angle = perf_op.get_cone_angle(position_kite, position_parent, position_grandparent)
             local_average_cone_angle += local_kite_cone_angle / float(number_of_kites_in_lowest_layer)

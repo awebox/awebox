@@ -133,7 +133,7 @@ def recalibrate_visualization(single_trial):
     p_fix_num = single_trial.optimization.p_fix_num
     output_vals = single_trial.optimization.output_vals
     time_grids = single_trial.optimization.time_grids
-    integral_outputs_final = single_trial.optimization.integral_outputs_final
+    integral_output_vals = single_trial.optimization.integral_output_vals
     name = single_trial.name
     parametric_options = single_trial.options
     iterations = single_trial.optimization.iterations
@@ -144,6 +144,6 @@ def recalibrate_visualization(single_trial):
     V_ref = single_trial.optimization.V_ref
     global_outputs_opt = single_trial.optimization.global_outputs_opt
 
-    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
 
     return recalibrated_plot_dict

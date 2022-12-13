@@ -122,7 +122,7 @@ def interpolate_data(trial, freq):
     tf = trial.optimization.V_final['theta', 't_f', 0]  # TODO: phase fix tf
 
     # number of interpolating points
-    N = int(freq * tf)
+    n_points = int(freq * tf)
 
     # recalibrate plot_dict
     plot_dict = trial.visualization.plot_dict
@@ -130,14 +130,14 @@ def interpolate_data(trial, freq):
     p_fix_num = trial.optimization.p_fix_num
     output_vals = trial.optimization.output_vals
     time_grids = trial.optimization.time_grids
-    integral_outputs_final = trial.optimization.integral_outputs_final
+    integral_output_vals = trial.optimization.integral_output_vals
     cost_fun = trial.nlp.cost_components[0]
     cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
     name = trial.name
     parametric_options = trial.options
     V_ref = trial.optimization.V_ref
     global_outputs = trial.optimization.global_outputs_opt
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs, N=N)
+    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref, global_outputs, n_points=n_points)
 
     return plot_dict
 

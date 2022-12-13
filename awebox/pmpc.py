@@ -602,7 +602,9 @@ class Pmpc(object):
         outputs_init = nlp_outputs(nlp_output_fun(self.__w0, self.__p_fix_num))
         outputs_opt = nlp_outputs(nlp_output_fun(V_opt, self.__p_fix_num))
         outputs_ref = nlp_outputs(nlp_output_fun(V_ref, self.__p_fix_num))
-        output_vals = [outputs_init, outputs_opt, outputs_ref]
+        output_vals = {'init':outputs_init,
+                       'opt':outputs_opt,
+                       'ref':outputs_ref}
 
         # generate integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = self.__trial.nlp.integral_output_components

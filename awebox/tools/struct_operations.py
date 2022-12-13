@@ -1022,21 +1022,21 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
 
     return integral_outputs_interpolated
 
-def interpolate_outputs_by_index(time_grids, output_vals, odx, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
 
     # merge values
-    values, time_grid = merge_output_values(output_vals, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme)
+    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme)
 
     # interpolate
     values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
     return values_ip
 
 
-def interpolate_outputs(time_grids, outputs_dict, output_vals, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
 
     outputs_interpolated = {}
 
-    expected_number_of_outputs = output_vals.shape[0]
+    expected_number_of_outputs = outputs_opt.shape[0]
 
     odx = 0
     for output_type in outputs_dict.keys():
@@ -1049,7 +1049,7 @@ def interpolate_outputs(time_grids, outputs_dict, output_vals, nlp_discretizatio
 
             for dim in range(outputs_dict[output_type][name].shape[0]):
                 # interpolate
-                values_ip = interpolate_outputs_by_index(time_grids, output_vals, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label)
+                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label)
 
                 # store
                 outputs_interpolated[output_type][name] += [values_ip]

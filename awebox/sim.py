@@ -192,7 +192,7 @@ class Simulation:
        
         trial_plot_dict['time_grids']['ip'] = ct.vertcat(*list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
         trial_plot_dict['V_ref'] = self.__trial.visualization.plot_dict['V_plot']
-        trial_plot_dict['output_vals'][2] =  self.__trial.visualization.plot_dict['output_vals'][1]
+        trial_plot_dict['output_vals']['ref'] =  self.__trial.visualization.plot_dict['output_vals']['opt']
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
         self.__visualization.plot_dict['ref'] = trial_plot_dict['ref']
         self.__visualization.plot_dict['time_grids']['ref'] = trial_plot_dict['time_grids']['ref']

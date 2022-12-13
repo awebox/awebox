@@ -549,7 +549,7 @@ def calibrate_visualization(model, nlp, name, options):
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -574,7 +574,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
 
     # get new outputs
     plot_dict['output_vals'] = output_vals
-    plot_dict['integral_outputs_final'] = integral_outputs_final
+    plot_dict['integral_output_vals'] = integral_output_vals
     plot_dict['global_outputs'] = global_outputs
 
     # get new time grids
@@ -646,7 +646,7 @@ def interpolate_data(plot_dict, cosmetics):
     outputs_dict = plot_dict['outputs_dict']
     outputs_opt = plot_dict['output_vals']['opt']
     integral_output_names = plot_dict['integral_output_names']
-    integral_outputs_opt = plot_dict['integral_outputs_final']
+    integral_outputs_opt = plot_dict['integral_output_vals']['opt']
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
@@ -681,7 +681,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
     integral_output_names = plot_dict['integral_output_names']
-    integral_outputs_ref = plot_dict['integral_outputs_ref']
+    integral_outputs_ref = plot_dict['integral_output_vals']['ref']
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
@@ -691,6 +691,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
                                                    Collocation=Collocation)
 
     # store the interpolation
+    if 'ref' not in plot_dict.keys():
+        plot_dict['ref'] = {}
     for name, value in interpolation.items():
         plot_dict['ref'][name] = value
 

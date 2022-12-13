@@ -2,11 +2,13 @@
 """Test of initial guess generation w.r.t. consistency
 @author: Thilo Bronnenmeyer
 """
+import pdb
 
 import awebox as awe
 import logging
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import numpy as np
+import awebox.tools.struct_operations as struct_op
 
 logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
@@ -29,14 +31,22 @@ def test_initial_guess_generation():
     trial = awe.Trial(name='test', seed=options)
     trial.build()
     trial.optimize(final_homotopy_step='initial_guess')
+
     architecture = trial.model.architecture
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
+
+    threshold = 1.e-8
+
+    outputs_opt = trial.optimization.outputs_opt
+
+    # check that the invariants of the initial guess are actually zero!
     for node in range(1,number_of_nodes):
         parent = parent_map[node]
-        c_avg = np.average(abs(np.array(trial.optimization.output_vals[0]['coll_outputs', :, :, 'tether_length','c' + str(node) + str(parent)])))
-        dc_avg = np.average(abs(np.array(trial.optimization.output_vals[0]['coll_outputs', :, :, 'tether_length','dc' + str(node) + str(parent)])))
-        ddc_avg = np.average(abs(np.array(trial.optimization.output_vals[0]['coll_outputs', :, :, 'tether_length','ddc' + str(node) + str(parent)])))
-        assert(c_avg < 1e-8)
-        assert(dc_avg < 1e-8)
-        assert(ddc_avg < 1)
+
+        for deriv_order in range(3):
+            deriv_name = (deriv_order * 'd') + 'c' + str(node) + str(parent)
+            index = struct_op.find_output_idx(trial.model.outputs, 'invariants', deriv_name, output_dim=0)
+            avg_mean_value = np.average(abs(np.array(outputs_opt[index, :])))
+
+            assert(avg_mean_value < threshold)
