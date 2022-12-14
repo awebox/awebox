@@ -60,6 +60,7 @@ def norm(a):
 
     return norm
 
+
 def smooth_norm(a, epsilon=1e-8):
     if type(a) == np.ndarray:
         dot_product = np.matmul(a.T, a)
@@ -70,13 +71,15 @@ def smooth_norm(a, epsilon=1e-8):
 
     return norm
 
+
 def abs(a):
     abs = smooth_abs(a, 0.)
     return abs
 
+
 def smooth_abs(arg, epsilon=1e-8):
 
-    if hasattr(arg, 'shape') and (arg.shape == (1,1)):
+    if hasattr(arg, 'shape') and (arg.shape == (1, 1)):
         abs = smooth_sqrt(arg ** 2., epsilon**2.)
 
     elif hasattr(arg, 'shape') and (len(arg.shape) > 0):
@@ -485,7 +488,6 @@ def elliptic_k(approximation_order_for_elliptic_integrals=6, k=None, m=None):
         message = 'elliptic_k approximation of order ' + str(approximation_order_for_elliptic_integrals) + ' is not yet available.'
         print_op.log_and_raise_error(message)
 
-
     # correct for rounding errors in the coefficients at initial condition (m=0)
     if aa.shape[0] > 1:
         aa[-1] = scipy.special.ellipk(0.) - sum(aa[:-1])
@@ -777,6 +779,7 @@ def get_altitude(vec_1, vec_2):
     altitude = smooth_norm(vec_a) / smooth_norm(vec_1 - vec_2)
     return altitude
 
+
 def test_altitude():
 
     expected = 1.
@@ -802,8 +805,10 @@ def test_altitude():
 
     return None
 
+
 def is_numeric(val):
-    return (isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray))
+    return isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray)
+
 
 def is_numeric_scalar(val):
     if isinstance(val, float):
@@ -812,6 +817,7 @@ def is_numeric_scalar(val):
         return True
     else:
         return False
+
 
 def is_strictly_increasing(array):
 
@@ -824,7 +830,9 @@ def is_strictly_increasing(array):
     for idx in range(1, array.shape[0]):
         if not (array[idx] > array[idx-1]):
             return False
+
     return True
+
 
 def test_is_strictly_increasing():
     base_error_message = 'something went wrong when testing if an array is strictly increasing: '
@@ -853,6 +861,7 @@ def test_is_strictly_increasing():
 
     return None
 
+
 def check_sanity_of_interpolation_inputs(x_data, y_data):
 
     x_length = len(x_data)
@@ -869,9 +878,10 @@ def check_sanity_of_interpolation_inputs(x_data, y_data):
         print_op.log_and_raise_error(message)
 
     x_diff = x_data[-1] - x_data[0]
-    if (x_diff <= 1.e-3):
-        message = 'interpolation grid-points appear to be very close together (diff = ' + str(x_diff)
-        message += '). be advised that - since spline interpolation returns zero outside of domain - interpolation may not be reliable.'
+    if x_diff <= 1.e-3:
+        message = 'interpolation grid-points appear to be very close together ' \
+                  '(diff = ' + str(x_diff) + '). be advised that - since spline interpolation returns ' \
+                  'zero outside of domain - interpolation may not be reliable.'
         awelogger.logger.warning(message)
 
     return None

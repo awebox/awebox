@@ -620,7 +620,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_va
     for ldx in range(20):
         new_dash = []
         for jdx in range(4):
-            new_dash += [int(np.random.randint(1,6))]
+            new_dash += [int(np.random.randint(1, 6))]
         new_dash += [1, 1]
 
         dashes += [new_dash]

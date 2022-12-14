@@ -336,3 +336,5 @@ def solve_trial(trial_options, trial_name):
     trial.optimize()
 
     return trial
+
+test_single_kite()

@@ -61,6 +61,7 @@ class Model(object):
             self.generate_scaled_variable_bounds(options)
             self.__generate_parameter_bounds(options)
             self.__options = options
+            self.__model_dae = None
 
             self.__timings['overall'] = time.time()-timer
 
@@ -124,14 +125,20 @@ class Model(object):
         return None
 
 
-    def get_dae(self):
+    def __build_dae(self):
         """Generate DAE object for casadi integrators, rootfinder,...
         """
 
         model_dae = dae.Dae(self.__variables, self.__parameters, self.__dynamics, self.__integral_outputs_fun)
         model_dae.build_rootfinder()
+        self.__model_dae = model_dae
 
-        return model_dae
+        return None
+
+    def get_dae(self):
+        if self.__model_dae is None:
+            self.__build_dae()
+        return self.__model_dae
 
     def generate_scaled_variable_bounds(self, options):
 

@@ -70,13 +70,14 @@ class Dae(object):
         # create dae dictionary
         dae = {'x': x, 'z': z, 'p': p, 'alg': alg,'ode': ode, 'quad': quad}
 
-        if cas.sprank(cas.jacobian(alg,z)) < z.cat.size()[0]:  # check dae index
+        if cas.sprank(cas.jacobian(alg, z)) < z.cat.size()[0]:  # check dae index
             raise ValueError('jacobian of dynamics is structurally rank-deficient: DAE is not of index 1!')
 
         self.__x = x
         self.__z = z
         self.__p = p
         self.__dae = dae
+        self.__rootfinder = None
 
         return None
 
@@ -85,7 +86,7 @@ class Dae(object):
         """
 
         # create rootfinder
-        g = cas.Function('g',[self.__z.cat,self.__x.cat,self.__p.cat],[self.__dae['alg']])
+        g = cas.Function('g', [self.__z.cat, self.__x.cat, self.__p.cat], [self.__dae['alg']])
         G = cas.rootfinder('G', 'fast_newton', g, {'jit': True})
 
         self.__rootfinder = G
@@ -100,7 +101,7 @@ class Dae(object):
         """
 
         # set options
-        opts =  {'tf': time_step,'jit': options['jit'],'expand':True}
+        opts = {'tf': time_step, 'jit': options['jit'], 'expand': True}
 
         if options['type'] != 'rk4root':
 

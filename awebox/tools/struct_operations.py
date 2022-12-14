@@ -1186,7 +1186,6 @@ def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, colloc
     return output_values, tgrid
 
 
-
 def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
 
     # read in inputs
@@ -1236,7 +1235,6 @@ def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
     # check that this didn't fail in a really obviously un-interpolatable way
     vect_op.check_sanity_of_interpolation_inputs(tgrid, z_values)
 
-
     return z_values, tgrid
 
 
@@ -1273,7 +1271,7 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
             for ndx in range(n_k + 1):
                 # add interval values
                 x_values = cas.vertcat(x_values, V['x', ndx, name, dim])
-                if (include_collocation and ndx < n_k):
+                if include_collocation and (ndx < n_k):
                     # add node values
                     x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var', ndx, :, 'x', name, dim]).full())
 
@@ -1290,8 +1288,8 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
     # check that this didn't fail in a really obviously un-interpolatable way
     vect_op.check_sanity_of_interpolation_inputs(tgrid, x_values)
 
-
     return x_values, tgrid
+
 
 def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
 
@@ -1310,6 +1308,7 @@ def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
     vect_op.check_sanity_of_interpolation_inputs(tgrid_ip, values_ip)
 
     return values_ip
+
 
 def test():
     # todo
