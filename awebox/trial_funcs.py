@@ -29,9 +29,8 @@ python version 3.5 / casadi 3.4.5
     Thilo Bronnenmeyer, kiteswarms 2018
     Jochem De Schutter, alu-fr 2018
 """
+import os.path
 
-import csv
-import collections
 import awebox.tools.vector_operations as vect_op
 import awebox.viz.tools as tools
 import casadi.tools as cas
@@ -39,10 +38,24 @@ import numpy as np
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.save_operations as save_op
 
-#todo: are we still using any of this? if so, why isn't it in reasonable places within the awebox?
 
-def generate_trial_data_csv(trial, name, freq, rotation_representation):
+def is_possibly_an_already_loaded_seed(loaded_dict):
+
+    loaded_dict_is_a_dict = isinstance(loaded_dict, dict)
+    if not loaded_dict_is_a_dict:
+        return False
+
+    contains_expected = ('plot_dict' in loaded_dict.keys()) and ('solution_dict' in loaded_dict.keys())
+    if not contains_expected:
+        return False
+
+    return True
+
+
+
+def generate_trial_data_and_write_to_csv(trial, filename, freq, rotation_representation):
     """
     Generate an output .csv file containing all information from the trial
     :param trial: trial whose data is to be stored in the .csv
@@ -50,62 +63,11 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
     :param freq: sampling frequency for output
     :return: None
     """
-
-    # get dictionaries
-    plot_dict = interpolate_data(trial, freq)
-    write_csv_dict = init_write_csv_dict(plot_dict)
-
-    # write into .csv
-    with open(name + '.csv', 'w') as point_cloud:
-        pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
-        pcdw.writeheader()
-        for k in range(plot_dict['time_grids']['ip'].shape[0]):
-            write_data_row(pcdw, plot_dict, write_csv_dict, plot_dict['time_grids']['ip'], k, rotation_representation)
-
+    data_dict = interpolate_data(trial, freq)
+    data_dict['architecture'] = trial.model.architecture
+    data_dict['options'] = trial.options
+    save_op.write_csv_data(data_dict=data_dict, filename=filename, rotation_representation=rotation_representation)
     return None
-
-def init_write_csv_dict(plot_dict):
-    """
-    Initialize dictionary used to write into .csv
-    :param plot_dict: data dictionary containing all data for the .csv with the necessary structure
-    :return: Empty dictionary used to write into .csv
-    """
-
-    # initialize ordered dict
-    write_csv_dict = collections.OrderedDict()
-
-    # create empty entries corresponding to the structure of plot_dict
-    for variable_type in ['x', 'z', 'u', 'outputs']:
-        for variable in list(plot_dict[variable_type].keys()):
-
-            # check for sub_variables in case there are some
-            if type(plot_dict[variable_type][variable]) is dict:
-                for sub_variable in list(plot_dict[variable_type][variable].keys()):
-                    variable_length = len(plot_dict[variable_type][variable][sub_variable])
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = None
-
-            # continue without sub_variables in case there are none
-            else:
-                variable_length = len(plot_dict[variable_type][variable])
-                for index in range(variable_length):
-                    write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = None
-
-    # add time stamp
-    write_csv_dict['time'] = None
-
-    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
-        variable_length = plot_dict['variables']['theta', variable].shape[0]
-        for index in range(variable_length):
-            write_csv_dict['theta_' + variable + '_' + str(index)] = None
-
-    # add architecture information
-    write_csv_dict['nodes'] = None
-    write_csv_dict['parent'] = None
-    write_csv_dict['kites'] = None
-    write_csv_dict['cross_tether'] = None
-
-    return write_csv_dict
 
 def interpolate_data(trial, freq):
     """
@@ -115,112 +77,29 @@ def interpolate_data(trial, freq):
     :return: dictionary with trial data, interpolation time grid
     """
 
-    # todo: this function should either be renamed, or it should be limited to doing what it says it's doing: interpolating data
-    # todo: also, it probably shouldn't depend on visualization. see struct_op for other options
-
-    # extract info
     tf = trial.optimization.V_final['theta', 't_f', 0]  # TODO: phase fix tf
+    n_points = int(freq * tf) # number of interpolating points
 
-    # number of interpolating points
-    n_points = int(freq * tf)
-
-    # recalibrate plot_dict
-    plot_dict = trial.visualization.plot_dict
-    V_plot = trial.optimization.V_opt
-    p_fix_num = trial.optimization.p_fix_num
-    output_vals = trial.optimization.output_vals
+    parametric_options = trial.options['visualization']['cosmetics']
     time_grids = trial.optimization.time_grids
-    integral_output_vals = trial.optimization.integral_output_vals
-    cost_fun = trial.nlp.cost_components[0]
-    cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
-    name = trial.name
-    parametric_options = trial.options
-    V_ref = trial.optimization.V_ref
-    global_outputs = trial.optimization.global_outputs_opt
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref, global_outputs, n_points=n_points)
+    variables_dict = trial.model.variables_dict
+    V_opt = trial.optimization.V_opt
+    outputs_dict = trial.model.outputs_dict
+    outputs_opt = trial.optimization.outputs_opt
+    integral_output_names = trial.model.integral_scaling.keys()
+    integral_outputs_opt = trial.optimization.integral_outputs_opt()
 
-    return plot_dict
-
-
-def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_representation):
-    """
-    Write one row of data into the .csv file
-    :param pcdw: dictWriter object
-    :param plot_dict: dictionary containing trial data
-    :param write_csv_dict: csv helper dict used to write the trial data into the .csv
-    :param k: time step in trajectory
-    :return: None
-    """
-
-    # loop over variables
-    for variable_type in ['x', 'z', 'u', 'outputs']:
-        for variable in list(plot_dict[variable_type].keys()):
-
-            # check whether sub_variables exist
-            if type(plot_dict[variable_type][variable]) == dict:
-                for sub_variable in list(plot_dict[variable_type][variable].keys()):
-                    var = plot_dict[variable_type][variable][sub_variable]
-                    variable_length = len(var)
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = str(var[index][k])
-
-            # continue if no sub_variables exist
-            else:
-
-                # convert rotations from dcm to euler
-                if variable[0] == 'r' and rotation_representation == 'euler':
-                    dcm = []
-                    for i in range(9):
-                        dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
-
-                    var = vect_op.rotation_matrix_to_euler_angles(cas.reshape(dcm, 3, 3))
-
-                    for index in range(3):
-                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
-                elif rotation_representation not in ['euler', 'dcm']:
-                    message = 'Error: Only euler angles and direct cosine matrix supported.'
-                    print_op.log_and_raise_error(message)
-
-                else:
-                    var = plot_dict[variable_type][variable]
-                    variable_length = len(var)
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
-
-    write_csv_dict['time'] = tgrid_ip[k]
-
-    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
-        V_plot = plot_dict['V_plot']
-        variable_length = V_plot['theta',variable].shape[0]
-        for index in range(variable_length):
-            if k == 0:
-                write_csv_dict['theta_' + variable + '_' + str(index)] = str(V_plot['theta', variable, index])
-            else:
-                write_csv_dict['theta_' + variable + '_' + str(index)] = None
-
-    parent_map = plot_dict['architecture'].parent_map
-    if k < plot_dict['architecture'].number_of_nodes-1:
-        node = list(parent_map.keys())[k]
-        write_csv_dict['nodes']  = str(node)
-        write_csv_dict['parent'] = str(parent_map[node])
-        if k < len(plot_dict['architecture'].kite_nodes):
-            write_csv_dict['kites']  = plot_dict['architecture'].kite_nodes[k]
-        else:
-            write_csv_dict['kites']  = None
+    if trial.options['nlp']['discretization'] == 'direct_collocation':
+        Collocation = trial.nlp.Collocation
     else:
-        write_csv_dict['nodes']  = None
-        write_csv_dict['parent'] = None
-        write_csv_dict['kites']  = None
+        Collocation = None
 
-    write_csv_dict['cross_tether'] = int(plot_dict['options']['user_options']['system_model']['cross_tether'])
+    interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=Collocation, timegrid_label='ip', n_points=n_points)
 
-    # write out sorted row
-    ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
-    pcdw.writerow(ordered_dict)
+    return interpolation
 
-    return None
 
-def generate_optimal_model(trial, param_options = None):
+def generate_optimal_model(trial, param_options=None):
 
     """
     Generate optimal model dict based on both optimized parameter values

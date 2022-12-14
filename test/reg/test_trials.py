@@ -169,6 +169,9 @@ def generate_options_dict():
     single_kite_options['user_options.induction_model'] = 'not_in_use'
     single_kite_options['user_options.tether_drag_model'] = 'split'
 
+    zoh_options = copy.deepcopy(single_kite_options)
+    zoh_options['nlp.collocation.u_param'] = 'zoh'
+
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
     drag_mode_options['quality.test_param.power_balance_thresh'] = 2.
@@ -275,7 +278,7 @@ def generate_options_dict():
     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
-    options_dict['multiple_shooting_trial'] = multiple_shooting_options
+    options_dict['zoh_trial'] = zoh_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
     # options_dict['multi_tether_trial'] = multi_tether_options

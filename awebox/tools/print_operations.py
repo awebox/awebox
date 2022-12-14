@@ -311,7 +311,6 @@ def test_table_print():
 
     criteria = (test_string == tabulate_string)
     if not criteria:
-        pdb.set_trace()
         message = 'table to_string does not work as expected.'
         log_and_raise_error(message)
 

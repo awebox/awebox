@@ -44,36 +44,51 @@ def build_optimize_and_save_trial_for_serialization(nlp_discretization='direct_c
 
     return trial_name
 
-def load_trial_from_saved_dict_and_plot(trial_name):
+def load_trial_and_plot(trial_name, load_type):
 
     filename = trial_name + '.dict'
 
-    # load and test trial
-    filehandler = open(filename, 'rb')
-    dict_test = pickle.load(filehandler)
+    if load_type == 'filename':
+        # load and test sweep
+        trial_test = awe.Trial(filename)
 
-    trial_test = awe.Trial(dict_test)
-    filehandler.close()
+    elif load_type == 'dict':
+        # load and test sweep
+        filehandler = open(filename, 'rb')
+        dict_test = pickle.load(filehandler)
+
+        trial_test = awe.Trial(dict_test)
+        filehandler.close()
+
     os.remove(filename)
 
     trial_test.plot('all')
 
     return None
 
-def perform_trial_serial(nlp_discretization):
+def perform_trial_serial(nlp_discretization, load_type):
     trial_name = build_optimize_and_save_trial_for_serialization(nlp_discretization=nlp_discretization)
-    load_trial_from_saved_dict_and_plot(trial_name)
+    load_trial_and_plot(trial_name, load_type)
     return None
 
 def test_trial_serial_direct_collocation():
     nlp_discretization = 'direct_collocation'
-    perform_trial_serial(nlp_discretization)
+    load_type = 'dict'
+    perform_trial_serial(nlp_discretization, load_type)
     return None
     
 def test_trial_serial_multiple_shooting():
     nlp_discretization = 'multiple_shooting'
-    perform_trial_serial(nlp_discretization)
+    load_type = 'dict'
+    perform_trial_serial(nlp_discretization, load_type)
     return None
+
+def test_trial_serial_loading_from_filename():
+    nlp_discretization = 'direct_collocation'
+    load_type = 'filename'
+    perform_trial_serial(nlp_discretization, load_type)
+    return None
+
 
 ############### sweep
 
@@ -114,16 +129,22 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
 
     return sweep_name
 
-def load_sweep_from_saved_dict_and_plot(sweep_name):
+def load_sweep_and_plot(sweep_name, load_type):
 
     filename = sweep_name + '.dict'
 
-    # load and test sweep
-    filehandler = open(filename, 'rb')
-    dict_test = pickle.load(filehandler)
+    if load_type == 'filename':
+        # load and test sweep
+        trial_sweep = awe.Sweep(filename)
 
-    trial_sweep = awe.Sweep(dict_test)
-    filehandler.close()
+    elif load_type == 'dict':
+        # load and test sweep
+        filehandler = open(filename, 'rb')
+        dict_test = pickle.load(filehandler)
+
+        trial_sweep = awe.Sweep(dict_test)
+        filehandler.close()
+
     os.remove(filename)
 
     trial_sweep.plot(['all', 'comp_all'])
@@ -131,16 +152,23 @@ def load_sweep_from_saved_dict_and_plot(sweep_name):
     return None
 
 
-def perform_sweep_serial(sweep_type):
+def perform_sweep_serial(sweep_type, load_type):
     sweep_name = build_optimize_and_save_sweep_for_serialization(sweep_type=sweep_type)
-    load_sweep_from_saved_dict_and_plot(sweep_name)
+    load_sweep_and_plot(sweep_name, load_type)
     return None
 
 def test_sweep_serial_trial():
     sweep_type = 'trial'
-    perform_sweep_serial(sweep_type)
+    load_type = 'dict'
+    perform_sweep_serial(sweep_type, load_type)
     return None
 
 def test_sweep_serial_parametric():
     sweep_type = 'parametric'
-    perform_sweep_serial(sweep_type)
+    load_type = 'dict'
+    perform_sweep_serial(sweep_type, load_type)
+
+def test_sweep_serial_loading_from_filename():
+    sweep_type = 'parametric'
+    load_type = 'filename'
+    perform_sweep_serial(sweep_type, load_type)

@@ -29,6 +29,7 @@ no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
 '''
+import pdb
 
 import numpy as np
 import casadi.tools as cas
@@ -39,8 +40,10 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
+import awebox.tools.print_operations as print_op
 
 def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
+
     V_init_si = build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num)
 
     if True in np.isnan(np.array(V_init_si.cat)):
@@ -224,5 +227,5 @@ def set_xdot(V_init, nlp):
     if 'xdot' in list(V_init.keys()):
         Xdot_init = nlp.Xdot(nlp.Xdot_fun(V_init))
         for k in range(nlp.n_k):
-            V_init['xdot',k] = Xdot_init['x',k]
+            V_init['xdot', k] = Xdot_init['x', k]
     return V_init 

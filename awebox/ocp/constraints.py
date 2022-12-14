@@ -370,17 +370,17 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
 
         # algebraic constraints
         cstr_list.append(cstr_op.Constraint(
-            expr = alg_expr[:,kdx],
-            name = 'algebraic_{}'.format(kdx),
-            cstr_type = 'eq'
+            expr=alg_expr[:,kdx],
+            name='algebraic_{}'.format(kdx),
+            cstr_type='eq'
             )
         )
 
         # path constraints
         cstr_list.append(cstr_op.Constraint(
-            expr = ocp_ineqs_expr[:,kdx],
-            name = 'path_{}'.format(kdx),
-            cstr_type = 'ineq'
+            expr=ocp_ineqs_expr[:,kdx],
+            name='path_{}'.format(kdx),
+            cstr_type='ineq'
             )
         )
 

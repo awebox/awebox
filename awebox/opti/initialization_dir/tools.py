@@ -153,6 +153,18 @@ def get_velocity_vector(t, init_options, model, node, ret):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
+def get_acceleration_vector(t, init_options, model, node, ret):
+
+    radius = init_options['precompute']['radius']
+    groundspeed = init_options['precompute']['groundspeed']
+    sign = get_rotation_direction_sign(init_options)
+
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    acceleration_magnitude = groundspeed**2 / radius
+    acceleration = acceleration_magnitude * sign * ehat_radial
+    return acceleration
+
+
 def get_velocity_vector_from_psi(init_options, groundspeed, psi):
 
     n_rot_hat, _, _ = get_rotor_reference_frame(init_options)

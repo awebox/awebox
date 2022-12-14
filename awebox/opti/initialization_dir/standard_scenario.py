@@ -96,6 +96,7 @@ def guess_values_at_time(t, init_options, model):
         if not node in kite_nodes:
             ret['q' + str(node) + str(parent)] = get_tether_node_position(init_options, parent_position, node, ret['l_t'])
             ret['dq' + str(node) + str(parent)] = np.zeros((3, 1))
+            ret['ddq' + str(node) + str(parent)] = np.zeros((3, 1))
 
         else:
             height = init_options['precompute']['height']
@@ -107,8 +108,10 @@ def guess_values_at_time(t, init_options, model):
 
             position = parent_position + tether_vector
             velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+            acceleration = tools.get_acceleration_vector(t, init_options, model, node, ret)
             ret['q' + str(node) + str(parent)] = position
             ret['dq' + str(node) + str(parent)] = velocity
+            ret['ddq' + str(node) + str(parent)] = acceleration
 
             rho = init_options['sys_params_num']['atmosphere']['rho_ref']
             diam = init_options['theta']['diam_s']

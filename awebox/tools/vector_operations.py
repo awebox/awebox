@@ -813,6 +813,69 @@ def is_numeric_scalar(val):
     else:
         return False
 
+def is_strictly_increasing(array):
+
+    if not hasattr(array, 'shape'):
+        array = cas.DM(array)
+
+    if not ((len(array.shape) == 1) or (array.shape[0] == 1) or (array.shape[1] == 1)):
+        return False
+
+    for idx in range(1, array.shape[0]):
+        if not (array[idx] > array[idx-1]):
+            return False
+    return True
+
+def test_is_strictly_increasing():
+    base_error_message = 'something went wrong when testing if an array is strictly increasing: '
+
+    vec1 = [1., 2., 3.]
+    expected1 = True
+
+    if not (is_strictly_increasing(vec1) == expected1):
+        print_op.log_and_raise_error(base_error_message + 'list')
+    if not (is_strictly_increasing(np.array(vec1)) == expected1):
+        print_op.log_and_raise_error(base_error_message + 'array')
+    if not (is_strictly_increasing(cas.DM(vec1)) == expected1):
+        print_op.log_and_raise_error(base_error_message + 'cas.DM')
+    if not (is_strictly_increasing(cas.DM(vec1).T) == expected1):
+        print_op.log_and_raise_error(base_error_message + 'transpose')
+
+    vec2 = np.array([1., 1., 2.])
+    expected2 = False
+    if not (is_strictly_increasing(vec2) == expected2):
+        print_op.log_and_raise_error(base_error_message + 'false')
+
+    vec3 = np.array([[1., 3.], [3., 4.]])
+    expected3 = False
+    if not (is_strictly_increasing(vec3) == expected3):
+        print_op.log_and_raise_error(base_error_message + 'dimensionality')
+
+    return None
+
+def check_sanity_of_interpolation_inputs(x_data, y_data):
+
+    x_length = len(x_data)
+    y_length = len(y_data)
+    if not (x_length == y_length):
+        message = 'interpolation data does not have the same length. '
+        message += 'x_data length is: ' + str(x_length) + ', and '
+        message += 'y_data length is: ' + str(y_length)
+        print_op.log_and_raise_error(message)
+
+    if not (is_strictly_increasing(x_data)):
+        message = 'interpolation grid-points must be strictly increasing, which x_data is not: '
+        message += repr(x_data)
+        print_op.log_and_raise_error(message)
+
+    x_diff = x_data[-1] - x_data[0]
+    if (x_diff <= 1.e-3):
+        message = 'interpolation grid-points appear to be very close together (diff = ' + str(x_diff)
+        message += '). be advised that - since spline interpolation returns zero outside of domain - interpolation may not be reliable.'
+        awelogger.logger.warning(message)
+
+    return None
+
 def spline_interpolation(x_data, y_data, x_points):
     """ Interpolate solution values with b-splines
     """
@@ -869,6 +932,7 @@ def test():
     test_elliptic_k()
     test_elliptic_pi()
     test_spline_interpolation()
+    test_is_strictly_increasing()
     return None
 
 # test()

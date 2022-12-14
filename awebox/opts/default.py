@@ -287,7 +287,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'t'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
-        ('nlp',  'collocation',      None, 'u_param',              'poly',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'u_param',              'poly',                 ('control parameterization in collocation interval', ['poly','zoh']),'x'),
         ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
@@ -342,7 +342,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'max_iter_hippo',       2000,       ('max iter for hippo strategy [int]', None),'x'),
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
-        ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', None), 't'),
+        ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', ['default', 'modular']), 't'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          60.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),

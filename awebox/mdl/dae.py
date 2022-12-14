@@ -131,18 +131,22 @@ class Dae(object):
         """
 
         # differential states
-        x = cas.struct_SX([cas.entry('x', expr = variables['x'])])
-        z = cas.struct_SX([cas.entry('xdot', expr = variables['xdot']), # state derivatives
-                    cas.entry('z', expr = variables['z']), # algebraic variables
-                ])
+        x = cas.struct_SX([cas.entry('x', expr=variables['x'])])
+        z = cas.struct_SX([
+            cas.entry('xdot', expr=variables['xdot']),  # state derivatives
+            cas.entry('z', expr=variables['z'])  # algebraic variables
+            ])
 
         # parameters
         if param == 'sym':
-            p = cas.struct_SX([cas.entry('u', expr = variables['u']), # controls
-                            cas.entry('theta', expr = variables['theta']), # free parameters
-                            cas.entry('param', expr = parameters)]) # fixed parameters
+            p = cas.struct_SX([
+                cas.entry('u', expr=variables['u']),  # controls
+                cas.entry('theta', expr=variables['theta']),  # free parameters
+                cas.entry('param', expr=parameters)  # fixed parameters
+            ])
+
         elif param == 'num':
-            p = cas.struct_SX([cas.entry('u', expr = variables['u'])]) # controls
+            p = cas.struct_SX([cas.entry('u', expr=variables['u'])])  # controls
 
         return x, z, p
 

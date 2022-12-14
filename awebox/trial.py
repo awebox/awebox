@@ -36,7 +36,7 @@ import awebox.mdl.architecture as archi
 import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
-import awebox.tools.save_operations as data_tools
+import awebox.tools.save_operations as save_op
 import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
@@ -56,43 +56,59 @@ class Trial(object):
     def _freeze(self):
         self.__isfrozen = True
 
-    def __init__(self, seed, name = 'trial'):
+    def __init__(self, seed, name='trial'):
 
-        if isinstance(seed, str):
-            filename = seed
-            seed = data_tools.load_saved_data_from_dict(filename)
+        treat_as_filename = save_op.is_possibly_a_filename_containing_reloadable_seed(seed)
+        treat_as_dict = (not treat_as_filename) and (trial_funcs.is_possibly_an_already_loaded_seed(seed))
+        treat_as_options = (not treat_as_filename) and (not treat_as_dict)
 
-        # check if constructed with solved trial dict
-        if 'solution_dict' in seed.keys():
-            self.__solution_dict = seed['solution_dict']
-            self.__options = seed['solution_dict']['options']
-
-            self.__visualization = visualization.Visualization()
-            self.__visualization.options = seed['solution_dict']['options']['visualization']
-
-            self.__visualization.plot_dict = seed['plot_dict']
-            self.__visualization.create_plot_logic_dict()
-
+        if treat_as_filename:
+            self.__initialize_from_filename_seed(seed)
+        elif treat_as_dict:
+            self.__initialize_from_dict_seed(seed)
+        elif treat_as_options:
+            self.__initialize_from_options_seed(seed, name=name)
         else:
-            self.__options_seed   = seed
-            self.__options        = opts.Options()
-            self.__options.fill_in_seed(self.__options_seed)
-            self.__model          = model.Model()
-            self.__formulation    = formulation.Formulation()
-            self.__nlp            = nlp.NLP()
-            self.__optimization   = optimization.Optimization()
-            self.__visualization  = visualization.Visualization()
-            self.__quality        = quality.Quality()
-            self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
-            self.__type           = 'Trial'
-            self.__status         = None
-            self.__timings        = {}
-            self.__solution_dict  = {}
-            self.__save_flag      = False
+            message = 'unable to initialize an awebox trial from the given seed'
+            print_op.log_and_raise_error(message)
 
-            self.__return_status_numeric = -1
+        return None
 
-            self._freeze()
+    def __initialize_from_filename_seed(self, filename):
+        seed = save_op.load_saved_data_from_dict(filename)
+        self.__initialize_from_dict_seed(seed)
+        return None
+
+    def __initialize_from_dict_seed(self, seed):
+        self.__solution_dict = seed['solution_dict']
+        self.__options = seed['solution_dict']['options']
+
+        self.__visualization = visualization.Visualization()
+        self.__visualization.options = seed['solution_dict']['options']['visualization']
+
+        self.__visualization.plot_dict = seed['plot_dict']
+        self.__visualization.create_plot_logic_dict()
+        return None
+
+    def __initialize_from_options_seed(self, seed, name=None):
+        self.__options_seed   = seed
+        self.__options        = opts.Options()
+        self.__options.fill_in_seed(self.__options_seed)
+        self.__model          = model.Model()
+        self.__formulation    = formulation.Formulation()
+        self.__nlp            = nlp.NLP()
+        self.__optimization   = optimization.Optimization()
+        self.__visualization  = visualization.Visualization()
+        self.__quality        = quality.Quality()
+        self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
+        self.__type           = 'Trial'
+        self.__status         = None
+        self.__timings        = {}
+        self.__solution_dict  = {}
+        self.__save_flag      = False
+        self.__return_status_numeric = -1
+        self._freeze()
+        return None
 
     def build(self, is_standalone_trial=True):
 
@@ -214,32 +230,6 @@ class Trial(object):
         elif timing == 'optimization':
             self.__timings['optimization'] = self.optimization.timings['optimization']
 
-    def save(self, saving_method = 'dict', fn = None):
-
-        # log saving method
-        awelogger.logger.info('Saving trial ' + self.__name + ' using ' + saving_method)
-
-        # set savefile name to trial name if unspecified
-        if not fn:
-            fn = self.__name
-
-        # choose correct function for saving method
-        if saving_method == 'awe':
-            self.save_to_awe(fn)
-        elif saving_method == 'dict':
-            self.save_to_dict(fn)
-        else:
-            message = saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!'
-            print_op.log_and_raise_error(message)
-
-        # log that save is complete
-        awelogger.logger.info('Trial (%s) saved.', self.__name)
-        awelogger.logger.info('')
-        awelogger.logger.info(print_op.hline('&'))
-        awelogger.logger.info(print_op.hline('&'))
-        awelogger.logger.info('')
-        awelogger.logger.info('')
-
     def print_solution(self):
 
         # the actual power indicators
@@ -289,18 +279,35 @@ class Trial(object):
 
         return None
 
-    def save_to_awe(self, fn):
+    def save(self, saving_method='reloadable_seed', filename=None, frequency=30., rotation_representation='euler'):
 
-        # reset multiple_shooting trial
-        if self.__options['nlp']['discretization'] == 'multiple_shooting':
-            self.__nlp = nlp.NLP()
-            self.__optimization = optimization.Optimization()
-            self.__visualization = visualization.Visualization()
+        object_to_save, file_extension = save_op.get_object_and_extension(saving_method=saving_method, trial_or_sweep=self.__type)
 
-        # pickle data
-        data_tools.save(self, fn, 'awe')
+        # log saving method
+        awelogger.logger.info('Saving the ' + object_to_save + ' of trial ' + self.__name + ' to ' + file_extension)
 
-    def save_to_dict(self, fn):
+        # set savefile name to trial name if unspecified
+        if filename is None:
+            filename = self.__name
+
+        # choose correct function for saving method
+        if object_to_save == 'reloadable_seed':
+            self.save_reloadable_seed(filename, file_extension)
+        elif object_to_save == 'trajectory_only':
+            self.write_to_csv(filename=filename, frequency=frequency, rotation_representation=rotation_representation)
+        else:
+            message = 'unable to save ' + object_to_save + ' object.'
+            print_op.log_and_raise_error(message)
+
+        # log that save is complete
+        awelogger.logger.info('Trial (%s) saved.', self.__name)
+        awelogger.logger.info('')
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info('')
+        awelogger.logger.info('')
+
+    def save_reloadable_seed(self, filename, file_extension):
 
         # create dict to be saved
         data_to_save = {}
@@ -310,7 +317,14 @@ class Trial(object):
         data_to_save['plot_dict'] = self.__visualization.plot_dict
 
         # pickle data
-        data_tools.save(data_to_save, fn, 'dict')
+        save_op.save(data_to_save, filename, file_extension)
+
+    def write_to_csv(self, filename=None, frequency=30., rotation_representation='euler'):
+        if filename is None:
+            filename = self.name
+        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation)
+
+        return None
 
     def generate_solution_dict(self):
 
@@ -365,13 +379,6 @@ class Trial(object):
 
         return None
 
-    def write_to_csv(self, file_name=None, frequency=30., rotation_representation='euler'):
-
-        if file_name is None:
-            file_name = self.name
-        trial_funcs.generate_trial_data_csv(self, file_name, frequency, rotation_representation)
-
-        return None
 
     def generate_optimal_model(self, param_options = None):
         return trial_funcs.generate_optimal_model(self, param_options= param_options)

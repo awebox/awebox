@@ -915,7 +915,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
 
     return local_var
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip'):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -928,8 +928,10 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
     nlp_discretization = local_options['discretization']
     collocation_scheme = local_options['collocation']['scheme']
     control_parametrization = local_options['collocation']['u_param']
-    n_points = local_options['interpolation']['n_points']
     interpolation_type = local_options['interpolation']['type']
+
+    if n_points is None:
+        n_points = local_options['interpolation']['n_points']
 
     if Collocation is not None:
         collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
@@ -963,7 +965,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
 
     # u-values
     Vu_interpolated = interpolate_Vu(time_grids, variables_dict, V_opt,
-                                     control_parameterization=control_parametrization,
+                                     control_parametrization=control_parametrization,
                                      collocation_interpolator=collocation_interpolator,
                                      timegrid_label=timegrid_label)
     interpolation['u'] = Vu_interpolated
@@ -975,7 +977,8 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
     # output values
     interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
                                                    collocation_scheme=collocation_scheme,
-                                                   timegrid_label=timegrid_label)
+                                                   timegrid_label=timegrid_label,
+                                                   control_parametrization=control_parametrization)
 
     # integral-output values
     interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
@@ -1022,17 +1025,17 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
 
     return integral_outputs_interpolated
 
-def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip'):
 
     # merge values
-    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme)
+    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization)
 
     # interpolate
     values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
     return values_ip
 
 
-def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip'):
+def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly'):
 
     outputs_interpolated = {}
 
@@ -1049,7 +1052,7 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretizatio
 
             for dim in range(outputs_dict[output_type][name].shape[0]):
                 # interpolate
-                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label)
+                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization)
 
                 # store
                 outputs_interpolated[output_type][name] += [values_ip]
@@ -1062,7 +1065,7 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretizatio
     return outputs_interpolated
 
 
-def interpolate_Vu(time_grids, variables_dict, V, control_parameterization='zoh', collocation_interpolator=None, timegrid_label='ip'):
+def interpolate_Vu(time_grids, variables_dict, V, control_parametrization='zoh', collocation_interpolator=None, timegrid_label='ip'):
 
     Vu_interpolated = {}
 
@@ -1073,11 +1076,11 @@ def interpolate_Vu(time_grids, variables_dict, V, control_parameterization='zoh'
 
         variable_dimension = variables_dict[var_type][name].shape[0]
         for dim in range(variable_dimension):
-            if control_parameterization == 'zoh':
+            if control_parametrization == 'zoh':
                 control = V['u', :, name, dim]
                 values_ip = sample_and_hold_controls(time_grids, control, timegrid_label=timegrid_label)
 
-            elif (control_parameterization == 'poly') and (collocation_interpolator is not None):
+            elif (control_parametrization == 'poly') and (collocation_interpolator is not None):
                 values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'u')
 
             Vu_interpolated[name] += [values_ip]
@@ -1148,17 +1151,26 @@ def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discre
     return Vx_interpolated
 
 
-def merge_output_values(output_vals, odx, time_grids, nlp_discretization, collocation_scheme='radau'):
+def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme='radau', control_parametrization='poly'):
 
     using_collocation = (nlp_discretization == 'direct_collocation')
 
-    output_values = output_vals[odx, :]
+    output_values = outputs_opt[odx, :]
 
     # read in inputs
     if using_collocation:
         using_radau = (collocation_scheme == 'radau')
         if using_radau:
             tgrid = time_grids['coll']
+
+            using_zoh_controls = (control_parametrization == 'zoh')
+            if using_zoh_controls:
+                n_k = tgrid.shape[0]
+                d = tgrid.shape[1]
+                outputs_reshaped = output_values.reshape((d+1, n_k)).T
+                outputs_without_duplicate_gridpoints = outputs_reshaped[:, 1:]
+                output_values = vect_op.columnize(outputs_without_duplicate_gridpoints)
+
         else:
             tgrid = time_grids['x_coll'][:-1]
     else:
@@ -1169,11 +1181,7 @@ def merge_output_values(output_vals, odx, time_grids, nlp_discretization, colloc
     output_values = output_values.full().squeeze()
 
     # check that this didn't fail in a really obviously un-interpolatable way
-    time_length = len(tgrid)
-    output_length = len(output_values)
-    if not (time_length == output_length):
-        message = 'something went wrong when merging output values. time data has length (' + str(time_length) + ') and output data has length (' + str(output_length) + ')'
-        print_op.log_and_raise_error(message)
+    vect_op.check_sanity_of_interpolation_inputs(tgrid, output_values)
 
     return output_values, tgrid
 
@@ -1225,6 +1233,10 @@ def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     z_values = list(chain.from_iterable(z_values))
 
+    # check that this didn't fail in a really obviously un-interpolatable way
+    vect_op.check_sanity_of_interpolation_inputs(tgrid, z_values)
+
+
     return z_values, tgrid
 
 
@@ -1275,6 +1287,10 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     x_values = list(chain.from_iterable(x_values))
 
+    # check that this didn't fail in a really obviously un-interpolatable way
+    vect_op.check_sanity_of_interpolation_inputs(tgrid, x_values)
+
+
     return x_values, tgrid
 
 def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
@@ -1289,6 +1305,9 @@ def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
                 break
         if tgrid_u[-1] < tgrid_ip[idx]:
             values_ip[idx] = control[-1]
+
+    # check that this didn't fail in a really obviously un-interpolatable way
+    vect_op.check_sanity_of_interpolation_inputs(tgrid_ip, values_ip)
 
     return values_ip
 

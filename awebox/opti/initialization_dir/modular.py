@@ -29,6 +29,8 @@ _python _version 2.7 / casadi-3.4.5
 '''
 
 import copy
+import pdb
+
 import numpy as np
 import casadi.tools as ct
 import casadi as cas
@@ -356,7 +358,7 @@ def __generate_guess_from_schedule(initial_guess_schedule, primitives, nlp, mode
     if 'z' in list(V_init.keys()):
         V_init['z', :] = 1.
     if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var',:,:,'z'] = 1.
+        V_init['coll_var', :, :, 'z'] = 1.
 
     # add specified initial values for system parameters to initial guess
     for name in set(struct_op.subkeys(model.variables, 'theta')) - set(['t_f']):
@@ -665,24 +667,24 @@ def __get_configuration_from_simple_pos(description, model, initialization_optio
         e_hat_x = ct.SX.sym('e_hat_x', 3, 1)
         e_hat_x[1] = 0.0
         if parent != 0:
-            q_parent = sconf['var','q' + parent_str]
+            q_parent = sconf['var', 'q' + parent_str]
             if grandparent != 0:
-                q_grandparent = sconf['var','q' + grandparent_str]
+                q_grandparent = sconf['var', 'q' + grandparent_str]
         if node in kite_nodes:
 
             # get rotational axis
             if node == 1:
-                e_hat_x[0] = np.cos(sconf['var','inclination' + node_str])
-                e_hat_x[2] = np.sin(sconf['var','inclination' + node_str])
-                tether_length = sconf['var','l_t']
+                e_hat_x[0] = np.cos(sconf['var', 'inclination' + node_str])
+                e_hat_x[2] = np.sin(sconf['var', 'inclination' + node_str])
+                tether_length = sconf['var', 'l_t']
             else:
                 tether_length = l_s
                 e_hat_x = vect_op.normalize(q_parent - q_grandparent)
-            radius = tether_length * np.sin(sconf['var','Phi' + node_str])
-            l_x = tether_length * np.cos(sconf['var','Phi' + node_str])
+            radius = tether_length * np.sin(sconf['var', 'Phi' + node_str])
+            l_x = tether_length * np.cos(sconf['var', 'Phi' + node_str])
             e_hat_y = vect_op.yhat() #todo: what if azimuth is non-zero?
             e_hat_z = vect_op.cross(e_hat_x, e_hat_y)
-            e_hat_r = e_hat_z * np.sin(sconf['var','Omega' + node_str]) + e_hat_y * np.cos(sconf['var','Omega' + node_str])
+            e_hat_r = e_hat_z * np.sin(sconf['var', 'Omega' + node_str]) + e_hat_y * np.cos(sconf['var','Omega' + node_str])
             q = e_hat_x * l_x + e_hat_r * radius
 
         else:
@@ -693,7 +695,7 @@ def __get_configuration_from_simple_pos(description, model, initialization_optio
                 tether_length = l_i
                 #todo: what if intermediate inclination is not 0?
 
-            sinclination = sconf['var','inclination' + node_str]
+            sinclination = sconf['var', 'inclination' + node_str]
             e_hat_x[0] = np.cos(sinclination)
             e_hat_x[2] = np.sin(sinclination)
             q = e_hat_x * tether_length
@@ -773,9 +775,9 @@ def __get_configuration_from_param(formulation, description, model, initializati
     kite_nodes = model.architecture.kite_nodes
 
     conf = {}
-    conf['q00'] = np.zeros([3,1])
-    conf['dq00'] = np.zeros([3,1])
-    conf['ddq00'] = np.zeros([3,1])
+    conf['q00'] = np.zeros([3, 1])
+    conf['dq00'] = np.zeros([3, 1])
+    conf['ddq00'] = np.zeros([3, 1])
 
     sconf = __generate_conf_struct(model)
 
@@ -792,14 +794,14 @@ def __get_configuration_from_param(formulation, description, model, initializati
         q_parent = np.zeros([3, 1])
         q_grandparent = np.zeros([3, 1])
         if parent != 0:
-            q_parent = sconf['var','q' + parent_str]
+            q_parent = sconf['var', 'q' + parent_str]
             if grandparent != 0:
-                q_grandparent = sconf['var','q' + grandparent_str]
+                q_grandparent = sconf['var', 'q' + grandparent_str]
         if node in kite_nodes:
             if node == 1:
                 raise ValueError('ERROR: for single kites, parameterized initial conditions are not yet defined.') #todo: how to get rotational axis for single kites?
             else:
-                x_t = sconf['var','q' + node_str] - q_parent
+                x_t = sconf['var', 'q' + node_str] - q_parent
                 e_hat_x = vect_op.normalize(q_parent - q_grandparent)
             e_hat_y = vect_op.normed_cross(e_hat_x, vect_op.zhat())
             e_hat_z = vect_op.normed_cross(e_hat_y, e_hat_x)
@@ -813,7 +815,7 @@ def __get_configuration_from_param(formulation, description, model, initializati
             ddOmega = ct.mtimes(ct.jacobian(dOmega, ct.vertcat(sconf['var'],sconf['dvar'])), ct.vertcat(sconf['dvar'],sconf['ddvar']))
             interpol_fun['Omega' + node_str] = ct.Function('Omega' + node_str, [sconf], [Omega, dOmega, ddOmega])
         else:
-            x_t = sconf['var','q' + node_str] - q_parent
+            x_t = sconf['var', 'q' + node_str] - q_parent
             e_hat_xy = vect_op.xhat()*ct.mtimes(x_t.T, vect_op.xhat()) + vect_op.yhat()*ct.mtimes(x_t.T, vect_op.yhat())
             e_hat_xz = vect_op.xhat()*ct.mtimes(x_t.T, vect_op.xhat()) + vect_op.zhat()*ct.mtimes(x_t.T, vect_op.zhat())
             inclination = vect_op.angle_between(e_hat_xz, vect_op.xhat())
@@ -880,8 +882,8 @@ def __set_state_in_nconf(nconf, plot_dict, parameterization_dict, state, node_st
     # read in state
     for dim in range(state_dim):
         nconf['var', state + node_str, dim] = x[state + node_str][dim][param_constraint_index]
-        nconf['dvar','d' + state + node_str, dim] = x['d' + state + node_str][dim][param_constraint_index]
-        nconf['ddvar','dd' + state + node_str, dim] = xdot['dd' + state + node_str][dim][param_constraint_index]
+        nconf['dvar', 'd' + state + node_str, dim] = x['d' + state + node_str][dim][param_constraint_index]
+        nconf['ddvar', 'dd' + state + node_str, dim] = xdot['dd' + state + node_str][dim][param_constraint_index]
 
     return nconf
 
@@ -1011,7 +1013,7 @@ def __generate_time_grid_parameters(t_f, primitive, nlp):
     time_grid_parameters['tgrid_u'] = tgrid_u
     time_grid_parameters['tgrid_s_curve'] = tgrid_s_curve
 
-    indeces = __get_indeces(primitive, nlp)
+    indeces = __get_indices(primitive, nlp)
     time_grid_parameters['n_max'] = indeces['n_max']
     time_grid_parameters['n_current'] = indeces['n_current']
 
@@ -1023,25 +1025,25 @@ def __generate_time_grid_parameters(t_f, primitive, nlp):
 
     return time_grid_parameters
 
-def __get_indeces(primitives, nlp):
+def __get_indices(primitives, nlp):
 
     n_k = nlp.n_k
     d = nlp.d
     time_current = primitives['normed_times'][0]
     normed_duration = primitives['normed_times'][1] - primitives['normed_times'][0]
 
-    indeces = {}
+    indices = {}
     n_max = int(normed_duration*n_k)  #always round down indeces
     n_current = int(math.ceil(time_current*n_k) ) #always round up indeces
 
     if nlp.discretization == 'direct_collocation':
-        indeces['d_max'] = int((normed_duration*n_k - n_max)*(d + 1))
-        indeces['d_current'] = int(math.ceil((time_current*n_k - n_current)*(d + 1)))
+        indices['d_max'] = int((normed_duration*n_k - n_max)*(d + 1))
+        indices['d_current'] = int(math.ceil((time_current*n_k - n_current)*(d + 1)))
 
-    indeces['n_max'] = n_max
-    indeces['n_current'] = n_current
+    indices['n_max'] = n_max
+    indices['n_current'] = n_current
 
-    return indeces
+    return indices
 
 def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpolation_parameters, interpolation_scheme, options):
     """
@@ -1074,10 +1076,15 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
         continuous_guess, interpolation_variables = __get_continuous_guess(t_x, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
         for name in struct_op.subkeys(model.variables, 'x'):
             V_init['x', k, name] = continuous_guess[name]
+            deriv_name = 'd' + name
+            if ('xdot' in V_init.keys()) and deriv_name in continuous_guess.keys():
+                V_init['xdot', k, deriv_name] = continuous_guess[deriv_name]
+
         if k < (n_max):
             if model.options['tether']['control_var'] == 'ddl_t':
                 if 'u' in V_init.keys():
                     V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
+
         if nlp.discretization == 'direct_collocation':
             if k == n_max:
                 d_vals = d_max
@@ -1088,6 +1095,11 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                 continuous_guess, interpolation_variables = __get_continuous_guess(t_coll, time_grid_parameters, interpolation_parameters, primitive, model, interpolation_scheme)
                 for name in struct_op.subkeys(model.variables, 'x'):
                     V_init['coll_var', k, j, 'x', name] = continuous_guess[name]
+
+                    deriv_name = 'd' + name
+                    if ('xdot' in V_init.keys()) and deriv_name in continuous_guess.keys():
+                        V_init['coll_var', k, j, 'xdot', deriv_name] = continuous_guess[deriv_name]
+
                 if model.options['tether']['control_var'] == 'ddl_t':
                     if 'u' in V_init.keys():
                         V_init['coll_var', k, j, 'u', 'ddl_t'] = continuous_guess['ddl_t']

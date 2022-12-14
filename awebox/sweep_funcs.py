@@ -37,6 +37,21 @@ import os
 import awebox.viz.tools as tools
 
 
+def is_possibly_an_already_loaded_seed(loaded_dict):
+
+    loaded_dict_is_a_dict = isinstance(loaded_dict, dict)
+    if not loaded_dict_is_a_dict:
+        return False
+
+    expected_entries = ['plot_dict', 'sweep_dict', 'param_dict', 'name']
+    for entry in expected_entries:
+        if not (entry in loaded_dict.keys()):
+            return False
+
+    return True
+
+
+
 def process_sweep_opts(options, sweep_opts):
 
     trials_opts = []

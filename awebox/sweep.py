@@ -48,37 +48,54 @@ import awebox.opts.options as opts
 
 
 class Sweep:
-    def __init__(self, seed, options = None, name = 'sweep'):
+    def __init__(self, seed, options=None, name='sweep'):
 
         print_op.log_license_info()
 
-        if type(seed) == list:
+        treat_as_dict = (sweep_funcs.is_possibly_an_already_loaded_seed(seed)) and (options == None)
+        treat_as_filename = (save_op.is_possibly_a_filename_containing_reloadable_seed(seed)) and (options == None)
+        treat_as_list = (isinstance(seed, list))
 
-            default_options = opts.Options()
-            [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(default_options, seed)
-
-            self.__trials_opts = trials_opts
-            self.__params_opts = params_opts
-            self.__name = name
-            self.__type = 'Sweep'
-            self.__base_options = options
-            self.__trial_dict = OrderedDict()
-            self.__param_dict = OrderedDict()
-            self.__sweep_dict = OrderedDict()
-            self.__sweep_labels = OrderedDict()
-            self.__plot_dict = OrderedDict()
-
-        elif type(seed) == dict and options == None:
-
-            self.__plot_dict = seed['plot_dict']
-            self.__sweep_dict = seed['sweep_dict']
-            self.__param_dict = seed['param_dict']
-            self.__name = seed['name']
-            self.__generate_plot_logic_dict()
-
+        if treat_as_list:
+            self.__initialize_from_list_seed(seed=seed, options=options, name=name)
+        elif treat_as_filename:
+            self.__initialize_from_filename_seed(seed)
+        elif treat_as_dict:
+            self.__initialize_from_dict_seed(seed)
         else:
-            message = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict].'
+            message = 'Sweep initialized with variables of wrong type. Must be either [list, options] or [dict] or a filename for a file containing the [dict].'
             print_op.log_and_raise_error(message)
+
+
+    def __initialize_from_list_seed(self, seed, options=None, name='sweep'):
+        default_options = opts.Options()
+        [trials_opts, params_opts] = sweep_funcs.process_sweep_opts(default_options, seed)
+
+        self.__trials_opts = trials_opts
+        self.__params_opts = params_opts
+        self.__name = name
+        self.__type = 'Sweep'
+        self.__base_options = options
+        self.__trial_dict = OrderedDict()
+        self.__param_dict = OrderedDict()
+        self.__sweep_dict = OrderedDict()
+        self.__sweep_labels = OrderedDict()
+        self.__plot_dict = OrderedDict()
+        return None
+
+
+    def __initialize_from_filename_seed(self, filename):
+        seed = save_op.load_saved_data_from_dict(filename)
+        self.__initialize_from_dict_seed(seed)
+        return None
+
+    def __initialize_from_dict_seed(self, seed):
+        self.__plot_dict = seed['plot_dict']
+        self.__sweep_dict = seed['sweep_dict']
+        self.__param_dict = seed['param_dict']
+        self.__name = seed['name']
+        self.__generate_plot_logic_dict()
+        return None
 
     def build(self):
 
@@ -129,24 +146,24 @@ class Sweep:
                                                                                                have_already_saved_prev_trial=have_already_saved_prev_trial)
 
                 if apply_sweeping_warmstart:
-                    single_trial.optimize(options_seed = param_options,
-                                        final_homotopy_step =
-                                        final_homotopy_step, debug_flags =
-                                        debug_flags, debug_locations =
-                                        debug_locations, warmstart_file = warmstart_file,
-                                        intermediate_solve = True)
+                    single_trial.optimize(options_seed=param_options,
+                                          final_homotopy_step=final_homotopy_step,
+                                          debug_flags=debug_flags,
+                                          debug_locations=debug_locations,
+                                          warmstart_file=warmstart_file,
+                                          intermediate_solve=True)
                     warmstart_file = single_trial.solution_dict
 
                     if single_trial.return_status_numeric < 3:
                         single_trial.save(fn=prev_trial_save_name)
                         have_already_saved_prev_trial = True
 
-                single_trial.optimize(options_seed = param_options,
-                    final_homotopy_step =
-                    final_homotopy_step, debug_flags =
-                    debug_flags, debug_locations =
-                    debug_locations, warmstart_file = warmstart_file,
-                    intermediate_solve = False)
+                single_trial.optimize(options_seed=param_options,
+                                      final_homotopy_step=final_homotopy_step,
+                                      debug_flags=debug_flags,
+                                      debug_locations=debug_locations,
+                                      warmstart_file=warmstart_file,
+                                      intermediate_solve=False)
 
                 recalibrated_plot_dict = sweep_funcs.recalibrate_visualization(single_trial)
 
@@ -294,18 +311,22 @@ class Sweep:
 
         return None
 
-    def save(self, saving_method = 'dict'):
+    def save(self, saving_method='reloadable_seed', filename=None):
+
+        object_to_save, file_extension = save_op.get_object_and_extension(saving_method=saving_method, trial_or_sweep=self.type)
 
         # log saving method
-        awelogger.logger.info('Saving sweep ' + self.__name + ' using ' + saving_method)
+        awelogger.logger.info('Saving the ' + object_to_save + ' of sweep ' + self.__name + ' to ' + file_extension)
+
+        # set savefile name to trial name if unspecified
+        if filename is None:
+            filename = self.__name
 
         # choose correct function for saving method
-        if saving_method == 'awe':
-            self.save_to_awes()
-        elif saving_method == 'dict':
-            self.save_to_dict()
+        if object_to_save == 'reloadable_seed':
+            self.save_reloadable_seed(filename, file_extension)
         else:
-            message = saving_method + ' is not a supported saving method. Sweep ' + self.__name + ' could not be saved!'
+            message = 'unable to save ' + object_to_save + ' object.'
             print_op.log_and_raise_error(message)
 
         awelogger.logger.info('Sweep (%s) saved.', self.__name)
@@ -313,13 +334,8 @@ class Sweep:
 
         return None
 
-    def save_to_awes(self):
 
-        save_op.save(self, self.__name, 'awes')
-
-        return None
-
-    def save_to_dict(self):
+    def save_reloadable_seed(self, filename, file_extension):
 
         # create dict to be saved
         data_to_save = {}
@@ -332,7 +348,7 @@ class Sweep:
         data_to_save['param_dict'] = self.__param_dict
 
         # pickle data
-        save_op.save(data_to_save, self.__name, 'dict')
+        save_op.save(data_to_save, filename, file_extension)
 
         return None
 
