@@ -138,7 +138,9 @@ def no_available_var_info(variables, var_type):
     return np.zeros(variables[var_type].shape)
 
 
-def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
+def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
+
+    var_type = 'z'
 
     if (ddx is None):
         if var_type in list(V.keys()):
@@ -198,21 +200,53 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     lifted_derivs = (var_type in list(V.keys()))
 
     if Xdot is not None:
-        empty_Xdot = Xdot(0.)
-        passed_Xdot_is_meaningful = not (Xdot == empty_Xdot)
+        passed_Xdot_is_meaningful = (not isinstance(Xdot, cas.DM)) or (isinstance(Xdot, cas.DM) and (not Xdot.is_empty()))
     else:
         passed_Xdot_is_meaningful = False
 
-    if at_control_node:
-        if lifted_derivs:
-            return V[var_type, kdx]
-        elif passed_Xdot_is_meaningful:
+    if passed_Xdot_is_meaningful:
+        if at_control_node:
             return Xdot['x', kdx]
-    elif passed_Xdot_is_meaningful:
-        return Xdot['coll_x', kdx, ddx]
+        else:
+            return Xdot['coll_x', kdx, ddx]
+
+    elif lifted_derivs:
+        if at_control_node:
+            return V['xdot', kdx]
+        else:
+            return V['coll', kdx, ddx, 'xdot']
+
     else:
-        return np.zeros(model_variables[var_type].shape)
-        # return no_available_var_info(model_variables, var_type)
+        attempted_reassamble = []
+
+        for idx in range(model_variables.shape[0]):
+            can_index = model_variables.getCanonicalIndex(idx)
+            type_name = can_index[0]
+            if type_name == 'x':
+
+                var_name = can_index[1]
+                dim = can_index[2]
+
+                deriv_name = 'd' + var_name
+                if at_control_node:
+                    try:
+                        local_val = V['x', kdx, deriv_name, dim]
+                    except:
+                        try:
+                            local_val = V['u', kdx, deriv_name, dim]
+                        except:
+                            local_val = cas.DM.zeros((1, 1))
+                else:
+                    try:
+                        local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
+                    except:
+                        try:
+                            local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
+                        except:
+                            local_val = cas.DM.zeros((1, 1))
+                attempted_reassamble = cas.vertcat(attempted_reassamble, local_val)
+
+        return attempted_reassamble
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
@@ -221,7 +255,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     for var_type in model_variables.keys():
 
         if var_type == 'z':
-            local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
+            local_var = get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx)
 
         elif var_type == 'x':
             local_var = get_states_at_time(nlp_options, V, model_variables, kdx, ddx)
@@ -929,6 +963,8 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
     collocation_scheme = local_options['collocation']['scheme']
     control_parametrization = local_options['collocation']['u_param']
     interpolation_type = local_options['interpolation']['type']
+    n_k = local_options['n_k']
+    collocation_d = local_options['collocation']['d']
 
     if n_points is None:
         n_points = local_options['interpolation']['n_points']
@@ -976,6 +1012,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
 
     # output values
     interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
+                                                   n_k, collocation_d,
                                                    collocation_scheme=collocation_scheme,
                                                    timegrid_label=timegrid_label,
                                                    control_parametrization=control_parametrization)
@@ -1025,17 +1062,17 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
 
     return integral_outputs_interpolated
 
-def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip'):
+def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip'):
 
     # merge values
-    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization)
+    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization)
 
     # interpolate
     values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
     return values_ip
 
 
-def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly'):
+def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly'):
 
     outputs_interpolated = {}
 
@@ -1052,7 +1089,7 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretizatio
 
             for dim in range(outputs_dict[output_type][name].shape[0]):
                 # interpolate
-                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization)
+                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization)
 
                 # store
                 outputs_interpolated[output_type][name] += [values_ip]
@@ -1151,7 +1188,7 @@ def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discre
     return Vx_interpolated
 
 
-def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, collocation_scheme='radau', control_parametrization='poly'):
+def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly'):
 
     using_collocation = (nlp_discretization == 'direct_collocation')
 
@@ -1165,9 +1202,7 @@ def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, colloc
 
             using_zoh_controls = (control_parametrization == 'zoh')
             if using_zoh_controls:
-                n_k = tgrid.shape[0]
-                d = tgrid.shape[1]
-                outputs_reshaped = output_values.reshape((d+1, n_k)).T
+                outputs_reshaped = output_values.reshape((collocation_d+1, n_k)).T
                 outputs_without_duplicate_gridpoints = outputs_reshaped[:, 1:]
                 output_values = vect_op.columnize(outputs_without_duplicate_gridpoints)
 

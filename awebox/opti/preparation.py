@@ -27,6 +27,7 @@
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
+import pdb
 
 from . initialization_dir import modular as initialization_modular, initialization
 
@@ -226,7 +227,6 @@ def generate_default_solver_options(options):
         opts['ipopt.linear_solver'] = options['linear_solver']
         opts['ipopt.max_iter'] = options['max_iter']
         opts['ipopt.max_cpu_time'] = options['max_cpu_time']
-
         opts['ipopt.mu_target'] = options['mu_target']
         opts['ipopt.mu_init'] = options['mu_init']
         opts['ipopt.tol'] = options['tol']

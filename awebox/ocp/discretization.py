@@ -104,16 +104,15 @@ def construct_time_grids(nlp_options):
 
     if direct_collocation:
         # reshape tcoll
-        tcoll = tcoll.reshape((d,nk)).T
-        tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1),1)),tx[-1])
+        tcoll = tcoll.reshape((d, nk)).T
+        tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1), 1)), tx[-1])
 
         # write out collocation grids
-        time_grids['coll'] = cas.Function('tgrid_coll',[tfsym],[tcoll])
-        time_grids['x_coll'] = cas.Function('tgrid_x_coll',[tfsym],[tx_coll])
-
+        time_grids['coll'] = cas.Function('tgrid_coll', [tfsym], [tcoll])
+        time_grids['x_coll'] = cas.Function('tgrid_x_coll', [tfsym], [tx_coll])
     # write out interval grid
-    time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
-    time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
+    time_grids['x'] = cas.Function('tgrid_x', [tfsym], [tx])
+    time_grids['u'] = cas.Function('tgrid_u', [tfsym], [tu])
 
 
     return time_grids

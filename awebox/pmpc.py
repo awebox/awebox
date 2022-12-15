@@ -181,11 +181,11 @@ class Pmpc(object):
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
                 if self.__mpc_options['u_param'] == 'poly':
-                    self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['coll_var', :, :, 'u', name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['coll_var', :, :, 'u', name] = 0.0
                 elif self.__mpc_options['u_param'] == 'zoh':
-                    self.__trial.nlp.V_bounds['lb']['u',:,name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['u',:,name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['u', :, name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['u', :, name] = 0.0
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']

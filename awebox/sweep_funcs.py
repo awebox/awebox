@@ -97,7 +97,7 @@ def set_single_trial_options(base_options, sweep_options, name):
 
         # append option to name
         keys = key.split('.')
-        if type(keys[-1]) == str:
+        if isinstance(keys[-1], str) and not keys[-1].isdigit():
             keyname = keys[-1]
         else:
             keyname = keys[-2]
@@ -122,7 +122,7 @@ def build_options_lists(opts):
         key = option[0]
         values = option[1]
         for v in values:
-            single_list += [(key,v)]
+            single_list += [(key, v)]
         options_lists += [single_list]
 
     return options_lists

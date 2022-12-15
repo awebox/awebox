@@ -176,7 +176,7 @@ class Trial(object):
 
         if self.__optimization.solve_succeeded:
             awelogger.logger.info('Trial "%s" optimized.', self.__name)
-            awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
+            awelogger.logger.info('Trial optimization time: %s', print_op.print_single_timing(self.__timings['optimization']))
 
         else:
 
@@ -184,10 +184,10 @@ class Trial(object):
 
         # perform quality check
         if not intermediate_solve:
-            if self.__options['quality']['autorun']:
+            if self.__options['quality']['when']['final'] or (self.__options['quality']['when']['final_success'] and self.__optimization.solve_succeeded):
                 self.__quality.check_quality(self)
             else:
-                message = 'WARNING: solution quality was not checked!'
+                message = 'WARNING: final solution quality was not checked!'
                 awelogger.logger.info(message)
 
         # print solution

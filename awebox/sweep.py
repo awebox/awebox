@@ -38,6 +38,7 @@ import matplotlib.pyplot as plt
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.sweep_funcs as sweep_funcs
+import numpy as np
 import copy
 from collections import OrderedDict
 import awebox.trial as trial
@@ -73,6 +74,8 @@ class Sweep:
 
         self.__trials_opts = trials_opts
         self.__params_opts = params_opts
+        self.__total_number = np.product(np.array([len(local_opt[1]) for local_opt in (trials_opts + params_opts)]))
+
         self.__name = name
         self.__type = 'Sweep'
         self.__base_options = options
@@ -95,6 +98,7 @@ class Sweep:
         self.__param_dict = seed['param_dict']
         self.__name = seed['name']
         self.__generate_plot_logic_dict()
+        self.__total_number = None
         return None
 
     def build(self):
@@ -110,12 +114,14 @@ class Sweep:
     def __getitem__(self, key):
         return self.__trial_dict[key]
 
-    def run(self, final_homotopy_step = 'final', warmstart_file = None, apply_sweeping_warmstart = False, debug_flags = [],
-            debug_locations = []):
+    def run(self, final_homotopy_step='final', warmstart_file=None, apply_sweeping_warmstart=False, debug_flags=[],
+            debug_locations=[]):
 
         awelogger.logger.info('Running sweep (' + self.__name + ') containing ' + str(len(list(self.__trial_dict.keys()))) + ' trials...')
 
         have_already_saved_prev_trial = False
+
+        counter = 0
 
         # for all trials, run a parametric sweep
         for trial_to_run in list(self.__trial_dict.keys()):
@@ -164,6 +170,14 @@ class Sweep:
                                       debug_locations=debug_locations,
                                       warmstart_file=warmstart_file,
                                       intermediate_solve=False)
+
+                counter += 1
+                if self.__total_number is not None:
+                    print_op.base_print('', level='info')
+                    print('Progress through Sweep (' + self.name + '):')
+                    print_op.print_progress(counter, self.__total_number)
+                    print('')
+                    print_op.base_print('', level='info')
 
                 recalibrated_plot_dict = sweep_funcs.recalibrate_visualization(single_trial)
 
@@ -300,7 +314,7 @@ class Sweep:
 
     def _add_trial(self, name, options):
 
-        trial_to_add = trial.Trial(name = name, seed = options)
+        trial_to_add = trial.Trial(name=name, seed=options)
         self.__trial_dict[trial_to_add.name] = trial_to_add
 
         return None

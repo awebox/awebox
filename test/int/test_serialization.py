@@ -124,7 +124,7 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
     # build, run and save sweep
     sweep = awe.Sweep(name=sweep_name, options=options, seed=sweep_opts)
     sweep.build()
-    sweep.run(final_homotopy_step = 'initial')
+    sweep.run(final_homotopy_step='initial')
     sweep.save('dict')
 
     return sweep_name

@@ -23,22 +23,30 @@ def get_integration_test_inputs():
 
     # choose a problem that we know solves reliably
     base_options = {}
-    base_options['user_options.system_model.architecture'] = {1: 0}
-    base_options['user_options.system_model.kite_dof'] = 3
+    base_options['solver.linear_solver'] = 'ma57'
+    base_options['user_options.system_model.architecture'] = {1:0}
+    base_options['user_options.trajectory.lift_mode.windings'] = 3
     base_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    base_options['user_options.tether_drag_model'] = 'split'
+    base_options['user_options.system_model.kite_dof'] = 3
     base_options['user_options.induction_model'] = 'not_in_use'
-    base_options['user_options.trajectory.lift_mode.windings'] = 1
-
-    # specify direct collocation options
-    # because we need them for struct_op.get_variables_at_time, later on.
+    base_options['user_options.tether_drag_model'] = 'split'
+    
+    # base_options['user_options.system_model.architecture'] = {1: 0}
+    # base_options['user_options.system_model.kite_dof'] = 3
+    # base_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    # base_options['user_options.tether_drag_model'] = 'split'
+    # base_options['user_options.induction_model'] = 'not_in_use'
+    # base_options['user_options.trajectory.lift_mode.windings'] = 1
+    # 
+    # # specify direct collocation options
+    # # because we need them for struct_op.get_variables_at_time, later on.
     base_options['nlp.n_k'] = 40
     base_options['nlp.discretization'] = 'direct_collocation'
     base_options['nlp.collocation.u_param'] = 'zoh'
     base_options['nlp.collocation.scheme'] = 'radau'
     base_options['nlp.collocation.d'] = 4
 
-    base_options['model.tether.control_var'] = 'dddl_t'
+    # base_options['model.tether.control_var'] = 'dddl_t'
 
     # homotopy tuning
     base_options['solver.linear_solver'] = 'ma57'
@@ -51,7 +59,7 @@ def get_integration_test_inputs():
     trial.build()
     trial.optimize()
 
-    if trial.optimization.return_status_numeric['final'] > 3:
+    if not trial.optimization.solve_succeeded:
         message = 'original optimization failed. integrator check cannot possibly be expected to work.'
         raise Exception(message)
 
