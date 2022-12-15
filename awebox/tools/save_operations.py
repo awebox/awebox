@@ -49,6 +49,7 @@ def get_dict_of_saveable_objects_and_extensions(trial_or_sweep='Trial'):
 
     if trial_or_sweep == 'Trial':
         saveable_dict[trajectory_only_str] = trajectory_only_extension
+
     return saveable_dict
 
 def get_object_and_extension(saving_method='reloadable_seed', trial_or_sweep='Trial'):

@@ -607,7 +607,7 @@ class Optimization(object):
 
             # forcibly prevent decreasing time_grids for bad solution
             safe_t_f = copy.deepcopy(V_final['theta', 't_f'])
-            safe_minimum = 1.e-3
+            safe_minimum = 1.e-3  # [seconds]
             for idx in range(safe_t_f.shape[0]):
                 t_f_entry = safe_t_f[idx]
                 if t_f_entry < safe_minimum:

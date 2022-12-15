@@ -275,44 +275,6 @@ def power_balance_key_belongs_to_node(keyname, node):
     key_belongs_to_node = keyname_includes_nodenumber and keyname_is_nonnumeric_before_nodenumber
     return key_belongs_to_node
 
-def test_slack_equalities(trial, test_param_dict, results):
-
-    if 'z' in trial.model.variables.keys():
-
-        V_final = trial.optimization.V_final
-        z_vars = trial.model.variables['z']
-        epsilon = test_param_dict['slacks_thresh']
-
-        discretization = trial.options['nlp']['discretization']
-        if discretization == 'direct_collocation':
-
-            for idx in range(z_vars.shape[0]):
-                var_name = str(z_vars[idx])
-
-                if 'slack' in var_name:
-                    slack_name = var_name[3:-2]
-
-                    max_val = 0.
-
-                    for ndx in range(trial.nlp.n_k):
-                        for ddx in range(trial.nlp.d):
-
-                            data = np.array(V_final['coll_var', ndx, ddx, 'z', slack_name])
-                            max_val = np.max([np.max(data), max_val])
-
-                    if max_val < epsilon:
-                        # assume that slack equalities are satisfied
-                        results['slacks_' + var_name] = True
-                    else:
-                        awelogger.logger.warning('slacked equality did not find a feasible solution. ' + var_name + ' > ' + str(test_param_dict['slacks_thresh']))
-                        # slack equalities are not satisfied
-                        results['slacks_' + var_name] = False
-
-        else:
-            awelogger.logger.warning('slack test not yet implemented for multiple-shooting solution')
-
-    return results
-
 def test_tracked_vortex_periods(trial, test_param_dict, results, input_values):
 
     if 'vortex' in input_values['outputs']:
@@ -348,7 +310,6 @@ def generate_test_param_dict(options):
     test_param_dict['t_f_min'] = options['test_param']['t_f_min']
     test_param_dict['max_control_interval'] = options['test_param']['max_control_interval']
     test_param_dict['power_balance_thresh'] = options['test_param']['power_balance_thresh']
-    test_param_dict['slacks_thresh'] = options['test_param']['slacks_thresh']
     test_param_dict['vortex_truncation_error_thresh'] = options['test_param']['vortex_truncation_error_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']

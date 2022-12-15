@@ -51,7 +51,7 @@ def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
 
 def define_homotopy_schedule(formulation):
 
-    initial_schedule = ('initial','fictitious',)
+    initial_schedule = ('initial', 'fictitious',)
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)

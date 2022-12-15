@@ -36,7 +36,7 @@ def build_test_trial():
     return trial
 
 def build_test_sweep():
-    sweep_opts = [('user_options.wind.u_ref', [5., 5.5])] # parametric sweep
+    sweep_opts = [('user_options.wind.u_ref', [5., 5.5])]  # parametric sweep
 
     # set-up trial options
     options = {}
@@ -46,7 +46,6 @@ def build_test_sweep():
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.induction_model'] = 'not_in_use'
     options['nlp.n_k'] = 2
-    options['quality.autorun'] = False
     options['solver.max_iter'] = 0
 
     # build, run and save sweep

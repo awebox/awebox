@@ -99,12 +99,10 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
     # set-up sweep options
     if sweep_type == 'parametric':
         sweep_opts = [('user_options.wind.u_ref', [5., 5.5])] # parametric sweep
-        quality_autorun = True
         n_k = 2
     elif sweep_type == 'trial':
         sweep_opts = [('nlp.discretization', ['direct_collocation', 'multiple_shooting'])] # trial sweep
         n_k = 8
-        quality_autorun = False
     else:
         message = 'unfamiliar sweep_type selected (' + sweep_type + ')'
         raise Exception(message)
@@ -118,7 +116,6 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.induction_model'] = 'not_in_use'
     options['nlp.n_k'] = n_k
-    options['quality.autorun'] = quality_autorun
     options['solver.max_iter'] = 0
 
     # build, run and save sweep

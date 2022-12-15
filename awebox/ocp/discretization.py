@@ -147,7 +147,6 @@ def setup_nlp_cost():
         cas.entry('nominal_landing'),
         cas.entry('compromised_battery'),
         cas.entry('transition'),
-        cas.entry('slack'),
         cas.entry('beta'),
         cas.entry('P_max')
     )])

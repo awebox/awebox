@@ -60,19 +60,6 @@ def get_general_regularization_function(variables):
 
     return reg_fun
 
-def get_local_slack_penalty_function():
-
-    var_sym = cas.SX.sym('var_sym', (1,1))
-    ref_sym = cas.SX.sym('ref_sym', (1,1))
-    weight_sym = cas.SX.sym('weight_sym', (1,1))
-
-    diff = (var_sym - ref_sym)
-
-    slack = weight_sym * diff
-
-    slack_fun = cas.Function('slack_fun', [var_sym, ref_sym, weight_sym], [slack])
-    return slack_fun
-
 def get_general_reg_costs_function(variables, V):
 
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
@@ -87,8 +74,6 @@ def get_general_reg_costs_function(variables, V):
     for cost in reg_list:
         reg_costs_dict[cost] = 0.0
 
-    slack_fun = get_local_slack_penalty_function()
-
     for var_type in set(variables.keys()):
         category = sorting_dict[var_type]['category']
         exceptions = sorting_dict[var_type]['exceptions']
@@ -99,20 +84,9 @@ def get_general_reg_costs_function(variables, V):
             if (not name in exceptions.keys()) and (not category == None):
                 reg_costs_dict[category] = reg_costs_dict[category] + cas.sum1(regs[var_type, var_name])
 
-            elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
+            elif (name in exceptions.keys()) and (not exceptions[name] == None):
                 exc_category = exceptions[name]
                 reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + cas.sum1(regs[var_type, var_name])
-
-            elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
-                exc_category = exceptions[name]
-
-                for idx in variables.f[var_type, var_name]:
-                    var_loc = var_sym[idx]
-                    ref_loc = ref_sym[idx]
-                    weight_loc = weight_sym[idx]
-                    pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
-
-                    reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + pen_loc
 
     reg_costs_list = cas.vertcat(*reg_costs_dict.values())
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
@@ -128,8 +102,7 @@ def get_costs_struct(V):
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
-        cas.entry("beta_cost"),
-        cas.entry("slack_cost")] +
+        cas.entry("beta_cost")] +
        [cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')] +
        [cas.entry("time_cost"),
         cas.entry("power_cost"),
@@ -151,7 +124,6 @@ def get_regularization_sorting_dict():
     #
     # sorting_dict[TYPE] = {'category': CATEGORY, 'exceptions': {EXCLUDED_VARIABLE_NAME: CATEGORY_FOR_EXCLUDED_VARIABLE}}
     #
-    # NOTE!!! for category "slack_cost", linearized penalities are applied rather than L2 regularization.
 
     sorting_dict = {}
     sorting_dict['x'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
@@ -434,7 +406,6 @@ def find_objective(component_costs, V):
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
 
-    slack_cost = component_costs['slack_cost']
     tracking_problem_cost = component_costs['tracking_problem_cost']
     power_problem_cost = component_costs['power_problem_cost']
     nominal_landing_problem_cost = component_costs['nominal_landing_cost']
@@ -442,7 +413,7 @@ def find_objective(component_costs, V):
     general_problem_cost = component_costs['general_problem_cost']
     homotopy_cost = component_costs['homotopy_cost']
 
-    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost + homotopy_cost
+    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + homotopy_cost
 
     return objective
 
