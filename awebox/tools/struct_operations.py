@@ -132,11 +132,6 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     return ms_params
 
-def no_available_var_info(variables, var_type):
-    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
-    awelogger.logger.warning(message)
-    return np.zeros(variables[var_type].shape)
-
 
 def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
@@ -197,56 +192,45 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     var_type = 'xdot'
 
     at_control_node = (ddx is None)
-    lifted_derivs = (var_type in list(V.keys()))
+    lifted_derivs = ('xdot' in list(V.keys()))
+    passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
-    if Xdot is not None:
-        passed_Xdot_is_meaningful = (not isinstance(Xdot, cas.DM)) or (isinstance(Xdot, cas.DM) and (not Xdot.is_empty()))
-    else:
-        passed_Xdot_is_meaningful = False
-
-    if passed_Xdot_is_meaningful:
-        if at_control_node:
-            return Xdot['x', kdx]
-        else:
-            return Xdot['coll_x', kdx, ddx]
-
-    elif lifted_derivs:
-        if at_control_node:
-            return V['xdot', kdx]
-        else:
-            return V['coll', kdx, ddx, 'xdot']
-
+    if at_control_node and lifted_derivs:
+        return V[var_type, kdx]
+    elif at_control_node and passed_Xdot_is_meaningful:
+        return Xdot['x', kdx]
+    elif lifted_derivs and ('coll' in V.keys()):
+        return V['coll', kdx, ddx, 'xdot']
+    elif passed_Xdot_is_meaningful:
+        return Xdot['coll_x', kdx, ddx]
     else:
         attempted_reassamble = []
-
         for idx in range(model_variables.shape[0]):
             can_index = model_variables.getCanonicalIndex(idx)
-            type_name = can_index[0]
-            if type_name == 'x':
+            local_variable_has_a_derivative = (can_index[0] == 'x')
+            if local_variable_has_a_derivative():
 
                 var_name = can_index[1]
                 dim = can_index[2]
 
                 deriv_name = 'd' + var_name
-                if at_control_node:
-                    try:
-                        local_val = V['x', kdx, deriv_name, dim]
-                    except:
-                        try:
-                            local_val = V['u', kdx, deriv_name, dim]
-                        except:
-                            local_val = cas.DM.zeros((1, 1))
-                else:
-                    try:
-                        local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
-                    except:
-                        try:
-                            local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
-                        except:
-                            local_val = cas.DM.zeros((1, 1))
-                attempted_reassamble = cas.vertcat(attempted_reassamble, local_val)
+                deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
+                deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
 
+                if at_control_node and deriv_name_in_states:
+                    local_val = V['x', kdx, deriv_name, dim]
+                elif at_control_node and deriv_name_in_controls:
+                    local_val = V['u', kdx, deriv_name, dim]
+                elif deriv_name_in_states and ('coll' in V.keys()):
+                    local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
+                elif deriv_name_in_controls and ('coll' in V.keys()):
+                    local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
+                else:
+                    local_val = cas.DM.zeros((1, 1))
+
+                attempted_reassamble = cas.vertcat(attempted_reassamble, local_val)
         return attempted_reassamble
+
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
@@ -783,30 +767,30 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             V_coll = warmstart_solution_dict['V_opt']
             Xdot_coll = warmstart_solution_dict['Xdot_opt']
 
-            lam_x_proposed  = nlp.V_bounds['ub'](0.0)
+            lam_x_proposed = nlp.V_bounds['ub'](0.0)
             lam_x_coll = V_coll(warmstart_solution_dict['opt_arg']['lam_x0'])
 
-            lam_g_proposed  = nlp.g(0.0)
+            lam_g_proposed = nlp.g(0.0)
             lam_g_coll = warmstart_solution_dict['g_opt'](warmstart_solution_dict['opt_arg']['lam_g0'])
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['x','theta','phi','xi','z','xdot']):
+            for var_type in set(['x', 'theta', 'phi', 'xi', 'z', 'xdot']):
                 V_init_proposed[var_type] = V_coll[var_type]
-                lam_x_proposed[var_type]  = lam_x_coll[var_type]
+                lam_x_proposed[var_type] = lam_x_coll[var_type]
 
             if 'u' in list(V_coll.keys()):
                 V_init_proposed['u'] = V_coll['u']
-                lam_x_proposed['u']  = lam_x_coll['u']
+                lam_x_proposed['u'] = lam_x_coll['u']
             else:
                 for i in range(n_k):
                     # note: this does not give the actual mean, implement with quadrature weights instead
-                    V_init_proposed['u',i] = np.mean(cas.horzcat(*V_coll['coll_var',i,:,'u']))
-                    lam_x_proposed['u',i]  = np.mean(cas.horzcat(*lam_x_coll['coll_var',i,:,'u']))
+                    V_init_proposed['u', i] = np.mean(cas.horzcat(*V_coll['coll_var', i, :, 'u']))
+                    lam_x_proposed['u', i] = np.mean(cas.horzcat(*lam_x_coll['coll_var', i, :, 'u']))
 
             # initialize path constraint multipliers
             for i in range(n_k):
-                lam_g_proposed['path',i] = lam_g_coll['path',i]
+                lam_g_proposed['path', i] = lam_g_coll['path', i]
 
             # initialize periodicity multipliers
             if 'periodic' in list(lam_g_coll.keys()) and 'periodic' in list(lam_g_proposed.keys()):
@@ -1213,13 +1197,11 @@ def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, c
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    output_values = output_values.full().squeeze()
+    values = output_values.full().squeeze()
 
-    # check that this didn't fail in a really obviously un-interpolatable way
-    vect_op.check_sanity_of_interpolation_inputs(tgrid, output_values)
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
 
-    return output_values, tgrid
-
+    return values, tgrid
 
 def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
 
@@ -1265,12 +1247,11 @@ def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
 
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    z_values = list(chain.from_iterable(z_values))
+    values = list(chain.from_iterable(z_values))
 
-    # check that this didn't fail in a really obviously un-interpolatable way
-    vect_op.check_sanity_of_interpolation_inputs(tgrid, z_values)
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
 
-    return z_values, tgrid
+    return values, tgrid
 
 
 def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
@@ -1318,12 +1299,12 @@ def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_sch
 
     # make list of time grid
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    x_values = list(chain.from_iterable(x_values))
+    values = list(chain.from_iterable(x_values))
 
-    # check that this didn't fail in a really obviously un-interpolatable way
-    vect_op.check_sanity_of_interpolation_inputs(tgrid, x_values)
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
 
-    return x_values, tgrid
+    return values, tgrid
+
 
 
 def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
@@ -1339,11 +1320,13 @@ def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
         if tgrid_u[-1] < tgrid_ip[idx]:
             values_ip[idx] = control[-1]
 
-    # check that this didn't fail in a really obviously un-interpolatable way
-    vect_op.check_sanity_of_interpolation_inputs(tgrid_ip, values_ip)
+    tgrid = tgrid_ip
+    values = values_ip
 
-    return values_ip
+    if vect_op.data_is_obviously_uninterpolatable(tgrid, values):
+        return None
 
+    return values
 
 def test():
     # todo

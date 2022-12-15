@@ -476,15 +476,15 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
-                    linestyle= '--', color = p[-1].get_color() )
+                    linestyle='--', color=p[-1].get_color())
 
         else:
-            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
+            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx], where='post')
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx], where='post',
-                    linestyle =  '--', color = p[-1].get_color())
+                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
+                         where='post', linestyle='--', color=[-1].get_color())
     plt.grid(True)
     plt.title(name)
     plt.autoscale(enable=True, axis= 'x', tight = True)

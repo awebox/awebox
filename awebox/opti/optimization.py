@@ -602,10 +602,23 @@ class Optimization(object):
         global_outputs_opt = nlp.global_outputs(nlp.global_outputs_fun(V_final, self.__p_fix_num))
 
         # time grids
-        time_grids = {'ref':{}}
+        time_grids = {'ref': {}}
         for grid in nlp.time_grids:
-            time_grids[grid] = nlp.time_grids[grid](V_final['theta','t_f'])
-            time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta','t_f'])
+
+            # forcibly prevent decreasing time_grids for bad solution
+            safe_t_f = copy.deepcopy(V_final['theta', 't_f'])
+            safe_minimum = 1.e-3
+            for idx in range(safe_t_f.shape[0]):
+                t_f_entry = safe_t_f[idx]
+                if t_f_entry < safe_minimum:
+                    safe_t_f[idx] = safe_minimum
+                    message = 'V_final includes negative time-periods, leading to ' \
+                              'non-increasing time-grids that will cause later interpolations ' \
+                              'to fail. computing time-grids with a small positive time, instead.'
+                    print_op.base_print(message, level='warning')
+
+            time_grids[grid] = nlp.time_grids[grid](safe_t_f)
+            time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta', 't_f'])
 
         # set properties
         self.__outputs_opt = outputs_opt

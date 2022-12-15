@@ -62,14 +62,14 @@ def construct_time_grids(nlp_options):
 
     # make symbolic time constants
     if nlp_options['phase_fix'] == 'single_reelout':
-        tfsym = cas.SX.sym('tfsym',2)
+        tfsym = cas.SX.sym('tfsym', 2)
         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
 
         t_switch = tfsym[0] * nk_reelout / nk
         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
 
     else:
-        tfsym = cas.SX.sym('tfsym',1)
+        tfsym = cas.SX.sym('tfsym', 1)
 
     # initialize
     tx = []
@@ -79,28 +79,36 @@ def construct_time_grids(nlp_options):
 
         # extract correct time constant in case of single_reelout phase fix
         if nlp_options['phase_fix'] == 'single_reelout':
+
+            # remember: tfsym[0] is the total time that optimization_period would have,
+            # if all intervals were the same length as those from the reel-out phase
+            # tfsym[1] is the total time the optimization period would have,
+            # if all intervals... reel-in phase
+
             if k < nk_reelout:
                 tf = tfsym[0]
-                k0 = 0.0
-                kcount = k
+                k_count = k
+                t0 = cas.DM(0.)
             else:
                 tf = tfsym[1]
-                k0 = nk_reelout * tfsym[0]/ tf
-                kcount = k - nk_reelout
+                k_count = k - nk_reelout
+                t0 = t_switch
         else:
-            k0 = 0.0
-            kcount = k
             tf = tfsym
+            k_count = k
+            t0 = cas.DM(0.)
+
+        delta_t = tf / float(nk)
 
         # add interval timings
-        tx = cas.vertcat(tx, (k0 + kcount) * tf / float(nk))
+        tx = cas.vertcat(tx, t0 + k_count * delta_t)
         if k < nk:
-            tu = cas.vertcat(tu, (k0 + kcount) * tf / float(nk))
+            tu = cas.vertcat(tu, t0 + k_count * delta_t)
 
         # add collocation timings
         if direct_collocation and (k < nk):
             for j in range(d):
-                tcoll = cas.vertcat(tcoll,(k0 + kcount + tau_root[j]) * tf / float(nk))
+                tcoll = cas.vertcat(tcoll, t0 + (k_count + tau_root[j]) * delta_t)
 
     if direct_collocation:
         # reshape tcoll
@@ -110,12 +118,13 @@ def construct_time_grids(nlp_options):
         # write out collocation grids
         time_grids['coll'] = cas.Function('tgrid_coll', [tfsym], [tcoll])
         time_grids['x_coll'] = cas.Function('tgrid_x_coll', [tfsym], [tx_coll])
+
     # write out interval grid
     time_grids['x'] = cas.Function('tgrid_x', [tfsym], [tx])
     time_grids['u'] = cas.Function('tgrid_u', [tfsym], [tu])
 
-
     return time_grids
+
 
 def setup_nlp_cost():
 

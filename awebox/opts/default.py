@@ -392,7 +392,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',   'weights',        None,   'l_s',                   1e0,        ('optimization weight for the l_s variable [-]', None),'s'),
         ('solver',   'weights',        None,   'diam_s',                1e0,        ('optimization weight for the diam_s variable [-]', None),'s'),
         ('solver',   'weights',        None,   'diam_t',                1e0,        ('optimization weight for the diam_t variable [-]', None),'s'),
-        # ('solver',   'weights',        None,   'coeff',                 1e-5,       ('optimization weight for the coeff variable [-]', None), 's'),
+        ('solver',   'weights',        None,   'coeff',                 1e-5,       ('optimization weight for the coeff variable [-]', None), 's'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-1,       ('starting cost for u_regularisation', None),'s'),

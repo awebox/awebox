@@ -862,7 +862,7 @@ def test_is_strictly_increasing():
     return None
 
 
-def check_sanity_of_interpolation_inputs(x_data, y_data):
+def data_is_obviously_uninterpolatable(x_data, y_data):
 
     x_length = len(x_data)
     y_length = len(y_data)
@@ -870,21 +870,24 @@ def check_sanity_of_interpolation_inputs(x_data, y_data):
         message = 'interpolation data does not have the same length. '
         message += 'x_data length is: ' + str(x_length) + ', and '
         message += 'y_data length is: ' + str(y_length)
-        print_op.log_and_raise_error(message)
+        print_op.base_print(message, level='warning')
+        return True
 
     if not (is_strictly_increasing(x_data)):
         message = 'interpolation grid-points must be strictly increasing, which x_data is not: '
         message += repr(x_data)
-        print_op.log_and_raise_error(message)
+        print_op.base_print(message, level='warning')
+        return True
 
     x_diff = x_data[-1] - x_data[0]
     if x_diff <= 1.e-3:
         message = 'interpolation grid-points appear to be very close together ' \
                   '(diff = ' + str(x_diff) + '). be advised that - since spline interpolation returns ' \
                   'zero outside of domain - interpolation may not be reliable.'
-        awelogger.logger.warning(message)
+        print_op.base_print(message, level='warning')
+        return True
 
-    return None
+    return False
 
 def spline_interpolation(x_data, y_data, x_points):
     """ Interpolate solution values with b-splines
