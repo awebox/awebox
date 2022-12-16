@@ -87,7 +87,7 @@ def interpolate_data(trial, freq):
     outputs_dict = trial.model.outputs_dict
     outputs_opt = trial.optimization.outputs_opt
     integral_output_names = trial.model.integral_scaling.keys()
-    integral_outputs_opt = trial.optimization.integral_outputs_opt()
+    integral_outputs_opt = trial.optimization.integral_outputs_opt
 
     if trial.options['nlp']['discretization'] == 'direct_collocation':
         Collocation = trial.nlp.Collocation

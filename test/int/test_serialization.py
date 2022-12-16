@@ -71,17 +71,20 @@ def perform_trial_serial(nlp_discretization, load_type):
     load_trial_and_plot(trial_name, load_type)
     return None
 
+
 def test_trial_serial_direct_collocation():
     nlp_discretization = 'direct_collocation'
     load_type = 'dict'
     perform_trial_serial(nlp_discretization, load_type)
     return None
-    
+
+
 def test_trial_serial_multiple_shooting():
     nlp_discretization = 'multiple_shooting'
     load_type = 'dict'
     perform_trial_serial(nlp_discretization, load_type)
     return None
+
 
 def test_trial_serial_loading_from_filename():
     nlp_discretization = 'direct_collocation'
@@ -89,8 +92,10 @@ def test_trial_serial_loading_from_filename():
     perform_trial_serial(nlp_discretization, load_type)
     return None
 
+#########
+# sweep #
+#########
 
-############### sweep
 
 def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
 
@@ -106,7 +111,6 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
     else:
         message = 'unfamiliar sweep_type selected (' + sweep_type + ')'
         raise Exception(message)
-
 
     # set-up trial options
     options = {}
@@ -125,6 +129,7 @@ def build_optimize_and_save_sweep_for_serialization(sweep_type='parametric'):
     sweep.save('dict')
 
     return sweep_name
+
 
 def load_sweep_and_plot(sweep_name, load_type):
 
@@ -154,18 +159,29 @@ def perform_sweep_serial(sweep_type, load_type):
     load_sweep_and_plot(sweep_name, load_type)
     return None
 
+
 def test_sweep_serial_trial():
     sweep_type = 'trial'
     load_type = 'dict'
     perform_sweep_serial(sweep_type, load_type)
     return None
 
+
 def test_sweep_serial_parametric():
     sweep_type = 'parametric'
     load_type = 'dict'
     perform_sweep_serial(sweep_type, load_type)
 
+
 def test_sweep_serial_loading_from_filename():
     sweep_type = 'parametric'
     load_type = 'filename'
     perform_sweep_serial(sweep_type, load_type)
+
+
+# test_trial_serial_direct_collocation()
+# test_trial_serial_multiple_shooting()
+# test_trial_serial_loading_from_filename()
+# test_sweep_serial_parametric()
+# test_sweep_serial_trial()
+# test_sweep_serial_loading_from_filename()

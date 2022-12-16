@@ -7,6 +7,8 @@ against direct collocation solution of NLP
 import pdb
 
 from awebox.logger.logger import Logger as awelogger
+from ampyx_ap2_settings import set_ampyx_ap2_settings
+
 import awebox as awe
 import logging
 import awebox.tools.struct_operations as struct_op
@@ -23,21 +25,9 @@ def get_integration_test_inputs():
 
     # choose a problem that we know solves reliably
     base_options = {}
-    base_options['solver.linear_solver'] = 'ma57'
-    base_options['user_options.system_model.architecture'] = {1:0}
-    base_options['user_options.trajectory.lift_mode.windings'] = 3
-    base_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    base_options['user_options.system_model.kite_dof'] = 3
-    base_options['user_options.induction_model'] = 'not_in_use'
-    base_options['user_options.tether_drag_model'] = 'split'
-    
-    # base_options['user_options.system_model.architecture'] = {1: 0}
-    # base_options['user_options.system_model.kite_dof'] = 3
-    # base_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    # base_options['user_options.tether_drag_model'] = 'split'
-    # base_options['user_options.induction_model'] = 'not_in_use'
-    # base_options['user_options.trajectory.lift_mode.windings'] = 1
-    # 
+    base_options['user_options.system_model.architecture'] = {1: 0}
+    base_options = set_ampyx_ap2_settings(base_options)
+
     # # specify direct collocation options
     # # because we need them for struct_op.get_variables_at_time, later on.
     base_options['nlp.n_k'] = 40
@@ -46,13 +36,8 @@ def get_integration_test_inputs():
     base_options['nlp.collocation.scheme'] = 'radau'
     base_options['nlp.collocation.d'] = 4
 
-    # base_options['model.tether.control_var'] = 'dddl_t'
-
     # homotopy tuning
     base_options['solver.linear_solver'] = 'ma57'
-
-    # base_options['solver.mu_hippo'] = 1e-4
-    # base_options['solver.tol_hippo'] = 1e-4
 
     # make trial, build and run
     trial = awe.Trial(name='test', seed=base_options)
@@ -78,7 +63,7 @@ def get_integration_test_inputs():
     return base_options, x0, z0, p, trial
 
 
-def perform_collocation_integrator_test(base_options, x0, z0, p, trial):
+def perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance):
 
     dae = trial.model.get_dae()
     Int_outputs = trial.optimization.integral_output_vals['opt']
@@ -120,16 +105,14 @@ def perform_collocation_integrator_test(base_options, x0, z0, p, trial):
                  }
     test_dict = add_max_abs_error_to_dict(test_dict)
 
-    tolerance = 1e-8
-
     # evaluate integration error
     perform_check(test_dict, test_name, tolerance)
 
 
-def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial):
+def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance):
 
     dae = trial.model.get_dae()
-    Int_outputs = trial.optimization.integral_outputs_opt()
+    Int_outputs = trial.optimization.integral_outputs_opt
     V_final = trial.optimization.V_opt
 
     # ===================================
@@ -143,7 +126,6 @@ def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial):
     base_options['nlp.discretization'] = 'multiple_shooting'
     base_options['nlp.integrator.collocation_scheme'] = base_options['nlp.collocation.scheme']
     base_options['nlp.integrator.interpolation_order'] = base_options['nlp.collocation.d']
-    base_options['nlp.integrator.num_steps_overwrite'] = 1
 
     # set discretization to multiple shooting
     base_options['nlp.integrator.type'] = 'rk4root'
@@ -171,8 +153,6 @@ def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial):
                  }
     test_dict = add_max_abs_error_to_dict(test_dict)
 
-    tolerance = 2e-2
-
     # evaluate integration error
     perform_check(test_dict, test_name, tolerance)
 
@@ -194,6 +174,7 @@ def perform_check(test_dict, test_name, tolerance):
 
         condition = max_abs_error < tolerance
         message = test_name + ' max_abs_error in ' + test_variable + ' exceeds tolerance: ' + str(max_abs_error)
+
         assert condition, message
     return None
 
@@ -202,17 +183,13 @@ def error(found_dm, expected_dm):
     return np.divide((found_dm - expected_dm), expected_dm).full()
 
 
-def test_collocation_integrator():
+def test_collocation_integrator(tolerance=1e-7):
     base_options, x0, z0, p, trial = get_integration_test_inputs()
-    perform_collocation_integrator_test(base_options, x0, z0, p, trial)
+    perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance)
     return None
 
 
-def test_rk_4_integrator():
+def test_rk_4_integrator(tolerance=2e-2):
     base_options, x0, z0, p, trial = get_integration_test_inputs()
-    perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial)
+    perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
     return None
-
-
-# test_collocation_integrator()
-test_rk_4_integrator()

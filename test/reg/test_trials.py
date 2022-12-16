@@ -14,6 +14,7 @@ import pdb
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data
 import awebox.opts.kite_data.boeing747_data as boeing747_data
+from ampyx_ap2_settings import set_ampyx_ap2_settings
 import awebox.opts.options as options
 import awebox.trial as awe_trial
 import awebox.tools.print_operations as print_op
@@ -30,6 +31,14 @@ def test_single_kite():
 
     options_dict = generate_options_dict()
     trial_name = 'single_kite_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+
+    return None
+
+def test_zoh():
+
+    options_dict = generate_options_dict()
+    trial_name = 'zoh_trial'
     solve_and_check(options_dict[trial_name], trial_name)
 
     return None
@@ -56,14 +65,6 @@ def test_save_trial():
     solve_and_check(options_dict[trial_name], trial_name)
 
     return None
-
-# def test_multi_tether():
-
-#     options_dict = generate_options_dict()
-#     trial_name = 'multi_tether_trial'
-#     solve_and_check(options_dict[trial_name], trial_name)
-
-#     return None
 
 def test_dual_kite():
 
@@ -121,13 +122,13 @@ def test_actuator_uasym():
 
     return None
 
-# def test_actuator_comparison():
-#
-#     options_dict = generate_options_dict()
-#     trial_name = 'actuator_comparison_trial'
-#     solve_and_check(options_dict[trial_name], trial_name)
-#
-#     return None
+def test_actuator_comparison():
+
+    options_dict = generate_options_dict()
+    trial_name = 'actuator_comparison_trial'
+    solve_and_check(options_dict[trial_name], trial_name)
+
+    return None
 
 def test_dual_kite_tracking():
 
@@ -161,13 +162,9 @@ def generate_options_dict():
 
     # set options
     single_kite_options = {}
+    single_kite_options['user_options.system_model.architecture'] = {1: 0}
+    single_kite_options = set_ampyx_ap2_settings(single_kite_options)
     single_kite_options['solver.linear_solver'] = 'ma57'
-    single_kite_options['user_options.system_model.architecture'] = {1:0}
-    single_kite_options['user_options.trajectory.lift_mode.windings'] = 3
-    single_kite_options['user_options.kite_standard'] = ampyx_data.data_dict()
-    single_kite_options['user_options.system_model.kite_dof'] = 3
-    single_kite_options['user_options.induction_model'] = 'not_in_use'
-    single_kite_options['user_options.tether_drag_model'] = 'split'
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -178,9 +175,6 @@ def generate_options_dict():
 
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver.save_trial'] = True
-
-    multi_tether_options = copy.deepcopy(single_kite_options)
-    multi_tether_options['user_options.tether_drag_model'] = 'multi'
 
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
@@ -281,7 +275,6 @@ def generate_options_dict():
     options_dict['zoh_trial'] = zoh_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
-    # options_dict['multi_tether_trial'] = multi_tether_options
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['small_dual_kite_trial'] = small_dual_kite_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
@@ -337,4 +330,19 @@ def solve_trial(trial_options, trial_name):
 
     return trial
 
-test_single_kite()
+# test_single_kite()
+# test_zoh()
+# test_basic_health()
+test_drag_mode()
+# test_save_trial()
+# test_dual_kite()
+# test_small_dual_kite()
+# test_dual_kite_6_dof()
+# test_actuator_qaxi()
+# test_actuator_qasym()
+# test_actuator_uaxi()
+# test_actuator_uasym()
+# test_actuator_comparison()
+# test_vortex()
+# test_dual_kite_tracking()
+# test_dual_kite_tracking_winch()

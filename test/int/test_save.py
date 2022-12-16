@@ -97,3 +97,7 @@ def test_write_to_csv():
     os.remove('trial1.csv')
 
     return None
+
+# test_trial_save()
+# test_write_to_csv()
+# test_trial_save()

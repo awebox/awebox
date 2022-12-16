@@ -292,11 +292,11 @@ class Sweep:
 
         # add trial for each possible combination
         if not trial_combs[0]:
-            self._add_trial('base_trial', self.__base_options)
+            self.__add_trial('base_trial', self.__base_options)
         else:
             for trial_sweep_opts in trial_combs:
                 single_trial_options, name = sweep_funcs.set_single_trial_options(self.__base_options, trial_sweep_opts, 'trial')
-                self._add_trial(name, single_trial_options)
+                self.__add_trial(name, single_trial_options)
         return None
 
     def _build_param_dict(self):
@@ -305,21 +305,21 @@ class Sweep:
         param_combs = sweep_funcs.build_options_combinations(self.__params_opts)
 
         if not param_combs[0]:
-            self._add_param('base_options', [])
+            self.__add_param('base_options', [])
         else:
             for param_sweep_opts in param_combs:
                 name = sweep_funcs.set_single_trial_options(self.__base_options, param_sweep_opts, 'param')[1]
-                self._add_param(name, param_sweep_opts)
+                self.__add_param(name, param_sweep_opts)
         return None
 
-    def _add_trial(self, name, options):
+    def __add_trial(self, name, options):
 
         trial_to_add = trial.Trial(name=name, seed=options)
         self.__trial_dict[trial_to_add.name] = trial_to_add
 
         return None
 
-    def _add_param(self, name, options):
+    def __add_param(self, name, options):
 
         self.__param_dict[name] = options
 

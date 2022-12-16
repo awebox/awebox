@@ -83,6 +83,9 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
+                if nlp_options['phase_fix'] == 'single':
+                    vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
+
                 if nlp_options['phase_fix'] == 'simple':
                     vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
                     vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
@@ -98,69 +101,112 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
-    # drag-mode phase fixing: fix y-speed of first system node
-    if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (nlp_options['system_type'] == 'drag_mode'):
-        vars_lb[var_type, 0, name, 1] = 0.0
-        vars_ub[var_type, 0, name, 1] = 0.0
+    if (nlp_options['system_type'] == 'drag_mode'):
+        # drag-mode phase fixing: fix y-speed of first system node
+        if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (var_type == 'x'):
+            vars_lb[var_type, 0, name, 1] = 0.0
+            vars_ub[var_type, 0, name, 1] = 0.0
 
-    # lift-mode phase fixing
-    switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
-    in_reelout_phase = (kdx < switch_kdx)
+    elif (nlp_options['system_type'] == 'lift_mode'):
+        # lift-mode phase fixing
 
-    n_k = nlp_options['n_k']
+        if (name == 'dl_t') and not (var_type == 'x'):
+            if coll_flag:
+                vars_ub['coll_var', kdx, ddx, var_type, name] = cas.inf
+                vars_lb['coll_var', kdx, ddx, var_type, name] = -cas.inf
+            else:
+                vars_ub[var_type, kdx, name] = cas.inf
+                vars_lb[var_type, kdx, name] = -cas.inf
 
-    periodic, _, _, _, _, _, _ = operation.get_operation_conditions(nlp_options)
+        if (name == 'dl_t') and (var_type == 'x'):
+            n_k = nlp_options['n_k']
+            d = nlp_options['collocation']['d']
+            periodic, _, _, _, _, _, _ = operation.get_operation_conditions(nlp_options)
+            radau_scheme = (nlp_options['collocation']['scheme'] == 'radau')
+            poly_controls = (nlp_options['collocation']['u_param'] == 'poly')
+            zoh_controls = (nlp_options['collocation']['u_param'] == 'zoh')
 
-    if name == 'dl_t' and nlp_options['system_type'] == 'lift_mode':
+            given_max_value = model.variable_bounds[var_type][name]['ub']
+            given_min_value = model.variable_bounds[var_type][name]['lb']
 
-        if nlp_options['phase_fix'] == 'single_reelout':
+            at_initial_control_node = (kdx == 0) and (not coll_flag)
 
-            # we cannot constraint ALL THREE OF kdx == 0 and kdx == n_k and periodicity.
-            condition = (var_type == 'x') and (not coll_flag) and nlp_options['collocation']['u_param'] == 'zoh'
-            if periodic:
-                condition = (condition and (kdx > 0))
+            if nlp_options['phase_fix'] == 'single_reelout':
 
-            if condition:
-                if kdx == (n_k):
-                    vars_lb[var_type, kdx, name] = 0.0
-                    vars_ub[var_type, kdx, name] = 0.0
+                switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
+                in_reelout_phase = (kdx < switch_kdx)
+                in_reelin_phase = not in_reelout_phase
 
+                at_periodic_initial_control_node = at_initial_control_node and periodic
+                at_nonperiodic_initial_control_node = at_initial_control_node and (not periodic)
+                at_periodic_final_control_node = (kdx == n_k) and periodic and (not coll_flag)
+                at_switching_control_node = (kdx == switch_kdx) and (not coll_flag)
+
+                at_collocation_node_without_control_freedom = coll_flag and zoh_controls
+                at_collocation_node_that_overlaps_with_control_node = coll_flag and (ddx == d-1) and radau_scheme
+                at_collocation_node_with_control_freedom = coll_flag and poly_controls and (not at_collocation_node_that_overlaps_with_control_node)
+                at_reelout_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
+                at_reelin_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
+
+                if at_nonperiodic_initial_control_node:
+                    max = given_max_value
+                    min = given_min_value
+                elif at_periodic_initial_control_node:
+                    max = cas.inf
+                    min = -cas.inf
+                elif at_periodic_final_control_node:
+                    max = 0.
+                    min = 0.
+                elif at_switching_control_node:
+                    max = 0.
+                    min = 0.
+                elif at_collocation_node_without_control_freedom:
+                    max = cas.inf
+                    min = -cas.inf
+                elif at_collocation_node_that_overlaps_with_control_node:
+                    max = cas.inf
+                    min = -cas.inf
+                elif at_reelout_collocation_node_with_control_freedom:
+                    max = given_max_value
+                    min = 0.
+                elif at_reelin_collocation_node_with_control_freedom:
+                    max = 0.
+                    min = given_min_value
                 elif in_reelout_phase:
-                    vars_lb[var_type, kdx, name] = 0.0
-                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                    max = given_max_value
+                    min = 0.
+                elif in_reelin_phase:
+                    max = 0.
+                    min = given_min_value
                 else:
-                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub[var_type, kdx, name] = 0.0
+                    message = 'unknown node classification within single reel-out phase-fixing'
+                    print_op.log_and_raise_error(message)
 
-            elif nlp_options['collocation']['u_param'] == 'poly':
+                if coll_flag:
+                    vars_ub['coll_var', kdx, ddx, var_type, name] = max
+                    vars_lb['coll_var', kdx, ddx, var_type, name] = min
+                else:
+                    vars_ub[var_type, kdx, name] = max
+                    vars_lb[var_type, kdx, name] = min
 
-                if kdx in [n_k, switch_kdx] and (not coll_flag):
-                    vars_lb[var_type, kdx, name] = 0.0
-                    vars_ub[var_type, kdx, name] = 0.0
+            elif nlp_options['phase_fix'] == 'single_reelout':
+                if at_initial_control_node:
+                    max = 0.
+                    min = 0.
+                    vars_ub[var_type, 0, name] = max
+                    vars_lb[var_type, 0, name] = min
 
-                if in_reelout_phase and coll_flag:
-                    vars_lb['coll_var', kdx, ddx, var_type, name] = 0.0
-                    vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
-                elif not in_reelout_phase and coll_flag:
-                    vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
-                    vars_ub['coll_var', kdx, ddx, var_type, name] = 0.0
+        pumping_range = nlp_options['pumping_range']
+        if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
 
-        elif nlp_options['phase_fix'] == 'simple' and (kdx == 0) and (not coll_flag):
+            pumping_range_0_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][0], model.scaling)
+            pumping_range_1_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][1], model.scaling)
 
-            vars_lb[var_type, kdx, name] = 0.0
-            vars_ub[var_type, kdx, name] = 0.0
-
-    pumping_range = nlp_options['pumping_range']
-    if name == 'l_t' and (len(pumping_range) == 2) and (pumping_range[0] is not None) and (pumping_range[1] is not None):
-
-        pumping_range_0_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][0], model.scaling)
-        pumping_range_1_scaled = struct_op.var_si_to_scaled('x', 'l_t', nlp_options['pumping_range'][1], model.scaling)
-
-        if kdx == 0 and (not coll_flag) and nlp_options['pumping_range'][0]:
-            vars_lb[var_type, 0, name] = pumping_range_0_scaled
-            vars_ub[var_type, 0, name] = pumping_range_0_scaled
-        if kdx == switch_kdx and (not coll_flag) and nlp_options['pumping_range'][1]:
-            vars_lb[var_type, kdx, name] = pumping_range_1_scaled
-            vars_ub[var_type, kdx, name] = pumping_range_1_scaled
+            if kdx == 0 and (not coll_flag) and nlp_options['pumping_range'][0]:
+                vars_lb[var_type, 0, name] = pumping_range_0_scaled
+                vars_ub[var_type, 0, name] = pumping_range_0_scaled
+            if kdx == switch_kdx and (not coll_flag) and nlp_options['pumping_range'][1]:
+                vars_lb[var_type, kdx, name] = pumping_range_1_scaled
+                vars_ub[var_type, kdx, name] = pumping_range_1_scaled
 
     return vars_lb, vars_ub

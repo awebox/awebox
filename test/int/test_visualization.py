@@ -14,6 +14,7 @@ plt.rcParams.update({'figure.max_open_warning': 0})
 
 logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)
 
+
 def test_visualization():
 
     # basic options
@@ -47,8 +48,8 @@ def test_visualization():
     sweep_flags = ['all', 'comp_all', 'outputs:tether_length', 'comp_outputs:tether_length']
     sweep.plot(sweep_flags)
 
-def test_animation():
 
+def test_animation():
 
     # basic options
     options = {}
@@ -73,3 +74,7 @@ def test_animation():
 
     trial.plot('animation')
     os.remove('trial1.mp4')
+
+
+test_visualization()
+test_animation()

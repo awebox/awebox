@@ -607,10 +607,10 @@ class Optimization(object):
 
             # forcibly prevent decreasing time_grids for bad solution
             safe_t_f = copy.deepcopy(V_final['theta', 't_f'])
-            safe_minimum = 1.e-3  # [seconds]
+            safe_minimum = 1.  # [seconds]
             for idx in range(safe_t_f.shape[0]):
                 t_f_entry = safe_t_f[idx]
-                if t_f_entry < safe_minimum:
+                if t_f_entry < 0.:
                     safe_t_f[idx] = safe_minimum
                     message = 'V_final includes negative time-periods, leading to ' \
                               'non-increasing time-grids that will cause later interpolations ' \
@@ -809,17 +809,17 @@ class Optimization(object):
 
     @property
     def integral_output_vals(self):
-        return {'init':self.__integral_outputs_init,
-                'opt':self.__integral_outputs_opt,
-                'ref':self.__integral_outputs_ref}
+        return {'init': self.__integral_outputs_init,
+                'opt': self.__integral_outputs_opt,
+                'ref': self.__integral_outputs_ref}
 
     @property
     def integral_outputs_init(self):
-        return self.____integral_outputs_init
+        return self.__integral_outputs_init
 
     @property
     def integral_outputs_opt(self):
-        return self.____integral_outputs_opt
+        return self.__integral_outputs_opt
 
     @output_vals.setter
     def output_vals(self, value):
