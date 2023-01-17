@@ -197,6 +197,7 @@ def generate_optimal_model(trial, param_options=None):
 
     return model
 
+
 def generate_var_bounds_fun(model):
 
     var_constraints = []
@@ -204,7 +205,7 @@ def generate_var_bounds_fun(model):
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
 
-        if var_type in ['x','u','z']:
+        if var_type in ['x', 'u', 'z']:
 
             for var in list(model.variables_dict[var_type].keys()):
 
@@ -214,27 +215,27 @@ def generate_var_bounds_fun(model):
 
                         if var_bounds[var_type][var]['ub'][i] != np.inf:
                             var_constraints.append(
-                                model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
+                                model.variables[var_type, var, i] - var_bounds[var_type][var]['ub'][i]
                             )
-                            var_constr_str.append(var_type+' '+var+' '+str(i)+' ub')
+                            var_constr_str.append(var_type + ' ' + var + ' ' + str(i) + ' ub')
 
                         if var_bounds[var_type][var]['lb'][i] != -np.inf:
                             var_constraints.append(
-                                - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
+                                - model.variables[var_type, var, i] + var_bounds[var_type][var]['lb'][i]
                             )
-                            var_constr_str.append(var_type+' '+var+' '+str(i)+' lb')
+                            var_constr_str.append(var_type + ' ' + var + ' ' + str(i) + ' lb')
                 else:
-                        if var_bounds[var_type][var]['ub'] != np.inf:
-                            var_constraints.append(
-                                model.variables[var_type,var] - var_bounds[var_type][var]['ub']
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(0)+' ub')
+                    if var_bounds[var_type][var]['ub'] != np.inf:
+                        var_constraints.append(
+                            model.variables[var_type, var] - var_bounds[var_type][var]['ub']
+                        )
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(0) + ' ub')
 
-                        if var_bounds[var_type][var]['lb'] != -np.inf:
-                            var_constraints.append(
-                                - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(0)+' lb')
+                    if var_bounds[var_type][var]['lb'] != -np.inf:
+                        var_constraints.append(
+                            - model.variables[var_type, var] + var_bounds[var_type][var]['lb']
+                        )
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(0) + ' lb')
 
     var_bounds_fun = cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
     return [var_bounds_fun, var_constr_str]

@@ -45,6 +45,7 @@ import awebox.tools.performance_operations as perf_op
 
 from awebox.logger.logger import Logger as awelogger
 
+
 def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs, Integral_outputs, time_grids):
 
     ocp_cstr_list = cstr_op.OcpConstraintList()
@@ -62,7 +63,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
         ocp_cstr_list.append(init_cstr)
         if len(init_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('initial', shape = init_cstr.get_expression_list('all').shape))
+            ocp_cstr_entry_list.append(cas.entry('initial', shape=init_cstr.get_expression_list('all').shape))
 
         # add the path constraints.
         if multiple_shooting:
@@ -86,18 +87,18 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
         ocp_cstr_list.append(terminal_cstr)
         if len(terminal_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('terminal', shape =  terminal_cstr.get_expression_list('all').shape))
+            ocp_cstr_entry_list.append(cas.entry('terminal', shape=terminal_cstr.get_expression_list('all').shape))
 
         # add periodic constraints
         periodic_cstr = operation.get_periodic_constraints(nlp_options, model, var_initial, var_terminal)
         ocp_cstr_list.append(periodic_cstr)
         if len(periodic_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('periodic', shape = periodic_cstr.get_expression_list('all').shape))
+            ocp_cstr_entry_list.append(cas.entry('periodic', shape=periodic_cstr.get_expression_list('all').shape))
 
         vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
         ocp_cstr_list.append(vortex_ocp_cstr_list)
         if len(vortex_ocp_cstr_list.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('vortex', shape = vortex_ocp_cstr_list.get_expression_list('all').shape))
+            ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))
 
         if direct_collocation:
             integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
@@ -106,32 +107,46 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
                 ocp_cstr_entry_list.append(cas.entry('integral', shape=integral_cstr.get_expression_list('all').shape))
 
     if nlp_options['induction']['induction_model'] == 'averaged':
+        # todo: this belongs in induction_dir.averaged
 
         cstr_list = cstr_op.OcpConstraintList()
         t_f = ocp_outputs.find_time_period(nlp_options, V)
         nk_reelout = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
         F_avg = Integral_outputs['int_out', nk_reelout, 'tether_force_int']
         WdA_avg = Integral_outputs['int_out', nk_reelout, 'area_int']
-        a = V['theta','a']*model.scaling['theta']['a']
+        a = V['theta', 'a']*model.scaling['theta']['a']
         induction_expr = F_avg/t_f - 4*a*(1 - a)*WdA_avg
-        induction_cstr = cstr_op.Constraint(expr= induction_expr,
+        induction_cstr = cstr_op.Constraint(expr=induction_expr,
                                     name='average_induction',
                                     cstr_type='eq')
         cstr_list.append(induction_cstr)
 
         ocp_cstr_list.append(cstr_list)
-        ocp_cstr_entry_list.append(cas.entry('avg_induction', shape = (1,1)))
+        ocp_cstr_entry_list.append(cas.entry('avg_induction', shape=(1, 1)))
 
     if nlp_options['phase_fix'] == 'single_reelout':
 
+        phase_fix_reelout = nlp_options['phase_fix_reelout']
+
         cstr_list = cstr_op.OcpConstraintList()
         t_f = ocp_outputs.find_time_period(nlp_options, V)
-        t_f_max = t_f - model.variable_bounds['theta']['t_f']['ub']
-        t_f_min = model.variable_bounds['theta']['t_f']['lb'] - t_f
-        t_f_cstr = cstr_op.Constraint(expr=cas.vertcat(t_f_max, t_f_min),
-                                      name='t_f_bounds',
+        upper_bound = model.variable_bounds['theta']['t_f']['ub']
+        lower_bound = model.variable_bounds['theta']['t_f']['lb']
+
+        scale = phase_fix_reelout
+
+        t_f_max = (t_f - upper_bound) / scale
+        t_f_min = (lower_bound - t_f) / scale
+
+        t_f_max_cstr = cstr_op.Constraint(expr=t_f_max,
+                                      name='t_f_max',
                                       cstr_type='ineq')
-        cstr_list.append(t_f_cstr)
+        cstr_list.append(t_f_max_cstr)
+
+        t_f_min_cstr = cstr_op.Constraint(expr=t_f_min,
+                                      name='t_f_min',
+                                      cstr_type='ineq')
+        cstr_list.append(t_f_min_cstr)
 
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=(2, 1)))
@@ -244,9 +259,10 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
             if nlp_options['collocation']['name_constraints']:
                 for cdx in range(ocp_eqs_shooting_expr[:, kdx].shape[0]):
                     cstr_list.append(cstr_op.Constraint(
-                        expr = ocp_eqs_shooting_expr[cdx,kdx],
-                        name = 'shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[cdx] + '_' + str(cdx),
-                        cstr_type = 'eq'
+                        expr=ocp_eqs_shooting_expr[cdx, kdx],
+                        name='shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[
+                            cdx] + '_' + str(cdx),
+                        cstr_type='eq'
                         )
                     )
             else:
@@ -260,12 +276,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
             # path constraints on shooting nodes
             if (ocp_ineqs_expr.shape != (0, 0)):
                 if nlp_options['collocation']['name_constraints']:
-                    for cdx in range(ocp_ineqs_expr[:,kdx].shape[0]):
+                    for cdx in range(ocp_ineqs_expr[:, kdx].shape[0]):
                         cstr_list.append(cstr_op.Constraint(
-                            expr = ocp_ineqs_expr[cdx,kdx],
-                            name = 'path_' + str(kdx) + '_' + model_constraints_list.get_name_list('ineq')[cdx] + '_' + str(cdx),
-                            cstr_type = 'ineq'
-                            )
+                            expr=ocp_ineqs_expr[cdx, kdx],
+                            name='path_' + str(kdx) + '_' + model_constraints_list.get_name_list('ineq')[
+                                cdx] + '_' + str(cdx),
+                            cstr_type='ineq'
+                        )
                         )
                 else:
                     cstr_list.append(cstr_op.Constraint(
@@ -281,18 +298,18 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
             if nlp_options['collocation']['u_param'] == 'poly':
 
                 cstr_list.append(cstr_op.Constraint(
-                    expr = ocp_ineqs_expr[:,ldx],
-                    name = 'path_{}_{}'.format(kdx,jdx),
-                    cstr_type = 'ineq'
+                    expr=ocp_ineqs_expr[:, ldx],
+                    name='path_{}_{}'.format(kdx, jdx),
+                    cstr_type='ineq'
                     )
                 )
 
             if nlp_options['collocation']['name_constraints']:
                 for cdx in range(ocp_eqs_expr[:, ldx].shape[0]):
                     cstr_list.append(cstr_op.Constraint(
-                        expr = ocp_eqs_expr[cdx, ldx],
-                        name = 'collocation_' + str(kdx) + '_' + str(jdx) + '_' + model_constraints_list.get_name_list('eq')[cdx] + '_' + str(cdx),
-                        cstr_type = 'eq'
+                        expr=ocp_eqs_expr[cdx, ldx],
+                        name='collocation_' + str(kdx) + '_' + str(jdx) + '_' + model_constraints_list.get_name_list('eq')[cdx] + '_' + str(cdx),
+                        cstr_type='eq'
                         )
                     )
             else:

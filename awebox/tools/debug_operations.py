@@ -28,6 +28,8 @@ _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
 - edit, rachel leuthold 2018-21
 '''
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -152,18 +154,11 @@ def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessi
 
     return tractability
 
-def was_autoscale_triggered(stats):
-
-    unscaled_obj = stats['iterations']['obj'][-1]
-    scaled_dual_infeasibility = stats['iterations']['inf_du'][-1]
-    unscaled_constraint_violation = stats['iterations']['inf_pr'][-1]
-
-    maybe = 0.5
-    return maybe
 
 def get_local_iterations(stats):
     awelogger.logger.info('get local iterations...')
     return stats['iter_count']
+
 
 def get_total_iterations(iterations):
     awelogger.logger.info('get total iterations...')
@@ -171,6 +166,7 @@ def get_total_iterations(iterations):
     for step in iterations.keys():
         total_iterations += iterations[step]
     return total_iterations
+
 
 def get_pearson_diagonality(kkt_matrix):
 
@@ -312,7 +308,7 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
 def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
 
     smallest_norm = 1.e10
-    smallest_idx = -1
+    smallest_idx = np.nan
 
     for idx in range(kkt_matrix.shape[1]):
         local_norm = vect_op.norm(kkt_matrix[:, idx])
@@ -333,6 +329,8 @@ def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
         relevant_multiplier_index = smallest_idx - number_variables
         relevant_multiplier = cstr_labels[relevant_multiplier_index]
         message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
+        pdb.set_trace()
+
     awelogger.logger.info(message)
 
     return None
@@ -572,9 +570,8 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
             local_lam = lambda_ineq_vals[gdx]
             local_name = g_ineq_names[gdx]
 
-            # if eval_constraint is small, then constraint is active. or.
-            # if lambda >> eval_constraint, then: constraint is active
-            if local_lam**2. > (active_threshold * local_g)**2.:
+            inequality_cstr_is_considered_active = is_inequality_cstr_considered_active(local_lam, local_g, active_threshold)
+            if inequality_cstr_is_considered_active:
 
                 # append active constraints to active_list
                 active_constraints = cas.vertcat(active_constraints, local_g)
@@ -586,6 +583,12 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
 
     # return active_list
     return active_constraints, list_names, active_fun
+
+def is_inequality_cstr_considered_active(evaluated_lambda, evaluated_expr, active_threshold):
+    ineq_cstr_evaluates_to_approx_zero = (
+                evaluated_lambda ** 2. > (active_threshold * evaluated_expr) ** 2.)
+    return ineq_cstr_evaluates_to_approx_zero
+
 
 def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
@@ -621,80 +624,92 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     active_vars = []
     active_labels = []
 
+    selection_error_message = 'something went badly wrong with an if-elif statement expected to be mutually-exclusive'
+
     for idx in range(var.shape[0]):
 
-        lam_idx = np.float(lam[idx])
-        lbx_idx = np.float(lbx.cat[idx])
-        ubx_idx = np.float(ubx.cat[idx])
-        var_idx = np.float(var[idx])
+        local_lambda = np.float(lam[idx])
+        local_lbx = np.float(lbx.cat[idx])
+        local_ubx = np.float(ubx.cat[idx])
+        local_variable = np.float(var[idx])
 
         name_list_strings = list(map(str, nlp.V.getCanonicalIndex(idx)))
         name_underscore = [name + '_' for name in name_list_strings[:-1]] + [name_list_strings[-1]]
         name_idx = ''.join(name_underscore)
 
         # constraints are written in negative convention (as normal)
-        lb_cstr = lbx_sym[idx] - var_sym[idx]
-        ub_cstr = var_sym[idx] - ubx_sym[idx]
-        lam_cstr = lam_sym[idx]
-        var_cstr = var_sym[idx]
+        symbolic_lb_expr = lbx_sym[idx] - var_sym[idx]
+        symbolic_ub_expr = var_sym[idx] - ubx_sym[idx]
+        symbolic_lambda = lam_sym[idx]
+        symbolic_variable = var_sym[idx]
 
-        if lam_idx == 0:
-            # either there are no bounds, or equality constraints
+        local_variable_either_unbounded_or_equality_constrained = (local_lambda == 0)
+        local_variable_is_inequality_constrained = not local_variable_either_unbounded_or_equality_constrained
 
-            if lbx_idx == -cas.inf and ubx_idx == cas.inf:
-                # var is not bounded
+        if local_variable_either_unbounded_or_equality_constrained:
+
+            local_variables_is_unbounded = (local_lbx == -cas.inf and local_ubx == cas.inf)
+            local_variable_is_equality_constrained = (local_ubx == local_lbx)
+
+            if local_variables_is_unbounded:
                 # do not add constraint to relevant list -> do nothing
                 pass
 
-            if ubx_idx == lbx_idx:
-                # equality constraint
+            elif local_variable_is_equality_constrained:
                 # default to upper bound
-                equality_cstr = cas.vertcat(equality_cstr, ub_cstr)
-                equality_lambdas = cas.vertcat(equality_lambdas, lam_cstr)
-                equality_vars = cas.vertcat(equality_vars, var_cstr)
+                equality_cstr = cas.vertcat(equality_cstr, symbolic_ub_expr)
+                equality_lambdas = cas.vertcat(equality_lambdas, symbolic_lambda)
+                equality_vars = cas.vertcat(equality_vars, symbolic_variable)
                 equality_labels += [name_idx]
 
-                relevant_cstr = cas.vertcat(relevant_cstr, ub_cstr)
-                relevant_lambdas = cas.vertcat(relevant_lambdas, lam_cstr)
-                relevant_vars = cas.vertcat(relevant_vars, var_cstr)
+                relevant_cstr = cas.vertcat(relevant_cstr, symbolic_ub_expr)
+                relevant_lambdas = cas.vertcat(relevant_lambdas, symbolic_lambda)
+                relevant_vars = cas.vertcat(relevant_vars, symbolic_variable)
                 relevant_labels += [name_idx]
 
-        else:
-            # inequality constraints
+            else:
+                print_op.log_and_raise_error(selection_error_message)
 
-            if lam_idx < 0:
-                # the lower bound is the relevant bound
-                cstr_here = lb_cstr
-                lam_cstr_here = -1 * lam_cstr
-                lam_idx_here = -1. * lam_idx
-                eval_here = lbx_idx - var_idx
+        elif local_variable_is_inequality_constrained:
+
+            relevant_bound_is_the_lower_bound = (local_lambda < 0)
+            relevant_bound_is_the_upper_bound = not relevant_bound_is_the_lower_bound
+
+            if relevant_bound_is_the_lower_bound:
+                bound_selected_symbolic_expr = symbolic_lb_expr
+                bound_selected_symbolic_lambda = -1 * symbolic_lambda
+                bound_selected_evaluated_lambda = -1. * local_lambda
+                bound_selected_evaluated_expr = local_lbx - local_variable
+
+            elif relevant_bound_is_the_upper_bound:
+                bound_selected_symbolic_expr = symbolic_ub_expr
+                bound_selected_symbolic_lambda = symbolic_lambda
+                bound_selected_evaluated_lambda = local_lambda
+                bound_selected_evaluated_expr = local_variable - local_ubx
 
             else:
-                # lam_idx > 0:
-                # the upper bound is the relevant bound
-                cstr_here = ub_cstr
-                lam_cstr_here = lam_cstr
-                lam_idx_here = lam_idx
-                eval_here = var_idx - ubx_idx
+                print_op.log_and_raise_error(selection_error_message)
 
-            inequality_cstr = cas.vertcat(inequality_cstr, cstr_here)
-            inequality_lambdas = cas.vertcat(inequality_lambdas, lam_cstr_here)
-            inequality_vars = cas.vertcat(inequality_vars, var_cstr)
+            inequality_cstr = cas.vertcat(inequality_cstr, bound_selected_symbolic_expr)
+            inequality_lambdas = cas.vertcat(inequality_lambdas, bound_selected_symbolic_lambda)
+            inequality_vars = cas.vertcat(inequality_vars, symbolic_variable)
             inequality_labels += [name_idx]
 
-            relevant_cstr = cas.vertcat(relevant_cstr, cstr_here)
-            relevant_lambdas = cas.vertcat(relevant_lambdas, lam_cstr_here)
-            relevant_vars = cas.vertcat(relevant_vars, var_cstr)
+            relevant_cstr = cas.vertcat(relevant_cstr, bound_selected_symbolic_expr)
+            relevant_lambdas = cas.vertcat(relevant_lambdas, bound_selected_symbolic_lambda)
+            relevant_vars = cas.vertcat(relevant_vars, symbolic_variable)
             relevant_labels += [name_idx]
 
-            if lam_idx_here ** 2. > (active_threshold * eval_here) ** 2.:
-                # this inequality constraint is active
-                # because the constraint is "approximately" zero
+            inequality_cstr_is_considered_active = is_inequality_cstr_considered_active(bound_selected_evaluated_lambda, bound_selected_evaluated_expr, active_threshold)
+            if inequality_cstr_is_considered_active:
 
-                active_cstr = cas.vertcat(active_cstr, cstr_here)
-                active_lambdas = cas.vertcat(active_lambdas, lam_cstr_here)
-                active_vars = cas.vertcat(active_vars, var_cstr)
+                active_cstr = cas.vertcat(active_cstr, bound_selected_symbolic_expr)
+                active_lambdas = cas.vertcat(active_lambdas, bound_selected_symbolic_lambda)
+                active_vars = cas.vertcat(active_vars, symbolic_variable)
                 active_labels += [name_idx]
+
+        else:
+            print_op.log_and_raise_error(selection_error_message)
 
     var_constraint_functions = {}
 

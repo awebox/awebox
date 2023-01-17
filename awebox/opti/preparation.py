@@ -105,7 +105,6 @@ def initialize_opti_parameters_with_model_parameters(nlp, options):
     return p_fix_num
 
 
-
 def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options):
 
     p_fix_num['p', 'weights'] = 1.0e-8
@@ -141,8 +140,8 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
                 if 'coll_var' in list(V_ref.keys()):
                     p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
 
-
     return p_fix_num
+
 
 def set_initial_bounds(nlp, model, formulation, options, V_init):
     V_bounds = {}
@@ -170,17 +169,15 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
         V_bounds['ub']['xi', name] = xi_bounds[name][1]
 
     for name in struct_op.subkeys(model.variables, 'theta'):
-        if not name == 't_f' and not name[:3] == 'l_c' and not name[:6] == 'diam_c':
+        if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
             initial_si_value = options['initialization']['theta'][name]
-            initial_scaled_value = initial_si_value / model.scaling['theta'][name]
+            initial_scaled_value = struct_op.var_si_to_scaled('theta', name, initial_si_value, model.scaling)
 
             V_bounds['ub']['theta', name] = initial_scaled_value
             V_bounds['lb']['theta', name] = initial_scaled_value
 
-    initial_si_time = V_init['theta','t_f'] # * options['homotopy']['phase_fix'] #todo: move phase fixing to nlp
-    initial_scaled_time = initial_si_time / model.scaling['theta']['t_f']
-
-    # set theta parameters
+    initial_si_time = V_init['theta', 't_f']  # * options['homotopy']['phase_fix']  #todo: move phase fixing to nlp
+    initial_scaled_time = struct_op.var_si_to_scaled('theta', 't_f', initial_si_time, model.scaling)
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
 
@@ -201,19 +198,19 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
+    print_op.warn_about_temporary_functionality_alteration()
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
-    if nlp.V['theta','t_f'].shape[0] > 1:
-        V_bounds['lb']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['lb']
-        V_bounds['ub']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['ub']
+    if nlp.V['theta', 't_f'].shape[0] > 1:
+        V_bounds['lb']['x', :, 'dl_t'] = -1. * cas.inf
+        V_bounds['ub']['x', :, 'dl_t'] = 1. * cas.inf
 
         # make sure that pumping range fixing bounds are not imposed initially
-        # TODO: write if test.....
-        V_bounds['lb']['x',:,'l_t'] = V_bounds['lb']['x',1,'l_t']
-        V_bounds['ub']['x',:,'l_t'] = V_bounds['ub']['x',1,'l_t']
+        V_bounds['lb']['x', :, 'l_t'] = -1. * cas.inf
+        V_bounds['ub']['x', :, 'l_t'] = 1. * cas.inf
 
         if 'coll_var' in list(nlp.V.keys()):
-            V_bounds['lb']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['lb']
-            V_bounds['ub']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['ub']
+            V_bounds['lb']['coll_var', :, :, 'x', 'dl_t'] = -1. * cas.inf
+            V_bounds['ub']['coll_var', :, :, 'x', 'dl_t'] = 1. * cas.inf
 
     return V_bounds, g_bounds
 
@@ -300,10 +297,12 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
         opts['iteration_callback'] = awebox_callback
         opts['iteration_callback_step'] = options['callback_step']
 
-    if options['nlp_solver'] == 'ipopt':
-        solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), opts)
-    elif options['nlp_solver'] == 'worhp':
-        solver = cas.nlpsol('solver', 'worhp', nlp.get_nlp(), opts)
+    nlp_solver = options['nlp_solver']
+    if nlp_solver not in ['ipopt', 'worhp']:
+        message = 'unfamiliar nlp solver (' + nlp_solver + ') requested'
+        print_op.log_and_raise_error(message)
+
+    solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
 
     solvers = {}
     solvers['all'] = solver

@@ -64,11 +64,11 @@ class Dae(object):
 
         # model equations
         alg = dynamics(variables, parameters)
-        ode = variables['theta','t_f']*variables['xdot']
-        quad = variables['theta','t_f']*integral_outputs_fun(variables, parameters)
+        ode = variables['theta', 't_f'] * variables['xdot']
+        quad = variables['theta', 't_f'] * integral_outputs_fun(variables, parameters)
 
         # create dae dictionary
-        dae = {'x': x, 'z': z, 'p': p, 'alg': alg,'ode': ode, 'quad': quad}
+        dae = {'x': x, 'z': z, 'p': p, 'alg': alg, 'ode': ode, 'quad': quad}
 
         if cas.sprank(cas.jacobian(alg, z)) < z.cat.size()[0]:  # check dae index
             raise ValueError('jacobian of dynamics is structurally rank-deficient: DAE is not of index 1!')

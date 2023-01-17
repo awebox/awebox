@@ -168,16 +168,16 @@ class Model(object):
         awelogger.logger.info('')
         awelogger.logger.info('Model options:')
         options_dict = {
-            'Atmosphere model':self.__options['atmosphere']['model'],
-            'Wind model':self.__options['wind']['model'],
-            'System type':self.__options['trajectory']['system_type'],
-            'Aircraft DOF':self.__options['kite_dof'],
-            'Number of aircraft':self.__architecture.number_of_kites,
-            'Number of layers':self.__architecture.layers,
-            'Ground station model':self.__options['tether']['use_wound_tether'],
-            'Tether attachment':self.__options['tether']['attachment'],
-            'Tether control var':self.__options['tether']['control_var'],
-            'Tether drag model':self.__options['tether']['tether_drag']['model_type']
+            'Atmosphere model': self.__options['atmosphere']['model'],
+            'Wind model': self.__options['wind']['model'],
+            'System type': self.__options['trajectory']['system_type'],
+            'Aircraft DOF': self.__options['kite_dof'],
+            'Number of aircraft': self.__architecture.number_of_kites,
+            'Number of layers': self.__architecture.layers,
+            'Ground station model': self.__options['tether']['use_wound_tether'],
+            'Tether attachment': self.__options['tether']['attachment'],
+            'Tether control var': self.__options['tether']['control_var'],
+            'Tether drag model': self.__options['tether']['tether_drag']['model_type']
         }
 
         if self.__options['tether']['tether_drag']['model_type'] == 'multi':

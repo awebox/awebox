@@ -73,7 +73,7 @@ class Simulation:
             'F',
             model['dae'],
             model['rootfinder'],
-            {'tf': self.__ts/model['t_f'],
+            {'tf': self.__ts / model['t_f'],
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
         self.__dae = self.__trial.model.get_dae()
@@ -126,10 +126,10 @@ class Simulation:
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
 
             elif self.__sim_type == 'open_loop':
-                u0 = self.__u_sim[:,i]
+                u0 = self.__u_sim[:, i]
 
             # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
+            var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
             self.__store_results(x0, u0, var_next['qf'])
 
             # shift initial state

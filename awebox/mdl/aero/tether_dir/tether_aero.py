@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -37,6 +38,7 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
 
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
@@ -228,8 +230,13 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     props['seg_length'] = seg_length
     props['scaling_length'] = scaling_length
 
-    props['scaling_speed'] = scaling_length
-    props['scaling_acc'] = scaling_length
+    loyd_reelout_factor = 1. / 3.
+    u_ref = parameters['theta0', 'wind', 'u_ref']
+    scaling_speed = loyd_reelout_factor * u_ref
+    props['scaling_speed'] = scaling_speed
+
+    scaling_acceleration = options['ground_station']['ddl_t_max']
+    props['scaling_acc'] = scaling_acceleration
 
     props['seg_diam'] = seg_diam
     props['max_diam'] = max_diam

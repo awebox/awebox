@@ -29,6 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
+import pdb
 
 import casadi.tools as cas
 
@@ -83,7 +84,8 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
-                if nlp_options['phase_fix'] == 'single':
+
+                if nlp_options['phase_fix'] == 'single_reelout':
                     vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
 
                 if nlp_options['phase_fix'] == 'simple':
@@ -99,15 +101,16 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
     return [vars_lb, vars_ub]
 
+
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
-    if (nlp_options['system_type'] == 'drag_mode'):
+    if nlp_options['system_type'] == 'drag_mode':
         # drag-mode phase fixing: fix y-speed of first system node
         if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (var_type == 'x'):
             vars_lb[var_type, 0, name, 1] = 0.0
             vars_ub[var_type, 0, name, 1] = 0.0
 
-    elif (nlp_options['system_type'] == 'lift_mode'):
+    elif nlp_options['system_type'] == 'lift_mode':
         # lift-mode phase fixing
 
         if (name == 'dl_t') and not (var_type == 'x'):

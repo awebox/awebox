@@ -59,7 +59,7 @@ class NLP(object):
             timer = time.time()
             self.__options = nlp_options
             self.print_nlp_options()
-            self.__generate_discretization(nlp_options, model,formulation)
+            self.__generate_discretization(nlp_options, model, formulation)
             self.generate_variable_bounds(nlp_options, model)
             self.__generate_objective(nlp_options, model)
 

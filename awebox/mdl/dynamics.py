@@ -87,7 +87,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables['SI'], parameters)
 
     # enforce the lagrangian dynamics
-    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake)
+    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling)
     cstr_list.append(lagr_dyn_cstr)
 
     # enforce lifted aerodynamic force <-- this must happen after lagr_dyn.get_dynamics, which determines the kite indicators
@@ -926,6 +926,7 @@ def generate_si_variables(scaling_options, variables):
                 scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_third_deriv_name])
 
             else:
+
                 message = 'no scaling information provided for variable ' + var_name + ', expected in ' + var_type + '. Proceeding with unit scaling.'
                 awelogger.logger.warning(message)
                 scaling[var_type][var_name] = cas.DM(1.)

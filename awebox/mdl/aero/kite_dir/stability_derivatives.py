@@ -210,8 +210,8 @@ def get_p_q_r(airspeed, omega, parameters, named_frame):
     # notice that the norm is independent of frame, iff frames are orthonormal
     omega_hat = omega / (2. * airspeed)
 
-    b_ref = parameters['theta0','geometry','b_ref']
-    c_ref = parameters['theta0','geometry','c_ref']
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     omega_hat[0] *= b_ref  # pb/2|ua|
     omega_hat[1] *= c_ref  # qc/2|ua|

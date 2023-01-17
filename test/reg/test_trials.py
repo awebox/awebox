@@ -47,7 +47,8 @@ def test_basic_health():
 
     options_dict = generate_options_dict()
     trial_name = 'basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name)
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step='initial')
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step='final')
 
     return None
 
@@ -172,12 +173,14 @@ def generate_options_dict():
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
     drag_mode_options['quality.test_param.power_balance_thresh'] = 2.
+    drag_mode_options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
 
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver.save_trial'] = True
 
     dual_kite_options = copy.deepcopy(single_kite_options)
-    dual_kite_options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
+    dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    dual_kite_options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
@@ -265,9 +268,12 @@ def generate_options_dict():
     basic_health_options = copy.deepcopy(single_kite_options)
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
     basic_health_options['nlp.n_k'] = 10
+    basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.when.failure'] = True
     basic_health_options['solver.health_check.when.final'] = True
     basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.health_check.spy_matrices'] = True
+    basic_health_options['nlp.collocation.u_param'] = 'zoh'
 
     # define options list
     options_dict = collections.OrderedDict()
@@ -313,12 +319,12 @@ def solve_and_check(trial_options, trial_name):
 def evaluate_results(results, trial_name):
 
     # loop over all results
-    for result in list(results.keys()):
-        assert results[result] == True, 'Test failed for ' + trial_name + ', Test regarding ' + result + ' failed.'
+    for test_name in list(results.keys()):
+        assert results[test_name], 'Test failed for ' + trial_name + ', Test regarding ' + test_name + ' failed.'
 
     return None
 
-def solve_trial(trial_options, trial_name):
+def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     """
     Set up and solve trial
     :return: solved trial
@@ -326,14 +332,14 @@ def solve_trial(trial_options, trial_name):
 
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
-    trial.optimize()
+    trial.optimize(final_homotopy_step=final_homotopy_step)
 
     return trial
 
 # test_single_kite()
 # test_zoh()
-# test_basic_health()
-test_drag_mode()
+test_basic_health()
+# test_drag_mode()
 # test_save_trial()
 # test_dual_kite()
 # test_small_dual_kite()

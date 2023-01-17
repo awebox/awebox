@@ -10,6 +10,7 @@ def set_ampyx_ap2_settings(options):
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.system_type'] = 'lift_mode'
+    options['user_options.trajectory.lift_mode.windings'] = 1
 
     # tether parameters
     options['params.tether.cd'] = 1.2
@@ -19,7 +20,7 @@ def set_ampyx_ap2_settings(options):
     options['model.tether.control_var'] = 'ddl_t'  # tether acceleration control
 
     # tether drag model (more accurate than the Argatov model in Licitra2019)
-    options['user_options.tether_drag_model'] = 'multi' 
+    options['user_options.tether_drag_model'] = 'multi'
     options['model.tether.aero_elements'] = 5
 
     # don't model generator

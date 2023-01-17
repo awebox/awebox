@@ -271,10 +271,12 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         coeff_scaling = 0.1
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
-        options_tree.append(('model', 'model_bounds','aero_validity','include',False,('do not include aero validity for roll control',None),'x'))
+        options_tree.append(('model', 'model_bounds', 'aero_validity', 'include', False,
+                             ('do not include aero validity for roll control', None), 'x'))
 
         compromised_factor = options['model']['aero']['three_dof']['dcoeff_compromised_factor']
-        dcoeff_compromised_max = np.array([5*compromised_factor,5])
+        dcoeff_compromised_max = np.array([5 * compromised_factor, 5])
+
         options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_max', dcoeff_compromised_max, ('????', None), 'x'))
         options_tree.append(('params', 'model_bounds', None, 'dcoeff_compromised_min', -1. * dcoeff_compromised_max, ('?????', None), 'x'))
 
@@ -956,15 +958,23 @@ def get_q_at_altitude(options, zz):
 
 def build_fict_scaling_options(options, options_tree, fixed_params):
 
-    gravity = get_gravity_ref(options)
     geometry = get_geometry(options)
-    m_k = geometry['m_k']
+
+    CL = estimate_CL(options)
+    q_ref = get_q_ref(options)
+    s_ref = geometry['s_ref']
+
+    # gravity = get_gravity_ref(options)
+    # m_k = geometry['m_k']
+    # acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    # centripetal_force = m_k * gravity * acc_max
+    aero_force = 0.5 * CL * q_ref * s_ref
+
+    f_scaling = aero_force
+
     b_ref = geometry['b_ref']
+    m_scaling = f_scaling * b_ref / 2.
 
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
-
-    f_scaling = m_k * gravity * acc_max
-    m_scaling = m_k * gravity * b_ref / 2.
     options_tree.append(('model', 'scaling', 'u', 'f_fict', f_scaling, ('scaling of fictitious homotopy forces', None),'x'))
     options_tree.append(('model', 'scaling', 'u', 'm_fict', m_scaling, ('scaling of fictitious homotopy moments', None),'x'))
 

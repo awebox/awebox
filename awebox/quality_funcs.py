@@ -54,7 +54,7 @@ def test_numerics(trial, test_param_dict, results):
 
     # test if t_f makes sense
     t_f_min = test_param_dict['t_f_min']
-    t_f = np.array(trial.optimization.V_final['theta','t_f']).sum() # compute sum in case of phase fix
+    t_f = np.array(trial.optimization.V_final['theta', 't_f']).sum()  # compute sum in case of phase fix
     if t_f < t_f_min:
         awelogger.logger.warning('Final time < ' + str(t_f_min) + ' s for trial ' + trial.name)
         results['t_f_min'] = False

@@ -101,8 +101,8 @@ class Optimization(object):
         return None
 
     def solve(self, options, nlp, model, formulation, visualization,
-              final_homotopy_step='final', warmstart_file = None, debug_flags =
-              [], debug_locations = [], intermediate_solve = False):
+              final_homotopy_step='final', warmstart_file=None, debug_flags=[],
+              debug_locations=[], intermediate_solve=False):
 
         self.__debug_flags = debug_flags
         if debug_flags != [] and debug_locations == []:
@@ -110,7 +110,7 @@ class Optimization(object):
         else:
             self.__debug_locations = debug_locations
 
-        if self.__status in ['I am an optimization.','I am a solved optimization.', 'I am a failed optimization.']:
+        if self.__status in ['I am an optimization.', 'I am a solved optimization.', 'I am a failed optimization.']:
 
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
@@ -405,7 +405,7 @@ class Optimization(object):
 
     ### arguments
 
-    def define_standard_args(self, nlp, formulation, model, options, visualization, warmstart_solution_dict = None):
+    def define_standard_args(self, nlp, formulation, model, options, visualization):
 
         self.__arg = preparation.initialize_arg(nlp, formulation, model, options)
         self.__arg_initial = {}
@@ -415,7 +415,7 @@ class Optimization(object):
 
         self.__p_fix_num = nlp.P(self.__arg['p'])
 
-        self.__V_ref = nlp.V(self.__p_fix_num['p','ref'])
+        self.__V_ref = nlp.V(self.__p_fix_num['p', 'ref'])
 
         if 'initial_guess' in self.__debug_locations or self.__debug_locations == 'all':
             self.__make_debug_plot(self.__V_init, nlp, visualization, 'initial_guess')
@@ -432,7 +432,6 @@ class Optimization(object):
 
         return None
 
-
     def extract_warmstart_trial(self, warmstart_file):
         if type(warmstart_file) == str:
             try:
@@ -447,6 +446,7 @@ class Optimization(object):
             warmstart_trial = warmstart_file.generate_solution_dict()
 
         return warmstart_trial
+
 
     def set_warmstart_args(self, warmstart_trial, nlp):
 
@@ -675,11 +675,11 @@ class Optimization(object):
         awelogger.logger.info('Solver options:')
 
         options_dict = {
-            'NLP solver':self.__options['nlp_solver'],
-            'Linear solver':self.__options['linear_solver'],
-            'Max. iterations':self.__options['max_iter'],
-            'Homotopy barrier param':self.__options['mu_hippo'],
-            'Homotopy method':self.__options['homotopy_method']
+            'NLP solver': self.__options['nlp_solver'],
+            'Linear solver': self.__options['linear_solver'],
+            'Max. iterations': self.__options['max_iter'],
+            'Homotopy barrier param': self.__options['mu_hippo'],
+            'Homotopy method': self.__options['homotopy_method']
         }
 
         if self.__options['homotopy_method'] == 'classic':

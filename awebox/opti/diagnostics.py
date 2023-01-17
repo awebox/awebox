@@ -34,6 +34,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
 import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
@@ -124,8 +125,11 @@ def compute_power_indicators(power_and_performance, plot_dict):
 
     if 'l_t' in plot_dict['x'].keys():
         power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['x']['l_t'])))
-    else:
+    elif 'l_t' in plot_dict['theta'].keys():
         power_and_performance['l_t_max'] = plot_dict['theta']['l_t']
+    else:
+        message = 'unable to find main tether length in plot_dict'
+        print_op.log_and_raise_error(message)
 
     z_av = np.mean(plot_dict['x']['q10'][2])
 

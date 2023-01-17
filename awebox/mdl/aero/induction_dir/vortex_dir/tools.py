@@ -564,7 +564,7 @@ def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
     return total
 
 def get_epsilon(options, parameters):
-    c_ref = parameters['theta0','geometry','c_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
     epsilon = options['aero']['vortex']['epsilon_to_chord_ratio'] * c_ref
     return epsilon
 
@@ -575,7 +575,7 @@ def get_r_core(options, parameters):
         r_core = 0.
 
     else:
-        c_ref = parameters['theta0','geometry','c_ref']
+        c_ref = parameters['theta0', 'geometry', 'c_ref']
         r_core = core_to_chord_ratio * c_ref
 
     return r_core

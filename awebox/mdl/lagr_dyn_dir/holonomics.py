@@ -1,3 +1,4 @@
+import pdb
 
 import casadi.tools as cas
 
@@ -283,7 +284,12 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
         gdot_loc = 2. * scaling_length * scaling_speed
         gddot_loc = 2. * scaling_length * scaling_acc + 2. * scaling_speed**2.
 
-        loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
+        # gdot_loc = cas.DM.zeros((1, 1))
+        # gddot_loc = cas.DM.zeros((1, 1))
+        # loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
+        loc_scaling = g_loc
+        print_op.warn_about_temporary_functionality_alteration()
+
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
     number_of_kites = len(architecture.kite_nodes)
@@ -292,9 +298,12 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
             layer_kites = architecture.kites_map[l]
             number_of_layer_kites = len(layer_kites)
 
+            # remember: if you have two kites, there's only one cross-tether between them
             if number_of_layer_kites == 2:
                 holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
             else:
+                # but, if you have three kites, there are three cross-tethers;
+                # four kites, four cross-tethers; etc.
                 for kite in layer_kites:
                     holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
 
