@@ -202,7 +202,6 @@ def make_terminal_point_constraint(terminal_variables, ref_variables, model):
             r_ref   = cas.reshape(ref_variables['x',state], 3, 3)
             constr  = cas.mtimes(r_state.T, r_ref) - cas.DM.eye(3)
             projected_cstr = cas.vertcat(constr[0, 1], constr[0, 2], constr[1,2])
-            import ipdb; ipdb.set_trace()
             terminal_point_constr.append(projected_cstr)
         else:
             terminal_point_constr.append(terminal_variables['x',state] - ref_variables['x',state])
@@ -317,7 +316,6 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
     for state in variable_list:
         state_name, _ = struct_op.split_name_and_node_identifier(state)
         if state_name == 'r':
-            import ipdb; ipdb.set_trace()
             r_state = cas.reshape(initial_states['x',state], 3, 3)
             r_ref   = cas.reshape(ref_variables['x',state], 3, 3)
             constr  = cas.mtimes(r_state.T, r_ref) - cas.DM.eye(3)
