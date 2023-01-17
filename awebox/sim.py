@@ -188,7 +188,6 @@ class Simulation:
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
         self.__visualization.plot_dict['ref'] = trial_plot_dict['ref']
         self.__visualization.plot_dict['time_grids']['ref'] = trial_plot_dict['time_grids']['ref']
-        self.__visualization.plot_dict['time_grids']['ref']['ip'] = self.__visualization.plot_dict['time_grids']['ip']
 
         return x0
 
