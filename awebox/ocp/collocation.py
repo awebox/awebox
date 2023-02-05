@@ -58,8 +58,13 @@ class Collocation(object):
         self.__scheme = scheme
 
         # get polynomial coefficients and quadrature weights
-        self.__poly_coeffs()
-        self.__quadrature_weights()
+        if scheme in ['radau', 'legendre']:
+            self.__poly_coeffs()
+            self.__quadrature_weights()
+
+        elif scheme in ['fourier']:
+            self.__fourier_coeffs()
+            self.__fourier_quadrature_weights()
 
         return None
 
@@ -159,13 +164,19 @@ class Collocation(object):
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
                 if var_type == 'x':
-                    poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
+                    if self.__scheme in ['radau', 'legendre']:
+                        poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
+                    elif self.__scheme in ['fourier']:
+                        poly_vars = cas.vertcat(*V['coll_var',kdx, :,'x', name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
                 elif var_type in ['u', 'z']:
                     poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
-                    poly_vars = cas.vertcat(integral_outputs['int_out',kdx, name, dim], *integral_outputs['coll_int_out',kdx, :, name, dim])
+                    if self.__scheme in ['radau', 'legendre']:
+                        poly_vars = cas.vertcat(integral_outputs['int_out',kdx, name, dim], *integral_outputs['coll_int_out',kdx, :, name, dim])
+                    else:
+                        poly_vars = cas.vertcat(*integral_outputs['coll_int_out',kdx, :, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
 
             return vals
@@ -209,8 +220,10 @@ class Collocation(object):
 
             # For all collocation points
             for j in range(self.__d+1):
+
                 # get an expression for the state derivative at the collocation point
-                xp_jk = self.__calculate_collocation_deriv(V, k, j)
+                if not (self.__scheme in ['fourier'] and j == self.__d):
+                    xp_jk = self.__calculate_collocation_deriv(V, k, j)
 
                 xdot = xp_jk / h / tf
                 store_derivatives = cas.vertcat(store_derivatives, xdot)
@@ -232,10 +245,13 @@ class Collocation(object):
 
         xp_jk = 0
         for r in range(self.__d + 1):
-            if r == 0:
-                xp_jk += self.__coeff_collocation[r, j] * V['x', k]
+            if r == 0 and self.__scheme in ['radau', 'legendre']:
+                    xp_jk += self.__coeff_collocation[r, j] * V['x', k]
             else:
-                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
+                if self.__scheme in ['radau', 'legendre']:
+                    xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
+                elif self.__scheme in ['fourier']:
+                    xp_jk += self.__coeff_collocation[r-1, j] * V['coll_var', k, r-1,'x']
 
         return xp_jk
 
@@ -284,15 +300,26 @@ class Collocation(object):
                     derivatives.append(derivative_list[i][name])
 
                 # compute state values at collocation nodes
-                integral_output[name] = tf/self.__n_k*cas.mtimes(self.__Lambda.T, cas.vertcat(*derivatives))
+                if self.__scheme in ['legendre', 'radau']:
+                    integral_output[name] = tf/self.__n_k*cas.mtimes(self.__Lambda.T, cas.vertcat(*derivatives))
+                elif self.__scheme in ['fourier']:
+                    integrals = [0.0]
+                    for idx, der in enumerate(derivatives):
+                        if idx < len(derivatives)-1:
+                            integrals.append(integrals[idx] + tf/(2*self.__n_k*self.__d)*(der + derivatives[idx+1]))
+                        else:
+                            integrals.append(integrals[idx] + tf/(2*self.__n_k*self.__d)*(der + derivatives[0]))
 
-                # compute state value at end of collocation interval
-                integral_output_continuity = 0.0
+                    integral_output[name] = cas.vertcat(*integrals)
 
-                for j in range(self.__d):
-                    integral_output_continuity += self.__coeff_continuity[j+1] * integral_output[name][j]
+                if self.__scheme in ['legendre', 'radau']:
+                    # compute state value at end of collocation interval
+                    integral_output_continuity = 0.0
 
-                integral_output[name] = cas.vertcat(integral_output[name],integral_output_continuity)
+                    for j in range(self.__d):
+                        integral_output_continuity += self.__coeff_continuity[j+1] * integral_output[name][j]
+
+                    integral_output[name] = cas.vertcat(integral_output[name],integral_output_continuity)
 
                 # add constant term
                 integral_output[name] += i0[name]
@@ -314,10 +341,13 @@ class Collocation(object):
         # get an expression for the state at the end of the finite element
         xf_k = 0
         for ddx in range(self.__d + 1):
-            if ddx == 0:
+            if ddx == 0 and self.__scheme in ['radau', 'legendre']:
                 xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
             else:
-                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
+                if self.__scheme in ['radau', 'legendre']:
+                    xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
+                elif self.__scheme in ['fourier']:
+                    xf_k += self.__coeff_continuity[ddx-1] * V['coll_var', kdx, ddx-1, 'x']
 
         # pin the end of the control interval to the start of the new control interval
         g_continuity = V['x', kdx + 1] - xf_k
@@ -383,6 +413,70 @@ class Collocation(object):
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
+
+    def __fourier_coeffs(self):
+        """Compute coefficients of interpolating polynomials and their derivatives
+        """
+
+        # discretization info
+        nk = self.__n_k
+        d = self.__d
+
+        tau_root = np.linspace(0, 1, d, endpoint=False)
+
+        # # coefficients of the collocation equation
+        coeff_collocation = np.zeros((d, d))
+        # coeff_collocation_u = np.zeros((d, d))
+
+        # # coefficients of the continuity equation
+        coeff_continuity = np.zeros(d)
+        coeff_continuity[0] = 1.0
+
+        # dimensionless time inside one control interval
+        tau = cas.SX.sym('tau')
+
+        # for all collocation points
+        ls = []
+        ls_u = []
+
+        for j in range(d):
+
+            # construct fourier functions
+            delta_t = tau - j/d
+            l = 1/d * np.sin(np.pi*d*delta_t) / np.tan(np.pi*delta_t)
+            ls = cas.vertcat(ls, l)
+
+            # derivative
+            tfcn = cas.Function('lfcntan',[tau],[cas.jacobian(l,tau)])
+            for r in range(d):
+                if r != j:
+                    coeff_collocation[j][r] = tfcn(tau_root[r])
+                else:
+                    coeff_collocation[j][r] = 0.0
+
+        # interpolating function for all polynomials
+        lfcns = cas.Function('lfcns',[tau],[ls])
+        lfcns_u = cas.Function('lfcns_u',[tau],[ls])
+
+        self.__coeff_continuity = coeff_continuity
+        self.__coeff_collocation = coeff_collocation
+        import copy
+        self.__coeff_collocation_u = copy.deepcopy(coeff_collocation)
+        self.__coeff_fun = lfcns
+        self.__coeff_fun_u = lfcns_u
+
+        return None
+
+    def __fourier_quadrature_weights(self):
+        """ Compute Fourier quadrature weights for integration: trapezoidal rule
+        """
+
+        quad_weights = np.zeros(self.__d)
+        quad_weights[:] = 1/self.__d
+
+        self.__quad_weights = quad_weights
+
+        return None
 
     @property
     def quad_weights(self):
