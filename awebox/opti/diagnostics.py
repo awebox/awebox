@@ -74,17 +74,28 @@ def print_runtime_values(stats):
 
     return None
 
-def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, solve_succeeded, stats, iterations):
-    should_make_autorun_check = (options['health_check']['when']['autorun'])
-    should_make_failure_check = (not solve_succeeded) and (options['health_check']['when']['failure'])
-    should_make_final_check = (options['health_check']['when']['final']) and (step_name == final_homotopy_step)
+def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, stats, iterations):
 
-    should_make_check = should_make_autorun_check or should_make_failure_check or should_make_final_check
+    solve_succeeded = stats['success']
+
+    when = options['health_check']['when']
+    allowed_whens = ['never', 'failure', 'final', 'always']
+
+    if when not in allowed_whens:
+        message = 'health check specified to run ' + (when) + ', but this is not among the expected frequency names: ' + repr(allowed_whens)
+        print_op.log_and_raise_error(message)
+
+    should_make_autorun_check = (when == 'always')
+    should_make_failure_check = (not solve_succeeded) and (when == 'failure')
+    should_make_final_check = (when == 'final') and (step_name == final_homotopy_step)
+    do_not_make_check = (when == 'never')
+
+    should_make_check = (not do_not_make_check) and (should_make_autorun_check or should_make_failure_check or should_make_final_check)
 
     if should_make_check:
-        debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
-
-    return None
+        return debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
+    else:
+        return True
 
 def print_constraint_violations(nlp, V_vals, p_fix_num):
     g_fun = nlp.g_fun

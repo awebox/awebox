@@ -10,6 +10,7 @@ import collections
 import copy
 import logging
 import pdb
+import casadi.tools as cas
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data
@@ -43,15 +44,18 @@ def test_zoh():
 
     return None
 
-def test_basic_health():
 
+def run_basic_health_test(final_homotopy_step='final'):
     options_dict = generate_options_dict()
     trial_name = 'basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step='initial')
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step='final')
-
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
+def test_basic_health():
+    homotopy_steps = ['final']  # ['initial', 'fictitious', 'power', 'final']
+    for final_homotopy_step in homotopy_steps:
+        run_basic_health_test(final_homotopy_step=final_homotopy_step)
+    return None
 
 def test_drag_mode():
 
@@ -269,13 +273,24 @@ def generate_options_dict():
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
     basic_health_options['nlp.n_k'] = 10
     basic_health_options['nlp.collocation.name_constraints'] = True
-    basic_health_options['solver.health_check.when.failure'] = True
-    basic_health_options['solver.health_check.when.final'] = True
-    basic_health_options['solver.health_check.raise_exception'] = True
-    basic_health_options['solver.health_check.spy_matrices'] = True
+    basic_health_options['solver.health_check.when'] = 'failure'  # 'final'
+    # basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
+    basic_health_options['solver.max_iter_hippo'] = 100
+    basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
+    basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
+    basic_health_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
+    basic_health_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
+    # basic_health_options['solver.cost.psi.1'] = 1e4
+    # basic_health_options['solver.cost_factor.power'] = 1e3
+    basic_health_options['solver.weights.l_t'] = 1e-3
+    basic_health_options['solver.weights.dl_t'] = 1e-3
+    basic_health_options['solver.weights.ddl_t'] = 1e-3
+    basic_health_options['solver.weights.dddl_t'] = 1e-3
 
-    # define options list
+
+     # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['zoh_trial'] = zoh_options
@@ -333,6 +348,9 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
+
+    # trial.plot('level_2')
+    # plt.show()
 
     return trial
 

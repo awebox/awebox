@@ -96,6 +96,7 @@ def define_homotopy_schedule(formulation):
 
     return homotopy_schedule
 
+
 def define_costs_to_update(P, formulation):
 
     updates = {}
@@ -437,15 +438,15 @@ def define_bound_update_schedule(model, nlp, formulation):
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):
-            bound_schedule['dl_t'][1] = ['lb','x','final']
-            bound_schedule['dl_t'][2] = ['ub','x','final']
+            bound_schedule['dl_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','x','final']
-            bound_schedule['l_t'][2] = ['ub','x','final']
+            bound_schedule['l_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'x', 'final']
     else:
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','theta','final']
-            bound_schedule['l_t'][2] = ['ub','theta','final']
+            bound_schedule['l_t'][1] = ['lb', 'theta', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'theta', 'final']
 
     return bound_schedule
 
@@ -461,6 +462,7 @@ def initialize_cost_update_counter(P):
         cost_update_counter[name] = -1
 
     return cost_update_counter
+
 
 def initialize_bound_update_counter(model, schedule, formulation):
     bound_update_counter = {}
@@ -495,8 +497,8 @@ def find_current_homotopy_parameter(parameters, V_bounds):
 
     phi_name = None
     for phi in list(parameters.keys()):
-        ub = V_bounds['ub']['phi',phi]
-        lb = V_bounds['lb']['phi',phi]
+        ub = V_bounds['ub']['phi', phi]
+        lb = V_bounds['lb']['phi', phi]
         if ub != lb:
             phi_name = phi
     
@@ -515,8 +517,8 @@ def compress_homotopy_schedule(schedule):
     schedule['costs_to_update']['middle'] = {0: [], 1: []}
     schedule['bounds_to_update']['middle'] = {0: [], 1: []}
     for step in middle_steps:
-        schedule['costs_to_update']['middle'][0]  += schedule['costs_to_update'][step][0]
-        schedule['costs_to_update']['middle'][1]  += schedule['costs_to_update'][step][1]
+        schedule['costs_to_update']['middle'][0] += schedule['costs_to_update'][step][0]
+        schedule['costs_to_update']['middle'][1] += schedule['costs_to_update'][step][1]
         schedule['bounds_to_update']['middle'][0] += schedule['bounds_to_update'][step][0]
         schedule['bounds_to_update']['middle'][1] += schedule['bounds_to_update'][step][1]
 

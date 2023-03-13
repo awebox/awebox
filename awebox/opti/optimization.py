@@ -258,6 +258,10 @@ class Optimization(object):
 
     def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
 
+        available_homotopy_steps = self.__schedule['homotopy']
+        if final_homotopy_step not in available_homotopy_steps:
+            message = 'final_homotopy_step (' + final_homotopy_step + ') not recognized. available scheduling steps are: ' + repr(available_homotopy_steps)
+            print_op.log_and_raise_error(message)
 
         # do not consider homotopy steps after specified final_homotopy_step
         final_index = self.__schedule['homotopy'].index(final_homotopy_step)
@@ -344,11 +348,14 @@ class Optimization(object):
 
             self.generate_outputs(nlp, self.__solution)
 
-            self.allow_next_homotopy_step()
-
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
-            diagnostics.health_check(step_name, final_homotopy_step, nlp, self.__solution, self.__arg, options, self.__solve_succeeded, self.__stats, self.__iterations)
+
+            problem_is_healthy_or_unchecked = diagnostics.health_check(step_name, final_homotopy_step, nlp, self.__solution, self.__arg, options, self.__stats, self.__iterations)
+            if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
+                self.__solve_succeeded = False
+
+            self.allow_next_homotopy_step()
 
             if step_name in self.__debug_locations or self.__debug_locations == 'all':
                 V_plot = nlp.V(self.__solution['x'])
@@ -407,7 +414,7 @@ class Optimization(object):
 
     def define_standard_args(self, nlp, formulation, model, options, visualization):
 
-        self.__arg = preparation.initialize_arg(nlp, formulation, model, options)
+        self.__arg = preparation.initialize_arg(nlp, formulation, model, options, self.schedule)
         self.__arg_initial = {}
         self.__arg_initial['x0'] = nlp.V(self.__arg['x0'])
 
@@ -677,7 +684,8 @@ class Optimization(object):
         options_dict = {
             'NLP solver': self.__options['nlp_solver'],
             'Linear solver': self.__options['linear_solver'],
-            'Max. iterations': self.__options['max_iter'],
+            'Final max. iterations': self.__options['max_iter'],
+            'Homotopy max. iterations': self.__options['max_iter_hippo'],
             'Homotopy barrier param': self.__options['mu_hippo'],
             'Homotopy method': self.__options['homotopy_method']
         }

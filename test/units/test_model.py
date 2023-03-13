@@ -151,10 +151,10 @@ def test_drag_mode_model():
 
     # test power expression
     integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
-    assert(cas.jacobian(integral_outputs,model.variables['x','kappa21']).nnz()!=0)
-    assert(cas.jacobian(integral_outputs,model.variables['x','kappa31']).nnz()!=0)
-    assert(cas.jacobian(integral_outputs,model.variables['theta','l_t']).nnz()==0)
-    assert(cas.jacobian(integral_outputs,model.variables['z','lambda10']).nnz()==0)
+    assert (cas.jacobian(integral_outputs, model.variables['x', 'kappa21']).nnz() != 0)
+    assert (cas.jacobian(integral_outputs, model.variables['x', 'kappa31']).nnz() != 0)
+    assert (cas.jacobian(integral_outputs, model.variables['theta', 'l_t']).nnz() == 0)
+    assert (cas.jacobian(integral_outputs, model.variables['z', 'lambda10']).nnz() == 0)
 
     # test variable bounds
     lb = trial_options['model']['system_bounds']['u']['dkappa'][0]/trial_options['model']['scaling']['x']['kappa']
@@ -186,7 +186,7 @@ def test_cross_tether_model():
 
     # single kite with point-mass model
     options = {}
-    options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
+    options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.system_model.cross_tether'] = True

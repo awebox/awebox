@@ -68,15 +68,15 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
+    licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
+
     if not exact_licq_holds:
         awelogger.logger.warning('')
         message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
         awelogger.logger.info(message)
         identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-
-    licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
-    if not licq_holds:
+    elif not licq_holds:
         awelogger.logger.info('')
         message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
         awelogger.logger.warning(message)
@@ -109,6 +109,8 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
+
+        pdb.set_trace()
 
         if health_solver_options['raise_exception']:
             print_op.log_and_raise_error(message)
@@ -329,7 +331,6 @@ def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
         relevant_multiplier_index = smallest_idx - number_variables
         relevant_multiplier = cstr_labels[relevant_multiplier_index]
         message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
-        pdb.set_trace()
 
     awelogger.logger.info(message)
 

@@ -150,7 +150,7 @@ class Model(object):
                                                      self.__scaling)
         return None
 
-    def __generate_parameter_bounds(self,options):
+    def __generate_parameter_bounds(self, options):
 
         # define bounds for variable optimization parameters
         param_bounds = {}

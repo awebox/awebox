@@ -306,12 +306,12 @@ def test_the_convection_time(epsilon=1.e-4):
     scheme = nlp_options['collocation']['scheme']
     tau_root = cas.vertcat(cas.collocation_points(d, scheme))
 
-    width = 1.73 # some number that's not likely to arise 'naturally'
+    width = 1.73  # some number that's not likely to arise 'naturally'
 
     tcoll = []
     for ndx in range(n_k):
         for ddx in range(d):
-            tcoll = cas.vertcat(tcoll, width * (ndx + tau_root[ddx]) )
+            tcoll = cas.vertcat(tcoll, width * (ndx + tau_root[ddx]))
 
     tcoll = tcoll.reshape((d, n_k)).T
     optimization_period = tcoll[-1, -1]

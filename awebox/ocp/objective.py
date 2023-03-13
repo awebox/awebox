@@ -401,7 +401,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V):
+def find_objective(component_costs, V, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
@@ -413,9 +413,34 @@ def find_objective(component_costs, V):
     general_problem_cost = component_costs['general_problem_cost']
     homotopy_cost = component_costs['homotopy_cost']
 
-    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + homotopy_cost
+    trajectory_type = nlp_options['trajectory']['type']
+
+    if trajectory_type == 'power_cycle':
+        objective = V['phi', 'psi'] * tracking_problem_cost + \
+                    (1. - V['phi', 'psi']) * power_problem_cost + \
+                    general_problem_cost + \
+                    homotopy_cost
+
+        print_op.warn_about_temporary_functionality_alteration()
+        theta_idx = 1
+        ## theta:
+        # 0: -3.663251605113117e-10
+        temporary_test_objective = 1.e8 * (V['theta'][theta_idx])**2.
+        objective += temporary_test_objective
+
+    elif trajectory_type in ['transition', 'mpc']:
+        objective = V['phi', 'upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + \
+                    (1. - V['phi', 'psi']) * power_problem_cost + \
+                    general_problem_cost + \
+                    (1. - V['phi', 'eta']) * nominal_landing_problem_cost + \
+                    (1. - V['phi', 'upsilon']) * transition_problem_cost + \
+                    homotopy_cost
+    else:
+        message = 'unrecognized trajectory type (' + trajectory_type + ') requested.'
+        print_op.log_and_raise_error(message)
 
     return objective
+
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
@@ -435,7 +460,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-    component_costs['objective'] = find_objective(component_costs, V)
+    component_costs['objective'] = find_objective(component_costs, V, nlp_options)
 
     return component_costs
 

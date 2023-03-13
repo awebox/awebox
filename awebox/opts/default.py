@@ -39,7 +39,7 @@ def set_default_user_options():
 
         ## user options
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
-        ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode','drag_mode']), 't'),
+        ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode']), 't'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -170,7 +170,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
-        ('model',   'tether', None,         'control_var',          'dddl_t',    ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
+        ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']),'x'),
         ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
@@ -185,20 +185,21 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-4, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_c',       [1.0e-3, 1.0e-1],                                                  ('cross-tether diameter bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                   ('main tether length bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'x',          'dl_t',          [-30.0, 30.0],                                                   ('main tether speed bounds [m/s]', None),'x'),
-        ('model',  'system_bounds', 'x',          'ddl_t',         [-100.0, 100.0],                                                   ('main tether acceleration bounds [m/s^2]', None),'x'),
+        ('model',  'system_bounds', 'x',          'l_t',          [1.0e-2, 1.0e3],                                                                  ('main tether length bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'dl_t',          [-30.0, 30.0],                                                                   ('main tether speed bounds [m/s]', None),'x'),
+        ('model',  'system_bounds', 'x',          'ddl_t',         [-100.0, 100.0],                                                                 ('reel-in/out acceleration limit on the tether [m/s^2]', None), 'x'),
         ('model',  'system_bounds', 'theta',       'l_s',          [1.0e-2, 1.0e3],                                                                 ('secondary tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_i',          [1.0e2, 1.0e2],                                                                  ('intermediate tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
-        ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],   ('kite position bounds [m]', None),'x'),
+        ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],    ('kite position bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'omega',        [np.pi/180.0*np.array([-50.0, -50.0, -50.0]), np.pi/180.0*np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
-        ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                  ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
-        ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                  ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'wz_ext',       [5.0, cas.inf],                                                                   ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
+        ('model',  'system_bounds', 'x',          'wz_int',       [5.0, cas.inf],                                                                   ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
-        ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                   ('multiplier bounds', None),'x'),
+        ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                    ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
-        ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                               ('main tether jerk bounds', None),'x'),
+        ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                                 ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
+
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
 
@@ -230,11 +231,11 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None),'x'),
-        ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None),'x'),
+        ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None), 'x'),
+        ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None), 'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
-        ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None),'x'),
+        ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None), 'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
@@ -251,8 +252,6 @@ def set_default_options(default_user_options, help_options):
         #### ground_station
         ('params', 'ground_station',    None, 'r_gen',          0.25,   ('winch generator drum radius [m]',None),'x'),
         ('params', 'ground_station',    None, 'm_gen',          50.,    ('effective mass of generator [kg], guessed',None),'x'),
-        ('model', 'ground_station',     None, 'ddl_t_max',      15.,    ('reel-in/out acceleration limit on the tether [m/s^2]', None),'x'),
-        ('model', 'ground_station',     None, 'dddl_t_max',     100.,   ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
@@ -333,6 +332,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'homotopy_method',None, 'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'psi',        'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'advance_despite_max_iter', True, ('should homotopy proceed to next step if the last step exceeds the maximum number of Newton steps?', [True, False]), 's'),
+        ('solver',  'homotopy_method', None, 'advance_despite_ill_health', True, ('should homotopy proceed to next step if the debug health-checker says that the problem is unhealthy/ill-posed', [True, False]), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
@@ -437,9 +437,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
 
         ### problem health diagnostics options
-        ('solver',  'health_check',     'when',     'autorun',                  False,  ('run a health-check after every homotopy step. CAUTION: VERY SLOW!', [True, False]),'x'),
-        ('solver',  'health_check',     'when',     'failure',                  False,  ('run a health-check when a homotopy step fails. CAUTION: SLOW!', [True, False]),'x'),
-        ('solver',  'health_check',     'when',     'final',                    False,  ('run a health-check after final homotopy step. CAUTION: SLOW!', [True, False]), 'x'),
+        ('solver',  'health_check',     None,       'when',                     'never',  ('run a health-check never (never), after every homotopy step (always, CAUTION: VERY SLOW!), when a homotopy step fails (failure, caution: slow), at final solution (final, caution: slow)', ['never', 'always', 'failure', 'final']), 'x'),
         ('solver',  'health_check',     'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
         ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-8,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
         ('solver',  'health_check',     'thresh',   'condition_number',         1e9,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),

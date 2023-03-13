@@ -863,8 +863,8 @@ def build_tether_control_options(options, options_tree, fixed_params):
     user_options = options['user_options']
     in_drag_mode_operation = user_options['trajectory']['system_type'] == 'drag_mode'
 
-    ddl_t_max = options['model']['ground_station']['ddl_t_max']
-    dddl_t_max = options['model']['ground_station']['dddl_t_max']
+    ddl_t_bounds = options['model']['system_bounds']['x']['ddl_t']
+    dddl_t_bounds = options['model']['system_bounds']['u']['dddl_t']
 
     control_name = options['model']['tether']['control_var']
 
@@ -873,11 +873,11 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
     else:
         if control_name == 'ddl_t':
-            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
 
         elif control_name == 'dddl_t':
-            options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', [-1. * ddl_t_max, ddl_t_max],   ('main tether max acceleration [m/s^2]', None),'x'))
-            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', [-1. * dddl_t_max, dddl_t_max],   ('main tether max jerk [m/s^3]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
+            options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', dddl_t_bounds,   ('main tether max jerk [m/s^3]', None),'x'))
         else:
             raise ValueError('invalid tether control variable chosen')
 
@@ -1072,7 +1072,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     if options['user_options']['trajectory']['type'] == 'nominal_landing':
         power_cost = 1e-4
         lambda_scaling = 1
-        energy_scaling = 1e5
+        corrected_estimated_energy = 1e5
     else:
 
         # this will scale the multiplier on the main tether, from 'si'
@@ -1083,7 +1083,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         # this will scale the energy 'si'. see dynamics.make_dynamics
         energy = estimate_energy(options, architecture)
         energy_factor = options['model']['scaling_overwrite']['energy_factor']
-        energy_scaling = energy_factor * energy
+        corrected_estimated_energy = energy_factor * energy
 
         # this will be used to weight the scaled power (energy / time) cost
         # so: for clarity of what is physically happening, I've written this in terms of the
@@ -1091,12 +1091,12 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         # but, what's actually happening depends ONLY on the tuning factor and on the estimated time period.
         # so, if this scaling leads to bad convergence in final solution step of homotopy, then check the
         # estimate time period function (below) FIRST.
-        power = estimate_power(options, architecture)
-        scaled_power = power / energy_scaling # yes, this = (1 / time_period_estimate)
+        estimated_average_power = estimate_power(options, architecture)
+        estimated_inverse_time_period = estimated_average_power / corrected_estimated_energy  # yes, this = (1 / time_period_estimate)
         power_cost_factor = options['solver']['cost_factor']['power']
-        power_cost = power_cost_factor * (1. / scaled_power)  # yes, this = pcf * time_period_estimate
+        power_cost = power_cost_factor * (1. / estimated_inverse_time_period)  # yes, this = pcf * time_period_estimate
 
-    return lambda_scaling, energy_scaling, power_cost, power
+    return lambda_scaling, corrected_estimated_energy, power_cost, estimated_average_power
 
 
 def estimate_power(options, architecture):
@@ -1124,7 +1124,6 @@ def estimate_power(options, architecture):
     number_of_kites = architecture.number_of_kites
 
     estimate_1 = number_of_kites * p_loyd * induction_efficiency
-
     power = estimate_1
 
     return power
@@ -1227,7 +1226,7 @@ def estimate_energy(options, architecture):
 def estimate_time_period(options, architecture):
 
     windings = float(options['user_options']['trajectory']['lift_mode']['windings'])
-    cone_angle = float(options['solver']['initialization']['cone_deg'])*np.pi/180.0
+    cone_angle = float(options['solver']['initialization']['cone_deg']) * np.pi / 180.0
     ground_speed = float(options['solver']['initialization']['groundspeed'])
 
     number_of_kites = architecture.number_of_kites

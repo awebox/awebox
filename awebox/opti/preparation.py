@@ -43,7 +43,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
 
-def initialize_arg(nlp, formulation, model, options):
+def initialize_arg(nlp, formulation, model, options, schedule):
 
     p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
 
@@ -56,7 +56,7 @@ def initialize_arg(nlp, formulation, model, options):
 
     p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
 
-    [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
+    [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init, schedule)
 
     V_bounds = fix_q_and_r_values_if_necessary(options, nlp, model, V_bounds, V_init)
 
@@ -143,7 +143,7 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
     return p_fix_num
 
 
-def set_initial_bounds(nlp, model, formulation, options, V_init):
+def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
     V_bounds = {}
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
@@ -211,6 +211,18 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
         if 'coll_var' in list(nlp.V.keys()):
             V_bounds['lb']['coll_var', :, :, 'x', 'dl_t'] = -1. * cas.inf
             V_bounds['ub']['coll_var', :, :, 'x', 'dl_t'] = 1. * cas.inf
+
+    # make sure that any homotopy variables that do not actually end up being varied in the homotopy process do not ruin the problem's sosc.
+    set_of_updated_bounds = set([])
+    for homotopy_step in schedule['homotopy']:
+        for predictor_corrector_step in schedule['bounds_to_update'][homotopy_step].keys():
+            for bounded_var in schedule['bounds_to_update'][homotopy_step][predictor_corrector_step]:
+                set_of_updated_bounds.add(bounded_var)
+
+    for homotopy_variable_name in list(model.parameters_dict['phi'].keys()):
+        if homotopy_variable_name not in set_of_updated_bounds:
+            V_bounds['ub']['phi', homotopy_variable_name] = 0.
+            V_bounds['lb']['phi', homotopy_variable_name] = 0.
 
     return V_bounds, g_bounds
 

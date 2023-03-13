@@ -95,7 +95,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                 vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
 
-        elif (var_type == 'phi'):
+        elif var_type == 'phi':
             vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
             vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
 
@@ -141,7 +141,6 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 in_reelin_phase = not in_reelout_phase
 
                 at_periodic_initial_control_node = at_initial_control_node and periodic
-                at_nonperiodic_initial_control_node = at_initial_control_node and (not periodic)
                 at_periodic_final_control_node = (kdx == n_k) and periodic and (not coll_flag)
                 at_switching_control_node = (kdx == switch_kdx) and (not coll_flag)
 
@@ -151,38 +150,47 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 at_reelout_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
                 at_reelin_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
 
-                if at_nonperiodic_initial_control_node:
-                    max = given_max_value
-                    min = given_min_value
-                elif at_periodic_initial_control_node:
+                at_reelout_control_node = in_reelout_phase and (not coll_flag)
+                at_reelin_control_node = in_reelin_phase and (not coll_flag)
+
+                if at_periodic_initial_control_node:
                     max = cas.inf
                     min = -cas.inf
+
                 elif at_periodic_final_control_node:
                     max = 0.
                     min = 0.
+
                 elif at_switching_control_node:
                     max = 0.
                     min = 0.
+
                 elif at_collocation_node_without_control_freedom:
                     max = cas.inf
                     min = -cas.inf
+
                 elif at_collocation_node_that_overlaps_with_control_node:
                     max = cas.inf
                     min = -cas.inf
+
                 elif at_reelout_collocation_node_with_control_freedom:
                     max = given_max_value
                     min = 0.
+
                 elif at_reelin_collocation_node_with_control_freedom:
                     max = 0.
                     min = given_min_value
-                elif in_reelout_phase:
+
+                elif at_reelout_control_node:
                     max = given_max_value
                     min = 0.
-                elif in_reelin_phase:
+
+                elif at_reelin_control_node:
                     max = 0.
                     min = given_min_value
                 else:
-                    message = 'unknown node classification within single reel-out phase-fixing'
+                    message = 'node classification within single reel-out phase-fixing, is undefined for node: \n'
+                    message += 'coll_flag = ' + str(coll_flag) + ', kdx = ' + str(kdx) + ', ddx = ' + str(ddx)
                     print_op.log_and_raise_error(message)
 
                 if coll_flag:

@@ -235,7 +235,7 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
     scaling_speed = loyd_reelout_factor * u_ref
     props['scaling_speed'] = scaling_speed
 
-    scaling_acceleration = options['ground_station']['ddl_t_max']
+    scaling_acceleration = options['system_bounds']['x']['ddl_t'][1]
     props['scaling_acc'] = scaling_acceleration
 
     props['seg_diam'] = seg_diam

@@ -28,8 +28,8 @@ python-3.5 / casadi 3.0.0
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, alu-fr 2017-2021
           jochem de schutter, alu-fr 2017
-
 '''
+
 import pdb
 
 import casadi.tools as cas
@@ -38,6 +38,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
+
 
 def generate_structure(options, architecture):
 
@@ -94,8 +95,8 @@ def generate_structure(options, architecture):
 
     # add drag mode states and controls
     if options['trajectory']['system_type'] == 'drag_mode':
-        kite_states += [('kappa', (1,1))]
-        kite_controls += [('dkappa',(1,1))]
+        kite_states += [('kappa', (1, 1))]
+        kite_controls += [('dkappa', (1, 1))]
 
     # _list states, generalized coordinates and controls of all the nodes
     # together
@@ -115,7 +116,8 @@ def generate_structure(options, architecture):
             system_controls.extend(
                 [(kite_controls[i][0] + str(n) + str(parent), kite_controls[i][1]) for i in range(len(kite_controls))])
             system_multipliers.extend(
-                [(kite_multipliers[i][0] + str(n) + str(parent), kite_multipliers[i][1]) for i in range(len(kite_multipliers))])
+                [(kite_multipliers[i][0] + str(n) + str(parent), kite_multipliers[i][1]) for i in
+                 range(len(kite_multipliers))])
 
             system_gc.extend([kite_gc[i] + str(n) + str(parent)
                               for i in range(len(kite_gc))])
@@ -124,9 +126,11 @@ def generate_structure(options, architecture):
             system_states.extend(
                 [(tether_states[i][0] + str(n) + str(parent), tether_states[i][1]) for i in range(len(tether_states))])
             system_controls.extend(
-                [(tether_controls[i][0] + str(n) + str(parent), tether_controls[i][1]) for i in range(len(tether_controls))])
+                [(tether_controls[i][0] + str(n) + str(parent), tether_controls[i][1]) for i in
+                 range(len(tether_controls))])
             system_multipliers.extend(
-                [(tether_multipliers[i][0] + str(n) + str(parent), tether_multipliers[i][1]) for i in range(len(tether_multipliers))])
+                [(tether_multipliers[i][0] + str(n) + str(parent), tether_multipliers[i][1]) for i in
+                 range(len(tether_multipliers))])
 
             system_gc.extend([tether_gc[i] + str(n) + str(parent)
                               for i in range(len(tether_gc))])
@@ -189,7 +193,7 @@ def generate_structure(options, architecture):
         system_derivatives.extend([('d'+system_states[i][0], system_states[i][1])])
 
     # system parameters
-    system_parameters = [('diam_t', (1, 1)), ('t_f',(1,1))]
+    system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
     if options['trajectory']['system_type'] == 'drag_mode':
         system_parameters.extend([('l_t', (1, 1))])
 
@@ -202,32 +206,33 @@ def generate_structure(options, architecture):
         system_parameters += [('l_t_full', (1, 1))]
     
     if 'P_max' in options['system_bounds']['theta'].keys():
-        system_parameters += [('P_max', (1, 1))] # max power
+        system_parameters += [('P_max', (1, 1))]  # max power
 
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
-        system_parameters += [('ell_radius', (1, 1))] # max power
+        system_parameters += [('ell_radius', (1, 1))]
 
     if options['induction_model'] == 'averaged':
-        system_parameters += [('a', (1,1))] # average induction
-        system_parameters += [('ell_theta', (1,1))]
+        system_parameters += [('a', (1, 1))]  # average induction
+        system_parameters += [('ell_theta', (1, 1))]
 
     # add cross-tether lengths and diameters
     if options['cross_tether'] and len(kite_nodes) > 1:
         for l in architecture.layer_nodes:
             system_parameters.extend(
                 [
-                    ('l_c{}'.format(l),(1,1)), ('diam_c{}'.format(l),(1,1))
+                    ('l_c{}'.format(l), (1, 1)), ('diam_c{}'.format(l), (1, 1))
                 ]
             )
 
     # store variables in dict
-    system_variables_list = {'x':system_states,
-                             'xdot':system_derivatives,
-                             'u':system_controls,
-                             'z':system_multipliers+system_lifted,
-                             'theta':system_parameters}
+    system_variables_list = {'x': system_states,
+                             'xdot': system_derivatives,
+                             'u': system_controls,
+                             'z': system_multipliers + system_lifted,
+                             'theta': system_parameters}
 
     return system_variables_list, system_gc
+
 
 def extend_general_induction(options, system_lifted, system_states, architecture):
 
@@ -236,9 +241,11 @@ def extend_general_induction(options, system_lifted, system_states, architecture
 
     return system_lifted, system_states
 
+
 def extend_vortex_induction(options, system_lifted, system_states, architecture):
     system_lifted, system_states = vortex_tools.extend_system_variables(options, system_lifted, system_states, architecture)
     return system_lifted, system_states
+
 
 def extend_actuator_induction(options, system_lifted, system_states, architecture):
 
@@ -290,6 +297,7 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
     return system_lifted, system_states
 
+
 def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
     if options['tether']['lift_tether_force']:
@@ -322,22 +330,30 @@ def extend_aerodynamics(options, system_lifted, system_states, architecture):
 
     return system_lifted, system_states
 
-def define_bounds(options, variables):
+
+def define_bounds(model_system_bounds_options, variables):
 
     variable_bounds = {}
     for variable_type in list(variables.keys()):
         variable_bounds[variable_type] = {}
-        for name in struct_op.subkeys(variables,variable_type):
+        for name in struct_op.subkeys(variables, variable_type):
 
             variable_bounds[variable_type][name] = {}
-            if variable_type in list(options.keys()):
-                var_name, _ = struct_op.split_name_and_node_identifier(name) # omit node numbers
-                if name in list(options[variable_type].keys()): # check if variable has node bounds
-                    variable_bounds[variable_type][name]['lb'] = options[variable_type][name][0]
-                    variable_bounds[variable_type][name]['ub'] = options[variable_type][name][1]
-                elif var_name in list(options[variable_type].keys()): # check if variable has global bounds
-                    variable_bounds[variable_type][name]['lb'] = options[variable_type][var_name][0]
-                    variable_bounds[variable_type][name]['ub'] = options[variable_type][var_name][1]
+            if variable_type in list(model_system_bounds_options.keys()):
+                var_name, _ = struct_op.split_name_and_node_identifier(name)  # omit node numbers
+
+                if name in list(model_system_bounds_options[variable_type].keys()):  # check if variable has node bounds
+                    variable_bounds[variable_type][name]['lb'] = model_system_bounds_options[variable_type][name][0]
+                    variable_bounds[variable_type][name]['ub'] = model_system_bounds_options[variable_type][name][1]
+
+                elif name in list(model_system_bounds_options['x'].keys()): # relevant specifically for the ddl_t/dddl_t control values
+                    variable_bounds[variable_type][name]['lb'] = model_system_bounds_options['x'][name][0]
+                    variable_bounds[variable_type][name]['ub'] = model_system_bounds_options['x'][name][1]
+
+                elif var_name in list(model_system_bounds_options[variable_type].keys()):  # check if variable has global bounds
+                    variable_bounds[variable_type][name]['lb'] = model_system_bounds_options[variable_type][var_name][0]
+                    variable_bounds[variable_type][name]['ub'] = model_system_bounds_options[variable_type][var_name][1]
+
                 else:
                     variable_bounds[variable_type][name]['lb'] = -cas.inf
                     variable_bounds[variable_type][name]['ub'] = cas.inf
@@ -346,6 +362,7 @@ def define_bounds(options, variables):
                 variable_bounds[variable_type][name]['ub'] = cas.inf
 
     return variable_bounds
+
 
 def scale_variable(variables, var_si, scaling):
 
@@ -385,17 +402,18 @@ def generate_system_parameters(options, architecture):
     # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
     parameters = cas.struct_symSX([
-        cas.entry('theta0', struct= parameters_dict['theta0']),
-        cas.entry('phi', struct= parameters_dict['phi'])
+        cas.entry('theta0', struct=parameters_dict['theta0']),
+        cas.entry('phi', struct=parameters_dict['phi'])
     ])
 
     return parameters, parameters_dict
+
 
 def generate_optimization_parameters():
 
     # variable system parameters
     p_dec = cas.struct_symSX([(
-        cas.entry('gamma'), # force homotopy variable
+        cas.entry('gamma'),  # force homotopy variable
         cas.entry('tau'),   # tether drag homotopy variable
         cas.entry('iota'),  # induction homotopy variable
         cas.entry('psi'),    # power homotopy variable
