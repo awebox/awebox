@@ -164,18 +164,20 @@ def setup_nlp_p_fix(V, model):
 
     return p_fix
 
+
 def setup_nlp_p(V, model):
 
     cost = setup_nlp_cost()
     p_fix = setup_nlp_p_fix(V, model)
 
     P = cas.struct_symMX([
-        cas.entry('p',      struct = p_fix),
-        cas.entry('cost',   struct = cost),
-        cas.entry('theta0', struct = model.parameters_dict['theta0'])
+        cas.entry('p', struct=p_fix),
+        cas.entry('cost', struct=cost),
+        cas.entry('theta0', struct=model.parameters_dict['theta0'])
     ])
 
     return P
+
 
 def setup_integral_output_structure(nlp_options, integral_outputs):
 
@@ -185,54 +187,53 @@ def setup_integral_output_structure(nlp_options, integral_outputs):
 
     # interval outputs
     entry_tuple += (
-        cas.entry('int_out', repeat = [nk+1], struct = integral_outputs),
+        cas.entry('int_out', repeat=[nk + 1], struct=integral_outputs),
     )
 
     if nlp_options['discretization'] == 'direct_collocation':
-        d  = nlp_options['collocation']['d']
+        d = nlp_options['collocation']['d']
         entry_tuple += (
-            cas.entry('coll_int_out', repeat = [nk,d], struct = integral_outputs),
+            cas.entry('coll_int_out', repeat=[nk, d], struct=integral_outputs),
         )
 
     Integral_outputs_struct = cas.struct_symMX([entry_tuple])
 
     return Integral_outputs_struct
 
+
 def setup_output_structure(nlp_options, model_outputs, global_outputs):
 
     # create outputs
     nk = nlp_options['n_k']
 
-    entry_tuple =  ()
+    entry_tuple = ()
     if nlp_options['discretization'] == 'direct_collocation':
 
         # extract collocation parameters
-        d  = nlp_options['collocation']['d']
-        scheme = nlp_options['collocation']['scheme']
+        d = nlp_options['collocation']['d']
 
         # define outputs on interval and collocation nodes
         if nlp_options['collocation']['u_param'] == 'poly':
             entry_tuple += (
-                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+                cas.entry('coll_outputs', repeat=[nk, d], struct=model_outputs),
             )
 
         elif nlp_options['collocation']['u_param'] == 'zoh':
             entry_tuple += (
-                cas.entry('outputs',      repeat = [nk],   struct = model_outputs),
-                cas.entry('coll_outputs', repeat = [nk,d], struct = model_outputs),
+                cas.entry('outputs', repeat=[nk], struct=model_outputs),
+                cas.entry('coll_outputs', repeat=[nk, d], struct=model_outputs),
             )
 
     elif nlp_options['discretization'] == 'multiple_shooting':
-
         # define outputs on interval nodes
         entry_tuple += (
-            cas.entry('outputs', repeat = [nk], struct = model_outputs),
+            cas.entry('outputs', repeat=[nk], struct=model_outputs),
         )
 
-    Outputs = cas.struct_symMX([entry_tuple]
-                           + [cas.entry('final', struct=global_outputs)])
+    Outputs = cas.struct_symMX([entry_tuple] + [cas.entry('final', struct=global_outputs)])
 
     return Outputs
+
 
 def discretize(nlp_options, model, formulation):
 
@@ -283,6 +284,8 @@ def discretize(nlp_options, model, formulation):
          Integral_outputs_list,
          Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_options, model, formulation, V, P)
 
+    check_the_dimension_of_xdot(V, model)
+
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
     #-------------------------------------------
@@ -316,19 +319,19 @@ def discretize(nlp_options, model, formulation):
         for kdx in range(nk):
 
             if nlp_options['collocation']['u_param'] == 'zoh':
-                Outputs_list.append(coll_outputs[:,kdx*(d+1)])
+                Outputs_list.append(coll_outputs[:, kdx * (d + 1)])
 
             # add outputs on collocation nodes
             for ddx in range(d):
 
                 # compute outputs for this time interval
                 if nlp_options['collocation']['u_param'] == 'zoh':
-                    Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
+                    Outputs_list.append(coll_outputs[:, kdx * (d + 1) + ddx + 1])
                 elif nlp_options['collocation']['u_param'] == 'poly':
-                    Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
+                    Outputs_list.append(coll_outputs[:, kdx * (d) + ddx])
 
  # Create Outputs struct and function
-    if nlp_options['induction']['induction_model'] == 'vortex': # outputs are need for vortex constraint construction
+    if nlp_options['induction']['induction_model'] == 'vortex':  # outputs are need for vortex constraint construction
         Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
         Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
         Outputs_list.append(global_outputs_fun(V, P))
@@ -345,7 +348,7 @@ def discretize(nlp_options, model, formulation):
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
     Xdot_struct = Xdot
-    Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
+    Xdot_fun = cas.Function('Xdot_fun', [V], [Xdot])
 
     # -------------------------------------------
     # GET CONSTRAINTS
@@ -357,3 +360,34 @@ def discretize(nlp_options, model, formulation):
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 
+def check_the_dimension_of_xdot(V, model):
+
+    number_of_xdot_variables = -1
+    number_of_model_derivatives = -2
+    number_of_z_variables = -3
+    number_of_dynamics_equations = -6
+
+    if 'xdot' in V.keys() and isinstance(V['xdot'], list) and hasattr(V['xdot'][0], 'shape'):
+        number_of_xdot_variables = V['xdot'][0].shape[0]
+
+    if 'xdot' in model.variables_dict.keys():
+        number_of_model_derivatives = model.variables_dict['xdot'].shape[0]
+
+    condition1 = (number_of_xdot_variables == number_of_model_derivatives)
+    if not condition1:
+        message = 'number of xdot variables created in V does not match number of xdot variables created in model'
+        print_op.log_and_raise_error(message)
+
+    if 'z' in V.keys() and isinstance(V['z'], list) and hasattr(V['z'][0], 'shape'):
+        number_of_z_variables = V['z'][0].shape[0]
+    number_of_dae_variables = number_of_z_variables + number_of_xdot_variables
+
+    if hasattr(model.dynamics, 'nnz_out'):
+        number_of_dynamics_equations = model.dynamics.nnz_out()
+
+    condition2 = (number_of_dae_variables == number_of_dynamics_equations)
+    if not condition2:
+        message = 'number of dae-determined variables in V does not match the number of modelled dynamics equations'
+        print_op.log_and_raise_error(message)
+
+    return None

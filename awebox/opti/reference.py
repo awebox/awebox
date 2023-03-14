@@ -82,6 +82,7 @@ def get_reference(nlp, model, V_init, options):
 
     return V_ref
 
+
 def get_stagger_distance(options, model, q_init, q_parent, n, parent):
 
     ehat_l_init = vect_op.normalize(q_init - q_parent)

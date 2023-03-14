@@ -401,7 +401,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V, nlp_options):
+def find_objective(component_costs, V, V_ref, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
@@ -420,13 +420,6 @@ def find_objective(component_costs, V, nlp_options):
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \
                     homotopy_cost
-
-        print_op.warn_about_temporary_functionality_alteration()
-        theta_idx = 1
-        ## theta:
-        # 0: -3.663251605113117e-10
-        temporary_test_objective = 1.e8 * (V['theta'][theta_idx])**2.
-        objective += temporary_test_objective
 
     elif trajectory_type in ['transition', 'mpc']:
         objective = V['phi', 'upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + \
@@ -460,7 +453,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-    component_costs['objective'] = find_objective(component_costs, V, nlp_options)
+    component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
 
     return component_costs
 

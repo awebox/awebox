@@ -45,17 +45,12 @@ def test_zoh():
     return None
 
 
-def run_basic_health_test(final_homotopy_step='final'):
+def test_basic_health():
     options_dict = generate_options_dict()
     trial_name = 'basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
+    solve_trial(options_dict[trial_name], trial_name)
     return None
 
-def test_basic_health():
-    homotopy_steps = ['final']  # ['initial', 'fictitious', 'power', 'final']
-    for final_homotopy_step in homotopy_steps:
-        run_basic_health_test(final_homotopy_step=final_homotopy_step)
-    return None
 
 def test_drag_mode():
 
@@ -273,11 +268,11 @@ def generate_options_dict():
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
     basic_health_options['nlp.n_k'] = 10
     basic_health_options['nlp.collocation.name_constraints'] = True
-    basic_health_options['solver.health_check.when'] = 'failure'  # 'final'
+    basic_health_options['solver.health_check.when'] = 'always'
     # basic_health_options['solver.health_check.raise_exception'] = True
-    basic_health_options['solver.health_check.spy_matrices'] = False
+    basic_health_options['solver.health_check.spy_matrices'] = True
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
-    basic_health_options['solver.max_iter_hippo'] = 100
+    # basic_health_options['solver.max_iter_hippo'] = 100
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]

@@ -594,6 +594,7 @@ def is_inequality_cstr_considered_active(evaluated_lambda, evaluated_expr, activ
 def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
     active_threshold = health_solver_options['thresh']['active']
+    var_equidistant_to_bounds_threhold = health_solver_options['thresh']['var_equidistant_to_bounds']
 
     lam = solution['lam_x']
     lbx = arg['lbx']
@@ -644,15 +645,24 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
         symbolic_lambda = lam_sym[idx]
         symbolic_variable = var_sym[idx]
 
-        local_variable_either_unbounded_or_equality_constrained = (local_lambda == 0)
-        local_variable_is_inequality_constrained = not local_variable_either_unbounded_or_equality_constrained
+        local_variable_either_unbounded_or_equality_constrained_or_exactly_equidistant_between_bounds = (local_lambda == 0)
+        local_variable_is_inequality_constrained = not local_variable_either_unbounded_or_equality_constrained_or_exactly_equidistant_between_bounds
 
-        if local_variable_either_unbounded_or_equality_constrained:
+        if local_variable_either_unbounded_or_equality_constrained_or_exactly_equidistant_between_bounds:
 
             local_variables_is_unbounded = (local_lbx == -cas.inf and local_ubx == cas.inf)
             local_variable_is_equality_constrained = (local_ubx == local_lbx)
 
+            upper_distance = (local_ubx - local_variable)
+            lower_distance = (local_variable - local_lbx)
+            is_equidistant = (upper_distance - lower_distance)**2. < var_equidistant_to_bounds_threhold**2.
+            local_variable_is_exactly_equidistant_between_bounds = (not local_variable_is_equality_constrained) and (not local_variables_is_unbounded) and is_equidistant
+
             if local_variables_is_unbounded:
+                # do not add constraint to relevant list -> do nothing
+                pass
+
+            elif local_variable_is_exactly_equidistant_between_bounds:
                 # do not add constraint to relevant list -> do nothing
                 pass
 
