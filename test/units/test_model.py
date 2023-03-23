@@ -4,6 +4,7 @@
 @author: Jochem De Schutter,
 edit: rachel leuthold, alu-fr 2020
 """
+import pdb
 
 import awebox as awe
 import logging
@@ -12,9 +13,15 @@ import awebox.mdl.architecture as archi
 import numpy as np
 import awebox.mdl.system as system
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.vector_operations as vect_op
+import awebox.opts.kite_data.ampyx_data as ampyx_data
+import awebox.mdl.lagr_dyn_dir.tools as lagr_dyn_tools
 
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
-#
+
+logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
+
+
 def test_architecture():
     """Test architecture construction routines
     """
@@ -35,6 +42,7 @@ def test_architecture():
         assert test_archi.kites_map       == architecture['kites_map']   , 'kite-children map of '+archi_name
 
     return None
+
 
 def generate_architecture_dict():
     """Generate dict containing tree-structured architectures with built
@@ -144,10 +152,14 @@ def test_drag_mode_model():
 
     # test dynamics
     dynamics = model.dynamics(model.variables, model.parameters)
-    assert(cas.jacobian(dynamics,model.variables['x','kappa21']).nnz()!=0)
-    assert(cas.jacobian(dynamics,model.variables['x','kappa31']).nnz()!=0)
-    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
-    assert(cas.jacobian(dynamics,model.variables['u', 'dkappa31']).nnz()!=0)
+    assert (cas.jacobian(dynamics, model.variables['x', 'kappa21']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['x', 'kappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['x', 'kappa21']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['x', 'kappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
 
     # test power expression
     integral_outputs = model.integral_outputs_fun(model.variables, model.parameters)
@@ -157,13 +169,19 @@ def test_drag_mode_model():
     assert (cas.jacobian(integral_outputs, model.variables['z', 'lambda10']).nnz() == 0)
 
     # test variable bounds
-    lb = trial_options['model']['system_bounds']['u']['dkappa'][0]/trial_options['model']['scaling']['x']['kappa']
-    ub = trial_options['model']['system_bounds']['u']['dkappa'][1]/trial_options['model']['scaling']['x']['kappa']
+    lb_si = cas.DM(trial_options['model']['system_bounds']['u']['dkappa'][0])
+    ub_si = cas.DM(trial_options['model']['system_bounds']['u']['dkappa'][1])
 
-    assert(model.variable_bounds['u']['dkappa21']['lb'] == lb)
-    assert(model.variable_bounds['u']['dkappa31']['lb'] == lb)
-    assert(model.variable_bounds['u']['dkappa21']['ub'] == ub)
-    assert(model.variable_bounds['u']['dkappa31']['ub'] == ub)
+    lb21 = struct_op.var_si_to_scaled('u', 'dkappa21', lb_si, model.scaling)
+    ub21 = struct_op.var_si_to_scaled('u', 'dkappa21', ub_si, model.scaling)
+
+    lb31 = struct_op.var_si_to_scaled('u', 'dkappa31', lb_si, model.scaling)
+    ub31 = struct_op.var_si_to_scaled('u', 'dkappa31', ub_si, model.scaling)
+
+    assert(model.variable_bounds['u']['dkappa21']['lb'] == lb21)
+    assert(model.variable_bounds['u']['dkappa31']['lb'] == lb31)
+    assert(model.variable_bounds['u']['dkappa21']['ub'] == ub21)
+    assert(model.variable_bounds['u']['dkappa31']['ub'] == ub31)
 
     if 'dddl_t' in model.variable_bounds['u'].keys():
         assert(model.variable_bounds['u']['dddl_t']['lb'] == 0.0)
@@ -173,10 +191,12 @@ def test_drag_mode_model():
         assert(model.variable_bounds['u']['ddl_t']['ub'] == 0.0)
 
     # test scaling
-    assert(model.scaling['x']['kappa21'] == trial_options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['x']['kappa31'] == trial_options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == trial_options['model']['scaling']['x']['kappa'])
-    assert(model.scaling['u']['dkappa21'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['x', 'kappa21'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['x', 'kappa31'] == trial_options['model']['scaling']['x']['kappa'])
+    assert (model.scaling['xdot', 'dkappa21'] == trial_options['model']['scaling']['x']['kappa'])
+    assert (model.scaling['xdot', 'dkappa31'] == trial_options['model']['scaling']['x']['kappa'])
+    assert(model.scaling['u', 'dkappa21'] == trial_options['model']['scaling']['u']['dkappa'])
+    assert(model.scaling['u', 'dkappa21'] == trial_options['model']['scaling']['u']['dkappa'])
 
     return None
 
@@ -420,3 +440,229 @@ def test_constraint_mechanism():
         assert (res_value)
 
     return None
+
+
+def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad):
+    dl_t_initial_si = 0.
+    ddl_t_initial_si = 0.
+    dddl_t_initial_si = 0.
+
+    theta = cas.DM(pendulum_angle_rad)
+    dtheta = 0.
+    ddtheta = - gravity_si / length_si * cas.sin(theta)
+
+    q_initial_si = length_si * (cas.sin(theta) * vect_op.xhat() - cas.cos(theta) * vect_op.zhat())
+    dq_initial_si = length_si * (cas.cos(theta) * dtheta * vect_op.xhat() + cas.sin(theta) * dtheta * vect_op.zhat())
+    ddq_initial_si = length_si * (
+        (-cas.sin(theta) * dtheta**2. + cas.cos(theta) * ddtheta) * vect_op.xhat() +
+        (cas.cos(theta) * dtheta**2. + cas.sin(theta) * ddtheta) * vect_op.zhat())
+
+    f_resultant = mass_si * ddq_initial_si
+    f_gravity = mass_si * gravity_si * (-1. * vect_op.zhat())
+    f_rod = f_resultant - f_gravity
+    lambda_si = vect_op.norm(f_rod) / length_si
+
+    initial_si = {'q10': q_initial_si,
+                 'dq10': dq_initial_si,
+                 'ddq10': ddq_initial_si,
+                 'l_t': length_si,
+                 'dl_t': dl_t_initial_si,
+                 'ddl_t': ddl_t_initial_si,
+                 'dddl_t': dddl_t_initial_si,
+                  'lambda10': lambda_si}
+    return initial_si
+
+def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
+    options = {}
+    options['user_options.system_model.architecture'] = {1: 0}
+    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.wind.model'] = 'uniform'
+    options['user_options.atmosphere'] = 'uniform'
+    options['params.atmosphere.g'] = gravity_si
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = 'not_in_use'
+    options['user_options.kite_standard'] = ampyx_data.data_dict()
+    options['model.geometry.overwrite.m_k'] = mass_si
+
+    if len(scaling_dict.keys()) > 0:
+        for var_label, scaling_value in scaling_dict.items():
+            options['model.scaling_overwrite.' + var_label] = scaling_value
+
+    trial_options = awe.Options()
+    trial_options.fill_in_seed(options)
+    architecture = archi.Architecture(trial_options['user_options']['system_model']['architecture'])
+    trial_options.build(architecture)
+    model = awe.mdl.model.Model()
+    model.build(trial_options['model'], architecture)
+    return model
+
+def populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si):
+
+    variables = model.variables(0.)
+    parameters = model.parameters(1.23)
+    parameters['theta0', 'atmosphere', 'rho_ref'] = 0.
+    parameters['theta0', 'atmosphere', 'g'] = gravity_si
+    parameters['theta0', 'geometry', 'm_k'] = mass_si
+    parameters['theta0', 'wind', 'u_ref'] = 0.
+    parameters['theta0', 'tether', 'rho'] = 0.
+
+    for var_type in model.variables_dict.keys():
+        for var_name in model.variables_dict[var_type].keys():
+            if var_name in initial_si.keys():
+                variables[var_type, var_name] = struct_op.var_si_to_scaled(var_type, var_name, cas.DM(initial_si[var_name]), model.scaling)
+
+    return variables, parameters
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_matching_scaling(epsilon=1e-8):
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 37.
+    pendulum_angle_rad = np.pi/2. * 0.323
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+
+    model = build_pendulum_test_model(mass_si, gravity_si)
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+
+    dynamics_residual = model.dynamics(variables, parameters)
+    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+
+    if not condition:
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, matching scaling)'
+        raise Exception(message)
+
+    return None
+
+
+def test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling(epsilon=1.):
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 37.
+    pendulum_angle_rad = np.pi/2. * 0.323
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+    initial_si['dq10'] = 50. * initial_si['q10']
+
+    model = build_pendulum_test_model(mass_si, gravity_si)
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+
+    dynamics_residual = model.dynamics(variables, parameters)
+    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) > epsilon**2.
+
+    if not condition:
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, inconsistent extension, matching scaling)'
+        raise Exception(message)
+
+    return None
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling(epsilon=1e-8):
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 37.
+    pendulum_angle_rad = np.pi/2. * 0.323
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+
+    scale1 = 7.1
+    scale2 = 12.3
+
+    scaling_dict = {'x.q': scale1, 'x.dq': scale2}
+
+    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+
+    dynamics_residual = model.dynamics(variables, parameters)
+    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+
+    if not condition:
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, nonmatching-but-scalar scaling)'
+        raise Exception(message)
+
+    return None
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling(epsilon=1e-8):
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 37.
+    pendulum_angle_rad = np.pi/2. * 0.323
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+
+    scaling_dict = {'x.q': [100., 10., 1000.], 'x.dq': [5., 7., 2.]}
+
+    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+
+    dynamics_residual = model.dynamics(variables, parameters)
+    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+
+    if not condition:
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, nonmatching-vector scaling)'
+        raise Exception(message)
+
+    return None
+
+
+def test_time_derivative_under_scaling():
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 37.
+    pendulum_angle_rad = np.pi/2. * 0.323
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+
+    km = 1.e3
+    cm = 1.e-2
+
+    # if the time-derivative of scaled position state [km] is in [km/s]
+    # then time-derivative of si position state [cm] should be 1e(3+2) * velocity state
+
+    scaling_dict = {'x.q': km, 'x.dq': cm}
+
+    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+
+    q10_scaled = model.variables['x', 'q10']
+    q10_si = struct_op.var_scaled_to_si('x', 'q10', q10_scaled, model.scaling)
+    dq10_si_dt = lagr_dyn_tools.time_derivative(q10_si, model.variables, model.architecture, model.scaling)
+    dq10_scaled = model.variables['x', 'dq10']
+    dq10_si = struct_op.var_scaled_to_si('x', 'dq10', dq10_scaled, model.scaling)
+    diff_q = dq10_si_dt - 1.e5 * dq10_si
+
+    fun_diff_q = cas.Function('fun_diff_q', [model.variables], [diff_q])
+    condition_q = fun_diff_q(variables).is_zero()
+
+    dq10_scaled = model.variables['x', 'dq10']
+    dq10_si = struct_op.var_scaled_to_si('x', 'dq10', dq10_scaled, model.scaling)
+    ddq10_si_dt = lagr_dyn_tools.time_derivative(dq10_si, model.variables, model.architecture, model.scaling)
+    ddq10_scaled = model.variables['xdot', 'ddq10']
+    ddq10_si = struct_op.var_scaled_to_si('xdot', 'ddq10', ddq10_scaled, model.scaling)
+    diff_dq = ddq10_si_dt - 1. * ddq10_si
+
+    fun_diff_dq = cas.Function('fun_diff_dq', [model.variables], [diff_dq])
+    condition_dq = fun_diff_dq(variables).is_zero()
+
+    criteria = condition_q and condition_dq
+    if not criteria:
+        message = 'something went wrong when computing time-derivatives with scaled variables'
+        raise Exception(message)
+
+    return None
+
+# test_architecture()
+# test_drag_mode_model()
+# test_constraint_mechanism()
+# test_cross_tether_model()
+# test_tether_moments()
+# test_time_derivative_under_scaling()
+# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_matching_scaling()
+# test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling()
+# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling()
+# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling()

@@ -292,7 +292,7 @@ def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dic
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        initial_conditions_eq_list += [initial_states['x', variable] - var_ref_initial[variable] / model.scaling['x'][variable]]
+        initial_conditions_eq_list += [initial_states['x', variable] - struct_op.var_si_to_scaled('x', variable, var_ref_initial[variable], model.scaling)]
     initial_conditions_eq = cas.vertcat(*initial_conditions_eq_list)
 
     return initial_conditions_eq
@@ -340,7 +340,9 @@ def make_param_terminal_conditions(terminal_model_variables, ref_variables, xi_d
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        terminal_conditions_eq_list += [terminal_states['x', variable] - var_ref_terminal[variable] / model.scaling['x'][variable]]
+        terminal_conditions_eq_list += [
+            terminal_states['x', variable] - struct_op.var_si_to_scaled('x', variable, var_ref_terminal[variable],
+                                                                       model.scaling)]
     terminal_conditions_eq = cas.vertcat(*terminal_conditions_eq_list)
 
     return terminal_conditions_eq

@@ -53,6 +53,8 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_geometry_options(options, help_options, options_tree, fixed_params)
     options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params)
 
+    options_tree, fixed_params = build_scaling_options(options, options_tree, fixed_params)
+
     # problem specifics
     options_tree, fixed_params = build_constraint_applicablity_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_trajectory_options(options, options_tree, fixed_params, architecture)
@@ -220,6 +222,46 @@ def get_dependent_params(geometry, geometry_data):
 
     return geometry
 
+def build_scaling_options(options, options_tree, fixed_params):
+
+    geometry = get_geometry(options)
+
+    l_t = options['model']['scaling']['x']['l_t']
+    q_t = estimate_position_of_main_tether_end(options)
+    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    b_ref = geometry['b_ref']
+    trajectory_radius = induction_varrho_ref * b_ref
+
+    if options['model']['scaling_overwrite']['x']['q'] is None:
+        geometric_mean_distance = (l_t * trajectory_radius)**0.5
+        print_op.warn_about_temporary_functionality_alteration()
+        q_scaling = trajectory_radius
+        # q_scaling = geometric_mean_distance
+        # pdb.set_trace()
+        # q_scaling = 138.
+        # pdb.set_trace()
+        # q_scaling = q_t + b_ref * induction_varrho_ref * vect_op.yhat_dm()
+    else:
+        q_scaling = options['model']['scaling_overwrite']['x']['q']
+    options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
+
+    groundspeed = options['solver']['initialization']['groundspeed']
+    if options['model']['scaling_overwrite']['x']['dq'] is None:
+        print_op.warn_about_temporary_functionality_alteration()
+        # dq_scaling = 1.
+        # dq_scaling = groundspeed
+        dq_scaling = get_u_ref(options['user_options'])
+    else:
+        dq_scaling = options['model']['scaling_overwrite']['x']['dq']
+    options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
+
+    dl_t_scaling = estimate_reelout_speed(options)
+    options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
+
+    kappa_scaling = options['model']['scaling']['x']['kappa']
+    options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
+
+    return options_tree, fixed_params
 
 ##### kite dof
 
@@ -349,7 +391,6 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
     t_f_guess = estimate_time_period(options, architecture)
     options_tree.append(('nlp', 'normalization', None, 't_f', t_f_guess, ('??', None), 'x'))
-
 
     return options_tree, fixed_params
 
@@ -964,13 +1005,13 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     q_ref = get_q_ref(options)
     s_ref = geometry['s_ref']
 
-    # gravity = get_gravity_ref(options)
-    # m_k = geometry['m_k']
-    # acc_max = options['model']['model_bounds']['acceleration']['acc_max']
-    # centripetal_force = m_k * gravity * acc_max
+    gravity = get_gravity_ref(options)
+    m_k = geometry['m_k']
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    centripetal_force = m_k * gravity * acc_max
     aero_force = 0.5 * CL * q_ref * s_ref
 
-    f_scaling = aero_force
+    f_scaling = (aero_force + centripetal_force)/2.
 
     b_ref = geometry['b_ref']
     m_scaling = f_scaling * b_ref / 2.
@@ -981,13 +1022,6 @@ def build_fict_scaling_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'scaling', 'z', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
     options_tree.append(('model', 'scaling', 'z', 'm_aero', m_scaling, ('scaling of aerodynamic forces', None),'x'))
 
-    # q_ref = get_q_ref(options)
-    # l_t_scaling = options['model']['scaling']['x']['l_t']
-    # diam_t_scaling = options['model']['scaling']['theta']['diam_t']
-    # cd = 1.
-    # sin_loss = np.sin(options['solver']['initialization']['inclination_deg'] * np.pi / 180.)
-    #
-    # f_tether_scaling = cd * q_ref * l_t_scaling * diam_t_scaling * sin_loss
     options_tree.append(('model', 'scaling', 'z', 'f_tether', f_scaling, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
@@ -1007,7 +1041,8 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
     lambda_scaling, energy_scaling, power_cost, power = get_suggested_lambda_energy_power_scaling(options, architecture)
 
     if options['model']['scaling_overwrite']['lambda_tree']['include']:
-        options_tree = generate_lambda_scaling_tree(options= options, options_tree= options_tree, lambda_scaling= lambda_scaling, architecture = architecture)
+        options_tree = generate_lambda_scaling_tree(options=options, options_tree=options_tree,
+                                                    lambda_scaling=lambda_scaling, architecture=architecture)
     else:
         options_tree.append(('model', 'scaling', 'z', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
@@ -1029,7 +1064,7 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     description = ('scaling of tether tension per length', None)
 
     # set lambda_scaling
-    options_tree.append(('model', 'scaling', 'z', 'lambda10', lambda_scaling, description,'x'))
+    options_tree.append(('model', 'scaling', 'z', 'lambda10', lambda_scaling, description, 'x'))
 
     # extract architecure options
     layers = architecture.layers
@@ -1101,7 +1136,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
 
 def estimate_power(options, architecture):
 
-    zz = estimate_alitude(options)
+    zz = estimate_altitude(options)
     uu = get_u_at_altitude(options, zz)
     qq = get_q_at_altitude(options, zz)
     power_density = uu * qq
@@ -1129,7 +1164,7 @@ def estimate_power(options, architecture):
     return power
 
 def estimate_reelout_speed(options):
-    zz = estimate_alitude(options)
+    zz = estimate_altitude(options)
     uu = get_u_at_altitude(options, zz)
     loyd_factor = 1. / 3.
     reelout_speed = loyd_factor * uu
@@ -1191,13 +1226,16 @@ def estimate_CD(options):
         CD = rot[0]
     return CD
 
-
-def estimate_alitude(options):
+def estimate_position_of_main_tether_end(options):
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
     length = options['model']['scaling']['x']['l_t']
-    zz = length * np.sin(elevation_angle)
+    q_t = length * (cas.cos(elevation_angle) * vect_op.xhat_dm() + cas.sin(elevation_angle) * vect_op.zhat_dm())
+    return q_t
 
-    return zz
+def estimate_altitude(options):
+    q_t = estimate_position_of_main_tether_end(options)
+    return q_t[2]
+
 
 def estimate_tether_lambda(options, architecture):
 

@@ -373,9 +373,9 @@ def check_the_dimension_of_xdot(V, model):
     if 'xdot' in model.variables_dict.keys():
         number_of_model_derivatives = model.variables_dict['xdot'].shape[0]
 
-    condition1 = (number_of_xdot_variables == number_of_model_derivatives)
+    condition1 = ('xdot' not in V.keys()) or (number_of_xdot_variables == number_of_model_derivatives)
     if not condition1:
-        message = 'number of xdot variables created in V does not match number of xdot variables created in model'
+        message = 'number of xdot variables created in V (' + str(number_of_xdot_variables) + ') does not match number of xdot variables created in model (' + str(number_of_model_derivatives) + ')'
         print_op.log_and_raise_error(message)
 
     if 'z' in V.keys() and isinstance(V['z'], list) and hasattr(V['z'][0], 'shape'):
@@ -385,9 +385,9 @@ def check_the_dimension_of_xdot(V, model):
     if hasattr(model.dynamics, 'nnz_out'):
         number_of_dynamics_equations = model.dynamics.nnz_out()
 
-    condition2 = (number_of_dae_variables == number_of_dynamics_equations)
+    condition2 = ('xdot' not in V.keys()) or (number_of_dae_variables == number_of_dynamics_equations)
     if not condition2:
-        message = 'number of dae-determined variables in V does not match the number of modelled dynamics equations'
+        message = 'number of dae-determined variables in V (' + str(number_of_dae_variables) + ') does not match the number of modelled dynamics equations (' + str(number_of_dynamics_equations) + ')'
         print_op.log_and_raise_error(message)
 
     return None

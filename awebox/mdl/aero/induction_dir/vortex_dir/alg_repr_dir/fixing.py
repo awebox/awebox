@@ -204,7 +204,7 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
 
     int_name = 'integrated_circulation' + str(kite_shed)
-    local_scaling = model.scaling['x'][int_name]
+    local_scaling = model.scaling['x', int_name]
 
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)

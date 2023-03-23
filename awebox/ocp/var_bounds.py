@@ -46,7 +46,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     vars_lb = V(-cas.inf)
     vars_ub = V(cas.inf)
 
-    distinct_variables = struct_op.get_distinct_V_indices(V)
+    set_of_canonical_names_on_zeroth_dim = struct_op.get_set_of_canonical_names_for_V_variables_without_dimensions(V)
 
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
@@ -54,9 +54,9 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     periodic = perf_op.determine_if_periodic(nlp_options)
 
     # fill in bounds
-    for canonical in distinct_variables:
+    for canonical_name in set_of_canonical_names_on_zeroth_dim:
 
-        [var_is_coll_var, var_type, kdx, ddx, name, dim] = struct_op.get_V_index(canonical)
+        [var_is_coll_var, var_type, kdx, ddx, name, _] = struct_op.get_V_index(canonical_name)
         use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
         if (var_type == 'x'):
@@ -148,7 +148,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 at_collocation_node_that_overlaps_with_control_node = coll_flag and (ddx == d-1) and radau_scheme
                 at_collocation_node_with_control_freedom = coll_flag and poly_controls and (not at_collocation_node_that_overlaps_with_control_node)
                 at_reelout_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
-                at_reelin_collocation_node_with_control_freedom = in_reelout_phase and at_collocation_node_with_control_freedom
+                at_reelin_collocation_node_with_control_freedom = in_reelin_phase and at_collocation_node_with_control_freedom
 
                 at_reelout_control_node = in_reelout_phase and (not coll_flag)
                 at_reelin_control_node = in_reelin_phase and (not coll_flag)

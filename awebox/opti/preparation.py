@@ -170,7 +170,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
 
     for name in struct_op.subkeys(model.variables, 'theta'):
         if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
-            initial_si_value = options['initialization']['theta'][name]
+            initial_si_value = cas.DM(options['initialization']['theta'][name])
             initial_scaled_value = struct_op.var_si_to_scaled('theta', name, initial_si_value, model.scaling)
 
             V_bounds['ub']['theta', name] = initial_scaled_value
@@ -315,6 +315,7 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
         print_op.log_and_raise_error(message)
 
     solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
+    print_op.warn_about_temporary_functionality_alteration()
 
     solvers = {}
     solvers['all'] = solver

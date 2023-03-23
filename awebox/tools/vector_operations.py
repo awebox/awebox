@@ -809,6 +809,8 @@ def test_altitude():
 def is_numeric(val):
     return isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray)
 
+def is_numeric_columnar(val):
+    return is_numeric(val) and (cas.DM(val).shape[1] == 1)
 
 def is_numeric_scalar(val):
     if isinstance(val, float):

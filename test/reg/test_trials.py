@@ -269,21 +269,15 @@ def generate_options_dict():
     basic_health_options['nlp.n_k'] = 10
     basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.when'] = 'always'
-    # basic_health_options['solver.health_check.raise_exception'] = True
-    basic_health_options['solver.health_check.spy_matrices'] = True
+    basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.hippo_strategy'] = False
+    basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
-    # basic_health_options['solver.max_iter_hippo'] = 100
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
     basic_health_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
-    # basic_health_options['solver.cost.psi.1'] = 1e4
-    # basic_health_options['solver.cost_factor.power'] = 1e3
-    basic_health_options['solver.weights.l_t'] = 1e-3
-    basic_health_options['solver.weights.dl_t'] = 1e-3
     basic_health_options['solver.weights.ddl_t'] = 1e-3
-    basic_health_options['solver.weights.dddl_t'] = 1e-3
-
 
      # define options list
     options_dict = collections.OrderedDict()
@@ -351,7 +345,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
 # test_single_kite()
 # test_zoh()
-test_basic_health()
+# test_basic_health()
 # test_drag_mode()
 # test_save_trial()
 # test_dual_kite()

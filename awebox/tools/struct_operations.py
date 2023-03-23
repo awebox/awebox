@@ -383,7 +383,8 @@ def variables_si_to_scaled(model_variables, variables_si, scaling):
         var_name = canonical[1]
         kdx = canonical[2]
 
-        variables_scaled[var_type, var_name, kdx] = var_si_to_scaled(var_type, var_name, variables_scaled.cat[idx], scaling)
+        if kdx == 0:
+            variables_scaled[var_type, var_name] = var_si_to_scaled(var_type, var_name, variables_scaled[var_type, var_name], scaling)
 
     return variables_scaled
 
@@ -396,102 +397,111 @@ def variables_scaled_to_si(model_variables, variables_scaled, scaling):
         var_type = canonical[0]
         var_name = canonical[1]
         kdx = canonical[2]
-
-        new = var_scaled_to_si(var_type, var_name, variables_scaled.cat[idx], scaling)
-        stacked = cas.vertcat(stacked, new)
+        if kdx == 0:
+            new = var_scaled_to_si(var_type, var_name, variables_scaled[var_type, var_name], scaling)
+            stacked = cas.vertcat(stacked, new)
 
     variables_si = model_variables(stacked)
     return variables_si
 
 
+def should_variable_be_scaled(var_type, var_name, var_scaled, scaling):
+
+    end_of_message = '. proceeding with unit scaling.'
+    var_identifier = var_type + ' variable ' + var_name
+
+    if (var_type == 'phi') or (var_type == 'xi'):
+        return False, None
+
+    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in subkeys(scaling, var_type))
+    if not scaling_defined_for_variable:
+        message = 'scaling information unavailable for ' + var_identifier + end_of_message
+        return False, message
+
+    scale = scaling[var_type, var_name]
+    var_scaled_and_scaling_have_matching_shapes = hasattr(var_scaled, 'shape') and hasattr(scale, 'shape') and (var_scaled.shape == scale.shape)
+    if (not var_scaled_and_scaling_have_matching_shapes) and (not var_name == 't_f'):
+        message = 'shape mismatch between ' + var_identifier + ' value-to-be-scaled ' + repr(var_scaled.shape) + ' and scaling information ' + repr(scale.shape) + end_of_message
+        print_op.log_and_raise_error(message)
+        return False, message
+
+    scaling_is_numeric_columnar = vect_op.is_numeric_columnar(scale)
+    if not scaling_is_numeric_columnar:
+        message = 'scaling information for ' + var_identifier + ' is not numeric and columnar' + end_of_message
+        return False, message
+
+    scaling_will_return_same_value_anyway = cas.diag(scale).is_eye()
+    if scaling_will_return_same_value_anyway:
+        return False, None
+
+    return True, None
+
+
 def var_si_to_scaled(var_type, var_name, var_si, scaling):
+    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
+    if message is not None:
+        print_op.base_print(message, level='warning')
 
-    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
-    if scaling_defined_for_variable:
-
-        scale = scaling[var_type][var_name]
-
-        if scale.shape == (1, 1):
-
-            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
-            if use_unit_scaling:
-                return var_si
-            else:
-                var_scaled = var_si / scale
-                if type(var_si) == np.ndarray:
-                    var_scaled = var_scaled.full()
-                return var_scaled
-
-        else:
-            matrix_factor = cas.inv(cas.diag(scale))
-            return cas.mtimes(matrix_factor, var_si)
-
+    if should_multiply:
+        scale = scaling[var_type, var_name]
+        scaling_matrix = cas.inv(cas.diag(scale))
+        return cas.mtimes(scaling_matrix, var_si)
     else:
         return var_si
 
-
 def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
 
-    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
-    if scaling_defined_for_variable:
+    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
+    if message is not None:
+        print_op.base_print(message, level='warning')
 
-        scale = scaling[var_type][var_name]
-
-        if scale.shape == (1, 1):
-
-            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
-            if use_unit_scaling:
-                return var_scaled
-            else:
-                return var_scaled * scale
-        else:
-            matrix_factor = cas.diag(scale)
-            return cas.mtimes(matrix_factor, var_scaled)
-
+    if should_multiply:
+        scale = scaling[var_type, var_name]
+        scaling_matrix = cas.diag(scale)
+        return cas.mtimes(scaling_matrix, var_scaled)
     else:
         return var_scaled
 
 
-def get_distinct_V_indices(V):
+def get_set_of_canonical_names_for_V_variables_without_dimensions(V):
 
-    distinct_indices = set([])
 
-    number_V_entries = V.shape[0]
+    set_of_canonical_names_without_dimensions = set([])
+    number_V_entries = V.cat.shape[0]
     for edx in range(number_V_entries):
-        index = V.getCanonicalIndex(edx)
+        canonical = V.getCanonicalIndex(edx)
+        set_of_canonical_names_without_dimensions.add(canonical[:-1])
+    return set_of_canonical_names_without_dimensions
 
-        distinct_indices.add(index[:-1])
-
-    return distinct_indices
 
 def si_to_scaled(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
-    distinct_V_indices = get_distinct_V_indices(V)
-    for index in distinct_V_indices:
+    set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
+    for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(index) == 2:
-            var_type = index[0]
-            var_name = index[1]
+        if len(local_canonical) == 2:
+            var_type = local_canonical[0]
+            var_name = local_canonical[1]
             var_si = V[var_type, var_name]
             V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        elif len(index) == 3:
-            var_type = index[0]
-            kdx = index[1]
-            var_name = index[2]
+        elif len(local_canonical) == 3:
+            var_type = local_canonical[0]
+            kdx = local_canonical[1]
+            var_name = local_canonical[2]
             var_si = V[var_type, kdx, var_name]
             V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        elif (len(index) == 5) and (index[0] == 'coll_var'):
-            kdx = index[1]
-            ddx = index[2]
-            var_type = index[3]
-            var_name = index[4]
+        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+            kdx = local_canonical[1]
+            ddx = local_canonical[2]
+            var_type = local_canonical[3]
+            var_name = local_canonical[4]
             var_si = V['coll_var', kdx, ddx, var_type, var_name]
             V['coll_var', kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
         else:
-            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables from si'
+            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
             print_op.log_and_raise_error(message)
 
     return V
@@ -500,31 +510,31 @@ def si_to_scaled(V_ori, scaling):
 def scaled_to_si(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
-    distinct_V_indices = get_distinct_V_indices(V)
-    for index in distinct_V_indices:
+    set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
+    for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(index) == 2:
-            var_type = index[0]
-            var_name = index[1]
-            var_scaled = V[var_type, var_name]
-            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        if len(local_canonical) == 2:
+            var_type = local_canonical[0]
+            var_name = local_canonical[1]
+            var_si = V[var_type, var_name]
+            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
 
-        elif len(index) == 3:
-            var_type = index[0]
-            kdx = index[1]
-            var_name = index[2]
-            var_scaled = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        elif len(local_canonical) == 3:
+            var_type = local_canonical[0]
+            kdx = local_canonical[1]
+            var_name = local_canonical[2]
+            var_si = V[var_type, kdx, var_name]
+            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
 
-        elif (len(index) == 5) and (index[0] == 'coll_var'):
-            kdx = index[1]
-            ddx = index[2]
-            var_type = index[3]
-            var_name = index[4]
-            var_scaled = V['coll_var', kdx, ddx, var_type, var_name]
-            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+            kdx = local_canonical[1]
+            ddx = local_canonical[2]
+            var_type = local_canonical[3]
+            var_name = local_canonical[4]
+            var_si = V['coll_var', kdx, ddx, var_type, var_name]
+            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
         else:
-            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables to si'
+            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
             print_op.log_and_raise_error(message)
 
     return V
@@ -555,13 +565,20 @@ def interval_slice_to_vec(interval_slice):
 
     return interval_vec
 
-def get_variable_type(model, name):
+def get_variable_type(container, name):
 
-    if type(model) == dict:
-        variables_dict = model
+    if isinstance(container, dict):
+        variables_dict = container
 
-    elif model.type == 'Model':
-        variables_dict = model.variables_dict
+    elif hasattr(container, 'type') and container.type == 'Model' and hasattr(container, 'variables_dict'):
+        variables_dict = container.variables_dict
+
+    else:
+        variables_dict = {}
+        for var_type in container.keys():
+            variables_dict[var_type] = {}
+            for var_name in subkeys(container, var_type):
+                variables_dict[var_type][var_name] = None
 
     for variable_type in set(variables_dict.keys()) - set(['xdot']):
         if name in list(variables_dict[variable_type].keys()):

@@ -29,6 +29,7 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, alu-fr 2018
 - edited: jochem de schutter, alu-fr 2018-2020
 '''
+import pdb
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
@@ -153,6 +154,7 @@ def define_costs_to_update(P, formulation):
 
 def define_bounds_to_update(model, bounds_schedule, formulation):
 
+    # it takes one update per bound, therefore two updates to reset both the lower and upper bounds.
     updates = {}
 
     initial_updates = {}

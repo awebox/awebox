@@ -21,8 +21,10 @@ def build_initial_guess_problem(initialization_type='default'):
     options['user_options.kite_standard'] = ampyx_data.data_dict()
     options['solver.initialization.initialization_type'] = initialization_type
     options['model.tether.control_var'] = 'dddl_t'
+    options['solver.hippo_strategy'] = False
+    options['solver.generate_solvers'] = False
 
-    # make trial, build and run
+     # make trial, build and run
     trial = awe.Trial(name='test', seed=options)
     trial.build()
     trial.optimize(final_homotopy_step='initial_guess')

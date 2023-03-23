@@ -22,7 +22,7 @@ def test_visualization():
     options['user_options.system_model.architecture'] = {1:0}
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options.trajectory.type'] = 'lift_mode'
+    options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.induction_model'] = 'not_in_use'
     options['nlp.n_k'] = 2
@@ -75,6 +75,5 @@ def test_animation():
     trial.plot('animation')
     os.remove('trial1.mp4')
 
-
-test_visualization()
-test_animation()
+# test_visualization()
+# test_animation()

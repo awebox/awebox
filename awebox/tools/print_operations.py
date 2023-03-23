@@ -380,7 +380,21 @@ def print_dict_as_dot_separated_two_column_table(dict, level='info'):
     return None
 
 def print_dot_separated_info(name, value, level='info'):
-    message = "{:.<26}: {}".format(name, value)
+
+    if isinstance(value, complex) and (np.imag(value) == 0.0):
+        value = np.real(value)
+
+    value_is_moderate_valued_float = isinstance(value, float) and (np.log10(np.abs(value)) > -4.) and (np.log10(np.abs(value)) < 4.)
+
+    if isinstance(value, int) or value_is_moderate_valued_float or isinstance(value, str) or isinstance(value, dict):
+        message = "{:.<26}: {}".format(name, value)
+    elif isinstance(value, float):
+        message = "{:.<26}: {:.4E}".format(name, value)
+    else:
+        pdb.set_trace()
+        error_message = 'unexpected type for object value (' + repr(value) + ')'
+        log_and_raise_error(error_message)
+
     base_print(message, level=level)
     return None
 

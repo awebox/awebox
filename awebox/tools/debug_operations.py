@@ -484,24 +484,25 @@ def collect_equality_and_active_inequality_constraints(health_solver_options, nl
     equality_constraints = eq_fun(nlp.g_fun(var_sym, p_sym))
     equality_lambdas = eq_fun(lam_g_sym)
 
-    _, active_ineq_labels, active_fun = collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
-    active_inequality_constraints = active_fun(nlp.g_fun(var_sym, p_sym))
-    active_inequality_lambdas = active_fun(lam_g_sym)
+    _, strongly_active_ineq_labels, strongly_active_fun = collect_strongly_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num)
+    strongly_active_inequality_constraints = strongly_active_fun(nlp.g_fun(var_sym, p_sym))
+    strongly_active_inequality_lambdas = strongly_active_fun(lam_g_sym)
 
     var_constraint_functions = collect_var_constraints(health_solver_options, nlp, arg, solution)
-    all_active_var_bounds = var_constraint_functions['all_act_fun'](var_sym, lbx_sym, ubx_sym)
-    all_active_var_lambdas = var_constraint_functions['all_act_lam_fun'](lam_x_sym)
-    all_active_var_labels = var_constraint_functions['all_act_labels']
+    all_nonzero_magnitude_var_bounds = var_constraint_functions['all_nonzero_magnitude_fun'](var_sym, lbx_sym, ubx_sym)
+    all_nonzero_magnitude_var_lambdas = var_constraint_functions['all_nonzero_magnitude_lam_fun'](lam_x_sym)
+    all_nonzero_magnitude_var_labels = var_constraint_functions['all_nonzero_magnitude_labels']
 
-    stacked_constraints = cas.vertcat(equality_constraints, active_inequality_constraints, all_active_var_bounds)
+    stacked_constraints = cas.vertcat(equality_constraints, strongly_active_inequality_constraints, all_nonzero_magnitude_var_bounds)
     stacked_cstr_fun = cas.Function('stacked_cstr_fun', [var_sym, p_sym, lbx_sym, ubx_sym], [stacked_constraints])
 
-    stacked_lambdas = cas.vertcat(equality_lambdas, active_inequality_lambdas, all_active_var_lambdas)
+    stacked_lambdas = cas.vertcat(equality_lambdas, strongly_active_inequality_lambdas, all_nonzero_magnitude_var_lambdas)
     stacked_lam_fun = cas.Function('stacked_lam_fun', [lam_x_sym, lam_g_sym], [stacked_lambdas])
 
-    stacked_labels = eq_labels + active_ineq_labels + all_active_var_labels
+    stacked_labels = eq_labels + strongly_active_ineq_labels + all_nonzero_magnitude_var_labels
 
     return stacked_cstr_fun, stacked_lam_fun, stacked_labels
+
 
 def collect_type_constraints(nlp, cstr_type):
 
@@ -537,25 +538,26 @@ def collect_equality_constraints(nlp):
 def collect_inequality_constraints(nlp):
     return collect_type_constraints(nlp, 'ineq')
 
-def collect_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num):
+def collect_strongly_active_inequality_constraints(health_solver_options, nlp, solution, p_fix_num):
 
     active_threshold = health_solver_options['thresh']['active']
+    weak_threshold = health_solver_options['thresh']['weak']
     v_vals = solution['x']
 
-    active_constraints = []
+    strongly_active_constraints = []
     list_names = []
-    active_sym = []
+    strongly_active_sym = []
 
     [g_ineq, g_ineq_names, ineq_fun] = collect_inequality_constraints(nlp)
 
     # list the evaluated constraints at solution
-    ocp_cstr_list = nlp.ocp_cstr_list
+    # ocp_cstr_list = nlp.ocp_cstr_list
 
     g = nlp.g
     g_fun = nlp.g_fun
     g_vals = g_fun(v_vals, p_fix_num)
     g_sym = cas.SX.sym('g_sym', g.shape)
-    g_names = ocp_cstr_list.get_name_list('all')
+    # g_names = ocp_cstr_list.get_name_list('all')
 
     # list the multipliers lambda at solution
     lam_vals = solution['lam_g']
@@ -570,31 +572,54 @@ def collect_active_inequality_constraints(health_solver_options, nlp, solution, 
             local_g = g_ineq_vals[gdx]
             local_lam = lambda_ineq_vals[gdx]
             local_name = g_ineq_names[gdx]
+            inequality_cstr_is_considered_strongly_active = is_inequality_cstr_considered_strongly_active(local_lam, local_g, active_threshold, weak_threshold)
 
-            inequality_cstr_is_considered_active = is_inequality_cstr_considered_active(local_lam, local_g, active_threshold)
-            if inequality_cstr_is_considered_active:
+            if inequality_cstr_is_considered_strongly_active:
 
-                # append active constraints to active_list
-                active_constraints = cas.vertcat(active_constraints, local_g)
+                # append strongly active constraints to strongly active_list
+                strongly_active_constraints = cas.vertcat(strongly_active_constraints, local_g)
 
                 list_names += [local_name]
-                active_sym = cas.vertcat(active_sym, g_ineq_sym[gdx])
+                strongly_active_sym = cas.vertcat(strongly_active_sym, g_ineq_sym[gdx])
 
-    active_fun = cas.Function('active_fun', [g_sym], [active_sym])
+    strongly_active_fun = cas.Function('strongly_active_fun', [g_sym], [strongly_active_sym])
 
     # return active_list
-    return active_constraints, list_names, active_fun
+    return strongly_active_constraints, list_names, strongly_active_fun
+
 
 def is_inequality_cstr_considered_active(evaluated_lambda, evaluated_expr, active_threshold):
+
+    if active_threshold < 1:
+        message = 'the threshold for an active inequality appears to be improperly set. '
+        message += 'for a meaningful test, the threshold should be greater than one. it is currently: ' + str(active_threshold)
+        print_op.base_print(message, level='warning')
+
     ineq_cstr_evaluates_to_approx_zero = (
                 evaluated_lambda ** 2. > (active_threshold * evaluated_expr) ** 2.)
     return ineq_cstr_evaluates_to_approx_zero
 
 
+def is_inequality_cstr_considered_strongly_active(evaluated_lambda, evaluated_expr, active_threshold, weak_threshold):
+
+    ineq_cstr_evaluates_to_approx_zero = is_inequality_cstr_considered_active(evaluated_lambda, evaluated_expr, active_threshold)
+
+    if weak_threshold < 1e-15 or weak_threshold > 1e-2:
+        message = 'the threshold for a weakly-active inequality appears to be improperly set. '
+        message += 'for a meaningful test, the threshold should be greater than small and positive. it is currently: ' + str(weak_threshold)
+        print_op.base_print(message, level='warning')
+
+    multiplier_evaluates_to_zero = (evaluated_lambda**2. < weak_threshold**2.)
+    strongly_active = ineq_cstr_evaluates_to_approx_zero and (not multiplier_evaluates_to_zero)
+
+    return strongly_active
+
+
 def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
     active_threshold = health_solver_options['thresh']['active']
-    var_equidistant_to_bounds_threhold = health_solver_options['thresh']['var_equidistant_to_bounds']
+    weak_threshold = health_solver_options['thresh']['weak']
+    var_equidistant_to_bounds_threshold = health_solver_options['thresh']['var_equidistant_to_bounds']
 
     lam = solution['lam_x']
     lbx = arg['lbx']
@@ -621,10 +646,10 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     inequality_vars = []
     inequality_labels = []
 
-    active_cstr = []
-    active_lambdas = []
-    active_vars = []
-    active_labels = []
+    strongly_active_cstr = []
+    strongly_active_lambdas = []
+    strongly_active_vars = []
+    strongly_active_labels = []
 
     selection_error_message = 'something went badly wrong with an if-elif statement expected to be mutually-exclusive'
 
@@ -655,7 +680,7 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
             upper_distance = (local_ubx - local_variable)
             lower_distance = (local_variable - local_lbx)
-            is_equidistant = (upper_distance - lower_distance)**2. < var_equidistant_to_bounds_threhold**2.
+            is_equidistant = (upper_distance - lower_distance)**2. < var_equidistant_to_bounds_threshold**2.
             local_variable_is_exactly_equidistant_between_bounds = (not local_variable_is_equality_constrained) and (not local_variables_is_unbounded) and is_equidistant
 
             if local_variables_is_unbounded:
@@ -711,13 +736,13 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
             relevant_vars = cas.vertcat(relevant_vars, symbolic_variable)
             relevant_labels += [name_idx]
 
-            inequality_cstr_is_considered_active = is_inequality_cstr_considered_active(bound_selected_evaluated_lambda, bound_selected_evaluated_expr, active_threshold)
-            if inequality_cstr_is_considered_active:
+            inequality_cstr_is_considered_strongly_active = is_inequality_cstr_considered_strongly_active(bound_selected_evaluated_lambda, bound_selected_evaluated_expr, active_threshold, weak_threshold)
+            if inequality_cstr_is_considered_strongly_active:
 
-                active_cstr = cas.vertcat(active_cstr, bound_selected_symbolic_expr)
-                active_lambdas = cas.vertcat(active_lambdas, bound_selected_symbolic_lambda)
-                active_vars = cas.vertcat(active_vars, symbolic_variable)
-                active_labels += [name_idx]
+                strongly_active_cstr = cas.vertcat(strongly_active_cstr, bound_selected_symbolic_expr)
+                strongly_active_lambdas = cas.vertcat(strongly_active_lambdas, bound_selected_symbolic_lambda)
+                strongly_active_vars = cas.vertcat(strongly_active_vars, symbolic_variable)
+                strongly_active_labels += [name_idx]
 
         else:
             print_op.log_and_raise_error(selection_error_message)
@@ -734,15 +759,15 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     var_constraint_functions['ineq_vars_fun'] = cas.Function('ineq_vars_fun', [var_sym], [inequality_vars])
     var_constraint_functions['ineq_labels'] = inequality_labels
 
-    var_constraint_functions['act_ineq_fun'] = cas.Function('act_ineq_fun', [var_sym, lbx_sym, ubx_sym], [active_cstr])
-    var_constraint_functions['act_ineq_lam_fun'] = cas.Function('act_ineq_lam_fun', [lam_sym], [active_lambdas])
-    var_constraint_functions['act_ineq_vars_fun'] = cas.Function('act_ineq_vars_fun', [var_sym], [active_vars])
-    var_constraint_functions['act_ineq_labels'] = active_labels
+    var_constraint_functions['strongly_active_ineq_fun'] = cas.Function('strongly_active_ineq_fun', [var_sym, lbx_sym, ubx_sym], [strongly_active_cstr])
+    var_constraint_functions['strongly_active_ineq_lam_fun'] = cas.Function('strongly_active_ineq_lam_fun', [lam_sym], [strongly_active_lambdas])
+    var_constraint_functions['strongly_active_ineq_vars_fun'] = cas.Function('strongly_active_ineq_vars_fun', [var_sym], [strongly_active_vars])
+    var_constraint_functions['strongly_active_ineq_labels'] = strongly_active_labels
 
-    var_constraint_functions['all_act_fun'] = cas.Function('all_act_fun', [var_sym, lbx_sym, ubx_sym], [cas.vertcat(equality_cstr, active_cstr)])
-    var_constraint_functions['all_act_lam_fun'] = cas.Function('all_act_lam_fun', [lam_sym], [cas.vertcat(equality_lambdas, active_lambdas)])
-    var_constraint_functions['all_act_vars_fun'] = cas.Function('all_act_vars_fun', [var_sym], [cas.vertcat(equality_vars, active_vars)])
-    var_constraint_functions['all_act_labels'] = equality_labels + active_labels
+    var_constraint_functions['all_nonzero_magnitude_fun'] = cas.Function('all_nonzero_magnitude_fun', [var_sym, lbx_sym, ubx_sym], [cas.vertcat(equality_cstr, strongly_active_cstr)])
+    var_constraint_functions['all_nonzero_magnitude_lam_fun'] = cas.Function('all_nonzero_magnitude_lam_fun', [lam_sym], [cas.vertcat(equality_lambdas, strongly_active_lambdas)])
+    var_constraint_functions['all_nonzero_magnitude_vars_fun'] = cas.Function('all_nonzero_magnitude_vars_fun', [var_sym], [cas.vertcat(equality_vars, strongly_active_vars)])
+    var_constraint_functions['all_nonzero_magnitude_labels'] = equality_labels + strongly_active_labels
 
     var_constraint_functions['rel_fun'] = cas.Function('rel_fun', [var_sym, lbx_sym, ubx_sym], [relevant_cstr])
     var_constraint_functions['rel_lam_fun'] = cas.Function('rel_lam_fun', [lam_sym], [relevant_lambdas])

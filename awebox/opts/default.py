@@ -231,15 +231,16 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'x',     'q',        1.,     ('kite position natural length [m]', None), 'x'),
         ('model',  'scaling', 'x',     'l_t',      500.,     ('main tether natural length [m]', None), 'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
-        ('model',  'scaling', 'other',  'g',	    9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
+        ('model',  'scaling', 'other', 'g',	       9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None), 'x'),
 
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
+        ('model',   'scaling_overwrite',    'x',            'q',                None,   ('kite position natural length [m]', None), 'x'),
+        ('model',   'scaling_overwrite',    'x',            'dq',               None,   ('kite position natural speed [m/s]', None), 'x'),
 
         ('model',  'jit_code_gen',  None, 'include',                    False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',  None, 'compiler',                   'clang',                ('compiler for generated code'),'t'),
@@ -356,7 +357,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'max_cone_angle_single',30.,        ('maximum allowed cone angle allowed in initial guess, for single-kite scenarios [deg]', None),'x'),
         ('solver',  'initialization', None, 'landing_velocity',     22.,        ('initial guess for average reel in velocity during the landing [m/s]', None),'x'),
         ('solver',  'initialization', None, 'clockwise_rotation_about_xhat', True,    ('True: if the kites rotate clockwise about xhat, False: if the kites rotate counter-clockwise about xhat', [True, False]), 'x'),
-        ('solver',  'initialization', None, 'init_clipping',        True,    ('clip initial guess parameters to reasonable values', [True, False]), 'x'),
+        ('solver',  'initialization', None, 'init_clipping',        True,       ('clip initial guess parameters to reasonable values', [True, False]), 'x'),
+        ('solver',  'initialization', None, 'use_reference_to_check_scaling', False, ('use the reference values, to indicate whether variable scaling could be improved for better nlp health', [True, False]), 'x'),
 
         ('solver',  'initialization', 'theta',  'l_i',      100.,     ('intermediate tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
@@ -430,7 +432,6 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'compromised_battery',  1,  1e1,        ('update cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       1,      1e-1,        ('update cost for transition', None), 's'),
 
-        ('solver',  'cost',             'fictitious',           2,  1.e0,       ('second update cost for fictitious', None), 's'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'s'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),
@@ -439,6 +440,7 @@ def set_default_options(default_user_options, help_options):
         ### problem health diagnostics options
         ('solver',  'health_check',     None,       'when',                     'never',  ('run a health-check never (never), after every homotopy step (always, CAUTION: VERY SLOW!), when a homotopy step fails (failure, caution: slow), at final solution (final, caution: slow), at either failure or final solution (failure_or_final, caution:slow)', ['never', 'always', 'failure', 'final', 'failure_or_final']), 'x'),
         ('solver',  'health_check',     'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
+        ('solver',  'health_check',     'thresh',   'weak',                     1e-6,   ('threshold for a constraint to be considered weakly active (abs[lambda] < threshold. should be small and positive', None), 'x'),
         ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-8,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
         ('solver',  'health_check',     'thresh',   'condition_number',         1e9,    ('problem ill-conditioning test threshold - largest problem condition number (ratio between max/min singular values) [-]', None), 'x'),
         ('solver',  'health_check',     'tol',      'reduced_hessian_null',     1e-8,   ('tolerance of null-space computation on reduced hessian', None), 'x'),
