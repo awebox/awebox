@@ -86,12 +86,12 @@ def get_reference(nlp, model, V_init, options):
                                                                                 n, parent)
 
     if options['initialization']['use_reference_to_check_scaling']:
-        check_order_of_magnitudes_of_reference_values(V_ref)
+        check_order_of_magnitudes_of_reference_values(V_ref, model_scaling=model.scaling)
 
     return V_ref
 
 
-def check_order_of_magnitudes_of_reference_values(V_ref, orders_of_magnitude_threshold=1, zero_threshold=1e-8):
+def check_order_of_magnitudes_of_reference_values(V_ref, orders_of_magnitude_threshold=1., zero_threshold=1e-8, model_scaling=None):
 
     desirable = 1.
     minimum = desirable / 10.**orders_of_magnitude_threshold
@@ -112,7 +112,6 @@ def check_order_of_magnitudes_of_reference_values(V_ref, orders_of_magnitude_thr
         print_op.base_print(message, level='warning')
         print_op.print_dict_as_table(unreasonably_scaled, level='warning')
 
-    pdb.set_trace()
     return None
 
 

@@ -53,7 +53,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_geometry_options(options, help_options, options_tree, fixed_params)
     options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params)
 
-    options_tree, fixed_params = build_scaling_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_scaling_options(options, options_tree, fixed_params, architecture)
 
     # problem specifics
     options_tree, fixed_params = build_constraint_applicablity_options(options, options_tree, fixed_params, architecture)
@@ -77,7 +77,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_atmosphere_options(options, options_tree, fixed_params)
 
     # scaling
-    options_tree, fixed_params = build_fict_scaling_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_fict_scaling_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_lambda_e_power_scaling(options, options_tree, fixed_params, architecture)
 
     return options_tree, fixed_params
@@ -222,7 +222,7 @@ def get_dependent_params(geometry, geometry_data):
 
     return geometry
 
-def build_scaling_options(options, options_tree, fixed_params):
+def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     geometry = get_geometry(options)
 
@@ -231,32 +231,46 @@ def build_scaling_options(options, options_tree, fixed_params):
     induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     b_ref = geometry['b_ref']
     trajectory_radius = induction_varrho_ref * b_ref
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    gravity = options['model']['scaling']['other']['g']
+
+    groundspeed = options['solver']['initialization']['groundspeed']
+    u_ref = get_u_ref(options['user_options'])
+    u_reelout = estimate_reelout_speed(options)
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
 
     if options['model']['scaling_overwrite']['x']['q'] is None:
         geometric_mean_distance = (l_t * trajectory_radius)**0.5
         print_op.warn_about_temporary_functionality_alteration()
         q_scaling = trajectory_radius
         # q_scaling = geometric_mean_distance
-        # pdb.set_trace()
-        # q_scaling = 138.
-        # pdb.set_trace()
-        # q_scaling = q_t + b_ref * induction_varrho_ref * vect_op.yhat_dm()
+        # q_scaling = 100.
+        # q_scaling = q_t + trajectory_radius * vect_op.yhat_dm()
+        # q_scaling = options['model']['scaling']['x']['l_t']
     else:
         q_scaling = options['model']['scaling_overwrite']['x']['q']
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
-    groundspeed = options['solver']['initialization']['groundspeed']
+
+
     if options['model']['scaling_overwrite']['x']['dq'] is None:
         print_op.warn_about_temporary_functionality_alteration()
-        # dq_scaling = 1.
-        # dq_scaling = groundspeed
-        dq_scaling = get_u_ref(options['user_options'])
+        dq_scaling = groundspeed
+        # dq_scaling = u_ref
+        # dq_scaling = u_ref * vect_op.xhat_dm() + groundspeed * (vect_op.yhat_dm() + vect_op.zhat_dm())
     else:
         dq_scaling = options['model']['scaling_overwrite']['x']['dq']
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
-    dl_t_scaling = estimate_reelout_speed(options)
+    dl_t_scaling = u_reelout
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
+
+    dl_t_min = -5. * u_altitude
+    dl_t_max = 1./3. * u_altitude
+    t_f_guess = estimate_time_period(options, architecture)
+    ddl_t_guess = (dl_t_max - dl_t_min) / (t_f_guess / 2.)
+    ddl_t_scaling = ddl_t_guess
+    options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
     options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
@@ -329,8 +343,10 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
 
-    u_ref = get_u_ref(options['user_options'])
-    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
+    pythagorean_speed = (groundspeed ** 2. + u_altitude ** 2.) ** 0.5
+    airspeed_ref = pythagorean_speed
+
     options_tree.append(('model', 'model_bounds', 'aero_validity', 'airspeed_ref', airspeed_ref, ('an estimate of the kite speed, for normalization of the aero_validity orientation inequality', None),'x'))
 
     airspeed_limits = options['params']['model_bounds']['airspeed_limits']
@@ -728,7 +744,9 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     CL = estimate_CL(options)
 
     groundspeed = options['solver']['initialization']['groundspeed']
-    airspeed_ref = cas.sqrt(groundspeed**2 + u_ref**2)
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
+    pythagorean_speed = (groundspeed ** 2. + u_altitude ** 2.) ** 0.5
+    airspeed_ref = pythagorean_speed
 
     rings = wake_nodes
 
@@ -981,10 +999,8 @@ def build_atmosphere_options(options, options_tree, fixed_params):
     return options_tree, fixed_params
 
 def get_q_ref(options):
-
     u_ref = get_u_ref(options['user_options'])
     q_ref = 0.5*options['params']['atmosphere']['rho_ref'] * u_ref**2
-
     return q_ref
 
 def get_q_at_altitude(options, zz):
@@ -997,32 +1013,43 @@ def get_q_at_altitude(options, zz):
 
 ####### scaling
 
-def build_fict_scaling_options(options, options_tree, fixed_params):
+def build_fict_scaling_options(options, options_tree, fixed_params, architecture):
 
     geometry = get_geometry(options)
 
     CL = estimate_CL(options)
-    q_ref = get_q_ref(options)
+    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
     s_ref = geometry['s_ref']
 
-    gravity = get_gravity_ref(options)
     m_k = geometry['m_k']
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
-    centripetal_force = m_k * gravity * acc_max
-    aero_force = 0.5 * CL * q_ref * s_ref
-
-    f_scaling = (aero_force + centripetal_force)/2.
-
+    t_f_guess = estimate_time_period(options, architecture)
+    omega_guess = 2. * np.pi / t_f_guess
+    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     b_ref = geometry['b_ref']
-    m_scaling = f_scaling * b_ref / 2.
+    trajectory_radius = induction_varrho_ref * b_ref
+    centripetal_force = m_k * omega_guess**2. * trajectory_radius
+    aero_force = 0.5 * CL * q_altitude * s_ref
 
-    options_tree.append(('model', 'scaling', 'u', 'f_fict', f_scaling, ('scaling of fictitious homotopy forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'u', 'm_fict', m_scaling, ('scaling of fictitious homotopy moments', None),'x'))
+    CD_tether = options['params']['tether']['cd']
+    diam_t = options['solver']['initialization']['theta']['diam_t']
+    l_t_scaling = options['model']['scaling']['x']['l_t']
+    tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * l_t_scaling
 
-    options_tree.append(('model', 'scaling', 'z', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'z', 'm_aero', m_scaling, ('scaling of aerodynamic forces', None),'x'))
+    difference_in_estimates_in_orders_of_magnitude = np.abs(np.log10(float(aero_force)) - np.log10(float(centripetal_force)))
+    arbitrarily_warnable_difference_in_orders_of_magnitude = 1.
+    if difference_in_estimates_in_orders_of_magnitude > arbitrarily_warnable_difference_in_orders_of_magnitude:
+        message = 'the aero_force and centripetal_force estimations are very different. this might lead to poor problem scaling'
+        print_op.base_print(message, level='warning')
 
-    options_tree.append(('model', 'scaling', 'z', 'f_tether', f_scaling, ('scaling of tether drag forces', None),'x'))
+    moment_scaling_factor = b_ref / 2.
+
+    options_tree.append(('model', 'scaling', 'u', 'f_fict', centripetal_force, ('scaling of fictitious homotopy forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'u', 'm_fict', centripetal_force * moment_scaling_factor, ('scaling of fictitious homotopy moments', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'z', 'f_aero', aero_force, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'z', 'm_aero', aero_force * moment_scaling_factor, ('scaling of aerodynamic moments', None),'x'))
+
+    options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
 
@@ -1047,13 +1074,14 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
         options_tree.append(('model', 'scaling', 'z', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
+    options_tree.append(('nlp', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
     options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('Max. power scaling factor', None),'x'))
     options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('Max. power initialization', None),'x'))
 
     if options['model']['integration']['include_integration_test']:
-        arbitrary_integration_scaling = 7287.
+        arbitrary_integration_scaling = 7283.  # some large prime number
         options_tree.append(('model', 'scaling', 'x', 'total_time_unscaled', 1., ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'total_time_scaled', arbitrary_integration_scaling, ('???', None), 'x'))
 

@@ -315,7 +315,6 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
         print_op.log_and_raise_error(message)
 
     solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
-    print_op.warn_about_temporary_functionality_alteration()
 
     solvers = {}
     solvers['all'] = solver

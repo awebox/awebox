@@ -69,6 +69,7 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
             if options['trajectory']['system_type'] == 'drag_mode':
                 if force in list(generator_forces.keys()):
                     node_forces[force] += generator_forces[force]
+
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
 

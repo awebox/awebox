@@ -284,6 +284,7 @@ def generate_holonomic_scaling(options, architecture, scaling, variables, parame
         gdot_loc = 2. * scaling_length * scaling_speed
         gddot_loc = 2. * scaling_length * scaling_acc + 2. * scaling_speed**2.
 
+        # notice that if the scaling_length is large, loc_scaling easily ends up as a *massive* number
         loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 

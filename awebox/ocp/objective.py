@@ -258,7 +258,7 @@ def find_time_cost(nlp_options, V, P):
     time_period = ocp_outputs.find_time_period(nlp_options, V)
     tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
 
-    time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
+    time_cost = P['cost', 't_f'] * (time_period - tf_init) * (time_period - tf_init)
 
     return time_cost
 
@@ -271,8 +271,12 @@ def find_power_cost(nlp_options, model, V, P, Integral_outputs):
     if not nlp_options['cost']['output_quadrature']:
         total_energy_scaled = V['x', -1, 'e']
     else:
-        total_energy_si = Integral_outputs['int_out',-1,'e']
-        total_energy_scaled = struct_op.var_si_to_scaled('x', 'e', total_energy_si, model.scaling)
+        total_energy_si = Integral_outputs['int_out', -1, 'e']
+        if '[x,e,0]' in model.scaling.labels():
+            total_energy_scaled = struct_op.var_si_to_scaled('x', 'e', total_energy_si, model.scaling)
+        else:
+            e_scale = nlp_options['scaling']['x']['e']
+            total_energy_scaled = total_energy_si / e_scale
 
     average_scaled_power = total_energy_scaled / time_period
 

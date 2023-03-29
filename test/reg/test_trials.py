@@ -165,6 +165,15 @@ def generate_options_dict():
     single_kite_options['user_options.system_model.architecture'] = {1: 0}
     single_kite_options = set_ampyx_ap2_settings(single_kite_options)
     single_kite_options['solver.linear_solver'] = 'ma57'
+    single_kite_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
+    single_kite_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
+    single_kite_options['model.scaling.x.l_t'] = 1.e2   # 1.e2
+    single_kite_options['solver.weights.dq'] = 1.e1
+    single_kite_options['solver.weights.l_t'] = 1e-3  #
+    single_kite_options['solver.weights.dl_t'] = 1e-3
+    single_kite_options['solver.weights.ddl_t'] = 1e0
+    single_kite_options['solver.weights.dddl_t'] = 1e0
+    single_kite_options['solver.weights.q'] = 1e0
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -277,9 +286,16 @@ def generate_options_dict():
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
     basic_health_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
-    basic_health_options['solver.weights.ddl_t'] = 1e-3
+    basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
+    basic_health_options['model.scaling.x.l_t'] = 1.e2   # 1.e2
+    basic_health_options['solver.weights.dq'] = 1.e1
+    basic_health_options['solver.weights.l_t'] = 1e-3  #
+    basic_health_options['solver.weights.dl_t'] = 1e-3
+    basic_health_options['solver.weights.ddl_t'] = 1e0
+    basic_health_options['solver.weights.dddl_t'] = 1e0
+    basic_health_options['solver.weights.q'] = 1e0
 
-     # define options list
+    # define options list
     options_dict = collections.OrderedDict()
     options_dict['single_kite_trial'] = single_kite_options
     options_dict['zoh_trial'] = zoh_options
@@ -318,6 +334,9 @@ def solve_and_check(trial_options, trial_name):
     # evaluate results
     evaluate_results(trial.quality.results, trial_name)
 
+    trial.plot('level_1')
+    plt.show()
+
     return None
 
 def evaluate_results(results, trial_name):
@@ -343,7 +362,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
     return trial
 
-# test_single_kite()
+test_single_kite()
 # test_zoh()
 # test_basic_health()
 # test_drag_mode()

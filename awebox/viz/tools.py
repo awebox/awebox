@@ -530,7 +530,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['integral_variables'] = list(model.integral_outputs.keys())
-    plot_dict['scaling'] = model.scaling
+    plot_dict['scaling'] = model.scaling.cat
     plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
@@ -564,7 +564,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_va
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    scaling = plot_dict['scaling']
+    scaling = plot_dict['variables'](plot_dict['scaling'])
     plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
     plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
     plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
@@ -906,7 +906,7 @@ def assemble_model_parameters(plot_dict):
 def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
     bounds = plot_dict['variable_bounds'][var_type][name]
-    scaling = plot_dict['scaling'][var_type][name]
+    scaling = plot_dict['variables'](plot_dict['scaling'])[var_type, name]
     if type(bounds['lb']) == np.ndarray:
         lb = bounds['lb'][jdx]
     else:

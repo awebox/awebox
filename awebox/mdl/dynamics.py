@@ -928,7 +928,7 @@ def generate_scaling(scaling_options, variables):
             elif fourth_choice:
                 possible_scaling = fourth_value
 
-        if possible_scaling == 0.:
+        if cas.DM(possible_scaling).is_zero():
             set_of_characters_in_var_name = set([var_name[vdx] for vdx in range(len(var_name))])
             set_of_characters_in_split_name = set([split_name[vdx] for vdx in range(len(split_name))])
 
