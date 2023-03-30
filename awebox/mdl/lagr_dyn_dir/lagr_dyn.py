@@ -116,7 +116,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_rhs_constraints = np.zeros(g.shape)
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, scaling, system_variables['SI'], parameters)
 
-    print_op.warn_about_temporary_functionality_alteration()
     dynamics_constraints_si = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)
     dynamics_constraints_scaled = cas.mtimes(cas.inv(cas.diag(holonomic_scaling)), dynamics_constraints_si)
 

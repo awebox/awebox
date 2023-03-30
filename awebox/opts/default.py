@@ -370,8 +370,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
 
-        ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'tracking',       None,   'stagger_distance',      0.1,        ('distance between tracking trajectory and initial guess [m]', None),'x'),
+        ('solver',   'cost_factor',    None,   'power',                 1e1,        ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',   'weights',        None,   'dq',                    1e-1,       ('optimization weight for all dq variables [-]', None), 'x'),
         ('solver',   'weights',        None,   'l_t',                   1e-3,       ('optimization weight for all l_t variables [-]', None), 'x'),
@@ -526,6 +526,7 @@ def set_default_options(default_user_options, help_options):
         ('quality', 'test_param', None, 'vortex_truncation_error_thresh', 0.01,('maximum estimated vortex truncation error', None), 'x'),
         ('quality', 'test_param', None, 'check_energy_summation', False,    ('check that no kinetic or potential energy source has gotten lost', None), 'x'),
         ('quality', 'test_param', None, 'energy_summation_thresh', 1.e-10,  ('maximum lost kinetic or potential energy from different calculations', None), 'x'),
+        ('quality', 'test_param', None, 'non_power_fraction_of_objective_thresh', 0.1,  ('maximum fraction of objective contributed by sources other than the power-cost. written in decimals, therefore values less than 1.', None), 'x'),
     ]
 
     default_options_tree = add_available_aerodynamic_stability_derivative_overwrites(default_options_tree)

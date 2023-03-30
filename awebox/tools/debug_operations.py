@@ -70,16 +70,18 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
 
-    if not exact_licq_holds:
-        awelogger.logger.warning('')
-        message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
-        awelogger.logger.info(message)
-        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-    elif not licq_holds:
-        awelogger.logger.info('')
-        message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
-        awelogger.logger.warning(message)
+    if not (exact_licq_holds and licq_holds):
+
+        if not exact_licq_holds:
+            awelogger.logger.warning('')
+            message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
+            awelogger.logger.info(message)
+
+        elif not licq_holds:
+            awelogger.logger.info('')
+            message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
+            awelogger.logger.warning(message)
+
         identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
         identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
 
@@ -109,8 +111,6 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
-
-        pdb.set_trace()
 
         if health_solver_options['raise_exception']:
             print_op.log_and_raise_error(message)
@@ -241,6 +241,7 @@ def identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, c
     print_cstr_info(cstr_jacobian_eval, cstr_labels, max_cdx, nlp)
     return None
 
+
 def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
     message = '... possible (floating-point) dependent constraints include: '
     awelogger.logger.info(message)
@@ -252,6 +253,7 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
     for direction in search_dir.keys():
 
         local_cje = search_dir[direction]['cje']
+
         local_labels = search_dir[direction]['labels']
 
         while not is_matrix_full_rank(local_cje, health_solver_options):
@@ -264,7 +266,7 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
                 if current_hunt:
 
                     prev_matrix = local_cje[cdx:, :]
-                    current_matrix = prev_matrix[1:, :]
+                    current_matrix = local_cje[cdx+1:, :]
 
                     prev_full_rank = is_matrix_full_rank(prev_matrix, health_solver_options)
                     current_full_rank = is_matrix_full_rank(current_matrix, health_solver_options)
@@ -273,7 +275,6 @@ def identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cst
                         print_cstr_info(local_cje, local_labels, cdx, nlp)
                         local_cje, local_labels = pop_cstr_and_label(cdx, local_cje, local_labels)
                         current_hunt = False
-
 
     return None
 
@@ -650,6 +651,7 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     strongly_active_lambdas = []
     strongly_active_vars = []
     strongly_active_labels = []
+    weakly_active_labels = []
 
     selection_error_message = 'something went badly wrong with an if-elif statement expected to be mutually-exclusive'
 
@@ -736,13 +738,17 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
             relevant_vars = cas.vertcat(relevant_vars, symbolic_variable)
             relevant_labels += [name_idx]
 
+            inequality_cstr_is_considered_active = is_inequality_cstr_considered_active(bound_selected_evaluated_lambda, bound_selected_evaluated_expr, active_threshold)
             inequality_cstr_is_considered_strongly_active = is_inequality_cstr_considered_strongly_active(bound_selected_evaluated_lambda, bound_selected_evaluated_expr, active_threshold, weak_threshold)
-            if inequality_cstr_is_considered_strongly_active:
+            if inequality_cstr_is_considered_active:
+                if inequality_cstr_is_considered_strongly_active:
 
-                strongly_active_cstr = cas.vertcat(strongly_active_cstr, bound_selected_symbolic_expr)
-                strongly_active_lambdas = cas.vertcat(strongly_active_lambdas, bound_selected_symbolic_lambda)
-                strongly_active_vars = cas.vertcat(strongly_active_vars, symbolic_variable)
-                strongly_active_labels += [name_idx]
+                    strongly_active_cstr = cas.vertcat(strongly_active_cstr, bound_selected_symbolic_expr)
+                    strongly_active_lambdas = cas.vertcat(strongly_active_lambdas, bound_selected_symbolic_lambda)
+                    strongly_active_vars = cas.vertcat(strongly_active_vars, symbolic_variable)
+                    strongly_active_labels += [name_idx]
+                else: # weakly active
+                    weakly_active_labels += [name_idx]
 
         else:
             print_op.log_and_raise_error(selection_error_message)
@@ -773,6 +779,8 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
     var_constraint_functions['rel_lam_fun'] = cas.Function('rel_lam_fun', [lam_sym], [relevant_lambdas])
     var_constraint_functions['rel_vars_fun'] = cas.Function('vars_fun', [var_sym], [relevant_vars])
     var_constraint_functions['rel_labels'] = relevant_labels
+
+    var_constraint_functions['weakly_active_labels'] = weakly_active_labels
 
     return var_constraint_functions
 

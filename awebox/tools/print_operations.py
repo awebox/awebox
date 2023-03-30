@@ -387,14 +387,10 @@ def print_dot_separated_info(name, value, level='info'):
     if isinstance(value, cas.DM) and value.shape == (1, 1):
         value = float(value)
 
-    value_is_moderate_valued_float = isinstance(value, float) and (np.log10(np.abs(value)) > -1.) and (np.log10(np.abs(value)) < 4.)
-
     if isinstance(value, int) or isinstance(value, str) or isinstance(value, dict):
         message = "{:.<26}: {}".format(name, value)
-    elif value_is_moderate_valued_float:
-        message = "{:.<26}: {:.4}".format(name, value)
     elif isinstance(value, float):
-        message = "{:.<26}: {:.4E}".format(name, value)
+        message = "{:.<26}: {:0.4G}".format(name, value)
     else:
         error_message = 'unexpected type for object value (' + repr(value) + ')'
         log_and_raise_error(error_message)

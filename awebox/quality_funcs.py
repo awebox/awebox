@@ -287,9 +287,49 @@ def test_tracked_vortex_periods(trial, test_param_dict, results, input_values):
                       + '. We recommend increasing the number of wake nodes.'
             awelogger.logger.warning(message)
             results['vortex_truncation_error'] = False
+        else:
+            results['vortex_truncation_error'] = True
 
     return results
 
+def test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, results):
+
+    problem_in_final_homotopy_step = 'final' in trial.optimization.timings.keys()
+    trajectory_is_a_power_cycle = trial.options['user_options']['trajectory']['type'] == 'power_cycle'
+
+    problem_is_a_power_problem = problem_in_final_homotopy_step and trajectory_is_a_power_cycle
+    if problem_is_a_power_problem:
+
+        final_objective = float(trial.nlp.f_fun(trial.optimization.V_opt, trial.optimization.p_fix_num))
+
+        cost_fun = trial.nlp.cost_components[0]
+        cost = struct_op.evaluate_cost_dict(cost_fun, trial.optimization.V_opt, trial.optimization.p_fix_num)
+        power_cost = float(cost['power_cost'])
+
+        non_power_fraction_of_objective_thresh = test_param_dict['non_power_fraction_of_objective_thresh']
+        non_power_percent_of_objective_thresh = non_power_fraction_of_objective_thresh * 100.
+
+        non_power_contribution = final_objective - power_cost
+        non_power_fraction_of_objective_found = np.abs(non_power_contribution / final_objective)
+        non_power_percent_of_objective_found = non_power_fraction_of_objective_found * 100.
+
+        too_much_non_power_contribution_to_objective = non_power_percent_of_objective_found > non_power_percent_of_objective_thresh
+        power_cost_dominates_objective = not too_much_non_power_contribution_to_objective
+
+        if not power_cost_dominates_objective:
+            message = 'there may be too much regularization on this problem. '
+            message += "at the final solution, the power cost is {:0.2G}, ".format(power_cost)
+            message += "whereas the total objective is {:0.2G}. ".format(final_objective)
+            message += "this means, that more than {:0.2G} percent ".format(non_power_percent_of_objective_thresh)
+            message += 'of the objective is due to sources other than the power cost: '
+            message += "{:0.2G} percent.".format(non_power_percent_of_objective_found)
+
+            awelogger.logger.warning(message)
+            results['power_dominance'] = False
+        else:
+            results['power_dominance'] = True
+
+    return results
 
 def generate_test_param_dict(options):
     """
@@ -313,5 +353,6 @@ def generate_test_param_dict(options):
     test_param_dict['vortex_truncation_error_thresh'] = options['test_param']['vortex_truncation_error_thresh']
     test_param_dict['check_energy_summation'] = options['test_param']['check_energy_summation']
     test_param_dict['energy_summation_thresh'] = options['test_param']['energy_summation_thresh']
+    test_param_dict['non_power_fraction_of_objective_thresh'] = options['test_param']['non_power_fraction_of_objective_thresh']
 
     return test_param_dict
