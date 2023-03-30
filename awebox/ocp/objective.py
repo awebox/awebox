@@ -29,6 +29,8 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
+import pdb
+
 import casadi.tools as cas
 import numpy as np
 from . import collocation
@@ -58,19 +60,6 @@ def get_general_regularization_function(variables):
 
     return reg_fun
 
-def get_local_slack_penalty_function():
-
-    var_sym = cas.SX.sym('var_sym', (1,1))
-    ref_sym = cas.SX.sym('ref_sym', (1,1))
-    weight_sym = cas.SX.sym('weight_sym', (1,1))
-
-    diff = (var_sym - ref_sym)
-
-    slack = weight_sym * diff
-
-    slack_fun = cas.Function('slack_fun', [var_sym, ref_sym, weight_sym], [slack])
-    return slack_fun
-
 def get_general_reg_costs_function(variables, V):
 
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
@@ -85,8 +74,6 @@ def get_general_reg_costs_function(variables, V):
     for cost in reg_list:
         reg_costs_dict[cost] = 0.0
 
-    slack_fun = get_local_slack_penalty_function()
-
     for var_type in set(variables.keys()):
         category = sorting_dict[var_type]['category']
         exceptions = sorting_dict[var_type]['exceptions']
@@ -97,20 +84,9 @@ def get_general_reg_costs_function(variables, V):
             if (not name in exceptions.keys()) and (not category == None):
                 reg_costs_dict[category] = reg_costs_dict[category] + cas.sum1(regs[var_type, var_name])
 
-            elif (name in exceptions.keys()) and (not exceptions[name] == None) and (not exceptions[name] == 'slack'):
+            elif (name in exceptions.keys()) and (not exceptions[name] == None):
                 exc_category = exceptions[name]
                 reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + cas.sum1(regs[var_type, var_name])
-
-            elif (name in exceptions.keys()) and (exceptions[name] == 'slack'):
-                exc_category = exceptions[name]
-
-                for idx in variables.f[var_type, var_name]:
-                    var_loc = var_sym[idx]
-                    ref_loc = ref_sym[idx]
-                    weight_loc = weight_sym[idx]
-                    pen_loc = slack_fun(var_loc, ref_loc, weight_loc)
-
-                    reg_costs_dict[exc_category] = reg_costs_dict[exc_category] + pen_loc
 
     reg_costs_list = cas.vertcat(*reg_costs_dict.values())
     reg_costs_fun = cas.Function('reg_costs_fun', [var_sym, ref_sym, weight_sym], [reg_costs_list])
@@ -126,8 +102,7 @@ def get_costs_struct(V):
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
-        cas.entry("beta_cost"),
-        cas.entry("slack_cost")] +
+        cas.entry("beta_cost")] +
        [cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')] +
        [cas.entry("time_cost"),
         cas.entry("power_cost"),
@@ -149,7 +124,6 @@ def get_regularization_sorting_dict():
     #
     # sorting_dict[TYPE] = {'category': CATEGORY, 'exceptions': {EXCLUDED_VARIABLE_NAME: CATEGORY_FOR_EXCLUDED_VARIABLE}}
     #
-    # NOTE!!! for category "slack_cost", linearized penalities are applied rather than L2 regularization.
 
     sorting_dict = {}
     sorting_dict['x'] = {'category': 'tracking_cost', 'exceptions': {'e': None} }
@@ -284,28 +258,35 @@ def find_time_cost(nlp_options, V, P):
     time_period = ocp_outputs.find_time_period(nlp_options, V)
     tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
 
-    time_cost = P['cost', 't_f'] * (time_period - tf_init)*(time_period - tf_init)
+    time_cost = P['cost', 't_f'] * (time_period - tf_init) * (time_period - tf_init)
 
     return time_cost
 
 
-def find_power_cost(nlp_options, V, P, Integral_outputs):
+def find_power_cost(nlp_options, model, V, P, Integral_outputs):
 
     # maximization term for average power
     time_period = ocp_outputs.find_time_period(nlp_options, V)
 
     if not nlp_options['cost']['output_quadrature']:
-        average_power = V['x', -1, 'e'] / time_period
+        total_energy_scaled = V['x', -1, 'e']
     else:
-        average_power = Integral_outputs['int_out',-1,'e'] / time_period
+        total_energy_si = Integral_outputs['int_out', -1, 'e']
+        if '[x,e,0]' in model.scaling.labels():
+            total_energy_scaled = struct_op.var_si_to_scaled('x', 'e', total_energy_si, model.scaling)
+        else:
+            e_scale = nlp_options['scaling']['x']['e']
+            total_energy_scaled = total_energy_si / e_scale
+
+    average_scaled_power = total_energy_scaled / time_period
 
     if nlp_options['cost']['P_max']:
         max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
-        power_cost = P['cost', 'power'] * (-1.) * average_power + max_power_cost
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power + max_power_cost
     elif nlp_options['cost']['PDGA']:
-        power_cost = P['cost', 'power'] * (-1.) * average_power / (V['theta', 'ell_radius']**2)
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power / (V['theta', 'ell_radius']**2)
     else:
-        power_cost = P['cost', 'power'] * (-1.) * average_power
+        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power
 
     return power_cost
 
@@ -396,22 +377,26 @@ def find_homotopy_cost(component_costs):
 
     return homotopy_cost
 
+
 def find_beta_cost(nlp_options, model, Outputs, P):
     
     int_weights = find_int_weights(nlp_options)
     d = nlp_options['collocation']['d']
 
     if model.kite_dof == 6:
-        beta_cost = 0.0
+        beta_cost = cas.DM(0.)
         for kite in model.architecture.kite_nodes:
 
             idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
+            for kdx in range(nlp_options['n_k']):
 
-            for k in range(nlp_options['n_k']):
-                for j in range(d):
-                    beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
+                if nlp_options['discretization'] == 'direct_collocation':
+                    for ddx in range(d):
+                        beta_cost += int_weights[ddx] * Outputs[idx, kdx * d + ddx]**2
+                else:
+                    beta_cost += Outputs[idx, kdx]**2.
 
-        beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
+        beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']
     else:
         beta_cost = 0
 
@@ -420,12 +405,11 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V):
+def find_objective(component_costs, V, V_ref, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
 
-    slack_cost = component_costs['slack_cost']
     tracking_problem_cost = component_costs['tracking_problem_cost']
     power_problem_cost = component_costs['power_problem_cost']
     nominal_landing_problem_cost = component_costs['nominal_landing_cost']
@@ -433,9 +417,27 @@ def find_objective(component_costs, V):
     general_problem_cost = component_costs['general_problem_cost']
     homotopy_cost = component_costs['homotopy_cost']
 
-    objective = V['phi','upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + (1. - V['phi', 'psi']) * power_problem_cost + general_problem_cost + (1. - V['phi', 'eta']) * nominal_landing_problem_cost + (1. - V['phi','upsilon'])*transition_problem_cost + slack_cost + homotopy_cost
+    trajectory_type = nlp_options['trajectory']['type']
+
+    if trajectory_type == 'power_cycle':
+        objective = V['phi', 'psi'] * tracking_problem_cost + \
+                    (1. - V['phi', 'psi']) * power_problem_cost + \
+                    general_problem_cost + \
+                    homotopy_cost
+
+    elif trajectory_type in ['transition', 'mpc']:
+        objective = V['phi', 'upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + \
+                    (1. - V['phi', 'psi']) * power_problem_cost + \
+                    general_problem_cost + \
+                    (1. - V['phi', 'eta']) * nominal_landing_problem_cost + \
+                    (1. - V['phi', 'upsilon']) * transition_problem_cost + \
+                    homotopy_cost
+    else:
+        message = 'unrecognized trajectory type (' + trajectory_type + ') requested.'
+        print_op.log_and_raise_error(message)
 
     return objective
+
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
@@ -446,7 +448,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
-    component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
+    component_costs['power_cost'] = find_power_cost(nlp_options, model, V, P, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Outputs, P)
@@ -455,7 +457,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-    component_costs['objective'] = find_objective(component_costs, V)
+    component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
 
     return component_costs
 

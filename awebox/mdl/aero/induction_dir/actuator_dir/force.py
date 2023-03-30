@@ -34,6 +34,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 
 import awebox.tools.vector_operations as vect_op
@@ -59,7 +60,7 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
     total_moment_aero = np.zeros((3, 1))
     for kite in children:
         aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-        kite_radius = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
+        kite_radius = geom.geom.get_vector_from_center_to_kite(model_options, variables, architecture, kite)
         aero_moment = vect_op.cross(kite_radius, aero_force)
 
         total_moment_aero = total_moment_aero + aero_moment

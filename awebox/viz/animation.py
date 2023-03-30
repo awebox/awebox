@@ -27,9 +27,18 @@ animation routines for awebox trajectories
 python-3.5 / casadi 3.0.0
 - authors: jochem de schutter, rachel leuthold alu-fr 2018-2020
 """
-
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
+
+import pdb
+import sys
+
 import matplotlib.animation as manimation
+from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+
 import casadi.tools as cas
 from . import tools
 import awebox.viz.trajectory as trajectory
@@ -70,9 +79,14 @@ def animate_monitor_plot(plot_dict, cosmetics, fig_name, init_colors=bool(False)
     metadata = dict(title=trial_name, artist='awebox', comment='monitor_plot')
     writer = FFMpegWriter(fps=fps, metadata=metadata,codec="libx264",bitrate=-1)
 
+    awelogger.logger.info('generate animation...')
+
+    # the exact output you're looking for:
     with writer.saving(fig, "./" + trial_name + ".mp4", 100):
 
         for index in range(N):
+            print_op.print_progress(index, N)
+
             animation_snapshot(axes, plot_dict, index, cosmetics, init_colors, plot_kites)
 
             # make text plot
@@ -84,6 +98,8 @@ def animate_monitor_plot(plot_dict, cosmetics, fig_name, init_colors=bool(False)
             # remove text plot
             txt_glb.remove()
             txt_loc.remove()
+
+        print_op.print_progress(N, N)
 
     return None
 
@@ -133,7 +149,7 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
         axes[ax].clear()
 
         # plot system
-        trajectory.plot_trajectory_instant(axes[ax], axes['ax2'], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
+        trajectory.plot_trajectory_instant(axes[ax], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
 
     # plot trajectories
     counter = 0
@@ -205,9 +221,11 @@ def fill_in_dashboard(fig, plot_dict,index):
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    dl_t = plot_dict['x']['dl_t'][0][index].toarray().round(1)[0][0]
+    if 'dl_t' in plot_dict['x'].keys():
+        dl_t = plot_dict['x']['dl_t'][0][index]
+    else:
+        dl_t = 0.
     global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
-
 
     # LOCAL INFORMATION
     local_string = 'kite 1:\n'

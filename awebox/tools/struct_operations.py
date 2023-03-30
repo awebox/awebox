@@ -27,6 +27,7 @@ file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -36,8 +37,9 @@ import operator
 import copy
 from functools import reduce
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.performance_operations as perf_op
-
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+from itertools import chain
 
 def subkeys(casadi_struct, key):
 
@@ -76,19 +78,7 @@ def get_shooting_params(nlp_options, V, P, model):
     shooting_nodes = count_shooting_nodes(nlp_options)
 
     parameters = model.parameters
-
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
-
-        coll_params = []
-        for kdx in range(shooting_nodes):
-            loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx)
-            coll_params = cas.horzcat(coll_params, loc_params)
-
-    else:
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
-
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
     return coll_params
 
 
@@ -115,20 +105,7 @@ def get_coll_params(nlp_options, V, P, model):
     N_coll = n_k * d # collocation points
 
     parameters = model.parameters
-
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
-
-        coll_params = []
-        for kdx in range(n_k):
-            for ddx in range(d):
-                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx, ddx)
-                coll_params = cas.horzcat(coll_params, loc_params)
-
-    else:
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
-
+    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
     return coll_params
 
 
@@ -151,22 +128,14 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     parameters = model.parameters
 
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        message = 'vortex induction model not yet supported for multiple shooting problems.'
-        awelogger.logger.error(message)
-
     ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
 
     return ms_params
 
-def no_available_var_info(variables, var_type):
-    message = var_type + ' variable not at expected location in variables. proceeding with zeros.'
-    awelogger.logger.warning(message)
-    return np.zeros(variables[var_type].shape)
 
+def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
-def get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx=None):
+    var_type = 'z'
 
     if (ddx is None):
         if var_type in list(V.keys()):
@@ -223,24 +192,45 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     var_type = 'xdot'
 
     at_control_node = (ddx is None)
-    lifted_derivs = (var_type in list(V.keys()))
+    lifted_derivs = ('xdot' in list(V.keys()))
+    passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
-    if Xdot is not None:
-        empty_Xdot = Xdot(0.)
-        passed_Xdot_is_meaningful = not (Xdot == empty_Xdot)
-    else:
-        passed_Xdot_is_meaningful = False
-
-    if at_control_node:
-        if lifted_derivs:
-            return V[var_type, kdx]
-        elif passed_Xdot_is_meaningful:
-            return Xdot['x', kdx]
+    if at_control_node and lifted_derivs:
+        return V[var_type, kdx]
+    elif at_control_node and passed_Xdot_is_meaningful:
+        return Xdot['x', kdx]
+    elif lifted_derivs and ('coll' in V.keys()):
+        return V['coll', kdx, ddx, 'xdot']
     elif passed_Xdot_is_meaningful:
         return Xdot['coll_x', kdx, ddx]
     else:
-        return np.zeros(model_variables[var_type].shape)
-        # return no_available_var_info(model_variables, var_type)
+        attempted_reassamble = []
+        for idx in range(model_variables.shape[0]):
+            can_index = model_variables.getCanonicalIndex(idx)
+            local_variable_has_a_derivative = (can_index[0] == 'x')
+            if local_variable_has_a_derivative():
+
+                var_name = can_index[1]
+                dim = can_index[2]
+
+                deriv_name = 'd' + var_name
+                deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
+                deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
+
+                if at_control_node and deriv_name_in_states:
+                    local_val = V['x', kdx, deriv_name, dim]
+                elif at_control_node and deriv_name_in_controls:
+                    local_val = V['u', kdx, deriv_name, dim]
+                elif deriv_name_in_states and ('coll' in V.keys()):
+                    local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
+                elif deriv_name_in_controls and ('coll' in V.keys()):
+                    local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
+                else:
+                    local_val = cas.DM.zeros((1, 1))
+
+                attempted_reassamble = cas.vertcat(attempted_reassamble, local_val)
+        return attempted_reassamble
+
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
@@ -249,7 +239,7 @@ def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     for var_type in model_variables.keys():
 
         if var_type == 'z':
-            local_var = get_algebraics_at_time(nlp_options, V, model_variables, var_type, kdx, ddx)
+            local_var = get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx)
 
         elif var_type == 'x':
             local_var = get_states_at_time(nlp_options, V, model_variables, kdx, ddx)
@@ -288,8 +278,7 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return var_at_time
 
@@ -362,19 +351,21 @@ def calculate_kdx(params, V, t):
 
     n_k = params['n_k']
 
-    if params['phase_fix'] == 'single_reelout':
+    lift_mode_with_single_reelout_phase_fixing = (V['theta', 't_f'].shape[0] == 2)
+
+    if lift_mode_with_single_reelout_phase_fixing:
         k_reelout = round(n_k * params['phase_fix_reelout'])
-        t_reelout = k_reelout*V['theta','t_f',0]/n_k
+        t_reelout = k_reelout * V['theta', 't_f', 0] / n_k
         if t <= t_reelout:
-            kdx = int(n_k * t / V['theta','t_f',0])
-            tau = t / V['theta', 't_f',0]*n_k - kdx
+            kdx = int(n_k * t / V['theta', 't_f', 0])
+            tau = t / V['theta', 't_f', 0]*n_k - kdx
         else:
-            kdx = int(k_reelout + int(n_k * (t - t_reelout) / V['theta','t_f',1]))
-            tau = (t - t_reelout)/ V['theta','t_f',1]*n_k - (kdx-k_reelout)
+            kdx = int(k_reelout + int(n_k * (t - t_reelout) / V['theta', 't_f', 1]))
+            tau = (t - t_reelout) / V['theta', 't_f', 1] * n_k - (kdx-k_reelout)
     else:
         t = t % V['theta', 't_f', 0].full()[0][0]
-        kdx = int(n_k * t / V['theta','t_f'])
-        tau = t / V['theta', 't_f']*n_k - kdx
+        kdx = int(n_k * t / V['theta', 't_f'])
+        tau = t / V['theta', 't_f'] * n_k - kdx
 
     if kdx == n_k:
         kdx = n_k - 1
@@ -382,96 +373,136 @@ def calculate_kdx(params, V, t):
 
     return kdx, tau
 
+def variables_si_to_scaled(model_variables, variables_si, scaling):
+
+    variables_scaled = copy.deepcopy(variables_si)
+
+    for idx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(idx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        kdx = canonical[2]
+
+        if kdx == 0:
+            variables_scaled[var_type, var_name] = var_si_to_scaled(var_type, var_name, variables_scaled[var_type, var_name], scaling)
+
+    return variables_scaled
+
+
+def variables_scaled_to_si(model_variables, variables_scaled, scaling):
+
+    stacked = []
+    for idx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(idx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        kdx = canonical[2]
+        if kdx == 0:
+            new = var_scaled_to_si(var_type, var_name, variables_scaled[var_type, var_name], scaling)
+            stacked = cas.vertcat(stacked, new)
+
+    variables_si = model_variables(stacked)
+    return variables_si
+
+
+def should_variable_be_scaled(var_type, var_name, var_scaled, scaling):
+
+    end_of_message = '. proceeding with unit scaling.'
+    var_identifier = var_type + ' variable ' + var_name
+
+    if (var_type == 'phi') or (var_type == 'xi'):
+        return False, None
+
+    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in subkeys(scaling, var_type))
+    if not scaling_defined_for_variable:
+        message = 'scaling information unavailable for ' + var_identifier + end_of_message
+        return False, message
+
+    scale = scaling[var_type, var_name]
+    var_scaled_and_scaling_have_matching_shapes = hasattr(var_scaled, 'shape') and hasattr(scale, 'shape') and (var_scaled.shape == scale.shape)
+    if (not var_scaled_and_scaling_have_matching_shapes) and (not var_name == 't_f'):
+        message = 'shape mismatch between ' + var_identifier + ' value-to-be-scaled ' + repr(var_scaled.shape) + ' and scaling information ' + repr(scale.shape) + end_of_message
+        print_op.log_and_raise_error(message)
+        return False, message
+
+    scaling_is_numeric_columnar = vect_op.is_numeric_columnar(scale)
+    if not scaling_is_numeric_columnar:
+        message = 'scaling information for ' + var_identifier + ' is not numeric and columnar' + end_of_message
+        return False, message
+
+    scaling_will_return_same_value_anyway = cas.diag(scale).is_eye()
+    if scaling_will_return_same_value_anyway:
+        return False, None
+
+    return True, None
+
+
 def var_si_to_scaled(var_type, var_name, var_si, scaling):
+    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
+    if message is not None:
+        print_op.base_print(message, level='warning')
 
-    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
-    if scaling_defined_for_variable:
-
-        scale = scaling[var_type][var_name]
-
-        if scale.shape == (1, 1):
-
-            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
-            if use_unit_scaling:
-                return var_si
-            else:
-                var_scaled = var_si / scale
-                if type(var_si) == np.ndarray:
-                    var_scaled = var_scaled.full()
-                return var_scaled
-
-        else:
-            matrix_factor = cas.inv(cas.diag(scale))
-            return cas.mtimes(matrix_factor, var_si)
-
+    if should_multiply:
+        scale = scaling[var_type, var_name]
+        scaling_matrix = cas.inv(cas.diag(scale))
+        return cas.mtimes(scaling_matrix, var_si)
     else:
         return var_si
 
-
 def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
 
-    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in scaling[var_type].keys())
-    if scaling_defined_for_variable:
+    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
+    if message is not None:
+        print_op.base_print(message, level='warning')
 
-        scale = scaling[var_type][var_name]
-
-        if scale.shape == (1, 1):
-
-            use_unit_scaling = (scale == cas.DM(1.)) or (scale == 1.)
-            if use_unit_scaling:
-                return var_scaled
-            else:
-                return var_scaled * scale
-        else:
-            matrix_factor = cas.diag(scale)
-            return cas.mtimes(matrix_factor, var_scaled)
-
+    if should_multiply:
+        scale = scaling[var_type, var_name]
+        scaling_matrix = cas.diag(scale)
+        return cas.mtimes(scaling_matrix, var_scaled)
     else:
         return var_scaled
 
 
-def get_distinct_V_indices(V):
+def get_set_of_canonical_names_for_V_variables_without_dimensions(V):
 
-    distinct_indices = set([])
 
-    number_V_entries = V.shape[0]
+    set_of_canonical_names_without_dimensions = set([])
+    number_V_entries = V.cat.shape[0]
     for edx in range(number_V_entries):
-        index = V.getCanonicalIndex(edx)
+        canonical = V.getCanonicalIndex(edx)
+        set_of_canonical_names_without_dimensions.add(canonical[:-1])
+    return set_of_canonical_names_without_dimensions
 
-        distinct_indices.add(index[:-1])
-
-    return distinct_indices
 
 def si_to_scaled(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
-    distinct_V_indices = get_distinct_V_indices(V)
-    for index in distinct_V_indices:
+    set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
+    for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(index) == 2:
-            var_type = index[0]
-            var_name = index[1]
+        if len(local_canonical) == 2:
+            var_type = local_canonical[0]
+            var_name = local_canonical[1]
             var_si = V[var_type, var_name]
             V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        elif len(index) == 3:
-            var_type = index[0]
-            kdx = index[1]
-            var_name = index[2]
+        elif len(local_canonical) == 3:
+            var_type = local_canonical[0]
+            kdx = local_canonical[1]
+            var_name = local_canonical[2]
             var_si = V[var_type, kdx, var_name]
             V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        elif (len(index) == 5) and (index[0] == 'coll_var'):
-            kdx = index[1]
-            ddx = index[2]
-            var_type = index[3]
-            var_name = index[4]
+        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+            kdx = local_canonical[1]
+            ddx = local_canonical[2]
+            var_type = local_canonical[3]
+            var_name = local_canonical[4]
             var_si = V['coll_var', kdx, ddx, var_type, var_name]
             V['coll_var', kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
         else:
-            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables from si'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
+            print_op.log_and_raise_error(message)
 
     return V
 
@@ -479,33 +510,32 @@ def si_to_scaled(V_ori, scaling):
 def scaled_to_si(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
-    distinct_V_indices = get_distinct_V_indices(V)
-    for index in distinct_V_indices:
+    set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
+    for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(index) == 2:
-            var_type = index[0]
-            var_name = index[1]
-            var_scaled = V[var_type, var_name]
-            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        if len(local_canonical) == 2:
+            var_type = local_canonical[0]
+            var_name = local_canonical[1]
+            var_si = V[var_type, var_name]
+            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
 
-        elif len(index) == 3:
-            var_type = index[0]
-            kdx = index[1]
-            var_name = index[2]
-            var_scaled = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        elif len(local_canonical) == 3:
+            var_type = local_canonical[0]
+            kdx = local_canonical[1]
+            var_name = local_canonical[2]
+            var_si = V[var_type, kdx, var_name]
+            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
 
-        elif (len(index) == 5) and (index[0] == 'coll_var'):
-            kdx = index[1]
-            ddx = index[2]
-            var_type = index[3]
-            var_name = index[4]
-            var_scaled = V['coll_var', kdx, ddx, var_type, var_name]
-            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_scaled, scaling)
+        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+            kdx = local_canonical[1]
+            ddx = local_canonical[2]
+            var_type = local_canonical[3]
+            var_name = local_canonical[4]
+            var_si = V['coll_var', kdx, ddx, var_type, var_name]
+            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
         else:
-            message = 'unexpected variable found at canonical index: ' + str(index) + ' while scaling variables to si'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
+            print_op.log_and_raise_error(message)
 
     return V
 
@@ -535,13 +565,20 @@ def interval_slice_to_vec(interval_slice):
 
     return interval_vec
 
-def get_variable_type(model, name):
+def get_variable_type(container, name):
 
-    if type(model) == dict:
-        variables_dict = model
+    if isinstance(container, dict):
+        variables_dict = container
 
-    elif model.type == 'Model':
-        variables_dict = model.variables_dict
+    elif hasattr(container, 'type') and container.type == 'Model' and hasattr(container, 'variables_dict'):
+        variables_dict = container.variables_dict
+
+    else:
+        variables_dict = {}
+        for var_type in container.keys():
+            variables_dict[var_type] = {}
+            for var_name in subkeys(container, var_type):
+                variables_dict[var_type][var_name] = None
 
     for variable_type in set(variables_dict.keys()) - set(['xdot']):
         if name in list(variables_dict[variable_type].keys()):
@@ -551,8 +588,7 @@ def get_variable_type(model, name):
         return 'xdot'
 
     message = 'variable ' + name + ' not found in variables dictionary'
-    awelogger.logger.error(message)
-    raise Exception(message)
+    print_op.log_and_raise_error(message)
 
     return None
 
@@ -637,8 +673,7 @@ def get_V_index(canonical):
 
         else:
             message = 'unexpected (distinct) canonical_index handing'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.log_and_raise_error(message)
 
     return [var_is_coll_var, var_type, kdx, ddx, name, dim]
 
@@ -752,30 +787,30 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
             V_coll = warmstart_solution_dict['V_opt']
             Xdot_coll = warmstart_solution_dict['Xdot_opt']
 
-            lam_x_proposed  = nlp.V_bounds['ub'](0.0)
+            lam_x_proposed = nlp.V_bounds['ub'](0.0)
             lam_x_coll = V_coll(warmstart_solution_dict['opt_arg']['lam_x0'])
 
-            lam_g_proposed  = nlp.g(0.0)
+            lam_g_proposed = nlp.g(0.0)
             lam_g_coll = warmstart_solution_dict['g_opt'](warmstart_solution_dict['opt_arg']['lam_g0'])
             g_coll = warmstart_solution_dict['g_opt']
 
             # initialize regular variables
-            for var_type in set(['x','theta','phi','xi','z','xdot']):
+            for var_type in set(['x', 'theta', 'phi', 'xi', 'z', 'xdot']):
                 V_init_proposed[var_type] = V_coll[var_type]
-                lam_x_proposed[var_type]  = lam_x_coll[var_type]
+                lam_x_proposed[var_type] = lam_x_coll[var_type]
 
             if 'u' in list(V_coll.keys()):
                 V_init_proposed['u'] = V_coll['u']
-                lam_x_proposed['u']  = lam_x_coll['u']
+                lam_x_proposed['u'] = lam_x_coll['u']
             else:
                 for i in range(n_k):
                     # note: this does not give the actual mean, implement with quadrature weights instead
-                    V_init_proposed['u',i] = np.mean(cas.horzcat(*V_coll['coll_var',i,:,'u']))
-                    lam_x_proposed['u',i]  = np.mean(cas.horzcat(*lam_x_coll['coll_var',i,:,'u']))
+                    V_init_proposed['u', i] = np.mean(cas.horzcat(*V_coll['coll_var', i, :, 'u']))
+                    lam_x_proposed['u', i] = np.mean(cas.horzcat(*lam_x_coll['coll_var', i, :, 'u']))
 
             # initialize path constraint multipliers
             for i in range(n_k):
-                lam_g_proposed['path',i] = lam_g_coll['path',i]
+                lam_g_proposed['path', i] = lam_g_coll['path', i]
 
             # initialize periodicity multipliers
             if 'periodic' in list(lam_g_coll.keys()) and 'periodic' in list(lam_g_proposed.keys()):
@@ -902,18 +937,418 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
         sub_variables = variables[var_type]
 
     try:
-        if isinstance(sub_variables, cas.DM):
-            local_var = variables[var_type, name]
-        elif isinstance(sub_variables, cas.MX):
+        if isinstance(sub_variables, cas.MX):
             local_var = variables[var_type, name]
         elif isinstance(sub_variables, cas.structure3.SXStruct):
             local_var = variables[var_type][name]
+        elif '[' + var_type + ',' + name + ',0]' in variables.labels():
+            local_var = variables[var_type, name]
+        elif isinstance(sub_variables, cas.DM):
+            local_var = variables[var_type, name]
         else:
             local_var = variables[var_type, name]
     except:
-
         message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return local_var
+
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param nlp_options: the options of the nlp. notice that this should contain information about the nlp discretization, as well as the number of points desired for interpolation
+    :param V_opt: the solution that we want to interpolate. remember, that for 'si' output, the numeric V input here, should also be in 'si' units. (for interpolating over the reference V, input optimization.V_ref here)
+    :param time_grids: the time grids of the discretized problem. (for interpolating over the reference V, input optimization.time_grids['ref'] here)
+    :return: a dictionary with entries corresponding to the interpolated variables
+    '''
+
+    nlp_discretization = local_options['discretization']
+    collocation_scheme = local_options['collocation']['scheme']
+    control_parametrization = local_options['collocation']['u_param']
+    interpolation_type = local_options['interpolation']['type']
+    n_k = local_options['n_k']
+    collocation_d = local_options['collocation']['d']
+
+    if n_points is None:
+        n_points = local_options['interpolation']['n_points']
+
+    if Collocation is not None:
+        collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
+        integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
+    else:
+        control_parametrization = 'zoh'
+        collocation_interpolator = None
+        integral_collocation_interpolator = None
+
+    # add states and outputs to plotting dict
+    interpolation = {'x': {}, 'u': {}, 'z': {}, 'theta': {}, 'time_grids': {}, 'outputs': {}, 'integral_outputs': {}}
+
+    # time
+    time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+    time_grids['ip'] = time_grid_interpolated
+    interpolation['time_grids'] = time_grids
+
+    # x-values
+    Vx_interpolated = interpolate_Vx(time_grids, variables_dict, V_opt, interpolation_type, nlp_discretization,
+                                     collocation_scheme=collocation_scheme,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['x'] = Vx_interpolated
+
+    # z-values
+    Vz_interpolated = interpolate_Vz(time_grids, variables_dict, V_opt, nlp_discretization,
+                                     collocation_scheme=collocation_scheme,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['z'] = Vz_interpolated
+
+    # u-values
+    Vu_interpolated = interpolate_Vu(time_grids, variables_dict, V_opt,
+                                     control_parametrization=control_parametrization,
+                                     collocation_interpolator=collocation_interpolator,
+                                     timegrid_label=timegrid_label)
+    interpolation['u'] = Vu_interpolated
+
+    # theta values
+    for name in list(subkeys(V_opt, 'theta')):
+        interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
+
+    # output values
+    interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
+                                                   n_k, collocation_d,
+                                                   collocation_scheme=collocation_scheme,
+                                                   timegrid_label=timegrid_label,
+                                                   control_parametrization=control_parametrization)
+
+    # integral-output values
+    interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
+                                                                     integral_outputs_opt, nlp_discretization,
+                                                                     collocation_scheme=collocation_scheme,
+                                                                     timegrid_label=timegrid_label,
+                                                                     integral_collocation_interpolator=integral_collocation_interpolator)
+
+    return interpolation
+
+def build_time_grid_for_interpolation(time_grids, n_points):
+    time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
+    return time_grid_interpolated
+
+def interpolate_integral_outputs(time_grids, integral_output_names, integral_outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', integral_collocation_interpolator=None):
+
+    integral_outputs_interpolated = {}
+
+    # integral-output values
+    for name in integral_output_names:
+        if name not in list(integral_outputs_interpolated.keys()):
+            integral_outputs_interpolated[name] = []
+
+        integral_output_dimension = integral_outputs_opt['int_out', 0, name].shape[0]
+
+        for dim in range(integral_output_dimension):
+            if (nlp_discretization == 'direct_collocation'):
+                if (integral_collocation_interpolator is not None):
+                    values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, dim, 'int_out')
+                else:
+                    message = 'awebox is not yet able to interpolate integral_outputs for direct collocation without the use of the integral_collocation_interpolator'
+                    print_op.log_and_raise_error(message)
+            else:
+                output_values = cas.DM(integral_outputs_opt['int_out', :, name, dim])
+                tgrid = time_grids['x']
+
+                # make list of time grid and values
+                tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+                output_values = output_values.full().squeeze()
+
+                values_ip = vect_op.spline_interpolation(tgrid, output_values, time_grids[timegrid_label])
+
+            integral_outputs_interpolated[name] += [values_ip]
+
+    return integral_outputs_interpolated
+
+def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip'):
+
+    # merge values
+    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization)
+
+    # interpolate
+    values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
+    return values_ip
+
+
+def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly'):
+
+    outputs_interpolated = {}
+
+    expected_number_of_outputs = outputs_opt.shape[0]
+
+    odx = 0
+    for output_type in outputs_dict.keys():
+        if output_type not in list(outputs_interpolated.keys()):
+            outputs_interpolated[output_type] = {}
+
+        for name in outputs_dict[output_type].keys():
+            if name not in list(outputs_interpolated[output_type].keys()):
+                outputs_interpolated[output_type][name] = []
+
+            for dim in range(outputs_dict[output_type][name].shape[0]):
+                # interpolate
+                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization)
+
+                # store
+                outputs_interpolated[output_type][name] += [values_ip]
+                odx += 1
+
+    if not odx == expected_number_of_outputs:
+        message = 'something went wrong when interpolating outputs. the number of outputs that were interpolated is ' + str(odx) + ' when it should have been ' + str(expected_number_of_outputs)
+        print_op.log_and_raise_error(message)
+
+    return outputs_interpolated
+
+
+def interpolate_Vu(time_grids, variables_dict, V, control_parametrization='zoh', collocation_interpolator=None, timegrid_label='ip'):
+
+    Vu_interpolated = {}
+
+    var_type = 'u'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vu_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+            if control_parametrization == 'zoh':
+                control = V['u', :, name, dim]
+                values_ip = sample_and_hold_controls(time_grids, control, timegrid_label=timegrid_label)
+
+            elif (control_parametrization == 'poly') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'u')
+
+            Vu_interpolated[name] += [values_ip]
+
+    return Vu_interpolated
+
+
+def interpolate_Vz(time_grids, variables_dict, V, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
+
+    Vz_interpolated = {}
+
+    var_type = 'z'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vz_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+
+            if (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'z')
+            else:
+                values, time_grid_data = merge_z_values(V, name, dim, time_grids, nlp_discretization,
+                                                   collocation_scheme=collocation_scheme,
+                                                   include_collocation=include_collocation)
+                # interpolate
+                values_ip = vect_op.spline_interpolation(time_grid_data, values, time_grids[timegrid_label])
+
+            if hasattr(values_ip, 'full'):
+                Vz_interpolated[name] += [values_ip.full()]
+            else:
+                Vz_interpolated[name] += [values_ip]
+
+    return Vz_interpolated
+
+
+def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
+
+    Vx_interpolated = {}
+
+    var_type = 'x'
+    variable_names = variables_dict[var_type].keys()
+    for name in variable_names:
+        Vx_interpolated[name] = []
+
+        variable_dimension = variables_dict[var_type][name].shape[0]
+        for dim in range(variable_dimension):
+
+            # interpolate
+            if (interpolation_type == 'spline') or (nlp_discretization == 'multiple_shooting'):
+                values_data, time_grid_data = merge_x_values(V, name, dim, time_grids, nlp_discretization,
+                                                             collocation_scheme=collocation_scheme,
+                                                             include_collocation=include_collocation)
+                values_ip = vect_op.spline_interpolation(time_grid_data, values_data, time_grids[timegrid_label])
+
+            elif (interpolation_type == 'poly') and (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
+                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'x')
+
+            else:
+                message = 'interpolation not yet enabled for the combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
+                print_op.log_and_raise_error(message)
+
+            if hasattr(values_ip, 'full'):
+                Vx_interpolated[name] += [values_ip.full()]
+            else:
+                Vx_interpolated[name] += [values_ip]
+
+    return Vx_interpolated
+
+
+def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly'):
+
+    using_collocation = (nlp_discretization == 'direct_collocation')
+
+    output_values = outputs_opt[odx, :]
+
+    # read in inputs
+    if using_collocation:
+        using_radau = (collocation_scheme == 'radau')
+        if using_radau:
+            tgrid = time_grids['coll']
+
+            using_zoh_controls = (control_parametrization == 'zoh')
+            if using_zoh_controls:
+                outputs_reshaped = output_values.reshape((collocation_d+1, n_k)).T
+                outputs_without_duplicate_gridpoints = outputs_reshaped[:, 1:]
+                output_values = vect_op.columnize(outputs_without_duplicate_gridpoints)
+
+        else:
+            tgrid = time_grids['x_coll'][:-1]
+    else:
+        tgrid = time_grids['x'][:-1]
+
+    # make list of time grid and values
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    values = output_values.full().squeeze()
+
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
+
+    return values, tgrid
+
+def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
+
+    # read in inputs
+    if nlp_discretization == 'direct_collocation':
+        tgrid_coll = time_grids['coll']
+        # total time points
+        tgrid_z_coll = time_grids['x_coll'][:-1]
+
+    # interval time points
+    tgrid_z = time_grids['u']
+    n_k = tgrid_z.shape[0]
+
+    if nlp_discretization == 'multiple_shooting':
+        # take interval values
+        z_values = np.array(cas.vertcat(*V['z', :, name, dim]).full())
+        tgrid = tgrid_z
+
+    elif nlp_discretization == 'direct_collocation':
+        if collocation_scheme == 'radau':
+            if include_collocation:
+                # add node values
+                z_values = np.array(coll_slice_to_vec(V['coll_var', :, :, 'z', name, dim]))
+                tgrid = tgrid_coll
+            else:
+                z_values = []
+                tgrid = []
+        else:
+            z_values = []
+            # merge interval and node values
+            for ndx in range(n_k):
+                # add interval values
+                z_values = cas.vertcat(z_values, V['z', ndx, name, dim])
+                if include_collocation:
+                    # add node values
+                    z_values = cas.vertcat(z_values, cas.vertcat(*V['coll_var', ndx, :, 'z', name, dim]))
+            z_values = np.array(z_values)
+
+            if include_collocation:
+                tgrid = tgrid_z_coll
+            else:
+                tgrid = tgrid_z
+
+    # make list of time grid and values
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    values = list(chain.from_iterable(z_values))
+
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
+
+    return values, tgrid
+
+
+def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
+
+    # read in inputs
+    if nlp_discretization == 'direct_collocation':
+        tgrid_coll = time_grids['coll']
+        # total time points
+        tgrid_x_coll = time_grids['x_coll']
+
+    # interval time points
+    tgrid_x = time_grids['x']
+    n_k = tgrid_x.shape[0] - 1
+
+    if nlp_discretization == 'multiple_shooting':
+        # take interval values
+        x_values = np.array(cas.vertcat(*V['x', :, name, dim]).full())
+        tgrid = tgrid_x
+
+    elif nlp_discretization == 'direct_collocation':
+        if collocation_scheme == 'radau':
+            if include_collocation:
+                # add node values
+                x_values = np.array(coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
+                tgrid = tgrid_coll
+            else:
+                x_values = []
+                tgrid = []
+
+        else:
+            x_values = []
+            # merge interval and node values
+            for ndx in range(n_k + 1):
+                # add interval values
+                x_values = cas.vertcat(x_values, V['x', ndx, name, dim])
+                if include_collocation and (ndx < n_k):
+                    # add node values
+                    x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var', ndx, :, 'x', name, dim]).full())
+
+            x_values = np.array(x_values)
+            if include_collocation:
+                tgrid = tgrid_x_coll
+            else:
+                tgrid = tgrid_x
+
+    # make list of time grid
+    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
+    values = list(chain.from_iterable(x_values))
+
+    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
+
+    return values, tgrid
+
+
+
+def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
+
+    tgrid_u = time_grids['u']
+    tgrid_ip = time_grids[timegrid_label]
+    values_ip = np.zeros(len(tgrid_ip),)
+    for idx in range(len(tgrid_ip)):
+        for jdx in range(tgrid_u.shape[0] - 1):
+            if tgrid_u[jdx] < tgrid_ip[idx] and tgrid_ip[idx] < tgrid_u[jdx + 1]:
+                values_ip[idx] = control[jdx]
+                break
+        if tgrid_u[-1] < tgrid_ip[idx]:
+            values_ip[idx] = control[-1]
+
+    tgrid = tgrid_ip
+    values = values_ip
+
+    if vect_op.data_is_obviously_uninterpolatable(tgrid, values):
+        return None
+
+    return values
+
+def test():
+    # todo
+    awelogger.logger.warning('no tests currently defined for struct_operations')
+    return None

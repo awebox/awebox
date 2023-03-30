@@ -34,9 +34,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-
-import awebox.mdl.mdl_constraint as mdl_constraint
-
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.kite_dir.stability_derivatives as stability_derivatives
 import awebox.mdl.aero.kite_dir.frames as frames
@@ -89,7 +86,7 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
 
@@ -175,30 +172,12 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
 
 
 
-def get_wingtip_position(kite, model, variables, parameters, ext_int):
-    parent_map = model.architecture.parent_map
+def get_wingtip_position(kite, architecture, variables_si, parameters, tip):
 
-    x = model.variables_dict['x'](variables['x'])
-
-    if ext_int == 'ext':
-        span_sign = 1.
-    elif ext_int == 'int':
-        span_sign = -1.
-    else:
-        awelogger.logger.error('wing side not recognized for 6dof kite.')
-
-    parent = parent_map[kite]
-
-    name = 'q' + str(kite) + str(parent)
-    q_unscaled = x[name]
-    scale = model.scaling['x'][name]
-    q = q_unscaled * scale
-
-    kite_dcm = cas.reshape(x['kite_dcm' + str(kite) + str(parent)], (3, 3))
-    ehat_span = kite_dcm[:, 1]
-
-    b_ref = parameters['theta0','geometry','b_ref']
-
-    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+    parent = architecture.parent_map[kite]
+    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+    dcm_square = variables_si['x', 'r' + str(kite) + str(parent)]
+    dcm_kite = cas.reshape(dcm_square, (3, 3))
+    wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 
     return wingtip_position

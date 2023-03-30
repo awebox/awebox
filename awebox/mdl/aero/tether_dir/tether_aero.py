@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -37,11 +38,11 @@ import numpy as np
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
 
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 
 
@@ -101,7 +102,7 @@ def get_tether_cstr(options, variables_si, architecture, outputs):
 
     tether_drag_forces = distribute_tether_drag_forces(options, variables_si, architecture, outputs)
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
         f_tether_var = get_force_var(variables_si, node, architecture)
@@ -176,46 +177,38 @@ def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_n
 
 
 
-def get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node):
-
-    x = variables_si['x']
-    theta = variables_si['theta']
-    scaling = options['scaling']
+def get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node):
 
     lower_node = architecture.parent_map[upper_node]
     main_tether = (lower_node == 0)
     secondary_tether = (upper_node in architecture.kite_nodes)
+    intermediate_tether = not (main_tether or secondary_tether)
 
     if main_tether:
-        if 'l_t' in x.keys():
-            vars_containing_length = x
-            vars_sym = 'x'
-        else:
-            vars_containing_length = theta
-            vars_sym = 'theta'
         length_sym = 'l_t'
         diam_sym = 'diam_t'
 
     elif secondary_tether:
-        vars_containing_length = theta
-        vars_sym = 'theta'
         length_sym = 'l_s'
         diam_sym = 'diam_s'
 
-    else:
-        # intermediate tether
-        vars_containing_length = theta
-        vars_sym = 'theta'
+    elif intermediate_tether:
         length_sym = 'l_i'
         diam_sym = 'diam_t'
 
-    seg_length = vars_containing_length[length_sym]
-    scaling_length = scaling[vars_sym][length_sym]
+    else:
+        message = 'unexpected outcome of tether-type categorization, while collecting tether-segment properties'
+        print_op.log_and_raise_error(message)
 
-    seg_diam = theta[diam_sym]
-    max_diam = options['system_bounds']['theta'][diam_sym][1]
-    length_scaling = scaling[vars_sym][length_sym]
-    scaling_diam = scaling['theta'][diam_sym]
+    var_type_length = struct_op.get_variable_type(variables_si, length_sym)
+    var_type_diam = struct_op.get_variable_type(variables_si, diam_sym)
+
+    seg_length = variables_si[var_type_length][length_sym]
+    scaling_length = scaling[var_type_length, length_sym]
+
+    seg_diam = variables_si[var_type_diam][diam_sym]
+    max_diam = options['system_bounds'][var_type_diam][diam_sym][1]
+    scaling_diam = scaling[var_type_diam, diam_sym]
 
     cross_section_area = np.pi * (seg_diam / 2.) ** 2.
     max_area = np.pi * (max_diam / 2.) ** 2.
@@ -223,14 +216,31 @@ def get_tether_segment_properties(options, architecture, variables_si, parameter
 
     density = parameters['theta0', 'tether', 'rho']
     seg_mass = cross_section_area * density * seg_length
-    scaling_mass = scaling_area * parameters['theta0', 'tether', 'rho'] * length_scaling
+    scaling_mass = scaling_area * parameters['theta0', 'tether', 'rho'] * scaling_length
 
     props = {}
     props['seg_length'] = seg_length
     props['scaling_length'] = scaling_length
 
-    props['scaling_speed'] = scaling_length
-    props['scaling_acc'] = scaling_length
+    loyd_reelout_factor = 1. / 3.
+    u_ref = parameters['theta0', 'wind', 'u_ref']
+    if '[x,dl_t,0]' in scaling.labels():
+        scaling_speed = scaling['x', 'dl_t']
+    else:
+        scaling_speed = loyd_reelout_factor * u_ref
+    props['scaling_speed'] = scaling_speed
+
+    possible_var_types = ['x', 'u']
+    ddl_t_type = None
+    for var_type in possible_var_types:
+       if 'ddl_t' in struct_op.subkeys(scaling, var_type):
+           ddl_t_type = var_type
+
+    if ddl_t_type is None:
+        scaling_acceleration = np.max(options['system_bounds']['x']['ddl_t'])/2.
+    else:
+        scaling_acceleration = scaling[ddl_t_type, 'ddl_t']
+    props['scaling_acc'] = scaling_acceleration
 
     props['seg_diam'] = seg_diam
     props['max_diam'] = max_diam

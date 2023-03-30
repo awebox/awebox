@@ -29,20 +29,22 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, alu-fr 2018
 - edited: jochem de schutter, alu-fr 2018-2020
 '''
+import pdb
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options, homotopy_method_type):
+def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
 
     schedule = {}
-    schedule['cost'] = define_cost_update_schedule(cost_solver_options)
+    schedule['cost'] = define_cost_update_schedule(solver_options['cost'])
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
     schedule['homotopy'] = define_homotopy_schedule(formulation)
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
-    
+
+    homotopy_method_type = solver_options['homotopy_method']['type']
     if homotopy_method_type == 'single':
         schedule = compress_homotopy_schedule(schedule)
     
@@ -50,7 +52,7 @@ def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options
 
 def define_homotopy_schedule(formulation):
 
-    initial_schedule = ('initial','fictitious',)
+    initial_schedule = ('initial', 'fictitious',)
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
@@ -88,12 +90,13 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-    # if tether_drag_model in set([multi']):
+    # if tether_drag_model in set(['multi']):
     #     homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 
     return homotopy_schedule
+
 
 def define_costs_to_update(P, formulation):
 
@@ -151,6 +154,7 @@ def define_costs_to_update(P, formulation):
 
 def define_bounds_to_update(model, bounds_schedule, formulation):
 
+    # it takes one update per bound, therefore two updates to reset both the lower and upper bounds.
     updates = {}
 
     initial_updates = {}
@@ -436,15 +440,15 @@ def define_bound_update_schedule(model, nlp, formulation):
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):
-            bound_schedule['dl_t'][1] = ['lb','x','final']
-            bound_schedule['dl_t'][2] = ['ub','x','final']
+            bound_schedule['dl_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','x','final']
-            bound_schedule['l_t'][2] = ['ub','x','final']
+            bound_schedule['l_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'x', 'final']
     else:
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','theta','final']
-            bound_schedule['l_t'][2] = ['ub','theta','final']
+            bound_schedule['l_t'][1] = ['lb', 'theta', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'theta', 'final']
 
     return bound_schedule
 
@@ -460,6 +464,7 @@ def initialize_cost_update_counter(P):
         cost_update_counter[name] = -1
 
     return cost_update_counter
+
 
 def initialize_bound_update_counter(model, schedule, formulation):
     bound_update_counter = {}
@@ -494,8 +499,8 @@ def find_current_homotopy_parameter(parameters, V_bounds):
 
     phi_name = None
     for phi in list(parameters.keys()):
-        ub = V_bounds['ub']['phi',phi]
-        lb = V_bounds['lb']['phi',phi]
+        ub = V_bounds['ub']['phi', phi]
+        lb = V_bounds['lb']['phi', phi]
         if ub != lb:
             phi_name = phi
     
@@ -514,8 +519,8 @@ def compress_homotopy_schedule(schedule):
     schedule['costs_to_update']['middle'] = {0: [], 1: []}
     schedule['bounds_to_update']['middle'] = {0: [], 1: []}
     for step in middle_steps:
-        schedule['costs_to_update']['middle'][0]  += schedule['costs_to_update'][step][0]
-        schedule['costs_to_update']['middle'][1]  += schedule['costs_to_update'][step][1]
+        schedule['costs_to_update']['middle'][0] += schedule['costs_to_update'][step][0]
+        schedule['costs_to_update']['middle'][1] += schedule['costs_to_update'][step][1]
         schedule['bounds_to_update']['middle'][0] += schedule['bounds_to_update'][step][0]
         schedule['bounds_to_update']['middle'][1] += schedule['bounds_to_update'][step][1]
 

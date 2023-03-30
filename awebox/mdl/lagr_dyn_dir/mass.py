@@ -42,24 +42,24 @@ import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 # MASS OUTPUTS CREATION
 # ======================
 
-def generate_mass_outputs(options, variables, outputs, parameters, architecture):
+def generate_mass_outputs(options, variables, outputs, parameters, architecture, scaling):
 
     if 'masses' not in list(outputs.keys()):
         outputs['masses'] = {}
 
     for node in range(1, architecture.number_of_nodes):
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=node)
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=node)
         outputs['masses']['m_tether{}'.format(node)] = seg_props['seg_mass']
 
-    outputs['masses']['ground_station'] = get_ground_station_mass(node, options, architecture, variables, parameters) 
+    outputs['masses']['ground_station'] = get_ground_station_mass(node, options, architecture, scaling, variables, parameters)
 
     return outputs
 
-def get_ground_station_mass(node, options, architecture, variables, parameters):
+def get_ground_station_mass(node, options, architecture, scaling, variables, parameters):
 
     ground_station_mass = parameters['theta0', 'ground_station', 'm_gen']
     if options['tether']['use_wound_tether']:
-        main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
+        main_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=1)
         wound_length = variables['theta']['l_t_full'] - main_props['seg_length']
         wound_mass = main_props['cross_section_area'] * \
             parameters['theta0', 'tether', 'rho'] * wound_length
@@ -71,11 +71,11 @@ def get_ground_station_mass(node, options, architecture, variables, parameters):
 #  MASS SCALING METHODS
 # =====================
 
-def generate_m_nodes_scaling(options, variables, outputs, parameters, architecture):
+def generate_m_nodes_scaling(options, variables, parameters, architecture, scaling):
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
 
-    node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture)
+    node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, scaling)
 
     # this will be used to scale the forces,
     # so we need to repeat the scaling forces 3x, once per dimension for force.
@@ -114,7 +114,7 @@ def initialize_mass_dictionary(options, architecture):
     return node_masses
 
 
-def generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture):
+def generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, scaling):
 
     number_of_nodes = architecture.number_of_nodes
     kite_nodes = architecture.kite_nodes
@@ -126,10 +126,10 @@ def generate_mass_dictionary_for_all_nodes(options, variables, parameters, archi
     upper_nodes_of_above_ground_segments = range(1, number_of_nodes)
     for upper_node in upper_nodes_of_above_ground_segments:
         node_masses = add_above_ground_tether_segment_mass(upper_node, node_masses, options,
-                                                           architecture, variables, parameters)
+                                                           architecture, scaling, variables, parameters)
 
     if use_wound_tether:
-        node_masses = add_wound_tether_mass(node_masses, options, architecture, variables, parameters)
+        node_masses = add_wound_tether_mass(node_masses, options, architecture, scaling, variables, parameters)
 
     for kite in kite_nodes:
         node_masses = add_kite_mass(kite, node_masses, architecture, parameters)
@@ -149,9 +149,9 @@ def add_groundstation_mass(node_masses, parameters):
     return node_masses
 
 
-def add_wound_tether_mass(node_masses, options, architecture, variables, parameters):
+def add_wound_tether_mass(node_masses, options, architecture, scaling, variables, parameters):
 
-    main_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=1)
+    main_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=1)
     wound_length = options['scaling']['theta']['l_t_full'] - main_props['scaling_length']
     wound_cross_section = main_props['scaling_area']
 
@@ -161,9 +161,9 @@ def add_wound_tether_mass(node_masses, options, architecture, variables, paramet
     return node_masses
 
 
-def add_above_ground_tether_segment_mass(upper_node, node_masses, options, architecture, variables, parameters):
+def add_above_ground_tether_segment_mass(upper_node, node_masses, options, architecture, scaling, variables, parameters):
 
-    seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=upper_node)
+    seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=upper_node)
     seg_mass = seg_props['scaling_mass']
     top_mass_alloc_frac = options['tether']['top_mass_alloc_frac']
 

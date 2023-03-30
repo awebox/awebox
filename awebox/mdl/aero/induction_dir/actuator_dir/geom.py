@@ -38,22 +38,10 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
 
-import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
+import awebox.mdl.aero.geometry_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
 # switches
-
-def get_kite_radius_vector(model_options, kite, variables, architecture):
-    number_siblings = architecture.get_number_siblings(kite)
-
-    if number_siblings > 1:
-        r_vec = multi_kite_geom.approx_kite_radius_vector(variables, architecture, kite)
-    else:
-        parent = architecture.parent_map[kite]
-        r_vec = path_based_geom.approx_kite_radius_vector(model_options, variables, kite, parent)
-    return r_vec
-
 
 def get_mu_radial_ratio(variables, kite, parent):
     varrho_var = get_varrho_var(variables, kite, parent)
@@ -97,7 +85,7 @@ def get_n_vec_length_var(variables, parent):
 
 def get_tstar_ref(parameters, wind):
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    uinfty_ref = wind.get_velocity_ref()
+    uinfty_ref = wind.get_speed_ref()
     tstar = b_ref / uinfty_ref
     return tstar
 
@@ -147,7 +135,7 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
     parent = architecture.parent_map[kite]
     b_ref = parameters['theta0', 'geometry', 'b_ref']
 
-    radius_vec = get_kite_radius_vector(model_options, kite, variables, architecture)
+    radius_vec = geom.get_vector_from_center_to_kite(model_options, variables, architecture, kite)
 
     y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
     z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
@@ -272,7 +260,8 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
     elif ('ext' in tip) or (tip == 1):
         tip_radius = tip_radius + half_span_proj
     else:
-        raise Exception('invalid tip designated')
+        message = 'invalid tip designated'
+        print_op.log_and_raise_error(message)
 
     return tip_radius
 

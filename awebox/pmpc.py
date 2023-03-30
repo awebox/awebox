@@ -27,12 +27,14 @@ Periodic MPC routines for awebox models
 
 :author: Jochem De Schutter (ALU Freiburg 2019)
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import awebox as awe
 import awebox.viz.tools as viz_tools
 import casadi.tools as ct
 from awebox.logger.logger import Logger as awelogger
-import matplotlib.pyplot as plt
 import numpy as np
 import copy
 
@@ -179,11 +181,11 @@ class Pmpc(object):
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
                 if self.__mpc_options['u_param'] == 'poly':
-                    self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['coll_var', :, :, 'u', name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['coll_var', :, :, 'u', name] = 0.0
                 elif self.__mpc_options['u_param'] == 'zoh':
-                    self.__trial.nlp.V_bounds['lb']['u',:,name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['u',:,name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['u', :, name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['u', :, name] = 0.0
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']
@@ -600,7 +602,9 @@ class Pmpc(object):
         outputs_init = nlp_outputs(nlp_output_fun(self.__w0, self.__p_fix_num))
         outputs_opt = nlp_outputs(nlp_output_fun(V_opt, self.__p_fix_num))
         outputs_ref = nlp_outputs(nlp_output_fun(V_ref, self.__p_fix_num))
-        output_vals = [outputs_init, outputs_opt, outputs_ref]
+        output_vals = {'init':outputs_init,
+                       'opt':outputs_opt,
+                       'ref':outputs_ref}
 
         # generate integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = self.__trial.nlp.integral_output_components
@@ -640,8 +644,11 @@ class Pmpc(object):
 
         # initialize
         import awebox.opti.preparation as prep
+        import awebox.tools.print_operations as print_op
         V_dummy = self.__trial.nlp.V(0.0)
-        p_fix_num = prep.set_p_fix_num(V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
+
+        p_fix_num = prep.initialize_opti_parameters_with_model_parameters(self.__trial.nlp, self.__trial.options['solver'])
+        p_fix_num = prep.add_weights_and_refs_to_opti_parameters(p_fix_num, V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
         x0 = self.__trial.model.variables_dict['x'](self.__p['x0'])
         xN = self.__trial.model.variables_dict['x'](self.__trial.nlp.V(self.__p['ref'])['x',-1])
 

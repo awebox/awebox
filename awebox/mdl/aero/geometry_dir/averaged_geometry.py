@@ -2,7 +2,7 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2021 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2022 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
 #    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
@@ -25,30 +25,33 @@
 '''
 geometry values needed for general induction modelling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-21
+- author: rachel leuthold, alu-fr 2017-22
 - edit: jochem de schutter, alu-fr 2019
 '''
 
-import casadi.tools as cas
 import numpy as np
+
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
-import awebox.mdl.aero.induction_dir.tools_dir.unit_normal as unit_normal
-import awebox.mdl.aero.induction_dir.tools_dir.path_based_geom as path_based_geom
-import awebox.mdl.aero.induction_dir.tools_dir.multi_kite_geom as multi_kite_geom
+def print_warning_if_relevant(architecture):
+    warning_is_relevant = (architecture.number_of_kites == 1)
+    if warning_is_relevant:
+        message = 'in a single-kite situation, the averaged geometry will estimate the center of rotation and the velocity of that center as the position and velocity, respectively, of the single kite. this may lead to distorted calculations and divide-by-zero errors'
+        awelogger.logger.warning(message)
+    return None
 
-import awebox.tools.constraint_operations as cstr_op
-import awebox.tools.vector_operations as vect_op
-
-def get_center_point(model_options, parent, variables, architecture):
+def get_center_position(parent, variables, architecture):
 
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
-    if number_children > 1:
-        center = multi_kite_geom.approx_center_point(parent, variables, architecture)
-    else:
-        center = path_based_geom.approx_center_point(model_options, children, variables, architecture)
+    center = np.zeros((3, 1))
+    for kite in children:
+        q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(kite) + str(parent))
+        center += q_kite / number_children
 
     return center
 
@@ -57,14 +60,9 @@ def get_center_velocity(parent, variables, architecture):
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
-    if (parent > 0) and (number_children > 1):
-        dcenter = multi_kite_geom.approx_center_velocity(parent, variables, architecture)
-    elif (number_children == 1):
-        dq = variables['x']['dq' + str(children[0]) + str(parent)]
-        dcenter = dq
-    else:
-        message = 'actuator-center velocity not yet set-up for this architecture'
-        awelogger.logger.error(message)
-        raise Exception(message)
+    dcenter = np.zeros((3, 1))
+    for kite in children:
+        dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(kite) + str(parent))
+        dcenter += dq_kite / number_children
 
     return dcenter

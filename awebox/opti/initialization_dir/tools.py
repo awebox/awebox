@@ -27,12 +27,12 @@ repeated tools to make initialization smoother
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
-
+import pdb
 
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
-from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 
 def get_ehat_tether(init_options):
@@ -153,6 +153,18 @@ def get_velocity_vector(t, init_options, model, node, ret):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
+def get_acceleration_vector(t, init_options, model, node, ret):
+
+    radius = init_options['precompute']['radius']
+    groundspeed = init_options['precompute']['groundspeed']
+    sign = get_rotation_direction_sign(init_options)
+
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    acceleration_magnitude = groundspeed**2 / radius
+    acceleration = acceleration_magnitude * sign * ehat_radial
+    return acceleration
+
+
 def get_velocity_vector_from_psi(init_options, groundspeed, psi):
 
     n_rot_hat, _, _ = get_rotor_reference_frame(init_options)
@@ -163,10 +175,17 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
-def get_kite_dcm(init_options, model, node, ret):
+def get_air_velocity(init_options, model, node, ret):
 
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
+
+    vec_u_infty = get_wind_velocity(init_options)
+    vec_u_app = vec_u_infty - velocity
+
+    return vec_u_app
+
+def get_kite_dcm(init_options, model, node, ret):
 
     normal_vector = ret['q10']
     ehat_normal = vect_op.normalize(normal_vector)
@@ -174,11 +193,7 @@ def get_kite_dcm(init_options, model, node, ret):
     kite_dcm_setting_method = init_options['kite_dcm']
     if kite_dcm_setting_method == 'aero_validity':
 
-        position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
-        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
-
-        vec_u_infty = get_wind_speed(init_options, position[2])
-        vec_u_app = vec_u_infty - velocity
+        vec_u_app = get_air_velocity(init_options, model, node, ret)
 
         ehat1 = vect_op.normalize(vec_u_app)
         ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
@@ -186,6 +201,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     elif kite_dcm_setting_method == 'circular':
 
+        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
         ehat_forwards = vect_op.normalize(velocity)
 
         ehat1 = -1. * ehat_forwards
@@ -194,8 +210,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     else:
         message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
@@ -214,17 +229,19 @@ def find_airspeed(init_options, groundspeed, psi):
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
-    uu = get_wind_speed(init_options, zz)
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
+    vec_u_infty = get_wind_velocity(init_options)
+    vec_u_app = dq_kite - vec_u_infty
+    airspeed = float(vect_op.norm(vec_u_app))
 
     return airspeed
 
-def get_wind_speed(init_options, zz):
+def get_wind_velocity(init_options):
+
     if 'l_t' in init_options['x'].keys():
         l_t = init_options['x']['l_t']
     else:
         l_t = init_options['theta']['l_t']
+
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 

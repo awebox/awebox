@@ -31,7 +31,7 @@ options['model.system_bounds.u.dkappa'] = [-1.0, 1.0]
 # bounds on tether length
 options['model.system_bounds.x.l_t'] = [1.0e-2, 1.0e3]
 options['solver.initialization.theta.l_i'] = 100.0 # stacks-connecting tether
-options['solver.initialization.x.l_t'] = 1000.0 # stacks-connecting tether
+options['solver.initialization.l_t'] = 1000.0 # stacks-connecting tether
 
 # wind model
 options['params.wind.z_ref'] = 10.0

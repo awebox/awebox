@@ -28,6 +28,7 @@ that generates the dynamics residual
 python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -40,12 +41,7 @@ from . import system
 
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
-
 import awebox.mdl.aero.induction_dir.induction as induction
-import awebox.mdl.aero.induction_dir.vortex_dir.convection as vortex_convection
-import awebox.mdl.aero.indicators as indicators
-
-import awebox.mdl.mdl_constraint as mdl_constraint
 
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
@@ -71,25 +67,29 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # -----------------------------------
     system_variables = {}
     system_variables['scaled'], variables_dict = struct_op.generate_variable_struct(system_variable_list)
-    system_variables['SI'], options['scaling'] = generate_si_variables(options['scaling'], system_variables['scaled'])
-    scaling = options['scaling']
+    scaling = generate_scaling(options['scaling'], system_variables['scaled'])
+    system_variables['SI'] = generate_si_variables(scaling, system_variables['scaled'])
 
     variables_to_return_to_model = system_variables['scaled']
 
+    print_op.print_variable_info('model', variables_to_return_to_model)
 
     # -----------------------------------
     # prepare empty constraints list and outputs
     # -----------------------------------
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
     outputs = {}
 
     # ---------------------------------
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
 
+    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables['SI'], parameters)
+
     # enforce the lagrangian dynamics
-    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs)
+    lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling)
     cstr_list.append(lagr_dyn_cstr)
+
 
     # enforce lifted aerodynamic force <-- this must happen after lagr_dyn.get_dynamics, which determines the kite indicators
     if options['aero']['lift_aero_force']:
@@ -102,9 +102,21 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    if not (options['induction_model'] in ['not_in_use', 'averaged']):
-        induction_cstr = induction.get_induction_cstr(options, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+    if options['induction_model'] is 'not_in_use':
+        pass
+    else:
+        induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
+
+    # specify the required integrations, including that
+    # the energy is the integral of the instantaneous power
+    derivative_dict = get_dictionary_of_derivatives(options, system_variables, parameters, atmos, wind, outputs, architecture, scaling)
+    integral_outputs, integral_outputs_fun, integral_scaling, alongside_integration_cstr = manage_alongside_integration(options,
+                                                                                                                derivative_dict,
+                                                                                                                system_variables,
+                                                                                                                parameters)
+
+    cstr_list.append(alongside_integration_cstr)
 
 
     # --------------------------------------------
@@ -115,7 +127,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'])
     cstr_list.append(wound_length_cstr)
 
-    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture)
+    outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture, scaling)
     cstr_list.append(stress_cstr)
 
     airspeed_cstr = airspeed_inequality(options, outputs, parameters, architecture)
@@ -132,14 +144,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
 
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
-
-    # ensure that energy matches power integration
-    power, outputs = get_power(options, system_variables, parameters, outputs, architecture)
-    integral_outputs, integral_outputs_fun, integral_scaling, energy_cstr = manage_power_integration(options, power, outputs, system_variables, parameters, architecture, atmos, wind)
-    cstr_list.append(energy_cstr)
-
-    P_max_cstr = P_max_inequality(options, system_variables['SI'], power, parameters, architecture)
-    cstr_list.append(P_max_cstr)
+ 
+    power, outputs = get_power(options, system_variables, parameters, outputs, architecture, scaling)
+    max_power_cstr = max_power_inequality(options, system_variables['SI'], power)
+    cstr_list.append(max_power_cstr)
 
     outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(ellips_cstr)
@@ -168,7 +176,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # add other relevant outputs
     outputs = xdot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,
-                                    parameters, architecture)  # power balance must be after tether stress inequality
+                                    parameters, architecture, scaling)  # power balance must be after tether stress inequality
 
     # system output function
     [out, out_fun, out_dict] = make_output_structure(outputs, system_variables, parameters)
@@ -187,7 +195,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         out_dict,
         integral_outputs,
         integral_outputs_fun,
-        integral_scaling]
+        integral_scaling,
+        wake
+    ]
 
 
 def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, variables_scaled):
@@ -201,54 +211,66 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 
     return None
 
-def manage_power_integration(options, power, outputs, system_variables, parameters, architecture, atmos, wind):
+def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    # ensure that energy matches power integration
+    power, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+    energy_scaling = model_options['scaling']['x']['e']
+    derivative_dict = {'e': (power, energy_scaling)}
 
-    # generate empty integral_outputs struct
-    integral_outputs = cas.struct_SX([])
+    if model_options['trajectory']['system_type'] == 'drag_mode':
+        power_derivative_sq_scaling = 1.
+        power_derivative_sq = outputs['performance']['power_derivative']**2
+        derivative_dict['power_derivative_sq'] =(power_derivative_sq, power_derivative_sq_scaling)
+
+    induction_derivative_dict = induction.get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture)
+    for local_key, local_val in induction_derivative_dict.items():
+        if not local_key in derivative_dict.keys():
+            derivative_dict[local_key] = local_val
+
+    if model_options['integration']['include_integration_test']:
+        derivative_dict['total_time_unscaled'] = (cas.DM(1.), cas.DM(1.))
+        total_time_scaling = model_options['scaling']['x']['total_time_scaled']
+        derivative_dict['total_time_scaled'] = (cas.DM(1.), total_time_scaling)  # second value is some arbitrary large number.
+
+    return derivative_dict
+
+
+def manage_alongside_integration(model_options, derivative_dict, system_variables, parameters):
+
+    integral_outputs_expr_entries = []
+    integral_outputs_struct_entries = []
+    cstr_list = cstr_op.MdlConstraintList()
 
     integral_scaling = {}
 
-    if options['integral_outputs']:
-        
-        entry_list = [cas.entry('e', expr=power / options['scaling']['x']['e'])]
+    for integral_var_name, integral_derivative_tuple in derivative_dict.items():
 
-        if options['trajectory']['system_type'] == 'drag_mode':
-            entry_list += [cas.entry('power_derivative_sq', expr= outputs['performance']['power_derivative']**2)]
-            integral_scaling['power_derivative_sq'] = 1.0
+        integral_derivative_expression_si = integral_derivative_tuple[0]
+        local_scaling = integral_derivative_tuple[1]
 
-        if options['induction_model'] == 'averaged':
-            tether_forces = 0.0
-            WdA = 0.0
-            for kite in architecture.kite_nodes:
-                tether_forces += outputs['local_performance']['tether_force{}'.format(architecture.node_label(kite))]
-                q = system_variables['SI']['x']['q{}'.format(architecture.node_label(kite))]
-                rho = atmos.get_density(q[2])[0]
-                u_inf = wind.get_velocity(q[2])[0]
-                dq = system_variables['SI']['x']['dq{}'.format(architecture.node_label(kite))]
-                b = parameters['theta0', 'geometry', 'b_ref']
-                WdA += 0.5*b*vect_op.norm(dq)*rho*u_inf**2
-            entry_list += [cas.entry('tether_force_int', expr= tether_forces)]
-            entry_list += [cas.entry('area_int', expr= WdA)]
-            integral_scaling['tether_force_int'] = 1.0
-            integral_scaling['area_int'] = 1.0
+        local_expression_scaled = integral_derivative_expression_si / local_scaling
+        integral_scaling[integral_var_name] = local_scaling
 
-        integral_outputs = cas.struct_SX(entry_list)
+        if model_options['integral_outputs']:
+            local_expr = local_expression_scaled
+            integral_outputs_expr_entries += [cas.entry(integral_var_name, expr=local_expr)]
 
-        integral_scaling['e'] = options['scaling']['x']['e']
+            local_shape = integral_derivative_expression_si.shape
+            integral_outputs_struct_entries += [cas.entry(integral_var_name, shape=local_shape)]
 
-    else:
-        energy_resi = (system_variables['SI']['xdot']['de'] - power) / options['scaling']['x']['e']
+        else:
+            local_resi = (system_variables['scaled']['xdot', 'd' + integral_var_name] - local_expression_scaled)
+            local_cstr = cstr_op.Constraint(expr=local_resi,
+                                           name='integral_' + integral_var_name,
+                                           cstr_type='eq')
+            cstr_list.append(local_cstr)
 
-        energy_cstr = cstr_op.Constraint(expr=energy_resi,
-                                       name='energy',
-                                       cstr_type='eq')
-        cstr_list.append(energy_cstr)
+    integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
 
     # dynamics function options
-    if options['jit_code_gen']['include']:
-        opts = {'jit': True, 'compiler': options['jit_code_gen']['compiler']}
+    if model_options['jit_code_gen']['include']:
+        opts = {'jit': True, 'compiler': model_options['jit_code_gen']['compiler']}
     else:
         opts = {}
 
@@ -306,14 +328,14 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
     return kite_drag_power
 
 
-def get_power(options, system_variables, parameters, outputs, architecture):
+def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
         outputs['performance']['p_current'] = power
-        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables, architecture)
+        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
         outputs['performance']['p_current'] = power
@@ -331,7 +353,7 @@ def drag_mode_outputs(variables_si, parameters, outputs, architecture):
 
 
 
-def power_balance_outputs(options, outputs, system_variables, parameters, architecture):
+def power_balance_outputs(options, outputs, system_variables, parameters, architecture, scaling):
     variables_si = system_variables['SI']
 
     # all aerodynamic forces have already been added to power balance, by this point.
@@ -341,16 +363,16 @@ def power_balance_outputs(options, outputs, system_variables, parameters, archit
         outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
-    outputs = kinetic_power_outputs(options, outputs, system_variables, architecture)
-    outputs = potential_power_outputs(options, outputs, system_variables, architecture)
+    outputs = kinetic_power_outputs(outputs, system_variables, architecture, scaling)
+    outputs = potential_power_outputs(outputs, system_variables, architecture, scaling)
 
     if options['test']['check_energy_summation']:
-        outputs = comparison_kin_and_pot_power_outputs(options, outputs, system_variables, architecture)
+        outputs = comparison_kinetic_and_potential_power_outputs(outputs, system_variables, architecture, scaling)
 
     return outputs
 
 
-def comparison_kin_and_pot_power_outputs(options, outputs, system_variables, architecture):
+def comparison_kinetic_and_potential_power_outputs(outputs, system_variables, architecture, scaling):
 
     outputs['power_balance_comparison'] = {}
 
@@ -364,7 +386,7 @@ def comparison_kin_and_pot_power_outputs(options, outputs, system_variables, arc
             e_local += dict[keyname]
 
         # rate of change in kinetic energy
-        P = lagr_tools.time_derivative(e_local, system_variables, architecture)
+        P = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
 
         # convention: negative when kinetic energy is added to the system
         outputs['power_balance_comparison'][type] = -1. * P
@@ -397,7 +419,7 @@ def tether_power_outputs(variables_si, outputs, architecture):
     return outputs
 
 
-def kinetic_power_outputs(options, outputs, system_variables, architecture):
+def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
     """Compute rate of change of kinetic energy for all system nodes
 
     @return: outputs updated outputs dict
@@ -421,14 +443,14 @@ def kinetic_power_outputs(options, outputs, system_variables, architecture):
             # rate of change in kinetic energy
             e_local = outputs['e_kinetic'][cat]
 
-            P = lagr_tools.time_derivative(e_local, system_variables, architecture)
+            P = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
 
             # convention: negative when energy is added to the system
             outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
 
     return outputs
 
-def potential_power_outputs(options, outputs, system_variables, architecture):
+def potential_power_outputs(outputs, system_variables, architecture, scaling):
     """Compute rate of change of potential energy for all system nodes
 
     @return: outputs updated outputs dict
@@ -444,7 +466,7 @@ def potential_power_outputs(options, outputs, system_variables, architecture):
 
         # rate of change in potential energy (ignore in-outflow of potential energy)
         e_local = outputs['e_potential']['q' + label]
-        P = lagr_tools.time_derivative(e_local, system_variables, architecture)
+        P = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
 
         # convention: negative when potential energy is added to the system
         outputs['power_balance']['P_pot' + str(n)] = -1. * P
@@ -465,7 +487,7 @@ def anticollision_inequality(options, variables, parameters, architecture):
     kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['anticollision']['include']:
 
@@ -491,7 +513,7 @@ def anticollision_inequality(options, variables, parameters, architecture):
 
 def dcoeff_actuation_inequality(options, variables_si, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['dcoeff_actuation']['include']:
 
@@ -541,7 +563,7 @@ def dcoeff_actuation_inequality(options, variables_si, parameters, architecture)
 
 def coeff_actuation_inequality(options, variables_si, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['coeff_actuation']['include']:
 
@@ -589,23 +611,23 @@ def coeff_actuation_inequality(options, variables_si, parameters, architecture):
     return cstr_list
 
 
-def P_max_inequality(options, variables, power, parameters, architecture):
+def max_power_inequality(options, variables, power):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if 'P_max' in variables['theta'].keys():
         max_power_ineq = (power - variables['theta']['P_max'])/options['scaling']['theta']['P_max']
 
-        P_max_cstr = cstr_op.Constraint(expr=max_power_ineq,
-                                    name='P_max_cstr',
+        max_power_cstr = cstr_op.Constraint(expr=max_power_ineq,
+                                    name='max_power_cstr',
                                     cstr_type='ineq')
-        cstr_list.append(P_max_cstr)
+        cstr_list.append(max_power_cstr)
 
     return cstr_list
 
 def ellipsoidal_flight_constraint(options, variables, parameters, architecture, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     alpha = parameters['theta0', 'model_bounds', 'ellipsoidal_flight_region', 'alpha']
     if 'ell_radius' in list(variables['theta'].keys()):
@@ -625,28 +647,12 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
                                         cstr_type='ineq')
             cstr_list.append(ellipse_cstr)
 
-        if options['induction_model'] == 'averaged':
-            ell_theta = variables['theta']['ell_theta']
-            for kite in architecture.kite_nodes:
-                q = variables['x']['q{}'.format(architecture.node_label(kite))]
-
-                yy = q[1]
-                zz = - q[0]*np.sin(alpha) + q[2]*np.cos(alpha)
-                if kite == 2:
-                    ellipse_half_ineq = np.cos(ell_theta)*zz - np.sin(ell_theta)*yy
-                elif kite == 3:
-                    ellipse_half_ineq = np.sin(ell_theta)*yy - np.cos(ell_theta)*zz            
-
-                ellipse_half_cstr = cstr_op.Constraint(expr=ellipse_half_ineq,
-                                            name='ellipse_half' + architecture.node_label(kite),
-                                            cstr_type='ineq')
-                cstr_list.append(ellipse_half_cstr)
     return outputs, cstr_list
 
 
 def acceleration_inequality(options, variables):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['acceleration']['include']:
 
@@ -673,7 +679,7 @@ def acceleration_inequality(options, variables):
 
 def airspeed_inequality(options, outputs, parameters, architecture):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['airspeed']['include']:
 
@@ -707,7 +713,7 @@ def airspeed_inequality(options, outputs, parameters, architecture):
 
 def aero_validity_inequality(options, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     if options['model_bounds']['aero_validity']['include']:
         for name in outputs['aero_validity'].keys():
@@ -720,9 +726,9 @@ def aero_validity_inequality(options, outputs):
 
     return cstr_list
 
-def tether_stress_inequality(options, variables_si, outputs, parameters, architecture):
+def tether_stress_inequality(options, variables_si, outputs, parameters, architecture, scaling):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     # system architecture (see zanon2013a)
     number_of_nodes = architecture.number_of_nodes
@@ -744,7 +750,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
         parent = parent_map[n]
 
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables_si, parameters, upper_node=n)
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=n)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
@@ -839,7 +845,7 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
 def wound_tether_length_inequality(options, variables):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
 
     if options['model_bounds']['wound_tether_length']['include']:
@@ -860,72 +866,120 @@ def wound_tether_length_inequality(options, variables):
     return cstr_list
 
 
-def generate_si_variables(scaling_options, variables):
+def generate_scaling(scaling_options, variables):
 
-    scaling = {}
+    scaling = variables(1.)
+    unset_set = set([])
 
-    prepared_x_names = scaling_options['x'].keys()
+    for vdx in range(scaling.cat.shape[0]):
+        canonical = scaling.getCanonicalIndex(vdx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        dim = canonical[2]
+        label = scaling.labels()[vdx]
 
-    if 'xdot' not in scaling_options.keys():
-        scaling_options['xdot'] = {}
+        split_name, kiteparent = struct_op.split_name_and_node_identifier(var_name)
 
-    for var_type in variables.keys():
-        scaling[var_type] = {}
+        # first choice, is if the variable is directly in options['scaling']] with node identifier
+        # second choice, is ^^ without node identifier
+        # third choice, is if the variable is the direct derivative of the version in options['scaling'], with node identifier
+        # fourth choice, is ^^ without node identifier
+        # fifth choice, is if the variable is *any* derivative/integral of something in options['scaling'], with ...
+        # sixth choice, is ^^ without ...
+        # last choice, is unity.
 
-        for var_name in struct_op.subkeys(variables, var_type):
+        possible_scaling = 0.
+        first_choice = 0.
+        second_choice = 0.
+        third_choice = 0.
+        fourth_choice = 0.
+        fifth_choice = 0.
+        sixth_choice = 0.
 
-            stripped_name, _ = struct_op.split_name_and_node_identifier(var_name)
-            prepared_names = scaling_options[var_type].keys()
+        for possibly_type in scaling_options.keys():
 
-            var_might_be_derivative = (stripped_name[0] == 'd') and (len(stripped_name) > 1)
-            poss_deriv_name = stripped_name[1:]
+            set_of_characters_in_var_name = set([var_name[vdx] for vdx in range(len(var_name))])
+            set_of_characters_in_split_name = set([split_name[vdx] for vdx in range(len(split_name))])
 
-            var_might_be_sec_derivative = var_might_be_derivative and (stripped_name[1] == 'd') and (len(stripped_name) > 2)
-            poss_sec_deriv_name = stripped_name[2:]
+            first_choice = var_name in scaling_options[possibly_type]
+            if first_choice:
+                first_value = scaling_options[possibly_type][var_name]
 
-            var_might_be_third_derivative = var_might_be_sec_derivative and (stripped_name[2] == 'd') and (len(stripped_name) > 3)
-            poss_third_deriv_name = stripped_name[3:]
+            second_choice = split_name in scaling_options[possibly_type]
+            if second_choice:
+                second_value = scaling_options[possibly_type][split_name]
+
+            third_choice = (var_type == 'xdot') and (var_name[0] == 'd') and (
+                        var_name[1:] in scaling_options[possibly_type])
+            if third_choice:
+                third_value = scaling_options[possibly_type][var_name[1:]]
+
+            fourth_choice = (split_name == 'xdot') and (split_name[0] == 'd') and (
+                        split_name[1:] in scaling_options[possibly_type])
+            if fourth_choice:
+                fourth_value = scaling_options[possibly_type][split_name[1:]]
+
+            if first_choice:
+                possible_scaling = first_value
+            elif second_choice:
+                possible_scaling = second_value
+            elif third_choice:
+                possible_scaling = third_value
+            elif fourth_choice:
+                possible_scaling = fourth_value
+
+        if cas.DM(possible_scaling).is_zero():
+            set_of_characters_in_var_name = set([var_name[vdx] for vdx in range(len(var_name))])
+            set_of_characters_in_split_name = set([split_name[vdx] for vdx in range(len(split_name))])
+
+            fifth_choice = False
+            sixth_choice = False
+            for possibly_type in scaling_options.keys():
+                for possible_var_name in scaling_options[possibly_type]:
+                    set_of_characters_in_possible_var_name = set([possible_var_name[vdx] for vdx in range(len(possible_var_name))])
+
+                    difference_with_var_name_forwards = set_of_characters_in_var_name.difference(set_of_characters_in_possible_var_name)
+                    difference_with_var_name_backwards = set_of_characters_in_possible_var_name.difference(set_of_characters_in_var_name)
+                    difference_with_var_name = difference_with_var_name_forwards.union(difference_with_var_name_backwards)
+                    if difference_with_var_name == set(['d']):
+                        fifth_choice = True
+                        fifth_value = scaling_options[possibly_type][possible_var_name]
+
+                    difference_with_split_name_forwards = set_of_characters_in_split_name.difference(set_of_characters_in_possible_var_name)
+                    difference_with_split_name_backwards = set_of_characters_in_possible_var_name.difference(set_of_characters_in_split_name)
+                    difference_with_split_name = difference_with_split_name_forwards.union(difference_with_split_name_backwards)
+                    if difference_with_split_name == set(['d']):
+                        sixth_choice = True
+                        sixth_value = scaling_options[possibly_type][possible_var_name]
+
+            if fifth_choice:
+                possible_scaling = fifth_value
+            elif sixth_choice:
+                possible_scaling = sixth_value
+
+        possible_scaling = cas.DM(possible_scaling)
+
+        if possible_scaling.is_zero():
+            unset_set.add(label)
+            possible_scaling = 1.
+
+        if vect_op.is_numeric_scalar(possible_scaling):
+            scaling[var_type, var_name, dim] = possible_scaling
+        elif vect_op.is_numeric_columnar(possible_scaling) and (possible_scaling.shape == scaling[var_type, var_name].shape):
+            scaling[var_type, var_name, dim] = possible_scaling[dim]
+        else:
+            message = 'unaccepted dimension of scaling information provided for variable ' + label + '. '
+            message += 'variable shape is ' + str(scaling[var_type, var_name].shape) + ', and provided information has shape ' + str(possible_scaling.shape)
+            print_op.log_and_raise_error(message)
+
+    if len(unset_set) > 0:
+        message = 'no scaling information provided for the following variables: \n' + repr(unset_set) + '.\n' + 'Proceeding with unit scaling.'
+        print_op.base_print(message, level='warning')
+
+    return scaling
 
 
-
-            if var_name in prepared_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][var_name])
-
-            elif stripped_name in prepared_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][stripped_name])
-
-            elif var_might_be_derivative and (poss_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_deriv_name])
-
-            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_sec_deriv_name])
-
-            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options[var_type][poss_third_deriv_name])
-
-
-
-            elif var_name in prepared_x_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options['x'][var_name])
-
-            elif stripped_name in prepared_x_names:
-                scaling[var_type][var_name] = cas.DM(scaling_options['x'][stripped_name])
-
-            elif var_might_be_derivative and (poss_deriv_name in prepared_x_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_deriv_name])
-
-            elif var_might_be_sec_derivative and (poss_sec_deriv_name in prepared_x_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_sec_deriv_name])
-
-            elif var_might_be_third_derivative and (poss_third_deriv_name in prepared_x_names):
-                scaling[var_type][var_name] = cas.DM(scaling_options['x'][poss_third_deriv_name])
-
-            else:
-                message = 'no scaling information provided for variable ' + var_name + ', expected in ' + var_type + '. Proceeding with unit scaling.'
-                awelogger.logger.warning(message)
-                scaling[var_type][var_name] = cas.DM(1.)
-
-        scaling_options[var_type].update(scaling[var_type])
+def generate_si_variables(scaling, variables):
 
     # scale variables
     variables_si = {}
@@ -935,7 +989,7 @@ def generate_si_variables(scaling_options, variables):
         variables_si[var_type] = cas.struct_SX(
             [cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
 
-    return variables_si, scaling_options
+    return variables_si
 
 
 
@@ -1063,7 +1117,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
     x = variables['x']
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     kite_has_6_dof = (options['kite_dof'] == 6)
     if kite_has_6_dof:
@@ -1155,7 +1209,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                                                         name='rotation_max' + tether_name2,
                                                         cstr_type='ineq')
                             cstr_list.append(cstr_max)
-                   
+
                         outputs['local_performance']['rot_angles' + tether_name] = yaw_angle
                         outputs['local_performance']['rot_angles' + tether_name2] = yaw_angle2
 

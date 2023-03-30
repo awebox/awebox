@@ -40,14 +40,18 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.coeff as actuator_coeff
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
-import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.mdl.aero.geometry_dir.geometry as geom
 
-import awebox.tools.print_operations as print_op
-import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
 
-def get_actuator_cstr(model_options, atmos, wind, variables, parameters, outputs, architecture):
+def model_is_included_in_comparison(options):
+    comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'actuator')
+    any_vor = any(label[:3] == 'act' for label in comparison_labels)
+    return any_vor
+
+def get_model_constraints(model_options, atmos, wind, variables, parameters, outputs, architecture):
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -99,7 +103,8 @@ def get_induction_factor_cstr(model_options, atmos, wind, variables, outputs, pa
 
     else:
         resi = []
-        awelogger.logger.error('model not yet implemented.')
+        message = 'model not yet implemented.'
+        print_op.log_and_raise_error(message)
 
     name = 'actuator_induction_factor_' + label + '_' + str(parent)
     cstr = cstr_op.Constraint(expr=resi,
@@ -300,12 +305,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator'] = {}
 
     for kite in kite_nodes:
-
         parent = architecture.parent_map[kite]
-
-        outputs['actuator']['radius_vec' + str(kite)] = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
-        outputs['actuator']['radius' + str(kite)] = actuator_geom.get_kite_radius(kite, variables, architecture, parameters)
-
         for label in act_comp_labels:
             outputs['actuator']['local_a_' + label + str(kite)] = actuator_flow.get_local_induction_factor(model_options, variables, kite, parent, label)
 
@@ -315,8 +315,8 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         for label in act_comp_labels:
             outputs['actuator']['a0_' + label + str(parent)] = actuator_flow.get_a_var(variables, parent, label)
 
-        center = general_geom.get_center_point(model_options, parent, variables, architecture)
-        velocity = general_geom.get_center_velocity(parent, variables, architecture)
+        center = geom.get_center_position(model_options, parent, variables, architecture)
+        velocity = geom.get_center_velocity(model_options, parent, variables, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
         avg_radius = actuator_geom.get_average_radius(model_options, variables, parent, architecture, parameters)
         nhat = actuator_geom.get_n_hat_var(variables, parent)
@@ -328,11 +328,9 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['nhat' + str(parent)] = nhat
         outputs['actuator']['bar_varrho' + str(parent)] = actuator_geom.get_bar_varrho_var(variables, parent)
 
-        u_a = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
         yaw_angle = actuator_flow.get_gamma_var(variables, parent)
         q_app = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
-        outputs['actuator']['u_app' + str(parent)] = u_a
         outputs['actuator']['yaw' + str(parent)] = yaw_angle
         outputs['actuator']['yaw_deg' + str(parent)] = yaw_angle * 180. / np.pi
         outputs['actuator']['dyn_pressure' + str(parent)] = q_app

@@ -30,6 +30,7 @@ and information storage and retrieval.
 @edit: rachel leuthold, alu-fr 2019
 """
 
+import awebox.tools.print_operations as print_op
 
 class Architecture:
     """Class that facilitates structure bookkeeping of tree-structured tethered kite systems.
@@ -168,7 +169,7 @@ class Architecture:
 
     @parent_map.setter
     def parent_map(self, value):
-        print('Cannot set parent_map object.')
+        print_op.log_and_raise_error('Cannot set parent_map object.')
 
     @property
     def number_of_nodes(self):
@@ -177,7 +178,7 @@ class Architecture:
 
     @number_of_nodes.setter
     def number_of_nodes(self, value):
-        print('Cannot set number_of_nodes object.')
+        print_op.log_and_raise_error('Cannot set number_of_nodes object.')
 
     @property
     def kite_nodes(self):
@@ -186,7 +187,7 @@ class Architecture:
 
     @kite_nodes.setter
     def kite_nodes(self, value):
-        print('Cannot set kite_nodes object.')
+        print_op.log_and_raise_error('Cannot set kite_nodes object.')
 
     @property
     def number_of_kites(self):
@@ -195,7 +196,7 @@ class Architecture:
 
     @number_of_kites.setter
     def number_of_kites(self, value):
-        print('Cannot set number_of_kites object.')
+        print_op.log_and_raise_error('Cannot set number_of_kites object.')
 
     @property
     def layers(self):
@@ -204,7 +205,7 @@ class Architecture:
 
     @layers.setter
     def layers(self, value):
-        print('Cannot set layers object.')
+        print_op.log_and_raise_error('Cannot set layers object.')
 
     @property
     def layer_nodes(self):
@@ -213,7 +214,7 @@ class Architecture:
 
     @layer_nodes.setter
     def layer_nodes(self, value):
-        print('Cannot set layer_nodes object.')
+        print_op.log_and_raise_error('Cannot set layer_nodes object.')
 
     @property
     def children_map(self):
@@ -222,7 +223,7 @@ class Architecture:
 
     @children_map.setter
     def children_map(self, value):
-        print('Cannot set children_map object.')
+        print_op.log_and_raise_error('Cannot set children_map object.')
 
     @property
     def children(self):
@@ -231,7 +232,7 @@ class Architecture:
 
     @children.setter
     def children(self, value):
-        print('Cannot set children object.')
+        print_op.log_and_raise_error('Cannot set children object.')
 
     @property
     def kites_map(self):
@@ -240,7 +241,7 @@ class Architecture:
 
     @kites_map.setter
     def kites_map(self, value):
-        print('Cannot set kites_map object.')
+        print_op.log_and_raise_error('Cannot set kites_map object.')
 
     @property
     def siblings_map(self):
@@ -249,7 +250,7 @@ class Architecture:
 
     @siblings_map.setter
     def siblings_map(self, value):
-        print('Cannot set siblings_map object.')
+        print_op.log_and_raise_error('Cannot set siblings_map object.')
 
     @property
     def siblings(self):
@@ -258,4 +259,4 @@ class Architecture:
 
     @siblings.setter
     def siblings(self, value):
-        print('Cannot set siblings object.')
+        print_op.log_and_raise_error('Cannot set siblings object.')

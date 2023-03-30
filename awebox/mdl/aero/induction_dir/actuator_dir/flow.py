@@ -37,8 +37,8 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
-import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.geometry_dir.geometry as geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -56,7 +56,8 @@ def get_a_var_type(label):
     elif label[0] == 'u':
         var_type = 'x'
     else:
-        raise Exception('Invalid steadyness option for actuator disk model chosen')
+        message = "Invalid steadyness option (" + str(label[0]) + ") for actuator disk model chosen"
+        print_op.log_and_raise_error(message)
 
     return var_type
 
@@ -206,7 +207,7 @@ def get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, para
 
     # 3 constraints
 
-    u_vec_val = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    u_vec_val = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
 
     u_vec_length_var = get_uzero_vec_length_var(variables, parent)
@@ -270,10 +271,9 @@ def get_induction_factor_assignment_cstr(model_options, variables, kite, parent)
 ## values
 
 def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
-
-    uzero = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    vec_u_zero = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     n_vec = actuator_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    gamma = vect_op.angle_between(n_vec, uzero)
+    gamma = vect_op.angle_between(n_vec, vec_u_zero)
     return gamma
 
 def get_gamma_check(model_options, wind, parent, variables, parameters, architecture):
@@ -289,7 +289,7 @@ def get_gamma_check(model_options, wind, parent, variables, parameters, architec
 def get_qzero_ref(atmos, wind):
     scale = 5.
     rho_ref = atmos.get_density_ref()
-    uinfty_ref = wind.get_velocity_ref()
+    uinfty_ref = wind.get_speed_ref()
     qzero_ref = .5 * rho_ref * uinfty_ref**2. * scale
     return qzero_ref
 
@@ -298,7 +298,7 @@ def get_a_ref(model_options):
     return a_ref
 
 def get_uzero_vec_length_ref(wind):
-    return wind.get_velocity_ref()
+    return wind.get_speed_ref()
 
 
 def get_local_induction_factor(model_options, variables, kite, parent, label):
@@ -327,8 +327,7 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
 
     else:
         message = 'an unfamiliar actuator model label was entered when computing the local induction factor'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return a_local
 
@@ -349,6 +348,7 @@ def get_kite_induced_velocity(model_options, variables, parameters, architecture
     return u_ind_kite
 
 def get_kite_effective_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
+    print_op.warn_about_temporary_functionality_alteration(reason='check if this is defined twice')
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     u_ind_kite = get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
@@ -359,7 +359,7 @@ def get_kite_effective_velocity(model_options, variables, parameters, architectu
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
-    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    center = geom.get_center_position(model_options, parent, variables, architecture)
     rho_infty = atmos.get_density(center[2])
 
     uzero_mag = get_uzero_vec_length_var(variables, parent)
@@ -410,9 +410,9 @@ def get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameter
     elif wake_skew == 'not_in_use':
         chi_val = 0.
     else:
-        chi_val = 0.
         message = 'unknown wake skew angle (chi) model selected'
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
+
     return chi_val
 
 
@@ -439,8 +439,7 @@ def get_label(model_options):
     else:
         message = 'unrecognized actuator option (' + steadyness + ', ' + symmetry + ') indicated. available ' \
                 'options are: ' + repr(accepted_steadyness_dict.keys()) + ' and ' + repr(accepted_symmetry_dict.keys())
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return label
 
@@ -489,9 +488,8 @@ def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, par
         corr_val = get_corr_val_simple(model_options, variables, parent, label)
 
     else:
-        message = 'unknown actuator angle correction model selected'
-        raise Exception(message)
-        corr_val = get_corr_val_simple(model_options, variables, parent, label)
+        message = 'unknown actuator angle correction model selected: ' + actuator_skew
+        print_op.log_and_raise_error(message)
 
     return corr_val
 

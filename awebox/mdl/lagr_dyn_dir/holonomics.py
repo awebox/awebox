@@ -1,3 +1,5 @@
+import collections
+import pdb
 
 import casadi.tools as cas
 
@@ -13,24 +15,24 @@ import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 from awebox.logger.logger import Logger as awelogger
 
 
-def generate_holonomic_constraints(architecture, outputs, variables, parameters, options):
+def generate_holonomic_constraints(architecture, outputs, system_variables, parameters, options, scaling):
     number_of_nodes = architecture.number_of_nodes
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
 
     # extract necessary SI variables
-    x_si = variables['SI']['x']
-    z_si = variables['SI']['z']
+    x_si = system_variables['SI']['x']
+    z_si = system_variables['SI']['z']
 
     # scaled variables struct
-    var_scaled = variables['scaled']
+    var_scaled = system_variables['scaled']
 
-    if 'tether_length' not in list(outputs.keys()):
-        outputs['tether_length'] = {}
+    if 'invariants' not in list(outputs.keys()):
+        outputs['invariants'] = {}
 
     # build constraints with si variables
-    g_dict = get_tether_length_constraint(options, variables['SI'], parameters, architecture)
-    outputs['tether_length'].update(g_dict)
+    g_dict = get_tether_length_constraint(options, system_variables['SI'], parameters, architecture)
+    outputs['invariants'].update(g_dict)
 
     g = []
     gdot = []
@@ -45,16 +47,16 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
         g.append(g_local)
 
         # first-order derivative
-        dg_local = tools.time_derivative(g_local, variables, architecture)
+        dg_local = tools.time_derivative(g_local, system_variables['scaled'], architecture, scaling)
         gdot.append(dg_local)
 
         # second-order derivative
-        ddg_local = tools.time_derivative(dg_local, variables, architecture)
+        ddg_local = tools.time_derivative(dg_local, system_variables['scaled'], architecture, scaling)
         gddot.append(ddg_local)
 
-        # outputs['tether_length']['c' + str(node) + str(parent)] = g[-1]
-        outputs['tether_length']['dc' + str(node) + str(parent)] = dg_local
-        outputs['tether_length']['ddc' + str(node) + str(parent)] = ddg_local
+        # outputs['invariants']['c' + str(node) + str(parent)] = g[-1]
+        outputs['invariants']['dc' + str(node) + str(parent)] = dg_local
+        outputs['invariants']['ddc' + str(node) + str(parent)] = ddg_local
         holonomic_constraints += z_si['lambda{}{}'.format(node, parent)] * g_local
 
         if node in kite_nodes:
@@ -63,25 +65,25 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 orthonormality = cas.mtimes(r.T, r) - cas.DM_eye(3)
                 orthonormality = cas.reshape(orthonormality, (9, 1))
 
-                outputs['tether_length']['orthonormality' + str(node) + str(parent)] = orthonormality
+                outputs['invariants']['orthonormality' + str(node) + str(parent)] = orthonormality
 
-                dr_dt = variables['SI']['xdot']['dr' + str(node) + str(parent)]
+                dr_dt = system_variables['SI']['xdot']['dr' + str(node) + str(parent)]
                 dr_dt = cas.reshape(dr_dt, (3, 3))
-                omega = variables['SI']['x']['omega' + str(node) + str(parent)]
+                omega = system_variables['SI']['x']['omega' + str(node) + str(parent)]
                 omega_skew = vect_op.skew(omega)
                 dr = cas.mtimes(r, omega_skew)
                 rot_kinematics = dr_dt - dr
                 rot_kinematics = cas.reshape(rot_kinematics, (9, 1))
-                outputs['tether_length']['rot_kinematics10'] = rot_kinematics
+                outputs['invariants']['rot_kinematics10'] = rot_kinematics
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
 
-        g_dict = get_cross_tether_length_constraint(options, variables['SI'], parameters, architecture)
-        outputs['tether_length'].update(g_dict)
+        g_dict = get_cross_tether_length_constraint(options, system_variables['SI'], parameters, architecture)
+        outputs['invariants'].update(g_dict)
 
-        for l in architecture.layer_nodes:
-            kite_children = architecture.kites_map[l]
+        for ldx in architecture.layer_nodes:
+            kite_children = architecture.kites_map[ldx]
 
             # dual kite system (per layer) only has one tether
             if len(kite_children) == 2:
@@ -101,15 +103,15 @@ def generate_holonomic_constraints(architecture, outputs, variables, parameters,
                 g_local = length_constraint
                 g.append(length_constraint)
 
-                dg_local = tools.time_derivative(g_local, variables, architecture)
+                dg_local = tools.time_derivative(g_local, system_variables['scaled'], architecture, scaling)
                 gdot.append(dg_local)
 
-                ddg_local = tools.time_derivative(dg_local, variables, architecture)
+                ddg_local = tools.time_derivative(dg_local, system_variables['scaled'], architecture, scaling)
                 gddot.append(ddg_local)
 
                 # save invariants to outputs
-                outputs['tether_length']['dc{}'.format(n01)] = dg_local
-                outputs['tether_length']['ddc{}'.format(n01)] = ddg_local
+                outputs['invariants']['dc{}'.format(n01)] = dg_local
+                outputs['invariants']['ddc{}'.format(n01)] = ddg_local
 
                 # add to holonomic constraints
                 holonomic_constraints += z_si['lambda{}'.format(n01)] * g_local
@@ -215,8 +217,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
     if not (com_attachment or stick_attachment):
         message = 'Unknown tether attachment option: {}'.format(options['tether']['attachment'])
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     for node in range(1, number_of_nodes):
 
@@ -228,8 +229,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
         if has_extended_arm and not kite_has_6dof:
             message = 'Stick tether attachment option not implemented for 3DOF kites'
-            awelogger.logger.error(message)
-            raise Exception(message)
+            print_op.log_and_raise_error(message)
 
         if has_extended_arm:
             dcm = cas.reshape(x_si['r{}{}'.format(node, parent)], (3, 3))
@@ -270,12 +270,11 @@ def get_constraint_lhs(g, gdot, gddot, parameters):
     return lagrangian_lhs_constraints
 
 
-def generate_holonomic_scaling(options, architecture, variables, parameters):
-    scaling = options['scaling']
+def generate_holonomic_scaling(options, architecture, scaling, variables, parameters):
     holonomic_scaling = []
 
     for n in range(1, architecture.number_of_nodes):
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, variables, parameters, upper_node=n)
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=n)
 
         scaling_length = seg_props['scaling_length']
         scaling_speed = seg_props['scaling_speed']
@@ -285,20 +284,19 @@ def generate_holonomic_scaling(options, architecture, variables, parameters):
         gdot_loc = 2. * scaling_length * scaling_speed
         gddot_loc = 2. * scaling_length * scaling_acc + 2. * scaling_speed**2.
 
+        # notice that if the scaling_length is large, loc_scaling easily ends up as a *massive* number
         loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
-    number_of_kites = len(architecture.kite_nodes)
-    if number_of_kites > 1 and options['cross_tether']:
-        for l in architecture.layer_nodes:
-            layer_kites = architecture.kites_map[l]
-            number_of_layer_kites = len(layer_kites)
+    if architecture.number_of_kites > 1 and options['cross_tether']:
+        dict_cross_tether = {}
+        for theta_subkey in struct_op.subkeys(scaling, 'theta'):
+            if ('l_c' in theta_subkey) and (theta_subkey[:3] == 'l_c'):
+                dict_cross_tether[theta_subkey[3:]] = theta_subkey
 
-            if number_of_layer_kites == 2:
-                holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
-            else:
-                for kite in layer_kites:
-                    holonomic_scaling = cas.vertcat(holonomic_scaling, scaling['theta']['l_c'] ** 2)
+        for cross_index in dict(sorted(dict_cross_tether.items())):
+            local_scaling = scaling['theta', dict_cross_tether[cross_index]]**2
+            holonomic_scaling = cas.vertcat(holonomic_scaling, local_scaling)
 
     return holonomic_scaling
 

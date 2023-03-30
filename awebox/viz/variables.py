@@ -22,7 +22,13 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import awebox.tools.struct_operations as struct_op
+
 from . import tools
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
@@ -112,7 +118,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
     # read in inputs
-    integral_outputs = plot_dict['integral_outputs_final']
+    integral_outputs = plot_dict['integral_output_vals']['opt']
     variables_dict = plot_dict['variables_dict']
     tgrid_ip = plot_dict['time_grids']['ip']
 
@@ -184,10 +190,10 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
     fig.clf()
     legend_names = []
     tgrid_ip = plot_dict['time_grids']['ip']
-    invariants = plot_dict['outputs']['tether_length']
+    invariants = plot_dict['outputs']['invariants']
     if cosmetics['plot_ref']:
-        ref_invariants = plot_dict['ref']['outputs']['tether_length']
-        ref_tgrid_ip = plot_dict['time_grids']['ref']['ip']
+        ref_invariants = plot_dict['ref']['outputs']['invariants']
+        ref_tgrid_ip = plot_dict['ref']['time_grids']['ip']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
@@ -294,8 +300,10 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
 
         for var_name in integral_variables_to_plot:
             ax = plt.axes(axes[counter])
-            plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name)
-            counter += 1
+            variable_dimensions = len(plot_dict['integral_outputs'][var_name])
+            for dim in range(variable_dimensions):
+                plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=dim)
+                counter += 1
 
         plt.subplots_adjust(wspace=0.3, hspace=2.0)
         plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 3))
@@ -312,15 +320,28 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
 
     variables_dict = plot_dict['variables_dict']
     tgrid_ip = plot_dict['time_grids']['ip']
+    si_or_scaled = cosmetics['variables']['si_or_scaled']
+    scaling = plot_dict['scaling']
 
     ax = plt.axes(ax)
     for jdx in range(variables_dict[var_type][var_name].shape[0]):
-        p = plt.plot(tgrid_ip, plot_dict[var_type][var_name][jdx])
+
+        variable_data = plot_dict[var_type][var_name][jdx]
+        if si_or_scaled == 'scaled':
+            for vdx in range(variable_data.shape[0]):
+                variable_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, variable_data[vdx], scaling)
+        p = plt.plot(tgrid_ip, variable_data)
+
         if cosmetics['plot_bounds']:
             tools.plot_bounds(plot_dict, var_type, var_name, jdx, tgrid_ip, p)
+
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref'][var_type][var_name][jdx],
-                     linestyle='--', color=p[-1].get_color())
+            tgrid_ref_ip = plot_dict['time_grids']['ref']['ip']
+            ref_data = plot_dict['ref'][var_type][var_name][jdx]
+            if si_or_scaled == 'scaled':
+                for vdx in range(ref_data.shape[0]):
+                    ref_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, ref_data[vdx], scaling)
+            plt.plot(tgrid_ref_ip, ref_data, linestyle='--', color=p[-1].get_color())
 
     plt.title(var_name)
     plt.autoscale(enable=True, axis = 'x', tight = True)
@@ -329,18 +350,14 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
 
     return None
 
-def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name):
-
-    tgrid_ip = plot_dict['time_grids']['ip']
+def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=0):
 
     ax = plt.axes(ax)
 
-    if plot_dict['discretization'] == 'multiple_shooting':
-        out_values, tgrid_out = tools.merge_integral_output_values(plot_dict['integral_outputs_final'], var_name, plot_dict,
-                                                                   cosmetics)
-        p = plt.plot(tgrid_out, out_values)
-    else:
-        p = plt.plot(tgrid_ip, np.array(plot_dict['integral_outputs'][var_name][0]))
+    tgrid_out = plot_dict['time_grids']['ip']
+    out_values = plot_dict['integral_outputs'][var_name][dim]
+
+    plt.plot(tgrid_out, out_values)
 
     plt.title(var_name)
     plt.autoscale(enable=True, axis = 'x', tight = True)

@@ -27,8 +27,9 @@
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
+import pdb
 
-from .initialization_dir import modular as initialization_modular, initialization
+from . initialization_dir import modular as initialization_modular, initialization
 
 from . import reference
 
@@ -41,28 +42,21 @@ import casadi as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 
-def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = None):
 
-    # V_init = initialization.get_initial_guess(nlp, model, formulation, options)
+def initialize_arg(nlp, formulation, model, options, schedule):
+
+    p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
+
     if options['initialization']['initialization_type'] == 'default':
-        V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'])
+        V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'], p_fix_num)
     elif options['initialization']['initialization_type'] == 'modular':
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
-    use_warmstart = not (warmstart_solution_dict == None)
-    if use_warmstart:
-        [V_init_proposed, _, _] = struct_op.setup_warmstart_data(nlp, warmstart_solution_dict)
-        V_shape_matches = (V_init_proposed.cat.shape == nlp.V.cat.shape)
-        if V_shape_matches:
-            V_init = V_init_proposed
-        else:
-            raise ValueError('Variables of specified warmstart do not correspond to NLP requirements.')
-
     V_ref = reference.get_reference(nlp, model, V_init, options)
 
-    p_fix_num = set_p_fix_num(V_ref, nlp, model, V_init, options)
+    p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
 
-    [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init)
+    [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init, schedule)
 
     V_bounds = fix_q_and_r_values_if_necessary(options, nlp, model, V_bounds, V_init)
 
@@ -81,7 +75,9 @@ def initialize_arg(nlp, formulation, model, options, warmstart_solution_dict = N
 
     return arg
 
-def set_p_fix_num(V_ref, nlp, model, V_init, options):
+
+
+def initialize_opti_parameters_with_model_parameters(nlp, options):
     # --------------------
     # parameter values
     # --------------------
@@ -90,6 +86,27 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
 
     P = nlp.P
     p_fix_num = P(0.)
+
+    # system parameters
+    param_options = options['initialization']['sys_params_num']
+    for param_type in list(param_options.keys()):
+        if isinstance(param_options[param_type],dict):
+            for param in list(param_options[param_type].keys()):
+                if isinstance(param_options[param_type][param],dict):
+                    for subparam in list(param_options[param_type][param].keys()):
+                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
+
+                else:
+                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
+
+        else:
+            p_fix_num['theta0',param_type] = param_options[param_type]
+
+    return p_fix_num
+
+
+def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options):
+
     p_fix_num['p', 'weights'] = 1.0e-8
 
     # weights and references
@@ -123,30 +140,11 @@ def set_p_fix_num(V_ref, nlp, model, V_init, options):
                 if 'coll_var' in list(V_ref.keys()):
                     p_fix_num['p', 'ref', 'coll_var', :, :, variable_type, name] = V_ref['coll_var', :, :, variable_type, name]
 
-    # system parameters
-    param_options = options['initialization']['sys_params_num']
-    for param_type in list(param_options.keys()):
-        if isinstance(param_options[param_type],dict):
-            for param in list(param_options[param_type].keys()):
-                if isinstance(param_options[param_type][param],dict):
-                    for subparam in list(param_options[param_type][param].keys()):
-                        p_fix_num['theta0',param_type,param,subparam] = param_options[param_type][param][subparam]
-
-                else:
-                    p_fix_num['theta0',param_type,param] = options['initialization']['sys_params_num'][param_type][param]
-
-        else:
-            p_fix_num['theta0',param_type] = param_options[param_type]
-
-    use_vortex_linearization = 'lin' in P.keys()
-    if use_vortex_linearization:
-        p_fix_num['lin'] = V_init
-
     return p_fix_num
 
-def set_initial_bounds(nlp, model, formulation, options, V_init):
-    V_bounds = {}
 
+def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
+    V_bounds = {}
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
 
@@ -171,17 +169,15 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
         V_bounds['ub']['xi', name] = xi_bounds[name][1]
 
     for name in struct_op.subkeys(model.variables, 'theta'):
-        if not name == 't_f' and not name[:3] == 'l_c' and not name[:6] == 'diam_c':
-            initial_si_value = options['initialization']['theta'][name]
-            initial_scaled_value = initial_si_value / model.scaling['theta'][name]
+        if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
+            initial_si_value = cas.DM(options['initialization']['theta'][name])
+            initial_scaled_value = struct_op.var_si_to_scaled('theta', name, initial_si_value, model.scaling)
 
             V_bounds['ub']['theta', name] = initial_scaled_value
             V_bounds['lb']['theta', name] = initial_scaled_value
 
-    initial_si_time = V_init['theta','t_f'] # * options['homotopy']['phase_fix'] #todo: move phase fixing to nlp
-    initial_scaled_time = initial_si_time / model.scaling['theta']['t_f']
-
-    # set theta parameters
+    initial_si_time = V_init['theta', 't_f']  # * options['homotopy']['phase_fix']  #todo: move phase fixing to nlp
+    initial_scaled_time = struct_op.var_si_to_scaled('theta', 't_f', initial_si_time, model.scaling)
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
 
@@ -202,19 +198,31 @@ def set_initial_bounds(nlp, model, formulation, options, V_init):
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
+    print_op.warn_about_temporary_functionality_alteration()
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
-    if nlp.V['theta','t_f'].shape[0] > 1:
-        V_bounds['lb']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['lb']
-        V_bounds['ub']['x',:,'dl_t'] = model.variable_bounds['x']['dl_t']['ub']
+    if nlp.V['theta', 't_f'].shape[0] > 1:
+        V_bounds['lb']['x', :, 'dl_t'] = -1. * cas.inf
+        V_bounds['ub']['x', :, 'dl_t'] = 1. * cas.inf
 
         # make sure that pumping range fixing bounds are not imposed initially
-        # TODO: write if test.....
-        V_bounds['lb']['x',:,'l_t'] = V_bounds['lb']['x',1,'l_t']
-        V_bounds['ub']['x',:,'l_t'] = V_bounds['ub']['x',1,'l_t']
+        V_bounds['lb']['x', :, 'l_t'] = -1. * cas.inf
+        V_bounds['ub']['x', :, 'l_t'] = 1. * cas.inf
 
         if 'coll_var' in list(nlp.V.keys()):
-            V_bounds['lb']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['lb']
-            V_bounds['ub']['coll_var',:,:,'x','dl_t'] = model.variable_bounds['x']['dl_t']['ub']
+            V_bounds['lb']['coll_var', :, :, 'x', 'dl_t'] = -1. * cas.inf
+            V_bounds['ub']['coll_var', :, :, 'x', 'dl_t'] = 1. * cas.inf
+
+    # make sure that any homotopy variables that do not actually end up being varied in the homotopy process do not ruin the problem's sosc.
+    set_of_updated_bounds = set([])
+    for homotopy_step in schedule['homotopy']:
+        for predictor_corrector_step in schedule['bounds_to_update'][homotopy_step].keys():
+            for bounded_var in schedule['bounds_to_update'][homotopy_step][predictor_corrector_step]:
+                set_of_updated_bounds.add(bounded_var)
+
+    for homotopy_variable_name in list(model.parameters_dict['phi'].keys()):
+        if homotopy_variable_name not in set_of_updated_bounds:
+            V_bounds['ub']['phi', homotopy_variable_name] = 0.
+            V_bounds['lb']['phi', homotopy_variable_name] = 0.
 
     return V_bounds, g_bounds
 
@@ -228,7 +236,6 @@ def generate_default_solver_options(options):
         opts['ipopt.linear_solver'] = options['linear_solver']
         opts['ipopt.max_iter'] = options['max_iter']
         opts['ipopt.max_cpu_time'] = options['max_cpu_time']
-
         opts['ipopt.mu_target'] = options['mu_target']
         opts['ipopt.mu_init'] = options['mu_init']
         opts['ipopt.tol'] = options['tol']
@@ -251,25 +258,27 @@ def generate_default_solver_options(options):
 
     return opts
 
-def generate_solvers(awebox_callback, model, nlp, formulation, options):
 
+def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     initial_opts = generate_default_solver_options(options)
     middle_opts = generate_default_solver_options(options)
     final_opts = generate_default_solver_options(options)
 
     if options['nlp_solver'] == 'ipopt':
         initial_opts['ipopt.mu_target'] = options['mu_hippo']
-        initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
+        initial_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']  # 5
         initial_opts['ipopt.tol'] = options['tol_hippo']
 
         middle_opts['ipopt.mu_init'] = options['mu_hippo']
         middle_opts['ipopt.mu_target'] = options['mu_hippo']
-        middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']#5
+        middle_opts['ipopt.acceptable_iter'] = options['acceptable_iter_hippo']  # 5
         middle_opts['ipopt.tol'] = options['tol_hippo']
         middle_opts['ipopt.warm_start_init_point'] = 'yes'
         middle_opts['ipopt.max_iter'] = options['max_iter_hippo']
+
         final_opts['ipopt.mu_init'] = options['mu_hippo']
         final_opts['ipopt.warm_start_init_point'] = 'yes'
+
 
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
@@ -281,23 +290,46 @@ def generate_solvers(awebox_callback, model, nlp, formulation, options):
         final_opts['iteration_callback'] = awebox_callback
         final_opts['iteration_callback_step'] = options['callback_step']
 
-    if 'lift_mode' == 'lift_mode':  # todo: get from formulation property
-        # do whatever it is that depends on lift-mode here....
-        32.0
-
-    if options['nlp_solver'] == 'ipopt':
-        initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-        middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-        final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
-    elif options['nlp_solver'] == 'worhp':
-        initial_solver = cas.nlpsol('solver', 'worhp', nlp.get_nlp(), final_opts)
-        middle_solver = initial_solver
-        final_solver = initial_solver
+    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
+    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
 
     solvers = {}
     solvers['initial'] = initial_solver
     solvers['middle'] = middle_solver
     solvers['final'] = final_solver
+
+    return solvers
+
+
+def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
+    opts = generate_default_solver_options(options)
+
+    if options['callback']:
+        opts['iteration_callback'] = awebox_callback
+        opts['iteration_callback_step'] = options['callback_step']
+
+    nlp_solver = options['nlp_solver']
+    if nlp_solver not in ['ipopt', 'worhp']:
+        message = 'unfamiliar nlp solver (' + nlp_solver + ') requested'
+        print_op.log_and_raise_error(message)
+
+    solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
+
+    solvers = {}
+    solvers['all'] = solver
+
+    return solvers
+
+
+def generate_solvers(awebox_callback, nlp, options):
+
+    use_hippo_strategy = options['hippo_strategy']
+
+    if use_hippo_strategy and (options['nlp_solver'] == 'ipopt'):
+        solvers = generate_hippo_strategy_solvers(awebox_callback, nlp, options)
+    else:
+        solvers = generate_nonhippo_strategy_solvers(awebox_callback, nlp, options)
 
     return solvers
 

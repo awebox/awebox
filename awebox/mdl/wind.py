@@ -36,24 +36,27 @@ import awebox.tools.lagr_interpol as lagr_interpol
 
 
 class Wind:
-    def __init__(self, wind_model_options, params):
+    def __init__(self, wind_model_options, params, suppress_type_incompatibility_warning=False):
         self.__options = wind_model_options
         self.__params = params #NOTE: where do those parameters come from?
+
         if self.__options['model'] == 'datafile':
             self.find_u_polynomial_from_datafile()
             # self.find_p_polynomial_from_datafile(params) # pressure is set as constant for now
 
         self.__type_incompatibility_warning_already_given = False
+        self.__suppress_type_incompatibility_warning = suppress_type_incompatibility_warning
 
     def get_velocity(self, zz):
-        params = self.__params.prefix['theta0','wind']
+
         options = self.__options
 
         model = options['model']
 
-        xhat = vect_op.xhat_np()
+        u_hat = self.get_wind_direction()
 
         if isinstance(zz, cas.SX):
+            params = self.__params.prefix['theta0', 'wind']
             u_ref = params['u_ref']
             z_ref = params['z_ref']
             z0_air = params['log_wind', 'z0_air']
@@ -64,7 +67,7 @@ class Wind:
             z0_air = options['log_wind']['z0_air']
             exp_ref = options['power_wind']['exp_ref']
 
-            if not self.__type_incompatibility_warning_already_given:
+            if not self.__type_incompatibility_warning_already_given and not self.__suppress_type_incompatibility_warning:
                 message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
                           'directly from options. this may interfere with expected operation, especially in sweeps.'
                 awelogger.logger.warning(message)
@@ -72,7 +75,7 @@ class Wind:
 
         if model in ['log_wind', 'power', 'uniform']:
             u_val = get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz)
-            u = u_val * xhat
+            u = u_val * u_hat
 
         elif model == 'datafile':
             u = self.get_velocity_from_datafile(zz)
@@ -82,10 +85,21 @@ class Wind:
 
         return u
 
+    def get_wind_direction(self):
+        return vect_op.xhat_dm()
 
-    def get_velocity_ref(self):
-        params = self.__params.prefix['theta0','wind']
-        u_ref = params['u_ref']
+    def get_speed_ref(self, from_parameters=True):
+        if from_parameters:
+            params = self.__params.prefix['theta0','wind']
+            u_ref = params['u_ref']
+        else:
+            u_ref = self.__options['u_ref']
+            if not self.__type_incompatibility_warning_already_given:
+                message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
+                          'directly from options. this may interfere with expected operation, especially in sweeps.'
+                awelogger.logger.warning(message)
+                self.__type_incompatibility_warning_already_given = True
+
 
         return u_ref
 
@@ -166,7 +180,6 @@ class Wind:
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
-
 
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 

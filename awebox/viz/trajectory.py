@@ -22,7 +22,10 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+
 import awebox.viz.tools as tools
 from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from mpl_toolkits.mplot3d import axes3d
@@ -32,7 +35,6 @@ import awebox.viz.tools as tools
 import awebox.viz.wake as wake
 import casadi.tools as cas
 
-import matplotlib
 
 import matplotlib.animation as manimation
 
@@ -271,14 +273,11 @@ def plot_trajectory_along_elevation(solution_dict, cosmetics, fig_num):
     plt.draw()
 
 
-def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
+def plot_trajectory_instant(ax, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
 
-    options = plot_dict['options']
     architecture = plot_dict['architecture']
     number_of_nodes = architecture.number_of_nodes
-    kite_nodes = architecture.kite_nodes
     parent_map = architecture.parent_map
-    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
     for node in range(1, number_of_nodes):
 
@@ -306,35 +305,10 @@ def plot_trajectory_instant(ax, ax2, plot_dict, index, cosmetics, side, init_col
         tools.make_side_plot(ax, vert_stack, side, 'k')
 
     if cosmetics['trajectory']['kite_bodies'] and plot_kites:
-        for kite in kite_nodes:
-
-            # kite colors
-            if init_colors:
-                local_color = 'k'
-            else:
-                local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
-
-            parent = parent_map[kite]
-
-            # kite position information
-            q_kite = []
-            for j in range(3):
-                q_kite = cas.vertcat(q_kite, plot_dict['x']['q'+str(kite)+str(parent)][j][index])
-
-            # dcm information
-            r_dcm = []
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
-            for j in range(3):
-                r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
-
-            # draw kite body
-            tools.draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
+        tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)
 
     if cosmetics['trajectory']['wake_nodes']:
-        wake.draw_wake_nodes(ax, side, plot_dict, index)
+        wake.draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
 
     ax.get_figure().canvas.draw()
 

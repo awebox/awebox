@@ -34,11 +34,11 @@ import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.indicators as indicators
-import awebox.mdl.mdl_constraint as mdl_constraint
 import numpy as np
 
 
@@ -59,7 +59,7 @@ def get_force_vector(options, variables, atmos, wind, architecture, parameters, 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
 
-    cstr_list = mdl_constraint.MdlConstraintList()
+    cstr_list = cstr_op.MdlConstraintList()
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
@@ -127,23 +127,28 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
 
 
 
+def tether_vector(variables, architecture, node):
+
+    parent_map = architecture.parent_map
+    parent = parent_map[node]
+
+    q_node = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(node) + str(parent))
+
+    if parent in parent_map.keys():
+        grandparent = parent_map[parent]
+        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
+    else:
+        q_parent = np.zeros((3, 1))
+
+    tether = q_node - q_parent
+
+    return tether
 
 
-def get_planar_dmc(vec_u_eff, variables, kite, architecture):
-
-    parent = architecture.parent_map[kite]
+def get_planar_dcm(vec_u_eff, variables, kite, architecture):
 
     # get relevant variables for kite n
-    q = variables['x']['q' + str(kite) + str(parent)]
-
-    # in kite body:
-    if parent > 0:
-        grandparent = architecture.parent_map[parent]
-        q_parent = variables['x']['q' + str(parent) + str(grandparent)]
-    else:
-        q_parent = np.array([0., 0., 0.])
-
-    vec_t = q - q_parent # should be roughly "up-wards", ie, act like vec_w
+    vec_t = tether_vector(variables, architecture, kite) # should be roughly "up-wards", ie, act like vec_w
 
     vec_v = vect_op.cross(vec_t, vec_u_eff)
     vec_w = vect_op.cross(vec_u_eff, vec_v)
@@ -167,7 +172,7 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     coeff = variables['x']['coeff' + str(kite) + str(parent)]
     psi = coeff[1]
 
-    planar_dcm = get_planar_dmc(vec_u_eff, variables, kite, architecture)
+    planar_dcm = get_planar_dcm(vec_u_eff, variables, kite, architecture)
     uhat = planar_dcm[:, 0]
     vhat = planar_dcm[:, 1]
     what = planar_dcm[:, 2]
@@ -181,29 +186,10 @@ def get_kite_dcm(options, variables, wind, kite, architecture):
     return kite_dcm
 
 
-def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
-
-    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
-
-    parent_map = model.architecture.parent_map
-    x = model.variables_dict['x'](variables['x'])
-
-    if ext_int == 'ext':
-        span_sign = 1.
-    elif ext_int == 'int':
-        span_sign = -1.
-    else:
-        awelogger.logger.error('wing side not recognized for 3dof kite.')
-
-    parent = parent_map[kite]
-
-    q = x['q' + str(kite) + str(parent)]
-
-    kite_dcm = get_kite_dcm(options, variables, model.wind, kite, model.architecture)
-    ehat_span = kite_dcm[:, 1]
-
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-
-    wingtip_position = q + ehat_span * span_sign * b_ref / 2.
+def get_wingtip_position(kite, options, wind, architecture, variables_si, parameters, tip):
+    parent = architecture.parent_map[kite]
+    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+    dcm_kite = get_kite_dcm(options, variables_si, wind, kite, architecture)
+    wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
 
     return wingtip_position

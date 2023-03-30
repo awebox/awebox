@@ -38,7 +38,8 @@ def build_options_dict(options, help_options, architecture):
 
     # check for unsupported settings
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        awelogger.logger.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+        message = user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.'
+        print_op.log_and_raise_error(message)
 
     # initialize additional options tree
     options_tree = []
@@ -52,6 +53,8 @@ def build_options_dict(options, help_options, architecture):
     options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
     options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
     options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_quality_options(options, options_tree)
+    options_tree = build_visualization_options(options, options_tree)
 
     # assemble all of the options into a complete options tree
     options, help_options = assemble_options_tree(options_tree, options, help_options)
@@ -175,7 +178,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  n_k*N_n,             ('xdot_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k*N_k,             ('fictitious cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 n_k*N_k,             ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
@@ -272,6 +274,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
     else:
         options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+
+    options_tree.append(
+        ('solver', 'initialization', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
@@ -293,11 +298,43 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options['solver']['initialization']['fix_tether_length'] = True
 
     if options['solver']['homotopy_method']['gamma'] not in ['penalty', 'classic']:
-        awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
+        message = 'homotopy method "' + options['solver']['homotopy_method'] + '" unknown!'
+        print_op.log_and_raise_error(message)
+
+    options_tree.append(('solver', 'initialization', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
 
     return options_tree
 
+def build_visualization_options(options, options_tree):
+    options_tree.append(
+        ('visualization', 'cosmetics', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
+    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
+    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+    options_tree.append(
+        ('visualization', 'cosmetics', 'collocation', 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    return options_tree
 
+
+def build_quality_options(options, options_tree):
+    options_tree.append(
+        ('quality', None, None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
+    options_tree.append(('quality', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
+    options_tree.append(('quality', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+    options_tree.append(
+        ('quality', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    return options_tree
 
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
@@ -305,13 +342,13 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
     options_tree.append(('formulation', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree.append(
+        ('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
     options_tree.append(
         ('formulation', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
     options_tree.append(
         ('formulation', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-
     options_tree.append(
         ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
