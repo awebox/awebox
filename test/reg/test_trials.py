@@ -154,7 +154,8 @@ def generate_options_dict():
     single_kite_options['user_options.system_model.architecture'] = {1: 0}
     single_kite_options = set_ampyx_ap2_settings(single_kite_options)
     single_kite_options['solver.linear_solver'] = 'ma57'
-    single_kite_options['model.scaling.x.l_t'] = 1.e2
+    # single_kite_options['model.scaling.x.l_t'] = 1.e2
+    single_kite_options['solver.weights.l_t'] = 1.e-4
     single_kite_options['solver.weights.dq'] = 1.e1
     single_kite_options['solver.weights.ddl_t'] = 1e-1
     single_kite_options['solver.weights.dddl_t'] = 1e-1
@@ -301,6 +302,8 @@ def generate_options_dict():
     dual_kite_basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     dual_kite_basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     dual_kite_basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
+    dual_kite_basic_health_options['solver.max_iter'] = 300.
+
 
     # define options list
     options_dict = collections.OrderedDict()
@@ -375,11 +378,11 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
 # test_single_kite()
 # test_zoh()
-# test_basic_health()
+test_basic_health()
 # test_drag_mode()
 # test_save_trial()
 # test_dual_kite()
-test_dual_kite_basic_health()
+# test_dual_kite_basic_health()
 # test_small_dual_kite()
 # test_large_dual_kite()
 # test_dual_kite_6_dof()

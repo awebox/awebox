@@ -224,47 +224,31 @@ def get_dependent_params(geometry, geometry_data):
 
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-    geometry = get_geometry(options)
 
     l_t = options['model']['scaling']['x']['l_t']
     q_t = estimate_position_of_main_tether_end(options)
-    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    b_ref = geometry['b_ref']
-    trajectory_radius = induction_varrho_ref * b_ref
-    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
-    gravity = options['model']['scaling']['other']['g']
-
-    groundspeed = options['solver']['initialization']['groundspeed']
-    u_ref = get_u_ref(options['user_options'])
-    u_reelout = estimate_reelout_speed(options)
-    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
+    q_t_mean = float((q_t[0] + q_t[2]) / 2.)
+    flight_radius = estimate_flight_radius(options, architecture)
 
     if options['model']['scaling_overwrite']['x']['q'] is None:
-        geometric_mean_distance = (l_t * trajectory_radius)**0.5
-        print_op.warn_about_temporary_functionality_alteration()
-        q_scaling = trajectory_radius
-        # q_scaling = geometric_mean_distance
-        # q_scaling = 100.
-        # q_scaling = q_t + trajectory_radius * vect_op.yhat_dm()
-        # q_scaling = options['model']['scaling']['x']['l_t']
+        available_estimates = [flight_radius, l_t, q_t_mean]
+        q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     else:
         q_scaling = options['model']['scaling_overwrite']['x']['q']
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
-
-
+    groundspeed = options['solver']['initialization']['groundspeed']
     if options['model']['scaling_overwrite']['x']['dq'] is None:
-        print_op.warn_about_temporary_functionality_alteration()
         dq_scaling = groundspeed
-        # dq_scaling = u_ref
-        # dq_scaling = u_ref * vect_op.xhat_dm() + groundspeed * (vect_op.yhat_dm() + vect_op.zhat_dm())
     else:
         dq_scaling = options['model']['scaling_overwrite']['x']['dq']
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
+    u_reelout = estimate_reelout_speed(options)
     dl_t_scaling = u_reelout
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     dl_t_min = -5. * u_altitude
     dl_t_max = 1./3. * u_altitude
     t_f_guess = estimate_time_period(options, architecture)
@@ -1016,39 +1000,38 @@ def get_q_at_altitude(options, zz):
 def build_fict_scaling_options(options, options_tree, fixed_params, architecture):
 
     geometry = get_geometry(options)
-
-    CL = estimate_CL(options)
-    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
-    s_ref = geometry['s_ref']
-
-    m_k = geometry['m_k']
-    t_f_guess = estimate_time_period(options, architecture)
-    omega_guess = 2. * np.pi / t_f_guess
-    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     b_ref = geometry['b_ref']
-    trajectory_radius = induction_varrho_ref * b_ref
-    centripetal_force = m_k * omega_guess**2. * trajectory_radius
-    aero_force = 0.5 * CL * q_altitude * s_ref
+
+    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
+
+    centripetal_force = float(estimate_centripetal_force(options, architecture))
+
+    gravity = options['model']['scaling']['other']['g']
+    mass_kite = geometry['m_k']
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    max_acceleration_force = float(mass_kite * acc_max * gravity)
+
+    aero_force = float(estimate_aero_force(options, architecture))
+    gravity_force = mass_kite * gravity
+
+    tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
+    length = options['model']['scaling']['x']['l_t']
+    tension = tension_per_unit_length * length
+
+    available_estimates = [centripetal_force, max_acceleration_force, aero_force, gravity_force, tension]
+    f_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+
+    moment_scaling_factor = b_ref / 2.
+
+    options_tree.append(('model', 'scaling', 'u', 'f_fict', f_scaling, ('scaling of fictitious homotopy forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'u', 'm_fict', f_scaling * moment_scaling_factor, ('scaling of fictitious homotopy moments', None),'x'))
+    options_tree.append(('model', 'scaling', 'z', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
+    options_tree.append(('model', 'scaling', 'z', 'm_aero', f_scaling * moment_scaling_factor, ('scaling of aerodynamic moments', None),'x'))
 
     CD_tether = options['params']['tether']['cd']
     diam_t = options['solver']['initialization']['theta']['diam_t']
     l_t_scaling = options['model']['scaling']['x']['l_t']
     tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * l_t_scaling
-
-    difference_in_estimates_in_orders_of_magnitude = np.abs(np.log10(float(aero_force)) - np.log10(float(centripetal_force)))
-    arbitrarily_warnable_difference_in_orders_of_magnitude = 1.
-    if difference_in_estimates_in_orders_of_magnitude > arbitrarily_warnable_difference_in_orders_of_magnitude:
-        message = 'the aero_force and centripetal_force estimations are very different. this might lead to poor problem scaling'
-        print_op.base_print(message, level='warning')
-
-    moment_scaling_factor = b_ref / 2.
-
-    options_tree.append(('model', 'scaling', 'u', 'f_fict', centripetal_force, ('scaling of fictitious homotopy forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'u', 'm_fict', centripetal_force * moment_scaling_factor, ('scaling of fictitious homotopy moments', None),'x'))
-
-    options_tree.append(('model', 'scaling', 'z', 'f_aero', aero_force, ('scaling of aerodynamic forces', None),'x'))
-    options_tree.append(('model', 'scaling', 'z', 'm_aero', aero_force * moment_scaling_factor, ('scaling of aerodynamic moments', None),'x'))
-
     options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
 
     return options_tree, fixed_params
@@ -1139,7 +1122,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
     else:
 
         # this will scale the multiplier on the main tether, from 'si'
-        lam = estimate_tether_lambda(options, architecture)
+        lam = estimate_main_tether_tension_per_unit_length(options, architecture)
         lambda_factor = options['model']['scaling_overwrite']['lambda_factor']
         lambda_scaling = lambda_factor * lam
 
@@ -1160,6 +1143,49 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         power_cost = power_cost_factor * (1. / estimated_inverse_time_period)  # yes, this = pcf * time_period_estimate
 
     return lambda_scaling, corrected_estimated_energy, power_cost, estimated_average_power
+
+def estimate_flight_radius(options, architecture):
+
+    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    b_ref = get_geometry(options)['b_ref']
+    actuator_radius = induction_varrho_ref * b_ref
+
+    anticollision_radius = b_ref * options['model']['model_bounds']['anticollision']['safety_factor']
+
+    acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    groundspeed = options['solver']['initialization']['groundspeed']
+    centripetal_radius = groundspeed**2. / acc_max
+
+    cone_angle = float(options['solver']['initialization']['cone_deg']) * np.pi / 180.0
+    if architecture.number_of_kites == 1:
+        length = options['solver']['initialization']['l_t']
+    else:
+        length = options['solver']['initialization']['theta']['l_s']
+    cone_radius = float(length * np.sin(cone_angle))
+
+    available_estimates = [actuator_radius, anticollision_radius, centripetal_radius, cone_radius]
+    radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    return radius
+
+
+def estimate_aero_force(options, architecture):
+    geometry = get_geometry(options)
+
+    CL = estimate_CL(options)
+    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
+    s_ref = geometry['s_ref']
+    aero_force = 0.5 * CL * q_altitude * s_ref
+    return aero_force
+
+def estimate_centripetal_force(options, architecture):
+
+    geometry = get_geometry(options)
+    m_k = geometry['m_k']
+    groundspeed = options['solver']['initialization']['groundspeed']
+    radius = estimate_flight_radius(options, architecture)
+
+    centripetal_force = m_k * groundspeed**2. / radius
+    return centripetal_force
 
 
 def estimate_power(options, architecture):
@@ -1186,8 +1212,8 @@ def estimate_power(options, architecture):
 
     number_of_kites = architecture.number_of_kites
 
-    estimate_1 = number_of_kites * p_loyd * induction_efficiency
-    power = estimate_1
+    loyd_estimate = number_of_kites * p_loyd * induction_efficiency
+    power = loyd_estimate
 
     return power
 
@@ -1265,16 +1291,59 @@ def estimate_altitude(options):
     return q_t[2]
 
 
-def estimate_tether_lambda(options, architecture):
-
-    power = estimate_power(options, architecture)
-
-    reelout_speed = estimate_reelout_speed(options)
+def estimate_main_tether_tension_per_unit_length(options, architecture):
 
     length = options['model']['scaling']['x']['l_t']
+    power = estimate_power(options, architecture)
+    reelout_speed = estimate_reelout_speed(options)
 
-    tension = power / reelout_speed
-    multiplier = tension / length
+    tension_estimate_via_power = float(power/reelout_speed)
+
+    aero_force_per_kite = estimate_aero_force(options, architecture)
+    cone_angle_rad = options['solver']['initialization']['cone_deg'] * np.pi / 180.
+    aero_force_per_kite_in_main_tether_direction = aero_force_per_kite * np.cos(cone_angle_rad)
+    aero_force_projected_and_summed = aero_force_per_kite_in_main_tether_direction * architecture.number_of_kites
+
+    mass_of_all_kites = get_geometry(options)['m_k'] * architecture.number_of_kites
+    diam_t = options['solver']['initialization']['theta']['diam_t']
+    rho_tether = options['params']['tether']['rho']
+    cross_sectional_area_t = np.pi * (diam_t / 2.) ** 2.
+    mass_of_main_tether = cross_sectional_area_t * length * rho_tether
+
+    if architecture.number_of_kites > 1:
+        diam_s = options['solver']['initialization']['theta']['diam_s']
+        cross_sectional_area_s = np.pi * (diam_s / 2.) ** 2.
+        length_s = options['solver']['initialization']['theta']['l_s']
+        mass_of_secondary_tether = cross_sectional_area_s * length_s * rho_tether * architecture.number_of_kites
+    else:
+        mass_of_secondary_tether = 0.
+
+    number_of_intermediate_tethers = architecture.number_of_nodes - 1 - architecture.number_of_kites
+    if number_of_intermediate_tethers > 0:
+        diam_i = options['solver']['initialization']['theta']['diam_i']
+        cross_sectional_area_i = np.pi * (diam_i / 2.) ** 2.
+        length_i = options['solver']['initialization']['theta']['l_i']
+        mass_of_intermediate_tether = cross_sectional_area_i * length_i * rho_tether * number_of_intermediate_tethers
+    else:
+        mass_of_intermediate_tether = 0.
+
+    total_mass = mass_of_all_kites + mass_of_main_tether + mass_of_secondary_tether + mass_of_intermediate_tether
+    gravity = options['model']['scaling']['other']['g']
+    inclination_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
+    gravity_force_projected_and_summed = total_mass * gravity * np.sin(inclination_angle)
+
+    tension_estimate_via_force_summation = np.abs(float(aero_force_projected_and_summed - gravity_force_projected_and_summed))
+
+    arbitrary_margin_from_max = 0.5
+    max_stress = options['params']['tether']['max_stress'] / options['params']['tether']['stress_safety_factor']
+    tension_estimate_via_max_stress = arbitrary_margin_from_max * max_stress * cross_sectional_area_t
+
+    tension_estimate_via_min_force = options['params']['model_bounds']['tether_force_limits'][0]
+    tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
+
+    available_estimates = [tension_estimate_via_power, tension_estimate_via_force_summation, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_min_force]
+    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    multiplier = tension_estimate / length
 
     return multiplier
 
@@ -1291,17 +1360,10 @@ def estimate_energy(options, architecture):
 
 def estimate_time_period(options, architecture):
 
-    windings = float(options['user_options']['trajectory']['lift_mode']['windings'])
-    cone_angle = float(options['solver']['initialization']['cone_deg']) * np.pi / 180.0
-    ground_speed = float(options['solver']['initialization']['groundspeed'])
+    windings = options['user_options']['trajectory']['lift_mode']['windings']
+    groundspeed = options['solver']['initialization']['groundspeed']
+    radius = estimate_flight_radius(options, architecture)
 
-    number_of_kites = architecture.number_of_kites
-    if number_of_kites == 1:
-        length = options['solver']['initialization']['l_t']
-    else:
-        length = options['solver']['initialization']['theta']['l_s']
-    radius = length * np.sin(cone_angle)
-
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+    time_period = float((2. * np.pi * windings * radius) / groundspeed)
 
     return time_period

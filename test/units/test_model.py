@@ -4,6 +4,7 @@
 @author: Jochem De Schutter,
 edit: rachel leuthold, alu-fr 2020
 """
+import copy
 import pdb
 
 import awebox as awe
@@ -442,25 +443,36 @@ def test_constraint_mechanism():
     return None
 
 
-def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad):
+def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad, rod_mass_si=0., rod_diameter_si=0.):
+
+    xhat = vect_op.xhat_np()
+    zhat = vect_op.zhat_np()
+
     dl_t_initial_si = 0.
     ddl_t_initial_si = 0.
     dddl_t_initial_si = 0.
 
     theta = cas.DM(pendulum_angle_rad)
+    sin_theta = cas.sin(theta)
+    cos_theta = cas.cos(theta)
+
     dtheta = 0.
-    ddtheta = - gravity_si / length_si * cas.sin(theta)
+    num_dynamics = rod_mass_si / 2. + mass_si
+    den_dynamics = rod_mass_si / 3. + mass_si
+    ddtheta = -(gravity_si / length_si) * (num_dynamics / den_dynamics) * sin_theta
 
-    q_initial_si = length_si * (cas.sin(theta) * vect_op.xhat() - cas.cos(theta) * vect_op.zhat())
-    dq_initial_si = length_si * (cas.cos(theta) * dtheta * vect_op.xhat() + cas.sin(theta) * dtheta * vect_op.zhat())
-    ddq_initial_si = length_si * (
-        (-cas.sin(theta) * dtheta**2. + cas.cos(theta) * ddtheta) * vect_op.xhat() +
-        (cas.cos(theta) * dtheta**2. + cas.sin(theta) * ddtheta) * vect_op.zhat())
+    q_initial_si = length_si * (sin_theta * xhat - cos_theta * zhat)
+    dq_initial_si = dtheta * length_si * (cos_theta * xhat + sin_theta * zhat)
+    ddq_initial_si = ddtheta * length_si * (cos_theta * xhat + sin_theta * zhat) - dtheta**2. * q_initial_si
 
-    f_resultant = mass_si * ddq_initial_si
-    f_gravity = mass_si * gravity_si * (-1. * vect_op.zhat())
-    f_rod = f_resultant - f_gravity
-    lambda_si = vect_op.norm(f_rod) / length_si
+    total_mass_si = mass_si + rod_mass_si
+    center_of_mass = (1. / total_mass_si) * (mass_si * length_si + rod_mass_si * length_si / 2.)
+    centripetal_tension = total_mass_si * dtheta**2. * center_of_mass
+    gravitational_tension = (mass_si + rod_mass_si) * gravity_si * cos_theta
+    expected_tension = gravitational_tension + centripetal_tension
+
+    lambda_newtonian = expected_tension / length_si
+    lambda_si = lambda_newtonian
 
     initial_si = {'q10': q_initial_si,
                  'dq10': dq_initial_si,
@@ -469,7 +481,9 @@ def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si,
                  'dl_t': dl_t_initial_si,
                  'ddl_t': ddl_t_initial_si,
                  'dddl_t': dddl_t_initial_si,
-                  'lambda10': lambda_si}
+                  'lambda10': lambda_si,
+                  'diam_t': rod_diameter_si,
+                  'l_t_full': length_si}
     return initial_si
 
 def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
@@ -483,6 +497,7 @@ def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
     options['user_options.tether_drag_model'] = 'not_in_use'
     options['user_options.kite_standard'] = ampyx_data.data_dict()
     options['model.geometry.overwrite.m_k'] = mass_si
+    options['model.tether.use_wound_tether'] = False
 
     if len(scaling_dict.keys()) > 0:
         for var_label, scaling_value in scaling_dict.items():
@@ -496,15 +511,17 @@ def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
     model.build(trial_options['model'], architecture)
     return model
 
-def populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si):
+def populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si, rod_density_si=0.):
 
     variables = model.variables(0.)
+
     parameters = model.parameters(1.23)
     parameters['theta0', 'atmosphere', 'rho_ref'] = 0.
     parameters['theta0', 'atmosphere', 'g'] = gravity_si
     parameters['theta0', 'geometry', 'm_k'] = mass_si
     parameters['theta0', 'wind', 'u_ref'] = 0.
-    parameters['theta0', 'tether', 'rho'] = 0.
+    parameters['theta0', 'tether', 'rho'] = rod_density_si
+    parameters['theta0', 'ground_station', 'm_gen'] = 0.
 
     for var_type in model.variables_dict.keys():
         for var_name in model.variables_dict[var_type].keys():
@@ -534,6 +551,34 @@ def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_ma
         raise Exception(message)
 
     return None
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass(epsilon=1e-8):
+    # pendulum problem
+    mass_si = 17.
+    gravity_si = 11.
+    length_si = 10.
+    pendulum_angle_rad = np.pi/2. * 0.323
+    rod_mass_si = 41.
+    rod_diameter_si = 0.02
+    rod_volume_si = np.pi * (rod_diameter_si / 2.)**2. * length_si
+    rod_density_si = rod_mass_si / rod_volume_si
+
+    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad, rod_mass_si=rod_mass_si, rod_diameter_si=rod_diameter_si)
+
+    model = build_pendulum_test_model(mass_si, gravity_si)
+
+    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si, rod_density_si=rod_density_si)
+
+    dynamics_residual = model.dynamics(variables, parameters)
+    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+
+    if not condition:
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, when rod has mass)'
+        raise Exception(message)
+
+    return None
+
 
 
 def test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling(epsilon=1.):
@@ -666,3 +711,4 @@ def test_time_derivative_under_scaling():
 # test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling()
 # test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling()
 # test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling()
+# test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass()

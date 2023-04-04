@@ -35,7 +35,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # lagrangian
     # --------------------------------
 
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture)
+    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture, scaling)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
@@ -97,8 +97,9 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                  lagrangian_momentum_correction
 
     # scaling
-    node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], parameters, architecture, scaling)
-    forces_scaling = options['scaling']['z']['f_aero'] * (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
+    print_op.warn_about_temporary_functionality_alteration()
+    # node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], parameters, architecture, scaling)
+    forces_scaling = options['scaling']['z']['f_aero'] #* (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
     dynamics_translation_scaled = cas.mtimes(cas.inv(cas.diag(forces_scaling)), dynamics_translation_si)

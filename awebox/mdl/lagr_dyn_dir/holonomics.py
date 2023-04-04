@@ -120,6 +120,8 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
     gdot_cat = cas.vertcat(*gdot)
     gddot_cat = cas.vertcat(*gddot)
 
+
+
     return holonomic_constraints, outputs, g_cat, gdot_cat, gddot_cat
 
 def get_cross_tether_length_constraint(options, vars_si, parameters, architecture):

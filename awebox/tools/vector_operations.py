@@ -773,6 +773,20 @@ def test_elliptic_e(epsilon=1.e-5):
         test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m=(1.0 - delta), epsilon=epsilon)
     return None
 
+def synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates):
+    if not isinstance(available_estimates, list):
+        message = 'method is not defined for this data-type. the input must be a list'
+        print_op.log_and_raise_error(message)
+
+    if not all([isinstance(available_estimates[idx], float) for idx in range(len(available_estimates))]):
+        message = 'method is not defined for this data-type. all available estimates must be floats'
+        print_op.log_and_raise_error(message)
+
+    number_of_estimates = len(available_estimates)
+    averaging_fraction = 1. / number_of_estimates
+    geometric_average = np.exp(np.sum(np.log(available_estimates)) * averaging_fraction)
+    return geometric_average
+
 
 def get_altitude(vec_1, vec_2):
     vec_a = cross(vec_1, vec_2)

@@ -869,6 +869,7 @@ def wound_tether_length_inequality(options, variables):
 def generate_scaling(scaling_options, variables):
 
     scaling = variables(1.)
+
     unset_set = set([])
 
     for vdx in range(scaling.cat.shape[0]):

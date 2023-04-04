@@ -29,14 +29,16 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 from awebox.logger.logger import Logger as awelogger
 
-def energy_outputs(options, parameters, outputs, variables_si, architecture):
+def energy_outputs(options, parameters, outputs, variables_si, architecture, scaling):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
@@ -46,8 +48,8 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture):
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
-        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture)
-        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture)
+        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling)
+        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling)
 
     outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs)
     outputs = add_ground_station_potential(outputs)
@@ -55,43 +57,47 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture):
     return outputs
 
 
-def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture):
+def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
 
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
-    node_has_rotational_energy = node_has_a_kite and kites_have_6dof
 
-    # add tether translational kinetic energy
-    m_t = outputs['masses']['m_tether{}'.format(node)]
-    dq_n = variables_si['x']['dq' + label]
+    q_node = variables_si['x']['q' + label]
+    dq_node = variables_si['x']['dq' + label]
     if node == 1:
-        q10 = variables_si['x']['q10']
-        if 'l_t' in variables_si['x'].keys():
-            l_t = variables_si['x']['l_t']
-        else:
-            l_t = variables_si['theta']['l_t']
-        e_t = q10/l_t
-        dq_parent = cas.mtimes(e_t, cas.mtimes(dq_n.T, e_t))
+        q_parent = cas.DM.zeros((3, 1))
+        dq_parent = cas.DM.zeros((3, 1))
     else:
+        q_parent = variables_si['x']['q' + parent_label]
         dq_parent = variables_si['x']['dq' + parent_label]
-    e_kin_trans = 0.5 * m_t/3 * (cas.mtimes(dq_n.T, dq_n) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_n.T, dq_parent))
-    
-    # add kite translational kinetic energy
-    if node_has_a_kite:
-        mass = parameters['theta0', 'geometry', 'm_k']
-        e_kin_trans += 0.5 * mass * cas.mtimes(dq_n.T, dq_n)
 
-    # add kite rotational energy
-    if node_has_rotational_energy:
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    segment_vector = q_node - q_parent
+    segment_length = segment_properties['seg_length']
+    mass_segment = segment_properties['seg_mass']
+
+    dq_average = (dq_node + dq_parent) / 2.
+    e_kin_trans = 0.5 * mass_segment * cas.mtimes(dq_average.T, dq_average)
+
+    if node_has_a_kite:
+        mass_kite = parameters['theta0', 'geometry', 'm_k']
+        e_kin_trans += 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
+
+    v_rotation = dq_node - dq_average
+    ehat_tether = vect_op.normalize(segment_vector)
+    v_ortho = v_rotation - cas.mtimes(v_rotation.T, ehat_tether) * ehat_tether
+    radius_of_rod_rotation = (segment_length / 2.)
+    omega = v_ortho / radius_of_rod_rotation
+    moment_of_inertia = (1. / 12.) * mass_segment * segment_length**2.
+    e_kin_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
+
+    if node_has_a_kite and kites_have_6dof:
         omega = variables_si['x']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
-        e_kin_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
-
-    else:
-        e_kin_rot = cas.DM.zeros((1, 1))
+        e_kin_rot += 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
 
     e_kinetic = e_kin_trans + e_kin_rot
 
@@ -100,7 +106,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     return outputs
 
 
-def add_node_potential(node, options, variables_si, parameters, outputs, architecture):
+def add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
@@ -109,21 +115,26 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
 
     gravity = parameters['theta0', 'atmosphere', 'g']
 
-    m_t = outputs['masses']['m_tether{}'.format(node)]
-    q_n = variables_si['x']['q' + label]
+    q_node = variables_si['x']['q' + label]
     if node == 1:
-        q_parent = cas.DM.zeros((3,1))
+        q_parent = cas.DM.zeros((3, 1))
     else:
-        q_parent = variables_si['x']['q'+label]
-    e_potential = gravity * m_t/2 *(q_n[2] + q_parent[2])
+        q_parent = variables_si['x']['q' + parent_label]
+    q_mean = (q_node + q_parent) / 2.
+
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    mass_segment = segment_properties['seg_mass']
+
+    e_potential = gravity * mass_segment * q_mean[2]
 
     if node_has_a_kite:
         mass = parameters['theta0', 'geometry', 'm_k']
-        e_potential = gravity * mass * q_n[2]
+        e_potential += gravity * mass * q_node[2]
 
     outputs['e_potential']['q' + label] = e_potential
 
     return outputs
+
 
 
 def add_ground_station_potential(outputs):
