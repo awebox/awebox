@@ -344,7 +344,7 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
             plt.plot(tgrid_ref_ip, ref_data, linestyle='--', color=p[-1].get_color())
 
     plt.title(var_name)
-    plt.autoscale(enable=True, axis = 'x', tight = True)
+    plt.autoscale(enable=True, axis='x', tight=True)
     plt.grid(True)
     ax.tick_params(axis='both', which='major')
 

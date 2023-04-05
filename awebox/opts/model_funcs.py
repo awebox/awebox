@@ -224,14 +224,11 @@ def get_dependent_params(geometry, geometry_data):
 
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-
     l_t = options['model']['scaling']['x']['l_t']
-    q_t = estimate_position_of_main_tether_end(options)
-    q_t_mean = float((q_t[0] + q_t[2]) / 2.)
     flight_radius = estimate_flight_radius(options, architecture)
 
     if options['model']['scaling_overwrite']['x']['q'] is None:
-        available_estimates = [flight_radius, l_t, q_t_mean]
+        available_estimates = [flight_radius, l_t]
         q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     else:
         q_scaling = options['model']['scaling_overwrite']['x']['q']
@@ -287,8 +284,8 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         options_tree.append(('model', 'scaling', 'x', 'omega', 1, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'r', 1, ('descript', None), 'x'))
 
-
     return options_tree, fixed_params
+
 
 def get_kite_dof(user_options):
     kite_dof = user_options['system_model']['kite_dof']
@@ -868,9 +865,6 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
         # prevent licq errors.
         options_tree.append(('model', 'system_bounds', 'x', 'l_t', [l_t_bounds[0], cas.inf], ('???', None), 'x'))
 
-        l_t_scaling = np.max([options['model']['scaling']['x']['l_t'], l_t_bounds[0]])
-        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_scaling,
-                             ('length of the main tether when unrolled [m]', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
 
         l_t_full_to_unwound_ratio = options['solver']['initialization']['l_t_full_to_unwound_ratio']
@@ -884,7 +878,10 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
             awelogger.logger.warning(message)
             l_t_full_to_unwound_ratio = wound_tether_safety_factor
 
-        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_initial * l_t_full_to_unwound_ratio,
+        l_t_full_initialization = l_t_initial * l_t_full_to_unwound_ratio
+        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_full_initialization,
+                             ('length of the main tether when unrolled [m]', None), 'x'))
+        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_full_initialization,
                              ('length of the main tether when unrolled [m]', None), 'x'))
 
 

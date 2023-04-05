@@ -26,7 +26,7 @@ def set_ampyx_ap2_settings(options):
     options['model.tether.aero_elements'] = 5
 
     # don't model generator
-    options['model.model_bounds.wound_tether_length.include'] = False
+    # options['model.model_bounds.wound_tether_length.include'] = False
 
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = False

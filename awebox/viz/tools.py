@@ -907,17 +907,33 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
     bounds = plot_dict['variable_bounds'][var_type][name]
     scaling = plot_dict['variables'](plot_dict['scaling'])[var_type, name]
-    if type(bounds['lb']) == np.ndarray:
-        lb = bounds['lb'][jdx]
-    else:
-        lb = bounds['lb']
-    if type(bounds['ub']) == np.ndarray:
-        ub = bounds['ub'][jdx]
-    else:
-        ub = bounds['ub']
-    if lb > -np.inf:
-        plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
-    if ub < np.inf:
-        plt.plot(tgrid_ip, [ub*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+
+    bound_types = ['lb', 'ub']
+    for type in bound_types:
+
+        potential_bound = bounds[type]
+
+        if isinstance(potential_bound, np.ndarray):
+            local_bound = potential_bound[jdx]
+        elif (isinstance(potential_bound, cas.DM)) and potential_bound.shape == (1, 1):
+            local_bound = float(potential_bound)
+        elif isinstance(potential_bound, cas.DM):
+            local_bound = float(potential_bound[jdx])
+        else:
+            local_bound = potential_bound
+
+        if scaling.shape == (1, 1):
+            local_scaling = float(scaling)
+        else:
+            local_scaling = float(scaling[jdx])
+
+        if np.isfinite(local_bound):
+            bound_grid_ip = local_bound * local_scaling * np.ones(tgrid_ip.shape)
+            plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=p[-1].get_color())
+
+    if (name == 'l_t') and ('[theta,l_t_full,0]' in plot_dict['variables'].labels()):
+        wound_tether_bound = float(plot_dict['V_plot']['theta', 'l_t_full', 0])
+        wound_tether_bound_ip = wound_tether_bound * np.ones(tgrid_ip.shape)
+        plt.plot(tgrid_ip, wound_tether_bound_ip, linestyle='dashed', color=p[-1].get_color())
 
     return None

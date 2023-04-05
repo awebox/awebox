@@ -27,6 +27,7 @@ energy terms
 _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -37,6 +38,7 @@ import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 from awebox.logger.logger import Logger as awelogger
+
 
 def energy_outputs(options, parameters, outputs, variables_si, architecture, scaling):
 
@@ -51,7 +53,7 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture, sca
         outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling)
         outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling)
 
-    outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs)
+    outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs, architecture, scaling)
     outputs = add_ground_station_potential(outputs)
 
     return outputs
@@ -143,7 +145,6 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     return outputs
 
 
-
 def add_ground_station_potential(outputs):
     # the winch is at ground level
     e_potential = cas.DM(0.)
@@ -151,26 +152,49 @@ def add_ground_station_potential(outputs):
     return outputs
 
 
-def add_ground_station_kinetic(options, variables_si, parameters, outputs):
+def add_ground_station_kinetic(options, variables_si, parameters, outputs, architecture, scaling):
 
-    # E_kinetic_ground_station
-    # = 1/2 J omega_gen^2, with no-slip condition
-    # = 1/2 (1/2 m r^2) omega^2
-    # = 1/4 m dl_t^2
-    # add mass of first half of main tether, and the mass of wound tether.
+    # assume that ground station is two cylinders:
+    # - the inner one a solid, homogenous cylinder, made of metal (the drum),
+    #           with I_drum = 1/2 (m_drum) (r_drum)^2
+    # - and the outer one a thin, homogenous cylindrical shell, made of wound tether,
+    #           with I_shell = (m_tether) (r_drum + r_tether)^2
+    # so that the total kinetic energy = 1/2 I_total omega^2
+    # and the rotation of both is determined by a no-slip condition on the winding tether
+    # omega radius_of_tether_winding = dl_t
 
-    total_ground_station_mass = outputs['masses']['ground_station']
+    if options['tether']['use_wound_tether']:
 
-    dq10 = variables_si['x']['dq10']
-    q10 = variables_si['x']['q10']
-    if 'l_t' in variables_si['x'].keys():
-        l_t = variables_si['x']['l_t']
+        if not (('l_t_full' in variables_si['theta'].keys()) and ('dl_t' in variables_si['x'].keys())):
+            message = 'awebox does not have necessary variables to compute the kinetic energy of the ground station, ' \
+                      'according to the wound-tether model'
+            print_op.log_and_raise_error(message)
+
+        radius_drum = parameters['theta0', 'ground_station', 'r_gen']
+
+        segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, 1)
+        tether_density = segment_properties['density']
+        unwound_length = segment_properties['seg_length']
+        length_full = variables_si['theta']['l_t_full']
+        tether_diameter = segment_properties['seg_diam']
+        wound_length = length_full - unwound_length
+        cross_sectional_area = segment_properties['cross_section_area']
+        mass_wound_tether = tether_density * cross_sectional_area * wound_length
+        radius_shell = radius_drum + tether_diameter / 2.
+        moment_of_inertia_of_wound_tether = mass_wound_tether * radius_shell**2.
+
+        mass_drum = parameters['theta0', 'ground_station', 'm_gen']
+        moment_of_inertia_of_drum = 0.5 * mass_drum * radius_drum**2.
+
+        moment_of_inertia = moment_of_inertia_of_wound_tether + moment_of_inertia_of_drum
+
+        tangential_speed = variables_si['x']['dl_t']
+        omega = tangential_speed / radius_shell
+
+        e_kinetic = 0.5 * moment_of_inertia * omega**2.
+
     else:
-        l_t = variables_si['theta']['l_t']
-
-    speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
-
-    e_kinetic = 0.5 * total_ground_station_mass * speed_ground_station ** 2.
+        e_kinetic = cas.DM(0.)
 
     outputs['e_kinetic']['ground_station'] = e_kinetic
 
