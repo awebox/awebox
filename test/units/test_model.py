@@ -618,6 +618,11 @@ def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_no
     scaling_dict = {'x.q': scale1, 'x.dq': scale2}
 
     model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
+
+    if cas.diag(model.scaling.cat).is_eye():
+        message = 'something went wrong when setting the non-matching scaling. the scaling vector is still returning unit-scaling.'
+        raise Exception(message)
+
     variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
 
     dynamics_residual = model.dynamics(variables, parameters)

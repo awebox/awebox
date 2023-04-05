@@ -69,7 +69,14 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     dq_node = variables_si['x']['dq' + label]
     if node == 1:
         q_parent = cas.DM.zeros((3, 1))
-        dq_parent = cas.DM.zeros((3, 1))
+
+        if 'dl_t' in variables_si['x'].keys():
+            segment_vector = q_node - q_parent
+            ehat_tether = vect_op.normalize(segment_vector)
+            dq_parent = variables_si['x']['dl_t'] * ehat_tether
+        else:
+            dq_parent = cas.DM.zeros((3, 1))
+
     else:
         q_parent = variables_si['x']['q' + parent_label]
         dq_parent = variables_si['x']['dq' + parent_label]
