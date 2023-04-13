@@ -486,7 +486,7 @@ def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si,
                   'l_t_full': length_si}
     return initial_si
 
-def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
+def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}, use_wound_tether=False):
     options = {}
     options['user_options.system_model.architecture'] = {1: 0}
     options['user_options.system_model.kite_dof'] = 3
@@ -497,7 +497,7 @@ def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}):
     options['user_options.tether_drag_model'] = 'not_in_use'
     options['user_options.kite_standard'] = ampyx_data.data_dict()
     options['model.geometry.overwrite.m_k'] = mass_si
-    options['model.tether.use_wound_tether'] = False
+    options['model.tether.use_wound_tether'] = use_wound_tether
 
     if len(scaling_dict.keys()) > 0:
         for var_label, scaling_value in scaling_dict.items():
@@ -553,11 +553,22 @@ def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_ma
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass(epsilon=1e-8):
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether(epsilon=1e-8):
+    run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=epsilon, use_wound_tether=False)
+    return None
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether(epsilon=1e-8):
+    run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=epsilon, use_wound_tether=True)
+    return None
+
+
+def run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=1e-8, use_wound_tether=False):
     # pendulum problem
     mass_si = 17.
     gravity_si = 11.
     length_si = 10.
+
     pendulum_angle_rad = np.pi/2. * 0.323
     rod_mass_si = 41.
     rod_diameter_si = 0.02
@@ -566,7 +577,7 @@ def test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass(ep
 
     initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad, rod_mass_si=rod_mass_si, rod_diameter_si=rod_diameter_si)
 
-    model = build_pendulum_test_model(mass_si, gravity_si)
+    model = build_pendulum_test_model(mass_si, gravity_si, use_wound_tether=use_wound_tether)
 
     variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si, rod_density_si=rod_density_si)
 
@@ -574,7 +585,7 @@ def test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass(ep
     condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
 
     if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, when rod has mass)'
+        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, when rod has mass), but use_wound_tether is ' + str(use_wound_tether)
         raise Exception(message)
 
     return None
@@ -716,4 +727,5 @@ def test_time_derivative_under_scaling():
 # test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling()
 # test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling()
 # test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_when_pendulum_rod_has_mass()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether()

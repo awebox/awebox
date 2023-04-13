@@ -29,9 +29,9 @@ awelogger.logger.setLevel(10)
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
 
-def test_single_kite():
+def test_single_kite(final_homotopy_step='final'):
     trial_name = 'single_kite_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -41,9 +41,9 @@ def test_zoh():
     return None
 
 
-def test_basic_health():
+def test_basic_health(final_homotopy_step='final'):
     trial_name = 'basic_health_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -153,8 +153,9 @@ def generate_options_dict():
     single_kite_options = {}
     single_kite_options['user_options.system_model.architecture'] = {1: 0}
     single_kite_options = set_ampyx_ap2_settings(single_kite_options)
-    # single_kite_options['nlp.n_k'] = 100
     single_kite_options['solver.linear_solver'] = 'ma57'
+    single_kite_options['model.tether.use_wound_tether'] = True
+    single_kite_options['visualization.cosmetics.plot_bounds'] = True
     single_kite_options['model.scaling.x.l_t'] = 1.e2
     single_kite_options['solver.weights.dq'] = 1.e1
     single_kite_options['solver.weights.ddl_t'] = 1e-1
@@ -163,9 +164,6 @@ def generate_options_dict():
     single_kite_options['solver.weights.q'] = 1e0
     single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
     single_kite_options['solver.cost_factor.power'] = 1e6
-    single_kite_options['params.ground_station.m_gen'] = 0.
-    single_kite_options['model.tether.use_wound_tether'] = True
-    single_kite_options['visualization.cosmetics.plot_bounds'] = True
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -181,16 +179,6 @@ def generate_options_dict():
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     dual_kite_options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
-    # single_kite_options['model.scaling.x.l_t'] = 1.e2
-    # single_kite_options['solver.weights.dq'] = 1.e1
-    # single_kite_options['solver.weights.ddl_t'] = 1e-1
-    # single_kite_options['solver.weights.dddl_t'] = 1e-1
-    # single_kite_options['solver.weights.coeff'] = 1e-6
-    # single_kite_options['solver.weights.q'] = 1e0
-    # single_kite_options['solver.cost.u_regularisation.0'] = 1e-2
-    # single_kite_options['solver.cost_factor.power'] = 1e6
-
-
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
@@ -286,7 +274,7 @@ def generate_options_dict():
     basic_health_options['nlp.n_k'] = 10
     basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.when'] = 'always'
-    basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.health_check.raise_exception'] = False #True
     basic_health_options['solver.hippo_strategy'] = False
     basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
@@ -335,7 +323,7 @@ def generate_options_dict():
     return options_dict
 
 
-def run_a_solve_and_check_test(trial_name):
+def run_a_solve_and_check_test(trial_name, final_homotopy_step='final'):
     """
     Solve one individual trial and run tests on it
     :param trial_name: name of the trial
@@ -346,7 +334,7 @@ def run_a_solve_and_check_test(trial_name):
     trial_options = options_dict[trial_name]
 
     # compute trajectory solution
-    trial = solve_trial(trial_options, trial_name)
+    trial = solve_trial(trial_options, trial_name, final_homotopy_step=final_homotopy_step)
 
     # evaluate results
     evaluate_results(trial.quality.results, trial_name)
@@ -374,17 +362,17 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
     # trial.print_cost_information()
-    # trial.plot('level_1')
+    # trial.plot('level_3')
     # plt.show()
 
     return trial
 
-# test_single_kite()
+test_single_kite()  #final_homotopy_step='initial')
+# test_basic_health()  #final_homotopy_step='fictitious')
 # test_zoh()
-# test_basic_health()
 # test_drag_mode()
 # test_save_trial()
-test_dual_kite()
+# # test_dual_kite()
 # test_dual_kite_basic_health()
 # test_small_dual_kite()
 # test_large_dual_kite()

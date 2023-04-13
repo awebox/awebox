@@ -35,6 +35,7 @@ from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 
 def test_opti_success(trial, test_param_dict, results):
     """
@@ -176,65 +177,69 @@ def test_node_altitude(trial, test_param_dict, results):
 
 def test_power_balance(trial, test_param_dict, results, input_values):
     """Test whether conservation of energy holds at all nodes and for the entire system.
+    this test is only going to be meaningful, if there are no fictitious forces.
     :return: test results
     """
 
-    # extract info
-    tgrid = input_values['time_grids']['ip']
-    power_balance = input_values['outputs']['power_balance']
+    contains_no_fictitious_forces = (trial.optimization.V_opt['phi', 'gamma'] < 1.e-10)
+    if contains_no_fictitious_forces:
 
-    check_energy_summation = test_param_dict['check_energy_summation']
-    if check_energy_summation:
-        results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results, input_values)
+        # extract info
+        tgrid = input_values['time_grids']['ip']
+        power_balance = input_values['outputs']['power_balance']
 
-    balance = {}
-    max_abs_system_power = 1.e-15
-    system_net_power_timeseries = np.zeros(tgrid.shape)
+        check_energy_summation = test_param_dict['check_energy_summation']
+        if check_energy_summation:
+            results = summation_check_on_potential_and_kinetic_power(trial, test_param_dict['energy_summation_thresh'], results, input_values)
 
-    nodes_above_ground = range(1, trial.model.architecture.number_of_nodes)
-    for node in nodes_above_ground:
+        balance = {}
+        max_abs_system_power = 1.e-15
+        system_net_power_timeseries = np.zeros(tgrid.shape)
 
-        node_power_timeseries = np.zeros(tgrid.shape)
-        nodes_childrens_power_timeseries = np.zeros(tgrid.shape)
-        max_abs_node_power = 1.e-15  # preclude any div-by-zero errors
+        nodes_above_ground = range(1, trial.model.architecture.number_of_nodes)
+        for node in nodes_above_ground:
 
-        # how much power originates with the node itself
-        for keyname in list(power_balance.keys()):
-            if power_balance_key_belongs_to_node(keyname, node):
-                timeseries = power_balance[keyname][0]
-                node_power_timeseries += timeseries
-                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+            node_power_timeseries = np.zeros(tgrid.shape)
+            nodes_childrens_power_timeseries = np.zeros(tgrid.shape)
+            max_abs_node_power = 1.e-15  # preclude any div-by-zero errors
 
-        # how much power is just being transferred from the node's children
-        node_has_children = node in list(trial.model.architecture.children_map.keys())
-        if node_has_children:
-            children = trial.model.architecture.children_map[node]
-            for child in children:
-                timeseries = power_balance['P_tether'+str(child)][0]
-                nodes_childrens_power_timeseries += timeseries
-                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+            # how much power originates with the node itself
+            for keyname in list(power_balance.keys()):
+                if power_balance_key_belongs_to_node(keyname, node):
+                    timeseries = power_balance[keyname][0]
+                    node_power_timeseries += timeseries
+                    max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        # avoid double-counting power that is just being transferred; only count power at point-of-origin
-        net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
+            # how much power is just being transferred from the node's children
+            node_has_children = node in list(trial.model.architecture.children_map.keys())
+            if node_has_children:
+                children = trial.model.architecture.children_map[node]
+                for child in children:
+                    timeseries = power_balance['P_tether'+str(child)][0]
+                    nodes_childrens_power_timeseries += timeseries
+                    max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
-        scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
-        balance[node] = scaled_norm_net_power
+            # avoid double-counting power that is just being transferred; only count power at point-of-origin
+            net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
 
-        # add node net power into system net power
-        max_abs_system_power = np.max([max_abs_node_power, max_abs_system_power])
-        system_net_power_timeseries += net_power_timeseries
+            scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
+            balance[node] = scaled_norm_net_power
 
-    scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
-    balance['total'] = scaled_norm_system_net_power
+            # add node net power into system net power
+            max_abs_system_power = np.max([max_abs_node_power, max_abs_system_power])
+            system_net_power_timeseries += net_power_timeseries
 
-    for node in list(balance.keys()):
-        if node == 'total' and balance[node] > test_param_dict['power_balance_thresh']:
-            message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
-                      + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
-            awelogger.logger.warning(message)
-            results['energy_balance' + str(node)] = False
-        else:
-            results['energy_balance' + str(node)] = True
+        scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
+        balance['total'] = scaled_norm_system_net_power
+
+        for node in list(balance.keys()):
+            if node == 'total' and balance[node] > test_param_dict['power_balance_thresh']:
+                message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
+                          + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
+                awelogger.logger.warning(message)
+                results['energy_balance' + str(node)] = False
+            else:
+                results['energy_balance' + str(node)] = True
 
     return results
 

@@ -124,7 +124,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # --------------------------------------------
 
 
-    wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'])
+    wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'], scaling)
     cstr_list.append(wound_length_cstr)
 
     outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture, scaling)
@@ -696,7 +696,7 @@ def airspeed_inequality(options, outputs, parameters, architecture):
             parent = parent_map[kite]
 
             max_resi = airspeed / airspeed_max - 1.
-            min_resi = - airspeed / airspeed_min + 1.
+            min_resi = 1. - airspeed / airspeed_min
 
             max_cstr = cstr_op.Constraint(expr=max_resi,
                                         name='airspeed_max' + str(kite) + str(parent),
@@ -782,14 +782,16 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
         if n in tether_constraint_includes['force']:
 
-            force_max_resi = (tension - max_tension) / vect_op.smooth_abs(max_tension)
+            print_op.warn_about_temporary_functionality_alteration()
+            force_max_resi = (tension / max_tension) - 1.
 
             force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
                                                name='tether_force_max' + str(n) + str(parent),
                                                cstr_type='ineq')
             cstr_list.append(force_max_cstr)
 
-            force_min_resi = -(tension - min_tension) / vect_op.smooth_abs(min_tension)
+            print_op.warn_about_temporary_functionality_alteration()
+            force_min_resi = 1. - (tension / min_tension)
 
             force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
                                                name='tether_force_min' + str(n) + str(parent),
@@ -843,22 +845,23 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
     return outputs, cstr_list
 
 
-def wound_tether_length_inequality(options, variables):
+def wound_tether_length_inequality(options, variables_si, scaling):
 
     cstr_list = cstr_op.MdlConstraintList()
 
-
     if options['model_bounds']['wound_tether_length']['include']:
 
-        length_scaling = options['scaling']['x']['l_t']
-
         if options['tether']['use_wound_tether']:
-            l_t_full = variables['theta']['l_t_full'] / options['tether']['wound_tether_safety_factor']
-            l_t = variables['x']['l_t']
 
-            expr = (l_t - l_t_full) / length_scaling
+            l_t_full = variables_si['theta']['l_t_full']
+            length_available = l_t_full * options['tether']['fraction_of_wound_tether_available_for_unwinding']
 
-        cstr = cstr_op.Constraint(expr=expr,
+            l_t = variables_si['x']['l_t']
+
+            expr_si = (l_t - length_available)
+            expr_scaled = struct_op.var_si_to_scaled('theta', 'l_t_full', expr_si, scaling)
+
+        cstr = cstr_op.Constraint(expr=expr_scaled,
                                 name='wound_tether_length',
                                 cstr_type='ineq')
         cstr_list.append(cstr)

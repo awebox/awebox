@@ -27,6 +27,7 @@ node mass computation
 _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 
@@ -71,24 +72,53 @@ def get_ground_station_mass(options, architecture, scaling, variables_si, parame
 #  MASS SCALING METHODS
 # =====================
 
-# def generate_m_nodes_scaling(options, variables, parameters, architecture, scaling):
-#     # system architecture (see zanon2013a)
-#     number_of_nodes = architecture.number_of_nodes
-#
-#     node_masses_scaling = generate_mass_dictionary_for_all_nodes(options, variables, parameters, architecture, scaling)
-#
-#     # this will be used to scale the forces,
-#     # so we need to repeat the scaling forces 3x, once per dimension for force.
-#     # and, only on those nodes for which we will construct dynamics equations via. Lagrangian mechanics
-#
-#     node_masses_scaling_stacked = []
-#     for node in range(1, number_of_nodes):
-#         mass = node_masses_scaling['m' + architecture.node_label(node)]
-#         three_dimensional_mass = cas.DM.ones() * mass
-#
-#         node_masses_scaling_stacked = cas.vertcat(node_masses_scaling_stacked, three_dimensional_mass)
-#
-#     return node_masses_scaling_stacked
+def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architecture, scaling):
+
+    number_of_nodes = architecture.number_of_nodes
+    print_op.warn_about_temporary_functionality_alteration()
+    # kite_mass = parameters['theta0', 'geometry', 'm_k']
+    kite_mass = 36.8
+
+    # this will be used to scale the forces,
+    # so we need to repeat the scaling forces 3x, once per dimension for force.
+    # and, only on those nodes for which we will construct dynamics equations via. Lagrangian mechanics
+    mass_ratio_stacked = []
+    for node in range(1, number_of_nodes):
+
+        node_mass = cas.DM(0.)
+
+        segment_under_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling,
+                                                                                  variables_si, parameters, node)
+        if (node == 1) and options['tether']['use_wound_tether'] and ('l_t_full' in variables_si['theta'].keys()):
+            print_op.warn_about_temporary_functionality_alteration()
+            tether_density = 970.
+            # tether_density = segment_under_node_properties['density']
+            cross_section = segment_under_node_properties['scaling_area']
+            length = scaling['theta', 'l_t_full', 0]
+            mass_tether = tether_density * cross_section * length
+            print_op.warn_about_temporary_functionality_alteration()
+            mass_generator = 0.
+            # mass_generator = parameters['theta0', 'ground_station', 'm_gen']
+            mass_under_node = mass_tether + mass_generator
+        else:
+            mass_under_node = segment_under_node_properties['scaling_mass']
+        node_mass += mass_under_node / 2.
+
+        if node in architecture.children_map.keys():
+            for child in architecture.children_map[node]:
+                segment_above_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, child)
+                mass_above_node = segment_above_node_properties['scaling_mass']
+                node_mass += mass_above_node / 2.
+
+        if node in architecture.kite_nodes:
+            node_mass += kite_mass
+
+        mass_ratio = kite_mass / node_mass
+        three_dimensional_mass_ratio = cas.DM.ones((3, 1)) * mass_ratio
+
+        mass_ratio_stacked = cas.vertcat(mass_ratio_stacked, three_dimensional_mass_ratio)
+
+    return mass_ratio_stacked
 
 
 # def remove_wound_tether_entry(node_masses):

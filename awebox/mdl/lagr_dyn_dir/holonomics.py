@@ -11,7 +11,6 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
-
 from awebox.logger.logger import Logger as awelogger
 
 
@@ -276,17 +275,11 @@ def generate_holonomic_scaling(options, architecture, scaling, variables, parame
     holonomic_scaling = []
 
     for n in range(1, architecture.number_of_nodes):
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=n)
 
-        scaling_length = seg_props['scaling_length']
-        scaling_speed = seg_props['scaling_speed']
-        scaling_acc = seg_props['scaling_acc']
+        g_loc = options['scaling']['other']['holonomic_g']
+        gdot_loc = options['scaling']['other']['holonomic_gdot']
+        gddot_loc = cas.DM(0.)
 
-        g_loc = scaling_length**2.
-        gdot_loc = 2. * scaling_length * scaling_speed
-        gddot_loc = 2. * scaling_length * scaling_acc + 2. * scaling_speed**2.
-
-        # notice that if the scaling_length is large, loc_scaling easily ends up as a *massive* number
         loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 

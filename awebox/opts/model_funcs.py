@@ -867,23 +867,14 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
 
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
 
-        l_t_full_to_unwound_ratio = options['solver']['initialization']['l_t_full_to_unwound_ratio']
-        wound_tether_safety_factor = options['model']['tether']['wound_tether_safety_factor']
+        fraction_of_wound_tether_available_for_unwinding = options['model']['tether']['fraction_of_wound_tether_available_for_unwinding']
         l_t_initial = options['solver']['initialization']['l_t']
 
-        if l_t_full_to_unwound_ratio < wound_tether_safety_factor:
-            message = 'the initialization ratio of full tether length to unwound tether length is likely to ' \
-                      'lead to constraint violation, given the wound tether safety factor. increasing the ' \
-                      'initialization ratio to match the safety factor.'
-            awelogger.logger.warning(message)
-            l_t_full_to_unwound_ratio = wound_tether_safety_factor
-
-        l_t_full_initialization = l_t_initial * l_t_full_to_unwound_ratio
+        l_t_full_initialization = l_t_initial / (fraction_of_wound_tether_available_for_unwinding**2.)
         options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_full_initialization,
                              ('length of the main tether when unrolled [m]', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_full_initialization,
                              ('length of the main tether when unrolled [m]', None), 'x'))
-
 
     if not use_wound_tether:
         options['model']['model_bounds']['wound_tether_length']['include'] = False
@@ -1030,6 +1021,20 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     l_t_scaling = options['model']['scaling']['x']['l_t']
     tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * l_t_scaling
     options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
+
+    print_op.warn_about_temporary_functionality_alteration()
+    stress = options['params']['tether']['max_stress']
+    strain = stress / options['params']['tether']['youngs_modulus']
+    elongation = strain * length
+    typical_holonomic_constraint = 0.5 * elongation**2.
+
+    holonomic_g = typical_holonomic_constraint
+    holonomic_gdot = estimate_reelout_speed(options) * options['model']['scaling']['x']['l_t']
+    options_tree.append(('model', 'scaling', 'other', 'elongatation', elongation, ('???', None),'x'))
+    print_op.warn_about_temporary_functionality_alteration()
+
+    options_tree.append(('model', 'scaling', 'other', 'holonomic_g', holonomic_g, ('???', None), 'x'))
+    options_tree.append(('model', 'scaling', 'other', 'holonomic_gdot', holonomic_gdot, ('???', None), 'x'))
 
     return options_tree, fixed_params
 

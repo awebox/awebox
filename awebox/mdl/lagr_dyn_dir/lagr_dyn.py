@@ -86,7 +86,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     # lagrangian momentum correction
     if options['tether']['use_wound_tether']:
-        lagrangian_momentum_correction = 0.
+        lagrangian_momentum_correction = cas.DM(0.)
     else:
         lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
                                                              outputs, architecture, scaling)
@@ -98,11 +98,12 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     # scaling
     print_op.warn_about_temporary_functionality_alteration()
-    # node_masses_scaling = mass_comp.generate_m_nodes_scaling(options, system_variables['SI'], parameters, architecture, scaling)
-    forces_scaling = options['scaling']['z']['f_aero'] #* (node_masses_scaling / parameters['theta0', 'geometry', 'm_k'])
+    kite_to_node_mass_ratio = mass_comp.generate_kite_to_node_mass_ratio(options, system_variables['SI'], parameters, architecture, scaling)
+    # forces_scaling = (1. / options['scaling']['z']['f_aero']) * kite_to_node_mass_ratio
+    forces_scaling = (1. / options['scaling']['z']['f_aero']) * cas.DM.ones(kite_to_node_mass_ratio.shape)
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
-    dynamics_translation_scaled = cas.mtimes(cas.inv(cas.diag(forces_scaling)), dynamics_translation_si)
+    dynamics_translation_scaled = cas.mtimes(cas.diag(forces_scaling), dynamics_translation_si)
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation_scaled,
                                                    cstr_type='eq',
                                                    name='dynamics_translation')
@@ -114,7 +115,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # ---------------------------
 
     lagrangian_lhs_constraints = holonomic_comp.get_constraint_lhs(g, gdot, gddot, parameters)
-    lagrangian_rhs_constraints = np.zeros(g.shape)
+    lagrangian_rhs_constraints = cas.DM.zeros(g.shape)
     holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, scaling, system_variables['SI'], parameters)
 
     dynamics_constraints_si = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)

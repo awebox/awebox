@@ -223,7 +223,7 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
 
     density = parameters['theta0', 'tether', 'rho']
     seg_mass = cross_section_area * density * seg_length
-    scaling_mass = scaling_area * parameters['theta0', 'tether', 'rho'] * scaling_length
+    scaling_mass = scaling_area * density * scaling_length
 
     props = {}
     props['density'] = density
