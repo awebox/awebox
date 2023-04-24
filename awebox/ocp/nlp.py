@@ -153,7 +153,7 @@ class NLP(object):
 
         return nlp
 
-    def get_f_jacobian_fun(self):
+    def get_f_jacobian_and_hessian_functions(self):
         return objective.get_cost_derivatives(self.__V, self.__P, self.__f_fun)
 
     def print_nlp_options(self):

@@ -329,11 +329,11 @@ def test_depth_function():
     expected = 0
     condition_0 = (get_depth_of_dict(dict0) == expected)
 
-    dict1 = {'a':1.}
+    dict1 = {'a': 1.}
     expected = 1
     condition_1 = (get_depth_of_dict(dict1) == expected)
 
-    dict2 = {'a':{'b':1}}
+    dict2 = {'a': {'b': 1}}
     expected = 2
     condition_2 = (get_depth_of_dict(dict2) == expected)
 

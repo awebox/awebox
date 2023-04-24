@@ -60,7 +60,7 @@ def get_general_regularization_function(variables):
 
     return reg_fun
 
-def get_general_reg_costs_function(variables, V):
+def get_general_reg_costs_function(nlp_options, variables, V):
 
     var_sym = cas.SX.sym('var_sym', variables.cat.shape)
     ref_sym = cas.SX.sym('ref_sym', variables.cat.shape)
@@ -69,7 +69,7 @@ def get_general_reg_costs_function(variables, V):
     reg_fun = get_general_regularization_function(variables)
     regs = variables(reg_fun(var_sym, ref_sym, weight_sym))
 
-    sorting_dict, reg_list = get_regularization_sorting_dict()
+    sorting_dict, reg_list = get_regularization_sorting_dict(nlp_options)
     reg_costs_dict = collections.OrderedDict()
     for cost in reg_list:
         reg_costs_dict[cost] = 0.0
@@ -117,7 +117,7 @@ def get_costs_struct(V):
     return costs_struct
 
 
-def get_regularization_sorting_dict():
+def get_regularization_sorting_dict(nlp_options):
 
     # in general, regularization of the variables of type TYPE, enters the cost in the category CATEGORY,
     # with the exception of those variables named EXCLUDED_VARIABLE_NAME, which enter the cost in the category CATEGORY_FOR_EXCLUDED_VARIABLE
@@ -132,6 +132,12 @@ def get_regularization_sorting_dict():
     sorting_dict['z'] = {'category': 'tracking_cost', 'exceptions': {}}
     sorting_dict['theta'] = {'category': 'theta_regularisation_cost', 'exceptions': {'t_f': None}}
 
+    for item in nlp_options['cost']['adjustments_to_general_regularization_distribution']:
+        var_type = item[0]
+        var_name = item[1]
+        reassigment = item[2]
+        sorting_dict[var_type]['exceptions'][var_name] = reassigment
+
     reg_list = ['tracking_cost', 'xdot_regularisation_cost', 'u_regularisation_cost', 'fictitious_cost', 'theta_regularisation_cost']
 
     return sorting_dict, reg_list
@@ -139,7 +145,7 @@ def get_regularization_sorting_dict():
 
 def get_regularization_weights(variables, P, nlp_options):
 
-    sorting_dict, _ = get_regularization_sorting_dict()
+    sorting_dict, _ = get_regularization_sorting_dict(nlp_options)
 
     weights = variables(P['p', 'weights'])
 
@@ -150,13 +156,13 @@ def get_regularization_weights(variables, P, nlp_options):
         for var_name in set(struct_op.subkeys(variables, var_type)):
             name, _ = struct_op.split_name_and_node_identifier(var_name)
 
-            if (not name in exceptions.keys()) and (not category == None):
+            if (name not in exceptions.keys()) and (category is not None):
                 shortened_cat_name = category[:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
                 weights[var_type, var_name] = weights[var_type, var_name] * factor / normalization
 
-            elif (name in exceptions.keys()) and (not exceptions[name] == None):
+            elif (name in exceptions.keys()) and (exceptions[name] is not None):
                 shortened_cat_name = exceptions[name][:-5]
                 normalization = nlp_options['cost']['normalization'][shortened_cat_name]
                 factor = P['cost', shortened_cat_name]
@@ -179,7 +185,7 @@ def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
-    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot(0.0), model)
+    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot, model)
 
     return coll_vars, coll_refs, coll_weights, N_coll
 
@@ -210,7 +216,7 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
         vars, refs, weights, N_steps = get_ms_parallel_info(nlp_options, V, P, Xdot, model)
     parallellization = nlp_options['parallelization']['type']
 
-    reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(variables, V)
+    reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(nlp_options, variables, V)
     reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
 
     summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
@@ -324,7 +330,7 @@ def find_transition_problem_cost(component_costs, P):
     u_regularisation = component_costs['u_regularisation_cost']
 
     transition_cost = xdot_regularisation + u_regularisation
-    transition_cost = P['cost','transition'] * transition_cost
+    transition_cost = P['cost', 'transition'] * transition_cost
 
     return transition_cost
 
@@ -420,6 +426,7 @@ def find_objective(component_costs, V, V_ref, nlp_options):
     trajectory_type = nlp_options['trajectory']['type']
 
     if trajectory_type == 'power_cycle':
+
         objective = V['phi', 'psi'] * tracking_problem_cost + \
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \
@@ -502,12 +509,12 @@ def make_cost_function(V, P, component_costs):
 
 def get_cost_derivatives(V, P, f_fun):
 
-    [H,g] = cas.hessian(f_fun,V)
+    g = cas.jacobian(f_fun(V, P), V)
+    H = cas.jacobian(g, V)
     f_jacobian_fun = cas.Function('f_jacobian', [V, P], [g])
     f_hessian_fun = cas.Function('f_hessian', [V, P], [H])
 
     return [f_fun, f_jacobian_fun, f_hessian_fun]
-
 
 
 def extract_discretization_info(nlp_options):
@@ -526,5 +533,3 @@ def extract_discretization_info(nlp_options):
         int_weights = None
 
     return direct_collocation, multiple_shooting, d, scheme, int_weights
-
-

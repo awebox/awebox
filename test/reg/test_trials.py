@@ -156,14 +156,34 @@ def generate_options_dict():
     single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['model.tether.use_wound_tether'] = True
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
-    single_kite_options['model.scaling.x.l_t'] = 1.e2
-    single_kite_options['solver.weights.dq'] = 1.e1
+    # single_kite_options['model.scaling.x.l_t'] = 100.
+    single_kite_options['solver.weights.q'] = 1e1
+    single_kite_options['solver.weights.dq'] = 1.e-1
+    single_kite_options['solver.weights.l_t'] = 1e-5
+    single_kite_options['solver.weights.dl_t'] = 1e-3
     single_kite_options['solver.weights.ddl_t'] = 1e-1
     single_kite_options['solver.weights.dddl_t'] = 1e-1
     single_kite_options['solver.weights.coeff'] = 1e-6
-    single_kite_options['solver.weights.q'] = 1e0
+    single_kite_options['solver.cost.fictitious.0'] = 1.e0
     single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    single_kite_options['solver.cost_factor.power'] = 1e6
+    # single_kite_options['solver.cost_factor.power'] = 1e6
+    single_kite_options['solver.cost.tracking.0'] = 1.e2
+    single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
+    single_kite_options['solver.initialization.groundspeed'] = (13. + 32.)/2.
+
+    basic_health_options = copy.deepcopy(single_kite_options)
+    basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
+    basic_health_options['nlp.n_k'] = 10
+    basic_health_options['nlp.collocation.name_constraints'] = True
+    basic_health_options['solver.health_check.when'] = 'always'
+    # basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.hippo_strategy'] = False
+    basic_health_options['solver.health_check.spy_matrices'] = True
+    basic_health_options['nlp.collocation.u_param'] = 'zoh'
+    basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
+    basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
+    basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
+    # basic_health_options['solver.max_iter'] = 1
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -269,19 +289,6 @@ def generate_options_dict():
     compromised_landing_options['user_options.trajectory.compromised_landing.emergency_scenario'] = ('broken_roll', 2)
     compromised_landing_options['user_options.trajectory.compromised_landing.xi_0_initial'] = 0.8
 
-    basic_health_options = copy.deepcopy(single_kite_options)
-    basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
-    basic_health_options['nlp.n_k'] = 10
-    basic_health_options['nlp.collocation.name_constraints'] = True
-    basic_health_options['solver.health_check.when'] = 'always'
-    basic_health_options['solver.health_check.raise_exception'] = False #True
-    basic_health_options['solver.hippo_strategy'] = False
-    basic_health_options['solver.health_check.spy_matrices'] = False
-    basic_health_options['nlp.collocation.u_param'] = 'zoh'
-    basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
-    basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
-    basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
-
     dual_kite_basic_health_options = copy.deepcopy(dual_kite_options)
     dual_kite_basic_health_options['nlp.n_k'] = 10
     dual_kite_basic_health_options['nlp.collocation.name_constraints'] = True
@@ -361,14 +368,18 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
-    # trial.print_cost_information()
-    # trial.plot('level_3')
-    # plt.show()
+    trial.print_cost_information()
+
+    pdb.set_trace()
+    trial.plot('level_3')
+    plt.show()
+
+
 
     return trial
 
-test_single_kite()  #final_homotopy_step='initial')
-# test_basic_health()  #final_homotopy_step='fictitious')
+# test_single_kite()  #final_homotopy_step='initial')
+test_basic_health(final_homotopy_step='initial')
 # test_zoh()
 # test_drag_mode()
 # test_save_trial()

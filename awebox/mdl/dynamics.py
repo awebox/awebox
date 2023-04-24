@@ -130,7 +130,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture, scaling)
     cstr_list.append(stress_cstr)
 
-    airspeed_cstr = airspeed_inequality(options, outputs, parameters, architecture)
+    airspeed_cstr = airspeed_inequality(options, outputs, parameters, wind, architecture)
     cstr_list.append(airspeed_cstr)
 
     aero_validity_cstr = aero_validity_inequality(options, outputs)
@@ -221,7 +221,7 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.
         power_derivative_sq = outputs['performance']['power_derivative']**2
-        derivative_dict['power_derivative_sq'] =(power_derivative_sq, power_derivative_sq_scaling)
+        derivative_dict['power_derivative_sq'] = (power_derivative_sq, power_derivative_sq_scaling)
 
     induction_derivative_dict = induction.get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture)
     for local_key, local_val in induction_derivative_dict.items():
@@ -311,13 +311,6 @@ def make_output_structure(outputs, system_variables, parameters):
     return [out_struct, outputs_fun, outputs_dict]
 
 
-
-
-
-
-
-
-
 def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture):
     parent = architecture.parent_map[kite]
     kite_drag_power = parameters['theta0', 'aero', 'turbine_efficiency'] * \
@@ -343,14 +336,11 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
     return power, outputs
 
 
-
 def drag_mode_outputs(variables_si, parameters, outputs, architecture):
     for kite in architecture.kite_nodes:
         outputs['power_balance']['P_gen{}'.format(kite)] = -1. * get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
 
     return outputs
-
-
 
 
 def power_balance_outputs(options, outputs, system_variables, parameters, architecture, scaling):
@@ -392,7 +382,6 @@ def comparison_kinetic_and_potential_power_outputs(outputs, system_variables, ar
         outputs['power_balance_comparison'][type] = -1. * P
 
     return outputs
-
 
 
 def tether_power_outputs(variables_si, outputs, architecture):
@@ -450,6 +439,7 @@ def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
 
     return outputs
 
+
 def potential_power_outputs(outputs, system_variables, architecture, scaling):
     """Compute rate of change of potential energy for all system nodes
 
@@ -474,13 +464,9 @@ def potential_power_outputs(outputs, system_variables, architecture, scaling):
     return outputs
 
 
-
-
-
 def xdot_outputs(variables, outputs):
     outputs['xdot_from_var'] = variables['xdot']
     return outputs
-
 
 
 def anticollision_inequality(options, variables, parameters, architecture):
@@ -625,6 +611,7 @@ def max_power_inequality(options, variables, power):
 
     return cstr_list
 
+
 def ellipsoidal_flight_constraint(options, variables, parameters, architecture, outputs):
 
     cstr_list = cstr_op.MdlConstraintList()
@@ -677,7 +664,8 @@ def acceleration_inequality(options, variables):
 
     return cstr_list
 
-def airspeed_inequality(options, outputs, parameters, architecture):
+
+def airspeed_inequality(options, outputs, parameters, wind, architecture):
 
     cstr_list = cstr_op.MdlConstraintList()
 
@@ -690,20 +678,21 @@ def airspeed_inequality(options, outputs, parameters, architecture):
         # constraint bounds
         airspeed_max = parameters['theta0', 'model_bounds', 'airspeed_limits'][1]
         airspeed_min = parameters['theta0', 'model_bounds', 'airspeed_limits'][0]
+        airspeed_scaling = wind.get_speed_ref(options)
 
         for kite in kite_nodes:
             airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
             parent = parent_map[kite]
 
-            max_resi = airspeed / airspeed_max - 1.
-            min_resi = 1. - airspeed / airspeed_min
+            max_resi = airspeed - airspeed_max
+            min_resi = airspeed_min - airspeed
 
-            max_cstr = cstr_op.Constraint(expr=max_resi,
+            max_cstr = cstr_op.Constraint(expr=max_resi / airspeed_scaling,
                                         name='airspeed_max' + str(kite) + str(parent),
                                         cstr_type='ineq')
             cstr_list.append(max_cstr)
 
-            min_cstr = cstr_op.Constraint(expr=min_resi,
+            min_cstr = cstr_op.Constraint(expr=min_resi / airspeed_scaling,
                                         name='airspeed_min' + str(kite) + str(parent),
                                         cstr_type='ineq')
             cstr_list.append(min_cstr)
@@ -726,6 +715,7 @@ def aero_validity_inequality(options, outputs):
 
     return cstr_list
 
+
 def tether_stress_inequality(options, variables_si, outputs, parameters, architecture, scaling):
 
     cstr_list = cstr_op.MdlConstraintList()
@@ -740,22 +730,21 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
     tightness = options['model_bounds']['tether_stress']['scaling']
 
-    tether_constraints = ['tether_stress', 'tether_force_max', 'tether_force_min', 'tether_tension']
-
     if 'local_performance' not in outputs.keys():
         outputs['local_performance'] = {}
 
     # mass vector, containing the mass of all nodes
-    for n in range(1, number_of_nodes):
+    for node in range(1, number_of_nodes):
 
-        parent = parent_map[n]
+        parent = parent_map[node]
+        node_label = str(node) + str(parent)
 
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=n)
+        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=node)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
         max_area = seg_props['max_area']
 
-        tension = z['lambda' + str(n) + str(parent)] * seg_length
+        tension = z['lambda' + node_label] * seg_length
 
         min_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][0]
         max_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][1]
@@ -763,44 +752,46 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         maximum_allowed_stress = parameters['theta0', 'tether', 'max_stress'] / parameters['theta0', 'tether', 'stress_safety_factor']
         max_tension_from_stress = maximum_allowed_stress * max_area
 
-        # stress_max = max_tension_from_stress / A_max
-        # (tension / A) < stress_max
-        # tension / A < max_tension_from_stress / Amax
-        # tension / max_tension_from_stress < A / Amax
-        # tension / max_tension_from_stress - A / Amax < 0
-        stress_inequality_untightened = tension / max_tension_from_stress - cross_section_area / max_area
-        stress_inequality = stress_inequality_untightened * tightness
-
         # outputs related to the constraints themselves
         tether_constraint_includes = options['model_bounds']['tether']['tether_constraint_includes']
 
-        if n in tether_constraint_includes['stress']:
+        if node in tether_constraint_includes['stress']:
+
+            # stress_max = max_tension_from_stress / A_max
+            # (tension / A) < stress_max
+            # tension / A < max_tension_from_stress / Amax
+            # tension / max_tension_from_stress < A / Amax
+            # tension / max_tension_from_stress - A / Amax < 0
+            stress_inequality_untightened = tension / max_tension_from_stress - cross_section_area / max_area
+            stress_inequality = stress_inequality_untightened * tightness
+
             stress_cstr = cstr_op.Constraint(expr=stress_inequality,
-                                           name='tether_stress' + str(n) + str(parent),
+                                           name='tether_stress' + node_label,
                                            cstr_type='ineq')
             cstr_list.append(stress_cstr)
 
-        if n in tether_constraint_includes['force']:
+        elif node in tether_constraint_includes['force']:
 
-            print_op.warn_about_temporary_functionality_alteration()
-            force_max_resi = (tension / max_tension) - 1.
+            lambda_scaling = scaling['z', 'lambda' + node_label]
+            length_scaling = seg_props['scaling_length']
+            force_scaling = lambda_scaling * length_scaling
 
-            force_max_cstr = cstr_op.Constraint(expr=force_max_resi,
-                                               name='tether_force_max' + str(n) + str(parent),
+            force_max_resi = tension - max_tension
+            force_min_resi = min_tension - tension
+
+            force_max_cstr = cstr_op.Constraint(expr=force_max_resi / force_scaling,
+                                               name='tether_force_max' + node_label,
                                                cstr_type='ineq')
             cstr_list.append(force_max_cstr)
 
-            print_op.warn_about_temporary_functionality_alteration()
-            force_min_resi = 1. - (tension / min_tension)
-
-            force_min_cstr = cstr_op.Constraint(expr=force_min_resi,
-                                               name='tether_force_min' + str(n) + str(parent),
+            force_min_cstr = cstr_op.Constraint(expr=force_min_resi / force_scaling,
+                                               name='tether_force_min' + node_label,
                                                cstr_type='ineq')
             cstr_list.append(force_min_cstr)
 
         # outputs so that the user can find the stress and tension
-        outputs['local_performance']['tether_stress' + str(n) + str(parent)] = tension / cross_section_area
-        outputs['local_performance']['tether_force' + str(n) + str(parent)] = tension
+        outputs['local_performance']['tether_stress' + node_label] = tension / cross_section_area
+        outputs['local_performance']['tether_force' + node_label] = tension
 
     if options['cross_tether'] and len(architecture.kite_nodes) > 1:
         for l in architecture.layer_nodes:
@@ -841,7 +832,6 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
                                                    cstr_type='ineq')
                     cstr_list.append(stress_cstr)
 
-
     return outputs, cstr_list
 
 
@@ -849,17 +839,17 @@ def wound_tether_length_inequality(options, variables_si, scaling):
 
     cstr_list = cstr_op.MdlConstraintList()
 
-    if options['model_bounds']['wound_tether_length']['include']:
+    use_wound_tether = options['tether']['use_wound_tether']
+    include_wound_tether_bounds = options['model_bounds']['wound_tether_length']['include']
+    if use_wound_tether and include_wound_tether_bounds:
 
-        if options['tether']['use_wound_tether']:
+        l_t_full = variables_si['theta']['l_t_full']
+        length_available = l_t_full * options['tether']['fraction_of_wound_tether_available_for_unwinding']
 
-            l_t_full = variables_si['theta']['l_t_full']
-            length_available = l_t_full * options['tether']['fraction_of_wound_tether_available_for_unwinding']
+        l_t = variables_si['x']['l_t']
 
-            l_t = variables_si['x']['l_t']
-
-            expr_si = (l_t - length_available)
-            expr_scaled = struct_op.var_si_to_scaled('theta', 'l_t_full', expr_si, scaling)
+        expr_si = (l_t - length_available)
+        expr_scaled = struct_op.var_si_to_scaled('theta', 'l_t_full', expr_si, scaling)
 
         cstr = cstr_op.Constraint(expr=expr_scaled,
                                 name='wound_tether_length',

@@ -148,8 +148,6 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         f_side_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_side_wind)
         f_lift_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_lift_wind)
 
-
-
         coeff_wind = f_aero_wind / q_eff / s_ref
         CD = coeff_wind[0]
         CS = coeff_wind[1]
@@ -186,7 +184,6 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         aero_coefficients['Cm'] = Cm
         aero_coefficients['Cn'] = Cn
         aero_coefficients['LoverD'] = CL/CD
-
 
         base_aerodynamic_quantities = {}
         base_aerodynamic_quantities['kite'] = kite

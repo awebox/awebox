@@ -224,11 +224,15 @@ def get_dependent_params(geometry, geometry_data):
 
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-    l_t = options['model']['scaling']['x']['l_t']
+    # l_t = options['model']['scaling']['x']['l_t']
+    print_op.warn_about_temporary_functionality_alteration()
+    length = options['solver']['initialization']['l_t']
+    options_tree.append(('model', 'scaling', 'x', 'l_t', length, ('???', None), 'x'))
+
     flight_radius = estimate_flight_radius(options, architecture)
 
     if options['model']['scaling_overwrite']['x']['q'] is None:
-        available_estimates = [flight_radius, l_t]
+        available_estimates = [flight_radius, length]
         q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     else:
         q_scaling = options['model']['scaling_overwrite']['x']['q']
@@ -509,9 +513,15 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     if normal_vector_model == 'least_squares':
         n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
     elif normal_vector_model == 'binormal':
-        n_vec_length_ref = number_of_kites * options['model']['scaling']['x']['l_t']**2.
+        print_op.warn_about_temporary_functionality_alteration()
+        # length = options['model']['scaling']['x']['l_t']
+        length = options['solver']['initialization']['l_t']
+        n_vec_length_ref = number_of_kites * length**2.
     elif normal_vector_model == 'tether_parallel':
-        n_vec_length_ref = options['model']['scaling']['x']['l_t']
+        print_op.warn_about_temporary_functionality_alteration()
+        # length = options['model']['scaling']['x']['l_t']
+        length = options['solver']['initialization']['l_t']
+        n_vec_length_ref = length
     else: # normal_vector_model == 'xhat':
         n_vec_length_ref = 1.
     options_tree.append(('model', 'scaling', 'z', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
@@ -870,10 +880,13 @@ def build_wound_tether_length_options(options, options_tree, fixed_params):
         fraction_of_wound_tether_available_for_unwinding = options['model']['tether']['fraction_of_wound_tether_available_for_unwinding']
         l_t_initial = options['solver']['initialization']['l_t']
 
-        l_t_full_initialization = l_t_initial / (fraction_of_wound_tether_available_for_unwinding**2.)
+        l_t_full_consistent = (l_t_initial / fraction_of_wound_tether_available_for_unwinding)
+        l_t_full_initialization = 2. * l_t_full_consistent
         options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_full_initialization,
                              ('length of the main tether when unrolled [m]', None), 'x'))
-        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_full_initialization,
+
+        l_t_full_scaling = l_t_full_consistent
+        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_full_scaling,
                              ('length of the main tether when unrolled [m]', None), 'x'))
 
     if not use_wound_tether:
@@ -1000,13 +1013,17 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     max_acceleration_force = float(mass_kite * acc_max * gravity)
 
     aero_force = float(estimate_aero_force(options, architecture))
-    gravity_force = mass_kite * gravity
+
+    total_mass = estimate_total_mass(options, architecture)
+    gravity_force = total_mass * gravity / float(architecture.number_of_kites)
 
     tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
-    length = options['model']['scaling']['x']['l_t']
+    print_op.warn_about_temporary_functionality_alteration()
+    # length = options['model']['scaling']['x']['l_t']
+    length = options['solver']['initialization']['l_t']
     tension = tension_per_unit_length * length
 
-    available_estimates = [centripetal_force, max_acceleration_force, aero_force, gravity_force, tension]
+    available_estimates = [max_acceleration_force, tension, gravity_force, centripetal_force, aero_force]
     f_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     moment_scaling_factor = b_ref / 2.
@@ -1018,19 +1035,23 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
 
     CD_tether = options['params']['tether']['cd']
     diam_t = options['solver']['initialization']['theta']['diam_t']
-    l_t_scaling = options['model']['scaling']['x']['l_t']
-    tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * l_t_scaling
+
+    length = options['solver']['initialization']['l_t']
+    # length = options['model']['scaling']['x']['l_t']
+    print_op.warn_about_temporary_functionality_alteration()
+
+    tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * length
     options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
 
-    print_op.warn_about_temporary_functionality_alteration()
     stress = options['params']['tether']['max_stress']
     strain = stress / options['params']['tether']['youngs_modulus']
     elongation = strain * length
     typical_holonomic_constraint = 0.5 * elongation**2.
 
     holonomic_g = typical_holonomic_constraint
-    holonomic_gdot = estimate_reelout_speed(options) * options['model']['scaling']['x']['l_t']
-    options_tree.append(('model', 'scaling', 'other', 'elongatation', elongation, ('???', None),'x'))
+    holonomic_gdot = estimate_reelout_speed(options) * length
+
+    options_tree.append(('model', 'scaling', 'other', 'elongation', elongation, ('???', None),'x'))
     print_op.warn_about_temporary_functionality_alteration()
 
     options_tree.append(('model', 'scaling', 'other', 'holonomic_g', holonomic_g, ('???', None), 'x'))
@@ -1084,8 +1105,12 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
 
     # extract length scaling information
     l_s_scaling = options['solver']['initialization']['theta']['l_s']
-    l_t_scaling = options['model']['scaling']['x']['l_t']
+    # l_t_scaling = options['model']['scaling']['x']['l_t']
+    l_t_scaling = options['solver']['initialization']['l_t']
     l_i_scaling = options['solver']['initialization']['theta']['l_i']
+
+    print_op.warn_about_temporary_functionality_alteration()
+    # no difference
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling
@@ -1236,22 +1261,27 @@ def estimate_CL(options):
     cos = cas.cos(alpha)
     sin = cas.sin(alpha)
 
-    if 'CL' in aero_deriv.keys():
-        CL = aero_deriv['CL']['0'][0] + aero_deriv['CL']['alpha'][0] * alpha
-    elif 'CZ' in aero_deriv.keys():
-        CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
-        CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
-        xhat = cas.vertcat(-1. * cos, sin)
-        zhat = cas.vertcat(-1. * sin, -1. * cos)
-        rot = CX * xhat + CZ * zhat
-        CL = rot[1]
-    elif 'CN' in aero_deriv.keys():
-        CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
-        CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
-        ahat = cas.vertcat(cos, -1. * sin)
-        nhat = cas.vertcat(sin, cos)
-        rot = CA * ahat + CN * nhat
-        CL = rot[1]
+    kite_dof = get_kite_dof(options['user_options'])
+    if kite_dof == 3:
+        coeff_bounds = options['model']['system_bounds']['x']['coeff']
+        CL = coeff_bounds[1][0]
+    else:
+        if 'CL' in aero_deriv.keys():
+            CL = aero_deriv['CL']['0'][0] + aero_deriv['CL']['alpha'][0] * alpha
+        elif 'CZ' in aero_deriv.keys():
+            CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
+            CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
+            xhat = cas.vertcat(-1. * cos, sin)
+            zhat = cas.vertcat(-1. * sin, -1. * cos)
+            rot = CX * xhat + CZ * zhat
+            CL = rot[1]
+        elif 'CN' in aero_deriv.keys():
+            CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
+            CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
+            ahat = cas.vertcat(cos, -1. * sin)
+            nhat = cas.vertcat(sin, cos)
+            rot = CA * ahat + CN * nhat
+            CL = rot[1]
 
     return CL
 
@@ -1282,11 +1312,13 @@ def estimate_CD(options):
         CD = rot[0]
     return CD
 
+
 def estimate_position_of_main_tether_end(options):
     elevation_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
-    length = options['model']['scaling']['x']['l_t']
+    length = options['solver']['initialization']['l_t']
     q_t = length * (cas.cos(elevation_angle) * vect_op.xhat_dm() + cas.sin(elevation_angle) * vect_op.zhat_dm())
     return q_t
+
 
 def estimate_altitude(options):
     q_t = estimate_position_of_main_tether_end(options)
@@ -1295,7 +1327,8 @@ def estimate_altitude(options):
 
 def estimate_main_tether_tension_per_unit_length(options, architecture):
 
-    length = options['model']['scaling']['x']['l_t']
+    length = options['solver']['initialization']['l_t']
+
     power = estimate_power(options, architecture)
     reelout_speed = estimate_reelout_speed(options)
 
@@ -1306,10 +1339,37 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     aero_force_per_kite_in_main_tether_direction = aero_force_per_kite * np.cos(cone_angle_rad)
     aero_force_projected_and_summed = aero_force_per_kite_in_main_tether_direction * architecture.number_of_kites
 
+    total_mass = estimate_total_mass(options, architecture)
+    gravity = options['model']['scaling']['other']['g']
+    inclination_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
+    gravity_force_projected_and_summed = total_mass * gravity * np.sin(inclination_angle)
+
+    tension_estimate_via_force_summation = np.abs(float(aero_force_projected_and_summed - gravity_force_projected_and_summed))
+
+    arbitrary_margin_from_max = 0.5
+    max_stress = options['params']['tether']['max_stress'] / options['params']['tether']['stress_safety_factor']
+    diam_t = options['solver']['initialization']['theta']['diam_t']
+    cross_sectional_area_t = np.pi * (diam_t / 2.) ** 2.
+    tension_estimate_via_max_stress = arbitrary_margin_from_max * max_stress * cross_sectional_area_t
+
+    tension_estimate_via_min_force = options['params']['model_bounds']['tether_force_limits'][0]
+    tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
+
+    available_estimates = [tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_power, tension_estimate_via_force_summation, tension_estimate_via_min_force]
+    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+
+    multiplier = tension_estimate / length
+
+    return multiplier
+
+
+def estimate_total_mass(options, architecture):
+
     mass_of_all_kites = get_geometry(options)['m_k'] * architecture.number_of_kites
     diam_t = options['solver']['initialization']['theta']['diam_t']
     rho_tether = options['params']['tether']['rho']
     cross_sectional_area_t = np.pi * (diam_t / 2.) ** 2.
+    length = options['solver']['initialization']['l_t']
     mass_of_main_tether = cross_sectional_area_t * length * rho_tether
 
     if architecture.number_of_kites > 1:
@@ -1330,24 +1390,7 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
         mass_of_intermediate_tether = 0.
 
     total_mass = mass_of_all_kites + mass_of_main_tether + mass_of_secondary_tether + mass_of_intermediate_tether
-    gravity = options['model']['scaling']['other']['g']
-    inclination_angle = options['solver']['initialization']['inclination_deg'] * np.pi / 180.
-    gravity_force_projected_and_summed = total_mass * gravity * np.sin(inclination_angle)
-
-    tension_estimate_via_force_summation = np.abs(float(aero_force_projected_and_summed - gravity_force_projected_and_summed))
-
-    arbitrary_margin_from_max = 0.5
-    max_stress = options['params']['tether']['max_stress'] / options['params']['tether']['stress_safety_factor']
-    tension_estimate_via_max_stress = arbitrary_margin_from_max * max_stress * cross_sectional_area_t
-
-    tension_estimate_via_min_force = options['params']['model_bounds']['tether_force_limits'][0]
-    tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
-
-    available_estimates = [tension_estimate_via_power, tension_estimate_via_force_summation, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_min_force]
-    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
-    multiplier = tension_estimate / length
-
-    return multiplier
+    return total_mass
 
 def estimate_energy(options, architecture):
 

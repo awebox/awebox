@@ -115,6 +115,8 @@ def get_ms_vars(nlp_options, V, P, Xdot, model):
 
     # construct list of all multiple-shooting node variables and parameters
     ms_vars = []
+
+    # todo: should this be range (n_k + 1), ie, include the terminal node?
     for kdx in range(n_k):
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, kdx)
         ms_vars = cas.horzcat(ms_vars, var_at_time)
@@ -128,7 +130,7 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 
     parameters = model.parameters
 
-    ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms)
+    ms_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_ms+1)
 
     return ms_params
 
@@ -176,20 +178,26 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
     elif direct_collocation and piecewise_constant_controls and (not before_last_node):
         return V[var_type, -1]
 
-    elif direct_collocation and (not piecewise_constant_controls) and at_control_node:
+    elif direct_collocation and (not piecewise_constant_controls) and at_control_node and before_last_node:
         return V['coll_var', kdx, 0, var_type]
 
-    elif direct_collocation and (not piecewise_constant_controls):
+    elif direct_collocation and (not piecewise_constant_controls) and before_last_node:
         return V['coll_var', kdx, ddx, var_type]
 
-    elif multiple_shooting:
+    elif multiple_shooting and before_last_node:
         return V[var_type, kdx]
+
+    else:
+        message = 'controls unavailable'
+        print_op.log_and_raise_error(message)
+
 
 
 
 def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     var_type = 'xdot'
+    n_k = nlp_options['n_k']
 
     at_control_node = (ddx is None)
     lifted_derivs = ('xdot' in list(V.keys()))
@@ -197,18 +205,18 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     if at_control_node and lifted_derivs:
         return V[var_type, kdx]
-    elif at_control_node and passed_Xdot_is_meaningful:
+    elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
-    elif lifted_derivs and ('coll' in V.keys()):
+    elif lifted_derivs and ('coll' in V.keys()) and kdx < n_k:
         return V['coll', kdx, ddx, 'xdot']
-    elif passed_Xdot_is_meaningful:
+    elif passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['coll_x', kdx, ddx]
     else:
         attempted_reassamble = []
         for idx in range(model_variables.shape[0]):
             can_index = model_variables.getCanonicalIndex(idx)
             local_variable_has_a_derivative = (can_index[0] == 'x')
-            if local_variable_has_a_derivative():
+            if local_variable_has_a_derivative:
 
                 var_name = can_index[1]
                 dim = can_index[2]
@@ -219,11 +227,11 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
                 if at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls:
+                elif at_control_node and deriv_name_in_controls and kdx < n_k:
                     local_val = V['u', kdx, deriv_name, dim]
-                elif deriv_name_in_states and ('coll' in V.keys()):
+                elif deriv_name_in_states and ('coll' in V.keys()) and kdx < n_k:
                     local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
-                elif deriv_name_in_controls and ('coll' in V.keys()):
+                elif deriv_name_in_controls and ('coll' in V.keys()) and kdx < n_k:
                     local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
                 else:
                     local_val = cas.DM.zeros((1, 1))

@@ -320,7 +320,8 @@ def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
             smallest_idx = idx
             smallest_norm = float(local_norm)
 
-    message = '... KKT column (' + str(smallest_idx) + ') with the smallest norm (' + str(smallest_norm) + ') is associated with:'
+    message = '... KKT column (' + str(smallest_idx) + ') '
+    message += "with the smallest norm ({:0.4G}) is associated with:".format(smallest_norm)
     awelogger.logger.info(message)
 
     number_variables = nlp.V.cat.shape[0]
@@ -349,7 +350,7 @@ def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
 
     number_variables = nlp.V.cat.shape[0]
 
-    message = '... largest (absolute value sense) KKT matrix entry (' + str(max_val) + ') is associated with:'
+    message = "... largest (absolute value sense) KKT matrix entry ({:0.4G}) is associated with:".format(max_val)
     awelogger.logger.info(message)
 
     if associated_column < number_variables:

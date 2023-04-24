@@ -175,12 +175,12 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, archite
     for parent in architecture.layer_nodes:
         x_center = get_center_position(model_options, parent, variables_si, architecture)
         dx_center = get_center_velocity(model_options, parent, variables_si, architecture)
-        air_velocity = wind.get_velocity(x_center[2])
-        vec_u_zero = air_velocity - dx_center
+        wind_velocity_at_center = wind.get_velocity(x_center[2])
+        vec_u_zero = wind_velocity_at_center - dx_center
 
         outputs['geometry']['x_center' + str(parent)] = x_center
         outputs['geometry']['dx_center' + str(parent)] = dx_center
-        outputs['geometry']['air_velocity_at_center' + str(parent)] = air_velocity
+        outputs['geometry']['wind_velocity_at_center' + str(parent)] = wind_velocity_at_center
         outputs['geometry']['vec_u_zero' + str(parent)] = vec_u_zero
 
         average_radius = cas.DM.zeros((1, 1))
