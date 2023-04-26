@@ -445,6 +445,35 @@ def should_variable_be_scaled(var_type, var_name, var_scaled, scaling):
     return True, None
 
 
+def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scaling_value, scaling):
+
+    placeholder = scaling[var_type, var_name]
+
+    if isinstance(scaling_value, int):
+        scaling_value = float(scaling_value)
+
+    if not vect_op.is_numeric(scaling_value):
+        message = 'cannot set a non-numeric scaling value for ' + var_type + ' variable (' + var_name + '): ' + str(scaling_value)
+        print_op.log_and_raise_error(message)
+
+    if vect_op.is_numeric_scalar(scaling_value):
+        scaling_value = scaling_value * cas.DM.ones(placeholder.shape)
+
+    if not hasattr(scaling_value, 'shape'):
+        scaling_value = cas.DM(scaling_value)
+
+    if not scaling_value.shape == placeholder.shape:
+        message = 'cannot set the scaling of ' + var_type + ' variable (' + var_name + '). proposed value has the wrong shape'
+        print_op.log_and_raise_error(message)
+
+    for idx in range(scaling_value.shape[0]):
+        if scaling_value[idx] == cas.DM(0.):
+            message = 'cannot set scaling to a zero-value'
+            print_op.log_and_raise_error(message)
+
+    return scaling_value
+
+
 def var_si_to_scaled(var_type, var_name, var_si, scaling):
     should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
     if message is not None:
@@ -889,6 +918,19 @@ def evaluate_cost_dict(cost_fun, V_plot, p_fix_num):
             cost[name[:-4]] = cost_fun[name](V_plot, p_fix_num)
 
     return cost
+
+
+def split_name_and_integral_order(name):
+
+    var_name = name
+    integral_order = 0
+
+    while var_name[0] == 'd':
+        integral_order += 1
+        var_name = var_name[1:]
+
+    return var_name, integral_order
+
 
 def split_name_and_node_identifier(name):
 

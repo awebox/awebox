@@ -7,6 +7,8 @@ edit: rachel leuthold, alu-fr 2020
 import copy
 import pdb
 
+import casadi
+
 import awebox as awe
 import logging
 import casadi as cas
@@ -18,7 +20,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.mdl.lagr_dyn_dir.tools as lagr_dyn_tools
-
+import matplotlib.pyplot as plt
 
 logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
@@ -443,7 +445,7 @@ def test_constraint_mechanism():
     return None
 
 
-def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad, rod_mass_si=0., rod_diameter_si=0.):
+def get_consistent_inputs_for_pendulum_problem(pendulum_parameters, variable_length=False):
 
     xhat = vect_op.xhat_np()
     zhat = vect_op.zhat_np()
@@ -452,18 +454,37 @@ def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si,
     ddl_t_initial_si = 0.
     dddl_t_initial_si = 0.
 
+    if variable_length:
+        dl_t_initial_si = 0.01
+
+    pendulum_angle_rad = pendulum_parameters['pendulum_angle_rad']
+    pendulum_omega = pendulum_parameters['pendulum_omega']
+    rod_mass_si = pendulum_parameters['rod_mass_si']
+    mass_si = pendulum_parameters['mass_si']
+    gravity_si = pendulum_parameters['gravity_si']
+    length_si = pendulum_parameters['length_si']
+    rod_diameter_si = pendulum_parameters['rod_diameter_si']
+
     theta = cas.DM(pendulum_angle_rad)
     sin_theta = cas.sin(theta)
     cos_theta = cas.cos(theta)
 
-    dtheta = 0.
+    dtheta = cas.DM(pendulum_omega)
     num_dynamics = rod_mass_si / 2. + mass_si
     den_dynamics = rod_mass_si / 3. + mass_si
     ddtheta = -(gravity_si / length_si) * (num_dynamics / den_dynamics) * sin_theta
 
     q_initial_si = length_si * (sin_theta * xhat - cos_theta * zhat)
-    dq_initial_si = dtheta * length_si * (cos_theta * xhat + sin_theta * zhat)
-    ddq_initial_si = ddtheta * length_si * (cos_theta * xhat + sin_theta * zhat) - dtheta**2. * q_initial_si
+
+    dq_initial_0_si = length_si * (cos_theta * xhat + sin_theta * zhat) * dtheta
+    dq_initial_1_si = (sin_theta * xhat - cos_theta * zhat) * dl_t_initial_si
+    dq_initial_si = dq_initial_0_si + dq_initial_1_si
+
+    ddq_0_theta = q_initial_si * dtheta**2. + length_si * (cos_theta * xhat + sin_theta * zhat) * ddtheta
+    ddq_0_lt = (cos_theta * xhat + sin_theta * zhat) * dtheta * dl_t_initial_si
+    ddq_1_theta = (cos_theta * xhat + sin_theta * zhat) * dl_t_initial_si * dtheta
+    ddq_1_lt = (sin_theta * xhat - cos_theta * zhat) * ddl_t_initial_si
+    ddq_initial_si = ddq_0_theta + ddq_0_lt + ddq_1_theta + ddq_1_lt
 
     total_mass_si = mass_si + rod_mass_si
     center_of_mass = (1. / total_mass_si) * (mass_si * length_si + rod_mass_si * length_si / 2.)
@@ -474,34 +495,43 @@ def get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si,
     lambda_newtonian = expected_tension / length_si
     lambda_si = lambda_newtonian
 
-    initial_si = {'q10': q_initial_si,
-                 'dq10': dq_initial_si,
-                 'ddq10': ddq_initial_si,
-                 'l_t': length_si,
-                 'dl_t': dl_t_initial_si,
-                 'ddl_t': ddl_t_initial_si,
-                 'dddl_t': dddl_t_initial_si,
-                  'lambda10': lambda_si,
-                  'diam_t': rod_diameter_si,
-                  'l_t_full': length_si}
+    t_f = 2. * np.pi * (center_of_mass / gravity_si)**0.5
+
+    initial_si = {
+            'q10': q_initial_si,
+            'dq10': dq_initial_si,
+            'ddq10': ddq_initial_si,
+            'l_t': length_si,
+            'dl_t': dl_t_initial_si,
+            'ddl_t': ddl_t_initial_si,
+            'dddl_t': dddl_t_initial_si,
+            'lambda10': lambda_si,
+            'diam_t': rod_diameter_si,
+            'l_t_full': 1e5 * length_si,
+            't_f': t_f
+            }
     return initial_si
 
-def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}, use_wound_tether=False):
+def build_pendulum_test_model(pendulum_parameters, use_wound_tether=False, frictionless=True):
+    if frictionless:
+        tether_drag_model = 'not_in_use'
+    else:
+        tether_drag_model = 'split'
+
     options = {}
     options['user_options.system_model.architecture'] = {1: 0}
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.wind.model'] = 'uniform'
     options['user_options.atmosphere'] = 'uniform'
-    options['params.atmosphere.g'] = gravity_si
+    options['params.atmosphere.g'] = pendulum_parameters['gravity_si']
+    options['params.ground_station.m_gen'] = 0.
+    options['params.ground_station.r_gen'] = 0.25
     options['user_options.induction_model'] = 'not_in_use'
-    options['user_options.tether_drag_model'] = 'not_in_use'
+    options['user_options.tether_drag_model'] = tether_drag_model
     options['user_options.kite_standard'] = ampyx_data.data_dict()
-    options['model.geometry.overwrite.m_k'] = mass_si
+    options['model.geometry.overwrite.m_k'] = pendulum_parameters['mass_si']
     options['model.tether.use_wound_tether'] = use_wound_tether
-
-    if len(scaling_dict.keys()) > 0:
-        for var_label, scaling_value in scaling_dict.items():
-            options['model.scaling_overwrite.' + var_label] = scaling_value
+    options['quality.test_param.check_energy_summation'] = True
 
     trial_options = awe.Options()
     trial_options.fill_in_seed(options)
@@ -511,16 +541,21 @@ def build_pendulum_test_model(mass_si, gravity_si, scaling_dict={}, use_wound_te
     model.build(trial_options['model'], architecture)
     return model
 
-def populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si, rod_density_si=0.):
+def populate_model_variables_and_parameters(model, pendulum_parameters, initial_si, frictionless=True):
+
+    if frictionless:
+        rho_ref = 0.
+    else:
+        rho_ref = 1.
 
     variables = model.variables(0.)
 
     parameters = model.parameters(1.23)
-    parameters['theta0', 'atmosphere', 'rho_ref'] = 0.
-    parameters['theta0', 'atmosphere', 'g'] = gravity_si
-    parameters['theta0', 'geometry', 'm_k'] = mass_si
+    parameters['theta0', 'atmosphere', 'rho_ref'] = rho_ref
+    parameters['theta0', 'atmosphere', 'g'] = pendulum_parameters['gravity_si']
+    parameters['theta0', 'geometry', 'm_k'] = pendulum_parameters['mass_si']
     parameters['theta0', 'wind', 'u_ref'] = 0.
-    parameters['theta0', 'tether', 'rho'] = rod_density_si
+    parameters['theta0', 'tether', 'rho'] = pendulum_parameters['rod_density_si']
     parameters['theta0', 'ground_station', 'm_gen'] = 0.
 
     for var_type in model.variables_dict.keys():
@@ -531,201 +566,383 @@ def populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_
     return variables, parameters
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_matching_scaling(epsilon=1e-8):
+def get_arbitary_pendulum_problem_parameters(rod_has_mass=False):
+
     # pendulum problem
     mass_si = 17.
     gravity_si = 11.
     length_si = 37.
-    pendulum_angle_rad = np.pi/2. * 0.323
+    pendulum_angle_rad = np.pi/2. * 0.7
+    pendulum_omega = -1.e-12
 
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
+    if rod_has_mass:
+        rod_mass_si = 41.
+    else:
+        rod_mass_si = 0.
 
-    model = build_pendulum_test_model(mass_si, gravity_si)
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+    rod_diameter_si = 0.02
+    rod_volume_si = np.pi * (rod_diameter_si / 2.) ** 2. * length_si
+    rod_density_si = rod_mass_si / rod_volume_si
 
-    dynamics_residual = model.dynamics(variables, parameters)
-    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+    pendulum_parameters = {
+        'mass_si': mass_si,
+        'gravity_si': gravity_si,
+        'length_si': length_si,
+        'pendulum_angle_rad': pendulum_angle_rad,
+        'pendulum_omega': pendulum_omega,
+        'rod_mass_si': rod_mass_si,
+        'rod_diameter_si': rod_diameter_si,
+        'rod_density_si': rod_density_si}
+    return pendulum_parameters
 
-    if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, matching scaling)'
-        raise Exception(message)
 
+def test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs(epsilon=1.):
+    run_lagrangian_dynamics_pendulum_test(epsilon=epsilon,
+                                          use_consistent_inputs=False,
+                                          rod_has_mass=False,
+                                          use_wound_tether=False,
+                                          check_scaling_is_nontrivial=False)
+    return None
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs(epsilon=1e-8):
+    run_lagrangian_dynamics_pendulum_test(epsilon=epsilon,
+                                          use_consistent_inputs=True,
+                                          rod_has_mass=False,
+                                          use_wound_tether=False,
+                                          check_scaling_is_nontrivial=False)
+    return None
+
+
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nontrivial_scaling(epsilon=1e-8):
+    run_lagrangian_dynamics_pendulum_test(epsilon=epsilon,
+                                          use_consistent_inputs=True,
+                                          rod_has_mass=False,
+                                          use_wound_tether=False,
+                                          check_scaling_is_nontrivial=True)
     return None
 
 
 def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether(epsilon=1e-8):
-    run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=epsilon, use_wound_tether=False)
+    run_lagrangian_dynamics_pendulum_test(epsilon=epsilon,
+                                          use_consistent_inputs=True,
+                                          rod_has_mass=True,
+                                          use_wound_tether=False,
+                                          check_scaling_is_nontrivial=False)
     return None
 
 
 def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether(epsilon=1e-8):
-    run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=epsilon, use_wound_tether=True)
+    run_lagrangian_dynamics_pendulum_test(epsilon=epsilon,
+                                          use_consistent_inputs=True,
+                                          rod_has_mass=True,
+                                          use_wound_tether=True,
+                                          check_scaling_is_nontrivial=False)
     return None
 
 
-def run_lagrangian_dynamics_test_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=1e-8, use_wound_tether=False):
-    # pendulum problem
-    mass_si = 17.
-    gravity_si = 11.
-    length_si = 10.
 
-    pendulum_angle_rad = np.pi/2. * 0.323
-    rod_mass_si = 41.
-    rod_diameter_si = 0.02
-    rod_volume_si = np.pi * (rod_diameter_si / 2.)**2. * length_si
-    rod_density_si = rod_mass_si / rod_volume_si
 
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad, rod_mass_si=rod_mass_si, rod_diameter_si=rod_diameter_si)
+def run_lagrangian_dynamics_pendulum_test(epsilon=1e-8, use_consistent_inputs=True, rod_has_mass=False, use_wound_tether=False, check_scaling_is_nontrivial=False):
 
-    model = build_pendulum_test_model(mass_si, gravity_si, use_wound_tether=use_wound_tether)
+    pendulum_parameters = get_arbitary_pendulum_problem_parameters(rod_has_mass=rod_has_mass)
+    initial_si = get_consistent_inputs_for_pendulum_problem(pendulum_parameters, variable_length=False)
 
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si, rod_density_si=rod_density_si)
+    if not use_consistent_inputs:
+        initial_si['dq10'] = 50. * initial_si['q10']
+
+    model = build_pendulum_test_model(pendulum_parameters, use_wound_tether=use_wound_tether)
+
+    if check_scaling_is_nontrivial:
+        break_if_scaling_is_trivial(model, 'q10', epsilon)
+
+    variables, parameters = populate_model_variables_and_parameters(model, pendulum_parameters, initial_si)
 
     dynamics_residual = model.dynamics(variables, parameters)
-    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+    residual_counts_as_zero = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
+
+    condition_if_consistent = use_consistent_inputs and residual_counts_as_zero
+    condition_if_inconsistent = (not use_consistent_inputs) and (not residual_counts_as_zero)
+    condition = condition_if_consistent or condition_if_inconsistent
 
     if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, when rod has mass), but use_wound_tether is ' + str(use_wound_tether)
+        message = 'something went wrong when testing the lagrangian dynamics in a pendulum system: '
+        message += 'use_consistent_inputs = ' + str(use_consistent_inputs) + ', '
+        message += 'rod_has_mass = ' + str(rod_has_mass) + ', '
+        message += 'use_wound_tether = ' + str(use_wound_tether) + ', '
+        message += 'check_scaling_is_nontrivial = ' + str(check_scaling_is_nontrivial)
         raise Exception(message)
 
     return None
 
 
-
-def test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling(epsilon=1.):
-    # pendulum problem
-    mass_si = 17.
-    gravity_si = 11.
-    length_si = 37.
-    pendulum_angle_rad = np.pi/2. * 0.323
-
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
-    initial_si['dq10'] = 50. * initial_si['q10']
-
-    model = build_pendulum_test_model(mass_si, gravity_si)
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
-
-    dynamics_residual = model.dynamics(variables, parameters)
-    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) > epsilon**2.
-
-    if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, inconsistent extension, matching scaling)'
+def break_if_scaling_is_trivial(model, var_name, epsilon):
+    deriv_name = 'd' + var_name
+    scaling_difference = model.scaling['x', var_name] - model.scaling['x', deriv_name]
+    if cas.mtimes(scaling_difference.T, scaling_difference) < epsilon**2.:
+        message = 'no difference in scaling between vars (' + var_name + ') and (' + deriv_name +'). this test is not going to be meaningful.'
         raise Exception(message)
+
+    for local_name in [var_name, deriv_name]:
+        if cas.diag(model.scaling['x', local_name]).is_eye():
+            message = 'scaling for variable (' + local_name + ') appears to be unity. this test may not going to be meaningful'
+            raise Exception(message)
 
     return None
 
-def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling(epsilon=1e-8):
-    # pendulum problem
-    mass_si = 17.
-    gravity_si = 11.
-    length_si = 37.
-    pendulum_angle_rad = np.pi/2. * 0.323
-
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
-
-    scale1 = 7.1
-    scale2 = 12.3
-
-    scaling_dict = {'x.q': scale1, 'x.dq': scale2}
-
-    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
-
-    if cas.diag(model.scaling.cat).is_eye():
-        message = 'something went wrong when setting the non-matching scaling. the scaling vector is still returning unit-scaling.'
-        raise Exception(message)
-
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
-
-    dynamics_residual = model.dynamics(variables, parameters)
-    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
-
-    if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, nonmatching-but-scalar scaling)'
-        raise Exception(message)
-
-    return None
-
-
-def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling(epsilon=1e-8):
-    # pendulum problem
-    mass_si = 17.
-    gravity_si = 11.
-    length_si = 37.
-    pendulum_angle_rad = np.pi/2. * 0.323
-
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
-
-    scaling_dict = {'x.q': [100., 10., 1000.], 'x.dq': [5., 7., 2.]}
-
-    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
-
-    dynamics_residual = model.dynamics(variables, parameters)
-    condition = cas.mtimes(dynamics_residual.T, dynamics_residual) < epsilon**2.
-
-    if not condition:
-        message = 'something went wrong when testing the lagrangian dynamics (pendulum motion, no extension, nonmatching-vector scaling)'
-        raise Exception(message)
-
-    return None
-
-
-def test_time_derivative_under_scaling():
-    # pendulum problem
-    mass_si = 17.
-    gravity_si = 11.
-    length_si = 37.
-    pendulum_angle_rad = np.pi/2. * 0.323
-
-    initial_si = get_consistent_inputs_for_inextensible_pendulum_problem(mass_si, gravity_si, length_si, pendulum_angle_rad)
-
-    km = 1.e3
-    cm = 1.e-2
+def test_time_derivative_under_scaling(epsilon=1e-5):
+    pendulum_parameters = get_arbitary_pendulum_problem_parameters()
+    initial_si = get_consistent_inputs_for_pendulum_problem(pendulum_parameters)
 
     # if the time-derivative of scaled position state [km] is in [km/s]
     # then time-derivative of si position state [cm] should be 1e(3+2) * velocity state
 
-    scaling_dict = {'x.q': km, 'x.dq': cm}
+    model = build_pendulum_test_model(pendulum_parameters)
+    variables, parameters = populate_model_variables_and_parameters(model, pendulum_parameters, initial_si)
 
-    model = build_pendulum_test_model(mass_si, gravity_si, scaling_dict=scaling_dict)
-    variables, parameters = populate_model_variables_and_parameters(model, gravity_si, mass_si, initial_si)
+    dict_of_planned_tests = {'scalar': 'l_t', 'vector': 'q10'}
+    dict_of_test_conclusions = {}
 
-    q10_scaled = model.variables['x', 'q10']
-    q10_si = struct_op.var_scaled_to_si('x', 'q10', q10_scaled, model.scaling)
-    dq10_si_dt = lagr_dyn_tools.time_derivative(q10_si, model.variables, model.architecture, model.scaling)
-    dq10_scaled = model.variables['x', 'dq10']
-    dq10_si = struct_op.var_scaled_to_si('x', 'dq10', dq10_scaled, model.scaling)
-    diff_q = dq10_si_dt - 1.e5 * dq10_si
+    for test_name, var_name in dict_of_planned_tests.items():
+        deriv_name = 'd' + var_name
 
-    fun_diff_q = cas.Function('fun_diff_q', [model.variables], [diff_q])
-    condition_q = fun_diff_q(variables).is_zero()
+        break_if_scaling_is_trivial(model, var_name, epsilon)
 
-    dq10_scaled = model.variables['x', 'dq10']
-    dq10_si = struct_op.var_scaled_to_si('x', 'dq10', dq10_scaled, model.scaling)
-    ddq10_si_dt = lagr_dyn_tools.time_derivative(dq10_si, model.variables, model.architecture, model.scaling)
-    ddq10_scaled = model.variables['xdot', 'ddq10']
-    ddq10_si = struct_op.var_scaled_to_si('xdot', 'ddq10', ddq10_scaled, model.scaling)
-    diff_dq = ddq10_si_dt - 1. * ddq10_si
+        var_scaled = model.variables['x', var_name]
+        var_si = struct_op.var_scaled_to_si('x', var_name, var_scaled, model.scaling)
+        dot_var_si = lagr_dyn_tools.time_derivative(var_si, model.variables, model.architecture, model.scaling)
 
-    fun_diff_dq = cas.Function('fun_diff_dq', [model.variables], [diff_dq])
-    condition_dq = fun_diff_dq(variables).is_zero()
+        x_dvar_scaled = model.variables['x', deriv_name]
+        x_dvar_si = struct_op.var_scaled_to_si('x', deriv_name, x_dvar_scaled, model.scaling)
+        x_diff = dot_var_si - x_dvar_si
 
-    criteria = condition_q and condition_dq
+        x_diff_fun = cas.Function('x_diff_fun', [model.variables, model.parameters], [x_diff])
+        x_diff_eval = x_diff_fun(variables, parameters)
+        x_condition = cas.mtimes(x_diff_eval.T, x_diff_eval) < epsilon**2.
+        dict_of_test_conclusions[test_name + '_x'] = x_condition
+
+        xdot_dvar_scaled = model.variables['xdot', deriv_name]
+        xdot_dvar_si = struct_op.var_scaled_to_si('xdot', deriv_name, xdot_dvar_scaled, model.scaling)
+        xdot_diff = dot_var_si - xdot_dvar_si
+
+        xdot_diff_fun = cas.Function('xdot_diff_fun', [model.variables, model.parameters], [xdot_diff])
+        xdot_diff_eval = xdot_diff_fun(variables, parameters)
+        xdot_condition = cas.mtimes(xdot_diff_eval.T, xdot_diff_eval) < epsilon**2.
+        dict_of_test_conclusions[test_name + '_xdot'] = xdot_condition
+
+    criteria = all(dict_of_test_conclusions.values())
     if not criteria:
         message = 'something went wrong when computing time-derivatives with scaled variables'
         raise Exception(message)
 
     return None
 
-# test_architecture()
-# test_drag_mode_model()
-# test_constraint_mechanism()
-# test_cross_tether_model()
-# test_tether_moments()
-# test_time_derivative_under_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_matching_scaling()
-# test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs_and_matching_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_scalar_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nonmatching_vector_scaling()
-test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether()
+
+def get_integration_test_setup(use_wound_tether=True, frictionless=True, variable_length=False):
+
+    pendulum_parameters = get_arbitary_pendulum_problem_parameters(rod_has_mass=True)
+    initial_si = get_consistent_inputs_for_pendulum_problem(pendulum_parameters, variable_length=variable_length)
+
+    # x = cas.SX.sym('x')
+    # z = cas.SX.sym('z')
+    # p = cas.SX.sym('p')
+    # dae = {'x': x, 'z': z, 'p':p, 'ode': x, 'alg':z-x}
+    # F = cas.integrator('F', 'idas', dae)
+    #
+    # # x = exp(b t)
+    # # xdot = b exp(b t)
+    # # f = x - xdot = exp(b t) - b exp(b t)  => b = 1
+    # # x(t = 2) = cas.exp(2)
+    #
+    # r = F(x0=1, z0=1, p=0.1)
+    # r2 = F(x0=r['xf'], z0=r['zf'], p=0.1)
+    # print(r2['xf'])
+
+    model = build_pendulum_test_model(pendulum_parameters, use_wound_tether=use_wound_tether, frictionless=frictionless)
+    t_f_simple = 2. * np.pi * (pendulum_parameters['length_si'] / pendulum_parameters['gravity_si'])**0.5
+
+    total_time = t_f_simple / 2.
+    number_of_steps = 1000
+    delta_t = total_time / float(number_of_steps)
+
+    dae = model.get_dae()
+    dae.build_rootfinder()
+    options = {
+        'abstol': 1.e-10,
+        'max_num_steps': 1e5,
+        't0': 0,
+        'tf': total_time
+    }
+
+    options_history = copy.deepcopy(options)
+    options_history['tf'] = delta_t
+
+    var_init_scaled, param_init_scaled = populate_model_variables_and_parameters(model, pendulum_parameters, initial_si, frictionless=frictionless)
+    x0, z0, p = dae.fill_in_dae_variables(var_init_scaled, param_init_scaled)
+
+    dae_dict = dae.dae
+
+    F_idas = cas.integrator('F', 'idas', dae_dict, options)
+    sol = F_idas(x0=x0, z0=z0, p=p)
+
+    # F_idas_history = cas.integrator('F', 'idas', dae_dict, options_history)
+    # x1 = x0
+    # z1 = z0
+    # q_history = []
+    # for tdx in range(number_of_steps):
+    #     sol_history = F_idas_history(x0=x1, z0=z1, p=p)
+    #     x1 = sol_history['xf']
+    #     z1 = sol_history['zf']
+    #     local_variables = dae.reassemble_dae_outputs_into_model_variables(model.variables, sol_history, p)
+    #     q_history = cas.horzcat(q_history, local_variables['x', 'q10'])
+    #
+    # qx = np.array(q_history[0, :]).T
+    # qz = np.array(q_history[2, :]).T
+    # plt.plot(qx, qz)
+    # plt.show()
+
+    integration_outputs = sol
+    var_final_scaled = dae.reassemble_dae_outputs_into_model_variables(model.variables, integration_outputs, p)
+
+    return model, var_init_scaled, param_init_scaled, var_final_scaled
+
+
+def test_that_dae_integration_actually_does_something(epsilon=1.e-2, use_wound_tether=True, frictionless=True, variable_length=False):
+    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(use_wound_tether=use_wound_tether, frictionless=frictionless, variable_length=variable_length)
+
+    position_initial = var_init_scaled['x', 'q10']
+    position_final = var_final_scaled['x', 'q10']
+
+    diff = position_final - position_initial
+    condition = cas.mtimes(diff.T, diff) > epsilon**2.
+    if not condition:
+        message = 'sanity check for pendulum integration tests does not work as expected'
+        raise Exception(message)
+    return None
+
+
+def run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=1.e-4, use_wound_tether=True, frictionless=True, variable_length=False):
+
+    if frictionless:
+        expect_conservation = True
+    else:
+        expect_conservation = False
+
+    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(use_wound_tether=use_wound_tether,
+                                                                                             frictionless=frictionless,
+                                                                                             variable_length=variable_length)
+
+    all_outputs = model.outputs(model.outputs_fun(model.variables, model.parameters))
+
+    print('total_energy')
+    total_energy = 0.
+    types_of_energy = ['e_potential', 'e_kinetic']
+    for e_type in types_of_energy:
+        for source in struct_op.subkeys(all_outputs, e_type):
+            local_energy = all_outputs[e_type, source]
+
+            print(e_type + ' ' + source)
+            local_energy_fun = casadi.Function('local_energy_fun', [model.variables, model.parameters], [local_energy])
+            print(local_energy_fun(var_init_scaled, param_init_scaled))
+            print(local_energy_fun(var_final_scaled, param_init_scaled))
+
+            total_energy += local_energy
+
+    print('total_energy')
+    total_energy_fun = casadi.Function('total_energy_fun', [model.variables, model.parameters], [total_energy])
+    print(total_energy_fun(var_init_scaled, param_init_scaled))
+    print(total_energy_fun(var_final_scaled, param_init_scaled))
+
+    total_energy_initial = total_energy_fun(var_init_scaled, param_init_scaled)
+    total_energy_final = total_energy_fun(var_final_scaled, param_init_scaled)
+
+    energy_diff = total_energy_final - total_energy_initial
+    energy_error = energy_diff / total_energy_initial
+    energy_is_conserved = energy_error**2. < epsilon**2.
+
+    frictionless_condition = expect_conservation and energy_is_conserved
+    friction_condition = (not expect_conservation) and (not energy_is_conserved)
+
+    condition = frictionless_condition or friction_condition
+    if not condition:
+        message = 'the expectation that the pendulum-energy would'
+        if not expect_conservation:
+            message += ' not'
+        message += ' be conserved,'
+        message += " for pendulum test-case, with"
+
+        if variable_length:
+            message += ' a variable-length tether'
+        else:
+            message += ' a uniform-length tether'
+
+        message += ' represented with'
+        if use_wound_tether:
+            message += ' a tether winding model'
+        else:
+            message += ' a Lagrangian-mechanics rhs. momentum-correction'
+
+        if frictionless:
+            message += ', when the air is assumed to be frictionless,'
+        else:
+            message += ', when energy is lost to air-resistance,'
+
+        message += " is not met."
+        raise Exception(message)
+    return None
+
+
+def test_that_energy_is_not_conserved_with_drag(epsilon=1.e-2):
+    run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=epsilon,
+                                                            frictionless=False,
+                                                            variable_length=False)
+    return None
+
+
+def test_that_energy_is_conserved_in_a_frictionless_pendulum_without_wound_tether(epsilon=1e-4):
+    run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=epsilon,
+                                                            use_wound_tether=False,
+                                                            variable_length=False)
+    return None
+
+
+def test_that_energy_is_conserved_in_a_frictionless_pendulum_with_wound_tether(epsilon=1e-4):
+    run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=epsilon,
+                                                            use_wound_tether=True,
+                                                            variable_length=False)
+    return None
+
+
+def test_that_energy_is_conserved_in_a_frictionless_variable_length_tether_situation_without_wound_tether(epsilon=1e-4):
+    run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=epsilon,
+                                                            use_wound_tether=False,
+                                                            variable_length=True)
+    return None
+
+
+def test_that_energy_is_conserved_in_a_frictionless_variable_length_tether_situation_with_wound_tether(epsilon=1e-4):
+    run_an_energy_conservation_test_in_a_pendulum_situation(epsilon=epsilon,
+                                                            use_wound_tether=True,
+                                                            variable_length=True)
+    return None
+
+
+test_architecture()
+test_drag_mode_model()
+test_constraint_mechanism()
+test_cross_tether_model()
+test_tether_moments()
+
+test_time_derivative_under_scaling()
+test_that_lagrangian_dynamics_residual_is_nonzero_with_inconsistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_and_nontrivial_scaling()
 test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether()
+
+test_that_dae_integration_actually_does_something()
+test_that_energy_is_not_conserved_with_drag()
+test_that_energy_is_conserved_in_a_frictionless_pendulum_without_wound_tether()
+test_that_energy_is_conserved_in_a_frictionless_pendulum_with_wound_tether()
+test_that_energy_is_conserved_in_a_frictionless_variable_length_tether_situation_without_wound_tether()
+test_that_energy_is_conserved_in_a_frictionless_variable_length_tether_situation_with_wound_tether()

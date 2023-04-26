@@ -36,7 +36,7 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
     g = []
     gdot = []
     gddot = []
-    holonomic_constraints = 0.0
+    work_holonomic = 0.0
 
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
@@ -56,7 +56,7 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
         # outputs['invariants']['c' + str(node) + str(parent)] = g[-1]
         outputs['invariants']['dc' + str(node) + str(parent)] = dg_local
         outputs['invariants']['ddc' + str(node) + str(parent)] = ddg_local
-        holonomic_constraints += z_si['lambda{}{}'.format(node, parent)] * g_local
+        work_holonomic += z_si['lambda{}{}'.format(node, parent)] * g_local
 
         if node in kite_nodes:
             if 'r' + str(node) + str(parent) in list(x_si.keys()):
@@ -113,15 +113,14 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
                 outputs['invariants']['ddc{}'.format(n01)] = ddg_local
 
                 # add to holonomic constraints
-                holonomic_constraints += z_si['lambda{}'.format(n01)] * g_local
+                work_holonomic += z_si['lambda{}'.format(n01)] * g_local
 
     g_cat = cas.vertcat(*g)
     gdot_cat = cas.vertcat(*gdot)
     gddot_cat = cas.vertcat(*gddot)
 
+    return work_holonomic, outputs, g_cat, gdot_cat, gddot_cat
 
-
-    return holonomic_constraints, outputs, g_cat, gdot_cat, gddot_cat
 
 def get_cross_tether_length_constraint(options, vars_si, parameters, architecture):
 
@@ -200,6 +199,7 @@ def get_cross_tether_length_constraint(options, vars_si, parameters, architectur
                 g_dict['c{}'.format(n01)] = length_constraint
 
     return g_dict
+
 
 def get_tether_length_constraint(options, vars_si, parameters, architecture):
 

@@ -156,6 +156,9 @@ def generate_options_dict():
     single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['model.tether.use_wound_tether'] = True
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
+    # single_kite_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
+    # single_kite_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
+
     # single_kite_options['model.scaling.x.l_t'] = 100.
     single_kite_options['solver.weights.q'] = 1e1
     single_kite_options['solver.weights.dq'] = 1.e-1
@@ -178,12 +181,12 @@ def generate_options_dict():
     basic_health_options['solver.health_check.when'] = 'always'
     # basic_health_options['solver.health_check.raise_exception'] = True
     basic_health_options['solver.hippo_strategy'] = False
-    basic_health_options['solver.health_check.spy_matrices'] = True
+    basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
-    # basic_health_options['solver.max_iter'] = 1
+    basic_health_options['solver.max_iter'] = 300
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -371,6 +374,8 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.print_cost_information()
 
     pdb.set_trace()
+
+    pdb.set_trace()
     trial.plot('level_3')
     plt.show()
 
@@ -379,7 +384,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     return trial
 
 # test_single_kite()  #final_homotopy_step='initial')
-test_basic_health(final_homotopy_step='initial')
+test_basic_health() #final_homotopy_step='initial')
 # test_zoh()
 # test_drag_mode()
 # test_save_trial()

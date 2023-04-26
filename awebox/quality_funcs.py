@@ -199,35 +199,35 @@ def test_power_balance(trial, test_param_dict, results, input_values):
         nodes_above_ground = range(1, trial.model.architecture.number_of_nodes)
         for node in nodes_above_ground:
 
-            node_power_timeseries = np.zeros(tgrid.shape)
-            nodes_childrens_power_timeseries = np.zeros(tgrid.shape)
+            originating_power_timeseries = np.zeros(tgrid.shape)
             max_abs_node_power = 1.e-15  # preclude any div-by-zero errors
 
-            # how much power originates with the node itself
-            for keyname in list(power_balance.keys()):
-                if power_balance_key_belongs_to_node(keyname, node):
-                    timeseries = power_balance[keyname][0]
-                    node_power_timeseries += timeseries
-                    max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
-
-            # how much power is just being transferred from the node's children
             node_has_children = node in list(trial.model.architecture.children_map.keys())
-            if node_has_children:
-                children = trial.model.architecture.children_map[node]
-                for child in children:
-                    timeseries = power_balance['P_tether'+str(child)][0]
-                    nodes_childrens_power_timeseries += timeseries
-                    max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+            if not node_has_children:
+                list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred = list(power_balance.keys())
+            else:
+                list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred = []
+                for keyname in list(power_balance.keys()):
+                    tether_power_string = 'P_tether'
+                    is_a_tether_power = tether_power_string in keyname
+                    is_a_childs_tether_power = is_a_tether_power and (int(keyname[len(tether_power_string):]) in trial.model.architecture.children_map[node])
+                    if not is_a_childs_tether_power:
+                        list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred += [keyname]
 
-            # avoid double-counting power that is just being transferred; only count power at point-of-origin
-            net_power_timeseries = node_power_timeseries - nodes_childrens_power_timeseries
+            for keyname in list(power_balance.keys()):
+                timeseries = power_balance[keyname][0]
 
-            scaled_norm_net_power = np.linalg.norm(net_power_timeseries) / max_abs_node_power
+            for keyname in list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred:
+                timeseries = power_balance[keyname][0]
+                originating_power_timeseries += timeseries
+                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+
+            scaled_norm_net_power = np.linalg.norm(originating_power_timeseries) / max_abs_node_power
             balance[node] = scaled_norm_net_power
 
             # add node net power into system net power
             max_abs_system_power = np.max([max_abs_node_power, max_abs_system_power])
-            system_net_power_timeseries += net_power_timeseries
+            system_net_power_timeseries += originating_power_timeseries
 
         scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
         balance['total'] = scaled_norm_system_net_power
@@ -245,7 +245,7 @@ def test_power_balance(trial, test_param_dict, results, input_values):
 
 def summation_check_on_potential_and_kinetic_power(trial, thresh, results, input_values):
 
-    types = ['pot', 'kin']
+    abbreviated_energy_names = ['pot', 'kin']
 
     kin_comp = np.array(input_values['outputs']['power_balance_comparison']['kinetic'][0])
     pot_comp = np.array(input_values['outputs']['power_balance_comparison']['potential'][0])
@@ -255,22 +255,22 @@ def summation_check_on_potential_and_kinetic_power(trial, thresh, results, input
     tgrid = input_values['time_grids']['quality']
     power_balance = input_values['outputs']['power_balance']
 
-    for type in types:
+    for abbreviated_name in abbreviated_energy_names:
         sum_timeseries = np.zeros(tgrid.shape)
-        for keyname in list(power_balance.keys()):
-            if type in keyname:
-                timeseries = power_balance[keyname][0]
+        for energy_name in list(power_balance.keys()):
+            if abbreviated_name in energy_name:
+                timeseries = power_balance[energy_name][0]
                 sum_timeseries += timeseries
 
-        difference = cas.DM(sum_timeseries - comp_timeseries[type])
+        difference = cas.DM(sum_timeseries - comp_timeseries[abbreviated_name])
 
         error = float(cas.mtimes(difference.T, difference))
 
         if error > thresh:
-            awelogger.logger.warning('some of the power based on ' + type + '. energy must have gotten lost, since a summation check fails. Considering trial ' + trial.name +  ' with ' + str(error) + ' > ' + str(thresh))
-            results['power_summation_check_' + type] = False
+            awelogger.logger.warning('some of the power based on ' + abbreviated_name + '. energy must have gotten lost, since a summation check fails. Considering trial ' + trial.name +  ' with ' + str(error) + ' > ' + str(thresh))
+            results['power_summation_check_' + abbreviated_name] = False
         else:
-            results['power_summation_check_' + type] = True
+            results['power_summation_check_' + abbreviated_name] = True
 
     return results
 

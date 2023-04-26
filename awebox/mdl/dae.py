@@ -27,6 +27,7 @@ DAE routines for awebox models
 python-3.5 / casadi 3.0.0
 - author: jochem de schutter, alu-fr 2018
 """
+import pdb
 
 import awebox.tools.integrator_routines as int_rout
 import casadi.tools as cas
@@ -39,7 +40,7 @@ class Dae(object):
     solvers for awebox Model objects .
     """
 
-    def __init__(self, variables, parameters, dynamics, integral_outputs_fun, param = 'sym'):
+    def __init__(self, variables, parameters, dynamics, integral_outputs_fun, param='sym'):
         """ Constructor.
     
         :type variables: casadi.tools.structure.ssymStruct
@@ -164,6 +165,29 @@ class Dae(object):
         )
 
         return x, z, p
+
+    def reassemble_dae_outputs_into_model_variables(self, variables, integration_outputs, p):
+        xf = integration_outputs['xf']
+        zf = integration_outputs['zf']
+        qf = integration_outputs['qf']
+
+        reconstructed = []
+        for var_type in variables.keys():
+            if var_type == 'x':
+                local_entry = xf
+            elif var_type == 'xdot':
+                xdot_length = variables['xdot'].shape[0]
+                local_entry = zf[:xdot_length]
+            elif var_type == 'z':
+                z_length = variables['z'].shape[0]
+                local_entry = zf[-z_length:]
+            elif var_type == 'u':
+                local_entry = p['u']
+            elif var_type == 'theta':
+                local_entry = p['theta']
+            reconstructed = cas.vertcat(reconstructed, local_entry)
+        reconstructed = variables(reconstructed)
+        return reconstructed
 
     @property
     def rootfinder(self):

@@ -47,6 +47,9 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     awelogger.logger.info('Checking health...')
 
+    V_opt = nlp.V(solution['x'])
+    p_fix_num = nlp.P(arg['p'])
+
     cstr_fun, lam_fun, cstr_labels = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
 
     cstr_jacobian_eval = get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
@@ -69,46 +72,46 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
-
-    if not (exact_licq_holds and licq_holds):
-
-        if not exact_licq_holds:
-            awelogger.logger.warning('')
-            message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
-            awelogger.logger.info(message)
-
-        elif not licq_holds:
-            awelogger.logger.info('')
-            message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
-            awelogger.logger.warning(message)
-
-        identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-        identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
-
     sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
-    if not sosc_holds:
-        awelogger.logger.info('')
-        message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
-                  'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
-        awelogger.logger.warning(message)
-
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
-    if problem_is_ill_conditioned:
-        awelogger.logger.info('')
-        message = 'problem appears to be ill-conditioned'
-        awelogger.logger.warning(message)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
-    awelogger.logger.info('')
     if problem_is_healthy:
+        awelogger.logger.info('')
         message = 'OCP appears to be healthy'
         awelogger.logger.info(message)
 
-    if not problem_is_healthy:
-        identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp)
+    elif (not problem_is_healthy) and health_solver_options['help_with_debugging']:
+        if not (exact_licq_holds and licq_holds):
+            if not exact_licq_holds:
+                awelogger.logger.warning('')
+                message = 'linear independent constraint qualification is not satisfied at solution, with an exact computation'
+                awelogger.logger.warning(message)
+            elif not licq_holds:
+                awelogger.logger.warning('')
+                message = 'linear independent constraint qualification appears not to be satisfied at solution, given floating-point tolerance'
+                awelogger.logger.warning(message)
+
+            identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+            identify_dependent_constraint(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp)
+
+        if not sosc_holds:
+            awelogger.logger.warning('')
+            message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
+                      'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
+            awelogger.logger.warning(message)
+
+        if problem_is_ill_conditioned:
+            awelogger.logger.warning('')
+            message = 'problem appears to be ill-conditioned'
+            awelogger.logger.warning(message)
+
+        awelogger.logger.warning('')
+        identify_largest_kkt_element(kkt_matrix, cstr_fun, lam_fun, cstr_labels, nlp, solution=solution, arg=arg)
         identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp)
 
+    if not problem_is_healthy:
         awelogger.logger.info('')
         message = 'OCP appears to be unhealthy'
 
@@ -303,11 +306,7 @@ def is_problem_ill_conditioned(condition_number, health_solver_options):
     return is_ill_conditioned
 
 
-
-
 ######## spy
-
-
 def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
 
     smallest_norm = 1.e10
@@ -339,7 +338,11 @@ def identify_smallest_normed_kkt_column(kkt_matrix, cstr_labels, nlp):
     return None
 
 
-def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
+def identify_largest_kkt_element(kkt_matrix, cstr_fun, lam_fun, cstr_labels, nlp, solution=None, arg=None):
+
+    V_opt = nlp.V(solution['x'])
+    p_fix_num = nlp.P(arg['p'])
+
     matrA = np.absolute(np.array(kkt_matrix))
 
     max_val = np.max(matrA)
@@ -353,6 +356,11 @@ def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
     message = "... largest (absolute value sense) KKT matrix entry ({:0.4G}) is associated with:".format(max_val)
     awelogger.logger.info(message)
 
+    relevant_variable_index = None
+    relevant_multiplier_index = None
+    associated_variable_index = None
+    associated_constraint_index = None
+
     if associated_column < number_variables:
         relevant_variable_index = associated_column
         relevant_variable = nlp.V.getCanonicalIndex(relevant_variable_index)
@@ -361,8 +369,7 @@ def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
         relevant_multiplier_index = associated_column - number_variables
         relevant_multiplier = cstr_labels[relevant_multiplier_index]
         message = '{:>10}: {:>15} '.format('column', 'multiplier') + str(relevant_multiplier)
-    awelogger.logger.info(message)
-
+    print_op.base_print(message, level='info')
 
     if associated_row < number_variables:
         associated_variable_index = associated_row
@@ -372,7 +379,38 @@ def identify_largest_kkt_element(kkt_matrix, cstr_labels, nlp):
         associated_constraint_index = associated_row - number_variables
         associated_constraint = cstr_labels[associated_constraint_index]
         message = '{:>10}: {:>15} '.format('row', 'constraint') + str(associated_constraint)
-    awelogger.logger.info(message)
+    print_op.base_print(message, level='info')
+
+    if (relevant_variable_index is not None) and (associated_variable_index is not None):
+        if (V_opt is not None) and (p_fix_num is not None):
+            [_, _, f_hessian_fun] = nlp.get_f_jacobian_and_hessian_functions()
+            f_hessian = f_hessian_fun(V_opt, p_fix_num)
+            local_f_hessian_entry = f_hessian[relevant_variable_index, associated_variable_index]
+            message = 'the entry of the hessian of the objective-alone, corresponding to the variable ' + str(associated_variable)
+            message += ' is: ({:0.4G})'.format(float(local_f_hessian_entry))
+            print_op.base_print(message, level='info')
+
+            if (local_f_hessian_entry * 10.)**2. < max_val**2.:
+                g_sym = cstr_fun(nlp.V, nlp.P, arg['lbx'], arg['ubx'])
+                lam_vals = lam_fun(solution['lam_x'], solution['lam_g'])
+                largest_abs_constraint_impact = 0.
+                largest_abs_constraint_label = "none found"
+                for gdx in range(g_sym.shape[0]):
+                    local_lam = lam_vals[gdx]
+                    local_g_jacobian_selected = cas.jacobian(g_sym[gdx], nlp.V)[relevant_variable_index]
+                    local_g_hessian_selected = cas.jacobian(local_g_jacobian_selected, nlp.V)[associated_variable_index]
+                    local_g_hessian_selected_fun = cas.Function('local_g_hessian_selected_fun', [nlp.V, nlp.P], [local_g_hessian_selected])
+                    local_g_hessian_times_multiplier = local_lam * local_g_hessian_selected_fun(V_opt, p_fix_num)
+                    if local_g_hessian_times_multiplier**2. > largest_abs_constraint_impact**2.:
+                        largest_abs_constraint_impact = local_g_hessian_times_multiplier
+                        largest_abs_constraint_label = cstr_labels[gdx]
+
+                message = "the multiplier-constraint product that contributes most ({:0.4G})".format(float(largest_abs_constraint_impact))
+                message += " to the hessian wrt " + str(associated_variable)
+                message += " in the absolute-value sense is: " + str(largest_abs_constraint_label)
+                print_op.base_print(message, level='info')
+
+    print_op.base_print("", level='info')
 
     return None
 

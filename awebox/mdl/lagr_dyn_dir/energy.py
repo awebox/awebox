@@ -95,11 +95,11 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
         mass_kite = parameters['theta0', 'geometry', 'm_k']
         e_kin_trans += 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
 
-    v_rotation = dq_node - dq_average
+    v_difference = dq_node - dq_average
     ehat_tether = vect_op.normalize(segment_vector)
-    v_ortho = v_rotation - cas.mtimes(v_rotation.T, ehat_tether) * ehat_tether
+    v_rotation = v_difference - cas.mtimes(v_difference.T, ehat_tether) * ehat_tether
     radius_of_rod_rotation = (segment_length / 2.)
-    omega = v_ortho / radius_of_rod_rotation
+    omega = v_rotation / radius_of_rod_rotation
     moment_of_inertia = (1. / 12.) * mass_segment * segment_length**2.
     e_kin_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
 

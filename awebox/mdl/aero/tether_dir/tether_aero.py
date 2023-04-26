@@ -203,15 +203,16 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
     var_type_length = struct_op.get_variable_type(variables_si, length_sym)
     var_type_diam = struct_op.get_variable_type(variables_si, diam_sym)
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # q_node = variables_si['x']['q' + str(upper_node) + str(lower_node)]
-    # if main_tether:
-    #     q_parent = cas.DM.zeros((3, 1))
-    # else:
-    #     grandparent = architecture.parent_map[lower_node]
-    #     q_parent = variables_si['x']['q' + str(lower_node) + str(grandparent)]
-    # seg_length = vect_op.norm(q_node - q_parent)
-    seg_length = variables_si[var_type_length][length_sym]
+    q_node = variables_si['x']['q' + str(upper_node) + str(lower_node)]
+    if main_tether:
+        q_parent = cas.DM.zeros((3, 1))
+    else:
+        grandparent = architecture.parent_map[lower_node]
+        q_parent = variables_si['x']['q' + str(lower_node) + str(grandparent)]
+    # we need this definition of the segment length (as opposed to just
+    # using 'l_?') to keep the lagrangian mechanics working correctly
+    seg_length = vect_op.norm(q_node - q_parent)
+
     scaling_length = scaling[var_type_length, length_sym]
 
     seg_diam = variables_si[var_type_diam][diam_sym]

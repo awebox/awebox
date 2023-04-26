@@ -240,8 +240,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
-        ('model',   'scaling_overwrite',    'x',            'q',                None,   ('kite position natural length [m]', None), 'x'),
-        ('model',   'scaling_overwrite',    'x',            'dq',               None,   ('kite position natural speed [m/s]', None), 'x'),
+        # ('model',   'scaling_overwrite',    'x',            'q',                None,   ('kite position natural length [m]', None), 'x'),
+        # ('model',   'scaling_overwrite',    'x',            'dq',               None,   ('kite position natural speed [m/s]', None), 'x'),
 
         ('model',  'jit_code_gen',  None, 'include',                    False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',  None, 'compiler',                   'clang',                ('compiler for generated code'),'t'),
@@ -450,6 +450,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     'tol',      'linear_dependence_ratio',  1e-2,   ('tolerance of rough linear dependence identifier', None), 'x'),
         ('solver',  'health_check',     None,       'spy_matrices',             False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
         ('solver',  'health_check',     None,       'raise_exception',          False,  ('raise an exception when the problem is unhealthy', None), 'x'),
+        ('solver',  'health_check',     None,       'help_with_debugging',      False,  ('look for where problems might exist', None), 'x'),
 
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),

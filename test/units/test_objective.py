@@ -2,21 +2,12 @@
 """Test to check objective functionality
 @author: rachel leuthold, 2023
 """
-import copy
 import pdb
 
 import awebox as awe
 import logging
 import casadi as cas
-import awebox.mdl.architecture as archi
-import numpy as np
-import awebox.mdl.system as system
-import awebox.tools.constraint_operations as cstr_op
-import awebox.tools.struct_operations as struct_op
-import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
-import awebox.opts.kite_data.ampyx_data as ampyx_data
-import awebox.mdl.lagr_dyn_dir.tools as lagr_dyn_tools
 import awebox.ocp.objective as objective
 
 logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)

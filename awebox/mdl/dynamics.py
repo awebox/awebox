@@ -863,111 +863,88 @@ def generate_scaling(scaling_options, variables):
 
     scaling = variables(1.)
 
-    unset_set = set([])
+    # set the non-derivative variable scalings
+    for var_type in set(scaling.keys()) - set(['xdot']):
+        for var_name in struct_op.subkeys(scaling, var_type):
 
-    for vdx in range(scaling.cat.shape[0]):
-        canonical = scaling.getCanonicalIndex(vdx)
-        var_type = canonical[0]
-        var_name = canonical[1]
-        dim = canonical[2]
-        label = scaling.labels()[vdx]
+            split_name, kiteparent = struct_op.split_name_and_node_identifier(var_name)
+            integral_name, integral_order = struct_op.split_name_and_integral_order(var_name)
+            split_integral_name, kiteparent = struct_op.split_name_and_node_identifier(integral_name)
 
-        split_name, kiteparent = struct_op.split_name_and_node_identifier(var_name)
+            if var_name in scaling_options[var_type]:
+                lookup_name = var_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-        # first choice, is if the variable is directly in options['scaling']] with node identifier
-        # second choice, is ^^ without node identifier
-        # third choice, is if the variable is the direct derivative of the version in options['scaling'], with node identifier
-        # fourth choice, is ^^ without node identifier
-        # fifth choice, is if the variable is *any* derivative/integral of something in options['scaling'], with ...
-        # sixth choice, is ^^ without ...
-        # last choice, is unity.
+            elif split_name in scaling_options[var_type]:
+                lookup_name = split_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-        possible_scaling = 0.
-        first_choice = 0.
-        second_choice = 0.
-        third_choice = 0.
-        fourth_choice = 0.
-        fifth_choice = 0.
-        sixth_choice = 0.
+            elif (integral_order > 3) and ('ddd' + integral_name in scaling_options[var_type]):
+                lookup_name = 'ddd' + integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-        for possibly_type in scaling_options.keys():
+            elif (integral_order > 3) and ('ddd' + split_integral_name in scaling_options[var_type]):
+                lookup_name = 'ddd' + split_integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            set_of_characters_in_var_name = set([var_name[vdx] for vdx in range(len(var_name))])
-            set_of_characters_in_split_name = set([split_name[vdx] for vdx in range(len(split_name))])
+            elif (integral_order > 2) and ('dd' + integral_name in scaling_options[var_type]):
+                lookup_name = 'dd' + integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            first_choice = var_name in scaling_options[possibly_type]
-            if first_choice:
-                first_value = scaling_options[possibly_type][var_name]
+            elif (integral_order > 2) and ('dd' + split_integral_name in scaling_options[var_type]):
+                lookup_name = 'dd' + split_integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            second_choice = split_name in scaling_options[possibly_type]
-            if second_choice:
-                second_value = scaling_options[possibly_type][split_name]
+            elif (integral_order > 1) and ('d' + integral_name in scaling_options[var_type]):
+                lookup_name = 'd' + integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            third_choice = (var_type == 'xdot') and (var_name[0] == 'd') and (
-                        var_name[1:] in scaling_options[possibly_type])
-            if third_choice:
-                third_value = scaling_options[possibly_type][var_name[1:]]
+            elif (integral_order > 1) and ('d' + split_integral_name in scaling_options[var_type]):
+                lookup_name = 'd' + split_integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            fourth_choice = (split_name == 'xdot') and (split_name[0] == 'd') and (
-                        split_name[1:] in scaling_options[possibly_type])
-            if fourth_choice:
-                fourth_value = scaling_options[possibly_type][split_name[1:]]
+            elif integral_name in scaling_options[var_type]:
+                lookup_name = integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-            if first_choice:
-                possible_scaling = first_value
-            elif second_choice:
-                possible_scaling = second_value
-            elif third_choice:
-                possible_scaling = third_value
-            elif fourth_choice:
-                possible_scaling = fourth_value
+            elif split_integral_name in scaling_options[var_type]:
+                lookup_name = split_integral_name
+                scaling_value = scaling_options[var_type][lookup_name]
 
-        if cas.DM(possible_scaling).is_zero():
-            set_of_characters_in_var_name = set([var_name[vdx] for vdx in range(len(var_name))])
-            set_of_characters_in_split_name = set([split_name[vdx] for vdx in range(len(split_name))])
+            else:
+                scaling_value = cas.DM(1.)
 
-            fifth_choice = False
-            sixth_choice = False
-            for possibly_type in scaling_options.keys():
-                for possible_var_name in scaling_options[possibly_type]:
-                    set_of_characters_in_possible_var_name = set([possible_var_name[vdx] for vdx in range(len(possible_var_name))])
+            checked_and_rearranged_value = struct_op.check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scaling_value, scaling)
+            scaling[var_type, var_name] = checked_and_rearranged_value
 
-                    difference_with_var_name_forwards = set_of_characters_in_var_name.difference(set_of_characters_in_possible_var_name)
-                    difference_with_var_name_backwards = set_of_characters_in_possible_var_name.difference(set_of_characters_in_var_name)
-                    difference_with_var_name = difference_with_var_name_forwards.union(difference_with_var_name_backwards)
-                    if difference_with_var_name == set(['d']):
-                        fifth_choice = True
-                        fifth_value = scaling_options[possibly_type][possible_var_name]
+    # set the derivative variable scalings
+    var_type = 'xdot'
+    for var_name in struct_op.subkeys(scaling, var_type):
 
-                    difference_with_split_name_forwards = set_of_characters_in_split_name.difference(set_of_characters_in_possible_var_name)
-                    difference_with_split_name_backwards = set_of_characters_in_possible_var_name.difference(set_of_characters_in_split_name)
-                    difference_with_split_name = difference_with_split_name_forwards.union(difference_with_split_name_backwards)
-                    if difference_with_split_name == set(['d']):
-                        sixth_choice = True
-                        sixth_value = scaling_options[possibly_type][possible_var_name]
+        integral_name = var_name[1:]
 
-            if fifth_choice:
-                possible_scaling = fifth_value
-            elif sixth_choice:
-                possible_scaling = sixth_value
+        integral_name_in_x = integral_name in struct_op.subkeys(scaling, 'x')
+        integral_name_in_u = integral_name in struct_op.subkeys(scaling, 'u')
 
-        possible_scaling = cas.DM(possible_scaling)
+        if integral_name_in_x:
+            scaling[var_type, var_name] = scaling['x', integral_name]
 
-        if possible_scaling.is_zero():
-            unset_set.add(label)
-            possible_scaling = 1.
+        elif integral_name_in_u:
+            scaling[var_type, var_name] = scaling['u', integral_name]
 
-        if vect_op.is_numeric_scalar(possible_scaling):
-            scaling[var_type, var_name, dim] = possible_scaling
-        elif vect_op.is_numeric_columnar(possible_scaling) and (possible_scaling.shape == scaling[var_type, var_name].shape):
-            scaling[var_type, var_name, dim] = possible_scaling[dim]
         else:
-            message = 'unaccepted dimension of scaling information provided for variable ' + label + '. '
-            message += 'variable shape is ' + str(scaling[var_type, var_name].shape) + ', and provided information has shape ' + str(possible_scaling.shape)
+            message = 'unable to find the scaling information for xdot variable (' + var_name + ') in x or u'
             print_op.log_and_raise_error(message)
 
+    # warn about potentially missing scaling information
+    unset_set = []
+    for idx in range(scaling.shape[0]):
+        if scaling.cat[idx] == cas.DM(1.):
+            local_label = scaling.labels()[idx]
+            unset_set += [local_label]
+
     if len(unset_set) > 0:
-        message = 'no scaling information provided for the following variables: \n' + repr(unset_set) + '.\n' + 'Proceeding with unit scaling.'
+        message = 'only unit-scaling information found for the following variables: \n' + repr(unset_set) + '.\n' + 'Proceeding with unit scaling.'
         print_op.base_print(message, level='warning')
 
     return scaling

@@ -75,9 +75,7 @@ def get_ground_station_mass(options, architecture, scaling, variables_si, parame
 def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architecture, scaling):
 
     number_of_nodes = architecture.number_of_nodes
-    print_op.warn_about_temporary_functionality_alteration()
-    # kite_mass = parameters['theta0', 'geometry', 'm_k']
-    kite_mass = 36.8
+    kite_mass = parameters['theta0', 'geometry', 'm_k']
 
     # this will be used to scale the forces,
     # so we need to repeat the scaling forces 3x, once per dimension for force.
@@ -90,15 +88,12 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
         segment_under_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling,
                                                                                   variables_si, parameters, node)
         if (node == 1) and options['tether']['use_wound_tether'] and ('l_t_full' in variables_si['theta'].keys()):
-            print_op.warn_about_temporary_functionality_alteration()
-            tether_density = 970.
-            # tether_density = segment_under_node_properties['density']
+
+            tether_density = segment_under_node_properties['density']
             cross_section = segment_under_node_properties['scaling_area']
             length = scaling['theta', 'l_t_full', 0]
             mass_tether = tether_density * cross_section * length
-            print_op.warn_about_temporary_functionality_alteration()
-            mass_generator = 0.
-            # mass_generator = parameters['theta0', 'ground_station', 'm_gen']
+            mass_generator = parameters['theta0', 'ground_station', 'm_gen']
             mass_under_node = mass_tether + mass_generator
         else:
             mass_under_node = segment_under_node_properties['scaling_mass']

@@ -39,7 +39,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
-    holonomic_constraints, outputs, g, gdot, gddot = holonomic_comp.generate_holonomic_constraints(
+    work_holonomic, outputs, g, gdot, gddot = holonomic_comp.generate_holonomic_constraints(
         architecture,
         outputs,
         system_variables,
@@ -48,14 +48,14 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
         scaling)
 
     # lagrangian function
-    lag = e_kinetic - e_potential - holonomic_constraints
+    lag = e_kinetic - e_potential - work_holonomic
 
     # --------------------------------
     # generalized forces in the system
     # --------------------------------
 
     f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables['SI'], outputs, parameters, architecture)
-    outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], holonomic_constraints, outputs,
+    outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], work_holonomic, outputs,
                                                   architecture)
 
     cstr_list = cstr_op.MdlConstraintList()
@@ -64,15 +64,18 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # translational dynamics
     # --------------------------------
 
+    xgc_scaled = generalized_coordinates['scaled']['xgc']
+    xgcdot_scaled = generalized_coordinates['scaled']['xgcdot']
+
     # lhs of lagrange equations
-    dlagr_dqdot = cas.jacobian(lag, generalized_coordinates['scaled']['xgcdot'].cat).T
+    dlagr_dqdot = cas.jacobian(lag, xgcdot_scaled.cat).T
     dlagr_dqdot_dt = tools.time_derivative(dlagr_dqdot, system_variables['scaled'], architecture, scaling)
 
-    dlagr_dq = cas.jacobian(lag, generalized_coordinates['scaled']['xgc'].cat).T
+    dlagr_dq = cas.jacobian(lag, xgc_scaled.cat).T
 
     xgcdot_scaling_factors = []
     xgc_scaling_factors = []
-    for gc_name in generalized_coordinates['scaled']['xgc'].keys():
+    for gc_name in xgc_scaled.keys():
         scaling_factor_q = scaling['x', gc_name]
         xgc_scaling_factors = cas.vertcat(xgc_scaling_factors, scaling_factor_q)
 
@@ -92,9 +95,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                              outputs, architecture, scaling)
 
     # rhs of lagrange equations
-    lagrangian_rhs_translation = cas.vertcat(
-        *[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)]) + \
-                                 lagrangian_momentum_correction
+    lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
+    lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling
     print_op.warn_about_temporary_functionality_alteration()
@@ -104,6 +106,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
     dynamics_translation_scaled = cas.mtimes(cas.diag(forces_scaling), dynamics_translation_si)
+
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation_scaled,
                                                    cstr_type='eq',
                                                    name='dynamics_translation')
@@ -168,7 +171,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     return cstr_list, outputs
 
 
-
 def momentum_correction(options, generalized_coordinates, system_variables, outputs, architecture, scaling):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
@@ -181,8 +183,15 @@ def momentum_correction(options, generalized_coordinates, system_variables, outp
     """
 
     # initialize
-    xgcdot = generalized_coordinates['scaled']['xgcdot'].cat
-    lagrangian_momentum_correction = cas.DM.zeros(xgcdot.shape)
+    xgc_scaled = generalized_coordinates['scaled']['xgc']
+    xgcdot_scaled = generalized_coordinates['scaled']['xgcdot']
+
+    xgcdot_scaling_factors = []
+    for gc_name in xgc_scaled.keys():
+        scaling_factor_dq = scaling['x', 'd' + gc_name]
+        xgcdot_scaling_factors = cas.vertcat(xgcdot_scaling_factors, scaling_factor_dq)
+
+    lagrangian_momentum_correction = cas.DM.zeros(xgcdot_scaled.cat.shape)
 
     use_wound_tether = options['tether']['use_wound_tether']
     if not use_wound_tether:
@@ -194,9 +203,12 @@ def momentum_correction(options, generalized_coordinates, system_variables, outp
 
             # velocity of the mass particles leaving the system
             velocity = system_variables['SI']['x']['dq' + label]
+
+            material_d_velocity_dqdot = cas.mtimes(velocity.T, cas.jacobian(velocity, xgcdot_scaled.cat)).T
+            material_d_velocity_dqdot_si = cas.mtimes(cas.inv(cas.diag(xgcdot_scaling_factors)), material_d_velocity_dqdot)
+
             # see formula in reference
-            lagrangian_momentum_correction += mass_flow * cas.mtimes(velocity.T, cas.jacobian(velocity,
-                                                                                              xgcdot)).T
+            lagrangian_momentum_correction += mass_flow * material_d_velocity_dqdot_si
 
     return lagrangian_momentum_correction
 

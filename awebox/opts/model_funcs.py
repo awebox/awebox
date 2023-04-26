@@ -231,18 +231,12 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     flight_radius = estimate_flight_radius(options, architecture)
 
-    if options['model']['scaling_overwrite']['x']['q'] is None:
-        available_estimates = [flight_radius, length]
-        q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
-    else:
-        q_scaling = options['model']['scaling_overwrite']['x']['q']
+    available_estimates = [flight_radius, length]
+    q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
-    if options['model']['scaling_overwrite']['x']['dq'] is None:
-        dq_scaling = groundspeed
-    else:
-        dq_scaling = options['model']['scaling_overwrite']['x']['dq']
+    dq_scaling = groundspeed
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
     u_reelout = estimate_reelout_speed(options)
