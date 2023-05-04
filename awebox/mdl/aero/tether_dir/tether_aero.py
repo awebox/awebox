@@ -209,8 +209,9 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
     else:
         grandparent = architecture.parent_map[lower_node]
         q_parent = variables_si['x']['q' + str(lower_node) + str(grandparent)]
+
     # we need this definition of the segment length (as opposed to just
-    # using 'l_?') to keep the lagrangian mechanics working correctly
+    # using 'l_t') to keep the lagrangian mechanics working correctly
     seg_length = vect_op.norm(q_node - q_parent)
 
     scaling_length = scaling[var_type_length, length_sym]

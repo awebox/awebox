@@ -177,7 +177,7 @@ def generate_options_dict():
     basic_health_options = copy.deepcopy(single_kite_options)
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
     basic_health_options['nlp.n_k'] = 10
-    basic_health_options['nlp.collocation.name_constraints'] = True
+    basic_health_options['nlp.collocation.name_constraints'] = False
     basic_health_options['solver.health_check.when'] = 'always'
     # basic_health_options['solver.health_check.raise_exception'] = True
     basic_health_options['solver.hippo_strategy'] = False
@@ -263,8 +263,8 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['model.aero.overwrite.alpha_max_deg'] = 20.
     vortex_options['model.aero.overwrite.alpha_min_deg'] = -20.
-    vortex_options['model.tether.lift_tether_force'] = True
-    vortex_options['model.aero.lift_aero_force'] = True
+    # vortex_options['model.tether.lift_tether_force'] = True
+    # vortex_options['model.aero.lift_aero_force'] = True
     vortex_options['nlp.collocation.u_param'] = 'zoh'
 
     vortex_force_zero_options = copy.deepcopy(vortex_options)

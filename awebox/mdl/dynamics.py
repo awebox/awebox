@@ -420,22 +420,14 @@ def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
 
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
-        label = str(n) + str(architecture.parent_map[n])
-
-        categories = {'q' + label: str(n)}
-
-        if n == 1:
-            categories['ground_station'] = 'groundstation1'
-
-        for cat in categories.keys():
+        for source in outputs['e_kinetic'].keys():
 
             # rate of change in kinetic energy
-            e_local = outputs['e_kinetic'][cat]
-
-            P = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
+            e_local = outputs['e_kinetic'][source]
+            power_local = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
 
             # convention: negative when energy is added to the system
-            outputs['power_balance']['P_kin' + categories[cat]] = -1. * P
+            outputs['power_balance']['P_kin_' + source] = -1. * power_local
 
     return outputs
 
@@ -451,15 +443,14 @@ def potential_power_outputs(outputs, system_variables, architecture, scaling):
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
     # kinetic and potential energy in the system
-    for n in range(1, architecture.number_of_nodes):
-        label = str(n) + str(architecture.parent_map[n])
+    for source in outputs['e_potential'].keys():
 
         # rate of change in potential energy (ignore in-outflow of potential energy)
-        e_local = outputs['e_potential']['q' + label]
-        P = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
+        e_local = outputs['e_potential'][source]
+        power_local = lagr_tools.time_derivative(e_local, system_variables['scaled'], architecture, scaling)
 
         # convention: negative when potential energy is added to the system
-        outputs['power_balance']['P_pot' + str(n)] = -1. * P
+        outputs['power_balance']['P_pot_' + source] = -1. * power_local
 
     return outputs
 

@@ -123,7 +123,6 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     dynamics_constraints_si = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)
     dynamics_constraints_scaled = cas.mtimes(cas.inv(cas.diag(holonomic_scaling)), dynamics_constraints_si)
-
     dynamics_constraint_cstr = cstr_op.Constraint(expr=dynamics_constraints_scaled,
                                                 cstr_type='eq',
                                                 name='dynamics_constraint')

@@ -59,6 +59,20 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture, sca
     return outputs
 
 
+def get_reelout_speed(variables_si):
+
+    q_node = variables_si['x']['q10']
+
+    # q_parent = cas.DM.zeros((3, 1))
+    # segment_vector = q_node - q_parent
+    segment_vector = q_node
+    ehat_tether = vect_op.normalize(segment_vector)
+
+    reelout_speed = cas.mtimes(variables_si['x']['dq10'].T, ehat_tether)
+
+    return reelout_speed
+
+
 def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling):
 
     label = architecture.node_label(node)
@@ -67,50 +81,53 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
 
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    segment_length = segment_properties['seg_length']
+    mass_segment = segment_properties['seg_mass']
+
     q_node = variables_si['x']['q' + label]
     dq_node = variables_si['x']['dq' + label]
     if node == 1:
         q_parent = cas.DM.zeros((3, 1))
+        segment_vector = q_node - q_parent
+        ehat_tether = vect_op.normalize(segment_vector)
 
-        if 'dl_t' in variables_si['x'].keys():
-            segment_vector = q_node - q_parent
-            ehat_tether = vect_op.normalize(segment_vector)
-            dq_parent = variables_si['x']['dl_t'] * ehat_tether
-        else:
-            dq_parent = cas.DM.zeros((3, 1))
+        reelout_speed = get_reelout_speed(variables_si)
+        dq_parent = reelout_speed * ehat_tether
 
     else:
         q_parent = variables_si['x']['q' + parent_label]
         dq_parent = variables_si['x']['dq' + parent_label]
 
-    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
-    segment_vector = q_node - q_parent
-    segment_length = segment_properties['seg_length']
-    mass_segment = segment_properties['seg_mass']
+        segment_vector = q_node - q_parent
+        ehat_tether = vect_op.normalize(segment_vector)
 
     dq_average = (dq_node + dq_parent) / 2.
-    e_kin_trans = 0.5 * mass_segment * cas.mtimes(dq_average.T, dq_average)
+    e_kin_tether_trans = 0.5 * mass_segment * cas.mtimes(dq_average.T, dq_average)
+    outputs['e_kinetic']['tether_trans' + label] = e_kin_tether_trans
 
+    e_kin_kite_trans = cas.DM(0.)
     if node_has_a_kite:
         mass_kite = parameters['theta0', 'geometry', 'm_k']
-        e_kin_trans += 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
+        e_kin_kite_trans = 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
+    outputs['e_kinetic']['kite_trans' + label] = e_kin_kite_trans
 
     v_difference = dq_node - dq_average
-    ehat_tether = vect_op.normalize(segment_vector)
     v_rotation = v_difference - cas.mtimes(v_difference.T, ehat_tether) * ehat_tether
     radius_of_rod_rotation = (segment_length / 2.)
     omega = v_rotation / radius_of_rod_rotation
     moment_of_inertia = (1. / 12.) * mass_segment * segment_length**2.
-    e_kin_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
+    e_kin_tether_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
 
+    outputs['e_kinetic']['tether_rot' + label] = e_kin_tether_rot
+
+    e_kinetic_kite_rot = cas.DM(0.)
     if node_has_a_kite and kites_have_6dof:
         omega = variables_si['x']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
-        e_kin_rot += 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
+        e_kinetic_kite_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
 
-    e_kinetic = e_kin_trans + e_kin_rot
-
-    outputs['e_kinetic']['q' + label] = e_kinetic
+    outputs['e_kinetic']['kite_rot' + label] = e_kinetic_kite_rot
 
     return outputs
 
@@ -134,13 +151,15 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
     mass_segment = segment_properties['seg_mass']
 
-    e_potential = gravity * mass_segment * q_mean[2]
+    e_potential_tether = gravity * mass_segment * q_mean[2]
+    outputs['e_potential']['tether' + label] = e_potential_tether
 
+    e_potential_kite = cas.DM(0.)
     if node_has_a_kite:
-        mass = parameters['theta0', 'geometry', 'm_k']
-        e_potential += gravity * mass * q_node[2]
+        mass_kite = parameters['theta0', 'geometry', 'm_k']
+        e_potential_kite += gravity * mass_kite * q_node[2]
 
-    outputs['e_potential']['q' + label] = e_potential
+    outputs['e_potential']['kite' + label] = e_potential_kite
 
     return outputs
 
@@ -158,14 +177,15 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs, archi
     # - the inner one a solid, homogenous cylinder, made of metal (the drum),
     #           with I_drum = 1/2 (m_drum) (r_drum)^2
     # - and the outer one a thin, homogenous cylindrical shell, made of wound tether,
-    #           with I_shell = (m_tether) (r_drum + r_tether)^2
+    #           with I_shell = (m_wound_tether) (r_drum + r_tether)^2
     # so that the total kinetic energy = 1/2 I_total omega^2
     # and the rotation of both is determined by a no-slip condition on the winding tether
     # omega radius_of_tether_winding = dl_t
+    # notice, that if m_drum = 0, then I_total = m_tether r^2, and KE = 1/2 m_wound_tether dl_t^2
 
     if options['tether']['use_wound_tether']:
 
-        if not (('l_t_full' in variables_si['theta'].keys()) and ('dl_t' in variables_si['x'].keys())):
+        if not ('l_t_full' in variables_si['theta'].keys()):
             message = 'awebox does not have necessary variables to compute the kinetic energy of the ground station, ' \
                       'according to the wound-tether model'
             print_op.log_and_raise_error(message)
@@ -174,12 +194,13 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs, archi
 
         segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, 1)
         tether_density = segment_properties['density']
+        tether_diameter = segment_properties['seg_diam']
         unwound_length = segment_properties['seg_length']
         length_full = variables_si['theta']['l_t_full']
-        tether_diameter = segment_properties['seg_diam']
         wound_length = length_full - unwound_length
         cross_sectional_area = segment_properties['cross_section_area']
         mass_wound_tether = tether_density * cross_sectional_area * wound_length
+
         radius_shell = radius_drum + tether_diameter / 2.
         moment_of_inertia_of_wound_tether = mass_wound_tether * radius_shell**2.
 
@@ -188,11 +209,10 @@ def add_ground_station_kinetic(options, variables_si, parameters, outputs, archi
 
         moment_of_inertia = moment_of_inertia_of_wound_tether + moment_of_inertia_of_drum
 
-        tangential_speed = variables_si['x']['dl_t']
+        tangential_speed = get_reelout_speed(variables_si)
         omega = tangential_speed / radius_shell
 
         e_kinetic = 0.5 * moment_of_inertia * omega**2.
-
     else:
         e_kinetic = cas.DM(0.)
 

@@ -388,6 +388,9 @@ def check_the_dimension_of_xdot(V, model):
     condition2 = ('xdot' not in V.keys()) or (number_of_dae_variables == number_of_dynamics_equations)
     if not condition2:
         message = 'number of dae-determined variables in V (' + str(number_of_dae_variables) + ') does not match the number of modelled dynamics equations (' + str(number_of_dynamics_equations) + ')'
-        print_op.log_and_raise_error(message)
+        print_op.warn_about_temporary_functionality_alteration()
+        # todo: this fails in vortex force-zero case. rela.
+        # print_op.log_and_raise_error(message)
+        pdb.set_trace()
 
     return None

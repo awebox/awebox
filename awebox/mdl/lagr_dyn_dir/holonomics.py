@@ -244,10 +244,12 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
                 segment_length = x_si['l_t']
             else:
                 segment_length = theta_si['l_t']
+
         elif node in kite_nodes:
             grandparent = parent_map[parent]
             previous_node = x_si['q' + str(parent) + str(grandparent)]
             segment_length = theta_si['l_s']
+
         else:
             grandparent = parent_map[parent]
             previous_node = x_si['q' + str(parent) + str(grandparent)]
