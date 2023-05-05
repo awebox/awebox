@@ -131,13 +131,6 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 #     return node_masses
 
 
-# def add_groundstation_mass(node_masses, parameters):
-#     m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
-#     node_masses['groundstation'] += m_groundstation
-#
-#     return node_masses
-
-
 # def add_above_ground_tether_segment_mass(upper_node, node_masses, options, architecture, scaling, variables, parameters):
 #
 #     seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=upper_node)

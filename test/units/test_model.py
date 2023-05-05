@@ -600,8 +600,6 @@ def build_pendulum_or_pseudo_atwood_test_model(pendulum_parameters, frictionless
     options['model.tether.control_var'] = 'ddl_t'
 
     options['params.atmosphere.g'] = pendulum_parameters['gravity_si']
-    options['params.ground_station.m_gen'] = 0.
-    options['params.ground_station.r_gen'] = 0.25
     options['params.tether.rho'] = pendulum_parameters['rod_density_si']
 
     trial_options = awe.Options()
@@ -627,8 +625,6 @@ def populate_model_variables_and_parameters(model, pendulum_parameters, initial_
     parameters['theta0', 'geometry', 'm_k'] = pendulum_parameters['mass_si']
     parameters['theta0', 'wind', 'u_ref'] = 1.e-10
     parameters['theta0', 'tether', 'rho'] = pendulum_parameters['rod_density_si']
-    parameters['theta0', 'ground_station', 'm_gen'] = 0.
-    parameters['theta0', 'ground_station', 'r_gen'] = 0.25
 
     for var_type in model.variables_dict.keys():
         for var_name in model.variables_dict[var_type].keys():

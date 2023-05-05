@@ -260,7 +260,6 @@ class Trial(object):
             'l_t': ('Main tether length', 1, 'm'),
             'l_i': ('Intermediate tether length', 1, 'm'),
             'diam_i': ('Intermediate tether diameter', 1e3, 'mm'),
-            'l_t_full': ('Total main tether length including winding', 1, 'm'),
             'P_max': ('Peak power', 1e-3, 'kW'),
             'ell_radius': ('Ellipse radius', 1, 'm'),
             'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
