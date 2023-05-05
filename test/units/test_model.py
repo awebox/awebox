@@ -120,7 +120,6 @@ def test_drag_mode_model():
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'drag_mode'
-    options['model.tether.use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
     options['user_options.induction_model'] = 'not_in_use'
@@ -214,7 +213,6 @@ def test_cross_tether_model():
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.system_model.cross_tether'] = True
-    options['model.tether.use_wound_tether'] = False
 
     # don't include induction effects, use trivial tether drag
     options['user_options.induction_model'] = 'not_in_use'
@@ -271,8 +269,6 @@ def test_tether_moments():
     options['user_options.induction_model'] = 'not_in_use'
     options['user_options.tether_drag_model'] = 'split'
     options['user_options.trajectory.system_type'] = 'drag_mode'
-    options['model.tether.use_wound_tether'] = False
-    options['model.tether.use_wound_tether'] = False
     options['model.tether.lift_tether_force'] = False
     options['model.aero.lift_aero_force'] = False
 
@@ -585,7 +581,7 @@ def get_consistent_inputs_for_pendulum_problem(pendulum_parameters):
             }
     return initial_si
 
-def build_pendulum_or_pseudo_atwood_test_model(pendulum_parameters, use_wound_tether=False, frictionless=True):
+def build_pendulum_or_pseudo_atwood_test_model(pendulum_parameters, frictionless=True):
     if frictionless:
         tether_drag_model = 'not_in_use'
     else:
@@ -601,7 +597,6 @@ def build_pendulum_or_pseudo_atwood_test_model(pendulum_parameters, use_wound_te
     options['user_options.kite_standard'] = ampyx_data.data_dict()
 
     options['model.geometry.overwrite.m_k'] = pendulum_parameters['mass_si']
-    options['model.tether.use_wound_tether'] = use_wound_tether
     options['model.tether.control_var'] = 'ddl_t'
 
     options['params.atmosphere.g'] = pendulum_parameters['gravity_si']
@@ -685,37 +680,24 @@ def test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inc
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=False,
                                                          rod_has_mass=False,
-                                                         use_wound_tether=True,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pseudo_atwood')
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless_with_wound_tether(epsilon=1e-5):
+def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless(epsilon=1e-5):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=False,
-                                                         use_wound_tether=True,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pseudo_atwood')
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass_with_wound_tether(epsilon=1e-5):
+def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass(epsilon=1e-5):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=True,
-                                                         use_wound_tether=True,
-                                                         check_scaling_is_nontrivial=False,
-                                                         pendulum_or_pseudo_atwood='pseudo_atwood')
-    return None
-
-
-def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass_without_wound_tether(epsilon=1e-5):
-    check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
-                                                         use_consistent_inputs=True,
-                                                         rod_has_mass=True,
-                                                         use_wound_tether=False,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pseudo_atwood')
     return None
@@ -725,7 +707,6 @@ def test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsis
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=False,
                                                          rod_has_mass=False,
-                                                         use_wound_tether=False,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pendulum')
     return None
@@ -735,7 +716,6 @@ def test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=False,
-                                                         use_wound_tether=False,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pendulum')
     return None
@@ -745,35 +725,21 @@ def test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=False,
-                                                         use_wound_tether=False,
                                                          check_scaling_is_nontrivial=True,
                                                          pendulum_or_pseudo_atwood='pendulum')
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether(epsilon=1e-5):
+def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass(epsilon=1e-5):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=True,
-                                                         use_wound_tether=False,
                                                          check_scaling_is_nontrivial=False,
                                                          pendulum_or_pseudo_atwood='pendulum')
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether(epsilon=1e-5):
-    check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
-                                                         use_consistent_inputs=True,
-                                                         rod_has_mass=True,
-                                                         use_wound_tether=True,
-                                                         check_scaling_is_nontrivial=False,
-                                                         pendulum_or_pseudo_atwood='pendulum')
-    return None
-
-
-
-
-def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consistent_inputs=True, rod_has_mass=False, use_wound_tether=False, check_scaling_is_nontrivial=False, pendulum_or_pseudo_atwood='pendulum'):
+def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consistent_inputs=True, rod_has_mass=False, check_scaling_is_nontrivial=False, pendulum_or_pseudo_atwood='pendulum'):
     system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
                                                        pendulum_or_pseudo_atwood='pendulum')
 
@@ -789,7 +755,7 @@ def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consi
         initial_si['q10'] = 80 * vect_op.xhat_dm()
         initial_si['dq10'] = 50. + initial_si['q10']
 
-    model = build_pendulum_or_pseudo_atwood_test_model(system_parameters, use_wound_tether=use_wound_tether)
+    model = build_pendulum_or_pseudo_atwood_test_model(system_parameters)
 
     if check_scaling_is_nontrivial:
         break_if_scaling_is_trivial(model, 'q10', epsilon)
@@ -808,7 +774,6 @@ def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consi
         message += 'in a ' + pendulum_or_pseudo_atwood + ' system, where: '
         message += 'use_consistent_inputs = ' + str(use_consistent_inputs) + ', '
         message += 'rod_has_mass = ' + str(rod_has_mass) + ', '
-        message += 'use_wound_tether = ' + str(use_wound_tether) + ', '
         message += 'check_scaling_is_nontrivial = ' + str(check_scaling_is_nontrivial)
 
         # all_outputs = model.outputs(model.outputs_fun(model.variables, model.parameters))
@@ -915,7 +880,7 @@ def test_idas_dae_integration(epsilon=1.e-2):
     return None
 
 
-def get_integration_test_setup(use_wound_tether=True, frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
+def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
 
     print_op.warn_about_temporary_functionality_alteration()
     system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
@@ -929,7 +894,7 @@ def get_integration_test_setup(use_wound_tether=True, frictionless=True, rod_has
         message = 'unavailable pendulum or pseudo-atwood model'
         raise Exception(message)
 
-    model = build_pendulum_or_pseudo_atwood_test_model(system_parameters, use_wound_tether=use_wound_tether, frictionless=frictionless)
+    model = build_pendulum_or_pseudo_atwood_test_model(system_parameters, frictionless=frictionless)
 
     # remember: the 'total time' is scaled by theta['t_f'],
     # so a value of (1/2) corresponds to a total integration time of (t_f/2)
@@ -978,8 +943,8 @@ def get_integration_test_setup(use_wound_tether=True, frictionless=True, rod_has
     return model, var_init_scaled, param_init_scaled, var_final_scaled
 
 
-def test_that_dae_integration_actually_does_something(epsilon=1.e-2, use_wound_tether=True, frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
-    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(use_wound_tether=use_wound_tether, frictionless=frictionless, rod_has_mass=rod_has_mass, pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
+def test_that_dae_integration_actually_does_something(epsilon=1.e-2, frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
+    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(frictionless=frictionless, rod_has_mass=rod_has_mass, pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
     position_initial = var_init_scaled['x', 'q10']
     position_final = var_final_scaled['x', 'q10']
@@ -992,15 +957,14 @@ def test_that_dae_integration_actually_does_something(epsilon=1.e-2, use_wound_t
     return None
 
 
-def run_an_energy_conservation_test(epsilon=1.e-4, use_wound_tether=True, frictionless=True, rod_has_mass=True, pendulum_or_pseudo_atwood='pendulum'):
+def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_mass=True, pendulum_or_pseudo_atwood='pendulum'):
 
-    if frictionless:
+    if frictionless and pendulum_or_pseudo_atwood == 'pendulum':
         expect_conservation = True
     else:
         expect_conservation = False
 
-    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(use_wound_tether=use_wound_tether,
-                                                                                             rod_has_mass=rod_has_mass,
+    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(rod_has_mass=rod_has_mass,
                                                                                              frictionless=frictionless,
                                                                                              pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
@@ -1014,7 +978,7 @@ def run_an_energy_conservation_test(epsilon=1.e-4, use_wound_tether=True, fricti
             local_energy = all_outputs[e_type, source]
 
             # print(e_type + ' ' + source)
-            local_energy_fun = casadi.Function('local_energy_fun', [model.variables, model.parameters], [local_energy])
+            # local_energy_fun = casadi.Function('local_energy_fun', [model.variables, model.parameters], [local_energy])
             # print(local_energy_fun(var_init_scaled, param_init_scaled))
             # print(local_energy_fun(var_final_scaled, param_init_scaled))
 
@@ -1041,10 +1005,6 @@ def run_an_energy_conservation_test(epsilon=1.e-4, use_wound_tether=True, fricti
         if not expect_conservation:
             message += ' not'
         message += ' be conserved, for a ' + pendulum_or_pseudo_atwood + ", modeled with"
-        if use_wound_tether:
-            message += ' a tether winding model'
-        else:
-            message += ' a Lagrangian-mechanics rhs. momentum-correction'
 
         if frictionless:
             message += ', when the air is assumed to be frictionless,'
@@ -1059,61 +1019,46 @@ def run_an_energy_conservation_test(epsilon=1.e-4, use_wound_tether=True, fricti
 def test_that_energy_is_not_conserved_with_drag(epsilon=1.e-2):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=False,
-                                    use_wound_tether=True,
                                     rod_has_mass=False,
                                     pendulum_or_pseudo_atwood='pendulum')
     return None
 
 
-def test_that_energy_is_conserved_in_a_frictionless_pendulum_without_wound_tether(epsilon=1e-3):
+def test_that_energy_is_conserved_in_a_frictionless_pendulum(epsilon=1e-3):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=True,
-                                    use_wound_tether=False,
                                     rod_has_mass=True,
                                     pendulum_or_pseudo_atwood='pendulum')
     return None
 
 
-def test_that_energy_is_conserved_in_a_frictionless_pendulum_with_wound_tether(epsilon=1e-3):
+def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_situation(epsilon=1e-4):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=True,
-                                    use_wound_tether=True,
-                                    rod_has_mass=True,
-                                    pendulum_or_pseudo_atwood='pendulum')
-    return None
-
-
-def test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_situation_with_wound_tether(epsilon=1e-4):
-    run_an_energy_conservation_test(epsilon=epsilon,
-                                    frictionless=True,
-                                    use_wound_tether=True,
                                     rod_has_mass=True,
                                     pendulum_or_pseudo_atwood='pseudo_atwood')
     return None
 
 
-# test_architecture()
-# test_drag_mode_model()
-# test_constraint_mechanism()
-# test_cross_tether_model()
-# test_tether_moments()
-#
-# test_time_derivative_under_scaling()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_with_wound_tether()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass_without_wound_tether()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless_with_wound_tether()
-test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass_with_wound_tether()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass_without_wound_tether()
-#
-# test_idas_dae_integration()
-# test_that_dae_integration_actually_does_something()
-# test_that_energy_is_not_conserved_with_drag()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_wound_tether()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_without_wound_tether()
-# test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_situation_with_wound_tether()
+test_architecture()
+test_drag_mode_model()
+test_constraint_mechanism()
+test_cross_tether_model()
+test_tether_moments()
+
+test_time_derivative_under_scaling()
+
+test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
+
+test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
+test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
+
+test_idas_dae_integration()
+test_that_dae_integration_actually_does_something()
+test_that_energy_is_not_conserved_with_drag()
+test_that_energy_is_conserved_in_a_frictionless_pendulum()
+test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_situation()

@@ -177,7 +177,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']), 'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
-        ('model',   'tether', None,         'use_wound_tether',     True,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
+        ('model',   'tether', None,         'use_wound_tether',     False,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
         ('model',   'tether', None,         'fraction_of_wound_tether_available_for_unwinding', 0.9,  ('wound tether safety factor', None),'x'),
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
