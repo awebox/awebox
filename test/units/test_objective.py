@@ -25,7 +25,6 @@ def build_trial(with_additional_exceptions=False, weight_of_var=None):
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'lift_mode'
-    options['model.tether.use_wound_tether'] = False
     options['nlp.n_k'] = 5
 
     options['solver.max_iter'] = 1.

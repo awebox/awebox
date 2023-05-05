@@ -899,7 +899,7 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
     # remember: the 'total time' is scaled by theta['t_f'],
     # so a value of (1/2) corresponds to a total integration time of (t_f/2)
     total_time = 0.25
-    number_of_steps = 4000
+    number_of_steps = 1000
     delta_t = total_time / float(number_of_steps)
 
     dae = model.get_dae()

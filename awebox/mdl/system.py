@@ -202,9 +202,6 @@ def generate_structure(options, architecture):
     if len(architecture.layer_nodes) > 1:
         system_parameters += [('l_i', (1, 1)), ('diam_i', (1, 1))]
 
-    if options['tether']['use_wound_tether']:
-        system_parameters += [('l_t_full', (1, 1))]
-    
     if 'P_max' in options['system_bounds']['theta'].keys():
         system_parameters += [('P_max', (1, 1))]  # max power
 

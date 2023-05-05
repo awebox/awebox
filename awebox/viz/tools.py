@@ -931,9 +931,4 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
             bound_grid_ip = local_bound * local_scaling * np.ones(tgrid_ip.shape)
             plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=p[-1].get_color())
 
-    if (name == 'l_t') and ('[theta,l_t_full,0]' in plot_dict['variables'].labels()):
-        wound_tether_bound = float(plot_dict['V_plot']['theta', 'l_t_full', 0])
-        wound_tether_bound_ip = wound_tether_bound * np.ones(tgrid_ip.shape)
-        plt.plot(tgrid_ip, wound_tether_bound_ip, linestyle='dashed', color=p[-1].get_color())
-
     return None

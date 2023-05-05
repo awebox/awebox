@@ -88,11 +88,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_lhs_translation = dlagr_dqdot_si_dt - dlagr_dq_si
 
     # lagrangian momentum correction
-    if options['tether']['use_wound_tether']:
-        lagrangian_momentum_correction = cas.DM(0.)
-    else:
-        lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
-                                                             outputs, architecture, scaling)
+    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
+                                                         outputs, architecture, scaling)
 
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
@@ -192,22 +189,19 @@ def momentum_correction(options, generalized_coordinates, system_variables, outp
 
     lagrangian_momentum_correction = cas.DM.zeros(xgcdot_scaled.cat.shape)
 
-    use_wound_tether = options['tether']['use_wound_tether']
-    if not use_wound_tether:
+    for node in range(1, architecture.number_of_nodes):
+        label = str(node) + str(architecture.parent_map[node])
+        mass = outputs['masses']['m_tether{}'.format(node)]
+        mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
 
-        for node in range(1, architecture.number_of_nodes):
-            label = str(node) + str(architecture.parent_map[node])
-            mass = outputs['masses']['m_tether{}'.format(node)]
-            mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
+        # velocity of the mass particles leaving the system
+        velocity = system_variables['SI']['x']['dq' + label]
 
-            # velocity of the mass particles leaving the system
-            velocity = system_variables['SI']['x']['dq' + label]
+        material_d_velocity_dqdot = cas.mtimes(velocity.T, cas.jacobian(velocity, xgcdot_scaled.cat)).T
+        material_d_velocity_dqdot_si = cas.mtimes(cas.inv(cas.diag(xgcdot_scaling_factors)), material_d_velocity_dqdot)
 
-            material_d_velocity_dqdot = cas.mtimes(velocity.T, cas.jacobian(velocity, xgcdot_scaled.cat)).T
-            material_d_velocity_dqdot_si = cas.mtimes(cas.inv(cas.diag(xgcdot_scaling_factors)), material_d_velocity_dqdot)
-
-            # see formula in reference
-            lagrangian_momentum_correction += mass_flow * material_d_velocity_dqdot_si
+        # see formula in reference
+        lagrangian_momentum_correction += mass_flow * material_d_velocity_dqdot_si
 
     return lagrangian_momentum_correction
 

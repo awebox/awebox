@@ -177,8 +177,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']), 'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
-        ('model',   'tether', None,         'use_wound_tether',     False,       ('include the mass of the wound tether in the system energy calculation', [True, False]),'x'),
-        ('model',   'tether', None,         'fraction_of_wound_tether_available_for_unwinding', 0.9,  ('wound tether safety factor', None),'x'),
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
@@ -208,7 +206,6 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
 
         #### model bounds (range of validity)
-        ('model',   'model_bounds', 'wound_tether_length', 'include',        True,      ('include constraint that total main tether length include the unrolled main tether length in constraints', [True, False]), 'x'),
         ('model',   'model_bounds', 'tether_stress', 'include',              True,      ('include tether stress inequality in constraints', [True, False]),'x'),
         ('model',   'model_bounds', 'tether_stress', 'scaling',              1.,        ('tightness scaling for tether stress inequality', None),'x'),
         ('model',   'model_bounds', 'tether_force',  'include',              False,     ('include tether force inequality in constraints', [True, False]),'x'),

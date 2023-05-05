@@ -68,7 +68,6 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # tether
     options_tree, fixed_params = build_tether_drag_options(options, options_tree, fixed_params)
-    options_tree, fixed_params = build_wound_tether_length_options(options, options_tree, fixed_params)
     options_tree, fixed_params = build_tether_stress_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_tether_control_options(options, options_tree, fixed_params)
 
@@ -253,6 +252,11 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
     options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
+
+    initialization_theta = options['solver']['initialization']['theta']
+    for param in initialization_theta.keys():
+        options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'theta', 't_f', cas.DM(1.0), ('descript', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -855,44 +859,6 @@ def build_tether_stress_options(options, options_tree, fixed_params, architectur
 
     return options_tree, fixed_params
 
-def build_wound_tether_length_options(options, options_tree, fixed_params):
-    system_type = options['user_options']['trajectory']['system_type']
-    if system_type == 'drag_mode':
-        options['model']['tether']['use_wound_tether'] = False
-        options['params']['ground_station']['m_gen'] = 0.
-
-    use_wound_tether = options['model']['tether']['use_wound_tether']
-
-    if use_wound_tether:
-        l_t_bounds = options['model']['system_bounds']['x']['l_t']
-
-        # prevent licq errors.
-        options_tree.append(('model', 'system_bounds', 'x', 'l_t', [l_t_bounds[0], cas.inf], ('???', None), 'x'))
-
-        options_tree.append(('model', 'system_bounds', 'theta', 'l_t_full', l_t_bounds, ('length of the unrolled main tether bounds [m]', None), 'x'))
-
-        fraction_of_wound_tether_available_for_unwinding = options['model']['tether']['fraction_of_wound_tether_available_for_unwinding']
-        l_t_initial = options['solver']['initialization']['l_t']
-
-        l_t_full_consistent = (l_t_initial / fraction_of_wound_tether_available_for_unwinding)
-        l_t_full_initialization = 2. * l_t_full_consistent
-        options_tree.append(('solver', 'initialization', 'theta', 'l_t_full', l_t_full_initialization,
-                             ('length of the main tether when unrolled [m]', None), 'x'))
-
-        l_t_full_scaling = l_t_full_consistent
-        options_tree.append(('model', 'scaling', 'theta', 'l_t_full', l_t_full_scaling,
-                             ('length of the main tether when unrolled [m]', None), 'x'))
-
-    if not use_wound_tether:
-        options['model']['model_bounds']['wound_tether_length']['include'] = False
-
-    initialization_theta = options['solver']['initialization']['theta']
-    for param in initialization_theta.keys():
-        options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))
-    options_tree.append(('model', 'scaling', 'theta', 't_f', cas.DM(1.0), ('descript', None), 'x'))
-
-    return options_tree, fixed_params
-
 
 ######## tether control
 
@@ -988,6 +954,7 @@ def get_q_at_altitude(options, zz):
     q = 0.5 * options['params']['atmosphere']['rho_ref'] * u ** 2
 
     return q
+
 
 
 ####### scaling

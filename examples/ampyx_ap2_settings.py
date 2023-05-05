@@ -14,15 +14,11 @@ def set_ampyx_ap2_settings(options):
     options['params.tether.cd'] = 1.2
     options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': 2e-3}
-    options['model.tether.use_wound_tether'] = False  # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t'  # tether acceleration control
 
     # tether drag model (more accurate than the Argatov model in Licitra2019)
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
-
-    # don't model generator
-    options['model.model_bounds.wound_tether_length.include'] = False
 
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = False

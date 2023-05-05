@@ -123,10 +123,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the inequality constraints
     # --------------------------------------------
 
-
-    wound_length_cstr = wound_tether_length_inequality(options, system_variables['SI'], scaling)
-    cstr_list.append(wound_length_cstr)
-
     outputs, stress_cstr = tether_stress_inequality(options, system_variables['SI'], outputs, parameters, architecture, scaling)
     cstr_list.append(stress_cstr)
 
@@ -824,30 +820,6 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
                     cstr_list.append(stress_cstr)
 
     return outputs, cstr_list
-
-
-def wound_tether_length_inequality(options, variables_si, scaling):
-
-    cstr_list = cstr_op.MdlConstraintList()
-
-    use_wound_tether = options['tether']['use_wound_tether']
-    include_wound_tether_bounds = options['model_bounds']['wound_tether_length']['include']
-    if use_wound_tether and include_wound_tether_bounds:
-
-        l_t_full = variables_si['theta']['l_t_full']
-        length_available = l_t_full * options['tether']['fraction_of_wound_tether_available_for_unwinding']
-
-        l_t = variables_si['x']['l_t']
-
-        expr_si = (l_t - length_available)
-        expr_scaled = struct_op.var_si_to_scaled('theta', 'l_t_full', expr_si, scaling)
-
-        cstr = cstr_op.Constraint(expr=expr_scaled,
-                                name='wound_tether_length',
-                                cstr_type='ineq')
-        cstr_list.append(cstr)
-
-    return cstr_list
 
 
 def generate_scaling(scaling_options, variables):

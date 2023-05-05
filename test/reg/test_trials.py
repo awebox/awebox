@@ -154,7 +154,6 @@ def generate_options_dict():
     single_kite_options['user_options.system_model.architecture'] = {1: 0}
     single_kite_options = set_ampyx_ap2_settings(single_kite_options)
     single_kite_options['solver.linear_solver'] = 'ma57'
-    single_kite_options['model.tether.use_wound_tether'] = True
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
     # single_kite_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
     # single_kite_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]

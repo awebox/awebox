@@ -52,21 +52,8 @@ def generate_mass_outputs(options, variables_si, outputs, parameters, architectu
         seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=node)
         outputs['masses']['m_tether{}'.format(node)] = seg_props['seg_mass']
 
-    outputs['masses']['ground_station'] = get_ground_station_mass(options, architecture, scaling, variables_si, parameters)
-
     return outputs
 
-def get_ground_station_mass(options, architecture, scaling, variables_si, parameters):
-
-    ground_station_mass = parameters['theta0', 'ground_station', 'm_gen']
-    if options['tether']['use_wound_tether']:
-        main_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=1)
-        wound_length = variables_si['theta']['l_t_full'] - main_props['seg_length']
-        wound_mass = main_props['cross_section_area'] * \
-            parameters['theta0', 'tether', 'rho'] * wound_length
-        ground_station_mass += wound_mass
-
-    return ground_station_mass
 
 # =====================
 #  MASS SCALING METHODS
@@ -87,16 +74,7 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 
         segment_under_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling,
                                                                                   variables_si, parameters, node)
-        if (node == 1) and options['tether']['use_wound_tether'] and ('l_t_full' in variables_si['theta'].keys()):
-
-            tether_density = segment_under_node_properties['density']
-            cross_section = segment_under_node_properties['scaling_area']
-            length = scaling['theta', 'l_t_full', 0]
-            mass_tether = tether_density * cross_section * length
-            mass_generator = parameters['theta0', 'ground_station', 'm_gen']
-            mass_under_node = mass_tether + mass_generator
-        else:
-            mass_under_node = segment_under_node_properties['scaling_mass']
+        mass_under_node = segment_under_node_properties['scaling_mass']
         node_mass += mass_under_node / 2.
 
         if node in architecture.children_map.keys():
@@ -115,12 +93,6 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 
     return mass_ratio_stacked
 
-
-# def remove_wound_tether_entry(node_masses):
-#     if 'm00' in node_masses.keys():
-#         node_masses.pop('m00')
-#
-#     return node_masses
 
 # def initialize_mass_dictionary(options, architecture):
 #
@@ -143,9 +115,7 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 #
 #     number_of_nodes = architecture.number_of_nodes
 #     kite_nodes = architecture.kite_nodes
-#
-#     use_wound_tether = options['tether']['use_wound_tether']
-#
+##
 #     node_masses = initialize_mass_dictionary(options, architecture)
 #
 #     upper_nodes_of_above_ground_segments = range(1, number_of_nodes)
@@ -153,16 +123,10 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 #         node_masses = add_above_ground_tether_segment_mass(upper_node, node_masses, options,
 #                                                            architecture, scaling, variables, parameters)
 #
-#     if use_wound_tether:
-#         node_masses = add_wound_tether_mass(node_masses, options, architecture, scaling, variables, parameters)
-#
 #     for kite in kite_nodes:
 #         node_masses = add_kite_mass(kite, node_masses, architecture, parameters)
 #
 #     node_masses = add_groundstation_mass(node_masses, parameters)
-#
-#     if not use_wound_tether:
-#         node_masses = remove_wound_tether_entry(node_masses)
 #
 #     return node_masses
 
@@ -170,18 +134,6 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
 # def add_groundstation_mass(node_masses, parameters):
 #     m_groundstation = parameters['theta0', 'ground_station', 'm_gen']
 #     node_masses['groundstation'] += m_groundstation
-#
-#     return node_masses
-
-
-# def add_wound_tether_mass(node_masses, options, architecture, scaling, variables, parameters):
-#
-#     main_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables, parameters, upper_node=1)
-#     wound_length = options['scaling']['theta']['l_t_full'] - main_props['scaling_length']
-#     wound_cross_section = main_props['scaling_area']
-#
-#     wound_mass = wound_cross_section * parameters['theta0', 'tether', 'rho'] * wound_length
-#     node_masses['m00'] += wound_mass
 #
 #     return node_masses
 

@@ -174,7 +174,6 @@ class Model(object):
             'Aircraft DOF': self.__options['kite_dof'],
             'Number of aircraft': self.__architecture.number_of_kites,
             'Number of layers': self.__architecture.layers,
-            'Ground station model': self.__options['tether']['use_wound_tether'],
             'Tether attachment': self.__options['tether']['attachment'],
             'Tether control var': self.__options['tether']['control_var'],
             'Tether drag model': self.__options['tether']['tether_drag']['model_type']
