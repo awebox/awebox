@@ -157,6 +157,8 @@ def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options,
 def get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed, tip, wake_node, ndx, ddx):
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
+    print_op.warn_about_temporary_functionality_alteration()
+    # todo: do the time_grids functions take the si or scaled t_f value as inputs?
     tgrid_coll = time_grids['coll'](t_f_si)
     wx_convected = get_the_convected_position_from_the_current_indices_and_wake_node(nlp_options, Outputs, model, tgrid_coll, kite_shed, tip,
                                                                       wake_node, ndx, ddx)
@@ -208,6 +210,7 @@ def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model,
 
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
+    print_op.warn_about_temporary_functionality_alteration()
     tgrid_coll = time_grids['coll'](t_f_si)
 
     optimization_period = tgrid_coll[-1, -1]

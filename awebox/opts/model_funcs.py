@@ -226,26 +226,30 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     # l_t = options['model']['scaling']['x']['l_t']
     print_op.warn_about_temporary_functionality_alteration()
     length = options['solver']['initialization']['l_t']
-    options_tree.append(('model', 'scaling', 'x', 'l_t', length, ('???', None), 'x'))
+    length_scaling = length / 2.
+    options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
 
     flight_radius = estimate_flight_radius(options, architecture)
 
-    available_estimates = [flight_radius, length]
-    q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    altitude = float(estimate_altitude(options))
+    available_estimates = [flight_radius, altitude]
+    print_op.warn_about_temporary_functionality_alteration()
+    q_scaling = altitude
+    # q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
     dq_scaling = groundspeed
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
-    u_reelout = estimate_reelout_speed(options)
-    dl_t_scaling = u_reelout
+    u_altitude = get_u_at_altitude(options, altitude)
+    dl_t_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
-    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     dl_t_min = -5. * u_altitude
     dl_t_max = 1./3. * u_altitude
     t_f_guess = estimate_time_period(options, architecture)
+
     ddl_t_guess = (dl_t_max - dl_t_min) / (t_f_guess / 2.)
     ddl_t_scaling = ddl_t_guess
     options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
@@ -307,7 +311,8 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         # do not include rotation constraints (only for 6dof)
         options_tree.append(('model', 'model_bounds', 'rotation', 'include', False, ('include constraints on roll and ptich motion', None),'t'))
 
-        coeff_scaling = 0.1
+        coeff_max = cas.DM(options['model']['system_bounds']['x']['coeff'][1])
+        coeff_scaling = coeff_max
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds', 'aero_validity', 'include', False,
@@ -1007,13 +1012,10 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     stress = options['params']['tether']['max_stress']
     strain = stress / options['params']['tether']['youngs_modulus']
     elongation = strain * length
-    typical_holonomic_constraint = 0.5 * elongation**2.
+    typical_holonomic_constraint = length * elongation
 
     holonomic_g = typical_holonomic_constraint
     holonomic_gdot = estimate_reelout_speed(options) * length
-
-    options_tree.append(('model', 'scaling', 'other', 'elongation', elongation, ('???', None),'x'))
-    print_op.warn_about_temporary_functionality_alteration()
 
     options_tree.append(('model', 'scaling', 'other', 'holonomic_g', holonomic_g, ('???', None), 'x'))
     options_tree.append(('model', 'scaling', 'other', 'holonomic_gdot', holonomic_gdot, ('???', None), 'x'))

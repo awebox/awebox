@@ -55,7 +55,7 @@ def test_numerics(trial, test_param_dict, results):
 
     # test if t_f makes sense
     t_f_min = test_param_dict['t_f_min']
-    t_f = np.array(trial.optimization.V_final['theta', 't_f']).sum()  # compute sum in case of phase fix
+    t_f = np.array(trial.optimization.V_final_si['theta', 't_f']).sum()  # compute sum in case of phase fix
     if t_f < t_f_min:
         awelogger.logger.warning('Final time < ' + str(t_f_min) + ' s for trial ' + trial.name)
         results['t_f_min'] = False
@@ -144,7 +144,7 @@ def test_node_altitude(trial, test_param_dict, results):
     discretization = trial.options['nlp']['discretization']
 
     # get trial solution
-    V_final = trial.optimization.V_final
+    V_final_si = trial.optimization.V_final_si
 
     # extract system architecture
     architecture = trial.model.architecture
@@ -161,12 +161,12 @@ def test_node_altitude(trial, test_param_dict, results):
         node_str = 'q' + str(node) + str(parent)
         error_message = 'Node ' + node_str + ' has negative height for trial ' + trial.name
 
-        heights_x = np.array(V_final['x', :, node_str, 2])
+        heights_x = np.array(V_final_si['x', :, node_str, 2])
         if np.min(heights_x) < z_min:
             results['min_node_height'] = False
 
         if discretization == 'direct_collocation':
-            heights_coll_var = np.array(V_final['coll_var', :, :, 'x', node_str, 2])
+            heights_coll_var = np.array(V_final_si['coll_var', :, :, 'x', node_str, 2])
             if np.min(heights_coll_var) < z_min:
                 results['min_node_height'] = False
 

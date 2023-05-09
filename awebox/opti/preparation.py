@@ -143,7 +143,7 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
     return p_fix_num
 
 
-def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
+def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
     V_bounds = {}
     for name in list(nlp.V_bounds.keys()):
         V_bounds[name] = copy.deepcopy(nlp.V_bounds[name])
@@ -176,7 +176,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
             V_bounds['ub']['theta', name] = initial_scaled_value
             V_bounds['lb']['theta', name] = initial_scaled_value
 
-    initial_si_time = V_init['theta', 't_f']  # * options['homotopy']['phase_fix']  #todo: move phase fixing to nlp
+    initial_si_time = V_init_si['theta', 't_f']  # * options['homotopy']['phase_fix']  #todo: move phase fixing to nlp
     initial_scaled_time = struct_op.var_si_to_scaled('theta', 't_f', initial_si_time, model.scaling)
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
@@ -191,7 +191,7 @@ def set_initial_bounds(nlp, model, formulation, options, V_init, schedule):
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
         if 'fict' in name:
-            if 'u' in V_init.keys():
+            if 'u' in V_init_si.keys():
                 V_bounds['lb']['u', :, name] = -cas.inf
                 V_bounds['ub']['u', :, name] = cas.inf
             else:

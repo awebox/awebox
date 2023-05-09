@@ -96,10 +96,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling
-    print_op.warn_about_temporary_functionality_alteration()
     kite_to_node_mass_ratio = mass_comp.generate_kite_to_node_mass_ratio(options, system_variables['SI'], parameters, architecture, scaling)
-    # forces_scaling = (1. / options['scaling']['z']['f_aero']) * kite_to_node_mass_ratio
-    forces_scaling = (1. / options['scaling']['z']['f_aero']) * cas.DM.ones(kite_to_node_mass_ratio.shape)
+    forces_scaling = (1. / options['scaling']['z']['f_aero']) * kite_to_node_mass_ratio
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
     dynamics_translation_scaled = cas.mtimes(cas.diag(forces_scaling), dynamics_translation_si)
@@ -146,19 +144,24 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
         if name_in_x or name_in_u:
             if name_in_x:
-                si_diff = system_variables['SI']['xdot'][name] - system_variables['SI']['x'][name]
-                scaled_diff = struct_op.var_si_to_scaled('x', name, si_diff, scaling)
-
+                undiff_type = 'x'
             elif name_in_u:
-                si_diff = system_variables['SI']['xdot'][name] - system_variables['SI']['u'][name]
-                scaled_diff = struct_op.var_si_to_scaled('u', name, si_diff, scaling)
-
+                undiff_type = 'u'
             else:
                 message = 'something went wrong when defining trivial constraints'
                 print_op.log_and_raise_error(message)
 
-            trivial_dyn = cas.vertcat(*[scaled_diff])
+            si_diff = system_variables['SI']['xdot'][name] - system_variables['SI'][undiff_type][name]
 
+            undiff_scaling = scaling[undiff_type, name]
+            xdot_scaling = scaling['xdot', name]
+            mean_scaling = []
+            for idx in range(undiff_scaling.shape[0]):
+                local_mean = (undiff_scaling[idx] * xdot_scaling[idx]) ** 0.5
+                mean_scaling = cas.vertcat(mean_scaling, local_mean)
+            scaled_diff = cas.mtimes(cas.inv(cas.diag(mean_scaling)), si_diff)
+
+            trivial_dyn = cas.vertcat(*[scaled_diff])
             trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
                                                   cstr_type='eq',
                                                   name='trivial_' + name)

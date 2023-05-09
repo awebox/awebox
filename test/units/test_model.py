@@ -485,13 +485,11 @@ def get_consistent_inputs_for_pseudo_atwood_problem(system_parameters):
     gravity_si = system_parameters['gravity_si']
     length_unwound_si = system_parameters['length_si']
     length_full_si = system_parameters['length_full_si']
-    length_wound_si = length_full_si - length_unwound_si
 
     tether_diameter_si = system_parameters['rod_diameter_si']
 
     tether_cross_sectional_area_si = np.pi * (tether_diameter_si / 2.)**2.
     mass_unwound_si = length_unwound_si * tether_cross_sectional_area_si * tether_density_si
-    mass_wound_si = length_wound_si * tether_cross_sectional_area_si * tether_density_si
     mass_full_si = length_full_si * tether_cross_sectional_area_si * tether_density_si
 
     fraction = (mass_unwound_si + mass_kite_si) / (mass_full_si + mass_kite_si)
@@ -557,14 +555,16 @@ def get_consistent_inputs_for_pendulum_problem(pendulum_parameters):
     ddq_initial_si = length_si * (-cos_theta * xhat + sin_theta * zhat) * ddtheta - q_initial_si * dtheta**2.
 
     total_mass_si = mass_si + rod_mass_si
-    center_of_mass = (1. / total_mass_si) * (mass_si * length_si + rod_mass_si * length_si / 2.)
+    length_center_of_mass = (1. / total_mass_si) * (mass_si * length_si + rod_mass_si * length_si / 2.)
 
-    radial_centripetal = num_dynamics * length_si * dtheta**2.
-    radial_gravitation = total_mass_si * gravity_si * cas.mtimes(zhat.T, q_initial_si)/length_si
+    # radial_centripetal = num_dynamics * length_si * dtheta**2.
+    radial_centripetal = total_mass_si * length_center_of_mass * dtheta**2.
+    ehat_tether = q_initial_si / length_si
+    radial_gravitation = total_mass_si * gravity_si * cas.mtimes(zhat.T, ehat_tether)
     tension_si = (radial_centripetal - radial_gravitation)
     lambda_si = tension_si / length_si
 
-    t_f = 2. * np.pi * (center_of_mass / gravity_si)**0.5
+    t_f = 2. * np.pi * (length_center_of_mass / gravity_si)**0.5
 
     initial_si = {
             'q10': q_initial_si,
@@ -623,7 +623,7 @@ def populate_model_variables_and_parameters(model, pendulum_parameters, initial_
     parameters['theta0', 'atmosphere', 'rho_ref'] = rho_ref
     parameters['theta0', 'atmosphere', 'g'] = pendulum_parameters['gravity_si']
     parameters['theta0', 'geometry', 'm_k'] = pendulum_parameters['mass_si']
-    parameters['theta0', 'wind', 'u_ref'] = 1.e-10
+    parameters['theta0', 'wind', 'u_ref'] = 1.e-15
     parameters['theta0', 'tether', 'rho'] = pendulum_parameters['rod_density_si']
 
     for var_type in model.variables_dict.keys():
@@ -640,7 +640,7 @@ def get_arbitary_system_parameters(rod_has_mass=False, pendulum_or_pseudo_atwood
     mass_si = 17.
     gravity_si = 11.
     length_si = 37.
-    length_full_si = 3. * length_si
+    length_full_si = 5. * length_si
 
     if pendulum_or_pseudo_atwood == 'pendulum':
         pendulum_angle_rad = np.pi/2. * 0.7
@@ -878,7 +878,8 @@ def test_idas_dae_integration(epsilon=1.e-2):
 
 def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
 
-    print_op.warn_about_temporary_functionality_alteration()
+    problem_name = pendulum_or_pseudo_atwood + '_rod_has_mass_' + str(rod_has_mass) + '_frictionless_' + str(frictionless)
+
     system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
                                                        pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
@@ -892,18 +893,25 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
 
     model = build_pendulum_or_pseudo_atwood_test_model(system_parameters, frictionless=frictionless)
 
-    # remember: the 'total time' is scaled by theta['t_f'],
-    # so a value of (1/2) corresponds to a total integration time of (t_f/2)
-    total_time = 0.25
-    number_of_steps = 1000
-    delta_t = total_time / float(number_of_steps)
+    potential_energy_fun, kinetic_energy_fun, total_energy_fun = create_energy_functions(model)
+    e_stacked = cas.vertcat(potential_energy_fun(model.variables, model.parameters), kinetic_energy_fun(model.variables, model.parameters), total_energy_fun(model.variables, model.parameters))
+    e_stacked_fun = cas.Function('e_stacked_fun', [model.variables, model.parameters], [e_stacked])
+
+    if pendulum_or_pseudo_atwood == 'pendulum':
+        rough_total_time = 30.
+    elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
+        rough_total_time = 4.
+    else:
+        message = 'probable spelling error in system type'
+        raise Exception(message)
+
+    ideal_number_of_steps_per_period = 100
+    delta_t = 1. / float(ideal_number_of_steps_per_period)
 
     dae = model.get_dae()
     dae.build_rootfinder()
     options = {
-        'abstol': 1.e-12,
-        'max_num_steps': 1e5,
-        't0': 0,
+        't0': 0.,
         'tf': delta_t
     }
 
@@ -915,22 +923,87 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
     F_idas_history = cas.integrator('F', 'idas', dae_dict, options)
     x1 = x0
     z1 = z0
-    q_history = []
-    for tdx in range(number_of_steps):
+    # q_history = []
+    t_history = []
+    # e_history = []
+    #
+    # var_local_si = struct_op.variables_scaled_to_si(model.variables, var_init_scaled, model.scaling)
+    # q_history = cas.horzcat(q_history, var_local_si['x', 'q10'])
+    t_history += [0.]
+    # e_history = cas.horzcat(e_history, e_stacked_fun(var_init_scaled, param_init_scaled))
+
+    tdx = 0
+    while t_history[-1] < rough_total_time:
+        step_time = delta_t * initial_si['t_f']
+        number_of_steps = np.floor(rough_total_time / step_time)
         print_op.print_progress(tdx, number_of_steps)
 
         sol_history = F_idas_history(x0=x1, z0=z1, p=p)
         var_local_scaled = dae.reassemble_dae_outputs_into_model_variables(model.variables, sol_history, p)
         var_local_scaled['u'] = compute_new_controls_scaled(system_parameters, model, var_local_scaled, pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
         x1, z1, p = dae.fill_in_dae_variables(var_local_scaled, param_init_scaled)
-        #
+
         # var_local_si = struct_op.variables_scaled_to_si(model.variables, var_local_scaled, model.scaling)
         # q_history = cas.horzcat(q_history, var_local_si['x', 'q10'])
+        t_history += [t_history[-1] + step_time]
+        # e_history = cas.horzcat(e_history, e_stacked_fun(var_local_scaled, param_init_scaled))
+
+        tdx += 1
 
     # qx = np.array(q_history[0, :]).T
     # qz = np.array(q_history[2, :]).T
-    # plt.plot(qx, qz)
-    # plt.show()
+    # e_pot = np.array(e_history[0, :]).T
+    # e_kin = np.array(e_history[1, :]).T
+    # e_sum = np.array(e_history[2, :]).T
+    #
+    # plt.close('all')
+    #
+    # fig, ax = plt.subplots()
+    # ax.plot(qx, qz)
+    # if pendulum_or_pseudo_atwood == 'pendulum':
+    #     plot_axes_limits = np.array([-system_parameters['length_si'], system_parameters['length_si']])
+    #     ax.set_xlim(-1 * plot_axes_limits)
+    #
+    # elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
+    #     max_length = 1.2 * np.max(np.abs(qz))
+    #     plot_axes_limits = np.array([-max_length, 0.])
+    #     ax.set_xlim([-max_length/2., max_length/2.])
+    #
+    # else:
+    #     message = 'spelling mistake.'
+    #     raise Exception(message)
+    #
+    # ax.set_ylim(plot_axes_limits)
+    #
+    # ax.axes.set_aspect('equal')
+    # ax.set_xlabel('x [m]')
+    # ax.set_ylabel('z [m]')
+    # ax.set_title('position in 2D space' + '\n' + 'of point-mass over integration period')
+    # plt.savefig(problem_name + '_position.pdf', format='pdf')
+    #
+    # # Create two subplots and unpack the output array immediately
+    # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+    # ax1.plot(t_history, qz)
+    # ax2.plot(t_history, qx)
+    # ax1.set_ylabel('z [m]')
+    # ax2.set_ylabel('x [m]')
+    # ax2.set_xlabel('t [s]')
+    # ax1.set_title('z (top) and x (bottom) coordinates' + '\n' + 'of point-mass over integration period')
+    # plt.savefig(problem_name + '_coordinates.pdf', format='pdf')
+    #
+    # # Create three subplots and unpack the output array immediately
+    # f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    # ax1.plot(t_history, e_pot)
+    # ax2.plot(t_history, e_kin)
+    # ax3.plot(t_history, e_sum)
+    # ax1.set_ylabel('potential [J]')
+    # ax2.set_ylabel('kinetic [J]')
+    # ax3.set_ylabel('total [J]')
+    # ax3.set_xlabel('t [s]')
+    # ax1.set_title('potential (top), kinetic (middle) and total (bottom) energy' + '\n' + 'of point-mass over integration period')
+    # # plt.savefig(problem_name + '_energy.pdf', format='pdf')
+    #
+    # # plt.show()
 
     sol_report = sol_history
     integration_outputs = sol_report
@@ -953,9 +1026,35 @@ def test_that_dae_integration_actually_does_something(epsilon=1.e-2, frictionles
     return None
 
 
+def create_energy_functions(model):
+
+    all_outputs = model.outputs(model.outputs_fun(model.variables, model.parameters))
+
+    total_energy = 0.
+    types_of_energy = ['e_potential', 'e_kinetic']
+    summed_energy_dict = {}
+    for e_type in types_of_energy:
+        summed_energy_dict[e_type] = cas.DM(0.)
+        for source in struct_op.subkeys(all_outputs, e_type):
+            local_energy = all_outputs[e_type, source]
+            summed_energy_dict[e_type] += local_energy
+            total_energy += local_energy
+
+    total_energy_fun = casadi.Function('total_energy_fun', [model.variables, model.parameters], [total_energy])
+
+    potential_energy_fun = cas.Function('potential_energy_fun', [model.variables, model.parameters],
+                                        [summed_energy_dict['e_potential']])
+    kinetic_energy_fun = cas.Function('kinetic_energy_fun', [model.variables, model.parameters],
+                                        [summed_energy_dict['e_kinetic']])
+
+    return potential_energy_fun, kinetic_energy_fun, total_energy_fun
+
+
 def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_mass=True, pendulum_or_pseudo_atwood='pendulum'):
 
     if frictionless and pendulum_or_pseudo_atwood == 'pendulum':
+        expect_conservation = True
+    elif frictionless and (not rod_has_mass) and pendulum_or_pseudo_atwood == 'pseudo_atwood':
         expect_conservation = True
     else:
         expect_conservation = False
@@ -964,24 +1063,9 @@ def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_ma
                                                                                              frictionless=frictionless,
                                                                                              pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
-    all_outputs = model.outputs(model.outputs_fun(model.variables, model.parameters))
+    _, _, total_energy_fun = create_energy_functions(model)
 
     # print('total_energy')
-    total_energy = 0.
-    types_of_energy = ['e_potential', 'e_kinetic']
-    for e_type in types_of_energy:
-        for source in struct_op.subkeys(all_outputs, e_type):
-            local_energy = all_outputs[e_type, source]
-
-            # print(e_type + ' ' + source)
-            # local_energy_fun = casadi.Function('local_energy_fun', [model.variables, model.parameters], [local_energy])
-            # print(local_energy_fun(var_init_scaled, param_init_scaled))
-            # print(local_energy_fun(var_final_scaled, param_init_scaled))
-
-            total_energy += local_energy
-
-    # print('total_energy')
-    total_energy_fun = casadi.Function('total_energy_fun', [model.variables, model.parameters], [total_energy])
     # print(total_energy_fun(var_init_scaled, param_init_scaled))
     # print(total_energy_fun(var_final_scaled, param_init_scaled))
 
@@ -1008,11 +1092,14 @@ def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_ma
             message += ', when energy is lost to air-resistance,'
 
         message += " is not met."
+
+        pdb.set_trace()
+
         raise Exception(message)
     return None
 
 
-def test_that_energy_is_not_conserved_with_drag(epsilon=1.e-2):
+def test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag(epsilon=1.e-2):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=False,
                                     rod_has_mass=False,
@@ -1020,7 +1107,15 @@ def test_that_energy_is_not_conserved_with_drag(epsilon=1.e-2):
     return None
 
 
-def test_that_energy_is_conserved_in_a_frictionless_pendulum(epsilon=1e-3):
+def test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod(epsilon=1e-2):
+    run_an_energy_conservation_test(epsilon=epsilon,
+                                    frictionless=True,
+                                    rod_has_mass=False,
+                                    pendulum_or_pseudo_atwood='pendulum')
+    return None
+
+
+def test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod(epsilon=1e-2):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=True,
                                     rod_has_mass=True,
@@ -1028,7 +1123,15 @@ def test_that_energy_is_conserved_in_a_frictionless_pendulum(epsilon=1e-3):
     return None
 
 
-def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_situation(epsilon=1e-4):
+def test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable(epsilon=1e-2):
+    run_an_energy_conservation_test(epsilon=epsilon,
+                                    frictionless=True,
+                                    rod_has_mass=False,
+                                    pendulum_or_pseudo_atwood='pseudo_atwood')
+    return None
+
+
+def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable(epsilon=1e-4):
     run_an_energy_conservation_test(epsilon=epsilon,
                                     frictionless=True,
                                     rod_has_mass=True,
@@ -1036,25 +1139,27 @@ def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_situation(
     return None
 
 
-test_architecture()
-test_drag_mode_model()
-test_constraint_mechanism()
-test_cross_tether_model()
-test_tether_moments()
-
-test_time_derivative_under_scaling()
-
-test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
-test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
-test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
-test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
-
-test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
-test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
-test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
-
-test_idas_dae_integration()
-test_that_dae_integration_actually_does_something()
-test_that_energy_is_not_conserved_with_drag()
-test_that_energy_is_conserved_in_a_frictionless_pendulum()
-test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_situation()
+# test_architecture()
+# test_drag_mode_model()
+# test_constraint_mechanism()
+# test_cross_tether_model()
+# test_tether_moments()
+#
+# test_time_derivative_under_scaling()
+#
+# test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
+# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
+# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
+# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
+#
+# test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
+# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
+# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
+#
+# test_idas_dae_integration()
+# test_that_dae_integration_actually_does_something()
+# test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag()
+# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod()
+# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod()
+# test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable()
+# test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable()

@@ -77,11 +77,11 @@ class Pmpc(object):
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
             if name != 't_f':
-                fixed_params[name] = self.__pocp_trial.optimization.V_final['theta',name].full()
-        fixed_params['t_f'] = self.__N*self.__ts
+                fixed_params[name] = self.__pocp_trial.optimization.V_opt['theta', name].full()
+        fixed_params['t_f'] = self.__N * self.__ts
         options['user_options.trajectory.fixed_params'] = fixed_params
 
-        self.__trial = awe.Trial(seed = options)
+        self.__trial = awe.Trial(seed=options)
         self.__build_trial()
 
         # construct mpc solver
@@ -517,9 +517,9 @@ class Pmpc(object):
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
+                V_list.append(self.__pocp_trial.optimization.V_opt['theta', name])
             else:
-                V_list.append(self.__N*self.__ts)
+                V_list.append(self.__N * self.__ts)
         V_list.append(np.zeros(V_ref['phi'].shape))
         V_list.append(np.zeros(V_ref['xi'].shape))
 
@@ -558,8 +558,8 @@ class Pmpc(object):
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                self.__w0['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
-        self.__w0['theta','t_f'] = self.__N*self.__ts
+                self.__w0['theta', name] = self.__pocp_trial.optimization.V_opt['theta', name]
+        self.__w0['theta', 't_f'] = self.__N * self.__ts
 
         # intialize log
         self.__log = {
@@ -613,7 +613,7 @@ class Pmpc(object):
         # time grids
         time_grids = {}
         for grid in self.__trial.nlp.time_grids:
-            time_grids[grid] = self.__trial.nlp.time_grids[grid](V_opt['theta','t_f'])
+            time_grids[grid] = self.__trial.nlp.time_grids[grid](V_opt['theta', 't_f'])
         time_grids['ref'] = time_grids
 
         # cost function

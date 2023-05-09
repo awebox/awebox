@@ -170,7 +170,7 @@ class Formulation(object):
 
         if param_terminal_conditions and param_initial_conditions:
             for theta in struct_op.subkeys(V_pickle_initial, 'theta'):
-                diff = V_pickle_terminal['theta',theta] - V_pickle_initial['theta',theta]
+                diff = V_pickle_terminal['theta', theta] - V_pickle_initial['theta', theta]
                 if theta != 't_f':
                     if (float(diff) != 0.0):
                         raise ValueError('Parameters of initial and terminal trajectory are not identical.')

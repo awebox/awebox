@@ -237,8 +237,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite',    'lambda_tree', 'include',           True,   ('specific scaling of tether tension per length', None),'t'),
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
-        # ('model',   'scaling_overwrite',    'x',            'q',                None,   ('kite position natural length [m]', None), 'x'),
-        # ('model',   'scaling_overwrite',    'x',            'dq',               None,   ('kite position natural speed [m/s]', None), 'x'),
 
         ('model',  'jit_code_gen',  None, 'include',                    False,                  ('generate code with jit for model functions'),'t'),
         ('model',  'jit_code_gen',  None, 'compiler',                   'clang',                ('compiler for generated code'),'t'),
@@ -364,8 +362,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
 
-        ('solver',   'tracking',       None,   'stagger_distance',      0.1,        ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1e1,        ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'tracking',        None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
+        ('solver',   'cost_factor',     None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',  'weights',      None,   'q',        1e-1,       ('optimization weight for all q variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'dq',       1e-1,       ('optimization weight for all dq variables [-]', None), 'x'),
@@ -420,12 +418,14 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nu',               1,      1e3,        ('update cost for nu', None),'s'),
         ('solver',  'cost',             'upsilon',          1,      1e3,        ('update cost for upsilon', None),'s'),
 
+        ('solver',  'cost',             'tracking',         1,      1e-3,       ('update cost for tracking', None), 's'),
         ('solver',  'cost',             'fictitious',       1,      1e3,        ('update cost for fictitious', None),'s'),
         ('solver',  'cost',             'power_derivative', 1,      0.,         ('update cost for power derivative', None),'s'),
         ('solver',  'cost',             'nominal_landing',  1,      1e-2,       ('update cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  1,  1e1,        ('update cost for compromised_battery', None),'s'),
-        ('solver',  'cost',             'transition',       1,      1e-1,        ('update cost for transition', None), 's'),
+        ('solver',  'cost',             'transition',       1,      1e-1,       ('update cost for transition', None), 's'),
 
+        ('solver',  'cost',             'fictitious',           2,  1e1,        ('update cost for fictitious', None), 's'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'s'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),

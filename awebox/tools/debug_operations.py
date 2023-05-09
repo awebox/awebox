@@ -386,8 +386,9 @@ def identify_largest_kkt_element(kkt_matrix, cstr_fun, lam_fun, cstr_labels, nlp
             [_, _, f_hessian_fun] = nlp.get_f_jacobian_and_hessian_functions()
             f_hessian = f_hessian_fun(V_opt, p_fix_num)
             local_f_hessian_entry = f_hessian[relevant_variable_index, associated_variable_index]
-            message = 'the entry of the hessian of the objective-alone, corresponding to the variable ' + str(associated_variable)
-            message += ' is: ({:0.4G})'.format(float(local_f_hessian_entry))
+            message = 'the entry of the hessian of the objective-alone, corresponding to the:' + '\n'
+            message += str(relevant_variable) + ' and ' + str(associated_variable) + '\n'
+            message += 'is: ({:0.4G})'.format(float(local_f_hessian_entry))
             print_op.base_print(message, level='info')
 
             if (local_f_hessian_entry * 10.)**2. < max_val**2.:

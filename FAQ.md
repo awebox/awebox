@@ -100,8 +100,8 @@ This likely means that the memory useage was too high. maybe try breaking your s
 ### How do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'f_aero21'...)
 
 ```
- V_final = trial.optimization.V_final
- V_final['coll_var', :, :, 'xl', 'f_aero21']
+ V_final_si = trial.optimization.V_final_si
+ V_final_si['coll_var', :, :, 'xl', 'f_aero21']
 ```
 
 ### How do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)

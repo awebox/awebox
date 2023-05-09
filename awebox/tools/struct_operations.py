@@ -323,16 +323,16 @@ def get_V_theta(V, nlp_numerics_options, k):
     nk = nlp_numerics_options['n_k']
     k = list(range(nk+1))[k]
 
-    if V['theta','t_f'].shape[0] == 1:
+    if V['theta', 't_f'].shape[0] == 1:
         theta = V['theta']
     else:
         theta = []
-        tf_index = V.f['theta','t_f']
+        tf_index = V.f['theta', 't_f']
         theta_index = V.f['theta']
         for idx in theta_index:
             if idx == tf_index[0] and k < round(nk * nlp_numerics_options['phase_fix_reelout']):
                 theta.append(V.cat[idx])
-            elif idx == tf_index[1] and k >= round(nk * nlp_numerics_options['phase_fix_reelout']) :
+            elif idx == tf_index[1] and k >= round(nk * nlp_numerics_options['phase_fix_reelout']):
                 theta.append(V.cat[idx])
             elif idx not in tf_index:
                 theta.append(V.cat[idx])
@@ -438,6 +438,11 @@ def should_variable_be_scaled(var_type, var_name, var_scaled, scaling):
         message = 'scaling information for ' + var_identifier + ' is not numeric and columnar' + end_of_message
         return False, message
 
+    any_scaling_is_negative = any([scale[idx] < 0 for idx in range(scale.shape[0])])
+    if any_scaling_is_negative:
+        message = 'negative scaling values are not allowed' + end_of_message
+        return False, message
+
     scaling_will_return_same_value_anyway = cas.diag(scale).is_eye()
     if scaling_will_return_same_value_anyway:
         return False, None
@@ -463,7 +468,7 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
         scaling_value = cas.DM(scaling_value)
 
     if not scaling_value.shape == placeholder.shape:
-        message = 'cannot set the scaling of ' + var_type + ' variable (' + var_name + '). proposed value has the wrong shape'
+        message = 'cannot set the scaling of ' + var_type + ' variable (' + var_name + '). proposed value has the wrong shape (' + str(scaling_value.shape) + ') when the expected shape is (' + str(placeholder.shape) + ')'
         print_op.log_and_raise_error(message)
 
     for idx in range(scaling_value.shape[0]):

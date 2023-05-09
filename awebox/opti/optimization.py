@@ -582,38 +582,38 @@ class Optimization(object):
     def generate_outputs(self, nlp, solution):
 
         # extract solutions
-        V_final = nlp.V(solution['x'])
+        V_opt = nlp.V(solution['x'])
 
         # get outputs from V
-        self.__generate_outputs_from_V(nlp, V_final)
+        self.__generate_outputs_from_V(nlp, V_opt)
 
         return None
 
-    def __generate_outputs_from_V(self, nlp, V_final):
+    def __generate_outputs_from_V(self, nlp, V_opt):
 
         V_initial = self.__V_init
 
         # general outputs
         [nlp_outputs, nlp_output_fun] = nlp.output_components
         outputs_init = nlp_output_fun(V_initial, self.__p_fix_num)
-        outputs_opt = nlp_output_fun(V_final, self.__p_fix_num)
+        outputs_opt = nlp_output_fun(V_opt, self.__p_fix_num)
         outputs_ref = nlp_output_fun(self.__V_ref, self.__p_fix_num)
 
         # integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = nlp.integral_output_components
         integral_outputs_init = nlp_integral_outputs(nlp_integral_outputs_fun(V_initial, self.__p_fix_num))
-        integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_final, self.__p_fix_num))
+        integral_outputs_opt = nlp_integral_outputs(nlp_integral_outputs_fun(V_opt, self.__p_fix_num))
         integral_outputs_ref = nlp_integral_outputs(nlp_integral_outputs_fun(self.__V_ref, self.__p_fix_num))
 
         # global outputs
-        global_outputs_opt = nlp.global_outputs(nlp.global_outputs_fun(V_final, self.__p_fix_num))
+        global_outputs_opt = nlp.global_outputs(nlp.global_outputs_fun(V_opt, self.__p_fix_num))
 
         # time grids
         time_grids = {'ref': {}}
         for grid in nlp.time_grids:
 
             # forcibly prevent decreasing time_grids for bad solution
-            safe_t_f = copy.deepcopy(V_final['theta', 't_f'])
+            safe_t_f = copy.deepcopy(V_opt['theta', 't_f'])
             safe_minimum = 1.  # [seconds]
             for idx in range(safe_t_f.shape[0]):
                 t_f_entry = safe_t_f[idx]
@@ -625,6 +625,8 @@ class Optimization(object):
                     print_op.base_print(message, level='warning')
 
             time_grids[grid] = nlp.time_grids[grid](safe_t_f)
+            print_op.warn_about_temporary_functionality_alteration()
+            # assume that time_grids computed for scaled t_f
             time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta', 't_f'])
 
         # set properties
@@ -649,7 +651,8 @@ class Optimization(object):
             self.__V_opt = self.__V_init
         else:
             self.__V_opt = nlp.V(self.__solution['x'])
-        self.__V_final = struct_op.scaled_to_si(self.__V_opt, model.scaling)
+
+        self.__V_final_si = struct_op.scaled_to_si(self.__V_opt, model.scaling)
         self.__integral_outputs_final = self.scaled_to_si_integral_outputs(nlp, model)
 
         return None
@@ -730,12 +733,12 @@ class Optimization(object):
         awelogger.logger.warning('Cannot set V_ref object.')
 
     @property
-    def V_final(self):
-        return self.__V_final
+    def V_final_si(self):
+        return self.__V_final_si
 
-    @V_final.setter
-    def V_final(self, value):
-        awelogger.logger.warning('Cannot set V_final object.')
+    @V_final_si.setter
+    def V_final_si(self, value):
+        awelogger.logger.warning('Cannot set V_final_si object.')
 
     @property
     def V_init(self):

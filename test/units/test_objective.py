@@ -70,6 +70,7 @@ def we_expect_shooting_nodes_to_also_be_weighted(trial):
         message = 'unexpected discretization type'
         print_op.log_and_raise_error(message)
 
+
 def get_the_indices_of_the_relevant_variable_instances(V, var_type, var_to_find, include_shooting_nodes=False):
     relevant_indices = []
     for vdx in range(V.cat.shape[0]):
@@ -157,7 +158,6 @@ def test_that_cost_values_are_not_all_zero_in_default_problem(epsilon=1.e-4):
     return None
 
 
-
 def test_that_changing_the_weights_on_a_regularized_variable_influences_the_objective_predictably(epsilon=1.e-4):
 
     first_weight = 1.0
@@ -209,7 +209,6 @@ def test_that_changing_the_weights_on_a_regularized_variable_influences_the_obje
             error_message += str(idx) + " " + local_name + " (value 1: {: 0.4G}, value 2: {: 0.4G}, expected value 2: {: 0.4G}".format(float(local_term_1), float(local_term_2), float(factor * local_term_1))
             error_message += '\n'
             second_objective_term_relates_predictably_to_first_objective_term = False
-            pdb.set_trace()
 
     if not second_objective_term_relates_predictably_to_first_objective_term:
         print_op.log_and_raise_error(error_message)

@@ -49,15 +49,15 @@ def get_integration_test_inputs():
         raise Exception(message)
 
     # extract solution data
-    V_final = trial.optimization.V_opt
+    V_opt = trial.optimization.V_opt
     P = trial.optimization.p_fix_num
     model_variables = trial.model.variables
     model_parameters = trial.model.parameters
     dae = trial.model.get_dae()
 
     # build dae variables for t = 0 within first shooting interval
-    variables0 = struct_op.get_variables_at_time(trial.options['nlp'], V_final, None, model_variables, 0)
-    parameters = model_parameters(vertcat(P['theta0'], V_final['phi']))
+    variables0 = struct_op.get_variables_at_time(trial.options['nlp'], V_opt, None, model_variables, 0)
+    parameters = model_parameters(vertcat(P['theta0'], V_opt['phi']))
     x0, z0, p = dae.fill_in_dae_variables(variables0, parameters)
 
     return base_options, x0, z0, p, trial
@@ -67,7 +67,7 @@ def perform_collocation_integrator_test(base_options, x0, z0, p, trial, toleranc
 
     dae = trial.model.get_dae()
     Int_outputs = trial.optimization.integral_output_vals['opt']
-    V_final = trial.optimization.V_opt
+    V_opt = trial.optimization.V_opt
 
     # ===================================
     # TEST COLLOCATION INTEGRATOR
@@ -99,8 +99,8 @@ def perform_collocation_integrator_test(base_options, x0, z0, p, trial, toleranc
     qf = Ff['qf']
 
     # values should match up to nlp solver accuracy
-    test_dict = {'x': {'found': xf, 'expected': V_final['x', 1]},
-                 'z': {'found': dae.z(zf)['z'], 'expected': V_final['coll_var', 0, -1, 'z']},
+    test_dict = {'x': {'found': xf, 'expected': V_opt['x', 1]},
+                 'z': {'found': dae.z(zf)['z'], 'expected': V_opt['coll_var', 0, -1, 'z']},
                  'q': {'found': qf, 'expected': Int_outputs['int_out', 1]}
                  }
     test_dict = add_max_abs_error_to_dict(test_dict)
@@ -113,7 +113,7 @@ def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
 
     dae = trial.model.get_dae()
     Int_outputs = trial.optimization.integral_outputs_opt
-    V_final = trial.optimization.V_opt
+    V_opt = trial.optimization.V_opt
 
     # ===================================
     # TEST RK4-ROOT INTEGRATOR
@@ -147,8 +147,8 @@ def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
     qf = Ff['qf']
 
     # values should match up to nlp solver accuracy
-    test_dict = {'x': {'found': xf, 'expected': V_final['x', 1]},
-                 'z': {'found': dae.z(zf)['z'], 'expected': V_final['coll_var', 0, -1, 'z']},
+    test_dict = {'x': {'found': xf, 'expected': V_opt['x', 1]},
+                 'z': {'found': dae.z(zf)['z'], 'expected': V_opt['coll_var', 0, -1, 'z']},
                  'q': {'found': qf, 'expected': Int_outputs['int_out', 1]}
                  }
     test_dict = add_max_abs_error_to_dict(test_dict)

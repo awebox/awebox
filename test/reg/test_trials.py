@@ -155,11 +155,8 @@ def generate_options_dict():
     single_kite_options = set_ampyx_ap2_settings(single_kite_options)
     single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
-    # single_kite_options['model.system_bounds.x.dl_t'] = [-cas.inf, cas.inf]
-    # single_kite_options['model.system_bounds.x.ddl_t'] = [-cas.inf, cas.inf]
 
-    # single_kite_options['model.scaling.x.l_t'] = 100.
-    single_kite_options['solver.weights.q'] = 1e1
+    single_kite_options['solver.weights.q'] = 1e1 #1.e1
     single_kite_options['solver.weights.dq'] = 1.e-1
     single_kite_options['solver.weights.l_t'] = 1e-5
     single_kite_options['solver.weights.dl_t'] = 1e-3
@@ -167,8 +164,9 @@ def generate_options_dict():
     single_kite_options['solver.weights.dddl_t'] = 1e-1
     single_kite_options['solver.weights.coeff'] = 1e-6
     single_kite_options['solver.cost.fictitious.0'] = 1.e0
+    single_kite_options['solver.cost.fictitious.1'] = 1.e3
     single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    # single_kite_options['solver.cost_factor.power'] = 1e6
+    single_kite_options['solver.cost_factor.power'] = 1e7 #7 #2
     single_kite_options['solver.cost.tracking.0'] = 1.e2
     single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
     single_kite_options['solver.initialization.groundspeed'] = (13. + 32.)/2.
@@ -176,16 +174,17 @@ def generate_options_dict():
     basic_health_options = copy.deepcopy(single_kite_options)
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
     basic_health_options['nlp.n_k'] = 10
-    basic_health_options['nlp.collocation.name_constraints'] = False
-    basic_health_options['solver.health_check.when'] = 'always'
-    # basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['solver.health_check.when'] = 'always' #'failure_or_final'
     basic_health_options['solver.hippo_strategy'] = False
-    basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['solver.initialization.use_reference_to_check_scaling'] = True
     basic_health_options['solver.max_iter'] = 300
+    basic_health_options['solver.health_check.raise_exception'] = True
+    basic_health_options['nlp.collocation.name_constraints'] = True
+    basic_health_options['solver.health_check.spy_matrices'] = False
+    basic_health_options['solver.health_check.help_with_debugging'] = True
 
     zoh_options = copy.deepcopy(single_kite_options)
     zoh_options['nlp.collocation.u_param'] = 'zoh'
@@ -371,19 +370,13 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
     trial.print_cost_information()
-
-    pdb.set_trace()
-
-    pdb.set_trace()
-    trial.plot('level_3')
+    trial.plot('level_1')
     plt.show()
-
-
 
     return trial
 
-# test_single_kite()  #final_homotopy_step='initial')
-test_basic_health() #final_homotopy_step='initial')
+# test_single_kite()
+test_basic_health()
 # test_zoh()
 # test_drag_mode()
 # test_save_trial()

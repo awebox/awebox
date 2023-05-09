@@ -95,7 +95,7 @@ def compare_stats(sweep_dict, cosmetics, fig_name):
 
 def compare_parameters(plot_dict, cosmetics, fig_name):
 
-    interesting_params = ['l_s', 't_f', 'l_t_max','cmax']
+    interesting_params = ['l_s', 't_f', 'l_t_max', 'cmax']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_params)
 
 def compare_efficiency(plot_dict, cosmetics, fig_name):

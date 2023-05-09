@@ -121,8 +121,8 @@ def define_costs_to_update(P, formulation):
     tether_release_updates[0] = []
 
     power_updates = {}
-    power_updates[0] = ['power', 'psi', 'power_derivative']
-    power_updates[1] = []
+    power_updates[0] = ['power', 'psi', 'power_derivative', 'fictitious']
+    power_updates[1] = ['tracking']
 
     nominal_landing_updates = {}
     nominal_landing_updates[0] = ['nominal_landing', 'eta']
@@ -404,7 +404,7 @@ def create_empty_bound_update_schedule(model, nlp, formulation):
     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
         bound_schedule['dddl_t'] = {}
     # check if single_reelout phase fix
-    if nlp.V['theta','t_f'].shape[0] > 1:
+    if nlp.V['theta', 't_f'].shape[0] > 1:
         bound_schedule['dl_t'] = {}
         bound_schedule['l_t'] = {}
 

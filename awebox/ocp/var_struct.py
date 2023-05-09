@@ -101,9 +101,9 @@ def get_phase_fix_theta(variables_dict):
     entry_list = []
     for name in list(variables_dict['theta'].keys()):
         if name == 't_f':
-            entry_list.append(cas.entry('t_f', shape = (2,1)))
+            entry_list.append(cas.entry('t_f', shape=(2, 1)))
         else:
-            entry_list.append(cas.entry(name, shape = variables_dict['theta'][name].shape))
+            entry_list.append(cas.entry(name, shape=variables_dict['theta'][name].shape))
 
     theta = cas.struct_symSX(entry_list)
 

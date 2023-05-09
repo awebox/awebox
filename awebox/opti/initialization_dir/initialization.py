@@ -152,8 +152,8 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     return V_init
 
 
-def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
-    tf_guess = V_init['theta', 't_f']
+def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict):
+    tf_guess = V_init_si['theta', 't_f']
 
     # extract time grid
     tgrid_x = nlp.time_grids['x'](tf_guess)
@@ -171,8 +171,8 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
 
         for var_type in ['x', 'z']:
             for name in struct_op.subkeys(model.variables, var_type):
-                if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init.keys():
-                    V_init[var_type, ndx, name] = ret[name]
+                if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init_si.keys():
+                    V_init_si[var_type, ndx, name] = ret[name]
 
         if nlp.discretization == 'direct_collocation' and (ndx < n_k):
             for ddx in range(d):
@@ -183,9 +183,9 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
                 for var_type in ['x', 'z']:
                     for name in struct_op.subkeys(model.variables, var_type):
                         if name in ret.keys():
-                            V_init['coll_var', ndx, ddx, var_type, name] = ret[name]
+                            V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
 
-    return V_init
+    return V_init_si
 
 
 def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict):

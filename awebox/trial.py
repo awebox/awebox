@@ -271,7 +271,7 @@ class Trial(object):
             if theta != 't_f':
                 info = theta_info[theta]
                 dict_parameters[len(dict_parameters.keys())] = {parameter_label: info[0],
-                                                 optimal_label: str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
+                                                 optimal_label: str(round(self.__optimization.V_final_si['theta', theta].full()[0][0]*info[1],3)),
                                                  dimension_label: info[2]}
 
         print_op.print_dict_as_table(dict_parameters)
@@ -335,7 +335,7 @@ class Trial(object):
 
         # parametric sweep data
         solution_dict['V_opt'] = self.__optimization.V_opt
-        solution_dict['V_final'] = self.__optimization.V_final
+        solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
