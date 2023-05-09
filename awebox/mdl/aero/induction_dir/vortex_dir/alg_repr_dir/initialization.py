@@ -82,8 +82,6 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
 
     [Integral_outputs, Integral_outputs_fun] = nlp.integral_output_components
     int_out = Integral_outputs(Integral_outputs_fun(V_init_scaled, p_fix_num))
-    print_op.warn_about_temporary_functionality_alteration()
-    # which input (scaled or si) is this?
     tgrid_x = nlp.time_grids['x'](V_init_si['theta', 't_f'])
     tgrid_coll = nlp.time_grids['coll'](V_init_si['theta', 't_f'])
 

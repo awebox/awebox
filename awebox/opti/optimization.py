@@ -625,8 +625,6 @@ class Optimization(object):
                     print_op.base_print(message, level='warning')
 
             time_grids[grid] = nlp.time_grids[grid](safe_t_f)
-            print_op.warn_about_temporary_functionality_alteration()
-            # assume that time_grids computed for scaled t_f
             time_grids['ref'][grid] = nlp.time_grids[grid](self.__V_ref['theta', 't_f'])
 
         # set properties

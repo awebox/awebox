@@ -223,8 +223,6 @@ def get_dependent_params(geometry, geometry_data):
 
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-    # l_t = options['model']['scaling']['x']['l_t']
-    print_op.warn_about_temporary_functionality_alteration()
     length = options['solver']['initialization']['l_t']
     length_scaling = length / 2.
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
@@ -232,10 +230,7 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     flight_radius = estimate_flight_radius(options, architecture)
 
     altitude = float(estimate_altitude(options))
-    available_estimates = [flight_radius, altitude]
-    print_op.warn_about_temporary_functionality_alteration()
     q_scaling = altitude
-    # q_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
@@ -516,16 +511,12 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     if normal_vector_model == 'least_squares':
         n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
     elif normal_vector_model == 'binormal':
-        print_op.warn_about_temporary_functionality_alteration()
-        # length = options['model']['scaling']['x']['l_t']
         length = options['solver']['initialization']['l_t']
         n_vec_length_ref = number_of_kites * length**2.
     elif normal_vector_model == 'tether_parallel':
-        print_op.warn_about_temporary_functionality_alteration()
-        # length = options['model']['scaling']['x']['l_t']
         length = options['solver']['initialization']['l_t']
         n_vec_length_ref = length
-    else: # normal_vector_model == 'xhat':
+    else:  # normal_vector_model == 'xhat':
         n_vec_length_ref = 1.
     options_tree.append(('model', 'scaling', 'z', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
     options_tree.append(
@@ -984,8 +975,6 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     gravity_force = total_mass * gravity / float(architecture.number_of_kites)
 
     tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
-    print_op.warn_about_temporary_functionality_alteration()
-    # length = options['model']['scaling']['x']['l_t']
     length = options['solver']['initialization']['l_t']
     tension = tension_per_unit_length * length
 
@@ -1001,10 +990,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
 
     CD_tether = options['params']['tether']['cd']
     diam_t = options['solver']['initialization']['theta']['diam_t']
-
     length = options['solver']['initialization']['l_t']
-    # length = options['model']['scaling']['x']['l_t']
-    print_op.warn_about_temporary_functionality_alteration()
 
     tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * length
     options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
@@ -1068,12 +1054,8 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
 
     # extract length scaling information
     l_s_scaling = options['solver']['initialization']['theta']['l_s']
-    # l_t_scaling = options['model']['scaling']['x']['l_t']
     l_t_scaling = options['solver']['initialization']['l_t']
     l_i_scaling = options['solver']['initialization']['theta']['l_i']
-
-    print_op.warn_about_temporary_functionality_alteration()
-    # no difference
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling

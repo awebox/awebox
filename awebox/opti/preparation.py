@@ -198,7 +198,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
                 V_bounds['lb']['coll_var', :, :, 'u', name] = -cas.inf
                 V_bounds['ub']['coll_var', :, :, 'u', name] = cas.inf
 
-    print_op.warn_about_temporary_functionality_alteration()
     # if phase-fix, first free dl_t before introducing phase-fix in switch to power
     if nlp.V['theta', 't_f'].shape[0] > 1:
         V_bounds['lb']['x', :, 'dl_t'] = -1. * cas.inf
