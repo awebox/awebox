@@ -223,14 +223,24 @@ def get_dependent_params(geometry, geometry_data):
 
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-    length = options['solver']['initialization']['l_t']
-    length_scaling = length / 2.
-    options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
+    # whatever factors is used for length and q, are going to enter the KKT matrix entry (multiplier * constraint) as factor^2
 
     flight_radius = estimate_flight_radius(options, architecture)
 
+    length = options['solver']['initialization']['l_t']
+    # length_scaling = length / 4.  # <--
+    print_op.warn_about_temporary_functionality_alteration()
+    length_scaling = flight_radius
+    options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
+
+    # estimated_position = estimate_position_of_main_tether_end(options)
     altitude = float(estimate_altitude(options))
-    q_scaling = altitude
+    print_op.warn_about_temporary_functionality_alteration()
+    # # q_scaling = altitude
+    # # q_scaling = cas.vertcat(estimated_position[0], flight_radius, estimated_position[2])
+    q_scaling = flight_radius  # <--
+    # q_scaling = length_scaling
+    # q_scaling = altitude
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
@@ -309,6 +319,10 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
         coeff_max = cas.DM(options['model']['system_bounds']['x']['coeff'][1])
         coeff_scaling = coeff_max
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
+
+        dcoeff_max = cas.DM(options['model']['system_bounds']['u']['dcoeff'][1])
+        dcoeff_scaling = dcoeff_max
+        options_tree.append(('model', 'scaling', 'u', 'dcoeff', dcoeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds', 'aero_validity', 'include', False,
                              ('do not include aero validity for roll control', None), 'x'))
@@ -995,17 +1009,6 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     tether_drag_force = 0.5 * CD_tether * (0.25 * q_altitude) * diam_t * length
     options_tree.append(('model', 'scaling', 'z', 'f_tether', tether_drag_force, ('scaling of tether drag forces', None),'x'))
 
-    stress = options['params']['tether']['max_stress']
-    strain = stress / options['params']['tether']['youngs_modulus']
-    elongation = strain * length
-    typical_holonomic_constraint = length * elongation
-
-    holonomic_g = typical_holonomic_constraint
-    holonomic_gdot = estimate_reelout_speed(options) * length
-
-    options_tree.append(('model', 'scaling', 'other', 'holonomic_g', holonomic_g, ('???', None), 'x'))
-    options_tree.append(('model', 'scaling', 'other', 'holonomic_gdot', holonomic_gdot, ('???', None), 'x'))
-
     return options_tree, fixed_params
 
 def get_gravity_ref(options):
@@ -1057,9 +1060,12 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     l_t_scaling = options['solver']['initialization']['l_t']
     l_i_scaling = options['solver']['initialization']['theta']['l_i']
 
+    cone_angle_deg = options['solver']['initialization']['max_cone_angle_multi']
+    cone_angle_rad = cone_angle_deg * np.pi / 180.
+
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling
-    tension_secondary = tension_main / architecture.number_of_kites
+    tension_secondary = tension_main / architecture.number_of_kites / np.cos(cone_angle_rad)
     lambda_s_scaling = tension_secondary / l_s_scaling
 
     # tension in the intermediate tethers is not constant

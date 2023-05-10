@@ -235,8 +235,10 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
 
     loyd_reelout_factor = 1. / 3.
     u_ref = parameters['theta0', 'wind', 'u_ref']
-    if '[x,dl_t,0]' in scaling.labels():
-        scaling_speed = scaling['x', 'dl_t']
+
+    plausible_speed_label = '[' + var_type_length + ',d' + length_sym + ',0]'
+    if plausible_speed_label in scaling.labels():
+        scaling_speed = scaling[var_type_length, 'd' + length_sym]
     else:
         scaling_speed = loyd_reelout_factor * u_ref
     props['scaling_speed'] = scaling_speed

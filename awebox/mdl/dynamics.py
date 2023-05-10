@@ -902,7 +902,7 @@ def generate_scaling(scaling_options, variables):
     # warn about potentially missing scaling information
     unset_set = []
     for idx in range(scaling.shape[0]):
-        if scaling.cat[idx] == cas.DM(1.):
+        if (scaling.cat[idx] == cas.DM(1.)) and ('t_f' not in scaling.labels()[idx]):
             local_label = scaling.labels()[idx]
             unset_set += [local_label]
 

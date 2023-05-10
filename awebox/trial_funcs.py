@@ -77,7 +77,7 @@ def interpolate_data(trial, freq):
     :return: dictionary with trial data, interpolation time grid
     """
 
-    tf = trial.optimization.V_final['theta', 't_f', 0]  # TODO: phase fix tf
+    tf = trial.optimization.V_final_si['theta', 't_f', 0]  # TODO: phase fix tf
     n_points = int(freq * tf) # number of interpolating points
 
     parametric_options = trial.options['visualization']['cosmetics']

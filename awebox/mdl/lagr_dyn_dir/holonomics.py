@@ -273,16 +273,29 @@ def get_constraint_lhs(g, gdot, gddot, parameters):
     return lagrangian_lhs_constraints
 
 
-def generate_holonomic_scaling(options, architecture, scaling, variables, parameters):
+def generate_holonomic_scaling(options, architecture, scaling, variables_si, parameters):
     holonomic_scaling = []
 
-    for n in range(1, architecture.number_of_nodes):
+    for node in range(1, architecture.number_of_nodes):
 
-        g_loc = options['scaling']['other']['holonomic_g']
-        gdot_loc = options['scaling']['other']['holonomic_gdot']
+        seg_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+        length = seg_properties['scaling_length']
+        speed = seg_properties['scaling_speed']
+        acceleration = seg_properties['scaling_acc']
+
+        # g_loc = 0.5 * length**2.
+        # gdot_loc = speed * length
+        # gddot_loc = (acceleration * length + speed**2.)
+
+        q_scaling = scaling['x', 'q' + architecture.node_label(node)]
+        q_scaling_mean = vect_op.sum(q_scaling) / q_scaling.shape[0]
+        g_loc = length * q_scaling_mean
+
+        gdot_loc = cas.DM(0.)
         gddot_loc = cas.DM(0.)
 
         loc_scaling = get_constraint_lhs(g_loc, gdot_loc, gddot_loc, parameters)
+
         holonomic_scaling = cas.vertcat(holonomic_scaling, loc_scaling)
 
     if architecture.number_of_kites > 1 and options['cross_tether']:

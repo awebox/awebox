@@ -202,24 +202,25 @@ def test_power_balance(trial, test_param_dict, results, input_values):
             originating_power_timeseries = np.zeros(tgrid.shape)
             max_abs_node_power = 1.e-15  # preclude any div-by-zero errors
 
-            node_has_children = node in list(trial.model.architecture.children_map.keys())
-            if not node_has_children:
-                list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred = list(power_balance.keys())
+            if node in trial.model.architecture.children_map.keys():
+                list_of_keys_where_power_is_transferred = ['P_tether' + str(child) for child in trial.model.architecture.children_map[node]]
             else:
-                list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred = []
-                for keyname in list(power_balance.keys()):
-                    tether_power_string = 'P_tether'
-                    is_a_tether_power = tether_power_string in keyname
-                    is_a_childs_tether_power = is_a_tether_power and (int(keyname[len(tether_power_string):]) in trial.model.architecture.children_map[node])
-                    if not is_a_childs_tether_power:
-                        list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred += [keyname]
+                list_of_keys_where_power_is_transferred = []
 
+            list_of_keys_where_power_arrives_at_node = []
             for keyname in list(power_balance.keys()):
-                timeseries = power_balance[keyname][0]
+                base_name, numeric_name = struct_op.split_name_and_node_identifier(keyname)
+                if str(numeric_name) == str(node) or str(numeric_name) == trial.model.architecture.node_label(node):
+                    list_of_keys_where_power_arrives_at_node += [keyname]
 
-            for keyname in list_of_keys_that_describe_where_power_originates_and_is_not_simply_transferred:
+            for keyname in list_of_keys_where_power_arrives_at_node:
                 timeseries = power_balance[keyname][0]
                 originating_power_timeseries += timeseries
+                max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
+
+            for keyname in list_of_keys_where_power_is_transferred:
+                timeseries = power_balance[keyname][0]
+                originating_power_timeseries -= timeseries
                 max_abs_node_power = np.max([np.max(np.abs(timeseries)), max_abs_node_power])
 
             scaled_norm_net_power = np.linalg.norm(originating_power_timeseries) / max_abs_node_power
@@ -232,14 +233,14 @@ def test_power_balance(trial, test_param_dict, results, input_values):
         scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
         balance['total'] = scaled_norm_system_net_power
 
-        for node in list(balance.keys()):
-            if node == 'total' and balance[node] > test_param_dict['power_balance_thresh']:
-                message = 'energy balance for node ' + str(node) + ' of trial ' + trial.name +  ' not consistent. ' \
-                          + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
-                awelogger.logger.warning(message)
-                results['energy_balance' + str(node)] = False
-            else:
-                results['energy_balance' + str(node)] = True
+        if balance['total'] > test_param_dict['power_balance_thresh']:
+            message = 'total energy balance of trial ' + trial.name + ' not consistent. ' \
+                      + str(balance['total']) + ' > ' + str(test_param_dict['power_balance_thresh'])
+            awelogger.logger.warning(message)
+            results['energy_balance' + 'total'] = False
+            pdb.set_trace()
+        else:
+            results['energy_balance' + 'total'] = True
 
     return results
 
