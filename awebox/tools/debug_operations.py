@@ -83,6 +83,16 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
         awelogger.logger.info(message)
 
     elif (not problem_is_healthy) and health_solver_options['help_with_debugging']:
+
+        if ('power' in iterations.keys()) and ('final' not in iterations.keys()):
+            awelogger.logger.warning('')
+            message = 'this unhealthy behavior seems to appear in the power portion of the homotopy.'
+            print_op.base_print(message, level='warning')
+            message = 'if so, it is strongly recommended to re-tune the values of:'
+            print_op.base_print(message, level='warning')
+            message = 'solver.cost.tracking.0, solver.cost.tracking.1, and solver.cost_factor.power'
+            print_op.base_print(message, level='warning')
+
         if not (exact_licq_holds and licq_holds):
             if not exact_licq_holds:
                 awelogger.logger.warning('')
@@ -98,9 +108,10 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
         if not sosc_holds:
             awelogger.logger.warning('')
-            message = 'second order sufficient conditions appear not to be met at solution. please check if all ' \
-                      'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
-            awelogger.logger.warning(message)
+            message = 'second order sufficient conditions appear not to be met at solution. please check if all'
+            print_op.base_print(message, level='warning')
+            message = 'states/controls/parameters have enough regularization, and if all lifted variables are constrained.'
+            print_op.base_print(message, level='warning')
 
         if problem_is_ill_conditioned:
             awelogger.logger.warning('')

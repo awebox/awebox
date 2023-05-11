@@ -54,11 +54,18 @@ def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     return V_init
 
 
-def initialize_multipliers_to_nonzero(V_init):
-    if 'z' in list(V_init.keys()):
-        V_init['z', :] = 1.
-    if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var', :, :, 'z'] = 1.
+def initialize_multipliers_to_nonzero(V_init, model):
+
+    for var_name in struct_op.subkeys(model.variables, 'z'):
+        if 'lambda' in var_name:
+            si_value = model.scaling['z', var_name]
+        else:
+            si_value = cas.DM.ones(model.variables['z', var_name].shape)
+
+        if 'z' in list(V_init.keys()):
+            V_init['z', :] = si_value
+        if 'coll_var' in list(V_init.keys()):
+            V_init['coll_var', :, :, 'z'] = si_value
 
     return V_init
 
@@ -66,33 +73,33 @@ def initialize_multipliers_to_nonzero(V_init):
 def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     V = nlp.V
-    V_init = V(0.0)
+    V_init_si = V(0.0)
 
     # set lagrange multipliers different from zero to avoid singularity
-    V_init = initialize_multipliers_to_nonzero(V_init)
+    V_init_si = initialize_multipliers_to_nonzero(V_init_si, model)
 
     if not init_options['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
         init_options = standard.precompute_path_parameters(init_options, model)
 
-    ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init)
-    V_init = set_normalized_time_params(init_options, formulation, V_init)
+    ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init_si)
+    V_init_si = set_normalized_time_params(init_options, formulation, V_init_si)
 
-    V_init = set_final_time(init_options, V_init, model, formulation, ntp_dict)
+    V_init_si = set_final_time(init_options, V_init_si, model, formulation, ntp_dict)
 
-    V_init = extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict)
+    V_init_si = extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict)
 
-    V_init = induction.initial_guess_induction(init_options, nlp, model, V_init, p_fix_num)
+    V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
-    V_init = set_xdot(V_init, nlp)
+    V_init_si = set_xdot(V_init_si, nlp)
 
     # specified initial values for system parameters
-    V_init = set_nontime_system_parameters(init_options, model, V_init)
+    V_init_si = set_nontime_system_parameters(init_options, model, V_init_si)
 
     # initial values for homotopy parameters
     for name in list(model.parameters_dict['phi'].keys()):
-        V_init['phi', name] = 1.
+        V_init_si['phi', name] = 1.
 
-    return V_init
+    return V_init_si
 
 
 def get_normalized_time_param_dict(nlp, formulation, init_options, V_init):

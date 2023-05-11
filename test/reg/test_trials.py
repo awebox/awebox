@@ -165,10 +165,8 @@ def generate_options_dict():
     single_kite_options['solver.cost.fictitious.0'] = 1.e0
     single_kite_options['solver.cost.fictitious.1'] = 1.e3
     single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    single_kite_options['solver.cost_factor.power'] = 1e8
-    single_kite_options['solver.cost.tracking.0'] = 1.e2
+    single_kite_options['solver.cost_factor.power'] = 1e3
     single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
-    # single_kite_options['solver.initialization.groundspeed'] = (13. + 32.)/2.
 
     basic_health_options = copy.deepcopy(single_kite_options)
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
@@ -198,10 +196,7 @@ def generate_options_dict():
 
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
-    # dual_kite_options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
-    # dual_kite_options['solver.cost.fictitious.0'] = 1.e-1
-    # dual_kite_options['solver.cost.fictitious.1'] = 1.e3
-    # dual_kite_options['solver.cost.tracking.0'] = 1.e3
+    dual_kite_options['solver.cost_factor.power'] = 1e4
 
     dual_kite_basic_health_options = copy.deepcopy(dual_kite_options)
     dual_kite_basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
@@ -351,6 +346,10 @@ def run_a_solve_and_check_test(trial_name, final_homotopy_step='final'):
     # evaluate results
     evaluate_results(trial.quality.results, trial_name)
 
+    if not trial.optimization.solve_succeeded:
+        message = 'optimization of trial ' + trial_name + ' failed'
+        raise Exception(message)
+
     return None
 
 
@@ -379,13 +378,14 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
     return trial
 
-test_single_kite()
+
+# test_single_kite()
 # test_basic_health()
 # test_zoh()
 # test_drag_mode()
 # test_save_trial()
-test_dual_kite(final_homotopy_step='fictitious')
-# test_dual_kite_basic_health(final_homotopy_step='initial')
+# test_dual_kite()
+# test_dual_kite_basic_health()
 # test_small_dual_kite()
 # test_large_dual_kite()
 # test_dual_kite_6_dof()

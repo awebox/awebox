@@ -127,8 +127,8 @@ def extract_basic_geometry_params(geometry_options, geometry_data):
 
 def get_geometry_params(basic_options_params, geometry_options, geometry_data):
 
-    basic_params = ['s_ref','b_ref','c_ref','ar']
-    dependent_params = ['s_ref','b_ref','c_ref','ar','m_k','j','c_root','c_tip','length','height']
+    basic_params = ['s_ref', 'b_ref', 'c_ref', 'ar']
+    dependent_params = ['s_ref', 'b_ref', 'c_ref', 'ar', 'm_k', 'j', 'c_root', 'c_tip', 'length', 'height']
 
     # initialize geometry
     geometry = {}
@@ -156,6 +156,7 @@ def get_geometry_params(basic_options_params, geometry_options, geometry_data):
             geometry[name] = geometry_data[name]
 
     return geometry
+
 
 def get_basic_params(geometry, basic_options_params,geometry_data):
 
@@ -208,6 +209,7 @@ def get_basic_params(geometry, basic_options_params,geometry_data):
 
     return geometry
 
+
 def get_dependent_params(geometry, geometry_data):
 
     geometry['m_k'] = geometry['s_ref']/geometry_data['s_ref'] * geometry_data['m_k']  # [kg]
@@ -221,26 +223,15 @@ def get_dependent_params(geometry, geometry_data):
 
     return geometry
 
+
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
-    # whatever factors is used for length and q, are going to enter the KKT matrix entry (multiplier * constraint) as factor^2
-
-    flight_radius = estimate_flight_radius(options, architecture)
-
     length = options['solver']['initialization']['l_t']
-    # length_scaling = length / 4.  # <--
-    print_op.warn_about_temporary_functionality_alteration()
-    length_scaling = flight_radius
+    length_scaling = length
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
 
-    # estimated_position = estimate_position_of_main_tether_end(options)
     altitude = float(estimate_altitude(options))
-    print_op.warn_about_temporary_functionality_alteration()
-    # # q_scaling = altitude
-    # # q_scaling = cas.vertcat(estimated_position[0], flight_radius, estimated_position[2])
-    q_scaling = flight_radius  # <--
-    # q_scaling = length_scaling
-    # q_scaling = altitude
+    q_scaling = altitude
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
@@ -1052,7 +1043,7 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     # set lambda_scaling
     options_tree.append(('model', 'scaling', 'z', 'lambda10', lambda_scaling, description, 'x'))
 
-    # extract architecure options
+    # extract architecture options
     layers = architecture.layers
 
     # extract length scaling information
@@ -1062,10 +1053,11 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
 
     cone_angle_deg = options['solver']['initialization']['max_cone_angle_multi']
     cone_angle_rad = cone_angle_deg * np.pi / 180.
+    cone_angle_correction = 1. / np.cos(cone_angle_rad)
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling
-    tension_secondary = tension_main / architecture.number_of_kites / np.cos(cone_angle_rad)
+    tension_secondary = tension_main / architecture.number_of_kites * cone_angle_correction
     lambda_s_scaling = tension_secondary / l_s_scaling
 
     # tension in the intermediate tethers is not constant
@@ -1282,7 +1274,6 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
 
     power = estimate_power(options, architecture)
     reelout_speed = estimate_reelout_speed(options)
-
     tension_estimate_via_power = float(power/reelout_speed)
 
     aero_force_per_kite = estimate_aero_force(options, architecture)
@@ -1306,7 +1297,7 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     tension_estimate_via_min_force = options['params']['model_bounds']['tether_force_limits'][0]
     tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
 
-    available_estimates = [tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_power, tension_estimate_via_force_summation, tension_estimate_via_min_force]
+    available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_force_summation, tension_estimate_via_min_force]
     tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     multiplier = tension_estimate / length

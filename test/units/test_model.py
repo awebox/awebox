@@ -750,6 +750,7 @@ def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consi
     if not use_consistent_inputs:
         initial_si['q10'] = 80 * vect_op.xhat_dm()
         initial_si['dq10'] = 50. + initial_si['q10']
+        initial_si['lambda10'] = 4.
 
     model = build_pendulum_or_pseudo_atwood_test_model(system_parameters)
 
