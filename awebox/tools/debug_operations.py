@@ -88,9 +88,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
             awelogger.logger.warning('')
             message = 'this unhealthy behavior seems to appear in the power portion of the homotopy.'
             print_op.base_print(message, level='warning')
-            message = 'if so, it is strongly recommended to re-tune the values of:'
-            print_op.base_print(message, level='warning')
-            message = 'solver.cost.tracking.0, solver.cost.tracking.1, and solver.cost_factor.power'
+            message = 'if so, it is strongly recommended to re-tune the values of: solver.cost_factor.power'
             print_op.base_print(message, level='warning')
 
         if not (exact_licq_holds and licq_holds):

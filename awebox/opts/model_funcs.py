@@ -127,8 +127,8 @@ def extract_basic_geometry_params(geometry_options, geometry_data):
 
 def get_geometry_params(basic_options_params, geometry_options, geometry_data):
 
-    basic_params = ['s_ref', 'b_ref', 'c_ref', 'ar']
-    dependent_params = ['s_ref', 'b_ref', 'c_ref', 'ar', 'm_k', 'j', 'c_root', 'c_tip', 'length', 'height']
+    # basic_params = ['s_ref', 'b_ref', 'c_ref', 'ar']
+    # dependent_params = ['s_ref', 'b_ref', 'c_ref', 'ar', 'm_k', 'j', 'c_root', 'c_tip', 'length', 'height']
 
     # initialize geometry
     geometry = {}
@@ -230,15 +230,17 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     length_scaling = length
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
 
-    altitude = float(estimate_altitude(options))
-    q_scaling = altitude
+    position = estimate_position_of_main_tether_end(options)
+    flight_radius = estimate_flight_radius(options, architecture)
+    q_scaling = cas.vertcat(position[0], flight_radius, position[2])
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     groundspeed = options['solver']['initialization']['groundspeed']
-    dq_scaling = groundspeed
+    # dq_scaling = groundspeed
+    u_altitude = get_u_at_altitude(options, position[2])
+    dq_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
-    u_altitude = get_u_at_altitude(options, altitude)
     dl_t_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
@@ -1051,9 +1053,10 @@ def generate_lambda_scaling_tree(options, options_tree, lambda_scaling, architec
     l_t_scaling = options['solver']['initialization']['l_t']
     l_i_scaling = options['solver']['initialization']['theta']['l_i']
 
-    cone_angle_deg = options['solver']['initialization']['max_cone_angle_multi']
-    cone_angle_rad = cone_angle_deg * np.pi / 180.
-    cone_angle_correction = 1. / np.cos(cone_angle_rad)
+    # it's tempting to put a cosine correction in here, but then using the
+    # resulting scaling values to set the initialization will lead to the
+    # max-tension-force path constraints being violated right-away. so: don't do it.
+    cone_angle_correction = 1.
 
     #  secondary tether scaling
     tension_main = lambda_scaling * l_t_scaling

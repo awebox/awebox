@@ -30,7 +30,7 @@ _python-3.5 / casadi-3.4.5
 
 import copy
 import pdb
-
+import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
@@ -85,32 +85,81 @@ def get_reference(nlp, model, V_init, options):
                                                                                 V_init['coll_var', k, j, 'x', 'q' + str(parent) + str(grandparent)],
                                                                                 n, parent)
 
-    if options['initialization']['use_reference_to_check_scaling']:
-        check_order_of_magnitudes_of_reference_values(V_ref, model_scaling=model.scaling)
-
     return V_ref
 
 
-def check_order_of_magnitudes_of_reference_values(V_ref, orders_of_magnitude_threshold=1., zero_threshold=1e-8, model_scaling=None):
+def check_reference(options, V_ref, p_fix_num, nlp):
+    orders_of_magnitude = options['initialization']['check_scaling']['orders_of_magnitude']
+    zero_value_threshold = options['initialization']['check_scaling']['zero_value_threshold']
+    check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=orders_of_magnitude, zero_value_threshold=zero_value_threshold)
+    check_reference_feasibility(options, V_ref, p_fix_num, nlp=nlp)
+    return None
+
+
+def check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=1, zero_value_threshold=1.e-8):
 
     desirable = 1.
-    minimum = desirable / 10.**orders_of_magnitude_threshold
-    maximum = desirable * 10.**orders_of_magnitude_threshold
+    minimum = desirable * 10.**(-1. * orders_of_magnitude)
+    maximum = desirable * 10.**(+1. * orders_of_magnitude)
 
-    unreasonably_scaled = {}
+    larger_than_max = []
+    smaller_than_min = []
+    for idx in range(V_ref.shape[0]):
+        local_val = float(V_ref.cat[idx])
+        local_is_zero = np.abs(local_val) < zero_value_threshold
+        local_larger_than_max = np.abs(local_val) > maximum
+        local_smaller_than_min = (np.abs(local_val) < minimum) and not local_is_zero
+        larger_than_max += [local_larger_than_max]
+        smaller_than_min += [local_smaller_than_min]
 
-    for vdx in range(V_ref.cat.shape[0]):
-        local_value = V_ref.cat[vdx]
-        has_zero_value = local_value.is_zero() or (abs(local_value) < zero_threshold)
-        within_desirable_range = (abs(local_value) > minimum) and (abs(local_value) < maximum)
-        if not (has_zero_value or within_desirable_range):
-            unreasonably_scaled[str(V_ref.getCanonicalIndex(vdx))] = local_value
+    warning_message_start = 'some (scaled) reference values are more than '
+    warning_message_start += str(orders_of_magnitude) + ' orders of magnitude '
+    warning_message_end = ' than the goal value (' + str(desirable) + '). you may want '
+    warning_message_end += 'to consider adjusting either the initialization or the scaling of:'
 
-    some_variables_unreasonably_scaled = len(unreasonably_scaled.keys()) > 0
-    if some_variables_unreasonably_scaled:
-        message = "some of the reference values used here, indicate that variable scaling could be improved for better performance"
+    if any(larger_than_max):
+        message = warning_message_start + 'larger' + warning_message_end
         print_op.base_print(message, level='warning')
-        print_op.print_dict_as_table(unreasonably_scaled, level='warning')
+
+        dict_larger_than_max = {}
+        for idx in range(len(larger_than_max)):
+            if larger_than_max[idx]:
+                dict_larger_than_max[V_ref.labels()[idx]] = V_ref.cat[idx]
+        print_op.print_dict_as_table(dict_larger_than_max, level='warning')
+
+    if any(smaller_than_min):
+        message = warning_message_start + 'smaller' + warning_message_end
+        print_op.base_print(message, level='warning')
+        dict_smaller_than_min = {}
+
+        for idx in range(len(smaller_than_min)):
+            if smaller_than_min[idx]:
+                dict_smaller_than_min[V_ref.labels()[idx]] = V_ref.cat[idx]
+        print_op.print_dict_as_table(dict_smaller_than_min, level='warning')
+
+    return None
+
+
+def check_reference_feasibility(solver_options, V_ref, p_fix_num, nlp):
+    name_list = nlp.ocp_cstr_list.get_name_list('ineq')
+    ineq_cstr_fun = nlp.ocp_cstr_list.get_function(solver_options, nlp.V, nlp.P, 'ineq')
+    ineq_vals = ineq_cstr_fun(V_ref, p_fix_num)
+    path_constraint_theshold = solver_options['initialization']['check_feasibility']['path_constraint_threshold']
+
+    is_violated = []
+    for idx in range(ineq_vals.shape[0]):
+        local_is_violated = ineq_vals[idx] > path_constraint_theshold
+        is_violated += [local_is_violated]
+
+    if any(is_violated):
+        message = 'path constraints are violated at'
+        print_op.base_print(message, level='warning')
+
+        dict_is_violated = {}
+        for idx in range(len(is_violated)):
+            if is_violated[idx]:
+                dict_is_violated[name_list[idx]] = ineq_vals[idx]
+        print_op.print_dict_as_table(dict_is_violated, level='warning')
 
     return None
 

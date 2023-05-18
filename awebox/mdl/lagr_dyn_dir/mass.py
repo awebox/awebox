@@ -59,7 +59,7 @@ def generate_mass_outputs(options, variables_si, outputs, parameters, architectu
 #  MASS SCALING METHODS
 # =====================
 
-def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architecture, scaling):
+def estimate_node_mass_scaling(options, variables_si, parameters, architecture, scaling):
 
     number_of_nodes = architecture.number_of_nodes
     kite_mass = parameters['theta0', 'geometry', 'm_k']
@@ -67,7 +67,7 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
     # this will be used to scale the forces,
     # so we need to repeat the scaling forces 3x, once per dimension for force.
     # and, only on those nodes for which we will construct dynamics equations via. Lagrangian mechanics
-    mass_ratio_stacked = []
+    scaling_mass_stacked = []
     for node in range(1, number_of_nodes):
 
         node_mass = cas.DM(0.)
@@ -86,10 +86,22 @@ def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architec
         if node in architecture.kite_nodes:
             node_mass += kite_mass
 
-        mass_ratio = kite_mass / node_mass
-        three_dimensional_mass_ratio = cas.DM.ones((3, 1)) * mass_ratio
+        three_dimensional_mass = cas.DM.ones((3, 1)) * node_mass
 
-        mass_ratio_stacked = cas.vertcat(mass_ratio_stacked, three_dimensional_mass_ratio)
+        scaling_mass_stacked = cas.vertcat(scaling_mass_stacked, three_dimensional_mass)
+
+    return scaling_mass_stacked
+
+
+def generate_kite_to_node_mass_ratio(options, variables_si, parameters, architecture, scaling):
+
+    kite_mass = parameters['theta0', 'geometry', 'm_k']
+
+    node_mass_scaling = estimate_node_mass_scaling(options, variables_si, parameters, architecture, scaling)
+    mass_ratio_stacked = []
+    for mdx in range(node_mass_scaling.shape[0]):
+        local_ratio = kite_mass / node_mass_scaling[mdx]
+        mass_ratio_stacked = cas.vertcat(mass_ratio_stacked, local_ratio)
 
     return mass_ratio_stacked
 

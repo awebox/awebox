@@ -53,8 +53,10 @@ def initialize_arg(nlp, formulation, model, options, schedule):
         V_init = initialization_modular.get_initial_guess(nlp, model, formulation, options['initialization'])
 
     V_ref = reference.get_reference(nlp, model, V_init, options)
-
     p_fix_num = add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init, options)
+
+    if options['initialization']['check_reference']:
+        reference.check_reference(options, V_ref, p_fix_num, nlp)
 
     [V_bounds, g_bounds] = set_initial_bounds(nlp, model, formulation, options, V_init, schedule)
 

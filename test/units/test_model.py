@@ -496,7 +496,7 @@ def get_consistent_inputs_for_pseudo_atwood_problem(system_parameters):
     ddl_t_initial_si = gravity_si * fraction
 
     l_t_initial_si = length_unwound_si
-    dl_t_initial_si = 0.
+    dl_t_initial_si = 2.
 
     q_initial_si = -1. * length_unwound_si * zhat
     dq_initial_si = -1. * dl_t_initial_si * zhat
@@ -672,7 +672,7 @@ def get_arbitary_system_parameters(rod_has_mass=False, pendulum_or_pseudo_atwood
         'rod_density_si': rod_density_si}
     return pendulum_parameters
 
-def test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs(epsilon=1.):
+def test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs(epsilon=1.e-2):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=False,
                                                          rod_has_mass=False,
@@ -690,7 +690,7 @@ def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consis
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass(epsilon=1e-5):
+def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass(epsilon=1e-2):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=True,
                                                          rod_has_mass=True,
@@ -699,7 +699,7 @@ def test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consis
     return None
 
 
-def test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs(epsilon=1.):
+def test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs(epsilon=1.e-2):
     check_dynamics_with_known_inputs_in_known_situations(epsilon=epsilon,
                                                          use_consistent_inputs=False,
                                                          rod_has_mass=False,
@@ -737,7 +737,7 @@ def test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_p
 
 def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consistent_inputs=True, rod_has_mass=False, check_scaling_is_nontrivial=False, pendulum_or_pseudo_atwood='pendulum'):
     system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
-                                                       pendulum_or_pseudo_atwood='pendulum')
+                                                       pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
     if pendulum_or_pseudo_atwood == 'pendulum':
         initial_si = get_consistent_inputs_for_pendulum_problem(system_parameters)
@@ -772,18 +772,6 @@ def check_dynamics_with_known_inputs_in_known_situations(epsilon=1e-8, use_consi
         message += 'use_consistent_inputs = ' + str(use_consistent_inputs) + ', '
         message += 'rod_has_mass = ' + str(rod_has_mass) + ', '
         message += 'check_scaling_is_nontrivial = ' + str(check_scaling_is_nontrivial)
-
-        # all_outputs = model.outputs(model.outputs_fun(model.variables, model.parameters))
-        # types_of_energy = ['e_potential', 'e_kinetic']
-        # for e_type in types_of_energy:
-        #     for source in struct_op.subkeys(all_outputs, e_type):
-        #         local_energy = all_outputs[e_type, source]
-        #
-        #         print(e_type + ' ' + source)
-        #         local_energy_fun = casadi.Function('local_energy_fun', [model.variables, model.parameters],
-        #                                            [local_energy])
-        #         print(local_energy)
-        #         print(local_energy_fun(variables, parameters))
 
         raise Exception(message)
 
@@ -879,6 +867,8 @@ def test_idas_dae_integration(epsilon=1.e-2):
 
 def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
 
+    make_plot = False
+
     problem_name = pendulum_or_pseudo_atwood + '_rod_has_mass_' + str(rod_has_mass) + '_frictionless_' + str(frictionless)
 
     system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
@@ -894,19 +884,23 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
 
     model = build_pendulum_or_pseudo_atwood_test_model(system_parameters, frictionless=frictionless)
 
-    potential_energy_fun, kinetic_energy_fun, total_energy_fun = create_energy_functions(model)
-    e_stacked = cas.vertcat(potential_energy_fun(model.variables, model.parameters), kinetic_energy_fun(model.variables, model.parameters), total_energy_fun(model.variables, model.parameters))
-    e_stacked_fun = cas.Function('e_stacked_fun', [model.variables, model.parameters], [e_stacked])
+    if make_plot:
+        potential_energy_fun, kinetic_energy_fun, total_energy_fun = create_energy_functions(model)
+        e_stacked = cas.vertcat(potential_energy_fun(model.variables, model.parameters), kinetic_energy_fun(model.variables, model.parameters), total_energy_fun(model.variables, model.parameters))
+        e_stacked_fun = cas.Function('e_stacked_fun', [model.variables, model.parameters], [e_stacked])
 
     if pendulum_or_pseudo_atwood == 'pendulum':
         rough_total_time = 30.
+        ideal_number_of_steps_per_period = 10**2
+
     elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
-        rough_total_time = 4.
+        rough_total_time = get_pseudo_atwood_integration_time()
+        ideal_number_of_steps_per_period = 10**3
+
     else:
         message = 'probable spelling error in system type'
         raise Exception(message)
 
-    ideal_number_of_steps_per_period = 100
     delta_t = 1. / float(ideal_number_of_steps_per_period)
 
     dae = model.get_dae()
@@ -924,14 +918,12 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
     F_idas_history = cas.integrator('F', 'idas', dae_dict, options)
     x1 = x0
     z1 = z0
-    # q_history = []
-    t_history = []
-    # e_history = []
-    #
-    # var_local_si = struct_op.variables_scaled_to_si(model.variables, var_init_scaled, model.scaling)
-    # q_history = cas.horzcat(q_history, var_local_si['x', 'q10'])
-    t_history += [0.]
-    # e_history = cas.horzcat(e_history, e_stacked_fun(var_init_scaled, param_init_scaled))
+
+    t_history = [0.]
+    if make_plot:
+        var_local_si = struct_op.variables_scaled_to_si(model.variables, var_init_scaled, model.scaling)
+        q_history = var_local_si['x', 'q10']
+        e_history = e_stacked_fun(var_init_scaled, param_init_scaled)
 
     tdx = 0
     while t_history[-1] < rough_total_time:
@@ -944,67 +936,75 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
         var_local_scaled['u'] = compute_new_controls_scaled(system_parameters, model, var_local_scaled, pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
         x1, z1, p = dae.fill_in_dae_variables(var_local_scaled, param_init_scaled)
 
-        # var_local_si = struct_op.variables_scaled_to_si(model.variables, var_local_scaled, model.scaling)
-        # q_history = cas.horzcat(q_history, var_local_si['x', 'q10'])
         t_history += [t_history[-1] + step_time]
-        # e_history = cas.horzcat(e_history, e_stacked_fun(var_local_scaled, param_init_scaled))
+
+        if make_plot:
+            var_local_si = struct_op.variables_scaled_to_si(model.variables, var_local_scaled, model.scaling)
+            q_history = cas.horzcat(q_history, var_local_si['x', 'q10'])
+            e_history = cas.horzcat(e_history, e_stacked_fun(var_local_scaled, param_init_scaled))
 
         tdx += 1
 
-    # qx = np.array(q_history[0, :]).T
-    # qz = np.array(q_history[2, :]).T
-    # e_pot = np.array(e_history[0, :]).T
-    # e_kin = np.array(e_history[1, :]).T
-    # e_sum = np.array(e_history[2, :]).T
-    #
-    # plt.close('all')
-    #
-    # fig, ax = plt.subplots()
-    # ax.plot(qx, qz)
-    # if pendulum_or_pseudo_atwood == 'pendulum':
-    #     plot_axes_limits = np.array([-system_parameters['length_si'], system_parameters['length_si']])
-    #     ax.set_xlim(-1 * plot_axes_limits)
-    #
-    # elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
-    #     max_length = 1.2 * np.max(np.abs(qz))
-    #     plot_axes_limits = np.array([-max_length, 0.])
-    #     ax.set_xlim([-max_length/2., max_length/2.])
-    #
-    # else:
-    #     message = 'spelling mistake.'
-    #     raise Exception(message)
-    #
-    # ax.set_ylim(plot_axes_limits)
-    #
-    # ax.axes.set_aspect('equal')
-    # ax.set_xlabel('x [m]')
-    # ax.set_ylabel('z [m]')
-    # ax.set_title('position in 2D space' + '\n' + 'of point-mass over integration period')
-    # plt.savefig(problem_name + '_position.pdf', format='pdf')
-    #
-    # # Create two subplots and unpack the output array immediately
-    # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-    # ax1.plot(t_history, qz)
-    # ax2.plot(t_history, qx)
-    # ax1.set_ylabel('z [m]')
-    # ax2.set_ylabel('x [m]')
-    # ax2.set_xlabel('t [s]')
-    # ax1.set_title('z (top) and x (bottom) coordinates' + '\n' + 'of point-mass over integration period')
-    # plt.savefig(problem_name + '_coordinates.pdf', format='pdf')
-    #
-    # # Create three subplots and unpack the output array immediately
-    # f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
-    # ax1.plot(t_history, e_pot)
-    # ax2.plot(t_history, e_kin)
-    # ax3.plot(t_history, e_sum)
-    # ax1.set_ylabel('potential [J]')
-    # ax2.set_ylabel('kinetic [J]')
-    # ax3.set_ylabel('total [J]')
-    # ax3.set_xlabel('t [s]')
-    # ax1.set_title('potential (top), kinetic (middle) and total (bottom) energy' + '\n' + 'of point-mass over integration period')
-    # # plt.savefig(problem_name + '_energy.pdf', format='pdf')
-    #
-    # # plt.show()
+    print('')
+
+    if make_plot:
+        qx = np.array(q_history[0, :]).T
+        qz = np.array(q_history[2, :]).T
+        e_pot = np.array(e_history[0, :]).T
+        e_kin = np.array(e_history[1, :]).T
+        e_sum = np.array(e_history[2, :]).T
+
+        plt.close('all')
+
+        fig, ax = plt.subplots()
+        ax.plot(qx, qz)
+        if pendulum_or_pseudo_atwood == 'pendulum':
+            plot_axes_limits = np.array([-system_parameters['length_si'], system_parameters['length_si']])
+            ax.set_xlim(-1 * plot_axes_limits)
+
+        elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
+            max_length = 1.2 * np.max(np.abs(qz))
+            plot_axes_limits = np.array([-max_length, 0.])
+            ax.set_xlim([-max_length/2., max_length/2.])
+
+        else:
+            message = 'spelling mistake.'
+            raise Exception(message)
+
+        ax.set_ylim(plot_axes_limits)
+
+        ax.axes.set_aspect('equal')
+        ax.set_xlabel('x [m]')
+        ax.set_ylabel('z [m]')
+        ax.set_title('position in 2D space' + '\n' + 'of point-mass over integration period')
+        modifier = 'position'
+        plt.savefig(problem_name + '_' + modifier + '.pdf', format='pdf', dpi=300, bbox_inches="tight")
+
+        # Create two subplots and unpack the output array immediately
+        f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        ax1.plot(t_history, qz)
+        ax2.plot(t_history, qx)
+        ax1.set_ylabel('z [m]')
+        ax2.set_ylabel('x [m]')
+        ax2.set_xlabel('t [s]')
+        ax1.set_title('z (top) and x (bottom) coordinates' + '\n' + 'of point-mass over integration period')
+        modifier = 'coordinates'
+        plt.savefig(problem_name + '_' + modifier + '.pdf', format='pdf', dpi=300, bbox_inches="tight")
+
+        # Create three subplots and unpack the output array immediately
+        f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+        ax1.plot(t_history, e_pot)
+        ax2.plot(t_history, e_kin)
+        ax3.plot(t_history, e_sum)
+        ax1.set_ylabel('potential [J]')
+        ax2.set_ylabel('kinetic [J]')
+        ax3.set_ylabel('total [J]')
+        ax3.set_xlabel('t [s]')
+        ax1.set_title('potential (top), kinetic (middle) and total (bottom) energy' + '\n' + 'of point-mass over integration period')
+        modifier = 'energy'
+        plt.savefig(problem_name + '_' + modifier + '.pdf', format='pdf', dpi=300, bbox_inches="tight")
+
+        # plt.show()
 
     sol_report = sol_history
     integration_outputs = sol_report
@@ -1051,6 +1051,41 @@ def create_energy_functions(model):
     return potential_energy_fun, kinetic_energy_fun, total_energy_fun
 
 
+def get_pseudo_atwood_integration_time():
+    return 4.
+
+
+def check_that_arbitrary_pseudo_atwood_tf_doesnt_cause_problems(epsilon=2.):
+    rod_has_mass = False
+    frictionless = True
+    pendulum_or_pseudo_atwood = 'pseudo_atwood'
+
+    t_final = get_pseudo_atwood_integration_time()
+    system_parameters = get_arbitary_system_parameters(rod_has_mass=rod_has_mass,
+                                                       pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
+    initial_si = get_consistent_inputs_for_pseudo_atwood_problem(system_parameters)
+
+    l_t_init = initial_si['l_t']
+    dl_t_init = initial_si['dl_t']
+    gravity = system_parameters['gravity_si']
+    expected_z_final = -l_t_init - dl_t_init * t_final - 0.5 * gravity * t_final**2
+    expected_q_final = expected_z_final * vect_op.zhat_dm()
+
+    model, var_init_scaled, param_init_scaled, var_final_scaled = get_integration_test_setup(rod_has_mass=rod_has_mass,
+                                                                                             frictionless=frictionless,
+                                                                                             pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
+    var_final_si = struct_op.variables_scaled_to_si(model.variables, var_final_scaled, model.scaling)
+    found_q_final = var_final_si['x', 'q10']
+
+    diff = expected_q_final - found_q_final
+    condition = cas.mtimes(diff.T, diff) < epsilon**2.
+
+    if not condition:
+        message = 'something went wrong with the pseudo-atwood definite integral time-period'
+        raise Exception(message)
+    return None
+
+
 def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_mass=True, pendulum_or_pseudo_atwood='pendulum'):
 
     if frictionless and pendulum_or_pseudo_atwood == 'pendulum':
@@ -1093,8 +1128,6 @@ def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_ma
             message += ', when energy is lost to air-resistance,'
 
         message += " is not met."
-
-        pdb.set_trace()
 
         raise Exception(message)
     return None
@@ -1140,27 +1173,30 @@ def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massi
     return None
 
 
-# test_architecture()
-# test_drag_mode_model()
-# test_constraint_mechanism()
-# test_cross_tether_model()
-# test_tether_moments()
+test_architecture()
+test_drag_mode_model()
+test_constraint_mechanism()
+test_cross_tether_model()
+test_tether_moments()
+
+test_time_derivative_under_scaling()
+
+test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
+test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
+
+test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
+test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
+test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
 #
-# test_time_derivative_under_scaling()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
-#
-# test_idas_dae_integration()
-# test_that_dae_integration_actually_does_something()
-# test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod()
-# test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable()
-# test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable()
+test_idas_dae_integration()
+test_that_dae_integration_actually_does_something()
+check_that_arbitrary_pseudo_atwood_tf_doesnt_cause_problems()
+
+test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag()
+test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod()
+test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod()
+
+test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable()
+test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable()

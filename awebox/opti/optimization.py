@@ -698,6 +698,15 @@ class Optimization(object):
 
         return None
 
+    def get_failure_step(self):
+        homotopy_schedule_copy = copy.deepcopy(self.schedule['homotopy'])
+        homotopy_schedule_reverse = homotopy_schedule_copy[::-1]
+        for step_name in homotopy_schedule_reverse:
+            if (step_name in self.iterations.keys()) and not self.solve_succeeded:
+                return step_name
+
+        return None
+
     @property
     def status(self):
         return self.__status

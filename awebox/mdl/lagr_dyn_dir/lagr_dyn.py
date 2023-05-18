@@ -13,6 +13,7 @@ import awebox.mdl.lagr_dyn_dir.holonomics as holonomic_comp
 import awebox.mdl.lagr_dyn_dir.mass as mass_comp
 import awebox.mdl.lagr_dyn_dir.energy as energy_comp
 import awebox.mdl.lagr_dyn_dir.forces as forces_comp
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import numpy as np
 
@@ -88,19 +89,19 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_lhs_translation = dlagr_dqdot_si_dt - dlagr_dq_si
 
     # lagrangian momentum correction
-    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables,
-                                                         outputs, architecture, scaling)
+    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling)
 
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
     lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling
-    kite_to_node_mass_ratio = mass_comp.generate_kite_to_node_mass_ratio(options, system_variables['SI'], parameters, architecture, scaling)
-    forces_scaling = (1. / options['scaling']['z']['f_aero']) * kite_to_node_mass_ratio
+    node_mass_scaling = mass_comp.estimate_node_mass_scaling(options, system_variables['SI'], parameters, architecture, scaling)
+    force_scaling = node_mass_scaling * options['scaling']['other']['g'] * 10.
+    inverse_characteristic_forces = cas.inv(cas.diag(force_scaling))
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
-    dynamics_translation_scaled = cas.mtimes(cas.diag(forces_scaling), dynamics_translation_si)
+    dynamics_translation_scaled = cas.mtimes(inverse_characteristic_forces, dynamics_translation_si)
 
     dynamics_translation_cstr = cstr_op.Constraint(expr=dynamics_translation_scaled,
                                                    cstr_type='eq',
@@ -170,43 +171,37 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     return cstr_list, outputs
 
 
-def momentum_correction(options, generalized_coordinates, system_variables, outputs, architecture, scaling):
+def momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
     It is assumed that the tether mass is concentrated at the main tether node.
 
     See "Lagrangian Dynamics for Open Systems", R. L. Greene and J. J. Matese 1981, Eur. J. Phys. 2, 103.
+    and "AWEbox: An Optimal Control Framework for Single- and Multi-Aircraft Airborne Wind Energy Systems". De Schutter, et al. Energies 2023, 16, 1900. https://doi.org/10.3390/en16041900
 
     @return: lagrangian_momentum_correction - correction term that can directly be added to rhs of transl_dyn
     """
 
-    # initialize
-    xgc_scaled = generalized_coordinates['scaled']['xgc']
+    # momentum transfer rate
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, system_variables['SI'], parameters, 1)
+    mass = segment_properties['seg_mass']
+    mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
+
+    # # this is equivalent to:
+    # cross_section_area = segment_properties['cross_section_area']
+    # density = segment_properties['density']
+    # dl_t = system_variables['SI']['x']['dl_t']
+    # mass_flow = density * cross_section_area * dl_t
+
+    velocity = system_variables['SI']['x']['dq10']
+
+    # generalization
     xgcdot_scaled = generalized_coordinates['scaled']['xgcdot']
+    partial_local_qdot_partial_all_qdots = cas.jacobian(xgcdot_scaled['dq10'], xgcdot_scaled.cat).T
+    generalized_momentum_transfer_rate = mass_flow * cas.mtimes(partial_local_qdot_partial_all_qdots, velocity)
 
-    xgcdot_scaling_factors = []
-    for gc_name in xgc_scaled.keys():
-        scaling_factor_dq = scaling['x', 'd' + gc_name]
-        xgcdot_scaling_factors = cas.vertcat(xgcdot_scaling_factors, scaling_factor_dq)
-
-    lagrangian_momentum_correction = cas.DM.zeros(xgcdot_scaled.cat.shape)
-
-    for node in range(1, architecture.number_of_nodes):
-        label = str(node) + str(architecture.parent_map[node])
-        mass = outputs['masses']['m_tether{}'.format(node)]
-        mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
-
-        # velocity of the mass particles leaving the system
-        velocity = system_variables['SI']['x']['dq' + label]
-
-        material_d_velocity_dqdot = cas.mtimes(velocity.T, cas.jacobian(velocity, xgcdot_scaled.cat)).T
-        material_d_velocity_dqdot_si = cas.mtimes(cas.inv(cas.diag(xgcdot_scaling_factors)), material_d_velocity_dqdot)
-
-        # see formula in reference
-        lagrangian_momentum_correction += mass_flow * material_d_velocity_dqdot_si
-
-    return lagrangian_momentum_correction
+    return generalized_momentum_transfer_rate
 
 
 def generate_rotational_dynamics(options, variables, f_nodes, parameters, outputs, architecture):

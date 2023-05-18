@@ -305,6 +305,7 @@ def define_step_labels(formulation):
 def update_cost(schedule, step_name, counter, cost_update_counter, p_fix_num):
 
     costs_to_update = schedule['costs_to_update'][step_name][counter]
+
     for cost_name in costs_to_update:
         count_of_this_update = cost_update_counter[cost_name] + 1
 

@@ -473,7 +473,9 @@ def anticollision_inequality(options, variables, parameters, architecture):
             kite_b = kite_pair[1]
             parent_a = parent_map[kite_a]
             parent_b = parent_map[kite_b]
-            dist = variables['x']['q' + str(kite_a) + str(parent_a)] - variables['x']['q' + str(kite_b) + str(parent_b)]
+            vec_q_a = variables['x']['q' + str(kite_a) + str(parent_a)]
+            vec_q_b = variables['x']['q' + str(kite_b) + str(parent_b)]
+            dist = vec_q_a - vec_q_b
             dist_inequality = 1 - (cas.mtimes(dist.T, dist) / dist_min ** 2)
 
             anticollision_cstr = cstr_op.Constraint(expr=dist_inequality,

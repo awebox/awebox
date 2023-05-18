@@ -201,6 +201,7 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
 
     return mdl_shooting_cstr_sublist
 
+
 def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     cstr_list = cstr_op.OcpConstraintList()
