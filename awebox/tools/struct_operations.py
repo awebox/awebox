@@ -990,27 +990,23 @@ def find_output_idx(outputs, output_type, output_name, output_dim = 0):
 
 def get_variable_from_model_or_reconstruction(variables, var_type, name):
 
-    if var_type in variables.keys():
-        sub_variables = variables[var_type]
+    has_labels = hasattr(variables, 'labels')
+    combined_name_in_labels = has_labels and ('[' + var_type + ',' + name + ',0]' in variables.labels())
+    if combined_name_in_labels:
+        return variables[var_type, name]
 
-    try:
-        if isinstance(sub_variables, cas.MX):
-            local_var = variables[var_type, name]
-        elif isinstance(sub_variables, cas.structure3.SXStruct):
-            local_var = variables[var_type][name]
-        elif '[' + var_type + ',' + name + ',0]' in variables.labels():
-            local_var = variables[var_type, name]
-        elif isinstance(sub_variables, cas.DM):
-            local_var = variables[var_type, name]
-        else:
-            local_var = variables[var_type, name]
-    except:
-        message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
-        print_op.log_and_raise_error(message)
+    has_keys = hasattr(variables, 'keys')
+    var_type_in_keys = has_keys and (var_type in variables.keys())
+    has_subkeys = var_type_in_keys and hasattr(variables[var_type], 'keys')
+    var_name_in_subkeys = has_subkeys and (name in variables[var_type].keys())
+    if var_name_in_subkeys:
+        return variables[var_type][name]
 
-    return local_var
+    message = 'variable ' + name + ' is not in expected position (' + var_type + ') wrt variables.'
+    print_op.log_and_raise_error(message)
+    return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
+def interpolate_solution(local_options, time_grids, model_variables, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1072,11 +1068,16 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
         interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
 
     # output values
+    epsilon_periodic = 1.e-5
+    states_at_start = get_states_at_time(local_options, V_opt, model_variables, 0)
+    states_at_end = get_states_at_time(local_options, V_opt, model_variables, -1)
+    is_periodic = vect_op.norm(states_at_start - states_at_end)**2. < epsilon_periodic**2.
     interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
                                                    n_k, collocation_d,
                                                    collocation_scheme=collocation_scheme,
                                                    timegrid_label=timegrid_label,
-                                                   control_parametrization=control_parametrization)
+                                                   control_parametrization=control_parametrization,
+                                                   is_periodic=is_periodic)
 
     # integral-output values
     interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
@@ -1123,17 +1124,17 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
 
     return integral_outputs_interpolated
 
-def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip'):
+def interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly', timegrid_label='ip', is_periodic=True):
 
     # merge values
-    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization)
+    values, time_grid = merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, control_parametrization=control_parametrization, is_periodic=is_periodic)
 
     # interpolate
     values_ip = vect_op.spline_interpolation(time_grid, values, time_grids[timegrid_label])
     return values_ip
 
 
-def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly'):
+def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', timegrid_label='ip', control_parametrization='poly', is_periodic=True):
 
     outputs_interpolated = {}
 
@@ -1150,7 +1151,7 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretizatio
 
             for dim in range(outputs_dict[output_type][name].shape[0]):
                 # interpolate
-                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization)
+                values_ip = interpolate_outputs_by_index(time_grids, outputs_opt, odx, nlp_discretization, n_k, collocation_d, collocation_scheme=collocation_scheme, timegrid_label=timegrid_label, control_parametrization=control_parametrization, is_periodic=is_periodic)
 
                 # store
                 outputs_interpolated[output_type][name] += [values_ip]
@@ -1249,7 +1250,7 @@ def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discre
     return Vx_interpolated
 
 
-def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly'):
+def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, collocation_d, collocation_scheme='radau', control_parametrization='poly', is_periodic=True):
 
     using_collocation = (nlp_discretization == 'direct_collocation')
 
@@ -1275,6 +1276,11 @@ def merge_output_values(outputs_opt, odx, time_grids, nlp_discretization, n_k, c
     # make list of time grid and values
     tgrid = list(chain.from_iterable(tgrid.full().tolist()))
     values = output_values.full().squeeze()
+
+    # because spline interpolation returns 0 for interpolation outside of domain
+    if is_periodic and (tgrid[0] > 0):
+        tgrid = [0.] + tgrid
+        values = np.hstack((values[-1], values))
 
     assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
 

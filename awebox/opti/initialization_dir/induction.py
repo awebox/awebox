@@ -130,9 +130,10 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
         if 'z' in list(V_init.keys()):
             V_init['z', ndx, 'psi' + str(kite_parent)] = psi
 
-            if '[z,' + str(ndx) + ',cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+            label_start = '[z,' + str(ndx) + ','
+            if label_start + 'cospsi' + str(kite_parent) + ',0]' in V_init.labels():
                 V_init['z', ndx, 'cospsi' + str(kite_parent)] = np.cos(psi)
-            if '[z,' + str(ndx) + ',sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+            if label_start + 'sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
                 V_init['z', ndx, 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
         for ddx in range(nlp.d):
@@ -140,10 +141,11 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
             psi = tools_init.get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
             V_init['coll_var', ndx, ddx, 'z', 'psi' + str(kite_parent)] = psi
 
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,cospsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'z', 'cospsi' + str(kite_parent)] = np.cos(psi)
-            if '[coll_var,' + str(ndx) + ',' + str(ddx) + 'z,sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
-                V_init['collvar', ndx, ddx, 'z', 'sinpsi' + str(kite_parent)] = np.sin(psi)
+            label_start = '[coll_var,' + str(ndx) + ',' + str(ddx) + ',z,'
+            if label_start + 'cospsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['coll_var', ndx, ddx, 'z', 'cospsi' + str(kite_parent)] = np.cos(psi)
+            if label_start + 'sinpsi' + str(kite_parent) + ',0]' in V_init.labels():
+                V_init['coll_var', ndx, ddx, 'z', 'sinpsi' + str(kite_parent)] = np.sin(psi)
 
     return V_init
 

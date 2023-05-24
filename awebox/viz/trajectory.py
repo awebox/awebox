@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -33,6 +35,8 @@ from matplotlib.ticker import MaxNLocator
 import numpy as np
 import awebox.viz.tools as tools
 import awebox.viz.wake as wake
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 
 
@@ -140,7 +144,6 @@ def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, rel
               for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, trial, vars_init, 'xz', bool(True), bool(False))
 
     ax.set_xlim([0, maxlim])
     ax.set_ylim([0, maxlim])
@@ -180,7 +183,6 @@ def plot_trajectory_against_wind_shear(solution_dict, cosmetics, fig_num, reload
     ax2.plot([float(wind.get_velocity(zz)[1]) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'yz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, trial, vars_init, 'yz', bool(True), bool(False))
 
     ax.set_xlim([- maxlim/2., maxlim/2.])
     ax.set_ylim([0, maxlim])
@@ -220,7 +222,6 @@ def plot_trajectory_against_wind_power(solution_dict, cosmetics, fig_num, reload
     ax2.plot([float(atmos.get_density(zz)) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, params, vars_init, 'xz', bool(True), bool(False))
 
     ax.set_xlim([0, maxlim])
     ax.set_ylim([0, maxlim])
@@ -275,40 +276,19 @@ def plot_trajectory_along_elevation(solution_dict, cosmetics, fig_num):
 
 def plot_trajectory_instant(ax, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
 
-    architecture = plot_dict['architecture']
-    number_of_nodes = architecture.number_of_nodes
-    parent_map = architecture.parent_map
-
-    for node in range(1, number_of_nodes):
-
-        # node information
-        parent = parent_map[node]
-
-        # construct local q
-        q_node = []
-        for j in range(3):
-            q_node = cas.vertcat(q_node, plot_dict['x']['q'+str(node)+str(parent)][j][index])
-
-        # construct local parent
-        if node == 1:
-            q_parent = np.zeros((3, 1))
-        else:
-            grandparent = parent_map[parent]
-            q_parent = []
-            for j in range(3):
-                q_parent = cas.vertcat(q_parent, plot_dict['x']['q'+str(parent)+str(grandparent)][j][index])
-
-        # stack node + parent vertically
-        vert_stack = cas.vertcat(q_node.T, q_parent.T)
-
-        # plot tether
-        tools.make_side_plot(ax, vert_stack, side, 'k')
+    tools.plot_all_tethers(ax, side, plot_dict, index=index)
 
     if cosmetics['trajectory']['kite_bodies'] and plot_kites:
         tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)
 
+    if cosmetics['trajectory']['kite_aero_dcm']:
+        tools.draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index)
+
     if cosmetics['trajectory']['wake_nodes']:
         wake.draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
+
+    if cosmetics['trajectory']['actuator']:
+        wake.draw_actuator(ax, side, plot_dict, cosmetics, index)
 
     ax.get_figure().canvas.draw()
 

@@ -37,7 +37,6 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
-import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 
@@ -274,7 +273,6 @@ class Element:
         return unpacked, cosmetics
 
     def basic_draw(self, ax, side, strength, x_start, x_end, cosmetics):
-
         if cosmetics is None:
             cosmetics = self.construct_fake_cosmetics()
 
@@ -283,14 +281,20 @@ class Element:
         y = [float(x_start[1]), float(x_end[1])]
         z = [float(x_start[2]), float(x_end[2])]
 
+        marker = None
+        linestyle = '-'
+
         if side == 'xy':
-            ax.plot(x, y, c=color)
+            ax.plot(x, y, marker=marker, c=color, linestyle=linestyle)
         elif side == 'xz':
-            ax.plot(x, z, c=color)
+            ax.plot(x, z, marker=marker, c=color, linestyle=linestyle)
         elif side == 'yz':
-            ax.plot(y, z, c=color)
+            ax.plot(y, z, marker=marker, c=color, linestyle=linestyle)
         elif side == 'isometric':
-            ax.plot3D(x, y, z, c=color)
+            ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle)
+
+        return None
+
 
     def get_repeated_info(self, period, wind, optimization_period):
         repeated_dict = copy.deepcopy(self.__info_dict)

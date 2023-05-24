@@ -19,6 +19,8 @@ from ampyx_ap2_settings import set_ampyx_ap2_settings
 import awebox.opts.options as options
 import awebox.trial as awe_trial
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
 import matplotlib.pyplot as plt
@@ -76,21 +78,21 @@ def test_dual_kite_6_dof():
     return None
 
 
-def test_small_dual_kite():
+def test_small_dual_kite(final_homotopy_step='final'):
     trial_name = 'small_dual_kite_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
+#
+#
+# def test_large_dual_kite(final_homotopy_step='final'):
+#     trial_name = 'large_dual_kite_trial'
+#     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+#     return None
 
 
-def test_large_dual_kite():
-    trial_name = 'large_dual_kite_trial'
-    run_a_solve_and_check_test(trial_name)
-    return None
-
-
-def test_actuator_qaxi():
+def test_actuator_qaxi(final_homotopy_step='final'):
     trial_name = 'actuator_qaxi_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -156,6 +158,7 @@ def generate_options_dict():
     single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
     single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
+    single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = True
     single_kite_options['solver.weights.q'] = 1e0
     single_kite_options['solver.weights.dq'] = 1.e0
     single_kite_options['solver.weights.l_t'] = 1e-5
@@ -166,9 +169,10 @@ def generate_options_dict():
     single_kite_options['solver.cost.fictitious.0'] = 1.e0
     single_kite_options['solver.cost.fictitious.1'] = 1.e3
     single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    single_kite_options['solver.cost_factor.power'] = 1e3
     single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
     single_kite_options['solver.initialization.groundspeed'] = 20.
+    single_kite_options['solver.cost.tracking.0'] = 1e0
+    single_kite_options['solver.cost_factor.power'] = 1e6
 
     basic_health_options = copy.deepcopy(single_kite_options)
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
@@ -198,21 +202,13 @@ def generate_options_dict():
 
     dual_kite_options = copy.deepcopy(single_kite_options)
     dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
-
-    dual_kite_options['solver.initialization.check_reference'] = True
     dual_kite_options['solver.initialization.theta.l_s'] = 75.
-    dual_kite_options['solver.cost_factor.power'] = 1e4
-    #
-    # dual_kite_options['solver.cost.tracking.1'] = 1.e-2 #1 #1e1 works?
-    # dual_kite_options['solver.cost.fictitious.0'] = 1e-3
-    # dual_kite_options['solver.cost.fictitious.1'] = 1e0
-    # dual_kite_options['solver.cost.fictitious.2'] = 1e-3
-    #
-    # dual_kite_options['solver.cost.u_regularisation.0'] = 1e-5 #1e-1
+    dual_kite_options['solver.initialization.check_reference'] = True
+    dual_kite_options['nlp.collocation.u_param'] = 'zoh'
 
     dual_kite_basic_health_options = copy.deepcopy(dual_kite_options)
     dual_kite_basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
-    dual_kite_basic_health_options['nlp.n_k'] = 10
+    dual_kite_basic_health_options['nlp.n_k'] = 15
     dual_kite_basic_health_options['solver.health_check.when'] = 'always'
     dual_kite_basic_health_options['solver.hippo_strategy'] = False
     dual_kite_basic_health_options['nlp.collocation.u_param'] = 'zoh'
@@ -231,29 +227,65 @@ def generate_options_dict():
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options.kite_standard'] = bubbledancer_data.data_dict()
     small_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
+    small_dual_kite_options['solver.cost.theta_regularisation.0'] = 1.e-1
+    small_dual_kite_options['solver.cost_factor.power'] = 1e7
+    small_dual_kite_options['solver.cost.beta.0'] = 1.e0
 
-    large_dual_kite_options = copy.deepcopy(small_dual_kite_options)
+    large_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     large_dual_kite_options['user_options.kite_standard'] = boeing747_data.data_dict()
+    large_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
+    large_dual_kite_options['solver.initialization.theta.l_s'] = 60. * 10.
+    large_dual_kite_options['solver.initialization.l_t'] = 2.e3
+    large_dual_kite_options['nlp.n_k'] = 15
+    large_dual_kite_options['model.system_bounds.theta.t_f'] = [1.e-3, 500.]
+    large_dual_kite_options['model.model_bounds.tether_force.include'] = False
+    large_dual_kite_options['model.model_bounds.tether_stress.include'] = False
+    large_dual_kite_options['solver.cost.tracking.0'] = 1e-1
 
-    actuator_qaxi_options = {}
-    actuator_qaxi_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    actuator_qaxi_options = copy.deepcopy(dual_kite_6_dof_options)
     actuator_qaxi_options['user_options.kite_standard'] = ampyx_data.data_dict()
-    actuator_qaxi_options['user_options.system_model.kite_dof'] = 6
     actuator_qaxi_options['user_options.tether_drag_model'] = 'split'
     actuator_qaxi_options['user_options.induction_model'] = 'actuator'
     actuator_qaxi_options['model.aero.actuator.steadyness'] = 'quasi-steady'
     actuator_qaxi_options['model.aero.actuator.symmetry'] = 'axisymmetric'
-    actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 1
-    actuator_qaxi_options['model.aero.overwrite.alpha_max_deg'] = 20.
-    actuator_qaxi_options['model.aero.overwrite.alpha_min_deg'] = -20.
-    actuator_qaxi_options['model.aero.overwrite.beta_max_deg'] = 20.
-    actuator_qaxi_options['model.aero.overwrite.beta_min_deg'] = -20.
-    actuator_qaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
-    actuator_qaxi_options['model.tether.lift_tether_force'] = True
-    actuator_qaxi_options['model.aero.lift_aero_force'] = True
+    actuator_qaxi_options['visualization.cosmetics.trajectory.actuator'] = True
+    actuator_qaxi_options['visualization.cosmetics.trajectory.kite_bodies'] = True
+
+    # actuator_qaxi_options['solver.cost.tracking.0'] = 1e1
+    # actuator_qaxi_options['solver.cost.u_regularisation.0'] = 1e0
+
+    actuator_qaxi_options['solver.weights.q'] = 1e3
+    actuator_qaxi_options['solver.weights.dq'] = 1.e1
+    actuator_qaxi_options['solver.weights.r'] = 1e1
+
+
+    # actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 1
+    # actuator_qaxi_options['model.aero.overwrite.alpha_max_deg'] = 20.
+    # actuator_qaxi_options['model.aero.overwrite.alpha_min_deg'] = -20.
+    # actuator_qaxi_options['model.aero.overwrite.beta_max_deg'] = 20.
+    # actuator_qaxi_options['model.aero.overwrite.beta_min_deg'] = -20.
+    # actuator_qaxi_options['model.model_bounds.tether_stress.scaling'] = 10.
+    # actuator_qaxi_options['model.tether.lift_tether_force'] = True
+    # actuator_qaxi_options['model.aero.lift_aero_force'] = True
+    # actuator_qaxi_options['nlp.collocation.u_param'] = 'zoh'
+
+    # actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 1
+    actuator_qaxi_options['nlp.n_k'] = 20
+    # actuator_qaxi_options['solver.health_check.when'] = 'always'
+    # actuator_qaxi_options['solver.hippo_strategy'] = False
     actuator_qaxi_options['nlp.collocation.u_param'] = 'zoh'
-    actuator_qaxi_options['solver.cost.fictitious.0'] = 1.e3
-    actuator_qaxi_options['nlp.n_k'] = 15
+    actuator_qaxi_options['solver.homotopy_method.advance_despite_max_iter'] = False
+    actuator_qaxi_options['solver.homotopy_method.advance_despite_ill_health'] = False
+    actuator_qaxi_options['solver.initialization.check_reference'] = True
+    actuator_qaxi_options['solver.max_iter'] = 300
+    actuator_qaxi_options['solver.max_iter_hippo'] = 300
+    # actuator_qaxi_options['solver.health_check.raise_exception'] = True
+    # actuator_qaxi_options['solver.health_check.spy_matrices'] = False
+    # actuator_qaxi_options['nlp.collocation.name_constraints'] = True
+    # actuator_qaxi_options['solver.health_check.help_with_debugging'] = True
+
+    #
+    # ('solver', 'cost', 'iota', 1, 1e3,
 
     actuator_uaxi_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uaxi_options['model.aero.actuator.steadyness'] = 'unsteady'
@@ -312,8 +344,6 @@ def generate_options_dict():
     compromised_landing_options['model.model_bounds.dcoeff_compromised_factor'] = 0.0
     compromised_landing_options['user_options.trajectory.compromised_landing.emergency_scenario'] = ('broken_roll', 2)
     compromised_landing_options['user_options.trajectory.compromised_landing.xi_0_initial'] = 0.8
-
-
 
     # define options list
     options_dict = collections.OrderedDict()
@@ -385,23 +415,23 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
     trial.print_cost_information()
-    trial.plot(['level_3', 'animation_snapshot'])
+    trial.plot(['animation_snapshot', 'actuator_isometric']) #'level_1', 'animation_snapshot'])
     plt.show()
 
     return trial
 
-
+#
 # test_single_kite()
 # test_basic_health()
 # test_zoh()
 # test_drag_mode()
 # test_save_trial()
-# test_dual_kite() #final_homotopy_step='fictitious')
-test_dual_kite_basic_health() #final_homotopy_step='fictitious')
+# test_dual_kite()
+# test_dual_kite_basic_health()
+# test_dual_kite_6_dof()
 # test_small_dual_kite()
 # test_large_dual_kite()
-# test_dual_kite_6_dof()
-# test_actuator_qaxi()
+test_actuator_qaxi(final_homotopy_step='fictitious')
 # test_actuator_qasym()
 # test_actuator_uaxi()
 # test_actuator_uasym()

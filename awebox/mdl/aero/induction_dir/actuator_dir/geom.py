@@ -30,16 +30,23 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.viz.tools as viz_tools
+import mpl_toolkits.mplot3d.art3d as art3d
+# from matplotlib.patches import Annulus
+from matplotlib.patches import Circle, PathPatch
 
 # switches
 
@@ -48,33 +55,46 @@ def get_mu_radial_ratio(variables, kite, parent):
     mu = varrho_var / (varrho_var + 0.5)
 
     return mu
-
-
 # variables
 
-def get_area_var(variables, parent):
-    area_var = variables['z']['area' + str(parent)]
-    return area_var
+def get_area_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'area' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
 
-def get_bar_varrho_var(variables, parent):
-    varrho_var = variables['z']['bar_varrho' + str(parent)]
-    return varrho_var
+def get_bar_varrho_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'bar_varrho' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
 
-def get_varrho_var(variables, kite, parent):
-    varrho_var = variables['z']['varrho' + str(kite) + str(parent)]
-    return varrho_var
+def get_varrho_var(variables_si, kite, parent):
+    var_type = 'z'
+    var_name = 'varrho' + str(kite) + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
 
-def get_psi_var(variables, kite, parent):
-    psi_var = variables['z']['psi' + str(kite) + str(parent)]
-    return psi_var
+def get_psi_var(variables_si, kite, parent):
+    var_type = 'z'
+    var_name = 'psi' + str(kite) + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
 
-def get_cospsi_var(variables, kite, parent):
-    cospsi_var = variables['z']['cospsi' + str(kite) + str(parent)]
-    return cospsi_var
 
-def get_sinpsi_var(variables, kite, parent):
-    sinpsi_var = variables['z']['sinpsi' + str(kite) + str(parent)]
-    return sinpsi_var
+def get_cospsi_var(variables_si, kite, parent):
+    var_type = 'z'
+    var_name = 'cospsi' + str(kite) + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
+
+def get_sinpsi_var(variables_si, kite, parent):
+    var_type = 'z'
+    var_name = 'sinpsi' + str(kite) + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
 
 def get_n_vec_length_var(variables, parent):
     len_var = variables['z']['n_vec_length' + str(parent)]
@@ -182,7 +202,7 @@ def get_actuator_area(model_options, parent, variables, parameters):
 
     return area
 
-def get_kite_radial_vector(model_options, kite, variables, architecture, parameters):
+def get_kite_radial_vector(kite, variables, architecture):
 
     parent = architecture.parent_map[kite]
 
@@ -193,9 +213,14 @@ def get_kite_radial_vector(model_options, kite, variables, architecture, paramet
     cospsi_var = get_cospsi_var(variables, kite, parent)
     sinpsi_var = get_sinpsi_var(variables, kite, parent)
 
+    rhat = parametric_rhat(z_rotor_hat_var, y_rotor_hat_var, cospsi_var, sinpsi_var)
+    return rhat
+
+
+def parametric_rhat(z_rotor_hat, y_rotor_hat, cospsi, sinpsi):
     # for positive yaw(turns around +zhat, normal towards +yhat):
     #     rhat = zhat * cos(psi) - yhat * sin(psi)
-    rhat = z_rotor_hat_var * cospsi_var - y_rotor_hat_var * sinpsi_var
+    rhat = z_rotor_hat * cospsi - y_rotor_hat * sinpsi
 
     return rhat
 
@@ -209,28 +234,34 @@ def get_kite_radius(kite, variables, architecture, parameters):
 
     return radius
 
-def get_average_radius(model_options, variables, parent, architecture, parameters):
+
+def get_average_radius(variables, parent, architecture, parameters):
     children = architecture.kites_map[parent]
-    number_children = float(len(children))
+    kite_nodes = architecture.kite_nodes
+    kite_children = set(children).intersection(set(kite_nodes))
+    number_kite_children = len(kite_children)
 
-    average_radius = 0.
-    for kite in children:
-        radius = get_kite_radius(kite, variables, architecture, parameters)
+    total_radius = 0.
+    for kite in kite_children:
+        total_radius += get_kite_radius(kite, variables, architecture, parameters)
 
-        average_radius = average_radius + radius / number_children
+    average_radius = total_radius / float(number_kite_children)
 
     return average_radius
 
+
 def get_bar_varrho_val(variables, parent, architecture):
     children = architecture.kites_map[parent]
-    number_children = float(len(children))
+    kite_nodes = architecture.kite_nodes
+    kite_children = set(children).intersection(set(kite_nodes))
+    number_kite_children = len(kite_children)
 
     sum_varrho = 0.
-    for kite in children:
+    for kite in kite_children:
         varrho_kite = get_varrho_var(variables, kite, parent)
         sum_varrho = sum_varrho + varrho_kite
 
-    bar_varrho_val = sum_varrho / number_children
+    bar_varrho_val = sum_varrho / float(number_kite_children)
     return bar_varrho_val
 
 
@@ -240,7 +271,7 @@ def approximate_tip_radius(model_options, variables, kite, architecture, tip, pa
     half_span_proj = b_ref / 2.
     parent = architecture.parent_map[kite]
 
-    radial_vector = get_kite_radial_vector(model_options, kite, variables, architecture, parameters)
+    radial_vector = get_kite_radial_vector(kite, variables, architecture)
 
     if int(model_options['kite_dof']) == 6:
 
@@ -279,13 +310,11 @@ def get_average_exterior_radius(model_options, variables, parent, parameters, ar
     return average_radius
 
 
-
-def get_act_dcm_var(variables, parent):
-
-    name = 'act_dcm' + str(parent)
-    rot_cols = variables['z'][name]
+def get_act_dcm_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_dcm' + str(parent)
+    rot_cols = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
     act_dcm = cas.reshape(rot_cols, (3, 3))
-
     return act_dcm
 
 def get_n_hat_var(variables, parent):
@@ -341,7 +370,227 @@ def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters
 
     return cstr
 
+
 def get_n_vec_val(model_options, parent, variables, parameters, architecture):
     n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
     return n_vec_val
 
+def draw_actuator_geometry(ax, side, plot_dict, cosmetics, index):
+    draw_dot_at_actuator_center(ax, side, plot_dict, cosmetics, index)
+    draw_radial_vectors_from_center_to_kites(ax, side, plot_dict, cosmetics, index)
+    draw_average_radius(ax, side, plot_dict, cosmetics, index)
+    draw_psi_angles(ax, side, plot_dict, cosmetics, index)
+    draw_actuator_dcm(ax, side, plot_dict, cosmetics, index)
+    draw_actuator_annulus(ax, side, plot_dict, cosmetics, index)
+    return None
+
+
+def draw_actuator_annulus(ax, side, plot_dict, cosmetics, index):
+
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+    n_theta = cosmetics['trajectory']['actuator_n_theta']
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+        bar_varrho = get_bar_varrho_var(variables_si, parent)
+        mu_start = (bar_varrho - 0.5) / (bar_varrho + 0.5)
+        mu_end = 1.
+
+        for psi_val in np.linspace(0., 2. * np.pi, n_theta):
+            draw_radial_segment_around_actuator_center(ax, side, plot_dict, cosmetics, index, parent, mu_start, mu_end,
+                                                       psi_val, color='grey', alpha=0.3)
+    return None
+
+
+def draw_actuator_dcm(ax, side, plot_dict, cosmetics, index):
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    dcm_colors = cosmetics['trajectory']['dcm_colors']
+    visibility_scaling = b_ref
+
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+        n_hat = get_n_hat_var(variables_si, parent)
+        rotor_y_hat = get_y_rotor_hat_var(variables_si, parent)
+        rotor_z_hat = get_z_rotor_hat_var(variables_si, parent)
+
+        ehat_dict = {'x': n_hat,
+                     'y': rotor_y_hat,
+                     'z': rotor_z_hat}
+
+        x_start = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local)
+
+        for vec_name, vec_ehat in ehat_dict.items():
+            x_end = x_start + visibility_scaling * vec_ehat
+
+            color = dcm_colors[vec_name]
+            viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle=':')
+
+    return None
+
+
+def draw_average_radius(ax, side, plot_dict, cosmetics, index):
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+
+        y_rotor_hat = get_y_rotor_hat_var(variables_si, parent)
+        z_rotor_hat = get_z_rotor_hat_var(variables_si, parent)
+        psi = 0.
+        rhat = parametric_rhat(z_rotor_hat, y_rotor_hat, np.cos(psi), np.sin(psi))
+
+        avg_radius = plot_dict['outputs']['actuator']['avg_radius' + str(parent)][0][index]
+
+        x_start = []
+        x_end = []
+        for dim in range(3):
+            local_center = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local_center)
+            x_end = cas.vertcat(x_end, avg_radius * rhat[dim] + local_center)
+
+        color = 'k'
+        viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end)
+
+    return None
+
+def draw_psi_angles(ax, side, plot_dict, cosmetics, index):
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        bar_varrho = get_bar_varrho_var(variables_si, parent)
+        kite_index = architecture.kite_nodes.index(kite)
+        number_of_kites = architecture.number_of_kites
+        distinguishability_factor = float(kite_index + 1) / float(number_of_kites + 1)
+        avg_midspan_mu_val = bar_varrho / (bar_varrho + 0.5)
+        mu_val = avg_midspan_mu_val * distinguishability_factor
+
+        psi_start = 0.
+        psi_end = np.mod(float(get_psi_var(variables_si, kite, parent)), 2. * np.pi)
+
+        draw_arc_around_actuator_center(ax, side, plot_dict, cosmetics, index, parent, mu_val, psi_start=psi_start,
+                                        psi_end=psi_end, kite=kite, color=None, linestyle=':')
+
+    return None
+
+
+def draw_radial_segment_around_actuator_center(ax, side, plot_dict, cosmetics, index, parent, mu_start, mu_end, psi_val, kite=None, color=None, linestyle='-', alpha=1.):
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+
+    architecture = plot_dict['architecture']
+    if parent in architecture.layer_nodes:
+        y_rotor_hat = get_y_rotor_hat_var(variables_si, parent)
+        z_rotor_hat = get_z_rotor_hat_var(variables_si, parent)
+
+        x_center = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_center = cas.vertcat(x_center, local)
+
+        bar_varrho = get_bar_varrho_var(variables_si, parent)
+        radius_start = mu_start * (b_ref * (bar_varrho + 0.5))
+        radius_end = mu_end * (b_ref * (bar_varrho + 0.5))
+
+        cospsi = np.cos(psi_val)
+        sinpsi = np.sin(psi_val)
+        rhat = parametric_rhat(z_rotor_hat, y_rotor_hat, cospsi, sinpsi)
+
+        x_start = x_center + radius_start * rhat
+        x_end = x_center + radius_end * rhat
+
+        if (color is None) and (kite in architecture.kite_nodes):
+            kite_index = architecture.kite_nodes.index(kite)
+            color = cosmetics['trajectory']['colors'][kite_index]
+
+        viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle=linestyle, alpha=alpha)
+
+    return None
+
+
+
+def draw_arc_around_actuator_center(ax, side, plot_dict, cosmetics, index, parent, mu_val, psi_start=0., psi_end=2.*np.pi, kite=None, color=None, linestyle=':'):
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+
+    architecture = plot_dict['architecture']
+    if parent in architecture.layer_nodes:
+        y_rotor_hat = get_y_rotor_hat_var(variables_si, parent)
+        z_rotor_hat = get_z_rotor_hat_var(variables_si, parent)
+
+        x_center = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_center = cas.vertcat(x_center, local)
+
+        bar_varrho = get_bar_varrho_var(variables_si, parent)
+        drawing_radius = mu_val * (b_ref * (bar_varrho + 0.5))
+
+        n_theta = cosmetics['trajectory']['actuator_n_theta']
+        rads_per_step = 2. * np.pi / float(n_theta)
+        delta_psi = rads_per_step
+
+        local_psi = psi_start
+        data = []
+        while local_psi < psi_end:
+            cospsi = np.cos(local_psi)
+            sinpsi = np.sin(local_psi)
+            rhat_start = parametric_rhat(z_rotor_hat, y_rotor_hat, cospsi, sinpsi)
+            x_local = x_center + drawing_radius * rhat_start
+            data = cas.horzcat(data, x_local)
+            local_psi += delta_psi
+
+        if (color is None) and (kite in architecture.kite_nodes):
+            kite_index = architecture.kite_nodes.index(kite)
+            color = cosmetics['trajectory']['colors'][kite_index]
+
+        if hasattr(data, 'shape') and (len(data.shape) == 2):
+            viz_tools.basic_draw(ax, side, color=color, data=data, linestyle=linestyle)
+
+    return None
+
+
+def draw_radial_vectors_from_center_to_kites(ax, side, plot_dict, cosmetics, index):
+
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        bar_varrho = get_bar_varrho_var(variables_si, parent)
+        radius = plot_dict['outputs']['actuator']['radius' + str(kite)][0][index]
+        mu_start = 0.
+        mu_end = radius / (b_ref * (bar_varrho + 0.5))
+
+        psi_val = get_psi_var(variables_si, kite, parent)
+        color = cosmetics['trajectory']['colors'][architecture.kite_nodes.index(kite)]
+
+        draw_radial_segment_around_actuator_center(ax, side, plot_dict, cosmetics, index, parent, mu_start, mu_end,
+                                                   psi_val, color=color)
+
+    return None
+
+
+def draw_dot_at_actuator_center(ax, side, plot_dict, cosmetics, index):
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+
+        x_start = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local)
+
+        color = 'k'
+        viz_tools.basic_draw(ax, side, x_start=x_start, x_end=x_start, color=color, marker='o')
+
+    return None

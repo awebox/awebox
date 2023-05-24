@@ -256,27 +256,38 @@ def get_wind_velocity(init_options):
     return uu
 
 def insert_dict(dict, var_type, name, name_stripped, V_init):
-    init_val = dict[name_stripped]
-
-    if not isinstance(init_val, float):
-        for idx in range(init_val.shape[0]):
-            V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
-    else:
-        V_init = insert_val(V_init, var_type, name, init_val)
+    init_val = cas.DM(dict[name_stripped])
+    for idx in range(init_val.shape[0]):
+        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
 
     return V_init
 
 
-def insert_val(V_init, var_type, name, init_val, idx = 0):
+def insert_val(V_init, var_type, name, init_val, idx=0):
+
+    if not hasattr(init_val, 'shape'):
+        init_val = cas.DM(init_val)
 
     # initialize on collocation nodes
-    V_init['coll_var', :, :, var_type, name, idx] = init_val
+    if '[coll_var,0,0,' + var_type + ',' + name + ',0]' in V_init.labels():
+        if V_init['coll_var', 0, 0, var_type, name].shape == init_val.shape:
+            V_init['coll_var', :, :, var_type, name, idx] = init_val[idx]
+        elif init_val.shape == (1, 1):
+            V_init['coll_var', :, :, var_type, name, idx] = init_val
+        else:
+            substructure = 'coll_var'
+            message = 'something went wrong when trying to insert the ' + var_type + ' variable ' + name + "'s value (" + str(init_val) + ') into the ' + substructure + ' part of V_init'
+            print_op.log_and_raise_error(message)
 
-    if var_type in ['x', 'z']:
-        if var_type in list(V_init.keys()):
-        # initialize on interval nodes
-        # V_init[var_type, :, :, name] = init_val
-
+    if '[' + var_type + ',0,' + name + ',0]' in V_init.labels():
+        if V_init[var_type, 0, name].shape == init_val.shape:
+            V_init[var_type, :, name, idx] = init_val[idx]
+        elif init_val.shape == (1, 1):
             V_init[var_type, :, name, idx] = init_val
+        else:
+            substructure = 'shooting node'
+            message = 'something went wrong when trying to insert the ' + var_type + ' variable ' + name + "'s value (" + str(
+                init_val) + ') into the ' + substructure + ' part of V_init'
+            print_op.log_and_raise_error(message)
 
     return V_init

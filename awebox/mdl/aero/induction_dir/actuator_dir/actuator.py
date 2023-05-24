@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
+import pdb
 
 import casadi as cas
 import numpy as np
@@ -308,6 +309,8 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         parent = architecture.parent_map[kite]
         for label in act_comp_labels:
             outputs['actuator']['local_a_' + label + str(kite)] = actuator_flow.get_local_induction_factor(model_options, variables, kite, parent, label)
+            outputs['actuator']['rhat' + str(kite)] = actuator_geom.get_kite_radial_vector(kite, variables, architecture)
+            outputs['actuator']['radius' + str(kite)] = actuator_geom.get_kite_radius(kite, variables, architecture, parameters)
 
     layer_parents = architecture.layer_nodes
     for parent in layer_parents:
@@ -318,7 +321,7 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         center = geom.get_center_position(model_options, parent, variables, architecture)
         velocity = geom.get_center_velocity(model_options, parent, variables, architecture)
         area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
-        avg_radius = actuator_geom.get_average_radius(model_options, variables, parent, architecture, parameters)
+        avg_radius = actuator_geom.get_average_radius(variables, parent, architecture, parameters)
         nhat = actuator_geom.get_n_hat_var(variables, parent)
 
         outputs['actuator']['center' + str(parent)] = center
@@ -346,3 +349,10 @@ def collect_actuator_outputs(model_options, atmos, wind, variables, outputs, par
         outputs['actuator']['gamma_comp' + str(parent)] = actuator_flow.get_gamma_val(model_options, wind, parent, variables, parameters, architecture)
 
     return outputs
+
+
+def draw_actuator(ax, side, plot_dict, cosmetics, index):
+    if 'actuator' in plot_dict['outputs'].keys():
+        actuator_geom.draw_actuator_geometry(ax, side, plot_dict, cosmetics, index)
+        actuator_flow.draw_actuator_flow(ax, side, plot_dict, cosmetics, index)
+    return None

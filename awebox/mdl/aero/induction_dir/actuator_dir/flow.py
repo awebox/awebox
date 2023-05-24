@@ -30,6 +30,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 """
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -38,7 +39,9 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 import awebox.mdl.aero.geometry_dir.geometry as geom
+import awebox.viz.tools as viz_tools
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -113,23 +116,33 @@ def get_da_all_var(variables, parent, label):
         da_all = get_da_var(variables, parent, label)
     return da_all
 
-def get_wind_dcm_var(variables, parent):
-    rot_cols = variables['z']['wind_dcm' + str(parent)]
+def get_wind_dcm_var(variables_si, parent):
+
+    var_name = 'wind_dcm' + str(parent)
+    attempted_label = '[z,' + var_name + ',0]'
+    if hasattr(variables_si, 'labels') and (attempted_label in variables_si.labels()):
+        rot_cols = variables_si['z', var_name]
+    elif 'z' in variables_si.keys() and var_name in variables_si['z'].keys():
+        rot_cols = variables_si['z'][var_name]
+    else:
+        message = 'variable ' + var_name + ' could not be found'
+        print_op.log_and_raise_error(message)
+
     wind_dcm = cas.reshape(rot_cols, (3, 3))
     return wind_dcm
 
-def get_uzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+def get_uzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     u_hat = wind_dcm[:, 0]
     return u_hat
 
-def get_vzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+def get_vzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     v_hat = wind_dcm[:, 1]
     return v_hat
 
-def get_wzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+def get_wzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     w_hat = wind_dcm[:, 2]
     return w_hat
 
@@ -493,3 +506,39 @@ def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, par
 
     return corr_val
 
+
+def draw_actuator_flow(ax, side, plot_dict, cosmetics, index):
+    draw_wind_dcm(ax, side, plot_dict, cosmetics, index)
+    return ax
+
+
+def draw_wind_dcm(ax, side, plot_dict, cosmetics, index):
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    dcm_colors = cosmetics['trajectory']['dcm_colors']
+    visibility_scaling = b_ref
+
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+        uzero_hat = get_uzero_hat_var(variables_si, parent)
+        vzero_hat = get_vzero_hat_var(variables_si, parent)
+        wzero_hat = get_wzero_hat_var(variables_si, parent)
+
+        ehat_dict = {'x': uzero_hat,
+                     'y': vzero_hat,
+                     'z': wzero_hat}
+
+
+        x_start = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local)
+
+        for vec_name, vec_ehat in ehat_dict.items():
+            x_end = x_start + visibility_scaling * vec_ehat
+
+            color = dcm_colors[vec_name]
+            viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='--')
+
+    return None

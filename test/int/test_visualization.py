@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import os
 import awebox as awe
 import logging
+import awebox.viz.tools as viz_tools
+
 plt.rcParams.update({'figure.max_open_warning': 0})
 
 logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)
@@ -75,5 +77,10 @@ def test_animation():
     trial.plot('animation')
     os.remove('trial1.mp4')
 
+def test_components():
+    viz_tools.test_naca_coordinates()
+    return None
+
 # test_visualization()
 # test_animation()
+# test_components()

@@ -38,6 +38,7 @@ import sys
 import matplotlib.animation as manimation
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 
 import casadi.tools as cas
 from . import tools
@@ -135,7 +136,7 @@ def animate_snapshot(plot_dict, cosmetics, fig_name, init_colors=bool(False), pl
 
 def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False), plot_kites=bool(True)):
 
-    dims = ['xy', 'xz', 'yz']
+    sides = ['xy', 'xz', 'yz']
 
     # figure limits
     q_limits = tools.get_q_limits(plot_dict, cosmetics)
@@ -144,16 +145,16 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
 
-    for dim in dims:
-        ax = 'ax_' + dim
+    for side in sides:
+        ax = 'ax_' + side
         axes[ax].clear()
 
         # plot system
-        trajectory.plot_trajectory_instant(axes[ax], plot_dict, index, cosmetics, dim, init_colors=init_colors, plot_kites=plot_kites)
+        trajectory.plot_trajectory_instant(axes[ax], plot_dict, index, cosmetics, side, init_colors=init_colors, plot_kites=plot_kites)
 
     # plot trajectories
     counter = 0
-    alph = cosmetics['trajectory']['alpha']
+    alpha = cosmetics['trajectory']['alpha']
     for n in kite_nodes:
         if init_colors == True:
             local_color = 'k'
@@ -163,22 +164,22 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
             local_color = init_colors
 
         parent = parent_map[n]
-        vertically_stacked_kite_locations = cas.horzcat(plot_dict['x']['q' + str(n) + str(parent)][0],
-                                                        plot_dict['x']['q' + str(n) + str(parent)][1],
-                                                        plot_dict['x']['q' + str(n) + str(parent)][2])
+        kite_locations = cas.horzcat(plot_dict['x']['q' + str(n) + str(parent)][0],
+                                    plot_dict['x']['q' + str(n) + str(parent)][1],
+                                    plot_dict['x']['q' + str(n) + str(parent)][2]).T
 
-        for dim in dims:
-            ax = 'ax_' + dim
-            tools.make_side_plot(axes[ax], vertically_stacked_kite_locations, dim, local_color, alpha=alph)
+        for side in sides:
+            ax_name = 'ax_' + side
+            tools.basic_draw(axes[ax_name], side, color=local_color, data=kite_locations, alpha=alpha)
 
         counter += 1
 
     # change axes limits
-    for dim in dims:
-        ax = 'ax_' + dim
+    for side in sides:
+        ax = 'ax_' + side
 
-        xdim = dim[0]
-        ydim = dim[1]
+        xdim = side[0]
+        ydim = side[1]
 
         axes[ax].set_xlim(q_limits[xdim])
         axes[ax].set_ylim(q_limits[ydim])
@@ -203,6 +204,7 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     plt.tight_layout(w_pad=-11, h_pad=1, rect=[0, 0, 1, 0.95]) #pad=2.5)
 
     return None
+
 
 def fill_in_dashboard(fig, plot_dict,index):
 

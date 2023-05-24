@@ -33,6 +33,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.wind as wind
+import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 
 import awebox.viz.tools as tools
 
@@ -40,38 +41,31 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+def plot_actuator(plot_dict, cosmetics, fig_name, side):
 
+    fig, ax = tools.setup_axes_for_side(cosmetics, side)
+
+    index = -1
+    draw_actuator(ax, side, plot_dict, cosmetics, index)
+
+    if cosmetics['trajectory']['kite_bodies']:
+        init_colors = False
+        tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)
+
+    if cosmetics['trajectory']['kite_aero_dcm']:
+        tools.draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index)
+
+    ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
+    plt.suptitle(fig_name)
+
+    return None
+
+def draw_actuator(ax, side, plot_dict, cosmetics, index):
+    actuator.draw_actuator(ax, side, plot_dict, cosmetics, index)
+    return None
 
 def plot_wake(plot_dict, cosmetics, fig_name, side):
-
-    fig = plt.figure()
-
-    if side == 'xy':
-        ax = plt.subplot(1, 1, 1)
-        plt.axis('equal')
-        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
-        ax.set_ylabel('y [m]', **cosmetics['trajectory']['axisfont'])
-
-    elif side == 'xz':
-        ax = plt.subplot(1, 1, 1)
-        plt.axis('equal')
-        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
-        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
-
-    elif side == 'yz':
-        ax = plt.subplot(1, 1, 1)
-        plt.axis('equal')
-        ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
-        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
-
-    elif side == 'isometric':
-        ax = plt.subplot(111, projection='3d')
-        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
-        ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
-        ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
-        ax.xaxis._axinfo['label']['space_factor'] = 2.8
-        ax.yaxis._axinfo['label']['space_factor'] = 2.8
-        ax.zaxis._axinfo['label']['space_factor'] = 2.8
+    fig, ax = tools.setup_axes_for_side(cosmetics, side)
 
     index = -1
     draw_wake_nodes(ax, side, plot_dict, cosmetics, index)

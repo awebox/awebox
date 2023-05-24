@@ -29,6 +29,7 @@ no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
 '''
+import copy
 import pdb
 
 import numpy as np
@@ -54,18 +55,15 @@ def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     return V_init
 
 
-def initialize_multipliers_to_nonzero(V_init, model):
+def initialize_multipliers_to_nonzero(V_init, nlp, model):
 
-    for var_name in struct_op.subkeys(model.variables, 'z'):
-        if 'lambda' in var_name:
-            si_value = model.scaling['z', var_name]
-        else:
-            si_value = cas.DM.ones(model.variables['z', var_name].shape)
+    V_scaled = nlp.V(1.)
+    V_si = struct_op.scaled_to_si(V_scaled, model.scaling)
 
-        if 'z' in list(V_init.keys()):
-            V_init['z', :] = si_value
-        if 'coll_var' in list(V_init.keys()):
-            V_init['coll_var', :, :, 'z'] = si_value
+    if 'z' in list(V_init.keys()):
+        V_init['z', :] = V_si['z', :]
+    if 'coll_var' in list(V_init.keys()):
+        V_init['coll_var', :, :, 'z'] = V_si['coll_var', :, :, 'z']
 
     return V_init
 
@@ -76,7 +74,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     V_init_si = V(0.0)
 
     # set lagrange multipliers different from zero to avoid singularity
-    V_init_si = initialize_multipliers_to_nonzero(V_init_si, model)
+    V_init_si = initialize_multipliers_to_nonzero(V_init_si, nlp, model)
 
     if not init_options['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
         init_options = standard.precompute_path_parameters(init_options, model)

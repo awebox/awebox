@@ -232,7 +232,6 @@ def generate_structure(options, architecture):
 
 
 def extend_general_induction(options, system_lifted, system_states, architecture):
-
     for kite in architecture.kite_nodes:
         system_lifted.extend([('ui' + str(kite), (3, 1))])
 

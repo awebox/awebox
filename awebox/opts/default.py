@@ -72,6 +72,7 @@ def set_default_user_options():
 def set_default_options(default_user_options, help_options):
 
     kite_colors = ['b', 'g', 'r', 'm', 'c'] * 3
+    dcm_colors = {'x': 'darkred', 'y': 'darkgreen', 'z': 'darkblue'}
     dim_colors = ['b', 'g', 'r', 'm', 'c', 'y', 'darkorange', 'darkkhaki', 'darkviolet']
 
     default_options_tree = [
@@ -470,14 +471,19 @@ def set_default_options(default_user_options, help_options):
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'dcm_colors',  dcm_colors,     ('dictionary of colors suitable for consistent dcm representation', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'axisfont',    {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'ylabelsize',  15,             ('???', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_bodies', False,          ('choose whether kite bodies should be plotted or not', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'body_cross_sections_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'kite_aero_dcm',     False,    ('draw the kite aerodynamic-orientation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'wake_nodes',  False,          ('draw wake nodes into instantaneous plots', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_theta',  100,      ('number of cylinder (tangential) slices to be drawn', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_s',      10,       ('number of cylinder (longitudinal) slices to be drawn', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_s_length', 100,      ('longitudinal length of cylinder [m] to be drawn', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'actuator',    False,          ('draw actuator geometry into instantaneous plots', [True, False]), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'actuator_n_radial', 30,       ('number of rings to use when drawing the actuator annulus', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'actuator_n_theta', 180,       ('number of tangential steps to be drawn in actuator annulus', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'alpha',       0.3,            ('transparency of trajectories in animation', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'margin',      0.05,           ('trajectory figure margins', None), 'x'),
         ('visualization', 'cosmetics', None,         'save_figs',   False,          ('save the figures', [True, False]), 'x'),

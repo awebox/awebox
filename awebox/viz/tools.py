@@ -64,6 +64,7 @@ def get_naca_airfoil_coordinates(s, m, p, t):
 
     return xu, xl, yu, yl
 
+
 def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     m = np.float(naca[0]) / 100.
@@ -76,7 +77,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
     x_lower = []
 
     for s in s_list:
-        [xu, xl, yu, yl] = get_naca_airfoil_coordinates(s, m, p, t)
+        xu, xl, yu, yl = get_naca_airfoil_coordinates(s, m, p, t)
 
         new_x_upper = xu * vect_op.xhat_np() + yu * vect_op.zhat_np()
         new_x_lower = xl * vect_op.xhat_np() + yl * vect_op.zhat_np()
@@ -95,36 +96,6 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-', plot_tether = False):
-    vsa = np.array(cas.DM(vertically_stacked_array))
-
-    if vsa.shape[0] == 3 and (not vsa.shape[1] == 3):
-        vsa = vsa.T
-
-    if side == 'isometric':
-        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
-        if plot_tether:
-            for kk in range(int(vsa.shape[0]/5)-1):
-                ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
-    else:
-        side_num = ''
-        for sdx in side:
-            if sdx == 'x':
-                side_num += '0'
-            elif sdx == 'y':
-                side_num += '1'
-            elif sdx == 'z':
-                side_num += '2'
-
-        idx = int(side_num[0])
-        jdx = int(side_num[1])
-
-        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
-        if plot_tether:
-            for kk in range(int(vsa.shape[0]/5)-1):
-                ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
-
-    return None
 
 def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
@@ -166,10 +137,10 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
             horizontal_shell = cas.vertcat(horizontal_shell, new_point.T)
         horizontal_shell = np.array(horizontal_shell)
 
-        make_side_plot(ax, horizontal_shell, side, kite_color)
+        basic_draw(ax, side, data=horizontal_shell, color=kite_color)
 
-    make_side_plot(ax, leading_edges, side, kite_color)
-    make_side_plot(ax, trailing_edges, side, kite_color)
+    basic_draw(ax, side, data=leading_edges, color=kite_color)
+    basic_draw(ax, side, data=trailing_edges, color=kite_color)
 
     return None
 
@@ -201,11 +172,10 @@ def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_p
             up_direction_shell = cas.vertcat(up_direction_shell, new_point_upwise.T)
 
         span_direction_shell = np.array(span_direction_shell)
-        make_side_plot(ax, span_direction_shell, side, kite_color)
+        basic_draw(ax, side, data=span_direction_shell, color=kite_color)
 
         up_direction_shell = np.array(up_direction_shell)
-        make_side_plot(ax, up_direction_shell, side, kite_color)
-
+        basic_draw(ax, side, data=up_direction_shell, color=kite_color)
 
     return None
 
@@ -224,6 +194,7 @@ def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, sid
 
     draw_lifting_surface(ax, pos, r_dcm, b_ref / 3., c_ref / 3., c_ref / 2., c_ref / 3., kite_color, side, body_cross_sections_per_meter, naca)
 
+
 def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
@@ -239,6 +210,8 @@ def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side,
     pos = q + horizontal_space + ehat_3 * height / 2.
 
     draw_lifting_surface(ax, pos, r_new, height, c_ref, c_ref / 2., c_ref / 4., kite_color, side, body_cross_sections_per_meter, naca)
+    return None
+
 
 def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per_meter):
     # read in inputs
@@ -261,6 +234,100 @@ def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per
         draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
 
     return None
+
+
+def draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index):
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    dcm_colors = cosmetics['trajectory']['dcm_colors']
+    visibility_scaling = b_ref
+
+    variables_si = assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        ehat_chord = []
+        ehat_span = []
+        ehat_up = []
+        for dim in range(3):
+            local_chord = plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][dim][index]
+            local_span = plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][dim][index]
+            local_up = plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][dim][index]
+
+            ehat_chord = cas.vertcat(ehat_chord, local_chord)
+            ehat_span = cas.vertcat(ehat_span, local_span)
+            ehat_up = cas.vertcat(ehat_up, local_up)
+
+        ehat_dict = {'x': ehat_chord,
+                     'y': ehat_span,
+                     'z': ehat_up}
+
+        x_start = variables_si['x', 'q' + str(kite) + str(parent)]
+
+        for vec_name, vec_ehat in ehat_dict.items():
+            x_end = x_start + visibility_scaling * vec_ehat
+
+            color = dcm_colors[vec_name]
+            basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='-')
+    return None
+
+
+def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None):
+
+    no_start = x_start is None
+    no_end = x_end is None
+    no_segment = no_start or no_end
+    no_data = data is None
+
+    if no_segment and no_data:
+        message = 'insufficient data provided to basic_draw'
+        print_op.log_and_raise_error(message)
+
+    elif (not no_segment) and (not no_data):
+        message = 'too much data provided to basic_draw'
+        print_op.log_and_raise_error(message)
+
+    elif not no_segment:
+        x = [float(x_start[0]), float(x_end[0])]
+        y = [float(x_start[1]), float(x_end[1])]
+        z = [float(x_start[2]), float(x_end[2])]
+
+    elif not no_data:
+        if (not hasattr(data, 'shape')) or (not len(data.shape) == 2):
+            message = 'data provided to basic_draw has wrong format or wrong shape'
+            print_op.log_and_raise_error(message)
+
+        if isinstance(data, cas.DM):
+            data = np.array(data)
+
+        if data.shape[0] == 3:
+            pass
+        elif data.shape[1] == 3:
+            data = data.T
+        else:
+            message = 'data provided to basic_draw is not 3d-cartesian'
+            print_op.log_and_raise_error(message)
+
+        x = data[0, :]
+        y = data[1, :]
+        z = data[2, :]
+
+    else:
+        message = 'set of choices intended to be complete, appears not to be.'
+        print_op.log_and_raise_error(message)
+
+    if side == 'xy':
+        ax.plot(x, y, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'xz':
+        ax.plot(x, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'yz':
+        ax.plot(y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'isometric':
+        ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+
+    return None
+
 
 def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False)):
 
@@ -300,85 +367,109 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
     return None
 
 
+def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
+
+    parent = plot_dict['architecture'].parent_map(node)
+
+    if ref:
+        x_vals = plot_dict['ref']['x']
+    else:
+        x_vals = plot_dict['x']
+
+    data = []
+    for dim in range(3):
+        local_dim = x_vals['q' + str(node) + str(parent)][dim]
+        data = cas.vertcat(data, local_dim)
+
+    basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+    return None
+
+
+def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None, index=-1):
+    architecture = plot_dict['architecture']
+
+    if ref:
+        x_vals = plot_dict['ref']['x']
+    else:
+        x_vals = plot_dict['x']
+
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+
+        if parent == 0:
+            x_start = cas.DM.zeros((3, 1))
+        else:
+            grandparent = architecture.parent_map[parent]
+            x_start = []
+            for dim in range(3):
+                local_val = x_vals['q' + str(parent) + str(grandparent)][dim][index]
+                x_start = cas.vertcat(x_start, local_val)
+
+        x_end = []
+        for dim in range(3):
+            local_val = x_vals['q' + str(node) + str(parent)][dim][index]
+            x_end = cas.vertcat(x_end, local_val)
+
+        basic_draw(ax, side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+
+    return None
+
+
 def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None):
 
     # read in inputs
     model_options = plot_dict['options']['model']
-    kite_nodes = plot_dict['architecture'].kite_nodes
-    parent_map = plot_dict['architecture'].parent_map
+    architecture = plot_dict['architecture']
+    kite_nodes = architecture.kite_nodes
 
     body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
-    # get kite locations
-    kite_locations = []
-    kite_ref_locations = []
-    kite_rotations = []
-
-
-    for kite in kite_nodes:
-
-        traj = []
-        traj_ref = []
-        rot = []
-
-        parent = parent_map[kite]
-
-        for dim in range(3):
-            traj.append(
-                cas.vertcat(plot_dict['x']['q' + str(kite) + str(parent)][dim])#,
-            )
-            if cosmetics['plot_ref']:
-                traj_ref.append(cas.vertcat(plot_dict['ref']['x']['q' + str(kite) + str(parent)][dim]))
-
-            for dim in range(9):
-                rot.append(plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim])
-
-        kite_locations.append(traj)
-        kite_ref_locations.append(traj_ref)
-        kite_rotations.append(rot)
-
     old_label = None
-    plot_tether = (len(kite_nodes) == 1)
-    for kdx in range(len(kite_nodes)):
-
+    for kite in kite_nodes:
+        parent = architecture.parent_map[kite]
+        kite_index = architecture.kite_nodes.index(kite)
 
         if init_colors == True:
             local_color = 'k'
         elif init_colors == False:
-            local_color = cosmetics['trajectory']['colors'][kdx]
+            local_color = cosmetics['trajectory']['colors'][kite_index]
         else:
             local_color = init_colors
 
-        vertically_stacked_kite_locations = cas.horzcat(kite_locations[kdx][0],
-                                                    kite_locations[kdx][1],
-                                                    kite_locations[kdx][2])
-
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
-
-            pdx = 0
+            local_index = 0
 
             q_local = []
             for dim in range(3):
-                q_local = cas.vertcat(q_local, kite_locations[kdx][dim][pdx])
+                local_val = plot_dict['x']['q' + str(kite) + str(parent)][dim][local_index]
+                q_local = cas.vertcat(q_local, local_val)
 
             r_local = []
             for dim in range(9):
-                r_local = cas.vertcat(r_local, kite_rotations[kdx][dim][pdx])
+                local_val = plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim][local_index]
+                r_local = cas.vertcat(r_local, local_val)
 
             draw_kite(ax, q_local, r_local, model_options, local_color, side, body_cross_sections_per_meter)
 
-
         if old_label == label:
             label = None
-        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label, plot_tether = plot_tether)
 
+        plot_path_of_node(ax, side, plot_dict, kite, ref=False, color=local_color, label=label)
         if cosmetics['plot_ref']:
-            vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[kdx][0],
-                                                        kite_ref_locations[kdx][1],
-                                                        kite_ref_locations[kdx][2])
-            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--', plot_tether = plot_tether)
+            plot_path_of_node(ax, side, plot_dict, kite, ref=True, color=local_color, label=label, linestyle='--', alpha=0.5)
 
         old_label = label
+
+    plot_tether = (len(kite_nodes) == 1)
+    if plot_tether:
+        time_entries = plot_dict['x']['q10'][0].shape[0]
+        for index in range(time_entries):
+            plot_all_tethers(ax, side, plot_dict, ref=False, index=index)
+            if cosmetics['plot_ref']:
+                plot_all_tethers(ax, side, plot_dict, ref=True, index=index, alpha=0.5)
+
+    return None
+
 
 def get_q_limits(plot_dict, cosmetics):
     dims = ['x', 'y', 'z']
@@ -399,6 +490,7 @@ def get_q_limits(plot_dict, cosmetics):
         limits[dim] = [centers[dim] + sign * 0.5 * max_dim for sign in signs]
 
     return limits
+
 
 def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
 
@@ -489,6 +581,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     plt.title(name)
     plt.autoscale(enable=True, axis= 'x', tight = True)
 
+
 def get_sweep_colors(number_of_trials):
 
     cmap = plt.get_cmap('jet')
@@ -500,7 +593,6 @@ def get_sweep_colors(number_of_trials):
         color_list += [scalar_map.to_rgba(np.float(trial))]
 
     return color_list
-
 
 
 def calibrate_visualization(model, nlp, name, options):
@@ -548,6 +640,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['u_ref'] = float(u_ref)
 
     return plot_dict
+
 
 def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
@@ -641,6 +734,7 @@ def interpolate_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']
+    variables = plot_dict['variables']
     variables_dict = plot_dict['variables_dict']
     V_opt = plot_dict['V_plot']
     outputs_dict = plot_dict['outputs_dict']
@@ -651,7 +745,7 @@ def interpolate_data(plot_dict, cosmetics):
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_opt,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_opt,
                                                    outputs_dict, outputs_opt,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
@@ -661,7 +755,6 @@ def interpolate_data(plot_dict, cosmetics):
         plot_dict[name] = value
 
     return plot_dict
-
 
 
 def interpolate_ref_data(plot_dict, cosmetics):
@@ -676,6 +769,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']['ref']
+    variables = plot_dict['variables']
     variables_dict = plot_dict['variables_dict']
     V_ref = plot_dict['V_ref']
     outputs_dict = plot_dict['outputs_dict']
@@ -685,7 +779,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_ref,
                                                    outputs_dict, outputs_ref,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)
@@ -697,7 +791,6 @@ def interpolate_ref_data(plot_dict, cosmetics):
         plot_dict['ref'][name] = value
 
     return plot_dict
-
 
 
 def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
@@ -753,12 +846,14 @@ def make_layer_plot_in_fig(layers, fig_num):
     fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
     return fig, axes, nrows
 
+
 def set_layer_plot_titles(axes, nrows, title):
     if nrows == 1:
         axes.set_title(title)
     else:
         axes[0].set_title(title)
     return axes
+
 
 def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
     if nrows == 1:
@@ -769,12 +864,14 @@ def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
         axes[ldx].set_xlabel(xlabel)
     return axes
 
+
 def set_layer_plot_legend(axes, nrows, ldx = 0):
     if nrows == 1:
         axes.legend()
     else:
         axes[ldx].legend()
     return axes
+
 
 def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
     if nrows == 1:
@@ -786,6 +883,7 @@ def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
             axes[idx].axis([x_min, x_max, y_min, y_max])
     return axes
 
+
 def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
     if nrows == 1:
         axes.plot([tau, tau], [y_min, y_max], 'k--')
@@ -793,7 +891,6 @@ def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
         for idx in range(nrows):
             axes[idx].plot([tau, tau], [y_min, y_max], 'k--')
     return axes
-
 
 
 def get_nondim_time_and_switch(plot_dict):
@@ -851,6 +948,7 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
         print_op.log_and_raise_error(message)
 
     return vars_si
+
 
 def assemble_model_parameters(plot_dict):
 
@@ -931,4 +1029,64 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
             bound_grid_ip = local_bound * local_scaling * np.ones(tgrid_ip.shape)
             plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=p[-1].get_color())
 
+    return None
+
+
+def setup_axes_for_side(cosmetics, side):
+    fig = plt.figure()
+
+    if side == 'xy':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('y [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'xz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'yz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'isometric':
+        ax = plt.subplot(111, projection='3d')
+        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
+        ax.xaxis._axinfo['label']['space_factor'] = 2.8
+        ax.yaxis._axinfo['label']['space_factor'] = 2.8
+        ax.zaxis._axinfo['label']['space_factor'] = 2.8
+
+    return fig, ax
+
+
+def test_naca_coordinates():
+
+    naca = "0012"
+    m = np.float(naca[0]) / 100.
+    p = np.float(naca[1]) / 10.
+    t = np.float(naca[2:]) / 100.
+
+    s_le = 0.
+    s_te = 1.0
+
+    xu_le, xl_le, yu_le, yl_le = get_naca_airfoil_coordinates(s_le, m, p, t)
+    xu_te, xl_te, yu_te, yl_te = get_naca_airfoil_coordinates(s_te, m, p, t)
+
+    epsilon_small = 1.e-8
+    epsilon_large = 1.e-2
+    x_vals_equal = ((xu_le - xl_le)**2. < epsilon_small**2.) and ((xu_te - xl_te)**2. < epsilon_small**2.)
+    le_at_origin = (xu_le**2. < epsilon_small**2.) and (xl_le**2. < epsilon_small**2.) and (yu_le**2. < epsilon_small**2.) and (yu_le**2. < epsilon_small**2.)
+    chord_length_correct = ((yu_te - 1.) < epsilon_small**2.) and ((yl_te - 1.) < epsilon_small**2.)
+    te_joins = ((yu_te - yl_te)**2. < epsilon_large**2.) and ((xu_te - xl_te)**2. < epsilon_small**2.)
+
+    works_correctly = x_vals_equal and le_at_origin and chord_length_correct and te_joins
+    if not works_correctly:
+        message = 'something went wrong with the naca 0012 coordinate generation.'
+        print_op.log_and_raise_error(message)
     return None

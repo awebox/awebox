@@ -904,8 +904,15 @@ def generate_scaling(scaling_options, variables):
     # warn about potentially missing scaling information
     unset_set = []
     for idx in range(scaling.shape[0]):
-        if (scaling.cat[idx] == cas.DM(1.)) and ('t_f' not in scaling.labels()[idx]):
-            local_label = scaling.labels()[idx]
+
+        local_label = scaling.labels()[idx]
+
+        is_tf = 't_f' in local_label
+        is_dcm = '[x,r' in local_label
+        is_deriv_dcm = '[xdot,dr' in local_label
+        leave_unscaled = is_tf or is_dcm or is_deriv_dcm
+
+        if (scaling.cat[idx] == cas.DM(1.)) and not leave_unscaled:
             unset_set += [local_label]
 
     if len(unset_set) > 0:

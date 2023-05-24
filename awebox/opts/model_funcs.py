@@ -235,8 +235,6 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     q_scaling = cas.vertcat(position[0], flight_radius, position[2])
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
-    groundspeed = options['solver']['initialization']['groundspeed']
-    # dq_scaling = groundspeed
     u_altitude = get_u_at_altitude(options, position[2])
     dq_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
@@ -280,13 +278,16 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         geometry = get_geometry(options)
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
+        omega_max = options['model']['system_bounds']['x']['omega'][1]
+
         options_tree.append(('model', 'system_bounds', 'x', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
 
-        options_tree.append(('model', 'scaling', 'x', 'delta', 1, ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'x', 'omega', 1, ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'x', 'r', 1, ('descript', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'delta', cas.DM(delta_max)/2., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'u', 'ddelta', cas.DM(ddelta_max)/2., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'omega', cas.DM(omega_max)/2., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'r', cas.DM.ones((9, 1)), ('descript', None), 'x'))
 
     return options_tree, fixed_params
 

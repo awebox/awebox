@@ -67,12 +67,6 @@ def time_derivative(expr, vars_scaled, architecture, scaling):
             dcm_kite = cas.reshape(r_kite, (3, 3))
             omega = vars_scaled['x', omega_name]
 
-            scaling_factor_r = scaling['x', r_name]
-            scaling_factor_omega = scaling['x', omega_name]
-            if not (cas.diag(scaling_factor_r).is_eye() and cas.diag(scaling_factor_omega).is_eye()):
-                message = 'unexpected scaling factor on 6dof state variables'
-                print_op.log_and_raise_error(message)
-
             dexpr_dr = cas.jacobian(expr, r_kite)
             dr_dt = cas.reshape(cas.mtimes(vect_op.skew(omega), cas.inv(dcm_kite.T)), (9, 1))
             deriv += cas.mtimes(dexpr_dr, dr_dt)

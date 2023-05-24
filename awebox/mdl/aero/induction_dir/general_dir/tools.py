@@ -40,7 +40,6 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.architecture as archi
 
-
 def get_option_from_possible_dicts(options, name, actuator_or_vortex):
 
     specific_name = 'vortex_' + name
