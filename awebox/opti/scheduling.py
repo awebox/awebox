@@ -107,22 +107,22 @@ def define_costs_to_update(P, formulation):
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma', 'fictitious']
-    fictitious_updates[1] = []
+    fictitious_updates[1] = ['gamma']
 
     tether_updates = {}
     tether_updates[0] = ['tau']
-    tether_updates[1] = []
+    tether_updates[1] = ['tau']
 
     induction_updates = {}
     induction_updates[0] = ['iota']
-    induction_updates[1] = []
+    induction_updates[1] = ['iota']
 
     tether_release_updates = {}
     tether_release_updates[0] = []
 
     power_updates = {}
     power_updates[0] = ['power', 'psi', 'power_derivative', 'fictitious']
-    power_updates[1] = ['tracking']
+    power_updates[1] = ['tracking', 'psi']
 
     nominal_landing_updates = {}
     nominal_landing_updates[0] = ['nominal_landing', 'eta']

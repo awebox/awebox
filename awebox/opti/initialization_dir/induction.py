@@ -78,28 +78,56 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
 
 
 def initial_guess_actuator(init_options, nlp, model, V_init):
-    V_init = initial_guess_actuator_x(init_options, model, V_init)
-    V_init = initial_guess_actuator_z(init_options, model, V_init)
+    V_init = initial_guess_actuator_a_values(init_options, model, V_init)
+    V_init = initial_guess_actuator_geometry(init_options, model, V_init)
     V_init = set_azimuth_variables(V_init, init_options, model, nlp)
 
     return V_init
 
 
-def initial_guess_actuator_x(init_options, model, V_init):
+def initial_guess_actuator_a_values(init_options, model, V_init):
+
+    a_ref = cas.DM(init_options['z']['a'])
 
     dict = {}
-    dict['a'] = cas.DM(init_options['x']['a'])
-    dict['asin_uasym'] = cas.DM(0.)
-    dict['acos_uasym'] = cas.DM(0.)
-    dict['a_uaxi'] = dict['a']
-    dict['a_uasym'] = dict['a']
 
-    var_type = 'x'
-    for name in struct_op.subkeys(model.variables, var_type):
-        name_stripped, _ = struct_op.split_name_and_node_identifier(name)
+    dict['local_a'] = cas.DM(a_ref)
+    for label in ['qaxi', 'qasym', 'uaxi', 'uasym']:
+        dict['a_' + label] = cas.DM(a_ref)
+        for a_name in ['acos', 'asin']:
+            dict[a_name + '_' + label] = cas.DM(0.)
 
-        if name_stripped in dict.keys():
-            V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
+    dict['ui'] = cas.DM.zeros((3, 1))  # remember that induction homotopy has not yet begun.
+
+    print_op.warn_about_temporary_functionality_alteration()
+    # dict['a'] = cas.DM(init_options['z']['a'])
+    # dict['a_qaxi'] = dict['a']
+    # dict['a_qasym'] = dict['a']
+    # dict['local_a'] = dict['a']
+    # dict['asin_qasym'] = cas.DM(0.)
+    # dict['acos_qasym'] = cas.DM(0.)
+    # dict['ui'] = cas.DM.zeros((3, 1)) #remember that induction homotopy has not yet begun.
+
+    # local_label = actuator_flow.get_label(
+    #     {'induction': {'steadyness': actuator_steadyness, 'symmetry': actuator_symmetry}})
+    # dict['a'] = a_ref
+    # dict['a_' + local_label] = a_ref
+    # 
+    # actuator.
+    # if 'a' in init_options['x'].keys():
+    #     a_val = init_options['x']['a']
+    #     
+    # dict['a'] = cas.DM()
+    # dict['asin_uasym'] = cas.DM(0.)
+    # dict['acos_uasym'] = cas.DM(0.)
+    # dict['a_uaxi'] = dict['a']
+    # dict['a_uasym'] = dict['a']
+
+    for var_type in ['x', 'z']:
+        for name in struct_op.subkeys(model.variables, var_type):
+            name_stripped, _ = struct_op.split_name_and_node_identifier(name)
+            if name_stripped in dict.keys():
+                V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
@@ -150,7 +178,7 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
     return V_init
 
 
-def initial_guess_actuator_z(init_options, model, V_init):
+def initial_guess_actuator_geometry(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     wind_dcm = cas.horzcat(u_hat, v_hat, w_hat)
@@ -163,13 +191,6 @@ def initial_guess_actuator_z(init_options, model, V_init):
     b_ref = init_options['sys_params_num']['geometry']['b_ref']
 
     dict = {}
-    dict['a'] = cas.DM(init_options['z']['a'])
-    dict['a_qaxi'] = dict['a']
-    dict['a_qasym'] = dict['a']
-    dict['local_a'] = dict['a']
-    dict['asin_qasym'] = cas.DM(0.)
-    dict['acos_qasym'] = cas.DM(0.)
-    dict['ui'] = cas.DM.zeros((3, 1)) #remember that induction homotopy has not yet begun.
     dict['varrho'] = cas.DM(init_options['precompute']['radius'] / b_ref)
     dict['bar_varrho'] = dict['varrho']
     dict['act_dcm'] = act_dcm_cols

@@ -43,7 +43,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
-def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
+def health_check(health_solver_options, nlp, solution, arg, stats, iterations, step_name):
 
     awelogger.logger.info('Checking health...')
 
@@ -84,7 +84,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     elif (not problem_is_healthy) and health_solver_options['help_with_debugging']:
 
-        if ('power' in iterations.keys()) and ('final' not in iterations.keys()):
+        if 'power' in step_name:
             awelogger.logger.warning('')
             message = 'this unhealthy behavior seems to appear in the power portion of the homotopy.'
             print_op.base_print(message, level='warning')
@@ -122,7 +122,7 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations):
 
     if not problem_is_healthy:
         awelogger.logger.info('')
-        message = 'OCP appears to be unhealthy'
+        message = 'OCP appears to be unhealthy (step: ' + step_name + ')'
 
         if health_solver_options['raise_exception']:
             print_op.log_and_raise_error(message)

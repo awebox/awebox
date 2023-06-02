@@ -157,16 +157,14 @@ def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, e
         message = 'unfamiliar wake [substructure] type found (' + wake_type + ')'
         print_op.log_and_raise_error(message)
 
-def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number):
+def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number, varrho_ref, winding_period):
 
     c_ref = geometry['c_ref']
     b_ref = geometry['b_ref']
     u_ref = options['user_options']['wind']['u_ref']
-    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    winding_period = estimate_winding_period(options, geometry)
 
     corresponding_wake_node = get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, element_number, options)
-    expected_delta_t = get_expected_time_per_control_interval(options, geometry)
+    expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
     time = corresponding_wake_node * expected_delta_t
     downstream_distance = c_ref / 2. + u_ref * time
     omega = 2. * np.pi / winding_period
@@ -177,27 +175,19 @@ def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, e
 
     return biot_savart_radius
 
-def estimate_winding_period(options, geometry):
-    b_ref = geometry['b_ref']
-    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    tangential_speed = options['solver']['initialization']['groundspeed']
-    winding_period = (2. * np.pi * varrho_ref * b_ref) / tangential_speed
-    return winding_period
 
-def get_expected_time_per_control_interval(options, geometry):
+def get_expected_time_per_control_interval(options, winding_period):
 
-    winding_period = estimate_winding_period(options, geometry)
     expected_number_of_windings = options['user_options']['trajectory']['lift_mode']['windings']
     expected_total_time = winding_period * float(expected_number_of_windings)
     expected_delta_t = expected_total_time / float(options['nlp']['n_k'])
     return expected_delta_t
 
-def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, wingtip):
+def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, wingtip, varrho_ref, winding_period):
 
     b_ref = geometry['b_ref']
     u_ref = options['user_options']['wind']['u_ref']
-    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
-    expected_delta_t = get_expected_time_per_control_interval(options, geometry)
+    expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
     expected_number_of_windings = options['user_options']['trajectory']['lift_mode']['windings']
     expected_total_angle = 2. * np.pi * float(expected_number_of_windings)
     expected_delta_angle = expected_total_angle / float(options['nlp']['n_k'])
@@ -222,7 +212,9 @@ def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_cir
 
     return local_adjustment_factor
 
-def append_scaling_to_options_tree(options, geometry, options_tree, architecture):
+
+
+def append_scaling_to_options_tree(options, geometry, options_tree, architecture, varrho_ref, winding_period):
 
     # the part that describes the wake nodes and consequent vortex rings
     wingtips = ['ext', 'int']
@@ -235,9 +227,7 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
     b_ref = geometry['b_ref']
 
     u_ref = options['user_options']['wind']['u_ref']
-    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     tangential_speed = options['solver']['initialization']['groundspeed']
-    winding_period = estimate_winding_period(options, geometry)
 
     airspeed_ref = cas.sqrt(tangential_speed**2 + u_ref**2)
 
@@ -289,7 +279,7 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
             for element_type, expected_number in local_expected_number_of_elements_dict.items():
                 for element_number in range(expected_number):
                     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                    biot_savart_radius = get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number)
+                    biot_savart_radius = get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number, varrho_ref, winding_period)
                     local_wu_ind_element_scale = wu_ind_element_scale / biot_savart_radius**2.
 
                     if wake_type == 'near':
@@ -299,13 +289,12 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
                             local_adjustment_factor = options['model']['aero']['vortex']['rate_of_change_factor']
                             
                         elif position_in_horseshoe in ['int', 'ext']:
-                            local_adjustment_factor = get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, position_in_horseshoe)
+                            local_adjustment_factor = get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, position_in_horseshoe, varrho_ref, winding_period)
 
                         local_wu_ind_element_scale *= local_adjustment_factor
 
                     options_tree.append(('model', 'scaling', 'z', var_name, local_wu_ind_element_scale, ('descript', None), 'x'))
 
-    varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     options_tree.append(('model', 'aero', 'vortex', 'varrho_ref', varrho_ref, ('descript', None), 'x'))
 
     return options_tree

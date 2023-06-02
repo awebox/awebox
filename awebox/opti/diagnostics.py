@@ -93,7 +93,7 @@ def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, st
     should_make_check = (not do_not_make_check) and (should_make_autorun_check or should_make_failure_check or should_make_final_check)
 
     if should_make_check:
-        return debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations)
+        return debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations, step_name)
     else:
         return True
 

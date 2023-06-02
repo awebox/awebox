@@ -217,14 +217,23 @@ def get_kite_dcm(init_options, model, node, ret):
     return kite_dcm
 
 
+def get_l_t_from_init_options(init_options):
+    if 'l_t' in init_options.keys():
+        l_t = init_options['l_t']
+    elif 'x' in init_options.keys() and 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    elif 'theta' in init_options.keys() and 'l_t' in init_options['theta'].keys():
+        l_t = init_options['theta']['l_t']
+    else:
+        print_op.log_and_raise_error('missing l_t initialization information')
+    return l_t
+
+
 def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
 
-    if 'l_t' in init_options['x'].keys():
-        l_t = init_options['x']['l_t']
-    else:
-        l_t = init_options['theta']['l_t']
+    l_t = get_l_t_from_init_options(init_options)
 
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
@@ -237,10 +246,7 @@ def find_airspeed(init_options, groundspeed, psi):
 
 def get_wind_velocity(init_options):
 
-    if 'l_t' in init_options['x'].keys():
-        l_t = init_options['x']['l_t']
-    else:
-        l_t = init_options['theta']['l_t']
+    l_t = get_l_t_from_init_options(init_options)
 
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]

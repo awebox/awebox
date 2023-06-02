@@ -513,14 +513,18 @@ def draw_actuator_flow(ax, side, plot_dict, cosmetics, index):
 
 
 def draw_wind_dcm(ax, side, plot_dict, cosmetics, index):
-    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    # b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
     dcm_colors = cosmetics['trajectory']['dcm_colors']
-    visibility_scaling = b_ref
+    # visibility_scaling = b_ref
 
     variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
 
     architecture = plot_dict['architecture']
     for parent in architecture.layer_nodes:
+
+        avg_radius = plot_dict['outputs']['actuator']['avg_radius' + str(parent)][0][index]
+        visibility_scaling = avg_radius
+
         uzero_hat = get_uzero_hat_var(variables_si, parent)
         vzero_hat = get_vzero_hat_var(variables_si, parent)
         wzero_hat = get_wzero_hat_var(variables_si, parent)

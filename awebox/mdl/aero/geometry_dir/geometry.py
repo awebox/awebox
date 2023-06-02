@@ -286,6 +286,7 @@ def construct_geometry_test_object(geometry_type='averaged'):
 
     return model_options, variables_si, architecture, wind, x_center, dx_center, period, clockwise
 
+
 def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
     model_options, variables_si, architecture, wind, expected_position, expected_velocity, expected_period, expected_clockwise = construct_geometry_test_object(geometry_type=geometry_type)
     parent = architecture.layer_nodes[0]
@@ -317,6 +318,7 @@ def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
         print_op.log_and_raise_error(message)
 
     return None
+
 
 def test(epsilon=1.e-6):
     available_types = get_available_geometry_types()

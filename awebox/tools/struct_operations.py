@@ -1068,9 +1068,10 @@ def interpolate_solution(local_options, time_grids, model_variables, variables_d
         interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
 
     # output values
+    # todo: fix the (output-interpolation-dataset-starts-at-t>0) problem in a less hacky way.
     epsilon_periodic = 1.e-5
-    states_at_start = get_states_at_time(local_options, V_opt, model_variables, 0)
-    states_at_end = get_states_at_time(local_options, V_opt, model_variables, -1)
+    states_at_start = V_opt['x', 0]
+    states_at_end = V_opt['x', -1]
     is_periodic = vect_op.norm(states_at_start - states_at_end)**2. < epsilon_periodic**2.
     interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, nlp_discretization,
                                                    n_k, collocation_d,

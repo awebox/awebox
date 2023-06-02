@@ -573,17 +573,20 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('model', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
 
-
     comparison_labels = get_comparison_labels(options, user_options)
     options_tree.append(('model', 'aero', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
-    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
+    flight_radius = estimate_flight_radius(options, architecture)
+    geometry = get_geometry(options)
+    b_ref = geometry['b_ref']
+    induction_varrho_ref = flight_radius / b_ref
+    options_tree.append(('model', 'aero', 'actuator', 'varrho_ref', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'z', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'z', 'bar_varrho', induction_varrho_ref, ('descript', None), 'x'))
-    options_tree.append(('solver', 'initialization', 'induction', 'varrho_ref', induction_varrho_ref, ('????', None), 'x')),
+    options_tree.append(('model', 'system_bounds', 'z', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
@@ -595,7 +598,7 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     a_ref = options['model']['aero']['actuator']['a_ref']
     a_range = options['model']['aero']['actuator']['a_range']
     a_fourier_range = options['model']['aero']['actuator']['a_fourier_range']
-    if  (a_ref < a_range[0]) or (a_ref > a_range[1]):
+    if (a_ref < a_range[0]) or (a_ref > a_range[1]):
         a_ref_new = a_range[1] / 2.
         message = 'reference induction factor (' + str(a_ref) + ') is outside of the allowed range of ' + str(a_range) + '. proceeding with reference value of ' + str(a_ref_new)
         awelogger.logger.warning(message)
@@ -603,23 +606,24 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
 
     a_labels_dict = {'qaxi': 'z', 'qasym': 'z', 'uaxi': 'x', 'uasym' : 'x'}
     for label in a_labels_dict.keys():
-        options_tree.append(('model', 'scaling', a_labels_dict[label], 'a_' + label, a_ref, ('descript', None), 'x'))
-        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a_' + label, a_ref, ('induction factor [-]', None), 'x'))
-        options_tree.append(('solver', 'initialization', a_labels_dict[label], 'a', a_ref, ('induction factor [-]', None), 'x'))
-
-        options_tree.append(('model', 'scaling', a_labels_dict[label], 'acos_' + label, a_ref, ('descript', None), 'x'))
-        options_tree.append(('model', 'scaling', a_labels_dict[label], 'asin_' + label, a_ref, ('descript', None), 'x'))
+        for a_name in ['a', 'acos', 'asin']:
+            options_tree.append(('model', 'scaling', a_labels_dict[label], a_name + '_' + label, a_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'z', 'local_a', a_ref, ('???', None), 'x')),
+    options_tree.append(('solver', 'initialization', 'z', 'a', a_ref, ('???', None), 'x')),
 
-    local_label = actuator_flow.get_label({'induction':{'steadyness':actuator_steadyness, 'symmetry':actuator_symmetry}})
+    local_label = actuator_flow.get_label({'induction': {'steadyness': actuator_steadyness, 'symmetry': actuator_symmetry}})
     options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'a_' + local_label, a_range,
                          ('local induction factor', None), 'x')),
-    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'acos_' + local_label, a_fourier_range,
-                         ('??', None), 'x')),
-    options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], 'asin_' + local_label, a_fourier_range,
-                         ('??', None), 'x')),
+    for a_name in ['acos', 'asin']:
+        options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], a_name + '_' + local_label, a_fourier_range, ('??', None), 'x')),
 
-    options_tree.append(('model', 'system_bounds', 'z', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
+    other_labels = set(comparison_labels) - set(['act_' + local_label])
+    inf_range = [-cas.inf, cas.inf]
+    for other_label in other_labels:
+        if 'act_' in other_label:
+            specific_label = other_label[4:]
+            for a_name in ['a', 'acos', 'asin']:
+                options_tree.append(('model', 'system_bounds', a_labels_dict[specific_label], a_name + '_' + other_label, inf_range, ('local induction factor', None), 'x')),
 
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'z', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
@@ -761,7 +765,14 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     for kite in architecture.kite_nodes:
         options_tree.append(('model', 'scaling', 'x', 'integrated_circulation' + str(kite), 1., ('????', None), 'x')),
 
-    options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture)
+    flight_radius = estimate_flight_radius(options, architecture)
+    b_ref = geometry['b_ref']
+    varrho_ref = flight_radius / b_ref
+    t_f_guess = estimate_time_period(options, architecture)
+    windings = options['user_options']['trajectory']['lift_mode']['windings']
+    winding_period = t_f_guess / float(windings)
+
+    options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture, varrho_ref, winding_period)
 
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ref = get_u_ref(options['user_options'])
@@ -1120,9 +1131,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
 
 def estimate_flight_radius(options, architecture):
 
-    induction_varrho_ref = options['model']['aero']['actuator']['varrho_ref']
     b_ref = get_geometry(options)['b_ref']
-    actuator_radius = induction_varrho_ref * b_ref
 
     anticollision_radius = b_ref * options['model']['model_bounds']['anticollision']['safety_factor']
 
@@ -1137,7 +1146,7 @@ def estimate_flight_radius(options, architecture):
         length = options['solver']['initialization']['theta']['l_s']
     cone_radius = float(length * np.sin(cone_angle))
 
-    available_estimates = [actuator_radius, anticollision_radius, centripetal_radius, cone_radius]
+    available_estimates = [anticollision_radius, centripetal_radius, cone_radius]
     radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
     return radius
 

@@ -184,11 +184,11 @@ class Trial(object):
 
         # perform quality check
         if not intermediate_solve:
-            if self.__options['quality']['when']['final'] or (self.__options['quality']['when']['final_success'] and self.__optimization.solve_succeeded):
+            if (self.__options['quality']['when'] == 'final') or (self.__options['quality']['when'] == 'final_success' and self.__optimization.solve_succeeded):
                 self.__quality.check_quality(self)
             else:
-                message = 'WARNING: final solution quality was not checked!'
-                awelogger.logger.info(message)
+                message = 'final solution quality was not checked!'
+                print_op.base_print(message, level='warning')
 
         # print solution
         self.print_solution()

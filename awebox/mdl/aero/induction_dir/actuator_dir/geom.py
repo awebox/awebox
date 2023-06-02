@@ -378,7 +378,7 @@ def get_n_vec_val(model_options, parent, variables, parameters, architecture):
 def draw_actuator_geometry(ax, side, plot_dict, cosmetics, index):
     draw_dot_at_actuator_center(ax, side, plot_dict, cosmetics, index)
     draw_radial_vectors_from_center_to_kites(ax, side, plot_dict, cosmetics, index)
-    draw_average_radius(ax, side, plot_dict, cosmetics, index)
+    # draw_average_radius(ax, side, plot_dict, cosmetics, index)
     draw_psi_angles(ax, side, plot_dict, cosmetics, index)
     draw_actuator_dcm(ax, side, plot_dict, cosmetics, index)
     draw_actuator_annulus(ax, side, plot_dict, cosmetics, index)
@@ -403,9 +403,9 @@ def draw_actuator_annulus(ax, side, plot_dict, cosmetics, index):
 
 
 def draw_actuator_dcm(ax, side, plot_dict, cosmetics, index):
-    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    # b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
     dcm_colors = cosmetics['trajectory']['dcm_colors']
-    visibility_scaling = b_ref
+    # visibility_scaling = b_ref
 
     variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
 
@@ -414,6 +414,9 @@ def draw_actuator_dcm(ax, side, plot_dict, cosmetics, index):
         n_hat = get_n_hat_var(variables_si, parent)
         rotor_y_hat = get_y_rotor_hat_var(variables_si, parent)
         rotor_z_hat = get_z_rotor_hat_var(variables_si, parent)
+
+        avg_radius = plot_dict['outputs']['actuator']['avg_radius' + str(parent)][0][index]
+        visibility_scaling = avg_radius
 
         ehat_dict = {'x': n_hat,
                      'y': rotor_y_hat,

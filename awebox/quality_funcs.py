@@ -238,7 +238,6 @@ def test_power_balance(trial, test_param_dict, results, input_values):
                       + str(balance['total']) + ' > ' + str(test_param_dict['power_balance_thresh'])
             awelogger.logger.warning(message)
             results['energy_balance' + 'total'] = False
-            pdb.set_trace()
         else:
             results['energy_balance' + 'total'] = True
 
@@ -329,6 +328,7 @@ def test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, resu
             message += "this means, that more than {:0.2G} percent ".format(non_power_percent_of_objective_thresh)
             message += 'of the objective is due to sources other than the power cost: '
             message += "{:0.2G} percent.".format(non_power_percent_of_objective_found)
+            message += " we suggest increasing options['solver.cost_factor.power']."
 
             awelogger.logger.warning(message)
             results['power_dominance'] = False

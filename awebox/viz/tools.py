@@ -369,7 +369,7 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
 
 def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
 
-    parent = plot_dict['architecture'].parent_map(node)
+    parent = plot_dict['architecture'].parent_map[node]
 
     if ref:
         x_vals = plot_dict['ref']['x']
@@ -379,13 +379,13 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
     data = []
     for dim in range(3):
         local_dim = x_vals['q' + str(node) + str(parent)][dim]
-        data = cas.vertcat(data, local_dim)
+        data = cas.horzcat(data, local_dim)
 
     basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
     return None
 
 
-def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None, index=-1):
+def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=0.2, label=None, index=-1):
     architecture = plot_dict['architecture']
 
     if ref:

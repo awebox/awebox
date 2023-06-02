@@ -225,6 +225,8 @@ def __set_primitives(options, model):
         landing_args = {}
 
         # build terminal configuration
+        # todo: these values probably shouldn't be hard coded?
+        # is anyone still using this?
         terminal_configuration = {}
         terminal_configuration['angular_looping_velocity'] = 0.
         terminal_configuration['l_t'] = 50.

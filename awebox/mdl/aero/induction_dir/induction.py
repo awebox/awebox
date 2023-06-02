@@ -125,6 +125,7 @@ def get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, arc
 
     return vec_u_ind_kite
 
+
 def get_kite_effective_velocity(variables, wind, kite, architecture):
 
     parent = architecture.parent_map[kite]

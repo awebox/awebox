@@ -145,6 +145,7 @@ def check_reference_feasibility(solver_options, V_ref, p_fix_num, nlp):
     ineq_cstr_fun = nlp.ocp_cstr_list.get_function(solver_options, nlp.V, nlp.P, 'ineq')
     ineq_vals = ineq_cstr_fun(V_ref, p_fix_num)
     path_constraint_theshold = solver_options['initialization']['check_feasibility']['path_constraint_threshold']
+    raise_exception = solver_options['initialization']['check_feasibility']['raise_exception']
 
     is_violated = []
     for idx in range(ineq_vals.shape[0]):
@@ -160,6 +161,9 @@ def check_reference_feasibility(solver_options, V_ref, p_fix_num, nlp):
             if is_violated[idx]:
                 dict_is_violated[name_list[idx]] = ineq_vals[idx]
         print_op.print_dict_as_table(dict_is_violated, level='warning')
+
+        if raise_exception:
+            print_op.log_and_raise_error('initial guess violates path constraints')
 
     return None
 

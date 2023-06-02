@@ -27,6 +27,7 @@ initialization functions specific to the standard path scenario
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
+import pdb
 
 import numpy as np
 import casadi.tools as cas
@@ -71,10 +72,8 @@ def guess_values_at_time(t, init_options, model):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    if 'l_t' in init_options['x'].keys():
-        ret['l_t'] = init_options['x']['l_t']
-    else:
-        ret['l_t'] = init_options['theta']['l_t']
+    l_t = tools.get_l_t_from_init_options(init_options)
+    ret['l_t'] = l_t
 
     ret['dl_t'] = 0.0
 
@@ -195,10 +194,7 @@ def precompute_path_parameters(init_options, model):
 def set_fixed_hypotenuse(init_options, model):
     number_kites = model.architecture.number_of_kites
     if number_kites == 1:
-        if 'l_t' in init_options['x'].keys():
-            hypotenuse = init_options['x']['l_t']
-        else:
-            hypotenuse = init_options['theta']['l_t']
+        hypotenuse = tools.get_l_t_from_init_options(init_options)
     else:
         hypotenuse = init_options['theta']['l_s']
 
