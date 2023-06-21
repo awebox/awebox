@@ -39,7 +39,6 @@ import copy
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
-
 def generate_structure(options, architecture):
 
     kite_dof = options['kite_dof']
@@ -245,6 +244,18 @@ def extend_vortex_induction(options, system_lifted, system_states, architecture)
 
 def extend_actuator_induction(options, system_lifted, system_states, architecture):
 
+    system_lifted, system_states = extend_actuator_support(options, system_lifted, system_states, architecture)
+
+    if not options['aero']['actuator']['support_only']:
+        system_lifted, system_states = extend_actuator_induction_factors(options, system_lifted, system_states,
+                                                                         architecture)
+
+    return system_lifted, system_states
+
+
+
+def extend_actuator_induction_factors(options, system_lifted, system_states, architecture):
+
     comparison_labels = options['aero']['induction']['comparison_labels']
 
     actuator_comp_labels = []
@@ -254,15 +265,9 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
-
         system_lifted.extend([('local_a' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
-        system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
 
     for layer_node in architecture.layer_nodes:
-
         for label in actuator_comp_labels:
             if label[0] == 'q':
                 system_lifted.extend([('a_' + label + str(layer_node), (1, 1))])
@@ -276,22 +281,40 @@ def extend_actuator_induction(options, system_lifted, system_states, architectur
             if label == 'uasym':
                 system_states.extend([('acos_' + label + str(layer_node), (1, 1))])
                 system_states.extend([('asin_' + label + str(layer_node), (1, 1))])
+    return system_lifted, system_states
 
+
+def extend_actuator_support(options, system_lifted, system_states, architecture):
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+        system_lifted.extend([('varrho' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('psi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('cospsi' + str(kite) + str(parent), (1, 1))])
+        system_lifted.extend([('sinpsi' + str(kite) + str(parent), (1, 1))])
+
+    for layer_node in architecture.layer_nodes:
         system_lifted.extend([('bar_varrho' + str(layer_node), (1, 1))])
+        system_lifted.extend([('area' + str(layer_node), (1, 1))])
 
-        system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
-        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
-
-        system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
-        system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
-        system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('act_q' + str(layer_node), (3, 1))])
+        system_lifted.extend([('act_dq' + str(layer_node), (3, 1))])
 
         system_lifted.extend([('gamma' + str(layer_node), (1, 1))])
         system_lifted.extend([('g_vec_length' + str(layer_node), (1, 1))])
         system_lifted.extend([('cosgamma' + str(layer_node), (1, 1))])
         system_lifted.extend([('singamma' + str(layer_node), (1, 1))])
 
+        system_lifted.extend([('act_dcm' + str(layer_node), (9, 1))])
+        system_lifted.extend([('wind_dcm' + str(layer_node), (9, 1))])
+        system_lifted.extend([('n_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('u_vec_length' + str(layer_node), (1, 1))])
+        system_lifted.extend([('z_vec_length' + str(layer_node), (1, 1))])
+
+        system_lifted.extend([('thrust' + str(layer_node), (1, 1))])
+
     return system_lifted, system_states
+
+
 
 
 def extend_aerodynamics(options, system_lifted, system_states, architecture):

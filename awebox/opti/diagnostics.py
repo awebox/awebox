@@ -221,7 +221,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
         lowest_layer_node = architecture.parent_map[np.min(np.array(architecture.kite_nodes))]
 
         local_average_cone_angle = 0.
-        set_of_kites_in_lowest_layer = set(architecture.kite_nodes).intersection(set(architecture.children_map[lowest_layer_node]))
+        set_of_kites_in_lowest_layer = architecture.get_kite_children(lowest_layer_node)
         number_of_kites_in_lowest_layer = len(set_of_kites_in_lowest_layer)
         for kite in set_of_kites_in_lowest_layer:
 

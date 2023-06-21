@@ -36,6 +36,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.averaged as averaged
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
@@ -56,12 +57,12 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, variables_s
         cstr_list.append(ellipse_half_cstr)
 
     else:
-        induction_cstr = get_induction_cstr(model_options, wind, variables_si, parameters, architecture)
+        induction_cstr = get_induction_cstr(model_options, wind, variables_si, parameters, architecture, scaling)
         cstr_list.append(induction_cstr)
 
         if actuator.model_is_included_in_comparison(model_options):
             actuator_cstr = actuator.get_model_constraints(model_options, atmos, wind, variables_si, parameters, outputs,
-                                                       architecture)
+                                                       architecture, scaling)
             cstr_list.append(actuator_cstr)
 
         if vortex.model_is_included_in_comparison(model_options):
@@ -70,10 +71,9 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, variables_s
 
     return cstr_list
 
-def get_induction_cstr(options, wind, variables_si, parameters, architecture):
+def get_induction_cstr(options, wind, variables_si, parameters, architecture, scaling):
 
     iota = parameters['phi', 'iota']
-    u_ref = wind.get_speed_ref()
 
     cstr_list = cstr_op.ConstraintList()
     for kite in architecture.kite_nodes:
@@ -86,9 +86,11 @@ def get_induction_cstr(options, wind, variables_si, parameters, architecture):
         vec_u_ind_final = get_induced_velocity_at_kite_si(options, wind, variables_si, kite, architecture, parameters)
         resi_final = (vec_u_ind_var - vec_u_ind_final)
 
-        resi_homotopy = (iota * resi_trivial + (1. - iota) * resi_final) / u_ref
+        resi_homotopy = (iota * resi_trivial + (1. - iota) * resi_final)
 
-        general_cstr = cstr_op.Constraint(expr=resi_homotopy,
+        resi_scaled = struct_op.var_si_to_scaled('z', 'ui' + str(kite), resi_homotopy, scaling)
+
+        general_cstr = cstr_op.Constraint(expr=resi_scaled,
                                           name='induction_' + str(kite),
                                           cstr_type='eq')
         cstr_list.append(general_cstr)
@@ -110,16 +112,14 @@ def get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, arc
     induction_model = model_options['induction_model']
     parent = architecture.parent_map[kite]
 
-    force_zero = model_options['aero']['vortex']['force_zero']
+    force_zero = model_options['aero']['induction']['force_zero']
 
-    if induction_model == 'actuator':
+    if induction_model == 'not_in_use' or force_zero:
+        vec_u_ind_kite = cas.DM.zeros((3, 1))
+    elif induction_model == 'actuator':
         vec_u_ind_kite = actuator_flow.get_kite_induced_velocity(model_options, variables_si, parameters, architecture, wind, kite, parent)
-    elif induction_model == 'vortex' and not force_zero:
+    elif induction_model == 'vortex':
         vec_u_ind_kite = vortex.get_induced_velocity_at_kite_si(variables_si, kite)
-    elif induction_model == 'vortex' and force_zero:
-        vec_u_ind_kite = cas.DM.zeros((3, 1))
-    elif induction_model == 'not_in_use':
-        vec_u_ind_kite = cas.DM.zeros((3, 1))
     else:
         log_and_raise_unknown_induction_model_error(induction_model)
 
@@ -139,13 +139,13 @@ def get_kite_effective_velocity(variables, wind, kite, architecture):
 
 #### outputs
 
-def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture):
+def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
 
     if actuator.model_is_included_in_comparison(options):
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture, scaling)
 
     if vortex.model_is_included_in_comparison(options):
-        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, parameters, architecture)
+        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, architecture, scaling)
 
     return outputs
 

@@ -115,8 +115,11 @@ def get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, ar
     for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
 
         for kite_obs in architecture.kite_nodes:
-            resi = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, wind, variables_si, parameters, kite_obs,
+            resi_unscaled = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, wind, variables_si, parameters, kite_obs,
                                                                                                    architecture.parent_map[kite_obs])
+
+            scale = wind.get_speed_ref()
+            resi = resi_unscaled / scale
 
             local_cstr = cstr_op.Constraint(expr=resi,
                                             name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
@@ -151,15 +154,16 @@ def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
 
     return V_init
 
+
 def get_induced_velocity_at_kite_si(variables_si, kite_obs):
     return vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
 
-def model_is_included_in_comparison(options):
-    comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'vortex')
-    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
-    return any_vor
 
-def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, parameters, architecture):
+def model_is_included_in_comparison(options):
+    return vortex_tools.model_is_included_in_comparison(options)
+
+
+def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, architecture, scaling):
 
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
@@ -174,7 +178,7 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, par
         parent_obs = architecture.parent_map[kite_obs]
 
         vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
-        n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, parameters, architecture)
+        n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture, scaling)
         u_normalizing = vortex_tools.get_induction_factor_normalizing_speed(model_options, wind, kite_obs, parent_obs, variables_si, architecture)
         u_ind = vect_op.norm(vec_u_ind)
 

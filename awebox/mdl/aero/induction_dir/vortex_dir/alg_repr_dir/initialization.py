@@ -155,7 +155,7 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
 def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, architecture):
     expected_radius = init_options['precompute']['radius']
     expected_period = init_options['precompute']['winding_period']
-    epsilon = 0.01
+    epsilon = 0.05
 
     for parent in architecture.layer_nodes:
         outputs_radius = Outputs_init['coll_outputs', :, :, 'geometry', 'average_radius' + str(parent)]

@@ -38,6 +38,8 @@ import awebox.ocp.multiple_shooting as ms_module
 import awebox.ocp.ocp_outputs as ocp_outputs
 import awebox.ocp.var_struct as var_struct
 
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
@@ -230,8 +232,8 @@ def setup_output_structure(nlp_options, model_outputs, global_outputs):
             cas.entry('outputs', repeat=[nk], struct=model_outputs),
         )
 
-    Outputs = cas.struct_symMX([entry_tuple] + [cas.entry('final', struct=global_outputs)])
-
+    entries = [entry_tuple]
+    Outputs = cas.struct_symMX(entries)
     return Outputs
 
 
@@ -284,7 +286,7 @@ def discretize(nlp_options, model, formulation):
          Integral_outputs_list,
          Integral_constraint_list] = Multiple_shooting.discretize_constraints(nlp_options, model, formulation, V, P)
 
-    check_the_dimension_of_xdot(V, model)
+    check_the_dimension_of_xdot(nlp_options, V, model)
 
     #-------------------------------------------
     # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
@@ -332,9 +334,8 @@ def discretize(nlp_options, model, formulation):
 
  # Create Outputs struct and function
     if nlp_options['induction']['induction_model'] == 'vortex':  # outputs are need for vortex constraint construction
-        Outputs_struct = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
-        Outputs_struct = Outputs_struct(cas.vertcat(*Outputs_list))
-        Outputs_list.append(global_outputs_fun(V, P))
+        Outputs_structure = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
+        Outputs_struct = Outputs_structure(cas.vertcat(*Outputs_list))
         Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
         Outputs = Outputs_struct(Outputs_fun(V, P))
     else:
@@ -360,7 +361,7 @@ def discretize(nlp_options, model, formulation):
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 
-def check_the_dimension_of_xdot(V, model):
+def check_the_dimension_of_xdot(nlp_options, V, model):
 
     number_of_xdot_variables = -1
     number_of_model_derivatives = -2
@@ -380,6 +381,10 @@ def check_the_dimension_of_xdot(V, model):
 
     if 'z' in V.keys() and isinstance(V['z'], list) and hasattr(V['z'][0], 'shape'):
         number_of_z_variables = V['z'][0].shape[0]
+
+        number_of_z_not_included = vortex_tools.get_number_of_algebraic_variables_set_outside_dynamics(nlp_options, model)
+        number_of_z_variables = number_of_z_variables - number_of_z_not_included
+
     number_of_dae_variables = number_of_z_variables + number_of_xdot_variables
 
     if hasattr(model.dynamics, 'nnz_out'):
@@ -387,7 +392,7 @@ def check_the_dimension_of_xdot(V, model):
 
     condition2 = ('xdot' not in V.keys()) or (number_of_dae_variables == number_of_dynamics_equations)
     if not condition2:
-        message = 'number of dae-determined variables in V (' + str(number_of_dae_variables) + ') does not match the number of modelled dynamics equations (' + str(number_of_dynamics_equations) + ')'
+        message = 'number of dynamics-determined variables in V (' + str(number_of_dae_variables) + ') does not match the number of modelled dynamics equations (' + str(number_of_dynamics_equations) + ')'
         print_op.log_and_raise_error(message)
 
     return None

@@ -399,9 +399,19 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
                 if nlp_options['discretization'] == 'direct_collocation':
                     for ddx in range(d):
-                        beta_cost += int_weights[ddx] * Outputs[idx, kdx * d + ddx]**2
+
+                        if hasattr(Outputs, 'keys') and 'coll_outputs' in Outputs.keys():
+                            local_beta = Outputs['coll_outputs', kdx, ddx, 'aerodynamics', 'beta' + str(kite)]
+                        else:
+                            local_beta = Outputs[idx, kdx * d + ddx]
+                        beta_cost += int_weights[ddx] * local_beta**2.
+
                 else:
-                    beta_cost += Outputs[idx, kdx]**2.
+                    if hasattr(Outputs, 'keys') and 'outputs' in Outputs.keys():
+                        local_beta = Outputs['outputs', kdx, 'aerodynamics', 'beta' + str(kite)]
+                    else:
+                        local_beta = Outputs[idx, kdx]
+                    beta_cost += local_beta**2.
 
         beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']
     else:
@@ -489,9 +499,9 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)

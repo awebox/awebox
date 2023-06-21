@@ -128,6 +128,12 @@ class Architecture:
         number_children = len(children)
         return number_children
 
+    def get_kite_children(self, parent):
+        children = self.kites_map[parent]
+        kite_nodes = self.kite_nodes
+        kite_children = set(children).intersection(set(kite_nodes))
+        return kite_children
+
     def get_number_siblings(self, kite):
         siblings = self.__siblings_map[kite]
         number_siblings = len(siblings)

@@ -55,7 +55,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # generalized forces in the system
     # --------------------------------
 
-    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables['SI'], outputs, parameters, architecture)
+    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables['SI'], outputs, parameters, architecture, scaling)
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], work_holonomic, outputs,
                                                   architecture)
 
@@ -247,7 +247,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
         ref_frame_derivative = cas.reshape(ref_frame_deriv_matrix, (9, 1))
 
         ortho_cstr = cstr_op.Constraint(expr=ref_frame_derivative,
-                                        name='ref_frame_deriv' + str(kite),
+                                        name='ref_frame_dynamics' + str(kite),
                                         cstr_type='eq')
         cstr_list.append(ortho_cstr)
 

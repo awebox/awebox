@@ -908,9 +908,10 @@ def generate_scaling(scaling_options, variables):
         local_label = scaling.labels()[idx]
 
         is_tf = 't_f' in local_label
-        is_dcm = '[x,r' in local_label
+        is_dcm = ('[x,r' in local_label) or ('dcm' in local_label)
         is_deriv_dcm = '[xdot,dr' in local_label
-        leave_unscaled = is_tf or is_dcm or is_deriv_dcm
+        is_a_cosine_or_a_sine = ('[z,cos' in local_label) or ('[z,sin' in local_label)
+        leave_unscaled = is_tf or is_dcm or is_deriv_dcm or is_a_cosine_or_a_sine
 
         if (scaling.cat[idx] == cas.DM(1.)) and not leave_unscaled:
             unset_set += [local_label]

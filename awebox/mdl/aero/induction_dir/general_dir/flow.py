@@ -49,7 +49,11 @@ def get_kite_vec_u_infty(variables, wind, kite, parent):
 def get_vec_u_zero(model_options, wind, parent, variables, architecture):
 
     u_infty = get_actuator_freestream_velocity(model_options, wind, parent, variables, architecture)
-    u_actuator = geom.get_center_velocity(model_options, parent, variables, architecture)
+
+    if 'act' in model_options['aero']['induction']['comparison']:
+        u_actuator = variables['z']['act_dq' + str(parent)]
+    else:
+        u_actuator = geom.get_center_velocity(model_options, parent, variables, architecture)
 
     u_apparent = u_infty - u_actuator
 

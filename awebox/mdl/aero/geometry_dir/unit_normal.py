@@ -40,26 +40,33 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
 
-def get_n_vec(model_options, parent, variables, parameters, architecture):
+def get_n_vec(options, parent, variables, architecture, scaling):
 
-    model = model_options['aero']['actuator']['normal_vector_model']
+    if 'aero' in options.keys() and 'actuator' in options['aero'].keys() and 'normal_vector_model' in options['aero']['actuator'].keys():
+        model = options['aero']['actuator']['normal_vector_model']
+    elif 'induction' in options.keys() and 'normal_vector_model' in options['induction'].keys():
+        model = options['induction']['normal_vector_model']
+    else:
+        message = 'normal vector model could not be found'
+        print_op.log_and_raise_error(message)
+
     children = architecture.kites_map[parent]
     number_children = float(len(children))
 
     if model == 'least_squares' and number_children == 3:
-        n_vec = get_plane_fit_n_vec(parent, variables, parameters, architecture)
+        n_vec = get_plane_fit_n_vec(parent, variables, architecture)
 
     elif model == 'least_squares' and number_children > 3:
-        n_vec = get_least_squares_n_vec(parent, variables, parameters, architecture)
+        n_vec = get_least_squares_n_vec(parent, variables, architecture)
 
     elif model == 'binormal':
         n_vec = get_binormal_n_vec(parent, variables, architecture)
 
     elif model == 'tether_parallel' and number_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture)
+        n_vec = get_tether_parallel_multi_n_vec(parent, variables, architecture, scaling)
 
     elif model == 'tether_parallel' and number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, parameters, architecture)
+        n_vec = get_tether_parallel_single_n_vec(parent, variables, architecture, scaling)
 
     elif model == 'xhat':
         n_vec = vect_op.xhat()
@@ -72,20 +79,22 @@ def get_n_vec(model_options, parent, variables, parameters, architecture):
     return n_vec
 
 
-def get_n_hat(model_options, parent, variables, parameters, architecture):
-    n_vec = get_n_vec(model_options, parent, variables, parameters, architecture)
+def get_n_hat(model_options, parent, variables, architecture, scaling):
+    n_vec = get_n_vec(model_options, parent, variables, architecture, scaling)
     n_hat = vect_op.normalize(n_vec)
     return n_hat
 
 
-def get_least_squares_n_vec(parent, variables, parameters, architecture):
+def get_least_squares_n_vec(parent, variables, architecture):
 
     children = architecture.kites_map[parent]
 
     matrix = []
     rhs = []
     for kite in children:
-        qk = variables['x']['q' + str(kite) + str(parent)]
+        qk = struct_op.get_variable_from_model_or_reconstruction(variables, 'x',
+                                                                 'q' + str(kite) + str(parent))
+
         newline = cas.horzcat(qk[[1]], qk[[2]], 1)
         matrix = cas.vertcat(matrix, newline)
 
@@ -98,7 +107,7 @@ def get_least_squares_n_vec(parent, variables, parameters, architecture):
     return n_vec
 
 
-def get_plane_fit_n_vec(parent, variables, parameters, architecture):
+def get_plane_fit_n_vec(parent, variables, architecture):
 
     children = sorted(architecture.kites_map[parent])
 
@@ -112,9 +121,12 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
     if (kite0 > kite1) or (kite1 > kite2):
         awelogger.logger.warning('based on assignment order of kites, normal vector (by cross product) may point in reverse.')
 
-    qkite0 = variables['x']['q' + str(kite0) + str(parent)]
-    qkite1 = variables['x']['q' + str(kite1) + str(parent)]
-    qkite2 = variables['x']['q' + str(kite2) + str(parent)]
+    qkite0 = struct_op.get_variable_from_model_or_reconstruction(variables, 'x',
+                                                                 'q' + str(kite0) + str(parent))
+    qkite1 = struct_op.get_variable_from_model_or_reconstruction(variables, 'x',
+                                                                 'q' + str(kite1) + str(parent))
+    qkite2 = struct_op.get_variable_from_model_or_reconstruction(variables, 'x',
+                                                                 'q' + str(kite2) + str(parent))
 
     arm1 = qkite1 - qkite0
     arm2 = qkite2 - qkite0
@@ -123,29 +135,53 @@ def get_plane_fit_n_vec(parent, variables, parameters, architecture):
 
     return n_vec
 
-def get_tether_parallel_multi_n_vec(parent, variables, parameters, architecture):
+
+def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling):
 
     grandparent = architecture.parent_map[parent]
-    q_parent = variables['x']['q' + str(parent) + str(grandparent)]
+    q_parent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(parent) + str(grandparent))
 
     if grandparent == 0:
-        q_grandparent = cas.DM.zeros((3,1))
+        q_grandparent = cas.DM.zeros((3, 1))
+
+        if '[x,l_t,0]' in scaling.labels():
+            scale = scaling['x', 'l_t']
+        elif '[theta,l_t,0]' in scaling.labels():
+            scale = scaling['theta', 'l_t']
+        else:
+            scale = 1.e3
+
     else:
         great_grandparent = architecture.parent_map[grandparent]
-        q_grandparent = variables['x']['q' + str(grandparent) + str(great_grandparent)]
+        q_grandparent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
+                                                                       'q' + str(grandparent) + str(great_grandparent))
+
+        if '[theta,l_s,0]' in scaling.labels():
+            scale = scaling['theta', 'l_s']
+        else:
+            scale = 1.e2
 
     n_vec = q_parent - q_grandparent
+    n_vec_scaled = n_vec / scale
+    return n_vec_scaled
 
-    return n_vec
 
-def get_tether_parallel_single_n_vec(parent, variables, parameters, architecture):
+def get_tether_parallel_single_n_vec(parent, variables_si, architecture, scaling):
 
     kite = architecture.children_map[parent][0]
-    n_vec = variables['x']['q' + str(kite) + str(parent)]
+    n_vec = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
+                                                                'q' + str(kite) + str(parent))
 
-    n_vec = n_vec * 1.e-3
+    if '[x,l_t,0]' in scaling.labels():
+        scale = scaling['x', 'l_t']
+    elif '[theta,l_t,0]' in scaling.labels():
+        scale = scaling['theta', 'l_t']
+    else:
+        scale = 1.e3
 
-    return n_vec
+    n_vec_scaled = n_vec / scale
+    return n_vec_scaled
+
 
 def get_binormal_n_vec(parent, variables, architecture):
 

@@ -806,6 +806,8 @@ class Optimization(object):
 
     @property
     def output_vals(self):
+        print_op.warn_about_temporary_functionality_alteration()
+        # self.outputs_op -> dm dimension(227, 27)
         return {'init': self.__outputs_init,
                 'opt': self.__outputs_opt,
                 'ref': self.__outputs_ref}

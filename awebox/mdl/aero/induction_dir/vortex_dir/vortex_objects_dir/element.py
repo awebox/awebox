@@ -200,12 +200,10 @@ class Element:
         x_obs = cas.SX.sym('x_obs', (3, 1))
         vec_u_ind = cas.SX.sym('vec_u_ind', (3, 1))
 
+        # jacobian of this version is too variable
         # _, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
-        #
         # resi = den * vec_u_ind - num
-        #
         # biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
-        #
 
         value, _, _ = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
         resi = vec_u_ind - value

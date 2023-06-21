@@ -254,7 +254,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     for param in list(initialization_theta.keys()):
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
-    options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
+    options_tree.append(('solver', 'initialization', None, 'min_altitude', options['model']['system_bounds']['x']['q'][0][2], ('?????', None),'x'))
+
 
     ## cross-tether
     options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
@@ -278,8 +280,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     else:
         options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
 
-    options_tree.append(
-        ('solver', 'initialization', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'solver', 'initialization')
+
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
@@ -309,51 +311,21 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     return options_tree
 
 def build_visualization_options(options, options_tree):
-    options_tree.append(
-        ('visualization', 'cosmetics', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
-    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('visualization', 'cosmetics', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
-    options_tree.append(
-        ('visualization', 'cosmetics', 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-    options_tree.append(
-        ('visualization', 'cosmetics', None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
-    options_tree.append(
-        ('visualization', 'cosmetics', 'collocation', 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-    options_tree.append(
-        ('visualization', 'cosmetics', 'collocation', 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'visualization', 'cosmetics')
     return options_tree
 
 
 def build_quality_options(options, options_tree):
-    options_tree.append(
-        ('quality', None, None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
-    options_tree.append(('quality', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('quality', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
-    options_tree.append(
-        ('quality', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-    options_tree.append(
-        ('quality', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
-    options_tree.append(
-        ('quality', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-    options_tree.append(
-        ('quality', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'quality')
     return options_tree
 
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'formulation')
+
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
-    options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
-    options_tree.append(('formulation', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('formulation', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
-    options_tree.append(
-        ('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-    options_tree.append(
-        ('formulation', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
-    options_tree.append(
-        ('formulation', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-    options_tree.append(
-        ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+
     if int(user_options['system_model']['kite_dof']) == 3:
         coeff_max = options['model']['system_bounds']['x']['coeff'][1]
         coeff_min = options['model']['system_bounds']['x']['coeff'][0]
@@ -396,3 +368,31 @@ def load_battery_parameters(kite_standard, coeff_max, coeff_min):
 
     return battery
 
+def add_discretization_options_necessary_for_interpolation(options, options_tree, heading_1, heading_2=None):
+
+    if heading_2 is None:
+        options_tree.append(
+            (heading_1, 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+        options_tree.append(
+            (heading_1, 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None),
+             'x'))
+        options_tree.append(
+            (heading_1, 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    else:
+        options_tree.append(
+            (heading_1, heading_2, 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
+        options_tree.append(
+            (heading_1, heading_2, 'collocation', 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
+        options_tree.append(
+            (heading_1, heading_2,  'collocation', 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+
+    options_tree.append(
+        (heading_1, heading_2, None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
+    options_tree.append(
+        (heading_1, heading_2, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
+    options_tree.append(
+        (heading_1, heading_2, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
+    options_tree.append(
+        (heading_1, heading_2, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+
+    return options_tree

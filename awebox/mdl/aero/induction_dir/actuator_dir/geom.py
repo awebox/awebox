@@ -57,6 +57,19 @@ def get_mu_radial_ratio(variables, kite, parent):
     return mu
 # variables
 
+def get_actuator_velocity_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_dq' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
+def get_actuator_position_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_q' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
+
 def get_area_var(variables_si, parent):
     var_type = 'z'
     var_name = 'area' + str(parent)
@@ -110,9 +123,6 @@ def get_tstar_ref(parameters, wind):
     return tstar
 
 
-def get_n_vec_length_ref(model_options):
-    return model_options['scaling']['z']['n_vec_length']
-
 def get_varrho_ref(model_options):
     varrho_ref = model_options['aero']['actuator']['varrho_ref']
     return varrho_ref
@@ -126,18 +136,72 @@ def get_area_ref(model_options, parameters):
 
 # residuals
 
-def get_bar_varrho_cstr(model_options, parent, variables, architecture):
+def get_center_cstr(model_options, parent, variables_si, architecture, scaling):
+
+    cstr_list = cstr_op.ConstraintList()
+
+    q_center_var = get_actuator_position_var(variables_si, parent)
+    q_center_val = geom.get_center_position(model_options, parent, variables_si, architecture)
+
+    pos_resi_unscaled = q_center_var - q_center_val
+    pos_resi_scaled = struct_op.var_si_to_scaled('z', 'act_q' + str(parent), pos_resi_unscaled, scaling)
+
+    name = 'actuator_center_position_' + str(parent)
+    pos_cstr = cstr_op.Constraint(expr=pos_resi_scaled,
+                              name=name,
+                              cstr_type='eq')
+    cstr_list.append(pos_cstr)
+
+    dq_center_var = get_actuator_velocity_var(variables_si, parent)
+    dq_center_val = geom.get_center_velocity(model_options, parent, variables_si, architecture)
+
+    vel_resi_unscaled = dq_center_var - dq_center_val
+    vel_resi_scaled = struct_op.var_si_to_scaled('z', 'act_dq' + str(parent), vel_resi_unscaled, scaling)
+
+    name = 'actuator_center_velocity_' + str(parent)
+    vel_cstr = cstr_op.Constraint(expr=vel_resi_scaled,
+                              name=name,
+                              cstr_type='eq')
+    cstr_list.append(vel_cstr)
+
+    return cstr_list
+
+
+def get_area_cstr(parent, variables_si, parameters, scaling):
+
+    area_var = get_area_var(variables_si, parent)
+    area_val = get_actuator_area(parent, variables_si, parameters)
+
+    resi_unscaled = area_var - area_val
+    resi_scaled = struct_op.var_si_to_scaled('z', 'area' + str(parent), resi_unscaled, scaling)
+
+    name = 'actuator_area_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi_scaled,
+                              name=name,
+                              cstr_type='eq')
+
+    return cstr
+
+
+def check_that_actuator_center_is_above_minimum_altitude(init_options, variables_si, parent):
+    q_center_var = get_actuator_position_var(variables_si, parent)
+    min_altitude = init_options['min_altitude']
+    if q_center_var[2] < min_altitude:
+        message = 'proposed actuator center is below minimum flight altitude'
+        print_op.log_and_raise_error(message)
+    return None
+
+
+def get_bar_varrho_cstr(parent, variables, architecture, scaling):
 
     bar_varrho_val = get_bar_varrho_val(variables, parent, architecture)
     bar_varrho_var = get_bar_varrho_var(variables, parent)
 
-    resi_unscaled = bar_varrho_var - bar_varrho_val
-
-    varrho_ref = get_varrho_ref(model_options)
-    resi = resi_unscaled / varrho_ref
+    resi_si = bar_varrho_var - bar_varrho_val
+    resi_scaled = struct_op.var_si_to_scaled('z', 'bar_varrho' + str(parent), resi_si, scaling)
 
     name = 'actuator_bar_varrho_' + str(parent)
-    cstr = cstr_op.Constraint(expr=resi,
+    cstr = cstr_op.Constraint(expr=resi_scaled,
                               name=name,
                               cstr_type='eq')
     return cstr
@@ -155,13 +219,15 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
     parent = architecture.parent_map[kite]
     b_ref = parameters['theta0', 'geometry', 'b_ref']
 
-    radius_vec = geom.get_vector_from_center_to_kite(model_options, variables, architecture, kite)
+    q_kite = variables['x']['q' + str(kite) + str(parent)]
+    q_center = get_actuator_position_var(variables, parent)
+    vec_from_center_to_kite = q_kite - q_center
 
     y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
     z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
-    y_rotor_comp = cas.mtimes(radius_vec.T, y_rotor_hat_var)
-    z_rotor_comp = cas.mtimes(radius_vec.T, z_rotor_hat_var)
+    y_rotor_comp = cas.mtimes(vec_from_center_to_kite.T, y_rotor_hat_var)
+    z_rotor_comp = cas.mtimes(vec_from_center_to_kite.T, z_rotor_hat_var)
 
     psi_var = get_psi_var(variables, kite, parent)
     cospsi_var = get_cospsi_var(variables, kite, parent)
@@ -190,9 +256,9 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
 
 # processing
 
-def get_actuator_area(model_options, parent, variables, parameters):
+def get_actuator_area(parent, variables, parameters):
 
-    b_ref = parameters['theta0','geometry','b_ref']
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
     bar_varrho_var = get_bar_varrho_var(variables, parent)
 
     radius = bar_varrho_var * b_ref
@@ -209,7 +275,6 @@ def get_kite_radial_vector(kite, variables, architecture):
     y_rotor_hat_var = get_y_rotor_hat_var(variables, parent)
     z_rotor_hat_var = get_z_rotor_hat_var(variables, parent)
 
-    psi_var = get_psi_var(variables, kite, parent)
     cospsi_var = get_cospsi_var(variables, kite, parent)
     sinpsi_var = get_sinpsi_var(variables, kite, parent)
 
@@ -236,9 +301,7 @@ def get_kite_radius(kite, variables, architecture, parameters):
 
 
 def get_average_radius(variables, parent, architecture, parameters):
-    children = architecture.kites_map[parent]
-    kite_nodes = architecture.kite_nodes
-    kite_children = set(children).intersection(set(kite_nodes))
+    kite_children = architecture.get_kite_children(parent)
     number_kite_children = len(kite_children)
 
     total_radius = 0.
@@ -251,9 +314,8 @@ def get_average_radius(variables, parent, architecture, parameters):
 
 
 def get_bar_varrho_val(variables, parent, architecture):
-    children = architecture.kites_map[parent]
-    kite_nodes = architecture.kite_nodes
-    kite_children = set(children).intersection(set(kite_nodes))
+    kite_children = architecture.get_kite_children(parent)
+
     number_kite_children = len(kite_children)
 
     sum_varrho = 0.
@@ -332,10 +394,6 @@ def get_z_rotor_hat_var(variables, parent):
     y_hat = act_dcm[:, 2]
     return y_hat
 
-def get_z_vec_length_var(variables, parent):
-    len_var = variables['z']['z_vec_length' + str(parent)]
-    return len_var
-
 
 
 def get_act_dcm_ortho_cstr(parent, variables):
@@ -351,28 +409,28 @@ def get_act_dcm_ortho_cstr(parent, variables):
 
     return cstr
 
-def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, parameters, architecture):
+def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, architecture, scaling):
 
     # n_hat * length equals normal direction = 3 constraints
-    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture, scaling)
     n_hat_var = get_n_hat_var(variables, parent)
     n_vec_length_var = get_n_vec_length_var(variables, parent)
 
-    n_diff = n_vec_val - n_hat_var * n_vec_length_var
+    resi_si = n_vec_val - n_hat_var * n_vec_length_var
 
-    n_vec_length_ref = get_n_vec_length_ref(model_options)
-    f_n_vec = n_diff / n_vec_length_ref
+    scale = scaling['z', 'n_vec_length' + str(parent)]
+    resi_scaled = resi_si / scale
 
     name = 'actuator_nhat_' + str(parent)
-    cstr = cstr_op.Constraint(expr=f_n_vec,
+    cstr = cstr_op.Constraint(expr=resi_scaled,
                               name=name,
                               cstr_type='eq')
 
     return cstr
 
 
-def get_n_vec_val(model_options, parent, variables, parameters, architecture):
-    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, parameters, architecture)
+def get_n_vec_val(model_options, parent, variables, architecture, scaling):
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture, scaling)
     return n_vec_val
 
 def draw_actuator_geometry(ax, side, plot_dict, cosmetics, index):
@@ -422,10 +480,7 @@ def draw_actuator_dcm(ax, side, plot_dict, cosmetics, index):
                      'y': rotor_y_hat,
                      'z': rotor_z_hat}
 
-        x_start = []
-        for dim in range(3):
-            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
-            x_start = cas.vertcat(x_start, local)
+        x_start = get_actuator_position_var(variables_si, parent)
 
         for vec_name, vec_ehat in ehat_dict.items():
             x_end = x_start + visibility_scaling * vec_ehat
@@ -449,12 +504,10 @@ def draw_average_radius(ax, side, plot_dict, cosmetics, index):
 
         avg_radius = plot_dict['outputs']['actuator']['avg_radius' + str(parent)][0][index]
 
-        x_start = []
-        x_end = []
-        for dim in range(3):
-            local_center = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
-            x_start = cas.vertcat(x_start, local_center)
-            x_end = cas.vertcat(x_end, avg_radius * rhat[dim] + local_center)
+        local_center = get_actuator_position_var(variables_si, parent)
+
+        x_start = local_center
+        x_end = local_center + avg_radius * rhat
 
         color = 'k'
         viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end)
@@ -493,10 +546,7 @@ def draw_radial_segment_around_actuator_center(ax, side, plot_dict, cosmetics, i
         y_rotor_hat = get_y_rotor_hat_var(variables_si, parent)
         z_rotor_hat = get_z_rotor_hat_var(variables_si, parent)
 
-        x_center = []
-        for dim in range(3):
-            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
-            x_center = cas.vertcat(x_center, local)
+        x_center = get_actuator_position_var(variables_si, parent)
 
         bar_varrho = get_bar_varrho_var(variables_si, parent)
         radius_start = mu_start * (b_ref * (bar_varrho + 0.5))
@@ -528,10 +578,7 @@ def draw_arc_around_actuator_center(ax, side, plot_dict, cosmetics, index, paren
         y_rotor_hat = get_y_rotor_hat_var(variables_si, parent)
         z_rotor_hat = get_z_rotor_hat_var(variables_si, parent)
 
-        x_center = []
-        for dim in range(3):
-            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
-            x_center = cas.vertcat(x_center, local)
+        x_center = get_actuator_position_var(variables_si, parent)
 
         bar_varrho = get_bar_varrho_var(variables_si, parent)
         drawing_radius = mu_val * (b_ref * (bar_varrho + 0.5))

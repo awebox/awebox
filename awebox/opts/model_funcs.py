@@ -62,7 +62,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # aerodynamics
     options_tree, fixed_params = build_stability_derivative_options(options, help_options, options_tree, fixed_params)
-    options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
+    options, options_tree, fixed_params = build_induction_options(options, help_options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_actuator_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_vortex_options(options, options_tree, fixed_params, architecture)
 
@@ -498,6 +498,9 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('nlp', 'induction', None, 'induction_model', user_options['induction_model'], ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'model', 'induction_model', user_options['induction_model'], ('????', None), 'x')),
 
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'dynamic_pressure', get_q_at_altitude(options, estimate_altitude(options)), ('????', None), 'x')),
+
     options_tree.append(('model', 'system_bounds', 'z', 'n_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
     options_tree.append(('model', 'system_bounds', 'z', 'u_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
     options_tree.append(('model', 'system_bounds', 'z', 'z_vec_length', [0., cas.inf], ('positive-direction parallel for actuator orientation [-]', None), 'x')),
@@ -506,45 +509,58 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
     options_tree.append(('model', 'scaling', 'z', 'act_dcm', 1., ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'z', 'wind_dcm', 1., ('descript', None), 'x'))
 
-    z_vec_length_ref = 1.
-    options_tree.append(('model', 'scaling', 'z', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
-    options_tree.append(
-        ('solver', 'initialization', 'induction', 'z_vec_length', z_vec_length_ref, ('descript', None), 'x'))
-
-    u_vec_length_ref = get_u_ref(user_options)
+    u_vec_length_ref = get_u_at_altitude(options, estimate_altitude(options))
     options_tree.append(('model', 'scaling', 'z', 'u_vec_length', u_vec_length_ref, ('descript', None), 'x'))
+
+    if options['model']['aero']['actuator']['support_only']:
+        if (user_options['induction_model'] == 'actuator') and (not options['model']['aero']['induction']['force_zero']):
+            message = 'model.aero.actuator.support_only is true, while the actuator induction model is selected.' \
+                      ' this implies that model.aero.induction.force_zero must also be true.' \
+                      ' proceeding with force_zero option reset to true.'
+            print_op.base_print(message, level='warning')
+            options['model']['aero']['induction']['force_zero'] = True
 
     normal_vector_model = options['model']['aero']['actuator']['normal_vector_model']
     number_of_kites = architecture.number_of_kites
     if normal_vector_model == 'least_squares':
-        n_vec_length_ref = options['model']['scaling']['theta']['l_s']**2.
+        length = options['solver']['initialization']['theta']['l_s']
+        n_vec_length_ref = length**2.
     elif normal_vector_model == 'binormal':
         length = options['solver']['initialization']['l_t']
         n_vec_length_ref = number_of_kites * length**2.
     elif normal_vector_model == 'tether_parallel':
         length = options['solver']['initialization']['l_t']
-        n_vec_length_ref = length
+        print_op.warn_about_temporary_functionality_alteration()
+        n_vec_length_ref = 1.
     else:  # normal_vector_model == 'xhat':
         n_vec_length_ref = 1.
     options_tree.append(('model', 'scaling', 'z', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
     options_tree.append(
         ('solver', 'initialization', 'induction', 'n_vec_length', n_vec_length_ref, ('descript', None), 'x'))
 
-    g_vec_length_ref = 1.
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'normal_vector_model', normal_vector_model, ('descript', None), 'x'))
+
+
+    g_vec_length_ref = get_u_ref(user_options)
     options_tree.append(('model', 'scaling', 'z', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
     options_tree.append(
         ('solver', 'initialization', 'induction', 'g_vec_length', g_vec_length_ref, ('descript', None), 'x'))
 
+    options_tree.append(('model', 'scaling', 'z', 'z_vec_length', 1., ('descript', None), 'x'))
+    options_tree.append(
+        ('solver', 'initialization', 'induction', 'z_vec_length', 1., ('descript', None), 'x'))
+
     psi_scale = 2. * np.pi
     options_tree.append(('model', 'scaling', 'z', 'psi', psi_scale, ('descript', None), 'x'))
-    options_tree.append(('model', 'scaling', 'z', 'cospsi', 1., ('descript', None), 'x'))
-    options_tree.append(('model', 'scaling', 'z', 'sinpsi', 1., ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'cospsi', 0.5, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'sinpsi', 0.5, ('descript', None), 'x'))
 
     psi_epsilon = np.pi
     options_tree.append(('model', 'system_bounds', 'z', 'psi', [0. - psi_epsilon, 2. * np.pi + psi_epsilon], ('azimuth-jumping bounds on the azimuthal angle derivative', None), 'x'))
 
-    if options['model']['aero']['overwrite']['geometry_type'] is not None:
-        geometry_type = options['model']['aero']['overwrite']['geometry_type']
+    if options['model']['aero']['actuator']['geometry_overwrite'] is not None:
+        geometry_type = options['model']['aero']['actuator']['geometry_overwrite']
     elif architecture.number_of_kites > 1:
         geometry_type = 'averaged'
     elif (architecture.number_of_kites == 1) and (architecture.parent_map[architecture.kite_nodes[0]] == 0):
@@ -554,7 +570,7 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 
     options_tree.append(('model', 'aero', None, 'geometry_type', geometry_type, ('descript', None), 'x'))
 
-    return options_tree, fixed_params
+    return options, options_tree, fixed_params
 
 
 
@@ -587,6 +603,12 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'scaling', 'z', 'varrho', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'scaling', 'z', 'bar_varrho', induction_varrho_ref, ('descript', None), 'x'))
     options_tree.append(('model', 'system_bounds', 'z', 'varrho', [0., cas.inf], ('relative radius bounds [-]', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'area', 2. * np.pi * flight_radius * b_ref, ('descript', None), 'x'))
+
+    act_q = estimate_altitude(options)
+    act_dq = estimate_reelout_speed(options)
+    options_tree.append(('model', 'scaling', 'z', 'act_q', act_q, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'act_dq', act_dq, ('descript', None), 'x'))
 
     options_tree.append(('formulation', 'induction', None, 'steadyness', actuator_steadyness, ('actuator steadyness', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'symmetry',   actuator_symmetry, ('actuator symmetry', None), 'x')),
@@ -617,27 +639,19 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     for a_name in ['acos', 'asin']:
         options_tree.append(('model', 'system_bounds', a_labels_dict[local_label], a_name + '_' + local_label, a_fourier_range, ('??', None), 'x')),
 
-    other_labels = set(comparison_labels) - set(['act_' + local_label])
-    inf_range = [-cas.inf, cas.inf]
-    for other_label in other_labels:
-        if 'act_' in other_label:
-            specific_label = other_label[4:]
-            for a_name in ['a', 'acos', 'asin']:
-                options_tree.append(('model', 'system_bounds', a_labels_dict[specific_label], a_name + '_' + other_label, inf_range, ('local induction factor', None), 'x')),
-
     gamma_range = options['model']['aero']['actuator']['gamma_range']
     options_tree.append(('model', 'system_bounds', 'z', 'gamma', gamma_range, ('tilt angle bounds [rad]', None), 'x')),
-    gamma_ref = gamma_range[1] / 2.
+    gamma_ref = gamma_range[1] * 0.8
     options_tree.append(('model', 'scaling', 'z', 'gamma', gamma_ref, ('tilt angle bounds [rad]', None), 'x')),
-    options_tree.append(('model', 'scaling', 'z', 'cosgamma', 1., ('tilt angle bounds [rad]', None), 'x')),
-    options_tree.append(('model', 'scaling', 'z', 'singamma', 1., ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'z', 'cosgamma', 0.5, ('tilt angle bounds [rad]', None), 'x')),
+    options_tree.append(('model', 'scaling', 'z', 'singamma', 0.5, ('tilt angle bounds [rad]', None), 'x')),
 
     return options_tree, fixed_params
 
 
 def get_comparison_labels(options, user_options):
     induction_model = user_options['induction_model']
-    induction_comparison = options['model']['aero']['induction_comparison']
+    induction_comparison = options['model']['aero']['induction']['comparison']
 
     if (induction_model[:3] not in induction_comparison) and (not induction_model == 'not_in_use'):
         induction_comparison += [induction_model[:3]]
@@ -762,8 +776,11 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
             options_tree.append(('model', 'scaling', 'z', gamma_name, gamma_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
+    integrated_circulation = 1.
     for kite in architecture.kite_nodes:
-        options_tree.append(('model', 'scaling', 'x', 'integrated_circulation' + str(kite), 1., ('????', None), 'x')),
+        options_tree.append(('model', 'scaling', 'other', 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
+        options_tree.append(('nlp', 'induction', None, 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
+        options_tree.append(('solver', 'initialization', 'induction', 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
 
     flight_radius = estimate_flight_radius(options, architecture)
     b_ref = geometry['b_ref']
@@ -1006,6 +1023,13 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     options_tree.append(('model', 'scaling', 'u', 'm_fict', f_scaling * moment_scaling_factor, ('scaling of fictitious homotopy moments', None),'x'))
     options_tree.append(('model', 'scaling', 'z', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
     options_tree.append(('model', 'scaling', 'z', 'm_aero', f_scaling * moment_scaling_factor, ('scaling of aerodynamic moments', None),'x'))
+
+    area = 2. * np.pi * estimate_flight_radius(options, architecture) * b_ref
+    q_infty = get_q_at_altitude(options, estimate_altitude(options))
+    a_ref = options['model']['aero']['actuator']['a_ref']
+    actuator_thrust = 4. * a_ref * (1. - a_ref) * area * q_infty
+
+    options_tree.append(('model', 'scaling', 'z', 'thrust', actuator_thrust, ('scaling of aerodynamic forces', None), 'x'))
 
     CD_tether = options['params']['tether']['cd']
     diam_t = options['solver']['initialization']['theta']['diam_t']

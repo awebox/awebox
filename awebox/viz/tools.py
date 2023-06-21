@@ -665,6 +665,13 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_va
     # get new name
     plot_dict['name'] = name
 
+    print_op.warn_about_temporary_functionality_alteration()
+    if 'd' in plot_dict.keys():
+        for key, vals in output_vals.items():
+            time_entries = plot_dict['n_k']*(plot_dict['d']+1)
+            if vals.shape[1] == 1 and np.mod(vals.shape[0], time_entries) == 0:
+                output_vals[key] = cas.reshape(vals, (int(vals.shape[0]/time_entries), time_entries))
+
     # get new outputs
     plot_dict['output_vals'] = output_vals
     plot_dict['integral_output_vals'] = integral_output_vals

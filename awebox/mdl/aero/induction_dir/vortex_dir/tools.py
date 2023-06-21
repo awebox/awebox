@@ -49,6 +49,7 @@ def get_list_of_abbreviated_variables(model_options):
 
     return abbreviated_variables
 
+
 def extend_system_variables(model_options, system_lifted, system_states, architecture):
 
     abbreviated_variables = get_list_of_abbreviated_variables(model_options)
@@ -60,6 +61,47 @@ def extend_system_variables(model_options, system_lifted, system_states, archite
     system_lifted, system_states = extend_velocity_variables(model_options, system_lifted, system_states, architecture)
 
     return system_lifted, system_states
+
+
+def model_is_included_in_comparison(options):
+    comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'vortex')
+    any_vor = any(label[:3] == 'vor' for label in comparison_labels)
+    return any_vor
+
+
+def get_number_of_algebraic_variables_set_outside_dynamics(nlp_options, model):
+
+    count = 0
+
+    if (nlp_options['induction']['induction_model'] == 'not_in_use'):
+        return count
+    if not model_is_included_in_comparison(nlp_options):
+        return count
+
+    abbreviated_variables = get_list_of_abbreviated_variables(nlp_options)
+
+    for abbreviated_var_name in abbreviated_variables:
+        kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(
+            abbreviated_var_name, nlp_options, model.architecture)
+
+        for kite_shed_or_parent_shed in kite_shed_or_parent_shed_list:
+            for tip in tip_list:
+                for wake_node_or_ring in wake_node_or_ring_list:
+
+                    if abbreviated_var_name[:2] == 'wx':
+                        count += 3
+
+                    elif abbreviated_var_name[:2] == 'wg':
+                        count += 1
+
+                    elif abbreviated_var_name[:2] == 'wh':
+                        count += 1
+
+                    else:
+                        message = 'unexpected abbreviated_var_name (' + abbreviated_var_name + ')'
+                        print_op.log_and_raise_error(message)
+    return count
+
 
 def extend_specific_geometric_variable(abbreviated_var_name, model_options, system_lifted, system_states, architecture):
     kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(

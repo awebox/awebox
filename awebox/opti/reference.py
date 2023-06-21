@@ -89,10 +89,13 @@ def get_reference(nlp, model, V_init, options):
 
 
 def check_reference(options, V_ref, p_fix_num, nlp):
+
     orders_of_magnitude = options['initialization']['check_scaling']['orders_of_magnitude']
     zero_value_threshold = options['initialization']['check_scaling']['zero_value_threshold']
+
     check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=orders_of_magnitude, zero_value_threshold=zero_value_threshold)
     check_reference_feasibility(options, V_ref, p_fix_num, nlp=nlp)
+
     return None
 
 
@@ -141,29 +144,41 @@ def check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=1, zero_value_t
 
 
 def check_reference_feasibility(solver_options, V_ref, p_fix_num, nlp):
-    name_list = nlp.ocp_cstr_list.get_name_list('ineq')
-    ineq_cstr_fun = nlp.ocp_cstr_list.get_function(solver_options, nlp.V, nlp.P, 'ineq')
-    ineq_vals = ineq_cstr_fun(V_ref, p_fix_num)
     path_constraint_theshold = solver_options['initialization']['check_feasibility']['path_constraint_threshold']
     raise_exception = solver_options['initialization']['check_feasibility']['raise_exception']
 
-    is_violated = []
-    for idx in range(ineq_vals.shape[0]):
-        local_is_violated = ineq_vals[idx] > path_constraint_theshold
-        is_violated += [local_is_violated]
+    for cstr_type in ['ineq']:
 
-    if any(is_violated):
-        message = 'path constraints are violated at'
-        print_op.base_print(message, level='warning')
+        name_list = nlp.ocp_cstr_list.get_name_list(cstr_type)
+        cstr_fun = nlp.ocp_cstr_list.get_function(solver_options, nlp.V, nlp.P, cstr_type)
+        cstr_vals = cstr_fun(V_ref, p_fix_num)
 
-        dict_is_violated = {}
-        for idx in range(len(is_violated)):
-            if is_violated[idx]:
-                dict_is_violated[name_list[idx]] = ineq_vals[idx]
-        print_op.print_dict_as_table(dict_is_violated, level='warning')
+        is_violated = []
+        for idx in range(cstr_vals.shape[0]):
 
-        if raise_exception:
-            print_op.log_and_raise_error('initial guess violates path constraints')
+            local_violation_is_reported = cstr_vals[idx] > path_constraint_theshold
+            # if (cstr_type == 'eq' and 'dynamics' in name_list[idx]):
+            #     local_violation_is_reported = False  # untrue, but
+            # else:
+            #     if cstr_type == 'ineq':
+            #         local_violation_is_reported = cstr_vals[idx] > path_constraint_theshold
+            #     elif cstr_type == 'eq':
+            #         local_violation_is_reported = cstr_vals[idx]**2. > path_constraint_theshold**2.
+
+            is_violated += [local_violation_is_reported]
+
+        if any(is_violated):
+            message = cstr_type + ' constraints violated at:'
+            print_op.base_print(message, level='warning')
+
+            dict_is_violated = {}
+            for idx in range(len(is_violated)):
+                if is_violated[idx]:
+                    dict_is_violated[name_list[idx]] = cstr_vals[idx]
+            print_op.print_dict_as_table(dict_is_violated, level='warning')
+
+            if raise_exception:
+                print_op.log_and_raise_error('initial guess violates path constraints')
 
     return None
 

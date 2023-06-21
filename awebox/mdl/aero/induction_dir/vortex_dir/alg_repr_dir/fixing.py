@@ -55,6 +55,7 @@ def get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
 
     return cstr_list
 
+
 def get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids):
 
     n_k = nlp_options['n_k']
@@ -122,10 +123,12 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
 
     return local_cstr
 
+
 def get_simple_residual(var_name, var_symbolic_si, var_value_si, model_scaling):
     resi_si = var_symbolic_si - var_value_si
     resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, model_scaling)
     return resi_scaled
+
 
 def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx=None):
 
@@ -194,6 +197,7 @@ def get_the_convection_time_from_the_current_indices_and_wake_node(nlp_options, 
 
     return delta_t
 
+
 def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, ddx_shed):
     wingtip_pos = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'wingtip_' + tip + str(kite)]
     return wingtip_pos
@@ -204,8 +208,7 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
 
     int_name = 'integrated_circulation' + str(kite_shed)
-    local_scaling = model.scaling['x', int_name]
-
+    local_scaling = nlp_options['induction'][int_name]
     t_f_scaled = V['theta', 't_f']
     t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
     tgrid_coll = time_grids['coll'](t_f_si)
@@ -285,12 +288,10 @@ def get_local_cylinder_pitch_value(nlp_options, Outputs, parent_shed, wake_node,
     wh = get_the_cylinder_pitch_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed)
     return wh
 
+
 def get_the_cylinder_pitch_at_shedding_indices(Outputs, parent_shed, ndx_shed, ddx_shed):
     pitch = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', 'far_wake_cylinder_pitch' + str(parent_shed)]
     return pitch
-
-
-###############
 
 
 ########## test
