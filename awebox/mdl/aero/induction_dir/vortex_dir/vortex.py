@@ -166,8 +166,7 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
-    print_op.warn_about_temporary_functionality_alteration()
-    # test(test_includes_visualization)
+    test(test_includes_visualization)
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}

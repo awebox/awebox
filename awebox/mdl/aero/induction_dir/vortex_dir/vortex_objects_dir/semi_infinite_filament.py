@@ -83,10 +83,6 @@ class SemiInfiniteFilament(obj_element.Element):
         num = factor * num1
         den = den1 + den2 + den3
 
-        print_op.warn_about_temporary_functionality_alteration()
-        num = cas.DM.zeros((3, 1))
-        den = 1.
-
         value = num / den
 
         return value, num, den
