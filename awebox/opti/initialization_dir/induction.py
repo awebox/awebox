@@ -49,11 +49,27 @@ import pdb
 
 def initial_guess_induction(init_options, nlp, model, V_init, p_fix_num):
 
+    V_init = initial_guess_general(model, V_init)
+
     if actuator.model_is_included_in_comparison(init_options):
         V_init = initial_guess_actuator(init_options, nlp, model, V_init)
 
     if vortex.model_is_included_in_comparison(init_options):
         V_init = initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num)
+
+    return V_init
+
+
+def initial_guess_general(model, V_init):
+
+    dict = {}
+    dict['ui'] = cas.DM.zeros((3, 1))  # remember that induction homotopy has not yet begun.
+
+    for var_type in ['x', 'z']:
+        for name in struct_op.subkeys(model.variables, var_type):
+            name_stripped, _ = struct_op.split_name_and_node_identifier(name)
+            if name_stripped in dict.keys():
+                V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
 
@@ -69,18 +85,9 @@ def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
     return V_init
 
 
-
-
-
-
-
-
-
-
-
 def initial_guess_actuator(init_options, nlp, model, V_init):
     V_init = initial_guess_actuator_a_values(init_options, model, V_init)
-    V_init = initial_guess_actuator_support(init_options, model, nlp, V_init)
+    V_init = initial_guess_actuator_support(init_options, model, V_init)
     V_init = set_azimuth_variables(V_init, init_options, model, nlp)
 
     sanity_check_actuator_variables(init_options, model, nlp, V_init, epsilon=1.e-5)
@@ -110,8 +117,6 @@ def initial_guess_actuator_a_values(init_options, model, V_init):
         for a_name in ['acos', 'asin']:
             dict[a_name + '_' + label] = cas.DM(0.)
 
-    dict['ui'] = cas.DM.zeros((3, 1))  # remember that induction homotopy has not yet begun.
-
     for var_type in ['x', 'z']:
         for name in struct_op.subkeys(model.variables, var_type):
             name_stripped, _ = struct_op.split_name_and_node_identifier(name)
@@ -119,6 +124,7 @@ def initial_guess_actuator_a_values(init_options, model, V_init):
                 V_init = tools_init.insert_dict(dict, var_type, name, name_stripped, V_init)
 
     return V_init
+
 
 def set_azimuth_variables(V_init, init_options, model, nlp):
 
@@ -131,6 +137,7 @@ def set_azimuth_variables(V_init, init_options, model, nlp):
         V_init = set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_siblings, omega_norm)
 
     return V_init
+
 
 def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_siblings, omega_norm):
     kite, parent = struct_op.split_kite_and_parent(kite_parent, model.architecture)
@@ -166,7 +173,7 @@ def set_psi_variables(init_options, V_init, kite_parent, model, nlp, level_sibli
     return V_init
 
 
-def initial_guess_actuator_support(init_options, model, nlp, V_init, epsilon=1e-5):
+def initial_guess_actuator_support(init_options, model, V_init):
 
     u_hat, v_hat, w_hat = get_local_wind_reference_frame(init_options)
     wind_dcm = cas.horzcat(u_hat, v_hat, w_hat)

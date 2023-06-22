@@ -83,8 +83,8 @@ class NLP(object):
         Xdot_fun,
         ocp_cstr_list,
         ocp_cstr_struct,
-        Outputs,
         Outputs_fun,
+        Outputs_struct, Outputs_structured, Outputs_structured_fun,
         Integral_outputs,
         Integral_outputs_fun,
         time_grids,
@@ -101,8 +101,10 @@ class NLP(object):
         self.__Xdot = Xdot
         self.__Xdot_fun = Xdot_fun
         self.__ocp_cstr_list = ocp_cstr_list
-        self.__Outputs = Outputs
         self.__Outputs_fun = Outputs_fun
+        self.__Outputs_struct = Outputs_struct
+        self.__Outputs_structured = Outputs_structured
+        self.__Outputs_structured_fun = Outputs_structured_fun
         self.__Integral_outputs = Integral_outputs
         self.__Integral_outputs_fun = Integral_outputs_fun
         self.__n_k = nlp_options['n_k']
@@ -331,6 +333,22 @@ class NLP(object):
     @Outputs.setter
     def Outputs(self, value):
         awelogger.logger.warning('Cannot set Outputs object.')
+
+    @property
+    def Outputs_struct(self):
+        return self.__Outputs_struct
+
+    @Outputs_struct.setter
+    def Outputs_struct(self, value):
+        awelogger.logger.warning('Cannot set Outputs_struct object.')
+
+    @property
+    def Outputs_structured_fun(self):
+        return self.__Outputs_structured_fun
+
+    @Outputs_structured_fun.setter
+    def Outputs_structured_fun(self, value):
+        awelogger.logger.warning('Cannot set Outputs_structured_fun object.')
 
     @property
     def global_outputs(self):

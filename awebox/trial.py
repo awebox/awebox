@@ -200,12 +200,12 @@ class Trial(object):
 
         awelogger.logger.info('')
 
-    def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
+    def plot(self, flags, V_plot_scaled=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
 
         recalibrate = True
 
-        if V_plot is None:
-            V_plot = self.__solution_dict['V_opt']
+        if V_plot_scaled is None:
+            V_plot_scaled = self.__solution_dict['V_opt']
             recalibrate = False
         if parametric_options is None:
             parametric_options = self.__options
@@ -215,11 +215,11 @@ class Trial(object):
             cost = self.__solution_dict['cost']
         time_grids = self.__solution_dict['time_grids']
         integral_output_vals = self.__solution_dict['integral_output_vals']
-        V_ref = self.__solution_dict['V_ref']
+        V_ref_scaled = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
+        self.__visualization.plot(V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 

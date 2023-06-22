@@ -66,7 +66,6 @@ class Wake:
                 types_with_elements += [substructure_type]
         return types_with_elements
 
-
     def get_initialized_substructure_types(self):
         accepted_types = self.get_accepted_substructure_types()
         initialized_types = []

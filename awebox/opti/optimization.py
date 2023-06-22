@@ -182,18 +182,18 @@ class Optimization(object):
 
     ### interactive functions
 
-    def __make_debug_plot(self, V_plot, nlp, visualization, location):
+    def __make_debug_plot(self, V_plot_scaled, nlp, visualization, location):
 
         if location == 'initial_guess':
             self.generate_outputs(nlp, {'x': self.__V_init})
         fig_name = 'debug_plot_' + location
         sweep_toggle = False
         cost_fun = nlp.cost_components[0]
-        cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, self.__p_fix_num)
-        V_ref = self.__V_ref
-        visualization.plot(V_plot, visualization.options, self.output_vals,
+        cost = struct_op.evaluate_cost_dict(cost_fun, V_plot_scaled, self.__p_fix_num)
+        V_ref_scaled = self.__V_ref
+        visualization.plot(V_plot_scaled, visualization.options, self.output_vals,
                            self.integral_output_vals, self.__debug_flags, self.__time_grids, cost,
-                           self.__name, sweep_toggle, V_ref, self.__global_outputs_opt, fig_name=fig_name)
+                           self.__name, sweep_toggle, V_ref_scaled, self.__global_outputs_opt, fig_name=fig_name)
 
         return None
 
@@ -359,8 +359,8 @@ class Optimization(object):
             self.allow_next_homotopy_step()
 
             if step_name in self.__debug_locations or self.__debug_locations == 'all':
-                V_plot = nlp.V(self.__solution['x'])
-                self.__make_debug_plot(V_plot, nlp, visualization, step_name)
+                V_plot_scaled = nlp.V(self.__solution['x'])
+                self.__make_debug_plot(V_plot_scaled, nlp, visualization, step_name)
 
         return None
 
@@ -595,7 +595,7 @@ class Optimization(object):
         V_initial = self.__V_init
 
         # general outputs
-        [nlp_outputs, nlp_output_fun] = nlp.output_components
+        _, nlp_output_fun = nlp.output_components
         outputs_init = nlp_output_fun(V_initial, self.__p_fix_num)
         outputs_opt = nlp_output_fun(V_opt, self.__p_fix_num)
         outputs_ref = nlp_output_fun(self.__V_ref, self.__p_fix_num)
@@ -806,8 +806,6 @@ class Optimization(object):
 
     @property
     def output_vals(self):
-        print_op.warn_about_temporary_functionality_alteration()
-        # self.outputs_op -> dm dimension(227, 27)
         return {'init': self.__outputs_init,
                 'opt': self.__outputs_opt,
                 'ref': self.__outputs_ref}

@@ -146,7 +146,7 @@ def plot_wake_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_
 def plot_controls(plot_dict, cosmetics, fig_name, individual_control=None, fig_num = None):
 
     # read in inputs
-    V_plot = plot_dict['V_plot']
+    V_plot_si = plot_dict['V_plot_si']
     variables_dict = plot_dict['variables_dict']
 
     if individual_control == None:
@@ -174,11 +174,12 @@ def plot_controls(plot_dict, cosmetics, fig_name, individual_control=None, fig_n
     for name in controls_to_plot:
 
         number_dim = variables_dict['u'][name].shape[0]
-        tools.plot_control_block(cosmetics, V_plot, plt, fig, plot_table_r, plot_table_c, pdu, 'u', name, plot_dict, number_dim)
+        tools.plot_control_block(cosmetics, V_plot_si, plt, fig, plot_table_r, plot_table_c, pdu, 'u', name, plot_dict, number_dim)
         pdu = pdu + 1
 
     plt.suptitle(fig_name)
     fig.canvas.draw()
+
 
 def plot_invariants(plot_dict, cosmetics, fig_name):
 

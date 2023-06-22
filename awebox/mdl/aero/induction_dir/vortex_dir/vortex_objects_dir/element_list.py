@@ -804,4 +804,4 @@ def test(epsilon=1.e-4):
     test_appending()
     test_that_biot_savart_function_evaluates_differently_for_different_elements(epsilon)
 
-test()
+# test()

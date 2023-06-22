@@ -642,7 +642,7 @@ def calibrate_visualization(model, nlp, name, options):
     return plot_dict
 
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -658,19 +658,14 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_va
 
     # add V_plot to dict
     scaling = plot_dict['variables'](plot_dict['scaling'])
-    plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
-    plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+    plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
+    plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
     plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
+
+    V_plot_si = plot_dict['V_plot_si']
 
     # get new name
     plot_dict['name'] = name
-
-    print_op.warn_about_temporary_functionality_alteration()
-    if 'd' in plot_dict.keys():
-        for key, vals in output_vals.items():
-            time_entries = plot_dict['n_k']*(plot_dict['d']+1)
-            if vals.shape[1] == 1 and np.mod(vals.shape[0], time_entries) == 0:
-                output_vals[key] = cas.reshape(vals, (int(vals.shape[0]/time_entries), time_entries))
 
     # get new outputs
     plot_dict['output_vals'] = output_vals
@@ -706,15 +701,19 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_va
     plot_dict['power_and_performance'] = diagnostics.compute_power_and_performance(plot_dict)
 
     # plot scaling
-    plot_dict['max_x'] = np.max(np.array(V_plot['x', :, 'q10', 0])) * 1.2
-    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot['x', :, 'q10', 1]))) * 1.2
-    plot_dict['max_z'] = np.max(np.array(V_plot['x', :, 'q10', 2])) * 1.2
+    plot_dict['max_x'] = np.max(np.array(V_plot_si['x', :, 'q10', 0])) * 1.2
+    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot_si['x', :, 'q10', 1]))) * 1.2
+    plot_dict['max_z'] = np.max(np.array(V_plot_si['x', :, 'q10', 2])) * 1.2
     plot_dict['mazim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
     plot_dict['scale_power'] = 1.  # e-3
-    try:
-        plot_dict['scale_axes'] = np.float(V_plot['x', 0, 'l_t'])
-    except:
-        plot_dict['scale_axes'] = np.float(V_plot['theta', 'l_t'])
+
+    if '[x,0,l_t,0]' in V_plot_si.labels():
+        plot_dict['scale_axes'] = np.float(V_plot_si['x', 0, 'l_t'])
+    elif '[theta,l_t,0]' in V_plot_si.labels():
+        plot_dict['scale_axes'] = np.float(V_plot_si['theta', 'l_t'])
+    else:
+        message = '(main) tether length could not be found in V_plot_si'
+        print_op.log_and_raise_error(message)
 
     dashes = []
     for ldx in range(20):
@@ -743,7 +742,7 @@ def interpolate_data(plot_dict, cosmetics):
     time_grids = plot_dict['time_grids']
     variables = plot_dict['variables']
     variables_dict = plot_dict['variables_dict']
-    V_opt = plot_dict['V_plot']
+    V_plot_si = plot_dict['V_plot_si']
     outputs_dict = plot_dict['outputs_dict']
     outputs_opt = plot_dict['output_vals']['opt']
     integral_output_names = plot_dict['integral_output_names']
@@ -752,7 +751,7 @@ def interpolate_data(plot_dict, cosmetics):
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_opt,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_plot_si,
                                                    outputs_dict, outputs_opt,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
@@ -778,7 +777,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     time_grids = plot_dict['time_grids']['ref']
     variables = plot_dict['variables']
     variables_dict = plot_dict['variables_dict']
-    V_ref = plot_dict['V_ref']
+    V_ref_si = plot_dict['V_ref_si']
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
     integral_output_names = plot_dict['integral_output_names']
@@ -786,7 +785,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_ref,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_ref_si,
                                                    outputs_dict, outputs_ref,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)
@@ -973,7 +972,7 @@ def assemble_model_parameters(plot_dict):
         if (var_type == 'phi'):
             var_name = canonical[1]
             kdx = canonical[2]
-            local_val = plot_dict['V_plot'][var_type, var_name, kdx]
+            local_val = plot_dict['V_plot_si'][var_type, var_name, kdx]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         elif (var_type == 'theta0') and (kdx == 0):

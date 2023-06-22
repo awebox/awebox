@@ -222,9 +222,11 @@ class Element:
     def evaluate_info(self, variables_scaled, parameters):
         return self.__info_fun(variables_scaled, parameters)
 
+
     def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
         message = 'cannot determine the biot-savart reference denominator for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         print_op.log_and_raise_error(message)
+
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'

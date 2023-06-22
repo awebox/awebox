@@ -228,24 +228,24 @@ class Sweep:
                 else:
                     for trial_to_plot in list(self.__sweep_dict.keys()):
                         for param in list(self.__param_dict.keys()):
-                            V_plot = self.__sweep_dict[trial_to_plot][param]['V_opt']
+                            V_plot_scaled = self.__sweep_dict[trial_to_plot][param]['V_opt']
                             cost = self.__sweep_dict[trial_to_plot][param]['cost']
                             parametric_options = self.__sweep_dict[trial_to_plot][param]['options']
                             output_vals = self.__sweep_dict[trial_to_plot][param]['output_vals']
                             trial_seed = {'solution_dict': self.__sweep_dict[trial_to_plot][param], 'plot_dict': self.__plot_dict[trial_to_plot][param]}
                             seeded_trial = trial.Trial(trial_seed)
-                            seeded_trial.plot([flag[5:]], V_plot=V_plot, cost=cost, parametric_options=parametric_options, output_vals=output_vals, sweep_toggle=True, fig_num = flag[5:])
+                            seeded_trial.plot([flag[5:]], V_plot_scaled=V_plot_scaled, cost=cost, parametric_options=parametric_options, output_vals=output_vals, sweep_toggle=True, fig_num = flag[5:])
 
             else:
                 for trial_to_plot in list(self.__plot_dict.keys()):
                     for param in list(self.__param_dict.keys()):
-                        V_plot = self.__sweep_dict[trial_to_plot][param]['V_opt']
+                        V_plot_scaled = self.__sweep_dict[trial_to_plot][param]['V_opt']
                         cost = self.__sweep_dict[trial_to_plot][param]['cost']
                         parametric_options = self.__sweep_dict[trial_to_plot][param]['options']
                         output_vals = self.__sweep_dict[trial_to_plot][param]['output_vals']
                         trial_seed = {'solution_dict': self.__sweep_dict[trial_to_plot][param], 'plot_dict': self.__plot_dict[trial_to_plot][param]}
                         seeded_trial = trial.Trial(trial_seed)
-                        seeded_trial.plot([flag], V_plot=V_plot, cost=cost, parametric_options=parametric_options, output_vals = output_vals, sweep_toggle=True)
+                        seeded_trial.plot([flag], V_plot_scaled=V_plot_scaled, cost=cost, parametric_options=parametric_options, output_vals = output_vals, sweep_toggle=True)
 
     def __generate_plot_logic_dict(self):
 

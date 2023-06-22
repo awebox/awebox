@@ -84,8 +84,7 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
 
         model_variables = plot_dict['variables']
-        model_parameters = plot_dict['parameters']
-        model_scaling = plot_dict['scaling']
+        model_scaling = model_variables(plot_dict['scaling'])
 
         variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
         variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
@@ -96,6 +95,7 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
         wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
     return None
+
 
 def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, cosmetics, idx_at_eval, kdx):
 

@@ -143,7 +143,7 @@ def make_warmstarting_decisions(name, user_defined_warmstarting_file = None, app
 
 
 def recalibrate_visualization(single_trial):
-    V_plot = single_trial.optimization.V_opt
+    V_opt_scaled = single_trial.optimization.V_opt
     plot_dict = single_trial.visualization.plot_dict
     p_fix_num = single_trial.optimization.p_fix_num
     output_vals = single_trial.optimization.output_vals
@@ -155,10 +155,10 @@ def recalibrate_visualization(single_trial):
     return_status_numeric = single_trial.optimization.return_status_numeric
     timings = single_trial.optimization.timings
     cost_fun = single_trial.nlp.cost_components[0]
-    cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
-    V_ref = single_trial.optimization.V_ref
+    cost = struct_op.evaluate_cost_dict(cost_fun, V_opt_scaled, p_fix_num)
+    V_ref_scaled = single_trial.optimization.V_ref
     global_outputs_opt = single_trial.optimization.global_outputs_opt
 
-    recalibrated_plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+    recalibrated_plot_dict = tools.recalibrate_visualization(V_opt_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
 
     return recalibrated_plot_dict

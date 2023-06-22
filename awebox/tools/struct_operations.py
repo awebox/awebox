@@ -290,21 +290,16 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(nlp_options, P, V, Xdot, model_variables, model_parameters, kdx=None, ddx=None):
+def get_parameters_at_time(V, P, model_parameters):
     param_list = []
 
-    parameters = model_parameters
-
-    for var_type in list(parameters.keys()):
+    for var_type in list(model_parameters.keys()):
         if var_type == 'phi':
             param_list.append(V[var_type])
         if var_type == 'theta0':
             param_list.append(P[var_type])
-        if var_type == 'lin':
-            linearized_vars = get_variables_at_time(nlp_options, V(P['lin']), Xdot, model_variables, kdx, ddx)
-            param_list.append(linearized_vars)
 
-    param_at_time = parameters(cas.vertcat(*param_list))
+    param_at_time = model_parameters(cas.vertcat(*param_list))
 
     return param_at_time
 
@@ -421,7 +416,7 @@ def should_variable_be_scaled(var_type, var_name, var_scaled, scaling):
     if (var_type == 'phi') or (var_type == 'xi'):
         return False, None
 
-    scaling_defined_for_variable = (var_type in scaling.keys()) and (var_name in subkeys(scaling, var_type))
+    scaling_defined_for_variable = hasattr(scaling, 'keys') and (var_type in scaling.keys()) and (var_name in subkeys(scaling, var_type))
     if not scaling_defined_for_variable:
         message = 'scaling information unavailable for ' + var_identifier + end_of_message
         return False, message
@@ -917,12 +912,12 @@ def strip_of_contents(d):
     
     return stripped_d
 
-def evaluate_cost_dict(cost_fun, V_plot, p_fix_num):
 
+def evaluate_cost_dict(cost_fun, V_opt, p_fix_num):
     cost = {}
     for name in list(cost_fun.keys()):
         if 'problem' not in name and 'objective' not in name:
-            cost[name[:-4]] = cost_fun[name](V_plot, p_fix_num)
+            cost[name[:-4]] = cost_fun[name](V_opt, p_fix_num)
 
     return cost
 

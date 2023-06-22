@@ -332,16 +332,19 @@ def discretize(nlp_options, model, formulation):
                 elif nlp_options['collocation']['u_param'] == 'poly':
                     Outputs_list.append(coll_outputs[:, kdx * (d) + ddx])
 
- # Create Outputs struct and function
+    # Create Outputs struct and function
+    Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
+    Outputs = Outputs_fun(V, P)
+
+    Outputs_struct = None
+    Outputs_structured_fun = None
+    Outputs_structured = None
+
     if nlp_options['induction']['induction_model'] == 'vortex':  # outputs are need for vortex constraint construction
-        Outputs_structure = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
-        Outputs_struct = Outputs_structure(cas.vertcat(*Outputs_list))
-        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
-        Outputs = Outputs_struct(Outputs_fun(V, P))
-    else:
-        Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
-        Outputs_struct = None
-        Outputs = Outputs_fun(V, P)
+        output_structure = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
+        Outputs_struct = output_structure(cas.vertcat(*Outputs_list))
+        Outputs_structured_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
+        Outputs_structured = Outputs_struct(Outputs_structured_fun(V, P))
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
@@ -356,9 +359,9 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs, Integral_outputs, time_grids)
+            ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids)
 
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_fun, Outputs_struct, Outputs_structured, Outputs_structured_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 
 def check_the_dimension_of_xdot(nlp_options, V, model):

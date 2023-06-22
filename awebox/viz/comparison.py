@@ -141,6 +141,7 @@ def get_stats_values_over_sweep(plot_dict, stat_name):
 
     return value_list, labels
 
+
 def get_stats_values_from_trial(plot_dict, stat_name):
 
     if stat_name == 'timings_construction':
@@ -182,12 +183,12 @@ def get_stats_values_from_trial(plot_dict, stat_name):
     elif stat_name == 'l_s':
         no_kites = len(plot_dict['architecture'].kite_nodes)
         if no_kites > 1:
-            return float(plot_dict['V_plot']['theta', 'l_s'])
+            return float(plot_dict['V_plot_si']['theta', 'l_s'])
         else:
             return 0.
 
     elif stat_name == 'diam_t':
-        return float(plot_dict['V_final']['theta', 'diam_t'])
+        return float(plot_dict['V_plot_si']['theta', 'diam_t'])
 
     elif stat_name == 'z_av':
         return float(plot_dict['power_and_performance']['z_av'])
@@ -230,5 +231,5 @@ def plot_family_of_trajectories(sweep_dict, cosmetics, fig_num, side):
             color = rgb_tuple_colors[i]
             label = sweep_dict[trial][param]['name'] + '_' + param
             local_trial = sweep_dict[trial][param]
-            trajectory.plot_trajectory(local_trial['V_plot'], cosmetics, fig_num, side, init_colors=color, label=label)
+            trajectory.plot_trajectory(local_trial['V_plot_si'], cosmetics, fig_num, side, init_colors=color, label=label)
             i += 1

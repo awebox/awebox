@@ -53,7 +53,7 @@ def get_initialization(init_options, V_init, p_fix_num, nlp, model):
     V_init_si = copy.deepcopy(V_init)
     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
 
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
+    Outputs_init = nlp.Outputs_struct(nlp.Outputs_structured_fun(V_init_scaled, p_fix_num))
 
     integral_output_components = nlp.integral_output_components
 
@@ -67,6 +67,7 @@ def get_initialization(init_options, V_init, p_fix_num, nlp, model):
                                                        Integral_outputs_scaled, model, time_grids)
 
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
+    V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
     check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
     check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
@@ -74,11 +75,59 @@ def get_initialization(init_options, V_init, p_fix_num, nlp, model):
     return V_init_si
 
 
+def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
+    for ndx in range(nlp.n_k):
+        for ddx in range(nlp.d):
+            V_init_si = append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model, ndx, ddx)
+
+    return V_init_si
+
+
+def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model, ndx, ddx):
+
+    Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
+    variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
+                                                   ddx=ddx)
+    parameters_si = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
+
+    for kite_obs in model.architecture.kite_nodes:
+        parent_obs = model.architecture.parent_map[kite_obs]
+        x_obs = variables_si['x', 'q' + str(kite_obs) + str(parent_obs)]
+
+        total_u_ind = cas.DM.zeros((3, 1))
+
+        expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(init_options, model.architecture)
+        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
+            for element_type, expected_number in local_expected_number_of_elements_dict.items():
+
+                all_u_ind_sym = model.wake.get_substructure(wake_type).get_list(element_type).evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs)
+                all_u_ind_fun = cas.Function('all_u_ind_fun', [model.variables, model.parameters], [all_u_ind_sym])
+                all_u_ind = all_u_ind_fun(variables_si, parameters_si)
+
+                for element_number in range(expected_number):
+                    u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type,
+                                                                                     element_number, kite_obs)
+                    elem_u_ind = all_u_ind[:, element_number]
+                    V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = elem_u_ind
+
+                    if (ddx is None) and ('z' in list(V_init_si.keys())):
+                        V_init_si['z', ndx-1, u_ind_elem_name] = elem_u_ind
+
+                total_u_ind += cas.sum2(all_u_ind)
+
+        u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+        V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_u_ind
+
+        if (ddx is None) and ('z' in list(V_init_si.keys())):
+            V_init_si['z', ndx - 1, u_ind_name] = total_u_ind
+
+    return V_init_si
+
 def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-4):
 
     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
 
-    Outputs_init = nlp.Outputs(nlp.Outputs_fun(V_init_scaled, p_fix_num))
+    Outputs_init = nlp.Outputs_struct(nlp.Outputs_structured_fun(V_init_scaled, p_fix_num))
 
     [Integral_outputs, Integral_outputs_fun] = nlp.integral_output_components
     int_out = Integral_outputs(Integral_outputs_fun(V_init_scaled, p_fix_num))
