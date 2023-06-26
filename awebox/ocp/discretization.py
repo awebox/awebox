@@ -203,7 +203,7 @@ def setup_integral_output_structure(nlp_options, integral_outputs):
     return Integral_outputs_struct
 
 
-def setup_output_structure(nlp_options, model_outputs, global_outputs):
+def setup_output_structure(nlp_options, model_outputs):
 
     # create outputs
     nk = nlp_options['n_k']
@@ -301,9 +301,6 @@ def discretize(nlp_options, model, formulation):
     # ---------------------------------------
     mdl_outputs = model.outputs
 
-    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
-    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
-
     #-------------------------------------------
     # COLLOCATE OUTPUTS
     #-------------------------------------------
@@ -341,7 +338,7 @@ def discretize(nlp_options, model, formulation):
     Outputs_structured = None
 
     if nlp_options['induction']['induction_model'] == 'vortex':  # outputs are need for vortex constraint construction
-        output_structure = setup_output_structure(nlp_options, mdl_outputs, global_outputs)
+        output_structure = setup_output_structure(nlp_options, mdl_outputs)
         Outputs_struct = output_structure(cas.vertcat(*Outputs_list))
         Outputs_structured_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
         Outputs_structured = Outputs_struct(Outputs_structured_fun(V, P))
@@ -350,6 +347,10 @@ def discretize(nlp_options, model, formulation):
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
+
+    # Global outputs
+    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P)
+    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
     Xdot_struct = Xdot
     Xdot_fun = cas.Function('Xdot_fun', [V], [Xdot])

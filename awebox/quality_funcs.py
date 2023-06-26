@@ -280,12 +280,13 @@ def power_balance_key_belongs_to_node(keyname, node):
     key_belongs_to_node = keyname_includes_nodenumber and keyname_is_nonnumeric_before_nodenumber
     return key_belongs_to_node
 
-def test_tracked_vortex_periods(trial, test_param_dict, results, input_values):
+
+def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, global_input_values):
 
     if 'vortex' in input_values['outputs']:
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        max_est_truncation_error = input_values['power_and_performance']['vortex_max_est_truncation_error']
+        max_est_truncation_error = global_input_values['vortex', 'max_est_truncation_error']
         if max_est_truncation_error > vortex_truncation_error_thresh:
             message = 'Vortex model estimates a large truncation error' \
                       + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \

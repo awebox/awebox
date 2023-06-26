@@ -37,7 +37,7 @@ def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     # read in inputs
     variables_dict = plot_dict['variables_dict']
-    integral_variables = plot_dict['integral_variables']
+    integral_variables = plot_dict['integral_output_names']
 
     if individual_state == None:
         variables_to_plot = []
@@ -88,7 +88,7 @@ def plot_lifted(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=N
 
     # read in inputs
     variables_dict = plot_dict['variables_dict']
-    integral_variables = plot_dict['integral_variables']
+    integral_variables = plot_dict['integral_output_names']
 
     # check if lifted variables exist
     if 'z' not in variables_dict.keys():

@@ -396,21 +396,13 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
             idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
             for kdx in range(nlp_options['n_k']):
-
                 if nlp_options['discretization'] == 'direct_collocation':
                     for ddx in range(d):
-
-                        if hasattr(Outputs, 'keys') and 'coll_outputs' in Outputs.keys():
-                            local_beta = Outputs['coll_outputs', kdx, ddx, 'aerodynamics', 'beta' + str(kite)]
-                        else:
-                            local_beta = Outputs[idx, kdx * d + ddx]
+                        local_beta = Outputs[idx, kdx * d + ddx]
                         beta_cost += int_weights[ddx] * local_beta**2.
 
                 else:
-                    if hasattr(Outputs, 'keys') and 'outputs' in Outputs.keys():
-                        local_beta = Outputs['outputs', kdx, 'aerodynamics', 'beta' + str(kite)]
-                    else:
-                        local_beta = Outputs[idx, kdx]
+                    local_beta = Outputs[idx, kdx]
                     beta_cost += local_beta**2.
 
         beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']

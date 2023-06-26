@@ -139,7 +139,7 @@ class Visualization(object):
 
         outputs = self.plot_dict['outputs_dict']
         variables_dict = self.plot_dict['variables_dict']
-        integral_variables = self.plot_dict['integral_variables']
+        integral_variables = self.plot_dict['integral_output_names']
 
         plot_logic_dict = {}
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})

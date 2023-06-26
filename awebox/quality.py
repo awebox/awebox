@@ -30,6 +30,7 @@
 import pdb
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.quality_funcs as quality_funcs
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
@@ -73,6 +74,9 @@ class Quality(object):
         self.__input_values = quality_input_values
         self.__input_time_grid = time_grids
 
+        global_input_values = trial.nlp.global_outputs(trial.nlp.global_outputs_fun(V_opt, trial.optimization.p_fix_num))
+        self.__global_input_values = global_input_values
+
         return None
 
     def run_tests(self, trial):
@@ -90,7 +94,7 @@ class Quality(object):
         results = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values)
         results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
         results = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values)
-        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values)
+        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values, self.__global_input_values)
         results = quality_funcs.test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, results)
 
         # save test results

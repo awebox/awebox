@@ -56,7 +56,7 @@ import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
 
 import numpy as np
-
+import casadi.tools as cas
 
 def build(model_options, architecture, wind, variables_si, parameters):
 
@@ -200,9 +200,13 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
     return outputs
 
-def compute_global_performance(power_and_performance, plot_dict):
 
-    kite_nodes = plot_dict['architecture'].kite_nodes
+def compute_global_performance(global_outputs, Outputs_structured, architecture):
+
+    if 'vortex' not in global_outputs.keys():
+        global_outputs['vortex'] = {}
+
+    kite_nodes = architecture.kite_nodes
 
     max_est_trunc_list = []
     max_est_discr_list = []
@@ -213,39 +217,45 @@ def compute_global_performance(power_and_performance, plot_dict):
     for kite in kite_nodes:
 
         trunc_name = 'est_truncation_error' + str(kite)
-        local_max_est_trunc = np.max(np.array(plot_dict['outputs']['vortex'][trunc_name][0]))
-        max_est_trunc_list += [local_max_est_trunc]
+        local_a_name = 'local_a' + str(kite)
+        local_normalized_far_u_ind_name = 'u_ind_from_far_wake_over_u_ref' + str(kite)
 
-        kite_local_a = np.ndarray.flatten(np.array(plot_dict['outputs']['vortex']['local_a' + str(kite)][0]))
+        local_est_trunc = []
+        kite_local_a = []
+        local_normalized_far_u_ind = []
+
+        for ndx in range(len(Outputs_structured['coll_outputs'])):
+            for ddx in range(len(Outputs_structured['coll_outputs', 0])):
+                local_est_trunc = cas.vertcat(local_est_trunc, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', trunc_name])
+                kite_local_a = cas.vertcat(kite_local_a, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', local_a_name])
+                local_normalized_far_u_ind = cas.vertcat(local_normalized_far_u_ind, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', local_normalized_far_u_ind_name])
+
         if all_local_a is None:
             all_local_a = kite_local_a
         else:
-            all_local_a = np.vstack([all_local_a, kite_local_a])
+            all_local_a = cas.vertcat(all_local_a, kite_local_a)
 
-        max_kite_local_a = np.max(kite_local_a)
-        min_kite_local_a = np.min(kite_local_a)
+        max_kite_local_a = vect_op.smooth_max(kite_local_a)
+        min_kite_local_a = vect_op.smooth_min(kite_local_a)
         local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
-        max_est_discr_list += [local_max_est_discr]
+        max_est_discr_list = cas.vertcat(max_est_discr_list, local_max_est_discr)
 
-        local_max_u_ind_from_far_wake_over_u_ref = np.max(np.array(plot_dict['outputs']['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite)]))
-        max_u_ind_from_far_wake_over_u_ref_list += [local_max_u_ind_from_far_wake_over_u_ref]
+        local_max_normalized_far_u_ind = vect_op.smooth_max(local_normalized_far_u_ind)
+        max_u_ind_from_far_wake_over_u_ref_list = cas.vertcat(max_u_ind_from_far_wake_over_u_ref_list, local_max_normalized_far_u_ind)
 
-    average_local_a = np.average(all_local_a)
-    power_and_performance['vortex_average_local_a'] = average_local_a
+    average_local_a = vect_op.average(all_local_a)
+    global_outputs['vortex']['average_local_a'] = average_local_a
 
-    stdev_local_a = np.std(all_local_a)
-    power_and_performance['vortex_stdev_local_a'] = stdev_local_a
+    max_u_ind_from_far_wake_over_u_ref = vect_op.smooth_max(max_u_ind_from_far_wake_over_u_ref_list)
+    global_outputs['vortex']['max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref
 
-    max_u_ind_from_far_wake_over_u_ref = np.max(np.array(max_u_ind_from_far_wake_over_u_ref_list))
-    power_and_performance['vortex_max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref
+    max_est_trunc = vect_op.smooth_max(local_est_trunc)
+    global_outputs['vortex']['max_est_truncation_error'] = max_est_trunc
 
-    max_est_trunc = np.max(np.array(max_est_trunc_list))
-    power_and_performance['vortex_max_est_truncation_error'] = max_est_trunc
+    max_est_discr = vect_op.smooth_max(max_est_discr_list)
+    global_outputs['vortex']['max_est_discretization_error'] = max_est_discr
 
-    max_est_discr = np.max(np.array(max_est_discr_list))
-    power_and_performance['vortex_max_est_discretization_error'] = max_est_discr
-
-    return power_and_performance
+    return global_outputs
 
 
 def get_dictionary_of_derivatives(outputs, architecture):

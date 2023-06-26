@@ -353,13 +353,16 @@ def step_in_out(number, step_in, step_out, eps=1e-4):
     step = step_in - step_out
     return step
 
-def sum(all_array):
+def average(all_array):
+    total = sum(all_array)
+    count = float(all_array.shape[0] * all_array.shape[1])
+    return total / count
 
+
+def sum(all_array):
     array_columnized = columnize(all_array)
     ones = cas.DM.ones(array_columnized.shape)
     sum = cas.mtimes(array_columnized.T, ones)
-
-    # sum = cas.sum1(all_array)
     return sum
 
 def smooth_max(all_array):

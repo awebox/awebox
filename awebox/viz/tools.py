@@ -621,7 +621,7 @@ def calibrate_visualization(model, nlp, name, options):
     # model information
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
-    plot_dict['integral_variables'] = list(model.integral_outputs.keys())
+    # plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['scaling'] = model.scaling.cat
     plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['variables'] = struct_op.strip_of_contents(model.variables)

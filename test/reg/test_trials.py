@@ -174,11 +174,19 @@ def test_vortex():
     return None
 
 
+
+def test_vortex_basic_health():
+    options_dict = generate_options_dict()
+    trial_name = 'vortex_basic_health_trial'
+    solve_trial(options_dict[trial_name], trial_name)
+    return None
+
+
 def make_basic_health_variant(base_options):
     basic_health_options = copy.deepcopy(base_options)
 
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
-    basic_health_options['nlp.n_k'] = 15
+    basic_health_options['nlp.n_k'] = 15  # try to decrease this.
     basic_health_options['nlp.collocation.d'] = 3
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
@@ -331,21 +339,17 @@ def generate_options_dict():
     vortex_options = copy.deepcopy(single_kite_6_dof_options)
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
-    # vortex_options['nlp.n_k'] = 8
-    vortex_options['model.aero.vortex.wake_nodes'] = 12
+    vortex_options['model.aero.vortex.wake_nodes'] = 5  #2
     vortex_options['model.aero.vortex.representation'] = 'alg'
-    # vortex_options['model.aero.overwrite.alpha_max_deg'] = 20.
-    # vortex_options['model.aero.overwrite.alpha_min_deg'] = -20.
-    # vortex_options['model.tether.lift_tether_force'] = True
-    # vortex_options['model.aero.lift_aero_force'] = True
+    # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    # vortex_options['solver.initialization.theta.diam_t'] = 1.3e-2
+
+    vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
     vortex_force_zero_options = copy.deepcopy(vortex_options)
     vortex_force_zero_options['model.aero.induction.force_zero'] = True
 
     vortex_force_zero_basic_health_options = make_basic_health_variant(vortex_force_zero_options)
-    vortex_force_zero_basic_health_options['model.aero.vortex.wake_nodes'] = 2
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options.trajectory.type'] = 'tracking'
@@ -393,6 +397,7 @@ def generate_options_dict():
     options_dict['vortex_force_zero_trial'] = vortex_force_zero_options
     options_dict['vortex_force_zero_basic_health_trial'] = vortex_force_zero_basic_health_options
     options_dict['vortex_trial'] = vortex_options
+    options_dict['vortex_basic_health_trial'] = vortex_basic_health_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
@@ -472,7 +477,8 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_uasym()
 # test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
-test_vortex_force_zero()
-# test_vortex()
+# test_vortex_force_zero()
+test_vortex()
+# test_vortex_basic_health()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

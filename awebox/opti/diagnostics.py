@@ -117,7 +117,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     s_ref = kite_geometry['s_ref']
 
     # the actual power indicators
-    if 'e' in plot_dict['integral_variables']:
+    if 'e' in plot_dict['integral_output_names']:
         e_final = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
     else:
         e_final = plot_dict['x']['e'][0][-1]
@@ -148,6 +148,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['z_av'] = z_av
 
     return power_and_performance
+
 
 def compute_efficiency_measures(power_and_performance, plot_dict):
 
@@ -470,8 +471,5 @@ def compute_power_and_performance(plot_dict):
     power_and_performance = compute_control_frequency(power_and_performance, plot_dict)
 
     power_and_performance = compute_windings(power_and_performance, plot_dict)
-
-    if 'vortex' in plot_dict['outputs'].keys():
-        power_and_performance = vortex.compute_global_performance(power_and_performance, plot_dict)
 
     return power_and_performance
