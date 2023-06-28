@@ -456,6 +456,8 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'health_check',     None,       'spy_matrices',             False,  ('make spy plot of KKT matrix - requires manual closing', None), 'x'),
         ('solver',  'health_check',     None,       'raise_exception',          False,  ('raise an exception when the problem is unhealthy', None), 'x'),
         ('solver',  'health_check',     None,       'help_with_debugging',      False,  ('look for where problems might exist', None), 'x'),
+        ('solver',  'health_check',     None,       'save_health_indicators',   False,  ('save the health-check tractability indicators', [True, False]), 'x'),
+        ('solver',  'health_check',     None,       'filename_identifier',      '',     ('string to use when saving the health indicators', None), 'x'),
 
         ### simulation options
         ('sim', None,  None,    'number_of_finite_elements',  20,                 ('Integrator steps in one sampling interval', None), 'x'),

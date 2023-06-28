@@ -117,7 +117,14 @@ def get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, ar
         for kite_obs in architecture.kite_nodes:
             resi_si = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, wind, variables_si, parameters, kite_obs,
                                                                                                    architecture.parent_map[kite_obs])
-            scale = wind.get_speed_ref()
+
+            print_op.warn_about_temporary_functionality_alteration()
+            scale = 10. * wind.get_speed_ref()
+
+            # a_ref = model_options['aero']['actuator']['a_ref']
+            # u_ref = wind.get_speed_ref()
+            # scale = a_ref * u_ref
+
             resi_scaled = resi_si / scale
 
             local_cstr = cstr_op.Constraint(expr=resi_scaled,

@@ -28,6 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-18
 - edit, rachel leuthold 2018-21
 '''
+import copy
 import pdb
 
 import matplotlib
@@ -38,14 +39,19 @@ import casadi.tools as cas
 import numpy as np
 import numpy.ma as ma
 import scipy.linalg as scila
+import resource
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.save_operations as save_op
 from awebox.logger.logger import Logger as awelogger
 
-def health_check(health_solver_options, nlp, solution, arg, stats, iterations, step_name):
+def health_check(health_solver_options, nlp, model, solution, arg, stats, iterations, step_name, cumulative_max_memory):
 
     awelogger.logger.info('Checking health...')
+
+    local_cumulative_max_memory = {'setup': cumulative_max_memory['setup'], 'optimization': cumulative_max_memory['optimization']}
+    local_cumulative_max_memory['pre-health-check'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     V_opt = nlp.V(solution['x'])
     p_fix_num = nlp.P(arg['p'])
@@ -68,12 +74,20 @@ def health_check(health_solver_options, nlp, solution, arg, stats, iterations, s
         vect_op.spy(np.absolute(np.array(reduced_hessian)), title='Reduced Hessian')
         plt.show()
 
-    tractability = collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian)
+    tractability = collect_tractability_indicators(step_name, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory)
+
+    print_op.warn_about_temporary_functionality_alteration()
+    if health_solver_options['save_health_indicators']:
+        filename = health_solver_options['filename_identifier'].strip()
+        if len(filename) > 0:
+            filename += '_'
+        filename += 'health_indicators.csv'
+        save_op.write_or_append_two_column_dict_to_csv(tractability, filename)
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
-    sosc_holds = is_reduced_hessian_positive_definite(tractability['min_reduced_hessian_eig'], health_solver_options)
-    problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['condition'], health_solver_options)
+    sosc_holds = is_reduced_hessian_positive_definite(tractability['kkt: min_reduced_hessian_eig'], health_solver_options)
+    problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['kkt: condition'], health_solver_options)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
 
@@ -150,18 +164,54 @@ def get_nonzeros_as_strings(matrix, cdx, nlp):
 
     return repr(dict)
 
-def collect_tractability_indicators(stats, iterations, kkt_matrix, reduced_hessian):
+def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory):
 
     awelogger.logger.info('collect tractability indicators...')
     tractability = {}
 
     # todo: add autoscaling_triggered? indicator
-    tractability['local_iterations'] = get_local_iterations(stats)
+    tractability['step_name'] = step_name
+
+    for stat_name in stats.keys():
+        tractability['stats: ' + stat_name] = stats[stat_name]
+
+    for stat_name in ['nlp_f', 'nlp_g', 'nlp_grad', 'nlp_grad_f', 'nlp_hess_l', 'nlp_jac_g']:
+        for time_name in ['t_proc', 't_wall']:
+            if ('n_call_' + stat_name in stats.keys()) and (time_name + '_' + stat_name in stats.keys()):
+                tractability['avg ' + time_name + ' per call: ' + stat_name] = stats[time_name + '_' + stat_name] / stats['n_call_' + stat_name]
+
     tractability['total_iterations'] = get_total_iterations(iterations)
-    tractability['diagonality'] = get_pearson_diagonality(kkt_matrix)
-    tractability['size'] = kkt_matrix.shape[0]
-    tractability['condition'] = get_condition_number(kkt_matrix)
-    tractability['min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
+
+    for key in model.variables.keys():
+        tractability['model: n_' + key] = model.variables[key].shape[0]
+
+    for cstr_type in ['eq', 'ineq']:
+        tractability['model: nnz_' + cstr_type] = model.constraints_list.get_expression_list(cstr_type).nnz()
+
+    for key in model.variables.keys():
+        tractability['model: nninf_bounds_' + key] = model.number_noninf_variable_bounds(key)
+
+    tractability['ocp: n_k'] = nlp.n_k
+    if hasattr(nlp, 'd'):
+        tractability['ocp: d'] = nlp.d
+
+    tractability['ocp: n_V'] = nlp.V.shape[0]
+    tractability['ocp: n_theta'] = nlp.V['theta'].shape[0]
+
+    for cstr_type in ['eq', 'ineq']:
+        tractability['ocp: nnz_' + cstr_type] = nlp.ocp_cstr_list.get_expression_list(cstr_type).nnz()
+
+    tractability['kkt: size'] = repr(kkt_matrix.shape)
+    tractability['kkt: nnz'] = kkt_matrix.nnz()
+    tractability['kkt: fraction non-zero'] = kkt_matrix.nnz() / (kkt_matrix.shape[0] * kkt_matrix.shape[1])
+    tractability['kkt: diagonality'] = get_pearson_diagonality(kkt_matrix)
+
+    tractability['kkt: condition'] = get_condition_number(kkt_matrix)
+    tractability['kkt: min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
+
+    local_cumulative_max_memory['at_indicator_report'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    for cmm_key in local_cumulative_max_memory.keys():
+        tractability['memory: ' + cmm_key] = local_cumulative_max_memory[cmm_key]
 
     awelogger.logger.info('tractability indicator report')
     print_op.print_dict_as_table(tractability)
@@ -173,12 +223,11 @@ def get_local_iterations(stats):
     awelogger.logger.info('get local iterations...')
     return stats['iter_count']
 
-
 def get_total_iterations(iterations):
     awelogger.logger.info('get total iterations...')
-    total_iterations = 0.
+    total_iterations = 0
     for step in iterations.keys():
-        total_iterations += iterations[step]
+        total_iterations += int(iterations[step])
     return total_iterations
 
 

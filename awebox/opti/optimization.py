@@ -198,7 +198,6 @@ class Optimization(object):
         return None
 
 
-
     def update_runtime_info(self, timer, step_name):
 
         self.__timings[step_name] = time.time() - timer
@@ -352,7 +351,7 @@ class Optimization(object):
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
 
-            problem_is_healthy_or_unchecked = diagnostics.health_check(step_name, final_homotopy_step, nlp, self.__solution, self.__arg, options, self.__stats, self.__iterations)
+            problem_is_healthy_or_unchecked = diagnostics.health_check(step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, options, self.__stats, self.__iterations, self.__cumulative_max_memory)
             if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
                 self.__solve_succeeded = False
 

@@ -25,6 +25,7 @@
 ###################################
 # Class Model contains physics description necessary to model the tree-structure multi-kite system
 ###################################
+import pdb
 
 from . import atmosphere
 from . import wind
@@ -36,6 +37,7 @@ import time
 from . import dae
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
+import casadi.tools as cas
 
 class Model(object):
     def __init__(self):
@@ -256,6 +258,17 @@ class Model(object):
     @property
     def variable_bounds(self):
         return self.__variable_bounds
+
+    def number_noninf_variable_bounds(self, var_type):
+        local_nninf = 0
+        for var_name in self.__variable_bounds[var_type]:
+            for dim in range(self.__variable_bounds[var_type][var_name]['lb'].shape[0]):
+                upper_bound_is_finite = (self.__variable_bounds[var_type][var_name]['ub'][dim]).is_regular()
+                lower_bound_is_finite = (self.__variable_bounds[var_type][var_name]['lb'][dim]).is_regular()
+                bound_is_finite = upper_bound_is_finite or lower_bound_is_finite
+                local_nninf += int(bound_is_finite)
+        return local_nninf
+
 
     @property
     def parameters(self):

@@ -74,7 +74,7 @@ def print_runtime_values(stats):
 
     return None
 
-def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, stats, iterations):
+def health_check(step_name, final_homotopy_step, nlp, model, solution, arg, options, stats, iterations, cumulative_max_memory):
 
     solve_succeeded = stats['success']
 
@@ -93,7 +93,7 @@ def health_check(step_name, final_homotopy_step, nlp, solution, arg, options, st
     should_make_check = (not do_not_make_check) and (should_make_autorun_check or should_make_failure_check or should_make_final_check)
 
     if should_make_check:
-        return debug_op.health_check(options['health_check'], nlp, solution, arg, stats, iterations, step_name)
+        return debug_op.health_check(options['health_check'], nlp, model, solution, arg, stats, iterations, step_name, cumulative_max_memory)
     else:
         return True
 

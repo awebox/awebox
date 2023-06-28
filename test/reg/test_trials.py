@@ -204,6 +204,8 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.health_check.help_with_debugging'] = True
     basic_health_options['quality.when'] = 'never'
 
+    basic_health_options['solver.health_check.save_health_indicators'] = True
+
     return basic_health_options
 
 
@@ -457,7 +459,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     return trial
 
 # #
-# test_single_kite_basic_health(final_homotopy_step='initial_guess')
+test_single_kite_basic_health()
 # test_single_kite()
 # test_single_kite_6_dof_basic_health()
 # test_single_kite_6_dof()
@@ -478,7 +480,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
 # test_vortex_force_zero()
-test_vortex()
-# test_vortex_basic_health()
+# test_vortex_basic_health() <-
+# test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

@@ -27,6 +27,7 @@ Stores helper functions for saving data
 -author: Thilo Bronnenmeyer, kiteswarms, 2019
 -edit: Rachel Leuthold, ALU-FR, 2020
 """
+import copy
 import pdb
 import os
 import pickle
@@ -94,6 +95,39 @@ def save(data, file_name, file_type):
     file_pi.close()
 
     return None
+
+def write_or_append_two_column_dict_to_csv(table_dict, filename):
+
+    fieldnames = table_dict.keys()
+
+    this_file_exists = True
+    try:
+        with open(filename, 'r') as csvfile:
+            reader = csv.DictReader(csvfile)
+            fieldnames_are_correct = set(reader.fieldnames) == set(fieldnames)
+    except:
+        this_file_exists = False
+
+    if this_file_exists and not fieldnames_are_correct:
+        message = 'the read fieldnames are not the same as the keys of the dict attempted to be stored. ignoring request to save'
+        print_op.base_print(message, level='warning')
+        return None
+
+    if this_file_exists:
+        open_style = 'a'
+        add_header = False
+    else:
+        open_style = 'w'
+        add_header = True
+
+    with open(filename, open_style, newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        if add_header:
+            writer.writeheader()
+        writer.writerow(table_dict)
+
+    return None
+
 
 def correct_filename_if_reloadable_seed_file_extension_is_missing(filename):
     expected_file_extension = get_dict_of_saveable_objects_and_extensions()['reloadable_seed']
@@ -267,7 +301,62 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
 
     return None
 
+
 def test():
-    # todo
-    awelogger.logger.warning('no unit tests currently defined for save_operations')
+    test_table_save()
+    # todo: test variable saving? and/or join with the table-save routine?
     return None
+
+
+def test_table_save():
+
+    filename = 'save_op_test.csv'
+
+    table_1 = {'int': 234,
+               'float': 2333.33,
+               'neg': -2.8,
+               'sci': 3.4e-2,
+               'cas.dm - scalar': cas.DM(4.),
+               'cas.dm - array': 4.5 * cas.DM.ones((3, 1)),
+               'boolean': False,
+               'string': 'apples'}
+    write_or_append_two_column_dict_to_csv(table_1, filename)
+
+    table_2 = copy.deepcopy(table_1)
+    table_2['string'] = 'pears'
+    write_or_append_two_column_dict_to_csv(table_2, filename)
+
+    table_3 = copy.deepcopy(table_1)
+    table_3['other'] = 234.3
+    table_3['string'] = 'peaches'
+    write_or_append_two_column_dict_to_csv(table_3, filename)
+
+    set_found_strings = set([])
+    number_of_rows = 0
+    with open(filename, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        csv_file_has_correct_number_of_columns = len(reader.fieldnames) == len(table_1.keys())
+        for row in reader:
+            number_of_rows += 1
+            set_found_strings.add(row['string'])
+
+    only_apples_and_pears_mentioned = (table_1['string'] in set_found_strings) and (table_2['string'] in set_found_strings) and (table_3['string'] not in set_found_strings)
+    csv_file_has_correct_number_of_entries = (number_of_rows == 2)
+
+    if not csv_file_has_correct_number_of_entries:
+        message = 'unexpected number of entries in test_table_save csv file'
+        print_op.log_and_raise_error(message)
+
+    if not only_apples_and_pears_mentioned:
+        message = 'distinct dicts are not appended correctly to test_table_save csv file'
+        print_op.log_and_raise_error(message)
+
+    if not csv_file_has_correct_number_of_columns:
+        message = 'variable information is getting lost in test_table_save csv files'
+        print_op.log_and_raise_error(message)
+
+    os.remove(filename)
+
+    return None
+
+# test()
