@@ -251,11 +251,11 @@ class ElementList:
         return None
 
 
-    def define_biot_savart_induction_residual_function(self):
+    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split_num'):
         elem = self.get_example_element()
 
         if elem.biot_savart_residual_fun is None:
-            elem.define_biot_savart_induction_residual_function()
+            elem.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
 
         biot_savart_residual_fun = elem.biot_savart_residual_fun
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
@@ -275,7 +275,11 @@ class ElementList:
 
     def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
         elem = self.get_example_element()
-        return elem.get_biot_savart_reference_denominator(model_options, parameters, wind)
+        inputs = {'number_of_kites': 1,
+                  'winding_period': 30.,
+                  'shedding_delta_time': parameters['theta0', 'geometry', 'b_ref'] / parameters['theta0', 'wind', 'u_ref']
+                  }
+        return elem.get_biot_savart_reference_denominator(model_options, parameters, wind, inputs=inputs)
 
     def get_example_element(self):
         if len(self.__list) > 0:
@@ -310,10 +314,10 @@ class ElementList:
         u_ind = cas.sum2(all)
         return u_ind
 
-    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list):
+    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, biot_savart_residual_assembly='split_num'):
 
         if self.concatenated_biot_savart_residual_fun is None:
-            self.define_biot_savart_induction_residual_function()
+            self.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
 
         concatenated_biot_savart_residual_fun = self.__concatenated_biot_savart_residual_fun
         concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)

@@ -86,7 +86,7 @@ def health_check(health_solver_options, nlp, model, solution, arg, stats, iterat
 
     exact_licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options, tol=0.)
     licq_holds = is_matrix_full_rank(cstr_jacobian_eval, health_solver_options)
-    sosc_holds = is_reduced_hessian_positive_definite(tractability['kkt: min_reduced_hessian_eig'], health_solver_options)
+    sosc_holds = is_reduced_hessian_positive_definite(tractability['kkt: min_red_hessian_eig'], health_solver_options)
     problem_is_ill_conditioned = is_problem_ill_conditioned(tractability['kkt: condition'], health_solver_options)
 
     problem_is_healthy = (not problem_is_ill_conditioned) and licq_holds and sosc_holds
@@ -178,7 +178,7 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
     for stat_name in ['nlp_f', 'nlp_g', 'nlp_grad', 'nlp_grad_f', 'nlp_hess_l', 'nlp_jac_g']:
         for time_name in ['t_proc', 't_wall']:
             if ('n_call_' + stat_name in stats.keys()) and (time_name + '_' + stat_name in stats.keys()):
-                tractability['avg ' + time_name + ' per call: ' + stat_name] = stats[time_name + '_' + stat_name] / stats['n_call_' + stat_name]
+                tractability['avg: ' + time_name + '_' + stat_name] = stats[time_name + '_' + stat_name] / stats['n_call_' + stat_name]
 
     tractability['total_iterations'] = get_total_iterations(iterations)
 
@@ -207,14 +207,23 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
     tractability['kkt: diagonality'] = get_pearson_diagonality(kkt_matrix)
 
     tractability['kkt: condition'] = get_condition_number(kkt_matrix)
-    tractability['kkt: min_reduced_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
+    tractability['kkt: min_red_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
 
     local_cumulative_max_memory['at_indicator_report'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     for cmm_key in local_cumulative_max_memory.keys():
         tractability['memory: ' + cmm_key] = local_cumulative_max_memory[cmm_key]
 
+    # todo: add "total cpu secs in ipopt (w/o function evaluation)
+    print_op.warn_about_temporary_functionality_alteration()
+    subset_of_tractability = {}
+    for name in ['step_name', 'stats: success', 'stats: iter_count', 'stats: t_wall_total', 'memory: pre-health-check', 'avg: t_wall_nlp_f', 'avg: t_wall_nlp_g']:
+        subset_of_tractability[name] = tractability[name]
+    for name, value in tractability.items():
+        if 'kkt:' in name:
+            subset_of_tractability[name] = value
+
     awelogger.logger.info('tractability indicator report')
-    print_op.print_dict_as_table(tractability)
+    print_op.print_dict_as_table(subset_of_tractability)
 
     return tractability
 

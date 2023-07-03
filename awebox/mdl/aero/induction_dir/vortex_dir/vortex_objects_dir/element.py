@@ -192,7 +192,7 @@ class Element:
 
         return None
 
-    def define_biot_savart_induction_residual_function(self):
+    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split_num'):
         expected_info_length = self.expected_info_length
         packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
         unpacked_sym = self.unpack_info(external_info=packed_sym)
@@ -200,13 +200,16 @@ class Element:
         x_obs = cas.SX.sym('x_obs', (3, 1))
         vec_u_ind = cas.SX.sym('vec_u_ind', (3, 1))
 
-        # jacobian of this version is too variable
-        # _, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
-        # resi = den * vec_u_ind - num
-        # biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+        value, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
 
-        value, _, _ = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
-        resi = vec_u_ind - value
+        if biot_savart_residual_assembly == 'division':
+            resi = vec_u_ind - value
+        elif 'split' in biot_savart_residual_assembly:
+            resi = vec_u_ind * den - num
+        else:
+            message = 'unexpected biot-savart-residual assembly instructions'
+            print_op.log_and_raise_error(message)
+
         biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
 
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
@@ -223,9 +226,34 @@ class Element:
         return self.__info_fun(variables_scaled, parameters)
 
 
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
-        message = 'cannot determine the biot-savart reference denominator for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
+        message = 'cannot construct a biot-savart reference object for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         print_op.log_and_raise_error(message)
+
+
+    def get_biot_savart_reference_denominator(self, model_options, parameters, wind, inputs={}):
+
+        unpacked_ref, x_kite = self.construct_biot_savart_reference_object(model_options, parameters, wind, inputs=inputs)
+        value_ref, num_ref, den_ref = self.calculate_biot_savart_induction(unpacked_ref, x_kite)
+
+        epsilon = model_options['aero']['vortex']['biot_savart_residual_denom_epsilon']
+        biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
+
+        # remember that we're already going to be applying the specific ui_element scaling
+        if biot_savart_residual_assembly == 'division':
+            print_op.warn_about_temporary_functionality_alteration()
+            ref = cas.DM(1.)
+        elif biot_savart_residual_assembly == 'split_num':
+            ref = vect_op.smooth_norm(num_ref, epsilon) / vect_op.smooth_norm(value_ref, epsilon)
+        elif biot_savart_residual_assembly == 'split_den':
+            ref = vect_op.smooth_norm(den_ref, epsilon)
+        elif biot_savart_residual_assembly == 'split_none':
+            ref = cas.DM(1.)
+        else:
+            message = 'unexpected biot-savart-residual assembly instructions'
+            print_op.log_and_raise_error(message)
+
+        return ref
 
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):

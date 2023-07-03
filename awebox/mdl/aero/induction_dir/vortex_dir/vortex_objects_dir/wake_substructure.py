@@ -87,7 +87,7 @@ class WakeSubstructure:
 
         return None
 
-    def define_biot_savart_induction_residual_functions(self):
+    def define_biot_savart_induction_residual_functions(self, biot_savart_residual_assembly='split_num'):
 
         x_obs = cas.SX.sym('x_obs', (3, 1))
 
@@ -97,8 +97,8 @@ class WakeSubstructure:
                 number_of_elements = self.get_list(element_type).number_of_elements
                 vec_u_ind_list = cas.SX.sym('vec_u_ind_list', (3, number_of_elements))
 
-                self.get_list(element_type).define_biot_savart_induction_residual_function()
-                all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list)
+                self.get_list(element_type).define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+                all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list, biot_savart_residual_assembly)
 
                 mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all])
                 self.set_mapped_biot_savart_residual_fun(element_type, mapped_biot_savart_residual_fun)
@@ -112,14 +112,15 @@ class WakeSubstructure:
             self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
         return None
 
-    def construct_biot_savart_residual_at_kite(self, model_options, wind, variables_si, parameters, kite_obs, parent_obs):
+    def construct_biot_savart_residual_at_kite(self, model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling):
         resi = []
-        for elem_type in self.get_initialized_element_types():
-            local_resi = self.construct_biot_savart_residual_at_kite_by_element_type(elem_type, model_options, wind, variables_si, parameters, kite_obs, parent_obs)
-            resi = cas.vertcat(resi, local_resi)
+        for element_type in self.get_initialized_element_types():
+            local_resi = self.construct_biot_savart_residual_at_kite_by_element_type(element_type, model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling)
+            resi = cas.horzcat(resi, local_resi)
         return resi
 
-    def construct_biot_savart_residual_at_kite_by_element_type(self, element_type, model_options, wind, variables_si, parameters, kite_obs, parent_obs):
+
+    def construct_biot_savart_residual_at_kite_by_element_type(self, element_type, model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling):
 
         if not self.mapped_biot_savart_residual_function_is_defined_for_initialized_lists():
             self.define_biot_savart_induction_residual_functions()
@@ -131,20 +132,20 @@ class WakeSubstructure:
             vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
 
         x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(kite_obs) + str(parent_obs))
-        resi = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
-        resi_reshaped = vect_op.columnize(resi)
+        resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
 
-        scale_matrix = cas.DM.ones(resi.shape)
+        reference_denominator = self.get_list(element_type).get_biot_savart_reference_denominator(model_options, parameters, wind)
+        resi_normalized = resi_si / reference_denominator
+
+        print_op.warn_about_temporary_functionality_alteration()
+
+        resi_scaled = []
         wake_type = self.substructure_type
-        for element_type in self.get_initialized_element_types():
-            for element_number in range(number_of_elements):
-                var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                local_scale = 1. / model_options['scaling']['z'][var_name]
-                scale_matrix[:, element_number] = local_scale * cas.DM.ones((3, 1))
-
-        scale_matrix_reshaped = cas.diag(vect_op.columnize(scale_matrix))
-
-        resi_scaled = cas.mtimes(scale_matrix_reshaped, resi_reshaped)
+        for element_number in range(number_of_elements):
+            var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
+            local_resi_normalized = resi_normalized[:, element_number]
+            local_resi_scaled = struct_op.var_si_to_scaled('z', var_name, local_resi_normalized, scaling)
+            resi_scaled = cas.vertcat(resi_scaled, local_resi_scaled)
 
         return resi_scaled
 

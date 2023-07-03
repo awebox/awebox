@@ -190,16 +190,6 @@ class SemiInfiniteTangentialRightCylinder(obj_semi_infinite_right_cylinder.SemiI
         return found, num, den
 
 
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
-
-        b_ref = parameters['theta0', 'geometry', 'b_ref']
-        varrho_ref = general_tools.get_option_from_possible_dicts(model_options, 'varrho_ref', 'vortex')
-        r_ref = varrho_ref * b_ref
-
-        u_ref = wind.get_speed_ref()
-        den_ref = r_ref**3. * u_ref
-        return den_ref
-
     ###### draw
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):

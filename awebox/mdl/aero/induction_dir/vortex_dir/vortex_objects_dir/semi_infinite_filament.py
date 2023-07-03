@@ -42,6 +42,8 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
 matplotlib.use('TkAgg')
 
 
@@ -88,14 +90,24 @@ class SemiInfiniteFilament(obj_element.Element):
         return value, num, den
 
 
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
-        b_ref = parameters['theta0', 'geometry', 'b_ref']
-        r_ref = b_ref/2.
+    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
 
-        u_ref = wind.get_speed_ref()
+        properties = vortex_tools.get_biot_savart_reference_object_properties(model_options, parameters=parameters, inputs=inputs)
 
-        den_ref = r_ref**2. * u_ref
-        return den_ref
+        x_kite_obs = properties['x_kite_obs']
+
+        x_start = properties['x_ext_shed'] + properties['far_wake_l_start'] * properties['l_hat']
+        l_hat = properties['l_hat']
+        r_core = properties['r_core']
+        strength = properties['filament_strength']
+
+        unpacked_ref = {'x_start': x_start,
+                        'l_hat': l_hat,
+                        'r_core': r_core,
+                        'strength': strength}
+
+        return unpacked_ref, x_kite_obs
+
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
 

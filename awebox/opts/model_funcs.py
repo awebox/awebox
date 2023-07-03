@@ -42,7 +42,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.scaling as vortex_alg_repr_scaling
 
 import awebox.mdl.wind as wind
 
@@ -695,10 +695,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'aero', 'vortex', 'd', d, ('how many nodes to track over one period: d', None), 'x')),
 
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_wake_nodes', wake_nodes, ('????', None), 'x')),
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'wake_nodes'), 'vortex_wake_nodes')
+
 
     u_ref = get_u_ref(options['user_options'])
     vortex_u_ref = u_ref
@@ -709,40 +707,26 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('nlp', 'induction', None, 'vortex_u_ref', vortex_u_ref, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_vec_u_ref', vec_u_ref, ('???? of trajectories in animation', None), 'x')),
 
+    t_f_guess = estimate_time_period(options, architecture)
+    near_wake_unit_length = t_f_guess / n_k * u_ref
+    far_wake_l_start = (wake_nodes - 1) * near_wake_unit_length
+
+    options_tree.append(('model', 'aero', 'vortex', 'near_wake_unit_length', near_wake_unit_length, ('????', None), 'x')),
+    options_tree.append(('model', 'aero', 'vortex', 'far_wake_l_start', far_wake_l_start, ('????', None), 'x')),
+
+
     far_wake_convection_time = options['model']['aero']['vortex']['far_wake_convection_time']
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_far_wake_convection_time', far_wake_convection_time, ('????', None), 'x')),
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'far_wake_convection_time'), 'vortex_far_wake_convection_time')
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_far_wake_convection_time', far_wake_convection_time, ('???? of trajectories in animation', None), 'x')),
 
-    vortex_far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_far_wake_element_type', vortex_far_wake_element_type, ('????', None), 'x')),
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'biot_savart_residual_assembly'), 'vortex_biot_savart_residual_assembly')
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'far_wake_element_type'), 'vortex_far_wake_element_type')
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'epsilon_m'), 'vortex_epsilon_m')
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'epsilon_r'), 'vortex_epsilon_r')
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'representation'), 'vortex_representation')
 
-    vortex_epsilon_m = options['model']['aero']['vortex']['epsilon_m']
-    options_tree.append(
-        ('solver', 'initialization', 'induction', 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
-    options_tree.append(
-        ('formulation', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_m', vortex_epsilon_m, ('????', None), 'x')),
-
-    vortex_epsilon_r = options['model']['aero']['vortex']['epsilon_r']
-    options_tree.append(
-        ('solver', 'initialization', 'induction', 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
-    options_tree.append(('model', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
-    options_tree.append(
-        ('formulation', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_epsilon_r', vortex_epsilon_r, ('????', None), 'x')),
-
-    vortex_representation = options['model']['aero']['vortex']['representation']
-    options_tree.append(('model', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
-    options_tree.append(('formulation', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
-    options_tree.append(('nlp', 'induction', None, 'vortex_representation', vortex_representation, ('????', None), 'x')),
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_representation', vortex_representation, ('????', None), 'x')),
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'representation'), 'vortex_representation')
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('solver', 'initialization', 'inclination_deg'), 'inclination_ref_deg')
 
     geometry = get_geometry(options)
     c_ref = geometry['c_ref']
@@ -752,23 +736,18 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_core_radius', r_core, ('????', None), 'x')),
 
-    CL = estimate_CL(options)
-
-    groundspeed = options['solver']['initialization']['groundspeed']
-    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
-    pythagorean_speed = (groundspeed ** 2. + u_altitude ** 2.) ** 0.5
-    airspeed_ref = pythagorean_speed
-
     rings = wake_nodes
-
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('model', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('model', 'aero', 'vortex', 'rings', rings, ('????', None), 'x')),
     options_tree.append(('formulation', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
-    gamma_scale = 0.5 * CL * airspeed_ref * c_ref
+    CL = estimate_CL(options)
+    gamma_scale = vortex_alg_repr_scaling.get_filament_strength(options, geometry, CL)
+
     circulation_max_estimate = 1.5 * gamma_scale
+    options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', gamma_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
     for kite in architecture.kite_nodes:
         for ring in range(rings):
@@ -789,7 +768,9 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     windings = options['user_options']['trajectory']['lift_mode']['windings']
     winding_period = t_f_guess / float(windings)
 
-    options_tree = vortex_tools.append_scaling_to_options_tree(options, geometry, options_tree, architecture, varrho_ref, winding_period)
+    l_t_scaling = estimate_altitude(options)
+
+    options_tree = vortex_alg_repr_scaling.append_scaling_to_options_tree(options, geometry, options_tree, architecture, l_t_scaling, CL, varrho_ref, winding_period)
 
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ref = get_u_ref(options['user_options'])
@@ -799,9 +780,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
 
     options_tree.append(('model', 'scaling', 'z', 'ui', u_ind, ('descript', None), 'x'))
-
-
-
 
     return options_tree, fixed_params
 
@@ -1391,3 +1369,41 @@ def estimate_time_period(options, architecture):
     time_period = float((2. * np.pi * windings * radius) / groundspeed)
 
     return time_period
+
+
+
+
+def share(options, options_tree, from_tuple, to_tuple):
+    if len(from_tuple) == 4:
+        value = options[from_tuple[0]][from_tuple[1]][from_tuple[2]][from_tuple[3]]
+    elif len(from_tuple) == 3:
+        value = options[from_tuple[0]][from_tuple[1]][from_tuple[2]]
+    elif len(from_tuple) == 2:
+        value = options[from_tuple[0]][from_tuple[1]]
+    else:
+        message = 'inappropriate_sharing_address (from)'
+        print_op.log_and_raise_error(message)
+
+    if len(to_tuple) == 4:
+        pass
+    elif len(to_tuple) == 3:
+        to_tuple = (to_tuple[0], to_tuple[1], None, to_tuple[2])
+    elif len(to_tuple) == 2:
+        to_tuple = (to_tuple[0], None, None, to_tuple[1])
+    else:
+        message = 'inappropriate_sharing_address (to)'
+        print_op.log_and_raise_error(message)
+
+    options_tree.append(
+        (to_tuple[0], to_tuple[1], to_tuple[2], to_tuple[3],
+         value,
+         ('???', None), 'x'))
+    return options_tree
+
+
+def share_among_induction_subaddresses(options, options_tree, from_tuple, entry_name):
+    options_tree = share(options, options_tree, from_tuple, ('solver', 'initialization', 'induction', entry_name))
+    options_tree = share(options, options_tree, from_tuple, ('model', 'induction', entry_name))
+    options_tree = share(options, options_tree, from_tuple, ('formulation', 'induction', entry_name))
+    options_tree = share(options, options_tree, from_tuple, ('nlp', 'induction', entry_name))
+    return options_tree

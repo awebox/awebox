@@ -95,7 +95,7 @@ def build_finite_filament_per_kite(options, kite, wind, variables_si, parameters
     wake_node = ring
 
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
-    r_core = vortex_tools.get_r_core(options, parameters)
+    r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     l_hat = get_convection_direction(wind)
 
@@ -129,7 +129,7 @@ def build_semi_infinite_filament_per_kite(options, kite, wind, variables_si, par
     wake_node = ring
 
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
-    r_core = vortex_tools.get_r_core(options, parameters)
+    r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     l_hat = get_convection_direction(wind)
 

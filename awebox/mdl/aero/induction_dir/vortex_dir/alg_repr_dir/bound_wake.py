@@ -54,7 +54,7 @@ def build(options, architecture, variables_si, parameters):
         filament_list = build_per_kite(options, kite, variables_si, parameters)
         bound_wake.append(filament_list)
 
-    number_of_elements_dict = {'finite_filament':architecture.number_of_kites}
+    number_of_elements_dict = {'finite_filament': architecture.number_of_kites}
     bound_wake.set_expected_number_of_elements_from_dict(number_of_elements_dict)
     bound_wake.confirm_all_lists_have_expected_dimensions(['finite_filament'])
 
@@ -74,7 +74,7 @@ def build_per_kite(options, kite, variables_si, parameters):
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
     strength_prev = cas.DM.zeros((1, 1))
 
-    r_core = vortex_tools.get_r_core(options, parameters)
+    r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     dict_info_LE = {'x_start': LENE,
                     'x_end': LEPE,

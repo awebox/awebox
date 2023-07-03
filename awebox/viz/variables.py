@@ -32,6 +32,7 @@ import awebox.tools.struct_operations as struct_op
 from . import tools
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
+import casadi.tools as cas
 
 def plot_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_num=None):
 
@@ -317,39 +318,53 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
 
     return None
 
-def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name):
+def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time_through=True):
 
     variables_dict = plot_dict['variables_dict']
-    tgrid_ip = plot_dict['time_grids']['ip']
     si_or_scaled = cosmetics['variables']['si_or_scaled']
-    scaling = plot_dict['scaling']
+    scaling = plot_dict['variables'](plot_dict['scaling'])
 
     ax = plt.axes(ax)
-    for jdx in range(variables_dict[var_type][var_name].shape[0]):
+    number_of_dimensions = variables_dict[var_type][var_name].shape[0]
 
-        variable_data = plot_dict[var_type][var_name][jdx]
-        if si_or_scaled == 'scaled':
-            for vdx in range(variable_data.shape[0]):
-                variable_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, variable_data[vdx], scaling)
-        p = plt.plot(tgrid_ip, variable_data)
+    show_ref = cosmetics['plot_ref'] and first_time_through
+    if show_ref:
+        tgrid_ip = plot_dict['time_grids']['ref']['ip']
+        variables_plot = plot_dict['ref'][var_type][var_name]
+        linestyle = '--'
+        first_time_through = False
+    else:
+        tgrid_ip = plot_dict['time_grids']['ip']
+        variables_plot = plot_dict[var_type][var_name]
+        linestyle = '-'
+
+    if si_or_scaled == 'scaled':
+        for tdx in range(tgrid_ip.shape[0]):
+            local_si = []
+            for dim in range(number_of_dimensions):
+                local_si = cas.vertcat(local_si, variables_plot[dim][tdx])
+
+            local_scaled = struct_op.var_si_to_scaled(var_type, var_name, local_si, scaling)
+            for dim in range(number_of_dimensions):
+                variables_plot[dim][tdx] = local_scaled[dim]
+
+    for dim in range(number_of_dimensions):
+        variable_data = variables_plot[dim]
+        color = cosmetics['trajectory']['colors'][dim]
+        p = plt.plot(tgrid_ip, variable_data, linestyle=linestyle, color=color)
 
         if cosmetics['plot_bounds']:
-            tools.plot_bounds(plot_dict, var_type, var_name, jdx, tgrid_ip, p)
+            tools.plot_bounds(plot_dict, var_type, var_name, dim, tgrid_ip, p)
 
-        if cosmetics['plot_ref']:
-            tgrid_ref_ip = plot_dict['time_grids']['ref']['ip']
-            ref_data = plot_dict['ref'][var_type][var_name][jdx]
-            if si_or_scaled == 'scaled':
-                for vdx in range(ref_data.shape[0]):
-                    ref_data[vdx] = struct_op.var_si_to_scaled(var_type, var_name, ref_data[vdx], scaling)
-            plt.plot(tgrid_ref_ip, ref_data, linestyle='--', color=p[-1].get_color())
+    if show_ref:
+        plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time_through=first_time_through)
 
     plt.title(var_name)
     plt.autoscale(enable=True, axis='x', tight=True)
     plt.grid(True)
     ax.tick_params(axis='both', which='major')
-
     return None
+
 
 def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=0):
 

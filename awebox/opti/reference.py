@@ -140,6 +140,14 @@ def check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=1, zero_value_t
                 dict_smaller_than_min[V_ref.labels()[idx]] = V_ref.cat[idx]
         print_op.print_dict_as_table(dict_smaller_than_min, level='warning')
 
+        if any(larger_than_max) and hasattr(dict_larger_than_max, 'keys'):
+            message = str(len(dict_larger_than_max.keys())) + ' variables are initialized too large.'
+            print_op.base_print(message, level='warning')
+
+        if any(smaller_than_min) and hasattr(dict_smaller_than_min, 'keys'):
+            message = str(len(dict_smaller_than_min.keys())) + ' variables are initialized too small.'
+            print_op.base_print(message, level='warning')
+
     return None
 
 

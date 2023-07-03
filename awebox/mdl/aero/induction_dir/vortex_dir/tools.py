@@ -155,8 +155,9 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
 def ordering_of_near_wake_filaments_in_vortex_horseshoe():
     return {0:'int', 1:'ext', 2:'closing'}
 
-def get_position_of_near_wake_element_in_horseshoe(options, element_number):
-    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
+
+def get_position_of_near_wake_element_in_horseshoe(model_options, element_number):
+    wake_nodes = model_options['aero']['vortex']['wake_nodes']
     elements_per_ring = 3
     rings_per_kite = (wake_nodes - 1)
     elements_per_kite = elements_per_ring * rings_per_kite
@@ -171,8 +172,36 @@ def get_position_of_near_wake_element_in_horseshoe(options, element_number):
     else:
         return filament_ordering[element_number_in_ring]
 
-def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, element_number, options):
-    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
+
+def get_shedding_kite_from_element_number(options, wake_type, element_type, element_number, architecture):
+
+    expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(
+        options,
+        architecture)
+
+    if (wake_type in expected_number_of_elements_dict_for_wake_types.keys()) and (element_type in expected_number_of_elements_dict_for_wake_types[wake_type].keys()):
+        total = expected_number_of_elements_dict_for_wake_types[wake_type][element_type]
+    else:
+        message = 'unable to retrieve expected number of elements for wake type (' + wake_type + ') and element type (' + element_type + ')'
+        print_op.log_and_raise_error(message)
+
+    if element_number >= total:
+        message = 'input element number is greater than total number of elements of this type'
+        print_op.log_and_raise_error(message)
+
+    element_number = np.mod(element_number, total)
+    total_per_kite = total / float(architecture.number_of_kites)
+    remainder = np.mod(element_number, total_per_kite)
+    divisible = element_number - remainder
+
+    kite_shed_count = int(divisible / total_per_kite)
+    kite_shed = architecture.kite_nodes[kite_shed_count]
+
+    return kite_shed
+
+
+def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, element_number, model_options):
+    wake_nodes = model_options['aero']['vortex']['wake_nodes']
 
     if 'near' in wake_type:
         elements_per_ring = 3
@@ -181,7 +210,7 @@ def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, e
         element_number_in_kite_list = np.mod(element_number, elements_per_kite)
         wake_node_at_most_recently_shed_edge_of_ring = np.floor(float(element_number_in_kite_list) / float(elements_per_ring))
 
-        filament_position = get_position_of_near_wake_element_in_horseshoe(options, element_number)
+        filament_position = get_position_of_near_wake_element_in_horseshoe(model_options, element_number)
         if filament_position in ['int', 'ext']:
             return wake_node_at_most_recently_shed_edge_of_ring
         elif filament_position == 'closing':
@@ -198,24 +227,7 @@ def get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, e
     else:
         message = 'unfamiliar wake [substructure] type found (' + wake_type + ')'
         print_op.log_and_raise_error(message)
-
-def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number, varrho_ref, winding_period):
-
-    c_ref = geometry['c_ref']
-    b_ref = geometry['b_ref']
-    u_ref = options['user_options']['wind']['u_ref']
-
-    corresponding_wake_node = get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, element_number, options)
-    expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
-    time = corresponding_wake_node * expected_delta_t
-    downstream_distance = c_ref / 2. + u_ref * time
-    omega = 2. * np.pi / winding_period
-    angle = omega * time
-    radius = varrho_ref * b_ref
-    distance_between_points_on_circle = 2. * radius * np.sin(angle / 2.)
-    biot_savart_radius = np.sqrt(downstream_distance ** 2. + distance_between_points_on_circle ** 2.)
-
-    return biot_savart_radius
+    return None
 
 
 def get_expected_time_per_control_interval(options, winding_period):
@@ -225,123 +237,158 @@ def get_expected_time_per_control_interval(options, winding_period):
     expected_delta_t = expected_total_time / float(options['nlp']['n_k'])
     return expected_delta_t
 
+
 def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, wingtip, varrho_ref, winding_period):
 
-    b_ref = geometry['b_ref']
-    u_ref = options['user_options']['wind']['u_ref']
-    expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
-    expected_number_of_windings = options['user_options']['trajectory']['lift_mode']['windings']
-    expected_total_angle = 2. * np.pi * float(expected_number_of_windings)
-    expected_delta_angle = expected_total_angle / float(options['nlp']['n_k'])
-
-    if wingtip == 'int':
-        wingtip_sign = -1.
-    elif wingtip == 'ext':
-        wingtip_sign = +1.
+    type_of_adjustment = 'not_in_use'
+    if type_of_adjustment == 'not_in_use':
+        local_adjustment_factor = 1.
     else:
-        message = 'unfamiliar wingtip abbreviation (' + wingtip + ')'
-        print_op.log_and_raise_error(message)
 
-    approx_downstream_distance = expected_delta_t * u_ref    
-    
-    central_tangential_distance = varrho_ref * expected_delta_angle * b_ref
-    approx_tangential_distance = (varrho_ref + wingtip_sign * 0.5) * expected_delta_angle * b_ref
-    
-    central_length = cas.sqrt(approx_downstream_distance**2. + central_tangential_distance**2.)
-    local_length = cas.sqrt(approx_downstream_distance**2. + approx_tangential_distance**2.)
-   
-    local_adjustment_factor = local_length / central_length
+        b_ref = geometry['b_ref']
+        u_ref = options['user_options']['wind']['u_ref']
+        expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
+        expected_number_of_windings = options['user_options']['trajectory']['lift_mode']['windings']
+        expected_total_angle = 2. * np.pi * float(expected_number_of_windings)
+        expected_delta_angle = expected_total_angle / float(options['nlp']['n_k'])
+
+        if wingtip == 'int':
+            wingtip_sign = -1.
+        elif wingtip == 'ext':
+            wingtip_sign = +1.
+        else:
+            message = 'unfamiliar wingtip abbreviation (' + wingtip + ')'
+            print_op.log_and_raise_error(message)
+
+        approx_downstream_distance = expected_delta_t * u_ref
+
+        central_tangential_distance = varrho_ref * expected_delta_angle * b_ref
+        approx_tangential_distance = (varrho_ref + wingtip_sign * 0.5) * expected_delta_angle * b_ref
+
+        central_length_squared = approx_downstream_distance**2. + central_tangential_distance**2.
+        local_length_squared = approx_downstream_distance**2. + approx_tangential_distance**2.
+
+        if type_of_adjustment == 'squared':
+            local_adjustment_factor = local_length_squared / central_length_squared
+        elif type_of_adjustment == 'root':
+            local_adjustment_factor = np.sqrt(local_length_squared / central_length_squared)
 
     return local_adjustment_factor
 
 
-
-def append_scaling_to_options_tree(options, geometry, options_tree, architecture, varrho_ref, winding_period):
-
-    # the part that describes the wake nodes and consequent vortex rings
-    wingtips = ['ext', 'int']
-    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    rings = options['model']['aero']['vortex']['wake_nodes']
-
-    CL = 1.
-
-    c_ref = geometry['c_ref']
-    b_ref = geometry['b_ref']
-
-    u_ref = options['user_options']['wind']['u_ref']
-    tangential_speed = options['solver']['initialization']['groundspeed']
-
-    airspeed_ref = cas.sqrt(tangential_speed**2 + u_ref**2)
-
-    wx_scale = 100.
-    wg_scale = 0.5 * CL * airspeed_ref * c_ref
-    wx_center_scale = varrho_ref * b_ref
-    wh_scale = winding_period * u_ref
-    wu_ind_scale = u_ref
-    wu_ind_element_scale = u_ref
-
-    for kite_shed in architecture.kite_nodes:
-        for wake_node in range(wake_nodes):
-            for tip in wingtips:
-                var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
-                var_type = get_wake_node_position_var_type(options['model'])
-                options_tree.append(('model', 'scaling', var_type, var_name, wx_scale, ('descript', None), 'x'))
-
-                if var_type == 'x':
-                    options_tree.append(('model', 'scaling', 'x', 'd' + var_name, wx_scale, ('descript', None), 'x'))
-                    options_tree.append(('model', 'scaling', 'x', 'dd' + var_name, wx_scale, ('descript', None), 'x'))
-
-        for ring in range(rings):
-            var_name = get_vortex_ring_strength_name(kite_shed, ring)
-            options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
-
-    far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
-    if (far_wake_element_type == 'semi_infinite_right_cylinder'):
-
-        if (architecture.number_of_kites == 1):
-            message = 'the cylindrical far_wake_model may perform poorly with only one kite. we recommend switching to a filament far_wake_model'
-            awelogger.logger.warning(message)
-
-        for parent_shed in set([architecture.parent_map[kite] for kite in architecture.kite_nodes]):
-            var_name = get_far_wake_cylinder_center_position_name(parent_shed=parent_shed)
-            options_tree.append(('model', 'scaling', 'z', var_name, wx_center_scale, ('descript', None), 'x'))
-
-            var_name = get_far_wake_cylinder_pitch_name(parent_shed=parent_shed)
-            options_tree.append(('model', 'scaling', 'z', var_name, wh_scale, ('descript', None), 'x')),
-            options_tree.append(('model', 'system_bounds', 'z', var_name, [0.0, cas.inf], ('', None), 'x'))
-
-    # induced velocity part: the part that depends on the wake types and wake structure
-    expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(options, architecture)
-
-    for kite_obs in architecture.kite_nodes:
-        var_name = get_induced_velocity_at_kite_name(kite_obs)
-        options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))
-
-        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
-            for element_type, expected_number in local_expected_number_of_elements_dict.items():
-                for element_number in range(expected_number):
-                    var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                    biot_savart_radius = get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number, varrho_ref, winding_period)
-                    local_wu_ind_element_scale = wu_ind_element_scale / biot_savart_radius**2.
-
-                    if wake_type == 'near':
-                        position_in_horseshoe = get_position_of_near_wake_element_in_horseshoe(options, element_number)
-                        
-                        if position_in_horseshoe == 'closing':
-                            local_adjustment_factor = options['model']['aero']['vortex']['rate_of_change_factor']
-                            
-                        elif position_in_horseshoe in ['int', 'ext']:
-                            local_adjustment_factor = get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(options, geometry, position_in_horseshoe, varrho_ref, winding_period)
-
-                        local_wu_ind_element_scale *= local_adjustment_factor
-
-                    options_tree.append(('model', 'scaling', 'z', var_name, local_wu_ind_element_scale, ('descript', None), 'x'))
-
-    options_tree.append(('model', 'aero', 'vortex', 'varrho_ref', varrho_ref, ('descript', None), 'x'))
-
-    return options_tree
+def get_biot_savart_reference_object_properties(model_options, kite_obs_index=0, kite_shed_index=0, parameters=None, geometry=None, inputs={}):
+    inputs = compute_biot_savart_reference_object_inputs(model_options, parameters=parameters, geometry=geometry, inputs=inputs)
+    properties = compute_biot_savart_reference_object_properties_from_inputs(kite_shed_index, kite_obs_index, inputs)
+    return properties
 
 
+def compute_biot_savart_reference_object_inputs(model_options, parameters=None, geometry=None, inputs={}):
+
+    for local_name in ['b_ref', 'c_ref']:
+        if (parameters is not None):
+            inputs[local_name] = parameters['theta0', 'geometry', local_name]
+        elif (geometry is not None):
+            inputs[local_name] = geometry[local_name]
+        else:
+            message = 'geometry is underdefined. cannot create biot-savart reference object'
+            print_op.log_and_raise_error(message)
+
+    for local_name in ['u_ref']:
+        in_inputs = local_name in inputs.keys()
+        if in_inputs and (parameters is None):
+            pass
+        elif (not in_inputs) and (parameters is not None):
+            inputs[local_name] = parameters['theta0', 'wind', local_name]
+        else:
+            message = 'no ' + local_name + ' information available for biot-savart reference object'
+            print_op.log_and_raise_error(message)
+
+    for local_name in ['filament_strength_ref', 'varrho_ref',  'core_to_chord_ratio', 'wake_nodes', 'number_of_kites', 'winding_period', 'shedding_delta_time']:
+        in_vortex_options = local_name in model_options['aero']['vortex'].keys()
+        in_actuator_options = local_name in model_options['aero']['actuator'].keys()
+        in_inputs = local_name in inputs.keys()
+
+        if in_inputs:
+            pass
+        elif in_vortex_options:
+            inputs[local_name] = model_options['aero']['vortex'][local_name]
+        elif in_actuator_options:
+            inputs[local_name] = model_options['aero']['actuator'][local_name]
+        else:
+            message = 'no ' + local_name + ' information available for biot-savart reference object'
+            print_op.log_and_raise_error(message)
+
+    return inputs
+
+def compute_biot_savart_reference_object_properties_from_inputs(kite_shed_index, kite_obs_index, inputs):
+    properties = {}
+
+    b_ref = inputs['b_ref']
+    c_ref = inputs['c_ref']
+    properties['b_ref'] = b_ref
+    properties['c_ref'] = c_ref
+
+    properties['filament_strength'] = inputs['filament_strength_ref']
+
+    x_center = cas.DM.zeros((3, 1))
+    properties['x_center'] = x_center
+
+    a_hat = vect_op.zhat_dm()
+    b_hat = -1. * vect_op.yhat_dm()
+    properties['a_hat'] = a_hat
+    properties['b_hat'] = b_hat
+
+    number_of_kites = inputs['number_of_kites']
+    psi_shed = float(kite_shed_index) / float(number_of_kites) * (2. * np.pi)
+    psi_obs = float(kite_obs_index) / float(number_of_kites) * (2. * np.pi)
+    properties['psi_shed'] = psi_shed
+    properties['psi_obs'] = psi_obs
+
+    l_hat = vect_op.xhat_dm()
+
+    r_hat_shed = np.cos(psi_shed) * a_hat + np.sin(psi_shed) * b_hat
+    t_hat_shed = vect_op.normed_cross(l_hat, r_hat_shed)
+
+    r_hat_obs = np.cos(psi_obs) * a_hat + np.sin(psi_obs) * b_hat
+    t_hat_obs = vect_op.normed_cross(l_hat, r_hat_obs)
+
+    properties['r_hat_shed'] = r_hat_shed
+    properties['t_hat_shed'] = t_hat_shed
+    properties['r_hat_obs'] = r_hat_obs
+    properties['t_hat_obs'] = t_hat_obs
+    properties['l_hat'] = l_hat
+
+    ehat_1 = -1. * t_hat_shed
+    ehat_2 = r_hat_shed
+    ehat_3 = l_hat
+    properties['ehat_1'] = ehat_1
+    properties['ehat_2'] = ehat_2
+    properties['ehat_3'] = ehat_3
+
+    varrho_ref = inputs['varrho_ref']
+    radius = varrho_ref * b_ref
+    properties['radius'] = radius
+    properties['varrho_int'] = varrho_ref - 0.5
+    properties['varrho_ext'] = varrho_ref + 0.5
+
+    x_kite_obs = x_center + radius * r_hat_obs
+    properties['x_kite_obs'] = x_kite_obs
+
+    x_kite_shed = x_center + radius * r_hat_shed
+    x_int_shed = x_kite_shed - (b_ref / 2.) * ehat_2
+    x_ext_shed = x_kite_shed + (b_ref / 2.) * ehat_2
+    properties['x_int_shed'] = x_int_shed
+    properties['x_ext_shed'] = x_ext_shed
+
+    properties['shedding_delta_time'] = inputs['shedding_delta_time']
+    properties['u_ref'] = inputs['u_ref']
+    properties['omega'] = 2. * np.pi / inputs['winding_period']
+
+    properties['near_wake_unit_length'] = inputs['shedding_delta_time'] * inputs['u_ref']
+    properties['far_wake_l_start'] = properties['near_wake_unit_length'] * float(inputs['wake_nodes'] - 1.)
+    properties['r_core'] = c_ref * inputs['core_to_chord_ratio']
+
+    return properties
 
 
 def log_and_raise_unknown_representation_error(vortex_representation):
@@ -599,17 +646,25 @@ def get_epsilon(options, parameters):
     epsilon = options['aero']['vortex']['epsilon_to_chord_ratio'] * c_ref
     return epsilon
 
-def get_r_core(options, parameters):
+def get_r_core(model_options, parameters=None, geometry=None):
 
-    core_to_chord_ratio = options['aero']['vortex']['core_to_chord_ratio']
+    core_to_chord_ratio = model_options['aero']['vortex']['core_to_chord_ratio']
     if core_to_chord_ratio == 0.:
         r_core = 0.
 
     else:
-        c_ref = parameters['theta0', 'geometry', 'c_ref']
+        if (parameters is not None) and (geometry is None):
+            c_ref = parameters['theta0', 'geometry', 'c_ref']
+        elif (geometry is not None) and (parameters is None):
+            c_ref = geometry['c_ref']
+        else:
+            message = 'geometry/parameters are overdefined when computing the vortex core radius'
+            print_op.log_and_raise_error(message)
+
         r_core = core_to_chord_ratio * c_ref
 
     return r_core
+
 
 def get_PE_wingtip_name():
     return 'ext'

@@ -38,10 +38,12 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as ob
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 matplotlib.use('TkAgg')
 
 class SemiInfiniteRightCylinder(obj_element.Element):
@@ -65,6 +67,37 @@ class SemiInfiniteRightCylinder(obj_element.Element):
                  }
         self.set_info_order(order)
         return None
+
+    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
+
+        properties = vortex_tools.get_biot_savart_reference_object_properties(model_options, parameters=parameters, inputs=inputs)
+
+        x_kite_obs = properties['x_kite_obs']
+
+        x_center = properties['x_center']
+        l_hat = properties['l_hat']
+        radius = properties['radius']
+        l_start = properties['far_wake_l_start']
+        strength = properties['filament_strength'] / (2. * np.pi)
+
+        epsilon_m = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_m', 'vortex')
+        epsilon_r = general_tools.get_option_from_possible_dicts(model_options, 'vortex_epsilon_r', 'vortex')
+
+        inclination_ref_deg = general_tools.get_option_from_possible_dicts(model_options, 'inclination_ref_deg', 'vortex')
+        inclination_ref = inclination_ref_deg * np.pi / 180.
+        n_hat = np.cos(inclination_ref) * properties['l_hat'] + np.sin(inclination_ref) * properties['r_hat']
+
+        unpacked_ref = {'x_center': x_center,
+                        'l_hat': l_hat,
+                        'n_hat': n_hat,
+                        'radius': radius,
+                        'l_start': l_start,
+                        'epsilon_m': epsilon_m,
+                        'epsilon_r': epsilon_r,
+                        'strength': strength}
+
+        return unpacked_ref, x_kite_obs
+
 
     def get_r_obs(self, unpacked, x_obs):
 

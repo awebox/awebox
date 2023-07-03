@@ -128,7 +128,7 @@ def build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameter
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring+1)
     strength_prev = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
 
-    r_core = vortex_tools.get_r_core(options, parameters)
+    r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     dict_info = {'x_start': LENE,
                     'x_end': LEPE,
@@ -145,7 +145,7 @@ def build_single_trailing_per_kite_per_ring(options, kite, ring, variables_si, p
     wake_node = ring
 
     strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
-    r_core = vortex_tools.get_r_core(options, parameters)
+    r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     filament_list = obj_element_list.ElementList(expected_number_of_elements=1)
 

@@ -78,7 +78,7 @@ def get_model_constraints(model_options, wake, scaling, wind, variables_si, para
     superposition_cstr = get_superposition_cstr(wake, variables_si, architecture, scaling)
     cstr_list.append(superposition_cstr)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture, scaling)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling)
     cstr_list.append(biot_savart_cstr)
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
@@ -108,24 +108,28 @@ def get_superposition_cstr(wake, variables_si, architecture, scaling):
 
     return cstr_list
 
-def get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture, scaling):
+def get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling):
 
     cstr_list = cstr_op.ConstraintList()
 
     for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
 
         for kite_obs in architecture.kite_nodes:
-            resi_si = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, wind, variables_si, parameters, kite_obs,
-                                                                                                   architecture.parent_map[kite_obs])
+            parent_obs = architecture.parent_map[kite_obs]
+            resi_scaled = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling)
+
+
 
             print_op.warn_about_temporary_functionality_alteration()
-            scale = 10. * wind.get_speed_ref()
-
-            # a_ref = model_options['aero']['actuator']['a_ref']
-            # u_ref = wind.get_speed_ref()
-            # scale = a_ref * u_ref
-
-            resi_scaled = resi_si / scale
+            if substructure_type == 'bound':
+                resi_scaled *= 1.e-2
+                # 1e-4, 3 gets to power problem
+                # 1. / (scaling['x', 'l_t']**2.)
+                # 1./ (wx scaling^2?)
+            elif substructure_type == 'near':
+                resi_scaled *= 1e-1
+            # elif substructure_type == 'far':
+            #     resi_scaled *= 1e-2
 
             local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                             name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
@@ -215,7 +219,6 @@ def compute_global_performance(global_outputs, Outputs_structured, architecture)
 
     kite_nodes = architecture.kite_nodes
 
-    max_est_trunc_list = []
     max_est_discr_list = []
     max_u_ind_from_far_wake_over_u_ref_list = []
 
@@ -293,7 +296,7 @@ def test_that_model_constraint_residuals_have_correct_shape():
     expected_superposition_shape = (number_of_observers * dimension_of_velocity, 1)
     cond1 = (found_superposition_shape == expected_superposition_shape)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, wind, variables_si, parameters, architecture, scaling)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling)
     found_biot_savart_shape = biot_savart_cstr.get_expression_list('all').shape
     expected_biot_savart_shape = (total_number_of_elements * number_of_observers * dimension_of_velocity, 1)
     cond2 = (found_biot_savart_shape == expected_biot_savart_shape)
@@ -302,6 +305,43 @@ def test_that_model_constraint_residuals_have_correct_shape():
     if not criteria:
         message = 'an incorrect number of induction residuals have been defined for the algebraic-representation vortex wake'
         print_op.log_and_raise_error(message)
+
+
+def test_that_get_shedding_kite_from_element_number_tool_works_correctly():
+    wake_nodes = 3
+    model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures(wake_nodes=wake_nodes, number_of_kites=2)
+    element_type = 'finite_filament'
+
+    near_rings = wake_nodes - 1
+
+    from_element_number_to_expected_kite_shed_dict = {'bound':
+                                                          {0: 2,
+                                                           1: 3,
+                                                           2: 'error',
+                                                           -1: 3
+                                                           },
+                                                        'near':
+                                                            {0: 2,
+                                                             (near_rings * 3) - 1: 2,
+                                                             (near_rings * 3): 3,
+                                                             (near_rings * 3) * 2 - 1: 3,
+                                                             (near_rings * 3) * 2: 'error',
+                                                             -1: 3
+                                                            }
+                                                       }
+
+    for wake_type in from_element_number_to_expected_kite_shed_dict.keys():
+        for element_number, expected_output in from_element_number_to_expected_kite_shed_dict[wake_type].items():
+            try:
+                found_output = vortex_tools.get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture)
+            except:
+                found_output = 'error'
+
+            if not(expected_output == found_output):
+                message = 'wrong shedding kite found (' + str(found_output) + ') for ' + wake_type + ' element number ' + str(element_number)
+                print_op.log_and_raise_error(message)
+
+    return None
 
 
 def test(test_includes_visualization=False):
@@ -329,6 +369,7 @@ def test(test_includes_visualization=False):
     algebraic_representation.test(test_includes_visualization)
 
     test_that_model_constraint_residuals_have_correct_shape()
+    test_that_get_shedding_kite_from_element_number_tool_works_correctly()
 
     message = 'Vortex model functionality checked.'
     awelogger.logger.info(message)

@@ -368,31 +368,20 @@ def load_battery_parameters(kite_standard, coeff_max, coeff_min):
 
     return battery
 
+
 def add_discretization_options_necessary_for_interpolation(options, options_tree, heading_1, heading_2=None):
 
-    if heading_2 is None:
-        options_tree.append(
-            (heading_1, 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-        options_tree.append(
-            (heading_1, 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None),
-             'x'))
-        options_tree.append(
-            (heading_1, 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
-    else:
-        options_tree.append(
-            (heading_1, heading_2, 'collocation', 'd', options['nlp']['collocation']['d'], ('???', None), 'x'))
-        options_tree.append(
-            (heading_1, heading_2, 'collocation', 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
-        options_tree.append(
-            (heading_1, heading_2,  'collocation', 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
+    for entry_name in ['d', 'u_param', 'scheme']:
+        from_tuple = ('nlp', 'collocation', entry_name)
+        if heading_2 is None:
+            to_tuple = (heading_1, 'collocation', None, entry_name)
+        else:
+            to_tuple = (heading_1, heading_2, 'collocation', entry_name)
+        options_tree = model_funcs.share(options, options_tree, from_tuple, to_tuple)
 
-    options_tree.append(
-        (heading_1, heading_2, None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
-    options_tree.append(
-        (heading_1, heading_2, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
-    options_tree.append(
-        (heading_1, heading_2, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(
-        (heading_1, heading_2, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'n_k'), (heading_1, heading_2, 'n_k'))
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'discretization'), (heading_1, heading_2, 'discretization'))
+    options_tree = model_funcs.share(options, options_tree, ('user_options', 'trajectory', 'lift_mode', 'phase_fix'), (heading_1, heading_2, 'phase_fix'))
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'phase_fix_reelout'), (heading_1, heading_2, 'phase_fix_reelout'))
 
     return options_tree

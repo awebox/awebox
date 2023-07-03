@@ -127,6 +127,7 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
 def get_simple_residual(var_name, var_symbolic_si, var_value_si, model_scaling):
     resi_si = var_symbolic_si - var_value_si
     resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, model_scaling)
+
     return resi_scaled
 
 
@@ -174,7 +175,10 @@ def get_the_convected_position_from_the_current_indices_and_wake_node(nlp_option
     wingtip_pos = get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, ddx_shed)
 
     delta_t = get_the_convection_time_from_the_current_indices_and_wake_node(nlp_options, tgrid_coll, wake_node, ndx, ddx)
+
+    print_op.warn_about_temporary_functionality_alteration()
     u_local = model.wind.get_velocity(wingtip_pos[2])
+
     wx_convected = wingtip_pos + delta_t * u_local
 
     return wx_convected

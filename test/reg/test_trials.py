@@ -203,7 +203,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.help_with_debugging'] = True
     basic_health_options['quality.when'] = 'never'
-
+    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
 
     return basic_health_options
@@ -341,10 +341,13 @@ def generate_options_dict():
     vortex_options = copy.deepcopy(single_kite_6_dof_options)
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
-    vortex_options['model.aero.vortex.wake_nodes'] = 5  #2
+    vortex_options['model.aero.vortex.wake_nodes'] = 2
     vortex_options['model.aero.vortex.representation'] = 'alg'
     # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
+    vortex_options['solver.weights.vortex'] = 1e-3
+    # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -450,7 +453,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
     trial.print_cost_information()
-    trial.plot(['actuator_isometric', 'wake_isometric', 'level_3', 'animation_snapshot', 'induction_factor'])
+    trial.plot(['wake_lifted_variables', 'actuator_isometric', 'wake_isometric', 'level_3', 'animation_snapshot', 'induction_factor'])
     plt.show()
 
     pdb.set_trace()
@@ -459,7 +462,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     return trial
 
 # #
-test_single_kite_basic_health()
+# test_single_kite_basic_health()
 # test_single_kite()
 # test_single_kite_6_dof_basic_health()
 # test_single_kite_6_dof()
@@ -478,9 +481,9 @@ test_single_kite_basic_health()
 # test_actuator_uaxi()
 # test_actuator_uasym()
 # test_actuator_comparison()
-# test_vortex_force_zero_basic_health()
+# test_vortex_force_zero_basic_health() #final_homotopy_step='initial_guess')
 # test_vortex_force_zero()
-# test_vortex_basic_health() <-
+test_vortex_basic_health()
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

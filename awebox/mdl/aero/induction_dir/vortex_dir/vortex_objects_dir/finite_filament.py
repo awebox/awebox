@@ -44,6 +44,8 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+
 matplotlib.use('TkAgg')
 
 
@@ -102,43 +104,25 @@ class FiniteFilament(obj_element.Element):
 
         return value, num, den
 
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
-        b_ref = parameters['theta0', 'geometry', 'b_ref']
-        c_ref = parameters['theta0', 'geometry', 'c_ref' ]
 
-        CL = 1.
-        u_ref = wind.get_speed_ref()
-        airspeed = 10. * u_ref
+    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
 
-        x_kite = cas.DM.zeros((3, 1))
-        ehat_1 = vect_op.xhat_dm()
-        ehat_2 = vect_op.yhat_dm()
+        properties = vortex_tools.get_biot_savart_reference_object_properties(model_options, parameters=parameters, inputs=inputs)
 
-        x_start = x_kite - (b_ref/2.) * ehat_2 + c_ref * ehat_1
-        x_end = x_start + b_ref * ehat_2
-        r_core = c_ref / 2.
-        strength = 0.5 * airspeed * CL * c_ref
+        x_kite_obs = properties['x_kite_obs']
+
+        x_start = properties['x_ext_shed']
+        x_end = x_start + properties['near_wake_unit_length'] * properties['l_hat']
+        r_core = properties['r_core']
+        strength = properties['filament_strength']
 
         unpacked_ref = {'x_start': x_start,
                         'x_end': x_end,
                         'r_core': r_core,
                         'strength': strength}
 
-        _, _, den  = self.calculate_biot_savart_induction(unpacked_ref, x_kite)
-        den_ref = den * u_ref
+        return unpacked_ref, x_kite_obs
 
-        #
-        # x_0 = unpacked_sym['x_start']
-        # x_1 = unpacked_sym['x_end']
-        # r_core = unpacked_sym['r_core']
-        # strength = unpacked_sym['strength']
-        #
-        #
-        # r_ref = b_ref/2.
-        #
-        # u_ref = wind.get_speed_ref()
-        # den_ref = r_ref**4. * u_ref
-        return den_ref
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)

@@ -55,11 +55,13 @@ from awebox.logger.logger import Logger as awelogger
 # but not the positions and strengths; those belong to the wake nodes
 
 
+def construct_test_model_variable_structures(element_type='finite_filament', wake_nodes=2, number_of_kites=1):
 
-
-
-
-def construct_test_model_variable_structures(element_type='finite_filament'):
+    archi_dict = {1: 0}
+    if number_of_kites > 1:
+        for kite in range(number_of_kites):
+            archi_dict[kite + 2] = 1
+    architecture = archi.Architecture(archi_dict)
 
     options = {}
 
@@ -70,42 +72,63 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
     options['wind']['log_wind'] = {'z0_air': -999}
     options['wind']['power_wind'] = {'exp_ref': -999}
 
-    wake_nodes = 2
     rings = wake_nodes
     options['aero'] = {}
     options['aero']['geometry_type'] = 'frenet'
+    options['aero']['actuator'] = {'varrho_ref': 1.}
+
     options['aero']['vortex'] = {}
     options['aero']['vortex']['wake_nodes'] = wake_nodes
     options['aero']['vortex']['rings'] = rings
     options['aero']['vortex']['core_to_chord_ratio'] = 0.1
     options['aero']['vortex']['far_wake_element_type'] = element_type
     options['aero']['vortex']['approximation_order_for_elliptic_integrals'] = 3
+    options['aero']['vortex']['biot_savart_residual_denom_epsilon'] = 1.
+    options['aero']['vortex']['filament_strength_ref'] = 1.
+    options['aero']['vortex']['near_wake_unit_length'] = 1.
+    options['aero']['vortex']['far_wake_l_start'] = 1.
 
-    options['scaling'] = {}
-    options['scaling']['z'] = {'wu_near_finite_filament_0_1': 1.,
-                                'wu_near_finite_filament_1_1': 1.,
-                                'wu_bound_finite_filament_0_1': 1.,
-                                'wu_far_finite_filament_0_1': 1.,
-                                'wu_far_finite_filament_1_1': 1.,
-                                'wu_near_finite_filament_2_1': 1.
-                                }
+    options['scaling'] = {'z':{}}
+    for kite_obs in architecture.kite_nodes:
+
+        near_count = 0
+        bound_count = 0
+        far_count = 0
+        for kite_shed in architecture.kite_nodes:
+
+            for ndx in range(3):
+                wake_type = 'near'
+                options['scaling']['z']['wu_' + wake_type + '_finite_filament_' + str(near_count) + '_' + str(kite_obs)] = 0
+                near_count += 1
+
+            for bdx in range(1):
+                wake_type = 'bound'
+                options['scaling']['z'][
+                    'wu_' + wake_type + '_finite_filament_' + str(bound_count) + '_' + str(kite_obs)] = 0
+                bound_count += 1
+
+            for fdx in range(2):
+                wake_type = 'far'
+                options['scaling']['z'][
+                    'wu_' + wake_type + '_finite_filament_' + str(far_count) + '_' + str(kite_obs)] = 0
+                far_count += 1
 
     options['induction'] = {}
     options['induction']['vortex_wake_nodes'] = wake_nodes
     options['induction']['vortex_rings'] = rings
     options['induction']['vortex_far_wake_convection_time'] = 1.
     options['induction']['vortex_far_wake_element_type'] = element_type
+    options['induction']['vortex_biot_savart_residual_assembly'] = 'split_num'
     options['induction']['vortex_representation'] = 'alg'
     options['induction']['vortex_epsilon_m'] = 1.0e-8
     options['induction']['vortex_epsilon_r'] = 1.0e-8
 
     options['n_k'] = 10
-    options['collocation'] = {'d':4, 'scheme':'radau'}
+    options['collocation'] = {'d': 4, 'scheme': 'radau'}
     options['discretization'] = 'direct_collocation'
     options['phase_fix'] = 'single_reelout'
     options['phase_fix_reelout'] = 0.5
 
-    architecture = archi.Architecture({1: 0})
 
     system_lifted, system_states = vortex_tools.extend_system_variables(options, [], [], architecture)
     system_derivatives = []
@@ -147,6 +170,7 @@ def construct_test_model_variable_structures(element_type='finite_filament'):
 
     return options, architecture, wind, var_struct, param_struct, variables_dict
 
+
 def construct_straight_flight_test_object(element_type='finite_filament'):
     options, architecture, wind, var_struct, param_struct, variables_dict = construct_test_model_variable_structures(
         element_type)
@@ -171,6 +195,7 @@ def construct_straight_flight_test_object(element_type='finite_filament'):
     parameters['theta0', 'geometry', 'c_ref'] = 0.1
 
     return options, architecture, wind, var_struct, param_struct, variables_dict, variables_si, parameters
+
 
 def construct_vortex_ring_test_object(element_type='semi_infinite_filament'):
     options, architecture, wind, var_struct, param_struct, variables_dict = construct_test_model_variable_structures(

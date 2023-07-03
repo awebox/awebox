@@ -154,11 +154,11 @@ class Wake:
                 self.get_substructure(substructure_type).define_biot_savart_induction_functions()
         return None
 
-    def define_biot_savart_induction_residual_functions(self):
+    def define_biot_savart_induction_residual_functions(self, biot_savart_residual_assembly='split_num'):
         initialized = self.get_initialized_substructure_types()
         for substructure_type in initialized:
             if not self.get_substructure(substructure_type).mapped_biot_savart_residual_function_is_defined_for_initialized_lists():
-                self.get_substructure(substructure_type).define_biot_savart_induction_residual_functions()
+                self.get_substructure(substructure_type).define_biot_savart_induction_residual_functions(biot_savart_residual_assembly)
         return None
 
     def define_model_variables_to_info_functions(self, model_variables, model_parameters):

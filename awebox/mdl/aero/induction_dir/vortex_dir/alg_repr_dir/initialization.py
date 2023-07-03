@@ -88,7 +88,7 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model,
     Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
     variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
                                                    ddx=ddx)
-    parameters_si = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
+    parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
 
     for kite_obs in model.architecture.kite_nodes:
         parent_obs = model.architecture.parent_map[kite_obs]
@@ -102,7 +102,9 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model,
 
                 all_u_ind_sym = model.wake.get_substructure(wake_type).get_list(element_type).evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs)
                 all_u_ind_fun = cas.Function('all_u_ind_fun', [model.variables, model.parameters], [all_u_ind_sym])
-                all_u_ind = all_u_ind_fun(variables_si, parameters_si)
+
+                variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
+                all_u_ind = all_u_ind_fun(variables_scaled, parameters)
 
                 for element_number in range(expected_number):
                     u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type,
