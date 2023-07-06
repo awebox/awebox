@@ -58,7 +58,7 @@ setup(name='awebox',
         'Pillow==9.2.0',
         'pyparsing==3.0.9',
         'python-dateutil==2.8.2',
-        'scipy==1.9.0rc3',
+        'scipy==1.10.0',
         'six==1.16.0',
         'tk==0.1.0',
 	'tabulate==0.8.10'
