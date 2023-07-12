@@ -75,6 +75,7 @@ def there_are_enough_wake_nodes_to_require_a_near_wake(model_options):
     wake_nodes = general_tools.get_option_from_possible_dicts(model_options, 'wake_nodes', 'vortex')
     return (wake_nodes > 1)
 
+
 def build_per_kite(model_options, kite, variables_si, parameters):
 
     wake_nodes = general_tools.get_option_from_possible_dicts(model_options, 'wake_nodes', 'vortex')
@@ -91,7 +92,7 @@ def build_per_kite(model_options, kite, variables_si, parameters):
 
 
 def build_per_kite_per_ring(options, kite, ring, variables_si, parameters):
-    filament_ordering = vortex_tools.ordering_of_near_wake_filaments_in_vortex_horseshoe()
+    filament_ordering = vortex_tools.ordering_of_filaments_in_vortex_horseshoe()
     expected_number_of_elements = len(filament_ordering.keys())
     filament_list = obj_element_list.ElementList(expected_number_of_elements=expected_number_of_elements)
 

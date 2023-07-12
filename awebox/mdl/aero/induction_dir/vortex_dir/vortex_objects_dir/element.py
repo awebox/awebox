@@ -237,21 +237,23 @@ class Element:
         value_ref, num_ref, den_ref = self.calculate_biot_savart_induction(unpacked_ref, x_kite)
 
         epsilon = model_options['aero']['vortex']['biot_savart_residual_denom_epsilon']
-        biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
-
-        # remember that we're already going to be applying the specific ui_element scaling
-        if biot_savart_residual_assembly == 'division':
-            print_op.warn_about_temporary_functionality_alteration()
-            ref = cas.DM(1.)
-        elif biot_savart_residual_assembly == 'split_num':
-            ref = vect_op.smooth_norm(num_ref, epsilon) / vect_op.smooth_norm(value_ref, epsilon)
-        elif biot_savart_residual_assembly == 'split_den':
-            ref = vect_op.smooth_norm(den_ref, epsilon)
-        elif biot_savart_residual_assembly == 'split_none':
-            ref = cas.DM(1.)
-        else:
-            message = 'unexpected biot-savart-residual assembly instructions'
-            print_op.log_and_raise_error(message)
+        print_op.warn_about_temporary_functionality_alteration()
+        # biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
+        #
+        # # remember that we're already going to be applying the specific ui_element scaling
+        # if biot_savart_residual_assembly == 'division':
+        #     print_op.warn_about_temporary_functionality_alteration()
+        #     ref = cas.DM(1.)
+        # elif biot_savart_residual_assembly == 'split_num':
+        #     ref = vect_op.smooth_norm(num_ref, epsilon) / vect_op.smooth_norm(value_ref, epsilon)
+        # elif biot_savart_residual_assembly == 'split_den':
+        #     ref = vect_op.smooth_norm(den_ref, epsilon)
+        # elif biot_savart_residual_assembly == 'split_none':
+        #     ref = cas.DM(1.)
+        # else:
+        #     message = 'unexpected biot-savart-residual assembly instructions'
+        #     print_op.log_and_raise_error(message)
+        ref = cas.DM(1.)
 
         return ref
 

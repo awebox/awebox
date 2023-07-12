@@ -87,6 +87,7 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['aero']['vortex']['filament_strength_ref'] = 1.
     options['aero']['vortex']['near_wake_unit_length'] = 1.
     options['aero']['vortex']['far_wake_l_start'] = 1.
+    options['aero']['vortex']['position_scaling_source'] = 'b_ref'
 
     options['scaling'] = {'z':{}}
     for kite_obs in architecture.kite_nodes:
@@ -118,7 +119,7 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['induction']['vortex_rings'] = rings
     options['induction']['vortex_far_wake_convection_time'] = 1.
     options['induction']['vortex_far_wake_element_type'] = element_type
-    options['induction']['vortex_biot_savart_residual_assembly'] = 'split_num'
+    options['induction']['vortex_biot_savart_residual_assembly'] = 'division'
     options['induction']['vortex_representation'] = 'alg'
     options['induction']['vortex_epsilon_m'] = 1.0e-8
     options['induction']['vortex_epsilon_r'] = 1.0e-8

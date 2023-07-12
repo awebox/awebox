@@ -366,9 +366,9 @@ def sum(all_array):
     return sum
 
 def smooth_max(all_array):
-    exp_array = np.exp(all_array)
+    exp_array = cas.exp(all_array)
     sum_exp = sum(exp_array)
-    log_sum_exp = np.log(sum_exp)
+    log_sum_exp = cas.log(sum_exp)
 
     return log_sum_exp
 
@@ -632,7 +632,7 @@ def test_elliptic_pi(epsilon=1.e-4):
     n = 0.
     m = 0.5
     found = elliptic_pi(approximation_order_for_elliptic_integrals=approximation_order_for_elliptic_integrals, n=n, m=m)
-    expected = special.ellipk(m=m)
+    expected = special.ellipk(m)
 
     error = (found - expected) / expected
     if (error**2. > error_bound**2.):

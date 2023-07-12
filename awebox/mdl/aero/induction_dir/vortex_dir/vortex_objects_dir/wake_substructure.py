@@ -134,21 +134,24 @@ class WakeSubstructure:
         x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(kite_obs) + str(parent_obs))
         resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
 
-        reference_denominator = self.get_list(element_type).get_biot_savart_reference_denominator(model_options, parameters, wind)
-        resi_normalized = resi_si / reference_denominator
-
         print_op.warn_about_temporary_functionality_alteration()
+        #
+        # reference_denominator = self.get_list(element_type).get_biot_savart_reference_denominator(model_options, parameters, wind)
+        # resi_normalized = resi_si / reference_denominator
+        #
+        # print_op.warn_about_temporary_functionality_alteration()
+        #
+        # resi_scaled = []
+        # wake_type = self.substructure_type
+        # for element_number in range(number_of_elements):
+        #     var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
+        #     local_resi_normalized = resi_normalized[:, element_number]
+        #     local_resi_scaled = struct_op.var_si_to_scaled('z', var_name, local_resi_normalized, scaling)
+        #     resi_scaled = cas.vertcat(resi_scaled, local_resi_scaled)
+        #
+        # return resi_scaled
 
-        resi_scaled = []
-        wake_type = self.substructure_type
-        for element_number in range(number_of_elements):
-            var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-            local_resi_normalized = resi_normalized[:, element_number]
-            local_resi_scaled = struct_op.var_si_to_scaled('z', var_name, local_resi_normalized, scaling)
-            resi_scaled = cas.vertcat(resi_scaled, local_resi_scaled)
-
-        return resi_scaled
-
+        return resi_si
 
     def append(self, added_elem):
 

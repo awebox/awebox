@@ -176,7 +176,6 @@ def get_the_convected_position_from_the_current_indices_and_wake_node(nlp_option
 
     delta_t = get_the_convection_time_from_the_current_indices_and_wake_node(nlp_options, tgrid_coll, wake_node, ndx, ddx)
 
-    print_op.warn_about_temporary_functionality_alteration()
     u_local = model.wind.get_velocity(wingtip_pos[2])
 
     wx_convected = wingtip_pos + delta_t * u_local

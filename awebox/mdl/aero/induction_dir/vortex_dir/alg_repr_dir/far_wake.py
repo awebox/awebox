@@ -160,6 +160,7 @@ def build_semi_infinite_right_cylinders_per_kite(model_options, kite, wind, vari
     wake_node = ring
 
     wingtips_and_strength_directions = vortex_tools.get_wingtip_name_and_strength_direction_dict()
+    ordering = vortex_tools.ordering_of_filaments_in_vortex_horseshoe()
     l_hat = get_convection_direction(wind)
 
     circulation_total = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
@@ -181,36 +182,41 @@ def build_semi_infinite_right_cylinders_per_kite(model_options, kite, wind, vari
     tan_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
     long_cyl_list = obj_element_list.ElementList(expected_number_of_elements=2)
 
-    for tip, tip_directionality in wingtips_and_strength_directions.items():
-        x_start = vortex_tools.get_wake_node_position_si(model_options, variables_si, kite, tip, wake_node)
-        radius, l_start = obj_semi_infinite_right_cylinder.calculate_radius_and_l_start(x_start, x_center, l_hat)
+    for idx in range(len(ordering.keys())):
 
-        strength_tan = -1. * circulation_total / pitch * kite_motion_directionality * tip_directionality
-        strength_long = circulation_total / (2. * np.pi * radius) * tip_directionality
+        if ordering[idx] in wingtips_and_strength_directions.keys():
+            tip = ordering[idx]
+            tip_directionality = wingtips_and_strength_directions[tip]
 
-        order_tan = {'x_center': x_center,
-                      'l_hat': l_hat,
-                      'radius': radius,
-                      'l_start': l_start,
-                      'epsilon_m': epsilon_m,
-                      'epsilon_r': epsilon_r,
-                      'strength': strength_tan
-                      }
-        tan_cyl = obj_semi_infinite_tangential_right_cylinder.SemiInfiniteTangentialRightCylinder(order_tan,
-                                                                                                  approximation_order_for_elliptic_integrals)
-        tan_cyl_list.append(tan_cyl)
+            x_start = vortex_tools.get_wake_node_position_si(model_options, variables_si, kite, tip, wake_node)
+            radius, l_start = obj_semi_infinite_right_cylinder.calculate_radius_and_l_start(x_start, x_center, l_hat)
 
-        order_long = {'x_center': x_center,
-                      'l_hat': l_hat,
-                      'radius': radius,
-                      'l_start': l_start,
-                      'epsilon_m': epsilon_m,
-                      'epsilon_r': epsilon_r,
-                      'strength': strength_long
-                      }
-        long_cyl = obj_semi_infinite_longitudinal_right_cylinder.SemiInfiniteLongitudinalRightCylinder(order_long,
-                                                                                                       approximation_order_for_elliptic_integrals)
-        long_cyl_list.append(long_cyl)
+            strength_tan = -1. * circulation_total / pitch * kite_motion_directionality * tip_directionality
+            strength_long = circulation_total / (2. * np.pi * radius) * tip_directionality
+
+            order_tan = {'x_center': x_center,
+                          'l_hat': l_hat,
+                          'radius': radius,
+                          'l_start': l_start,
+                          'epsilon_m': epsilon_m,
+                          'epsilon_r': epsilon_r,
+                          'strength': strength_tan
+                          }
+            tan_cyl = obj_semi_infinite_tangential_right_cylinder.SemiInfiniteTangentialRightCylinder(order_tan,
+                                                                                                      approximation_order_for_elliptic_integrals)
+            tan_cyl_list.append(tan_cyl)
+
+            order_long = {'x_center': x_center,
+                          'l_hat': l_hat,
+                          'radius': radius,
+                          'l_start': l_start,
+                          'epsilon_m': epsilon_m,
+                          'epsilon_r': epsilon_r,
+                          'strength': strength_long
+                          }
+            long_cyl = obj_semi_infinite_longitudinal_right_cylinder.SemiInfiniteLongitudinalRightCylinder(order_long,
+                                                                                                           approximation_order_for_elliptic_integrals)
+            long_cyl_list.append(long_cyl)
 
     return [tan_cyl_list, long_cyl_list]
 

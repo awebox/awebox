@@ -43,9 +43,9 @@ import awebox.tools.print_operations as print_op
 
 
 
-def append_scaling_to_options_tree(options, geometry, options_tree, architecture, l_t_scaling, CL, varrho_ref, winding_period):
-    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, l_t_scaling, CL, varrho_ref, winding_period)
-    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, CL, varrho_ref, winding_period)
+def append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
+    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)
+    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period)
     return options_tree
 
 
@@ -66,32 +66,33 @@ def get_filament_strength(options, geometry, CL):
     return filament_strength
 
 
-def append_geometric_scaling(options, geometry, options_tree, architecture, l_t_scaling, CL, varrho_ref, winding_period):
+def append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
     # the part that describes the wake nodes and consequent vortex rings
     wingtips = ['ext', 'int']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
     rings = options['model']['aero']['vortex']['wake_nodes']
 
-    b_ref = geometry['b_ref']
     u_ref = options['user_options']['wind']['u_ref']
 
     filament_strength = get_filament_strength(options, geometry, CL)
 
-    avg_radius = b_ref * varrho_ref
+    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
 
-    inputs = {'u_ref': u_ref,
-              'filament_strength_ref': filament_strength,
-              'varrho_ref': varrho_ref,
-              'number_of_kites': architecture.number_of_kites,
-              'winding_period': winding_period,
-              'shedding_delta_time': vortex_tools.get_expected_time_per_control_interval(options, winding_period)
-              }
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options['model'], geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
 
-    print_op.warn_about_temporary_functionality_alteration()
-    wx_scale = (avg_radius**2. + avg_downstream**2.)**0.5
-    # wx_scale = l_t_scaling
+    position_scaling_source = options['model']['aero']['vortex']['position_scaling_source']
+    if position_scaling_source == 'q10':
+        position_scaling = q_scaling
+    elif position_scaling_source == 'convection':
+        position_scaling = q_scaling + avg_downstream * vect_op.xhat_dm()
+    elif position_scaling_source in ['radius', 'b_ref', 'c_ref']:
+        position_scaling = properties_ref[position_scaling_source]
+    else:
+        message = 'unexpected vortex-position-variable wx scaling source (' + position_scaling_source + ').'
+        print_op.log_and_raise_error(message)
+
+    wx_scale = position_scaling
     wx_center_scale = wx_scale
     wg_scale = filament_strength
     wh_scale = winding_period * u_ref
@@ -131,7 +132,25 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, l_t_
     return options_tree
 
 
-def append_induced_velocity_scaling(options, geometry, options_tree, architecture, CL, varrho_ref, winding_period):
+def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period):
+    u_ref = options['user_options']['wind']['u_ref']
+    a_ref = options['model']['aero']['actuator']['a_ref']
+    wake_nodes = options['model']['aero']['vortex']['wake_nodes']
+    filament_strength = get_filament_strength(options, geometry, CL)
+
+    inputs = {
+        'u_ref': u_ref * a_ref,
+        'wake_nodes': wake_nodes,
+        'filament_strength_ref': filament_strength,
+        'varrho_ref': varrho_ref,
+        'number_of_kites': architecture.number_of_kites,
+        'winding_period': winding_period,
+        'shedding_delta_time': vortex_tools.get_expected_time_per_control_interval(options, winding_period)
+    }
+    return inputs
+
+
+def append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period):
 
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
@@ -140,16 +159,7 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))
 
-    filament_strength = get_filament_strength(options, geometry, CL)
-
-    inputs = {
-        'u_ref': u_ref,
-        'filament_strength_ref': filament_strength,
-        'varrho_ref': varrho_ref,
-        'number_of_kites': architecture.number_of_kites,
-        'winding_period': winding_period,
-        'shedding_delta_time': vortex_tools.get_expected_time_per_control_interval(options, winding_period)
-    }
+    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
 
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
@@ -168,12 +178,16 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
                     if wake_type == 'bound':
                         scaling = get_induced_velocity_scaling_for_bound_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     elif wake_type == 'far':
-                        scaling = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        scaling = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     elif wake_type == 'near':
                         scaling = get_induced_velocity_scaling_for_near_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     else:
                         message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
                         print_op.log_and_raise_error(message)
+
+                    print_op.warn_about_temporary_functionality_alteration()
+                    # near_induction_scaling_factor = options['model']['aero']['vortex']['near_induction_scaling_factor']
+                    # scaling *= near_induction_scaling_factor
 
                     options_tree.append(
                         ('model', 'scaling', 'z', var_name, scaling, ('descript', None), 'x'))
@@ -182,54 +196,81 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
 
 
 def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kite_obs_index=0, kite_shed_index=0, inputs={}):
+
+    properties_ref = vortex_tools.get_biot_savart_reference_object_properties(model_options, geometry=geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+
+    if kite_obs_index == kite_shed_index:
+
+        u_ref = properties_ref['u_ref']
+
+        bound_induction_scaling_factor = model_options['aero']['vortex']['bound_induction_scaling_factor']
+        u_ref *= bound_induction_scaling_factor
+
+        return u_ref
+    else:
+
+        x_kite_obs = properties_ref['x_kite_obs']
+
+        ehat_1 = properties_ref['ehat_1']
+
+        r_core = properties_ref['r_core']
+        strength = properties_ref['filament_strength']
+
+        x_int_shed = properties_ref['x_int_shed']
+        x_ext_shed = properties_ref['x_ext_shed']
+
+        # offset = r_core
+        offset = cas.DM(0.)
+
+        x_start = x_int_shed + offset * ehat_1
+        x_end = x_ext_shed + offset * ehat_1
+
+        info_dict = {'x_start': x_start,
+                     'x_end': x_end,
+                     'r_core': r_core,
+                     'strength': strength}
+
+        fil = finite_filament.FiniteFilament(info_dict)
+        fil.define_biot_savart_induction_function()
+
+        x_obs = x_kite_obs
+        vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
+        u_ind = vect_op.norm(vec_u_ind)
+
+        return u_ind
+
+
+def get_induced_velocity_scaling_for_far_filament(model_options, geometry, element_number=0, kite_obs_index=0, kite_shed_index=0, inputs={}):
+    wingtip = vortex_tools.get_which_wingtip_shed_this_far_wake_element(element_number)
+
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(model_options, geometry=geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
 
     x_kite_obs = properties_ref['x_kite_obs']
 
-    ehat_1 = properties_ref['ehat_1']
-
     r_core = properties_ref['r_core']
     strength = properties_ref['filament_strength']
 
-    x_int_shed = properties_ref['x_int_shed']
-    x_ext_shed = properties_ref['x_ext_shed']
+    a_hat = properties_ref['a_hat']
+    b_hat = properties_ref['b_hat']
 
-    offset = r_core
-
-    x_start = x_int_shed + offset * ehat_1
-    x_end = x_ext_shed + offset * ehat_1
-
-    info_dict = {'x_start': x_start,
-                 'x_end': x_end,
-                 'r_core': r_core,
-                 'strength': strength}
-
-    fil = finite_filament.FiniteFilament(info_dict)
-    fil.define_biot_savart_induction_function()
-
-    x_obs = x_kite_obs
-    vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
-    u_ind = vect_op.norm(vec_u_ind)
-    return u_ind
-
-def get_induced_velocity_scaling_for_far_filament(model_options, geometry, kite_obs_index=0, kite_shed_index=0, inputs={}):
-    properties_ref = vortex_tools.get_biot_savart_reference_object_properties(model_options, geometry=geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
-
-    x_kite_obs = properties_ref['x_kite_obs']
-
-    r_core = properties_ref['r_core']
-    strength = properties_ref['filament_strength']
-
-    # psi_shed = properties_ref['psi_shed']
-    # omega = properties_ref['omega']
-    # time_since_shedding = float(properties_ref['wake_nodes'] - 1) * properties_ref['shedding_delta_time']
-    # psi_shed_rewound = psi_shed - omega * time_since_shedding
+    psi_shed = properties_ref['psi_shed']
+    omega = properties_ref['omega']
+    time_since_shedding = float(inputs['wake_nodes'] - 1) * properties_ref['shedding_delta_time']
+    psi_shed_rewound = psi_shed - omega * time_since_shedding
+    r_hat_shed_rewound = np.cos(psi_shed_rewound) * a_hat + np.sin(psi_shed_rewound) * b_hat
 
     x_center = properties_ref['x_center']
 
+    # radius_shed = properties_ref['radius']
+    radius_shed = properties_ref['varrho_' + wingtip] * properties_ref['b_ref']
+
+    wingtip_name_and_strength_direction_dict = vortex_tools.get_wingtip_name_and_strength_direction_dict()
+    if wingtip in wingtip_name_and_strength_direction_dict.keys():
+        strength *= wingtip_name_and_strength_direction_dict[wingtip]
+
     l_hat = properties_ref['l_hat']
     far_wake_l_start = properties_ref['far_wake_l_start']
-    x_start = x_center + far_wake_l_start * l_hat
+    x_start = x_center + far_wake_l_start * l_hat + radius_shed * r_hat_shed_rewound
 
     info_dict = {'x_start': x_start,
                  'l_hat': l_hat,
@@ -260,10 +301,12 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
     strength = properties_ref['filament_strength']
 
     if position_in_horseshoe == 'closing':
-        rate_of_change_factor = model_options['aero']['vortex']['rate_of_change_factor']
-        strength *= rate_of_change_factor
-    elif position_in_horseshoe == 'int':
-        strength *= -1.
+        rate_of_change_scaling_factor = model_options['aero']['vortex']['rate_of_change_scaling_factor']
+        strength *= rate_of_change_scaling_factor
+
+    wingtip_name_and_strength_direction_dict = vortex_tools.get_wingtip_name_and_strength_direction_dict()
+    if position_in_horseshoe in wingtip_name_and_strength_direction_dict.keys():
+        strength *= wingtip_name_and_strength_direction_dict[position_in_horseshoe]
 
     psi_shed = properties_ref['psi_shed']
     omega = properties_ref['omega']
@@ -316,58 +359,8 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
     vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
     u_ind = vect_op.norm(vec_u_ind)
 
+    print_op.warn_about_temporary_functionality_alteration()
+    # near_induction_scaling_factor = model_options['aero']['vortex']['near_induction_scaling_factor']
+    # u_ind *= near_induction_scaling_factor
+
     return u_ind
-
-def get_distance_between_vortex_element_and_kite(options, geometry, wake_type, element_number, varrho_ref, winding_period):
-
-    c_ref = geometry['c_ref']
-    b_ref = geometry['b_ref']
-    u_ref = options['user_options']['wind']['u_ref']
-
-    corresponding_wake_node = get_wake_node_whose_position_relates_to_velocity_element_number(wake_type, element_number, options)
-    expected_delta_t = get_expected_time_per_control_interval(options, winding_period)
-    time = corresponding_wake_node * expected_delta_t
-    downstream_distance = c_ref / 2. + u_ref * time
-    omega = 2. * np.pi / winding_period
-    angle = omega * time
-    radius = varrho_ref * b_ref
-    distance_between_points_on_circle = 2. * radius * np.sin(angle / 2.)
-    biot_savart_radius = np.sqrt(downstream_distance ** 2. + distance_between_points_on_circle ** 2.)
-
-    return biot_savart_radius
-
-
-
-# print_op.warn_about_temporary_functionality_alteration()
-# biot_savart_radius = vortex_tools.get_distance_between_vortex_element_and_kite(options, geometry, wake_type,
-#                                                                                element_number, varrho_ref,
-#                                                                                winding_period)
-#
-# print_op.warn_about_temporary_functionality_alteration()
-# epsilon_length = r_core
-# factor_2d_or_3d = '3d'
-#
-# factor = epsilon_length ** 2. / (biot_savart_radius ** 2. + epsilon_length ** 2.)
-# if factor_2d_or_3d == '3d':
-#     pass
-# elif factor_2d_or_3d == '2d':
-#     factor = np.sqrt(factor)
-# else:
-#     message = 'unexpected biot-savart kernal-dimensionality in scaling generation'
-#     print_op.log_and_raise_error(message)
-#
-# local_wu_ind_element_scale = wu_ind_element_scale * factor
-#
-# local_adjustment_factor = 1.
-# if wake_type == 'near':
-#     position_in_horseshoe = vortex_tools.get_position_of_near_wake_element_in_horseshoe(options, element_number)
-#
-#     if position_in_horseshoe == 'closing':
-#         local_adjustment_factor = options['model']['aero']['vortex']['rate_of_change_factor']
-#
-#     print_op.warn_about_temporary_functionality_alteration()
-#     if position_in_horseshoe in ['int', 'ext']:
-#         local_adjustment_factor = vortex_tools.get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_circumferences(
-#             options, geometry, position_in_horseshoe, varrho_ref, winding_period)
-#
-#     local_wu_ind_element_scale *= local_adjustment_factor

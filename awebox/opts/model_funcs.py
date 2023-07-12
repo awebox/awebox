@@ -224,18 +224,39 @@ def get_dependent_params(geometry, geometry_data):
     return geometry
 
 
+def get_position_scaling(options, architecture):
+
+    position = estimate_position_of_main_tether_end(options)
+    flight_radius = estimate_flight_radius(options, architecture)
+    geometry = get_geometry(options)
+    b_ref = geometry['b_ref']
+
+    position_scaling_source = options['model']['scaling']['other']['position']
+    if position_scaling_source == 'radius':
+        q_scaling = flight_radius
+    elif position_scaling_source == 'altitude':
+        q_scaling = position[2]
+    elif position_scaling_source == 'b_ref':
+        q_scaling = b_ref
+    elif position_scaling_source == 'radius_and_altitude':
+        q_scaling = cas.vertcat(position[0], flight_radius, position[2])
+    else:
+        message = 'unexpected position scaling source (' + position_scaling_source + ')'
+        print_op.log_and_raise_error(message)
+
+    return q_scaling
+
+
 def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     length = options['solver']['initialization']['l_t']
     length_scaling = length
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
 
-    position = estimate_position_of_main_tether_end(options)
-    flight_radius = estimate_flight_radius(options, architecture)
-    q_scaling = cas.vertcat(position[0], flight_radius, position[2])
+    q_scaling = get_position_scaling(options, architecture)
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
-    u_altitude = get_u_at_altitude(options, position[2])
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     dq_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
 
@@ -768,9 +789,9 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     windings = options['user_options']['trajectory']['lift_mode']['windings']
     winding_period = t_f_guess / float(windings)
 
-    l_t_scaling = estimate_altitude(options)
-
-    options_tree = vortex_alg_repr_scaling.append_scaling_to_options_tree(options, geometry, options_tree, architecture, l_t_scaling, CL, varrho_ref, winding_period)
+    q_scaling = get_position_scaling(options, architecture)
+    u_altitude = get_u_at_altitude(options, estimate_altitude(options))
+    options_tree = vortex_alg_repr_scaling.append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)
 
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ref = get_u_ref(options['user_options'])

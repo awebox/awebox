@@ -152,8 +152,30 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
 
     return system_lifted, system_states
 
-def ordering_of_near_wake_filaments_in_vortex_horseshoe():
-    return {0:'int', 1:'ext', 2:'closing'}
+
+def ordering_of_filaments_in_vortex_horseshoe():
+    return {0: get_NE_wingtip_name(),
+            1: get_PE_wingtip_name(),
+            2: 'closing'}
+
+
+def get_which_wingtip_shed_this_far_wake_element(element_number):
+    elements_per_far_wake_per_kite = 2
+    element_number_in_kite_list = np.mod(element_number, elements_per_far_wake_per_kite)
+
+    filament_ordering = ordering_of_filaments_in_vortex_horseshoe()
+
+    if not (element_number_in_kite_list in filament_ordering.keys()):
+        message = 'something went wrong when trying to determine which wingtip shed a vortex filament'
+        print_op.log_and_raise_error(message)
+
+    tentative_position = filament_ordering[element_number_in_kite_list]
+    if tentative_position not in get_wingtip_name_and_strength_direction_dict().keys():
+        message = 'tentative position, which wingtip shed a vortex filament, (' + tentative_position + ') is not an acceptable far-wake wingtip'
+        print_op.log_and_raise_error(message)
+
+    return tentative_position
+
 
 
 def get_position_of_near_wake_element_in_horseshoe(model_options, element_number):
@@ -164,7 +186,7 @@ def get_position_of_near_wake_element_in_horseshoe(model_options, element_number
     element_number_in_kite_list = np.mod(element_number, elements_per_kite)
     element_number_in_ring = np.mod(element_number_in_kite_list, elements_per_ring)
 
-    filament_ordering = ordering_of_near_wake_filaments_in_vortex_horseshoe()
+    filament_ordering = ordering_of_filaments_in_vortex_horseshoe()
 
     if not (element_number_in_ring in filament_ordering.keys()):
         message = 'something went wrong when trying to determine the position of a particular near-wake vortex filament'

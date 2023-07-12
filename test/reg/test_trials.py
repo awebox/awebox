@@ -346,8 +346,15 @@ def generate_options_dict():
     # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
     vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
-    vortex_options['solver.weights.vortex'] = 1e-3
+
+    # vortex_options['solver.weights.vortex'] = 1e-3
     # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
+    vortex_options['solver.weights.vortex'] = 1e-3
+    vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-2
+    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e3 #4
+    vortex_options['model.aero.vortex.near_induction_scaling_factor'] = 1.e1
+    vortex_options['model.aero.vortex.position_scaling_source'] = 'q10'
+    vortex_options['model.scaling.other.position'] = 'b_ref'
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 

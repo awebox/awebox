@@ -98,8 +98,29 @@ def get_superposition_cstr(wake, variables_si, architecture, scaling):
 
         resi_si = vec_u_ind - vec_u_superposition
 
+        scaling_list = []
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
-        resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, scaling)
+        for dim in range(3):
+            scaling_list += [float(scaling['z', var_name, dim])]
+
+        for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+            substructure = wake.get_substructure(substructure_type)
+            for element_type in substructure.get_initialized_element_types():
+                element_list = substructure.get_list(element_type)
+                number_of_elements = element_list.number_of_elements
+                for element_number in range(number_of_elements):
+                    elem_u_ind_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type, element_number, kite_obs)
+                    for dim in range(3):
+                        scaling_list += [float(scaling['z', elem_u_ind_name, dim])]
+
+        print_op.warn_about_temporary_functionality_alteration()
+        # scaling_val = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(scaling_list)
+        scaling_val = np.max(np.array(scaling_list))
+
+        print_op.warn_about_temporary_functionality_alteration()
+        # var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+        # resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, scaling)
+        resi_scaled = resi_si / scaling_val
 
         local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                         name='superposition_' + str(kite_obs),
@@ -108,33 +129,81 @@ def get_superposition_cstr(wake, variables_si, architecture, scaling):
 
     return cstr_list
 
+
 def get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling):
 
     cstr_list = cstr_op.ConstraintList()
 
     for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+        substructure = wake.get_substructure(substructure_type)
 
         for kite_obs in architecture.kite_nodes:
             parent_obs = architecture.parent_map[kite_obs]
-            resi_scaled = wake.get_substructure(substructure_type).construct_biot_savart_residual_at_kite(model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling)
+            resi_si = substructure.construct_biot_savart_residual_at_kite(model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling)
+
+            biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
+
+            for element_type in substructure.get_initialized_element_types():
+                element_list = substructure.get_list(element_type)
+                number_of_elements = element_list.number_of_elements
+                for element_number in range(number_of_elements):
+                    local_resi_si = resi_si[:, element_number]
+                    wu_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type, element_number, kite_obs)
+                    #
+                    # kite_shed = vortex_tools.get_shedding_kite_from_element_number(model_options, substructure_type, element_type, element_number,
+                    #                                       architecture)
+                    # if substructure_type == 'near':
+                    #     position = vortex_tools.get_position_of_near_wake_element_in_horseshoe(model_options, element_number)
+                    #
+                    #
+                    #
+                    #
+                    #
+                    # wake_node = vortex_tools.get_wake_node_whose_position_relates_to_velocity_element_number(substructure_type, element_number,
+                    #                                                                 model_options)
+
+                    print_op.warn_about_temporary_functionality_alteration()
+                    if biot_savart_residual_assembly == 'division':
+                        resi_scaled = struct_op.var_si_to_scaled('z', wu_name, local_resi_si, scaling)
+
+                        # print_op.warn_about_temporary_functionality_alteration()
+                        # if substructure_type == 'bound':
+                        #     resi_scaled *= 1e-2
+
+                    elif biot_savart_residual_assembly == 'split':
+                        resi_scaled = []
+                        for dim in range(3):
+                            r_ref = scaling['x', 'q10'][dim]
+                            wu_ref = scaling['z', wu_name][dim]
+                            ref = 3. * wu_ref * r_ref**2.
+                            resi_scaled = cas.vercat(resi_scaled, local_resi_si[dim] / ref)
+
+                    else:
+                        message = 'unexpected biot-savart-residual assembly instructions'
+                        print_op.log_and_raise_error(message)
+
+                    local_cstr = cstr_op.Constraint(expr=resi_scaled,
+                                                    name='biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs),
+                                                    cstr_type='eq')
+                    cstr_list.append(local_cstr)
 
 
-
-            print_op.warn_about_temporary_functionality_alteration()
-            if substructure_type == 'bound':
-                resi_scaled *= 1.e-2
-                # 1e-4, 3 gets to power problem
-                # 1. / (scaling['x', 'l_t']**2.)
-                # 1./ (wx scaling^2?)
-            elif substructure_type == 'near':
-                resi_scaled *= 1e-1
-            # elif substructure_type == 'far':
+            #
+            # print_op.warn_about_temporary_functionality_alteration()
+            # if substructure_type == 'bound':
+            #     resi_scaled *= 1.e-4
+            #     # 1e-4, 3 gets to power problem
+            #     # 1. / (scaling['x', 'l_t']**2.)
+            #     # 1./ (wx scaling^2?)
+            # elif substructure_type == 'near':
             #     resi_scaled *= 1e-2
-
-            local_cstr = cstr_op.Constraint(expr=resi_scaled,
-                                            name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
-                                            cstr_type='eq')
-            cstr_list.append(local_cstr)
+            # # elif substructure_type == 'far':
+            # #     resi_scaled *= 1e-2
+            #
+            # local_cstr = cstr_op.Constraint(expr=resi_scaled,
+            #                                 name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
+            #                                 cstr_type='eq')
+            # cstr_list.append(local_cstr)
 
     return cstr_list
 
