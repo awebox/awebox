@@ -273,14 +273,6 @@ class ElementList:
 
         return None
 
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind):
-        elem = self.get_example_element()
-        inputs = {'number_of_kites': 1,
-                  'winding_period': 30.,
-                  'shedding_delta_time': parameters['theta0', 'geometry', 'b_ref'] / parameters['theta0', 'wind', 'u_ref']
-                  }
-        return elem.get_biot_savart_reference_denominator(model_options, parameters, wind, inputs=inputs)
-
     def get_example_element(self):
         if len(self.__list) > 0:
             return self.__list[0]

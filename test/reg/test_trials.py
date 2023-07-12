@@ -175,10 +175,10 @@ def test_vortex():
 
 
 
-def test_vortex_basic_health():
+def test_vortex_basic_health(final_homotopy_step='final'):
     options_dict = generate_options_dict()
     trial_name = 'vortex_basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name)
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -345,16 +345,15 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.representation'] = 'alg'
     # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'split'
 
     # vortex_options['solver.weights.vortex'] = 1e-3
     # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
     vortex_options['solver.weights.vortex'] = 1e-3
-    vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-2
-    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e3 #4
-    vortex_options['model.aero.vortex.near_induction_scaling_factor'] = 1.e1
-    vortex_options['model.aero.vortex.position_scaling_source'] = 'q10'
-    vortex_options['model.scaling.other.position'] = 'b_ref'
+    vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
+    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e2  #1. #1.e3 #4
+    vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
+    vortex_options['model.scaling.other.position'] = 'altitude_and_radius'
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -490,7 +489,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_comparison()
 # test_vortex_force_zero_basic_health() #final_homotopy_step='initial_guess')
 # test_vortex_force_zero()
-test_vortex_basic_health()
+test_vortex_basic_health(final_homotopy_step='induction')
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

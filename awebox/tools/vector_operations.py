@@ -791,6 +791,13 @@ def synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimate
     return geometric_average
 
 
+def find_jacobian_based_scalar_expression_scaling(local_resi_si_scalar, variables_scaled, parameters):
+    jac_norm = smooth_norm(cas.jacobian(local_resi_si_scalar, variables_scaled).T)
+    jac_norm_fun = cas.Function('jac_norm_fun', [variables_scaled, parameters], [jac_norm])
+    local_scale = jac_norm_fun(cas.DM.ones(variables_scaled.shape), parameters)
+    return local_scale
+
+
 def get_altitude(vec_1, vec_2):
     vec_a = cross(vec_1, vec_2)
     altitude = smooth_norm(vec_a) / smooth_norm(vec_1 - vec_2)

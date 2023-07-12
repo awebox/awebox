@@ -231,17 +231,17 @@ def get_position_scaling(options, architecture):
     geometry = get_geometry(options)
     b_ref = geometry['b_ref']
 
-    position_scaling_source = options['model']['scaling']['other']['position']
-    if position_scaling_source == 'radius':
+    position_scaling_method = options['model']['scaling']['other']['position']
+    if position_scaling_method == 'radius':
         q_scaling = flight_radius
-    elif position_scaling_source == 'altitude':
+    elif position_scaling_method == 'altitude':
         q_scaling = position[2]
-    elif position_scaling_source == 'b_ref':
+    elif position_scaling_method == 'b_ref':
         q_scaling = b_ref
-    elif position_scaling_source == 'radius_and_altitude':
+    elif ('radius' in position_scaling_method) and ('altitude' in position_scaling_method):
         q_scaling = cas.vertcat(position[0], flight_radius, position[2])
     else:
-        message = 'unexpected position scaling source (' + position_scaling_source + ')'
+        message = 'unexpected position scaling source (' + position_scaling_method + ')'
         print_op.log_and_raise_error(message)
 
     return q_scaling

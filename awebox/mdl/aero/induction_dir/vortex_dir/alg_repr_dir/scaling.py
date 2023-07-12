@@ -81,15 +81,15 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options['model'], geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
 
-    position_scaling_source = options['model']['aero']['vortex']['position_scaling_source']
-    if position_scaling_source == 'q10':
+    position_scaling_method = options['model']['aero']['vortex']['position_scaling_method']
+    if position_scaling_method == 'q10':
         position_scaling = q_scaling
-    elif position_scaling_source == 'convection':
+    elif position_scaling_method == 'convection':
         position_scaling = q_scaling + avg_downstream * vect_op.xhat_dm()
-    elif position_scaling_source in ['radius', 'b_ref', 'c_ref']:
-        position_scaling = properties_ref[position_scaling_source]
+    elif position_scaling_method in ['radius', 'b_ref', 'c_ref']:
+        position_scaling = properties_ref[position_scaling_method]
     else:
-        message = 'unexpected vortex-position-variable wx scaling source (' + position_scaling_source + ').'
+        message = 'unexpected vortex-position-variable wx scaling method (' + position_scaling_method + ').'
         print_op.log_and_raise_error(message)
 
     wx_scale = position_scaling
@@ -185,9 +185,6 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
                         message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
                         print_op.log_and_raise_error(message)
 
-                    print_op.warn_about_temporary_functionality_alteration()
-                    # near_induction_scaling_factor = options['model']['aero']['vortex']['near_induction_scaling_factor']
-                    # scaling *= near_induction_scaling_factor
 
                     options_tree.append(
                         ('model', 'scaling', 'z', var_name, scaling, ('descript', None), 'x'))
@@ -202,11 +199,13 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     if kite_obs_index == kite_shed_index:
 
         u_ref = properties_ref['u_ref']
+        a_ref = model_options['aero']['actuator']['a_ref']
+        u_ind = u_ref * (1. - a_ref)
 
         bound_induction_scaling_factor = model_options['aero']['vortex']['bound_induction_scaling_factor']
-        u_ref *= bound_induction_scaling_factor
+        u_ind *= bound_induction_scaling_factor
+        return u_ind
 
-        return u_ref
     else:
 
         x_kite_obs = properties_ref['x_kite_obs']
@@ -358,9 +357,5 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
     x_obs = x_kite_obs
     vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
     u_ind = vect_op.norm(vec_u_ind)
-
-    print_op.warn_about_temporary_functionality_alteration()
-    # near_induction_scaling_factor = model_options['aero']['vortex']['near_induction_scaling_factor']
-    # u_ind *= near_induction_scaling_factor
 
     return u_ind

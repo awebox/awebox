@@ -225,38 +225,9 @@ class Element:
     def evaluate_info(self, variables_scaled, parameters):
         return self.__info_fun(variables_scaled, parameters)
 
-
     def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
-        message = 'cannot construct a biot-savart reference object for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+        message = 'construct_biot_savart_reference_object function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         print_op.log_and_raise_error(message)
-
-
-    def get_biot_savart_reference_denominator(self, model_options, parameters, wind, inputs={}):
-
-        unpacked_ref, x_kite = self.construct_biot_savart_reference_object(model_options, parameters, wind, inputs=inputs)
-        value_ref, num_ref, den_ref = self.calculate_biot_savart_induction(unpacked_ref, x_kite)
-
-        epsilon = model_options['aero']['vortex']['biot_savart_residual_denom_epsilon']
-        print_op.warn_about_temporary_functionality_alteration()
-        # biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
-        #
-        # # remember that we're already going to be applying the specific ui_element scaling
-        # if biot_savart_residual_assembly == 'division':
-        #     print_op.warn_about_temporary_functionality_alteration()
-        #     ref = cas.DM(1.)
-        # elif biot_savart_residual_assembly == 'split_num':
-        #     ref = vect_op.smooth_norm(num_ref, epsilon) / vect_op.smooth_norm(value_ref, epsilon)
-        # elif biot_savart_residual_assembly == 'split_den':
-        #     ref = vect_op.smooth_norm(den_ref, epsilon)
-        # elif biot_savart_residual_assembly == 'split_none':
-        #     ref = cas.DM(1.)
-        # else:
-        #     message = 'unexpected biot-savart-residual assembly instructions'
-        #     print_op.log_and_raise_error(message)
-        ref = cas.DM(1.)
-
-        return ref
-
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'

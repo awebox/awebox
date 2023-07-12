@@ -132,10 +132,9 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',    0.01,       ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),
         ('model', 'aero', 'vortex',     'bound_induction_scaling_factor',   1.e4,       ('the multiplicative factor that scales the induced velocity of the bound vortex shed by the observer kite', None), 'x'),
-        ('model', 'aero', 'vortex',     'near_induction_scaling_factor',    1.e1,       ('the multiplicative factor that scales the induced velocity of the near vortices', None), 'x'),
-        ('model', 'aero', 'vortex',     'position_scaling_source',          'b_ref',    ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance ', ['b_ref', 'c_ref', 'radius', 'q10', 'convection']), 'x'),
+        ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance ', ['b_ref', 'c_ref', 'radius', 'q10', 'convection']), 'x'),
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
-        ('model', 'aero', 'vortex',     'biot_savart_residual_assembly',        'division',    ('express the biot-savart residual as (division): (u_ind - num / den = 0); as a (split): (u_ind * den - num = 0)', ['division', 'split']), 'x'),
+        ('model', 'aero', 'vortex',     'biot_savart_residual_assembly',        'division',     ('express the biot-savart residual as (division): (u_ind - num / den = 0); as a (split): (u_ind * den - num = 0)', ['division', 'split']), 'x'),
         ('model', 'aero', 'vortex',     'biot_savart_residual_denom_epsilon',   1.e-5,          ('value used to smooth the norm on the denominator of the biot-savart-residual', None), 'x'),
         ('model', 'aero', 'vortex',     'verification_test',    False,      ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',  20,         ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
@@ -235,7 +234,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'other', 'position',  'radius_and_altitude',   ('values to use when scaling the node position states q', ['radius', 'altitude', 'b_ref', 'radius_and_altitude']),'x'),
+        ('model',  'scaling', 'other', 'position',  'altitude_and_radius',   ('values to use when scaling the node position states q', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other', 'g',	       9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None), 'x'),

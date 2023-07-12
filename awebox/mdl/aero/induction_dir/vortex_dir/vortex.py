@@ -71,14 +71,16 @@ def build(model_options, architecture, wind, variables_si, parameters):
     return None
 
 
-def get_model_constraints(model_options, wake, scaling, wind, variables_si, parameters, architecture):
+def get_model_constraints(model_options, wake, scaling, wind, system_variables, parameters, architecture):
+
+    variables_si = system_variables['SI']
 
     cstr_list = cstr_op.ConstraintList()
 
-    superposition_cstr = get_superposition_cstr(wake, variables_si, architecture, scaling)
+    superposition_cstr = get_superposition_cstr(wake, system_variables, parameters, architecture)
     cstr_list.append(superposition_cstr)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, wind, scaling)
     cstr_list.append(biot_savart_cstr)
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
@@ -87,7 +89,10 @@ def get_model_constraints(model_options, wake, scaling, wind, variables_si, para
 
     return cstr_list
 
-def get_superposition_cstr(wake, variables_si, architecture, scaling):
+def get_superposition_cstr(wake, system_variables, parameters, architecture):
+
+    variables_si = system_variables['SI']
+    variables_scaled = system_variables['scaled']
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -98,29 +103,11 @@ def get_superposition_cstr(wake, variables_si, architecture, scaling):
 
         resi_si = vec_u_ind - vec_u_superposition
 
-        scaling_list = []
-        var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+        resi_scaled = []
         for dim in range(3):
-            scaling_list += [float(scaling['z', var_name, dim])]
-
-        for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
-            substructure = wake.get_substructure(substructure_type)
-            for element_type in substructure.get_initialized_element_types():
-                element_list = substructure.get_list(element_type)
-                number_of_elements = element_list.number_of_elements
-                for element_number in range(number_of_elements):
-                    elem_u_ind_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type, element_number, kite_obs)
-                    for dim in range(3):
-                        scaling_list += [float(scaling['z', elem_u_ind_name, dim])]
-
-        print_op.warn_about_temporary_functionality_alteration()
-        # scaling_val = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(scaling_list)
-        scaling_val = np.max(np.array(scaling_list))
-
-        print_op.warn_about_temporary_functionality_alteration()
-        # var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
-        # resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, scaling)
-        resi_scaled = resi_si / scaling_val
+            local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(resi_si[dim], variables_scaled,
+                                                                                parameters)
+            resi_scaled = cas.vertcat(resi_scaled, resi_si[dim] / local_scale)
 
         local_cstr = cstr_op.Constraint(expr=resi_scaled,
                                         name='superposition_' + str(kite_obs),
@@ -130,7 +117,10 @@ def get_superposition_cstr(wake, variables_si, architecture, scaling):
     return cstr_list
 
 
-def get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling):
+def get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, wind, scaling):
+
+    variables_si = system_variables['SI']
+    variables_scaled = system_variables['scaled']
 
     cstr_list = cstr_op.ConstraintList()
 
@@ -141,69 +131,25 @@ def get_biot_savart_cstr(wake, model_options, variables_si, parameters, architec
             parent_obs = architecture.parent_map[kite_obs]
             resi_si = substructure.construct_biot_savart_residual_at_kite(model_options, variables_si, parameters, kite_obs, parent_obs, wind, scaling)
 
-            biot_savart_residual_assembly = model_options['induction']['vortex_biot_savart_residual_assembly']
-
             for element_type in substructure.get_initialized_element_types():
                 element_list = substructure.get_list(element_type)
                 number_of_elements = element_list.number_of_elements
+
                 for element_number in range(number_of_elements):
+
                     local_resi_si = resi_si[:, element_number]
-                    wu_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type, element_number, kite_obs)
-                    #
-                    # kite_shed = vortex_tools.get_shedding_kite_from_element_number(model_options, substructure_type, element_type, element_number,
-                    #                                       architecture)
-                    # if substructure_type == 'near':
-                    #     position = vortex_tools.get_position_of_near_wake_element_in_horseshoe(model_options, element_number)
-                    #
-                    #
-                    #
-                    #
-                    #
-                    # wake_node = vortex_tools.get_wake_node_whose_position_relates_to_velocity_element_number(substructure_type, element_number,
-                    #                                                                 model_options)
 
-                    print_op.warn_about_temporary_functionality_alteration()
-                    if biot_savart_residual_assembly == 'division':
-                        resi_scaled = struct_op.var_si_to_scaled('z', wu_name, local_resi_si, scaling)
+                    resi_scaled = []
+                    for dim in range(3):
+                        local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(local_resi_si[dim], variables_scaled,
+                                                                      parameters)
+                        resi_scaled = cas.vertcat(resi_scaled, local_resi_si[dim] / local_scale)
 
-                        # print_op.warn_about_temporary_functionality_alteration()
-                        # if substructure_type == 'bound':
-                        #     resi_scaled *= 1e-2
-
-                    elif biot_savart_residual_assembly == 'split':
-                        resi_scaled = []
-                        for dim in range(3):
-                            r_ref = scaling['x', 'q10'][dim]
-                            wu_ref = scaling['z', wu_name][dim]
-                            ref = 3. * wu_ref * r_ref**2.
-                            resi_scaled = cas.vercat(resi_scaled, local_resi_si[dim] / ref)
-
-                    else:
-                        message = 'unexpected biot-savart-residual assembly instructions'
-                        print_op.log_and_raise_error(message)
-
+                    cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
                     local_cstr = cstr_op.Constraint(expr=resi_scaled,
-                                                    name='biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs),
+                                                    name=cstr_name,
                                                     cstr_type='eq')
                     cstr_list.append(local_cstr)
-
-
-            #
-            # print_op.warn_about_temporary_functionality_alteration()
-            # if substructure_type == 'bound':
-            #     resi_scaled *= 1.e-4
-            #     # 1e-4, 3 gets to power problem
-            #     # 1. / (scaling['x', 'l_t']**2.)
-            #     # 1./ (wx scaling^2?)
-            # elif substructure_type == 'near':
-            #     resi_scaled *= 1e-2
-            # # elif substructure_type == 'far':
-            # #     resi_scaled *= 1e-2
-            #
-            # local_cstr = cstr_op.Constraint(expr=resi_scaled,
-            #                                 name='biot_savart_' + str(substructure_type) + '_' + str(kite_obs),
-            #                                 cstr_type='eq')
-            # cstr_list.append(local_cstr)
 
     return cstr_list
 
@@ -347,6 +293,7 @@ def get_dictionary_of_derivatives(outputs, architecture):
 
     return derivative_dict
 
+
 def test_that_model_constraint_residuals_have_correct_shape():
 
     model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures()
@@ -357,15 +304,17 @@ def test_that_model_constraint_residuals_have_correct_shape():
     dimension_of_velocity = 3
 
     variables_si = var_struct
+    system_variables = {'SI': variables_si, 'scaled': variables_si}
+
     parameters = param_struct
     scaling = var_struct(1.)
 
-    superposition_cstr = get_superposition_cstr(wake, variables_si, architecture, scaling)
+    superposition_cstr = get_superposition_cstr(wake, system_variables, parameters, architecture)
     found_superposition_shape = superposition_cstr.get_expression_list('all').shape
     expected_superposition_shape = (number_of_observers * dimension_of_velocity, 1)
     cond1 = (found_superposition_shape == expected_superposition_shape)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, variables_si, parameters, architecture, wind, scaling)
+    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, wind, scaling)
     found_biot_savart_shape = biot_savart_cstr.get_expression_list('all').shape
     expected_biot_savart_shape = (total_number_of_elements * number_of_observers * dimension_of_velocity, 1)
     cond2 = (found_biot_savart_shape == expected_biot_savart_shape)

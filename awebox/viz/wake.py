@@ -79,6 +79,7 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
 
     return None
 
+
 def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
@@ -86,8 +87,11 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
         model_variables = plot_dict['variables']
         model_scaling = model_variables(plot_dict['scaling'])
 
-        variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
-        variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
+        if cosmetics['variables']['si_or_scaled'] == 'scaled':
+            variables_scaled = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+        else:
+            variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+            variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
 
         parameters = plot_dict['parameters_plot']
 

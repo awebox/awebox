@@ -105,7 +105,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     if options['induction_model'] is 'not_in_use':
         pass
     else:
-        induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables['SI'], parameters, outputs, architecture)
+        induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables, parameters, outputs, architecture)
         cstr_list.append(induction_cstr)
 
     # specify the required integrations, including that
