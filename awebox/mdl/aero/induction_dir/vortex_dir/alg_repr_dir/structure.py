@@ -55,7 +55,7 @@ from awebox.logger.logger import Logger as awelogger
 # but not the positions and strengths; those belong to the wake nodes
 
 
-def construct_test_model_variable_structures(element_type='finite_filament', wake_nodes=2, number_of_kites=1):
+def construct_test_model_variable_structures(element_type='finite_filament', wake_nodes=2, number_of_kites=1, biot_savart_residual_assembly='lifted'):
 
     archi_dict = {1: 0}
     if number_of_kites > 1:
@@ -83,13 +83,13 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['aero']['vortex']['core_to_chord_ratio'] = 0.1
     options['aero']['vortex']['far_wake_element_type'] = element_type
     options['aero']['vortex']['approximation_order_for_elliptic_integrals'] = 3
-    options['aero']['vortex']['biot_savart_residual_denom_epsilon'] = 1.
     options['aero']['vortex']['filament_strength_ref'] = 1.
     options['aero']['vortex']['near_wake_unit_length'] = 1.
     options['aero']['vortex']['far_wake_l_start'] = 1.
     options['aero']['vortex']['position_scaling_source'] = 'b_ref'
+    options['aero']['vortex']['biot_savart_residual_assembly'] = biot_savart_residual_assembly
 
-    options['scaling'] = {'z':{}}
+    options['scaling'] = {'z': {}}
     for kite_obs in architecture.kite_nodes:
 
         near_count = 0
@@ -119,7 +119,7 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['induction']['vortex_rings'] = rings
     options['induction']['vortex_far_wake_convection_time'] = 1.
     options['induction']['vortex_far_wake_element_type'] = element_type
-    options['induction']['vortex_biot_savart_residual_assembly'] = 'division'
+    options['induction']['vortex_biot_savart_residual_assembly'] = biot_savart_residual_assembly
     options['induction']['vortex_representation'] = 'alg'
     options['induction']['vortex_epsilon_m'] = 1.0e-8
     options['induction']['vortex_epsilon_r'] = 1.0e-8

@@ -85,37 +85,79 @@ def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
 
 def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model, ndx, ddx):
 
+    wake = model.wake
+    architecture = model.architecture
+
     Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
     variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
                                                    ddx=ddx)
+    variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
     parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
 
-    for kite_obs in model.architecture.kite_nodes:
-        parent_obs = model.architecture.parent_map[kite_obs]
+    tentative_lifted_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
+                                                                              'finite_filament',
+                                                                              0,
+                                                                              architecture.kite_nodes[0])
+    if tentative_lifted_name in model.variables_dict['z'].keys():
+        use_lifted_biot_savart_residual_assembly = True
+    else:
+        use_lifted_biot_savart_residual_assembly = False
+
+    for kite_obs in architecture.kite_nodes:
+        parent_obs = architecture.parent_map[kite_obs]
         x_obs = variables_si['x', 'q' + str(kite_obs) + str(parent_obs)]
 
         total_u_ind = cas.DM.zeros((3, 1))
 
-        expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(init_options, model.architecture)
-        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
-            for element_type, expected_number in local_expected_number_of_elements_dict.items():
+        for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+            substructure = wake.get_substructure(substructure_type)
+            for element_type in substructure.get_initialized_element_types():
+                element_list = substructure.get_list(element_type)
+                element_number = 0
+                for elem in element_list.list:
+                    u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
+                                                                                     element_type,
+                                                                                     element_number,
+                                                                                     kite_obs)
 
-                all_u_ind_sym = model.wake.get_substructure(wake_type).get_list(element_type).evaluate_biot_savart_induction_for_all_elements(x_obs=x_obs)
-                all_u_ind_fun = cas.Function('all_u_ind_fun', [model.variables, model.parameters], [all_u_ind_sym])
+                    value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs)
+                    value_fun = cas.Function('value_fun', [model.variables, model.parameters], [value])
 
-                variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
-                all_u_ind = all_u_ind_fun(variables_scaled, parameters)
-
-                for element_number in range(expected_number):
-                    u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type,
-                                                                                     element_number, kite_obs)
-                    elem_u_ind = all_u_ind[:, element_number]
-                    V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = elem_u_ind
+                    value_eval = value_fun(variables_scaled, parameters)
+                    V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
 
                     if (ddx is None) and ('z' in list(V_init_si.keys())):
-                        V_init_si['z', ndx-1, u_ind_elem_name] = elem_u_ind
+                        V_init_si['z', ndx-1, u_ind_elem_name] = value_eval
 
-                total_u_ind += cas.sum2(all_u_ind)
+                    if use_lifted_biot_savart_residual_assembly:
+                        u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
+                                                                                                  element_type,
+                                                                                                  element_number,
+                                                                                                  kite_obs)
+                        u_ind_den_elem_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type,
+                                                                                                    element_type,
+                                                                                                    element_number,
+                                                                                                    kite_obs)
+
+                        num_fun = cas.Function('num_fun', [model.variables, model.parameters], [num])
+                        den_fun = cas.Function('den_fun', [model.variables, model.parameters], [den])
+
+                        num_eval = num_fun(variables_scaled, parameters)
+                        den_eval = den_fun(variables_scaled, parameters)
+
+                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
+                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
+
+                        if (ddx is None) and ('z' in list(V_init_si.keys())):
+                            V_init_si['z', ndx - 1, u_ind_num_elem_name] = num_eval
+                            V_init_si['z', ndx - 1, u_ind_den_elem_name] = den_eval
+
+                    element_number += 1
+                    total_u_ind += value_eval
+
+                if not (element_number == element_list.number_of_elements):
+                    message = 'something went wrong with the initialization of vortex induced velocities. the wrong number of elements'
+                    print_op.log_and_raise_error(message)
 
         u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_u_ind

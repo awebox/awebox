@@ -47,12 +47,15 @@ matplotlib.use('TkAgg')
 
 class Element:
     def __init__(self, info_dict, info_order=None):
+
+        for key, value in info_dict.items():
+            info_dict[key] = vect_op.columnize(value)
+
         self.__info_dict = info_dict
         self.set_element_type('element')
         self.set_biot_savart_fun(None)
         self.set_biot_savart_residual_fun(None)
         self.set_info_fun(None)
-
 
         if info_order is not None:
             self.set_info_order(info_order)
@@ -192,7 +195,8 @@ class Element:
 
         return None
 
-    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split_num'):
+
+    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split'):
         expected_info_length = self.expected_info_length
         packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
         unpacked_sym = self.unpack_info(external_info=packed_sym)
@@ -204,13 +208,28 @@ class Element:
 
         if biot_savart_residual_assembly == 'division':
             resi = vec_u_ind - value
-        elif 'split' in biot_savart_residual_assembly:
-            resi = vec_u_ind * den - num
-        else:
-            message = 'unexpected biot-savart-residual assembly instructions'
-            print_op.log_and_raise_error(message)
+            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
 
-        biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+        elif biot_savart_residual_assembly == 'split':
+            resi = vec_u_ind * den - num
+            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
+
+        elif biot_savart_residual_assembly == 'lifted':
+
+            vec_u_ind_num = cas.SX.sym('vec_u_ind_num', (3, 1))
+            vec_u_ind_den = cas.SX.sym('vec_u_ind_den', (1, 1))
+
+            resi_value = vec_u_ind * vec_u_ind_den - vec_u_ind_num
+            resi_num = vec_u_ind_num - num
+            resi_den = vec_u_ind_den - den
+
+            resi = cas.vertcat(resi_value, resi_num, resi_den)
+
+            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind, vec_u_ind_num, vec_u_ind_den], [resi])
+
+        else:
+            message = 'unexpected biot-savart-residual assembly instructions (' + biot_savart_residual_assembly + ')'
+            print_op.log_and_raise_error(message)
 
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
 
@@ -225,13 +244,11 @@ class Element:
     def evaluate_info(self, variables_scaled, parameters):
         return self.__info_fun(variables_scaled, parameters)
 
-    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
-        message = 'construct_biot_savart_reference_object function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        print_op.log_and_raise_error(message)
 
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         message = 'draw function does not exist for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         print_op.log_and_raise_error(message)
+
 
     def construct_fake_cosmetics(self, unpacked=None):
         cosmetics = {}
@@ -340,8 +357,39 @@ class Element:
 
         return True
 
+    def test_calculated_biot_savart_induction_satisfies_residual(self, epsilon=1.e-6):
+        for biot_savart_residual_assembly in ['division', 'split', 'lifted']:
+            for x_obs in [cas.DM.ones((3, 1)), 5. * np.random.rand(3, 1)]:
+                self.test_calculated_biot_savart_induction_satisfies_residual_at_specific_point_and_assembly(x_obs=x_obs,
+                                                                             biot_savart_residual_assembly=biot_savart_residual_assembly,
+                                                                             epsilon=epsilon)
+        return None
 
-    def test_basic_criteria(self, expected_object_type='element'):
+
+    def test_calculated_biot_savart_induction_satisfies_residual_at_specific_point_and_assembly(self, x_obs=cas.DM.ones((3, 1)), biot_savart_residual_assembly='lifted', epsilon=1.e-6):
+        self.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+        biot_savart_residual_fun = self.biot_savart_residual_fun
+
+        packed_info = self.pack_info()
+        value, num, den = self.calculate_biot_savart_induction(self.info_dict, x_obs)
+
+        if biot_savart_residual_assembly == 'lifted':
+            residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
+        else:
+            residual = biot_savart_residual_fun(packed_info, x_obs, value)
+
+        condition = cas.mtimes(residual.T, residual) < epsilon**2.
+
+        if not condition:
+            message = 'biot-savart residual function does not work as expected for element of type ('
+            message += self.__element_type
+            message += ') and biot_savart_residual_assembly ('
+            message += biot_savart_residual_assembly + ')'
+            print_op.log_and_raise_error(message)
+
+        return None
+
+    def test_basic_criteria(self, expected_object_type='element', epsilon=1.e-6):
         self.test_object_type(expected_object_type)
         self.test_info_length()
         return None
@@ -369,7 +417,6 @@ class Element:
             print_op.log_and_raise_error(message)
 
         return None
-
 
     def test_draw(self, test_includes_visualization=False):
 

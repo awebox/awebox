@@ -152,6 +152,8 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
 
 def append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period):
 
+    biot_savart_residual_assembly = options['model']['aero']['vortex']['biot_savart_residual_assembly']
+
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     wu_ind_scale = u_ref * a_ref
@@ -176,18 +178,30 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
                     kite_obs_index = architecture.kite_nodes.index(kite_obs)
 
                     if wake_type == 'bound':
-                        scaling = get_induced_velocity_scaling_for_bound_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        value, num, den = get_induced_velocity_scaling_for_bound_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     elif wake_type == 'far':
-                        scaling = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        value, num, den = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     elif wake_type == 'near':
-                        scaling = get_induced_velocity_scaling_for_near_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        value, num, den = get_induced_velocity_scaling_for_near_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
                     else:
                         message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
                         print_op.log_and_raise_error(message)
 
-
+                    value = vect_op.smooth_norm(value) * cas.DM.ones((3, 1))
                     options_tree.append(
-                        ('model', 'scaling', 'z', var_name, scaling, ('descript', None), 'x'))
+                        ('model', 'scaling', 'z', var_name, value, ('descript', None), 'x'))
+
+                    if biot_savart_residual_assembly == 'lifted':
+
+                        num = vect_op.smooth_norm(num) * cas.DM.ones((3, 1))
+                        num_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                        options_tree.append(
+                            ('model', 'scaling', 'z', num_name, num, ('descript', None), 'x'))
+
+                        den = vect_op.smooth_abs(den)
+                        den_name = vortex_tools.get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
+                        options_tree.append(
+                            ('model', 'scaling', 'z', den_name, den, ('descript', None), 'x'))
 
     return options_tree
 
@@ -196,47 +210,45 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
 
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(model_options, geometry=geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
 
-    if kite_obs_index == kite_shed_index:
+    x_kite_obs = properties_ref['x_kite_obs']
 
+    ehat_1 = properties_ref['ehat_1']
+
+    r_core = properties_ref['r_core']
+    strength = properties_ref['filament_strength']
+
+    x_int_shed = properties_ref['x_int_shed']
+    x_ext_shed = properties_ref['x_ext_shed']
+
+    # offset = r_core
+    offset = cas.DM(0.)
+
+    x_start = x_int_shed + offset * ehat_1
+    x_end = x_ext_shed + offset * ehat_1
+
+    info_dict = {'x_start': x_start,
+                 'x_end': x_end,
+                 'r_core': r_core,
+                 'strength': strength}
+
+    fil = finite_filament.FiniteFilament(info_dict)
+    fil.define_biot_savart_induction_function()
+
+    x_obs = x_kite_obs
+    value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
+
+    if kite_obs_index == kite_shed_index:
         u_ref = properties_ref['u_ref']
         a_ref = model_options['aero']['actuator']['a_ref']
         u_ind = u_ref * (1. - a_ref)
 
         bound_induction_scaling_factor = model_options['aero']['vortex']['bound_induction_scaling_factor']
         u_ind *= bound_induction_scaling_factor
-        return u_ind
 
-    else:
+        value = cas.DM.ones((3, 1)) * u_ind
+        num = value * den
 
-        x_kite_obs = properties_ref['x_kite_obs']
-
-        ehat_1 = properties_ref['ehat_1']
-
-        r_core = properties_ref['r_core']
-        strength = properties_ref['filament_strength']
-
-        x_int_shed = properties_ref['x_int_shed']
-        x_ext_shed = properties_ref['x_ext_shed']
-
-        # offset = r_core
-        offset = cas.DM(0.)
-
-        x_start = x_int_shed + offset * ehat_1
-        x_end = x_ext_shed + offset * ehat_1
-
-        info_dict = {'x_start': x_start,
-                     'x_end': x_end,
-                     'r_core': r_core,
-                     'strength': strength}
-
-        fil = finite_filament.FiniteFilament(info_dict)
-        fil.define_biot_savart_induction_function()
-
-        x_obs = x_kite_obs
-        vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
-        u_ind = vect_op.norm(vec_u_ind)
-
-        return u_ind
+    return value, num, den
 
 
 def get_induced_velocity_scaling_for_far_filament(model_options, geometry, element_number=0, kite_obs_index=0, kite_shed_index=0, inputs={}):
@@ -280,10 +292,9 @@ def get_induced_velocity_scaling_for_far_filament(model_options, geometry, eleme
     fil.define_biot_savart_induction_function()
 
     x_obs = x_kite_obs
-    vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
-    u_ind = vect_op.norm(vec_u_ind)
+    value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
+    return value, num, den
 
-    return u_ind
 
 def get_induced_velocity_scaling_for_near_filament(model_options, geometry, element_number=0, kite_obs_index=0, kite_shed_index=0, inputs={}):
 
@@ -343,7 +354,7 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
         x_end = center_convected_since_one_step_before_that + radius_ext * r_hat_one_step_before_that
 
     else:
-        message = 'unexpected_position_in_horseshoe found, while setting up near-wake induced velocity scaling'
+        message = 'unexpected_position_in_horseshoe found (' + position_in_horseshoe + '), while setting up near-wake induced velocity scaling'
         print_op.warn_about_temporary_functionality_alteration(message)
 
     info_dict = {'x_start': x_start,
@@ -355,7 +366,5 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
     fil.define_biot_savart_induction_function()
 
     x_obs = x_kite_obs
-    vec_u_ind, _, _ = fil.calculate_biot_savart_induction(info_dict, x_obs)
-    u_ind = vect_op.norm(vec_u_ind)
-
-    return u_ind
+    value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
+    return value, num, den

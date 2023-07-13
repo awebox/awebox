@@ -704,10 +704,11 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
 
 
-def test(test_includes_visualization=False):
+def test(test_includes_visualization=False, epsilon=1.e-6):
 
     cyl_regularized = construct_test_object(regularized=True)
     cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_right_cylinder')
+    cyl_regularized.test_calculated_biot_savart_induction_satisfies_residual(epsilon=epsilon)
 
     cyl_unregularized = construct_test_object(regularized=False)
     cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_longitudinal_right_cylinder')

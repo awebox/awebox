@@ -294,6 +294,9 @@ def lower_triangular_inclusive(matrix):
 
 def columnize(matrix):
 
+    if is_scalar(matrix):
+        return matrix
+
     if not hasattr(matrix, 'shape'):
         message = 'the columnize function is not yet available for objects that do not have a shape attribute'
         print_op.log_and_raise_error(message)
@@ -836,13 +839,19 @@ def is_numeric(val):
 def is_numeric_columnar(val):
     return is_numeric(val) and (cas.DM(val).shape[1] == 1)
 
-def is_numeric_scalar(val):
+def is_scalar(val):
     if isinstance(val, float):
         return True
-    elif is_numeric(val) and hasattr(val, 'shape') and val.shape == (1, 1):
+    elif hasattr(val, 'len') and len(val) == 1:
+        return True
+    elif hasattr(val, 'shape') and val.shape == (1, 1):
         return True
     else:
         return False
+
+
+def is_numeric_scalar(val):
+    return is_scalar(val) and is_numeric(val)
 
 
 def is_strictly_increasing(array):

@@ -345,7 +345,7 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.representation'] = 'alg'
     # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'split'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
 
     # vortex_options['solver.weights.vortex'] = 1e-3
     # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
@@ -489,7 +489,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_comparison()
 # test_vortex_force_zero_basic_health() #final_homotopy_step='initial_guess')
 # test_vortex_force_zero()
-test_vortex_basic_health(final_homotopy_step='induction')
+test_vortex_basic_health() #final_homotopy_step='initial_guess')
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

@@ -196,7 +196,7 @@ class SemiInfiniteTangentialRightCylinder(obj_semi_infinite_right_cylinder.SemiI
 
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
 
-        x_center = np.reshape(unpacked['x_center'], (3, 1))
+        x_center = unpacked['x_center']
         l_hat = unpacked['l_hat']
         r_cyl = unpacked['radius']
         l_start = unpacked['l_start']
@@ -835,10 +835,11 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
 ####### concatenate tests
 
-def test(test_includes_visualization=False):
+def test(test_includes_visualization=False, epsilon=1.e-6):
 
     cyl_regularized = construct_test_object(regularized=True)
     cyl_regularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_right_cylinder')
+    cyl_regularized.test_calculated_biot_savart_induction_satisfies_residual(epsilon=epsilon)
 
     cyl_unregularized = construct_test_object(regularized=False)
     cyl_unregularized.test_basic_criteria(expected_object_type='semi_infinite_tangential_right_cylinder')

@@ -105,25 +105,6 @@ class FiniteFilament(obj_element.Element):
         return value, num, den
 
 
-    def construct_biot_savart_reference_object(self, model_options, parameters, wind, inputs={}):
-
-        properties = vortex_tools.get_biot_savart_reference_object_properties(model_options, parameters=parameters, inputs=inputs)
-
-        x_kite_obs = properties['x_kite_obs']
-
-        x_start = properties['x_ext_shed']
-        x_end = x_start + properties['near_wake_unit_length'] * properties['l_hat']
-        r_core = properties['r_core']
-        strength = properties['filament_strength']
-
-        unpacked_ref = {'x_start': x_start,
-                        'x_end': x_end,
-                        'r_core': r_core,
-                        'strength': strength}
-
-        return unpacked_ref, x_kite_obs
-
-
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
 
@@ -276,12 +257,13 @@ def test_biot_savart_off_axis_values(fil, epsilon=1.e-4):
         message = 'vortex finite filament: computation gives unreasonable values at off-axis position'
         print_op.log_and_raise_error(message)
 
-def test(test_includes_visualization=False):
+def test(test_includes_visualization=False, epsilon=1.e-6):
 
     fil = construct_test_object(r_core=0.)
-    fil.test_basic_criteria(expected_object_type='finite_filament')
 
-    epsilon = 1.e-6
+    fil.test_basic_criteria(expected_object_type='finite_filament')
+    fil.test_calculated_biot_savart_induction_satisfies_residual(epsilon=epsilon)
+
     test_biot_savart_infinitely_far_away(fil, epsilon)
     test_biot_savart_right_hand_rule(fil, epsilon)
     test_biot_savart_2D_behavior(fil, epsilon=1.e-3)

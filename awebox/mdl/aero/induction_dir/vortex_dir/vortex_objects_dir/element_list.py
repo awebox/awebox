@@ -163,8 +163,12 @@ class ElementList:
         number_symbolics = self.__expected_element_info_length + 3
         return number_symbolics
 
-    def get_number_of_symbolics_for_concatenated_biot_savart_residual(self):
+    def get_number_of_symbolics_for_concatenated_biot_savart_residual(self, biot_savart_residual_assembly='split'):
         number_symbolics = self.__expected_element_info_length + 6
+
+        if biot_savart_residual_assembly == 'lifted':
+            number_symbolics += 4
+
         return number_symbolics
 
     def get_element_info_from_concatenated_inputs(self, concatenated):
@@ -181,15 +185,37 @@ class ElementList:
 
         return obs_info
 
-    def get_velocity_info_from_concatenated_inputs(self, concatenated):
+    def get_velocity_info_from_concatenated_inputs(self, concatenated, biot_savart_residual_assembly='split'):
         info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
-        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual():
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly):
             obs_info = concatenated[self.__expected_element_info_length+3:self.__expected_element_info_length+6]
         else:
             message = 'trying to pull velocity info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
             print_op.log_and_raise_error(message)
 
         return obs_info
+
+    def get_velocity_numerator_info_from_concatenated_inputs(self, concatenated, biot_savart_residual_assembly='split'):
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly):
+            obs_info = concatenated[self.__expected_element_info_length+6:self.__expected_element_info_length+9]
+        else:
+            message = 'trying to pull numerator info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
+            print_op.log_and_raise_error(message)
+
+        return obs_info
+
+
+    def get_velocity_denominator_info_from_concatenated_inputs(self, concatenated, biot_savart_residual_assembly='split'):
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly):
+            obs_info = concatenated[self.__expected_element_info_length+9:self.__expected_element_info_length+10]
+        else:
+            message = 'trying to pull denominator info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
+            print_op.log_and_raise_error(message)
+
+        return obs_info
+
 
     def get_decolumnized_list_concatenated_with_observer_info(self, x_obs=cas.DM.zeros(3, 1)):
         decolumnized_list = self.get_decolumnized_info_list()
@@ -222,6 +248,33 @@ class ElementList:
 
         return concatenated_list
 
+    def get_concatenated_list_concatenated_with_numerator_and_denominator_info(self, concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list):
+
+        entry_dim = self.dimension_of_the_concatenated_list_that_stores_entries()
+        info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
+
+        num_list_has_the_same_number_of_entries = (concatenated_list.shape[entry_dim] == vec_u_ind_num_list.shape[entry_dim])
+        den_list_has_the_same_number_of_entries = (
+                    concatenated_list.shape[entry_dim] == vec_u_ind_den_list.shape[entry_dim])
+
+        biot_savart_numerators_is_given_in_three_dimensions = (vec_u_ind_num_list.shape[info_dim] == 3)
+        biot_savart_denominators_is_given_in_one_dimension = (vec_u_ind_den_list.shape[info_dim] == 1)
+
+        if num_list_has_the_same_number_of_entries and biot_savart_numerators_is_given_in_three_dimensions:
+            concatenated_list = cas.vertcat(concatenated_list, vec_u_ind_num_list)
+        else:
+            message = 'unable to concatenate vec_u_ind_num_list onto a concatenated list, due to a dimension error. maybe check that the numerator list has the individual entry velocities stored in columns?'
+            print_op.log_and_raise_error(message)
+
+        if den_list_has_the_same_number_of_entries and biot_savart_denominators_is_given_in_one_dimension:
+            concatenated_list = cas.vertcat(concatenated_list, vec_u_ind_den_list)
+        else:
+            message = 'unable to concatenate vec_u_ind_den_list onto a concatenated list, due to a dimension error.'
+            print_op.log_and_raise_error(message)
+
+        return concatenated_list
+
+
     def define_model_variables_to_info_function(self, model_variables, model_parameters):
         for elem in self.__list:
             if elem.info_fun is not None:
@@ -251,7 +304,7 @@ class ElementList:
         return None
 
 
-    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split_num'):
+    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split'):
         elem = self.get_example_element()
 
         if elem.biot_savart_residual_fun is None:
@@ -260,13 +313,20 @@ class ElementList:
         biot_savart_residual_fun = elem.biot_savart_residual_fun
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
 
-        number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart_residual()
+        number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly)
         concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
         elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
         x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
         vec_u_ind = self.get_velocity_info_from_concatenated_inputs(concatenated_sym)
 
-        biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind)
+        if biot_savart_residual_assembly == 'lifted':
+            vec_u_ind_num = self.get_velocity_numerator_info_from_concatenated_inputs(concatenated_sym, biot_savart_residual_assembly)
+            vec_u_ind_den = self.get_velocity_denominator_info_from_concatenated_inputs(concatenated_sym, biot_savart_residual_assembly)
+
+            biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind, vec_u_ind_num, vec_u_ind_den)
+
+        else:
+            biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind)
 
         concatenated_biot_savart_residual_fun = cas.Function('concatenated_biot_savart_residual_fun', [concatenated_sym], [biot_savart_residual_output])
         self.set_concatenated_biot_savart_residual_fun(concatenated_biot_savart_residual_fun)
@@ -306,7 +366,7 @@ class ElementList:
         u_ind = cas.sum2(all)
         return u_ind
 
-    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, biot_savart_residual_assembly='split_num'):
+    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, vec_u_ind_num_list=None, vec_u_ind_den_list=None, biot_savart_residual_assembly='split'):
 
         if self.concatenated_biot_savart_residual_fun is None:
             self.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
@@ -314,6 +374,9 @@ class ElementList:
         concatenated_biot_savart_residual_fun = self.__concatenated_biot_savart_residual_fun
         concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
         concatenated_list = self.get_concatenated_list_concatenated_with_velocity_info(concatenated_list, vec_u_ind_list)
+
+        if biot_savart_residual_assembly == 'lifted':
+            concatenated_list = self.get_concatenated_list_concatenated_with_numerator_and_denominator_info(concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list)
 
         number_of_elements = self.number_of_elements
         concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'openmp')

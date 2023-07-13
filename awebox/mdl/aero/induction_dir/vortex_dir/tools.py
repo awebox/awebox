@@ -139,6 +139,7 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
 
     # induced velocity part: the part that depends on the wake types and wake structure
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(model_options, architecture)
+    biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
 
     for kite_obs in architecture.kite_nodes:
         var_name = get_induced_velocity_at_kite_name(kite_obs)
@@ -149,6 +150,13 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
                 for element_number in range(expected_number):
                     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
                     system_lifted.extend([(var_name, (3, 1))])
+
+                    if biot_savart_residual_assembly == 'lifted':
+                        var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                        system_lifted.extend([(var_name, (3, 1))])
+
+                        var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
+                        system_lifted.extend([(var_name, (1, 1))])
 
     return system_lifted, system_states
 
@@ -454,6 +462,14 @@ def get_element_induced_velocity_si(variables, wake_type, element_type, element_
     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
     return get_variable_si(variables, 'z', var_name, scaling)
 
+def get_element_induced_velocity_numerator_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
+    var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+    return get_variable_si(variables, 'z', var_name, scaling)
+
+def get_element_induced_velocity_denominator_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
+    var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
+    return get_variable_si(variables, 'z', var_name, scaling)
+
 def get_induced_velocity_at_kite_si(variables, kite_obs, scaling=None):
     var_name = get_induced_velocity_at_kite_name(kite_obs)
     return get_variable_si(variables, 'z', var_name, scaling)
@@ -520,6 +536,15 @@ def get_wake_node_position_name(kite_shed, tip, wake_node):
 
 def get_vortex_ring_strength_name(kite_shed, ring):
     var_name = 'wg_' + str(kite_shed) + '_' + str(ring)
+    return var_name
+
+
+def get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs):
+    var_name = 'wu_' + wake_type + '_' + element_type + '_' + str(element_number) + '_' + str(kite_obs) + '_num'
+    return var_name
+
+def get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs):
+    var_name = 'wu_' + wake_type + '_' + element_type + '_' + str(element_number) + '_' + str(kite_obs) + '_den'
     return var_name
 
 def get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs):
