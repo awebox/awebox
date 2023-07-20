@@ -305,9 +305,10 @@ def is_matrix_full_rank(matrix, health_solver_options, tol=None):
 
 
 def identify_largest_jacobian_entry(cstr_jacobian_eval, health_solver_options, cstr_labels, nlp):
-    message = '... largest absolute jacobian entry occurs at: '
+    max_abs_val = np.amax(np.absolute(cstr_jacobian_eval))
+    message = "... largest absolute jacobian entry ({:0.4G}) occurs at:".format(max_abs_val)
     awelogger.logger.info(message)
-    max_cdx = np.where(np.absolute(cstr_jacobian_eval) == np.amax(np.absolute(cstr_jacobian_eval)))[0][0]
+    max_cdx = np.where(np.absolute(cstr_jacobian_eval) == max_abs_val)[0][0]
     print_cstr_info(cstr_jacobian_eval, cstr_labels, max_cdx, nlp)
     return None
 

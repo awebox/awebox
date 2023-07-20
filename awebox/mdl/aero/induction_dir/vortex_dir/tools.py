@@ -314,24 +314,28 @@ def get_biot_savart_reference_object_properties(model_options, kite_obs_index=0,
 
 def compute_biot_savart_reference_object_inputs(model_options, parameters=None, geometry=None, inputs={}):
 
-    for local_name in ['b_ref', 'c_ref']:
-        if (parameters is not None):
-            inputs[local_name] = parameters['theta0', 'geometry', local_name]
-        elif (geometry is not None):
-            inputs[local_name] = geometry[local_name]
-        else:
-            message = 'geometry is underdefined. cannot create biot-savart reference object'
-            print_op.log_and_raise_error(message)
+    print_op.warn_about_temporary_functionality_alteration()
+    inputs['b_ref'] = 5.5
+    inputs['c_ref'] = 5.5/10.
+    inputs['u_ref'] = 5.
+    # for local_name in ['b_ref', 'c_ref']:
+    #     if (parameters is not None):
+    #         inputs[local_name] = parameters['theta0', 'geometry', local_name]
+    #     elif (geometry is not None):
+    #         inputs[local_name] = geometry[local_name]
+    #     else:
+    #         message = 'geometry is underdefined. cannot create biot-savart reference object'
+    #         print_op.log_and_raise_error(message)
 
-    for local_name in ['u_ref']:
-        in_inputs = local_name in inputs.keys()
-        if in_inputs and (parameters is None):
-            pass
-        elif (not in_inputs) and (parameters is not None):
-            inputs[local_name] = parameters['theta0', 'wind', local_name]
-        else:
-            message = 'no ' + local_name + ' information available for biot-savart reference object'
-            print_op.log_and_raise_error(message)
+    # for local_name in ['u_ref']:
+    #     in_inputs = local_name in inputs.keys()
+    #     if in_inputs and (parameters is None):
+    #         pass
+    #     elif (not in_inputs) and (parameters is not None):
+    #         inputs[local_name] = parameters['theta0', 'wind', local_name]
+    #     else:
+    #         message = 'no ' + local_name + ' information available for biot-savart reference object'
+    #         print_op.log_and_raise_error(message)
 
     for local_name in ['filament_strength_ref', 'varrho_ref',  'core_to_chord_ratio', 'wake_nodes', 'number_of_kites', 'winding_period', 'shedding_delta_time']:
         in_vortex_options = local_name in model_options['aero']['vortex'].keys()

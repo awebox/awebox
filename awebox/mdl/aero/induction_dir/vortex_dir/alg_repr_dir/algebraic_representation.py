@@ -78,8 +78,8 @@ def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_g
     return alg_fixing.get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
 
 
-def get_initialization(nlp_options, V_init, p_fix_num, nlp, model):
-    return alg_initialization.get_initialization(nlp_options, V_init, p_fix_num, nlp, model)
+def get_initialization(nlp_options, V_init_si, p_fix_num, nlp, model):
+    return alg_initialization.get_initialization(nlp_options, V_init_si, p_fix_num, nlp, model)
 
 
 def test_drawing(test_includes_visualization):

@@ -398,6 +398,16 @@ def print_dot_separated_info(name, value, level='info'):
     return None
 
 
+def repr_g(value):
+    if isinstance(value, int) or isinstance(value, float):
+        message = "{:0.4G}".format(value)
+        return message
+    elif isinstance(value, cas.DM) and value.shape == (1, 1):
+        return repr_g(float(value))
+    else:
+        return repr(value)
+
+
 def print_progress(index, total_count):
     # warning: this does NOT log the progress, it only displays the progress, on-screen
     progress_width = 20

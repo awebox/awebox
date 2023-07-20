@@ -341,19 +341,120 @@ def generate_options_dict():
     vortex_options = copy.deepcopy(single_kite_6_dof_options)
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
-    vortex_options['model.aero.vortex.wake_nodes'] = 2
+    vortex_options['model.aero.vortex.far_wake_element_type'] = 'not_in_use'
+    vortex_options['model.aero.vortex.wake_nodes'] = 1 ###### rela!!!!!!
     vortex_options['model.aero.vortex.representation'] = 'alg'
-    # vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
+    vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'lifted'
 
     # vortex_options['solver.weights.vortex'] = 1e-3
     # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
-    vortex_options['solver.weights.vortex'] = 1e-3
+    # vortex_options['solver.weights.vortex'] = 1e-3
+    vortex_options['solver.cost.iota.1'] = 1.e3
+
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
-    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e2  #1. #1.e3 #4
-    vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
-    vortex_options['model.scaling.other.position'] = 'altitude_and_radius'
+
+    vortex_options['model.scaling.other.position'] = 'radius'  #'altitude_and_radius'
+    vortex_options['model.aero.vortex.position_scaling_method'] = 'q10'  #'convection'
+    vortex_options['model.aero.vortex.bound_induction_offset'] = 'r_core' # 'r_core'
+    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e1  #1. #1.e3 #4
+    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 5.5 * 1./10. # 2. * b_ref * 1/AR
+    # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
+
+
+    # with autoscaling but lifted
+    # c_ref and bisf = 1e1 and posi = convection
+    # initial
+    # INFO:	kkt: condition............: 1.613E+52
+    # INFO:	kkt: min_red_hessian_eig..: -1.193E+20
+    # with radius and bisf = 1e1 and posi = convection
+    # initial
+    # INFO: kkt: condition............: 3.344E+17
+    # INFO: kkt: min_red_hessian_eig..: -4.745E-18
+    # with c_ref and bisf = 1e1 and posi = radius
+    # initial
+    # INFO: kkt: condition............: 2.278E+22
+    # INFO: kkt: min_red_hessian_eig..: -0.14
+    # same, after adding jacobian scaling to the induction cstr
+    # with c_ref and bisf = 1e1 and posi = radius
+    # INFO:	kkt: condition............: 5.587E+23
+    # INFO:	kkt: min_red_hessian_eig..: -0.001645
+    # with b_ref and above
+    # INFO:	shooting_0_induction_1_selected_25 -> {'[phi,iota,0]': '1.28e+07', '[z,0,ui1,1]': '1.00e+00'}
+
+
+    # with autoscaling
+    # bisf = 1e1, sci1 = 1e3:
+    # induction
+    # INFO: kkt: condition............: 9.576E+10
+    # INFO: kkt: min_red_hessian_eig..: 0.0001118
+    # bisf = 1e2, sci1 = 1e2:
+    # induction
+    # INFO:	kkt: condition............: 9.257E+10
+    # INFO:	kkt: min_red_hessian_eig..: 0.0004198
+    # bisf = 1e2, sci1 = 1e3:
+    # induction
+    # INFO: kkt: condition............: 9.257E+10
+    # INFO: kkt: min_red_hessian_eig..: 0.0004198
+    # bisf = 1e3, sci1 = 1e3:
+    # induction
+    # INFO:	kkt: condition............: 9.303E+10
+    # INFO:	kkt: min_red_hessian_eig..: 0.0004198
+    # bisf = 1e-3, sci1 = 1e3:
+    # initial
+    # INFO: kkt: condition............: 2.402E+17
+    # INFO: kkt: min_red_hessian_eig..: -0.0007371
+    # bisf = 1e-1, sci1 = 1e3:
+    # initial
+    # INFO:	kkt: condition............: 2.492E+11
+    # INFO:	kkt: min_red_hessian_eig..: 7.266E-14
+
+
+
+
+    # r_core and 1e0 and sci1 = 1e3
+    # initial problem
+    # INFO:	kkt: condition............: 3.037E+09
+    # INFO:	kkt: min_red_hessian_eig..: 4.109E-11
+    # r_core and 1e1:
+    # induction problem
+    # INFO: kkt: condition............: 9.576E+10
+    # INFO: kkt: min_red_hessian_eig..: 0.0001118
+    # r_core and 1e2:
+    # induction problem
+    # INFO: kkt: condition............: 9.257E+10
+    # INFO: kkt: min_red_hessian_eig..: 0.0004198
+    # r_core and 1e3:
+    # induction
+    # INFO:	kkt: condition............: 9.303E+10
+    # INFO:	kkt: min_red_hessian_eig..: 0.0004198
+
+    # c_ref and 1e0:
+    # initial
+    # INFO:	kkt: condition............: 3.037E+09
+    # INFO:	kkt: min_red_hessian_eig..: 4.109E-11
+    # c_ref and 1e1:
+    # c_ref and 1e2:
+    # c_ref and 1e3:
+    # c_ref and 1e4:
+    # c_ref and 1e5:
+    # c_ref and 1e6:
+
+    # b_ref and 1e-4:   20  6.2333673e+00 1.58e-03 5.48e+05   0.0 3.09e-03   8.0 1.00e+00 1.25e-01h  4
+    # b_ref and 1e-3:   20  2.6606881e+01 1.04e+07 1.73e+08   0.0 2.42e+03   0.7 1.26e-01 6.13e-02h  1
+    # b_ref and 1e-2:   20  2.9217618e+01 9.74e+05 5.03e+06   0.0 2.49e+01   0.7 2.42e-01 1.37e-01h  1
+    # b_ref and 1e-1:   20  2.9042874e+01 1.09e+06 3.99e+04   0.0 1.53e+01   0.7 7.10e-02 1.96e-02h  1
+    # b_ref and 1e0:    20  2.9331758e+01 1.12e+06 1.48e+07   0.0 1.59e+01   0.7 2.07e-02 3.11e-02h  1
+    # b_ref and 1e1:    20  1.7697824e+01 5.24e+06 1.04e+06   0.0 3.96e+01   0.7 3.48e-02 3.07e-02h  1
+    # b_ref and 1e2:    20  1.8079881e+01 9.00e+06 9.84e+05   0.0 2.96e+01   4.3 6.22e-03 9.05e-04h  1
+    # b_ref and 1e3:    20  9.0432345e+00 8.05e-01 1.37e+15   0.0 3.73e-03  17.6 1.00e+00 1.00e+00h  1
+    # b_ref and 1e4:
+
+    # radius and 1e-1:  20  9.9519810e+00 9.57e-02 8.86e+06   0.0 7.15e-02   8.1 1.00e+00 1.00e+00s 20
+    # radius and 1e0:   20  2.3940702e+00 8.61e-01 1.12e+10   0.0 1.74e+01   0.9 2.74e-01 2.51e-03h  7
+    # radius and 1e1:   20  5.0841356e+00 2.13e+03 8.12e+03   0.0 8.40e+01   0.5 4.00e-01 4.55e-01h  1
+    # radius and 1e2:   20  7.7791125e+00 6.61e+01 1.37e+11   0.0 2.36e+00  10.8 1.00e+00 1.00e+00h  1
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 

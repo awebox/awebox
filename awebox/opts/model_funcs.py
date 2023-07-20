@@ -233,11 +233,11 @@ def get_position_scaling(options, architecture):
 
     position_scaling_method = options['model']['scaling']['other']['position']
     if position_scaling_method == 'radius':
-        q_scaling = flight_radius
+        q_scaling = flight_radius * cas.DM.ones((3, 1))
     elif position_scaling_method == 'altitude':
-        q_scaling = position[2]
+        q_scaling = position[2] * cas.DM.ones((3, 1))
     elif position_scaling_method == 'b_ref':
-        q_scaling = b_ref
+        q_scaling = b_ref * cas.DM.ones((3, 1))
     elif ('radius' in position_scaling_method) and ('altitude' in position_scaling_method):
         q_scaling = cas.vertcat(position[0], flight_radius, position[2])
     else:

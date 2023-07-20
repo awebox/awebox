@@ -46,12 +46,12 @@ from awebox.logger.logger import Logger as awelogger
 
 ################# define the actual constraint
 
-def get_initialization(init_options, V_init, p_fix_num, nlp, model):
+def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
     time_grids = nlp.time_grids
 
-    V_init_si = copy.deepcopy(V_init)
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
+    V_init_si_temp = copy.deepcopy(V_init_si)
+    V_init_scaled = struct_op.si_to_scaled(V_init_si_temp, model.scaling)
 
     Outputs_init = nlp.Outputs_struct(nlp.Outputs_structured_fun(V_init_scaled, p_fix_num))
 
@@ -78,12 +78,12 @@ def get_initialization(init_options, V_init, p_fix_num, nlp, model):
 def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
     for ndx in range(nlp.n_k):
         for ddx in range(nlp.d):
-            V_init_si = append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model, ndx, ddx)
+            V_init_si = append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, model, ndx, ddx)
 
     return V_init_si
 
 
-def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model, ndx, ddx):
+def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, model, ndx, ddx):
 
     wake = model.wake
     architecture = model.architecture
@@ -126,7 +126,7 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model,
                     value_eval = value_fun(variables_scaled, parameters)
                     V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
 
-                    if (ddx is None) and ('z' in list(V_init_si.keys())):
+                    if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
                         V_init_si['z', ndx-1, u_ind_elem_name] = value_eval
 
                     if use_lifted_biot_savart_residual_assembly:
@@ -148,7 +148,7 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model,
                         V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
                         V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
 
-                        if (ddx is None) and ('z' in list(V_init_si.keys())):
+                        if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
                             V_init_si['z', ndx - 1, u_ind_num_elem_name] = num_eval
                             V_init_si['z', ndx - 1, u_ind_den_elem_name] = den_eval
 
@@ -162,7 +162,7 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, model,
         u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_u_ind
 
-        if (ddx is None) and ('z' in list(V_init_si.keys())):
+        if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
             V_init_si['z', ndx - 1, u_ind_name] = total_u_ind
 
     return V_init_si

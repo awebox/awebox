@@ -47,17 +47,17 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 import pdb
 
-def initial_guess_induction(init_options, nlp, model, V_init, p_fix_num):
+def initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num):
 
-    V_init = initial_guess_general(model, V_init)
+    V_init_si = initial_guess_general(model, V_init_si)
 
     if actuator.model_is_included_in_comparison(init_options):
-        V_init = initial_guess_actuator(init_options, nlp, model, V_init)
+        V_init_si = initial_guess_actuator(init_options, nlp, model, V_init_si)
 
     if vortex.model_is_included_in_comparison(init_options):
-        V_init = initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num)
+        V_init_si = initial_guess_vortex(init_options, nlp, model, V_init_si, p_fix_num)
 
-    return V_init
+    return V_init_si
 
 
 def initial_guess_general(model, V_init):
@@ -74,15 +74,15 @@ def initial_guess_general(model, V_init):
     return V_init
 
 
-def initial_guess_vortex(init_options, nlp, model, V_init, p_fix_num):
+def initial_guess_vortex(init_options, nlp, model, V_init_si, p_fix_num):
 
     if not nlp.discretization == 'direct_collocation':
         message = 'vortex induction model is only defined for direct-collocation model, at this point'
         print_op.log_and_raise_error(message)
 
-    V_init = vortex.get_initialization(init_options, V_init, p_fix_num, nlp, model)
+    V_init_si = vortex.get_initialization(init_options, V_init_si, p_fix_num, nlp, model)
 
-    return V_init
+    return V_init_si
 
 
 def initial_guess_actuator(init_options, nlp, model, V_init):

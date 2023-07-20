@@ -178,8 +178,13 @@ class Element:
     def calculate_biot_savart_induction(self, unpacked_sym, x_obs):
         message = 'cannot calculate the biot savart induction for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
         print_op.log_and_raise_error(message)
-
         return None
+
+    def calculate_biot_savart_induction_scaling(self, q_scaling):
+        message = 'cannot calculate the biot savart scaling for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
+        print_op.log_and_raise_error(message)
+        return None
+
 
     def define_biot_savart_induction_function(self):
         expected_info_length = self.expected_info_length
@@ -216,16 +221,16 @@ class Element:
 
         elif biot_savart_residual_assembly == 'lifted':
 
-            vec_u_ind_num = cas.SX.sym('vec_u_ind_num', (3, 1))
-            vec_u_ind_den = cas.SX.sym('vec_u_ind_den', (1, 1))
+            num_sym = cas.SX.sym('vec_u_ind_num', (3, 1))
+            den_sym = cas.SX.sym('vec_u_ind_den', (1, 1))
 
-            resi_value = vec_u_ind * vec_u_ind_den - vec_u_ind_num
-            resi_num = vec_u_ind_num - num
-            resi_den = vec_u_ind_den - den
+            resi_value = vec_u_ind * den_sym - num_sym
+            resi_num = num_sym - num
+            resi_den = den_sym - den
 
             resi = cas.vertcat(resi_value, resi_num, resi_den)
 
-            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind, vec_u_ind_num, vec_u_ind_den], [resi])
+            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind, num_sym, den_sym], [resi])
 
         else:
             message = 'unexpected biot-savart-residual assembly instructions (' + biot_savart_residual_assembly + ')'

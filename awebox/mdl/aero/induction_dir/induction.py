@@ -59,7 +59,7 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
         cstr_list.append(ellipse_half_cstr)
 
     else:
-        induction_cstr = get_induction_cstr(model_options, wind, variables_si, parameters, architecture, scaling)
+        induction_cstr = get_induction_cstr(model_options, wind, system_variables, parameters, architecture, scaling)
         cstr_list.append(induction_cstr)
 
         if actuator.model_is_included_in_comparison(model_options):
@@ -68,12 +68,15 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
             cstr_list.append(actuator_cstr)
 
         if vortex.model_is_included_in_comparison(model_options):
-            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, architecture)
+            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling)
             cstr_list.append(vortex_cstr)
 
     return cstr_list
 
-def get_induction_cstr(options, wind, variables_si, parameters, architecture, scaling):
+def get_induction_cstr(options, wind, system_variables, parameters, architecture, scaling):
+
+    variables_si = system_variables['SI']
+    variables_scaled = system_variables['scaled']
 
     iota = parameters['phi', 'iota']
 
@@ -88,11 +91,21 @@ def get_induction_cstr(options, wind, variables_si, parameters, architecture, sc
         vec_u_ind_final = get_induced_velocity_at_kite_si(options, wind, variables_si, kite, architecture, parameters)
         resi_final = (vec_u_ind_var - vec_u_ind_final)
 
+        print_op.warn_about_temporary_functionality_alteration()
+        resi_final *= 1.e-3
+
         resi_homotopy = (iota * resi_trivial + (1. - iota) * resi_final)
 
-        resi_scaled = struct_op.var_si_to_scaled('z', 'ui' + str(kite), resi_homotopy, scaling)
+        # resi_scaled = []
+        # for dim in range(resi_homotopy.shape[0]):
+        #     local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(resi_homotopy[dim], variables_scaled,
+        #                                                                         parameters)
+        #     resi_scaled = cas.vertcat(resi_scaled, resi_homotopy[dim] / local_scale)
 
-        general_cstr = cstr_op.Constraint(expr=resi_scaled,
+        print_op.warn_about_temporary_functionality_alteration()
+        # resi_scaled = struct_op.var_si_to_scaled('z', 'ui' + str(kite), resi_homotopy, scaling)
+
+        general_cstr = cstr_op.Constraint(expr=resi_homotopy,
                                           name='induction_' + str(kite),
                                           cstr_type='eq')
         cstr_list.append(general_cstr)

@@ -168,7 +168,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     for cstr in cstr_list.get_list('eq'):
         outputs['model_equalities'][cstr.name] = cstr.expr
 
-
     # add other relevant outputs
     outputs = xdot_outputs(system_variables['SI'], outputs)
     outputs = power_balance_outputs(options, outputs, system_variables,

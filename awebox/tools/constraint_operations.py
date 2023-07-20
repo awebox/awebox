@@ -239,7 +239,6 @@ class ConstraintList:
         return passes
 
 
-
     def append_ineq(self, cstr):
         passes = self.check_completeness_newness_and_type_before_appending_individual_constraint(cstr, 'ineq')
         if passes:

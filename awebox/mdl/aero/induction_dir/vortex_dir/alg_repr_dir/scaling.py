@@ -220,8 +220,26 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     x_int_shed = properties_ref['x_int_shed']
     x_ext_shed = properties_ref['x_ext_shed']
 
-    # offset = r_core
-    offset = cas.DM(0.)
+    print_op.warn_about_temporary_functionality_alteration()
+    if kite_obs_index == kite_shed_index:
+
+        bound_induction_offset = model_options['aero']['vortex']['bound_induction_offset']
+        if bound_induction_offset == 'micro':
+            offset = 1.e-6
+        elif bound_induction_offset == 'r_core':
+            offset = properties_ref['r_core']
+        elif bound_induction_offset == 'c_ref':
+            offset = properties_ref['c_ref']
+        elif bound_induction_offset == 'b_ref':
+            offset = properties_ref['b_ref']
+        elif bound_induction_offset == 'radius':
+            offset = properties_ref['radius']
+        else:
+            message = 'unexpected bound_induction_offset option (' + bound_induction_offset + ')'
+            print_op.log_and_raise_error(message)
+
+    else:
+        offset = cas.DM(0.)
 
     x_start = x_int_shed + offset * ehat_1
     x_end = x_ext_shed + offset * ehat_1
@@ -237,15 +255,17 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     x_obs = x_kite_obs
     value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
 
+    print_op.warn_about_temporary_functionality_alteration()
     if kite_obs_index == kite_shed_index:
         u_ref = properties_ref['u_ref']
         a_ref = model_options['aero']['actuator']['a_ref']
-        u_ind = u_ref * (1. - a_ref)
 
         bound_induction_scaling_factor = model_options['aero']['vortex']['bound_induction_scaling_factor']
-        u_ind *= bound_induction_scaling_factor
+        value = bound_induction_scaling_factor * u_ref * (1. - a_ref) * vect_op.xhat_dm()
 
-        value = cas.DM.ones((3, 1)) * u_ind
+        print_op.warn_about_temporary_functionality_alteration()
+        den *= 1.e4
+
         num = value * den
 
     return value, num, den
