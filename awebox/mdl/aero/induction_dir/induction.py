@@ -73,7 +73,8 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
 
     return cstr_list
 
-def get_induction_cstr(options, wind, system_variables, parameters, architecture, scaling):
+
+def get_induction_cstr(model_options, wind, system_variables, parameters, architecture, scaling):
 
     variables_si = system_variables['SI']
     variables_scaled = system_variables['scaled']
@@ -88,11 +89,11 @@ def get_induction_cstr(options, wind, system_variables, parameters, architecture
         vec_u_ind_trivial = cas.DM.zeros((3, 1))
         resi_trivial = (vec_u_ind_var - vec_u_ind_trivial)
 
-        vec_u_ind_final = get_induced_velocity_at_kite_si(options, wind, variables_si, kite, architecture, parameters)
+        vec_u_ind_final = get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, architecture, parameters)
         resi_final = (vec_u_ind_var - vec_u_ind_final)
 
-        print_op.warn_about_temporary_functionality_alteration()
-        resi_final *= 1.e-3
+        final_resi_scaling = model_options['aero']['induction']['final_resi_scaling']
+        resi_final *= final_resi_scaling
 
         resi_homotopy = (iota * resi_trivial + (1. - iota) * resi_final)
 

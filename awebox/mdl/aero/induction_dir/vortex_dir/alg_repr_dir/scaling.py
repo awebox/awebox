@@ -264,7 +264,9 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
         value = bound_induction_scaling_factor * u_ref * (1. - a_ref) * vect_op.xhat_dm()
 
         print_op.warn_about_temporary_functionality_alteration()
-        den *= 1.e4
+
+        bound_induction_denominator_factor = model_options['aero']['vortex']['bound_induction_denominator_factor']
+        den *= bound_induction_denominator_factor
 
         num = value * den
 

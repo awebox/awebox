@@ -157,9 +157,7 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                 example_elem = element_list.get_example_element()
                 value_scaling, num_scaling, den_scaling = example_elem.calculate_biot_savart_induction_scaling(scaling['x', 'q10'])
 
-                scale = num_scaling * cas.DM.ones((3, 1))
-                if biot_savart_residual_assembly == 'lifted':
-                    scale = cas.vertcat(scale, scale, den_scaling)
+                constraint_scaling_extension = cas.vertcat(num_scaling * cas.DM.ones((6, 1)), den_scaling)
 
                 number_of_elements = element_list.number_of_elements
                 for element_number in range(number_of_elements):
@@ -169,10 +167,10 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                     local_resi_si = resi_si[:, element_number]
 
                     for cdx in range(local_resi_si.shape[0]):
-                        # local_scale = scale[dim]
+                        local_scale = constraint_scaling_extension[cdx]
                         print_op.warn_about_temporary_functionality_alteration()
-                        local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(local_resi_si[cdx], variables_scaled,
-                                                                                              parameters)
+                        # local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(local_resi_si[cdx], variables_scaled,
+                        #                                                                       parameters)
                         print('rela vortex scaling')
                         print(print_op.repr_g(local_scale))
 
