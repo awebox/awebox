@@ -144,6 +144,9 @@ def collect_inputs(alpha, beta, airspeed, omega, delta, parameters, named_frame)
 
     p, q, r = get_p_q_r(airspeed, omega, parameters, named_frame)
 
+    if named_frame == 'control':
+        beta = - beta # correct sign of beta to be used in control frame
+
     inputs = {}
     inputs['0'] = cas.DM(1.)
     inputs['alpha'] = alpha
