@@ -68,6 +68,36 @@ def model_is_included_in_comparison(options):
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
     return any_vor
 
+def bound_element_number_corresponds_to_bound_vortex_on_observer_kite(model_options, architecture, kite_obs, element_number):
+    element_type = 'finite_filament'
+    wake_type = 'bound'
+    kite_shed = get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number,
+                                                      architecture)
+    if kite_shed == kite_obs:
+        return True
+    else:
+        return False
+
+
+def model_includes_induced_velocity_from_kite_bound_on_itself(model_options, variables_si, architecture):
+    # start with kite_obs
+    kite_obs = architecture.kite_nodes[0]
+
+    # figure out what the element number is that corresponds to the bound vortex on that kite
+    element_type = 'finite_filament'
+    wake_type = 'bound'
+    expected_number = get_expected_number_of_bound_wake_elements_dict(architecture)[element_type]
+    for element_number in range(expected_number):
+        if bound_element_number_corresponds_to_bound_vortex_on_observer_kite(model_options, architecture, kite_obs, element_number):
+            element_number_at_kites_own_bound = element_number
+
+    # get the hypothetical variable name for the induced velocity from that element number on the kite_obs
+    hypothetical_name = get_element_induced_velocity_name(wake_type, element_type, element_number_at_kites_own_bound, kite_obs)
+
+    # is that variable name in the list of variables
+    hypothetical_label = '[,z,' + hypothetical_name + ',0]'
+    return hypothetical_label in variables_si.labels()
+
 
 def get_number_of_algebraic_variables_set_outside_dynamics(nlp_options, model):
 
@@ -148,15 +178,19 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
         for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
             for element_type, expected_number in local_expected_number_of_elements_dict.items():
                 for element_number in range(expected_number):
-                    var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                    system_lifted.extend([(var_name, (3, 1))])
 
-                    if biot_savart_residual_assembly == 'lifted':
-                        var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                    kite_shed = get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture)
+                    if not (wake_type == 'bound' and kite_obs == kite_shed):
+
+                        var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
                         system_lifted.extend([(var_name, (3, 1))])
 
-                        var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
-                        system_lifted.extend([(var_name, (1, 1))])
+                        if biot_savart_residual_assembly == 'lifted':
+                            var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                            system_lifted.extend([(var_name, (3, 1))])
+
+                            var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
+                            system_lifted.extend([(var_name, (1, 1))])
 
     return system_lifted, system_states
 
@@ -592,10 +626,12 @@ def get_expected_number_of_elements_dict_for_wake_types(options, architecture):
 
     return expected_number_of_elements_dict_for_wake_types
 
+
 def get_expected_number_of_bound_wake_elements_dict(architecture):
     number_of_kites = architecture.number_of_kites
     expected_dict = {'finite_filament': 1 * number_of_kites}
     return expected_dict
+
 
 def get_expected_number_of_near_wake_elements_dict(options, architecture):
     expected_dict = {}
@@ -608,6 +644,7 @@ def get_expected_number_of_near_wake_elements_dict(options, architecture):
         expected_dict['finite_filament'] = 3 * number_of_kites * near_wake_rings
 
     return expected_dict
+
 
 def get_expected_number_of_far_wake_elements_dict(options, architecture):
     far_wake_element_type = general_tools.get_option_from_possible_dicts(options, 'far_wake_element_type', 'vortex')
@@ -649,7 +686,16 @@ def check_positive_vortex_wake_nodes(options):
         print_op.log_and_raise_error(message)
     return None
 
-def superpose_induced_velocities_at_kite(wake, variables_si, kite_obs, substructure_types = None):
+def not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number, kite_obs, architecture):
+    kite_shed = get_shedding_kite_from_element_number(model_options, substructure_type, element_type,
+                                                      element_number, architecture)
+    if not (substructure_type == 'bound' and kite_obs == kite_shed):
+        return True
+    else:
+        return False
+
+
+def superpose_induced_velocities_at_kite(model_options, wake, variables_si, kite_obs, architecture, substructure_types = None):
 
     if substructure_types is None:
         substructure_types = wake.get_initialized_substructure_types()
@@ -659,10 +705,13 @@ def superpose_induced_velocities_at_kite(wake, variables_si, kite_obs, substruct
         initialized_elements = wake.get_substructure(substructure_type).get_initialized_element_types()
         for element_type in initialized_elements:
             number_of_elements = wake.get_substructure(substructure_type).get_list(element_type).number_of_elements
-            for edx in range(number_of_elements):
-                elem_u_ind_si = get_element_induced_velocity_si(variables_si, substructure_type,
-                                                                             element_type, edx, kite_obs)
-                vec_u_superposition += elem_u_ind_si
+            for element_number in range(number_of_elements):
+
+                if not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number, kite_obs,
+                                             architecture):
+                    elem_u_ind_si = get_element_induced_velocity_si(variables_si, substructure_type,
+                                                                                 element_type, element_number, kite_obs)
+                    vec_u_superposition += elem_u_ind_si
 
     return vec_u_superposition
 
@@ -682,20 +731,23 @@ def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, va
     u_normalizing = vect_op.smooth_norm(u_vec)
     return u_normalizing
 
+
 def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
 
     n_filaments = segment_list.shape[1]
     filament_map = filament_fun.map(n_filaments, 'openmp')
-    all = filament_map(segment_list)
+    all_eval = filament_map(segment_list)
 
-    total = cas.sum2(all)
+    total = cas.sum2(all_eval)
 
     return total
+
 
 def get_epsilon(options, parameters):
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     epsilon = options['aero']['vortex']['epsilon_to_chord_ratio'] * c_ref
     return epsilon
+
 
 def get_r_core(model_options, parameters=None, geometry=None):
 
@@ -720,8 +772,10 @@ def get_r_core(model_options, parameters=None, geometry=None):
 def get_PE_wingtip_name():
     return 'ext'
 
+
 def get_NE_wingtip_name():
     return 'int'
+
 
 def get_wingtip_name_and_strength_direction_dict():
     dict = {

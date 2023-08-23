@@ -115,42 +115,64 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                 element_list = substructure.get_list(element_type)
                 element_number = 0
                 for elem in element_list.list:
-                    u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
-                                                                                     element_type,
-                                                                                     element_number,
-                                                                                     kite_obs)
 
-                    value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs)
-                    value_fun = cas.Function('value_fun', [model.variables, model.parameters], [value])
+                    value_eval = cas.DM.zeros((3, 1))
+                    if vortex_tools.not_bound_and_shed_is_obs(init_options, substructure_type, element_type, element_number, kite_obs, architecture):
 
-                    value_eval = value_fun(variables_scaled, parameters)
-                    V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
 
-                    if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                        V_init_si['z', ndx-1, u_ind_elem_name] = value_eval
+                        u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
+                                                                                         element_type,
+                                                                                         element_number,
+                                                                                         kite_obs)
 
-                    if use_lifted_biot_savart_residual_assembly:
-                        u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
-                                                                                                  element_type,
-                                                                                                  element_number,
-                                                                                                  kite_obs)
-                        u_ind_den_elem_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type,
-                                                                                                    element_type,
-                                                                                                    element_number,
-                                                                                                    kite_obs)
+                        value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs)
+                        value_fun = cas.Function('value_fun', [model.variables, model.parameters], [value])
 
-                        num_fun = cas.Function('num_fun', [model.variables, model.parameters], [num])
-                        den_fun = cas.Function('den_fun', [model.variables, model.parameters], [den])
-
-                        num_eval = num_fun(variables_scaled, parameters)
-                        den_eval = den_fun(variables_scaled, parameters)
-
-                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
-                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
+                        value_eval = value_fun(variables_scaled, parameters)
+                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
 
                         if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                            V_init_si['z', ndx - 1, u_ind_num_elem_name] = num_eval
-                            V_init_si['z', ndx - 1, u_ind_den_elem_name] = den_eval
+                            # ndx-1
+                            print_op.warn_about_temporary_functionality_alteration()
+                            V_init_si['z', ndx, u_ind_elem_name] = value_eval
+
+                        if use_lifted_biot_savart_residual_assembly:
+                            u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
+                                                                                                      element_type,
+                                                                                                      element_number,
+                                                                                                      kite_obs)
+                            u_ind_den_elem_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type,
+                                                                                                        element_type,
+                                                                                                        element_number,
+                                                                                                        kite_obs)
+
+                            num_fun = cas.Function('num_fun', [model.variables, model.parameters], [num])
+                            den_fun = cas.Function('den_fun', [model.variables, model.parameters], [den])
+
+                            num_eval = num_fun(variables_scaled, parameters)
+                            den_eval = den_fun(variables_scaled, parameters)
+
+                            V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
+                            V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
+
+                            if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
+                                print_op.warn_about_temporary_functionality_alteration()
+                                # ndx - 1
+                                V_init_si['z', ndx, u_ind_num_elem_name] = num_eval
+                                V_init_si['z', ndx, u_ind_den_elem_name] = den_eval
+
+                                elem.define_biot_savart_induction_residual_function(
+                                    biot_savart_residual_assembly='lifted')
+                                biot_savart_residual_fun = elem.biot_savart_residual_fun
+                                packed_info = elem.pack_info()
+                                residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
+                                resi_fun = cas.Function('resi_fun', [model.variables, model.parameters], [residual])
+                                variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot,
+                                                                               model.variables,
+                                                                               ndx)
+                                variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si,
+                                                                                    model.scaling)
+                                print(resi_fun(variables_scaled, parameters))
 
                     element_number += 1
                     total_u_ind += value_eval

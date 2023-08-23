@@ -155,9 +155,9 @@ def test_dual_kite_tracking_winch():
     return None
 
 
-def test_vortex_force_zero():
+def test_vortex_force_zero(final_homotopy_step='final'):
     trial_name = 'vortex_force_zero_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -191,7 +191,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
 
-    basic_health_options['solver.health_check.when'] = 'always'
+    basic_health_options['solver.health_check.when'] = 'final' #'always'
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['solver.initialization.check_reference'] = True
@@ -339,219 +339,31 @@ def generate_options_dict():
     actuator_comparison_options['user_options.system_model.kite_dof'] = 6
 
     vortex_options = copy.deepcopy(single_kite_6_dof_options)
+    # vortex_options = copy.deepcopy(dual_kite_6_dof_options)
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'not_in_use'
-    vortex_options['model.aero.vortex.wake_nodes'] = 1 ###### rela!!!!!!
+    vortex_options['model.aero.vortex.wake_nodes'] = 2
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'lifted'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division' #'lifted'
 
     # vortex_options['solver.weights.vortex'] = 1e-3
-    # vortex_options['solver.cost_factor.power'] = 1e6  # 1e4
+    vortex_options['solver.cost_factor.power'] = 1e4
     vortex_options['solver.weights.vortex'] = 1e-3
     vortex_options['solver.cost.iota.1'] = 1.e3
-    vortex_options['model.aero.induction.final_resi_scaling'] = 1.e-1
+    # vortex_options['model.aero.induction.final_resi_scaling'] = 1.e-1
 
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
 
     vortex_options['model.scaling.other.position'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'  #'convection'
-    vortex_options['model.aero.vortex.bound_induction_offset'] = 'r_core' # 'r_core'
-    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e-1  # 1.e1  #1. #1.e3 #4
-    vortex_options['model.aero.vortex.bound_induction_denominator_factor'] = 1.e5  # 1.e1  #1. #1.e3 #4
+    vortex_options['model.aero.vortex.bound_induction_offset'] = 'c_ref' # 'r_core'
+    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e8  #1.e-1  # 1.e1  #1. #1.e3 #4
+    vortex_options['model.aero.vortex.bound_induction_denominator_factor'] = 1.e0 #1.e5  # 1.e1  #1. #1.e3 #4
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 5.5 * 1./10. # 2. * b_ref * 1/AR
     # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
-
-
-    # bisf = 1e0 and bidf = 1e0
-    # initial
-    # INFO:	kkt: condition............: 1.195E+53
-    # INFO:	kkt: min_red_hessian_eig..: -1.02E+20
-    #
-    # bisf = 1e1 and bidf = 1e4
-    # initial
-    # INFO: kkt: condition............: 1.867E+35
-    # INFO: kkt: min_red_hessian_eig..: -5.869E+10
-    # INFO:	shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36 -> {'[x,0,q10,0]': '5.70e+09', '[x,0,q10,1]': '-9.64e+07', '[x,0,q10,2]': '-4.43e+09', '[z,0,wx_1_ext_0,0]': '-2.90e+09', '[z,0,wx_1_ext_0,1]': '1.45e+08', '[z,0,wx_1_ext_0,2]': '2.28e+09', '[z,0,wx_1_int_0,0]': '-2.81e+09', '[z,0,wx_1_int_0,1]': '-4.87e+07', '[z,0,wx_1_int_0,2]': '2.15e+09', '[z,0,wu_bound_finite_filament_0_1_den,0]': '3.13e+06'}
-
-    # bisf = 1e1 and bidf = 1e8
-    # initial
-    # INFO:	kkt: condition............: 3.544E+16
-    # INFO:	kkt: min_red_hessian_eig..: -0.4413
-    # INFO:	... largest (absolute value sense) KKT matrix entry (5.654E+10) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_u_selected_30
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_num', 0)
-
-    # bisf = 1e1 and bidf = 1e7
-    # initial
-    # INFO: kkt: condition............: 8.668E+14
-    # INFO: kkt: min_red_hessian_eig..: -0.4413
-    # INFO:	... largest (absolute value sense) KKT matrix entry (5.654E+09) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_u_selected_30
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_num', 0)
-
-    # bisf = 1e1 and bidf = 1e6
-    # initial
-    # INFO:	kkt: condition............: 8.699E+13
-    # INFO:	kkt: min_red_hessian_eig..: -0.1471
-    # INFO:	... largest (absolute value sense) KKT matrix entry (5.654E+08) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_u_selected_30
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_num', 0)
-
-    # bisf = 1e1 and bidf = 1e5
-    # initial
-    # INFO:	kkt: condition............: 8.699E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.007949
-    # INFO:	... largest (absolute value sense) KKT matrix entry (5.654E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_u_selected_30
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_num', 0)
-
-    # bisf = 1e0 and bidf = 1e5
-    # initial
-    # INFO: kkt: condition............: 3.4E+12
-    # INFO: kkt: min_red_hessian_eig..: -0.0002168
-    # INFO:	... largest (absolute value sense) KKT matrix entry (3.125E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e0 and bidf = 2e5
-    # initial
-    # INFO:	kkt: condition............: 6.801E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.007438
-    # INFO:	... largest (absolute value sense) KKT matrix entry (6.25E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e0 and bidf = 8e4
-    # initial
-    # INFO:	kkt: condition............: 2.72E+12
-    # INFO:	kkt: min_red_hessian_eig..: -9.334E-05
-    # INFO:	... largest (absolute value sense) KKT matrix entry (2.5E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e0 and bidf = 5e4
-    # initial
-    # INFO:	kkt: condition............: 1.7E+12
-    # INFO:	kkt: min_red_hessian_eig..: -7.179E-05
-    # INFO:	... largest (absolute value sense) KKT matrix entry (1.563E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 5e4. position = radius
-    # initial
-    # INFO:	kkt: condition............: 1.7E+12
-    # INFO:	kkt: min_red_hessian_eig..: -4.926E-05
-    # INFO:	... largest (absolute value sense) KKT matrix entry (1.563E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 5e4. position = altitude
-    # initial
-    # INFO:	kkt: condition............: 1.705E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.0002227
-    # INFO:	... largest (absolute value sense) KKT matrix entry (1.563E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 5e4. position = altitude, wx = b_ref
-    # initial
-    # INFO:	kkt: condition............: 1.705E+12
-    # INFO:	kkt: min_red_hessian_eig..: -5.67E-05
-    # INFO:	... largest (absolute value sense) KKT matrix entry (1.563E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e0 and bidf = 1e5, position = altitude, wx = b_ref
-    # initial
-    # INFO: kkt: condition............: 3.41E+12
-    # INFO: kkt: min_red_hessian_eig..: -0.0001604
-    # INFO:	... largest (absolute value sense) KKT matrix entry (3.125E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 1e5, position = altitude, wx = radius
-    # initial
-    # INFO:	kkt: condition............: 2.237E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.0002217
-    # INFO:	... largest (absolute value sense) KKT matrix entry (2.05E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 1e5, position = altitude, wx = convection, offset = micro
-    # initial
-    # INFO:	kkt: condition............: 2.237E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.0003004
-    # INFO:	... largest (absolute value sense) KKT matrix entry (2.05E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-    # bisf = 1e-1 and bidf = 1e5, position = altitude, wx = convection, offset = r_core, cvw = 1e-3
-    # initial
-    # INFO:	kkt: condition............: 3.411E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.001273
-    # INFO:	... largest (absolute value sense) KKT matrix entry (3.125E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-
-
-
-
-
-
-    # bisf = 1e-1 and bidf = 1e5, position = altitude, wx = convection, offset = c_ref
-    # initial
-    # INFO:	kkt: condition............: 3.199E+12
-    # INFO:	kkt: min_red_hessian_eig..: -0.001222
-    # INFO:	... largest (absolute value sense) KKT matrix entry (2.932E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-
-
-
-
-
-    # bisf = 1e0 and bidf = 1e5, position = altitude, wx = c_ref
-    # initial
-    # INFO:	kkt: condition............: 1.186E+14
-    # INFO:	kkt: min_red_hessian_eig..: -5.834E-05
-    # INFO:	... largest (absolute value sense) KKT matrix entry (2.05E+07) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-
-    # bisf = 1e0 and bidf = 1e4
-    # initial (mie)
-    # INFO:	kkt: condition............: 9.764E+25
-    # INFO:	kkt: min_red_hessian_eig..: -17.16
-    # INFO:	... largest (absolute value sense) KKT matrix entry (8.469E+06) is associated with:
-    # INFO:	    column:      multiplier collocation_4_0_biot_savart_bound_finite_filament_0_1_den_36
-    # INFO:	       row:        variable ('coll_var', 4, 0, 'x', 'q10', 2)
-
-
-
-
-
-    # bisf = 1e0 and bidf = 1e6
-    # initial
-    # INFO: kkt: condition............: 3.4E+13
-    # INFO: kkt: min_red_hessian_eig..: -0.1471
-    # INFO:	... largest (absolute value sense) KKT matrix entry (3.125E+08) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_den_selected_36
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_den', 0)
-
-
-    # bisf = 1e2 and bidf = 1e5
-    # initial
-    # INFO:	kkt: condition............: 8.699E+13
-    # INFO:	kkt: min_red_hessian_eig..: -0.1471
-    # INFO:	... largest (absolute value sense) KKT matrix entry (5.654E+08) is associated with:
-    # INFO:	    column:      multiplier shooting_0_biot_savart_bound_finite_filament_0_1_u_selected_30
-    # INFO:	       row:        variable ('z', 0, 'wu_bound_finite_filament_0_1_num', 0)
 
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
@@ -686,9 +498,9 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_uaxi()
 # test_actuator_uasym()
 # test_actuator_comparison()
-# test_vortex_force_zero_basic_health() #final_homotopy_step='initial_guess')
+# test_vortex_force_zero_basic_health() #final_homotopy_step='initial')
 # test_vortex_force_zero()
-test_vortex_basic_health() #final_homotopy_step='initial_guess')
+test_vortex_basic_health()
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

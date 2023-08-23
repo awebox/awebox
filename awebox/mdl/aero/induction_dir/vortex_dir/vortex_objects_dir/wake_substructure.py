@@ -125,15 +125,17 @@ class WakeSubstructure:
             self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
         return None
 
-    def construct_biot_savart_residual_at_kite(self, model_options, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_residual_at_kite(self, model_options, variables_si, kite_obs, architecture):
         resi = []
         for element_type in self.get_initialized_element_types():
-            local_resi = self.construct_biot_savart_residual_at_kite_by_element_type(element_type, model_options, variables_si, kite_obs, parent_obs)
+            local_resi = self.construct_biot_savart_residual_at_kite_by_element_type(element_type, model_options, variables_si, kite_obs, architecture)
             resi = cas.horzcat(resi, local_resi)
         return resi
 
 
-    def construct_biot_savart_residual_at_kite_by_element_type(self, element_type, model_options, variables_si, kite_obs, parent_obs):
+    def construct_biot_savart_residual_at_kite_by_element_type(self, element_type, model_options, variables_si, kite_obs, architecture):
+
+        parent_obs = architecture.parent_map[kite_obs]
 
         biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
 
@@ -147,17 +149,20 @@ class WakeSubstructure:
         vec_u_ind_den_list = []
         number_of_elements = self.get_list(element_type).number_of_elements
         for edx in range(number_of_elements):
-            local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
-            vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
 
-            if biot_savart_residual_assembly == 'lifted':
-                local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
-                                                                         element_type, edx, kite_obs)
-                vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)
+            if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
 
-                local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
-                                                                         element_type, edx, kite_obs)
-                vec_u_ind_den_list = cas.horzcat(vec_u_ind_den_list, local_den)
+                local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
+                vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
+
+                if biot_savart_residual_assembly == 'lifted':
+                    local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
+                                                                             element_type, edx, kite_obs)
+                    vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)
+
+                    local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
+                                                                             element_type, edx, kite_obs)
+                    vec_u_ind_den_list = cas.horzcat(vec_u_ind_den_list, local_den)
 
         if biot_savart_residual_assembly == 'lifted':
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list)
