@@ -140,7 +140,6 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
     biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
 
     variables_si = system_variables['SI']
-    variables_scaled = system_variables['scaled']
 
     constraint_name_extension = ['u', 'v', 'w', 'num_x', 'num_y', 'num_z', 'den']
 
@@ -150,7 +149,6 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
         substructure = wake.get_substructure(substructure_type)
 
         for kite_obs in architecture.kite_nodes:
-            parent_obs = architecture.parent_map[kite_obs]
             resi_si = substructure.construct_biot_savart_residual_at_kite(model_options, variables_si, kite_obs, architecture)
 
             for element_type in substructure.get_initialized_element_types():
@@ -165,6 +163,7 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                     if vortex_tools.not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number, kite_obs, architecture):
 
                         local_resi_si = resi_si[:, element_number]
+                        cstr_expr = []
 
                         print_op.warn_about_temporary_functionality_alteration()
                         if biot_savart_residual_assembly == 'lifted':
@@ -178,68 +177,16 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                             constraint_scaling_extension = scaling['z', value_name]
 
                         for cdx in range(local_resi_si.shape[0]):
-                            # local_scale = cas.DM(1.) << this is better
                             local_scale = constraint_scaling_extension[cdx]
-                            print_op.warn_about_temporary_functionality_alteration()
-                            # local_scale = vect_op.find_jacobian_based_scalar_expression_scaling(local_resi_si[cdx], variables_scaled,
-                            #                                                                       parameters)
-                            print('rela vortex scaling')
-                            print(print_op.repr_g(local_scale))
 
                             local_expr = local_resi_si[cdx] / local_scale
-                            local_name = biot_savart_name + '_' + constraint_name_extension[cdx]
-                            local_cstr = cstr_op.Constraint(expr=local_expr,
-                                                            name=local_name,
-                                                            cstr_type='eq')
-                            cstr_list.append(local_cstr)
+                            cstr_expr = cas.vertcat(cstr_expr, local_expr)
 
-                    # biot_savart_expr_si = local_resi_si[0:3]
-                    # if biot_savart_residual_assembly == 'division':
-                    #     value_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type,
-                    #                                                                 element_number, kite_obs)
-                    #     biot_savart_expr_scaled = struct_op.var_si_to_scaled('z', value_name, biot_savart_expr_si, scaling)
-                    # elif biot_savart_residual_assembly == 'split':
-                    #     print_op.warn_about_temporary_functionality_alteration()
-                    #     biot_savart_expr_scaled = biot_savart_expr_si
-                    # elif biot_savart_residual_assembly == 'lifted':
-                    #     num_var_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
-                    #     biot_savart_expr_scaled = struct_op.var_si_to_scaled('z', num_var_name, biot_savart_expr_si, scaling)
-                    # else:
-                    #     message = 'unexpected biot_savart_residual_assembly in biot_savart constraint (' + biot_savart_residual_assembly + ')'
-                    #     print_op.log_and_raise_error(message)
-
-                    # print_op.warn_about_temporary_functionality_alteration()
-                    # for cdx in range(biot_savart_expr_scaled.shape[0]):
-                        # local_expr = biot_savart_expr_scaled[cdx]
-                        # local_name = biot_savart_name + '_' + constraint_name_extension[cdx]
-                        # local_cstr = cstr_op.Constraint(expr=local_expr,
-                        #                                 name=local_name,
-                        #                                 cstr_type='eq')
-                        # cstr_list.append(local_cstr)
-
-                    # print_op.warn_about_temporary_functionality_alteration()
-                    # if biot_savart_residual_assembly == 'lifted':
-                    #
-                    #     num_name = biot_savart_name + '_num'
-                    #     num_expr_si = local_resi_si[3:6]
-                    #     num_expr_scaled = struct_op.var_si_to_scaled('z', num_var_name, num_expr_si,
-                    #                                                          scaling)
-                    #
-                    #     num_cstr = cstr_op.Constraint(expr=num_expr_scaled,
-                    #                                     name=num_name,
-                    #                                     cstr_type='eq')
-                    #     cstr_list.append(num_cstr)
-                    #
-                    #     den_name = biot_savart_name + '_den'
-                    #     den_expr_si = local_resi_si[-1]
-                    #     den_var_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type,
-                    #                                                                    element_number, kite_obs)
-                    #     den_expr_scaled = struct_op.var_si_to_scaled('z', den_var_name, den_expr_si, scaling)
-                    #
-                    #     den_cstr = cstr_op.Constraint(expr=den_expr_scaled,
-                    #                                     name=den_name,
-                    #                                     cstr_type='eq')
-                    #     cstr_list.append(den_cstr)
+                        local_name = biot_savart_name
+                        local_cstr = cstr_op.Constraint(expr=cstr_expr,
+                                                        name=local_name,
+                                                        cstr_type='eq')
+                        cstr_list.append(local_cstr)
 
     return cstr_list
 

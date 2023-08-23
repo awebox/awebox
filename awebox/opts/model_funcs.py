@@ -231,7 +231,7 @@ def get_position_scaling(options, architecture):
     geometry = get_geometry(options)
     b_ref = geometry['b_ref']
 
-    position_scaling_method = options['model']['scaling']['other']['position']
+    position_scaling_method = options['model']['scaling']['other']['position_scaling_method']
     if position_scaling_method == 'radius':
         q_scaling = flight_radius * cas.DM.ones((3, 1))
     elif position_scaling_method == 'altitude':

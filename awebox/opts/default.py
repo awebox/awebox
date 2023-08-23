@@ -104,7 +104,6 @@ def set_default_options(default_user_options, help_options):
 
         ('model', 'aero', 'induction', 'comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
         ('model', 'aero', 'induction', 'force_zero', False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures.', [True, False]), 'x'),
-        ('model', 'aero', 'induction', 'final_resi_scaling', 1., ('the scaling factor applied to the final residual in the induction homotopy', None), 'x'),
 
         ('model', 'aero', 'actuator',   'geometry_overwrite',    None,       ('which method should be used to estimate the geometry of the kite rotation', ['parent', 'averaged', 'frenet']), 'x'),
         ('model', 'aero', 'actuator',   'support_only',         False,      ('compute only the geometric reference value for the induction factors in actuator-disk model. takes values between 0. and 0.4', None), 'x'),
@@ -132,8 +131,6 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'epsilon_m',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, dimensionless, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',        0.01,           ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),
-        ('model', 'aero', 'vortex',     'bound_induction_scaling_factor',       1.e4,           ('the multiplicative factor that scales the numerator of the induced velocity of the bound vortex shed by the observer kite', None), 'x'),
-        ('model', 'aero', 'vortex',     'bound_induction_denominator_factor',   1.e4,           ('the multiplicative factor that scales the denominator of the induced velocity of the bound vortex shed by the observer kite', None), 'x'),
         ('model', 'aero', 'vortex',     'bound_induction_offset',               'r_core',       ('the distance to offset the computed biot-savart scaling from the bound vortex on the bound kite itself ', ['radius', 'b_ref', 'c_ref', 'r_core', 'micro']), 'x'),
         ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance ', ['b_ref', 'c_ref', 'radius', 'q10', 'convection']), 'x'),
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
@@ -236,7 +233,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'other', 'position',  'altitude_and_radius',   ('values to use when scaling the node position states q', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
+        ('model',  'scaling', 'other', 'position_scaling_method',  'altitude_and_radius',   ('values to use when scaling the node position states q', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other', 'g',	       9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None), 'x'),

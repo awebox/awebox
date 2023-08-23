@@ -191,7 +191,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
 
-    basic_health_options['solver.health_check.when'] = 'final' #'always'
+    basic_health_options['solver.health_check.when'] = 'always'
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
     basic_health_options['solver.initialization.check_reference'] = True
@@ -342,26 +342,22 @@ def generate_options_dict():
     # vortex_options = copy.deepcopy(dual_kite_6_dof_options)
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
-    vortex_options['model.aero.vortex.far_wake_element_type'] = 'not_in_use'
+    vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
     vortex_options['model.aero.vortex.wake_nodes'] = 2
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division' #'lifted'
+    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
 
-    # vortex_options['solver.weights.vortex'] = 1e-3
     vortex_options['solver.cost_factor.power'] = 1e4
     vortex_options['solver.weights.vortex'] = 1e-3
     vortex_options['solver.cost.iota.1'] = 1.e3
-    # vortex_options['model.aero.induction.final_resi_scaling'] = 1.e-1
 
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
 
-    vortex_options['model.scaling.other.position'] = 'altitude'
-    vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'  #'convection'
+    vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
+    vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
     vortex_options['model.aero.vortex.bound_induction_offset'] = 'c_ref' # 'r_core'
-    vortex_options['model.aero.vortex.bound_induction_scaling_factor'] = 1.e8  #1.e-1  # 1.e1  #1. #1.e3 #4
-    vortex_options['model.aero.vortex.bound_induction_denominator_factor'] = 1.e0 #1.e5  # 1.e1  #1. #1.e3 #4
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 5.5 * 1./10. # 2. * b_ref * 1/AR
     # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
 

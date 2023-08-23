@@ -76,7 +76,6 @@ def health_check(health_solver_options, nlp, model, solution, arg, stats, iterat
 
     tractability = collect_tractability_indicators(step_name, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory)
 
-    print_op.warn_about_temporary_functionality_alteration()
     if health_solver_options['save_health_indicators']:
         filename = health_solver_options['filename_identifier'].strip()
         if len(filename) > 0:
@@ -213,8 +212,6 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
     for cmm_key in local_cumulative_max_memory.keys():
         tractability['memory: ' + cmm_key] = local_cumulative_max_memory[cmm_key]
 
-    # todo: add "total cpu secs in ipopt (w/o function evaluation)
-    print_op.warn_about_temporary_functionality_alteration()
     subset_of_tractability = {}
     for name in ['step_name', 'stats: success', 'stats: iter_count', 'stats: t_wall_total', 'memory: pre-health-check', 'avg: t_wall_nlp_f', 'avg: t_wall_nlp_g']:
         subset_of_tractability[name] = tractability[name]

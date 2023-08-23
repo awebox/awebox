@@ -92,9 +92,6 @@ def get_induction_cstr(model_options, wind, system_variables, parameters, archit
         vec_u_ind_final = get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, architecture, parameters)
         resi_final = (vec_u_ind_var - vec_u_ind_final)
 
-        final_resi_scaling = model_options['aero']['induction']['final_resi_scaling']
-        resi_final *= final_resi_scaling
-
         resi_homotopy = (iota * resi_trivial + (1. - iota) * resi_final)
 
         # resi_scaled = []
