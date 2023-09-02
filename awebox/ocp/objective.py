@@ -409,8 +409,10 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
             for k in range(nlp_options['n_k']):
                 for j in range(d):
-                    beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
-
+                    if nlp_options['collocation']['u_param'] == 'zoh':
+                        beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j + 1]**2
+                    elif nlp_options['collocation']['u_param'] == 'poly':
+                        beta_cost += int_weights[j]*Outputs[idx, k*(d+1) + j]**2
         beta_cost = P['cost', 'beta']*beta_cost / nlp_options['cost']['normalization']['beta']
     else:
         beta_cost = 0

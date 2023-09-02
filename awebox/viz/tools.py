@@ -660,7 +660,7 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
         if plot_dict['u_param'] == 'poly':
-            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx].full())
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
@@ -913,11 +913,14 @@ def interpolate_data(plot_dict, cosmetics):
 
         # merge values
         values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
+        if plot_dict['options']['nlp']['collocation']['scheme'] == 'fourier':
+            time_grid = time_grid[1:]
+
         # inteprolate
         values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
         plot_dict['outputs'][output_type][name] += [values_ip]
 
-    # integral outptus
+    # integral outputs
     if plot_dict['discretization'] == 'direct_collocation':
         for name in plot_dict['integral_variables']:
             values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
@@ -1011,6 +1014,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
         # merge values
         values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
         # inteprolate
+        if plot_dict['options']['nlp']['collocation']['scheme'] == 'fourier':
+            time_grid = time_grid[1:]
         values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
         plot_dict['ref']['outputs'][output_type][name] += [values_ip]
 

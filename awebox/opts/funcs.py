@@ -219,6 +219,12 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
+
+    if options['nlp']['collocation']['scheme'] == 'fourier':
+        options_tree.append(('nlp', 'collocation', None, 'u_param', 'poly', ('x', None), 'x'))
+        options_tree.append(('nlp', None, None, 'phase_fix', 'simple',  ('lift-mode phase fix', (True, False)),'x'))
+        options_tree.append(('nlp', 'cost', None, 'output_quadrature', True,  ('x', (True, False)),'x'))
+
     # else:
     #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
     #     options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
