@@ -362,8 +362,8 @@ class Trial(object):
 
         return None
 
-    def generate_optimal_model(self, param_options = None):
-        return trial_funcs.generate_optimal_model(self, param_options= param_options)
+    def generate_optimal_model(self, param_options = None, external_forces = False):
+        return trial_funcs.generate_optimal_model(self, param_options= param_options, external_forces = external_forces)
 
     @property
     def options_seed(self):
