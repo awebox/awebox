@@ -20,6 +20,7 @@ import awebox.opts.options as options
 import awebox.trial as awe_trial
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
 import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
@@ -167,10 +168,10 @@ def test_vortex_force_zero_basic_health(final_homotopy_step='final'):
     return None
 
 
-def test_vortex():
+def test_vortex(final_homotopy_step='final'):
     options_dict = generate_options_dict()
     trial_name = 'vortex_trial'
-    solve_trial(options_dict[trial_name], trial_name)
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -203,7 +204,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.help_with_debugging'] = True
     basic_health_options['quality.when'] = 'never'
-    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
+    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
     basic_health_options['solver.health_check.save_health_indicators'] = True
 
     return basic_health_options
@@ -222,7 +223,7 @@ def generate_options_dict():
     single_kite_options['solver.linear_solver'] = 'ma57'
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
     single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = True
+    single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = False
     single_kite_options['solver.weights.q'] = 1e0
     single_kite_options['solver.weights.dq'] = 1.e0
     single_kite_options['solver.weights.l_t'] = 1e-5
@@ -343,11 +344,23 @@ def generate_options_dict():
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
-    vortex_options['model.aero.vortex.wake_nodes'] = 2
+
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
     vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
+
+    vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
+    vortex_options['visualization.cosmetics.save_figs'] = True
+
+    vortex_options['solver.hippo_strategy'] = False
+
+    nk = 30
+    periods_tracked = 0.
+    vortex_options['nlp.n_k'] = nk
+    vortex_options['model.aero.vortex.wake_nodes'] = int(np.ceil(nk * periods_tracked)) + 1
+    vortex_options['solver.max_cpu_time'] = 1.e7
+    # vortex_options['nlp.collocation.d'] = 3
 
     vortex_options['solver.cost_factor.power'] = 1e4
     vortex_options['solver.weights.vortex'] = 1e-3
@@ -358,9 +371,9 @@ def generate_options_dict():
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
     vortex_options['model.aero.vortex.bound_induction_offset'] = 'c_ref' # 'r_core'
-    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 5.5 * 1./10. # 2. * b_ref * 1/AR
+    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 10.  # = 2 * span / chord = 2 * AR
+    # "As a guideline, the regularization parameter may be chosen as twice the average spanwise discretization of the blade."
     # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
-
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -465,18 +478,80 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
-    trial.print_cost_information()
-    trial.plot(['wake_lifted_variables', 'actuator_isometric', 'wake_isometric', 'level_3', 'animation_snapshot', 'induction_factor'])
+    # trial.print_cost_information()
+    trial.plot(['animation_snapshot', 'induction_factor'])
+    # , 'wake_lifted_variables', 'actuator_isometric', 'wake_isometric', 'level_3', 'animation'])
+    plt.show()
+
+    print_op.base_print('## stats')
+    temp_stats_without_iterations = {}
+    for name in set(trial.optimization.stats.keys()) - set('iterations'):
+        temp_stats_without_iterations[name] = copy.deepcopy(trial.optimization.stats[name])
+    print_op.print_dict_as_table(temp_stats_without_iterations)
+
+    print_op.base_print('## iterations')
+    print_op.print_dict_as_table(trial.optimization.iterations)
+
+    print_op.base_print('## timings')
+    print_op.print_dict_as_table(trial.optimization.timings)
+
+    print_op.base_print('## cumulative max memory')
+    print_op.print_dict_as_table(trial.optimization.cumulative_max_memory)
+
+    print_op.base_print('## other stuff')
+    relas_print_dict = {}
+    try:
+        relas_print_dict['core_to_chord_ratio'] = trial_options['model.aero.vortex.core_to_chord_ratio']
+    except:
+        pass
+
+    try:
+        relas_print_dict['wake_nodes'] = trial_options['model.aero.vortex.wake_nodes']
+    except:
+        pass
+
+    try:
+        relas_print_dict['far_wake_element_type'] = trial_options['model.aero.vortex.far_wake_element_type']
+    except:
+        pass
+
+    try:
+        relas_print_dict['n_k'] = trial_options['nlp.n_k']
+    except:
+        pass
+
+    try:
+        for odx in range(trial.optimization.global_outputs_opt.shape[0]):
+            relas_print_dict[trial.optimization.global_outputs_opt.labels()[odx]] = trial.optimization.global_outputs_opt.cat[odx]
+    except:
+        pass
+
+    print_op.print_dict_as_table(relas_print_dict)
+
+    time_grid = cas.reshape(trial.visualization.plot_dict['time_grids']['coll'], (trial.nlp.n_k, trial.nlp.d))
+    a_list = []
+    t_list = []
+    for ddx in range(trial.nlp.d):
+        for kdx in range(trial.nlp.n_k):
+            param_at_time = struct_op.get_parameters_at_time(trial.optimization.V_opt, trial.optimization.p_fix_num, trial.model.parameters)
+            var_at_time = struct_op.get_variables_at_time(trial.options['nlp'], trial.optimization.V_opt, None, trial.model.variables, kdx=kdx, ddx=ddx)
+            outputs_at_time = trial.model.outputs(trial.model.outputs_fun(var_at_time, param_at_time))
+            local_a = outputs_at_time['vortex', 'local_a1']
+            local_t = time_grid[kdx, ddx]
+
+            a_list += [float(local_a)]
+            t_list += [float(local_t)]
+
+    plt.plot(t_list, a_list)
     plt.show()
 
     pdb.set_trace()
-
 
     return trial
 
 # #
 # test_single_kite_basic_health()
-# test_single_kite()
+test_single_kite(final_homotopy_step='initial')
 # test_single_kite_6_dof_basic_health()
 # test_single_kite_6_dof()
 # test_zoh()
@@ -496,7 +571,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_actuator_comparison()
 # test_vortex_force_zero_basic_health() #final_homotopy_step='initial')
 # test_vortex_force_zero()
-test_vortex_basic_health()
-# test_vortex()
+# test_vortex_basic_health()
+# test_vortex(final_homotopy_step='initial')
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

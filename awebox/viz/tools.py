@@ -620,11 +620,12 @@ def calibrate_visualization(model, nlp, name, options):
 
     # model information
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
+    plot_dict['model_outputs'] = struct_op.strip_of_contents(model.outputs)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     # plot_dict['integral_variables'] = list(model.integral_outputs.keys())
-    plot_dict['scaling'] = model.scaling.cat
-    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
-    plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['model_scaling'] = model.scaling.cat
+    plot_dict['model_parameters'] = struct_op.strip_of_contents(model.parameters)
+    plot_dict['model_variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
@@ -657,7 +658,7 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    scaling = plot_dict['variables'](plot_dict['scaling'])
+    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
     plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
     plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
     plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
@@ -740,9 +741,14 @@ def interpolate_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']
-    variables = plot_dict['variables']
+    model_variables = plot_dict['model_variables']
     variables_dict = plot_dict['variables_dict']
+    model_parameters = plot_dict['model_parameters']
     V_plot_si = plot_dict['V_plot_si']
+    p_fix_num = plot_dict['p_fix_num']
+    model_scaling = plot_dict['model_scaling']
+    model_outputs = plot_dict['model_outputs']
+    model_outputs_fun = plot_dict['model_outputs_fun']
     outputs_dict = plot_dict['outputs_dict']
     outputs_opt = plot_dict['output_vals']['opt']
     integral_output_names = plot_dict['integral_output_names']
@@ -751,8 +757,8 @@ def interpolate_data(plot_dict, cosmetics):
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_plot_si,
-                                                   outputs_dict, outputs_opt,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_si,
+                                                   outputs_dict, outputs_opt, model_outputs,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
 
@@ -775,9 +781,14 @@ def interpolate_ref_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']['ref']
-    variables = plot_dict['variables']
+    model_variables = plot_dict['model_variables']
+    model_scaling = plot_dict['model_scaling']
     variables_dict = plot_dict['variables_dict']
+    model_parameters = plot_dict['model_parameters']
     V_ref_si = plot_dict['V_ref_si']
+    p_fix_num = plot_dict['p_fix_num']
+    model_outputs = plot_dict['outputs']
+    model_outputs_fun = plot_dict['outputs_fun']
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
     integral_output_names = plot_dict['integral_output_names']
@@ -785,8 +796,8 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables, variables_dict, V_ref_si,
-                                                   outputs_dict, outputs_ref,
+    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_si,
+                                                   outputs_dict, outputs_ref, model_outputs,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)
 
@@ -916,7 +927,7 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
 
     collected_vals = []
 
-    model_variables = plot_dict['variables']
+    model_variables = plot_dict['model_variables']
     for jdx in range(model_variables.shape[0]):
         canonical = model_variables.getCanonicalIndex(jdx)
         var_type = canonical[0]
@@ -963,7 +974,7 @@ def assemble_model_parameters(plot_dict):
     options_model = plot_dict['options']['model']
     options_params = plot_dict['options']['params']
 
-    model_parameters = plot_dict['parameters']
+    model_parameters = plot_dict['model_parameters']
     for jdx in range(model_parameters.shape[0]):
         canonical = model_parameters.getCanonicalIndex(jdx)
         var_type = canonical[0]
@@ -1010,7 +1021,7 @@ def assemble_model_parameters(plot_dict):
 def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
     bounds = plot_dict['variable_bounds'][var_type][name]
-    scaling = plot_dict['variables'](plot_dict['scaling'])[var_type, name]
+    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])[var_type, name]
 
     bound_types = ['lb', 'ub']
     for type in bound_types:

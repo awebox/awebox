@@ -201,7 +201,7 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     axes['ax_xz'].xaxis.set_label_position("top")
     axes['ax_xz'].xaxis.tick_top()
 
-    plt.tight_layout(w_pad=-11, h_pad=1, rect=[0, 0, 1, 0.95]) #pad=2.5)
+    plt.tight_layout()
 
     return None
 
@@ -224,10 +224,10 @@ def fill_in_dashboard(fig, plot_dict,index):
 
     # tether speed
     if 'dl_t' in plot_dict['x'].keys():
-        dl_t = plot_dict['x']['dl_t'][0][index]
+        dl_t = plot_dict['x']['dl_t'][0][index][0]
     else:
         dl_t = 0.
-    global_string += 'dlt = ' + str(dl_t) + ' m/s\n'
+    global_string += 'dlt = ' + print_op.repr_g(dl_t) + ' m/s\n'
 
     # LOCAL INFORMATION
     local_string = 'kite 1:\n'

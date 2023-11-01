@@ -55,11 +55,6 @@ def get_filament_strength(options, geometry, CL):
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     axial_speed = u_ref * (1. - a_ref)
-
-    # tangential_speed = options['solver']['initialization']['groundspeed']
-    # airspeed_ref = cas.sqrt(tangential_speed ** 2 + axial_speed ** 2.)
-
-    print_op.warn_about_temporary_functionality_alteration()
     airspeed_ref = axial_speed
 
     filament_strength = 0.5 * CL * airspeed_ref * c_ref
@@ -348,7 +343,7 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
 
     else:
         message = 'unexpected_position_in_horseshoe found (' + position_in_horseshoe + '), while setting up near-wake induced velocity scaling'
-        print_op.warn_about_temporary_functionality_alteration(message)
+        print_op.log_and_raise_error(message)
 
     info_dict = {'x_start': x_start,
                  'x_end': x_end,
@@ -361,7 +356,6 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
     x_obs = x_kite_obs
     value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
 
-    print_op.warn_about_temporary_functionality_alteration()
     u_ref = properties_ref['u_ref']
     a_ref = model_options['aero']['actuator']['a_ref']
     value = u_ref * (1. - a_ref) * vect_op.xhat_dm()

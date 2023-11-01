@@ -37,6 +37,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.struct_operations as struct_op
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_top_name, fig_num=None, epigraph=None):
 
@@ -220,6 +221,13 @@ def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
 
 def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
 
+    interpolation_or_solution = 'both' #'solution'
+
+    outputs_opt = plot_dict['output_vals']['opt']
+    outputs_dict = plot_dict['outputs_dict']
+    outputs = plot_dict['outputs']
+    model_outputs = plot_dict['model_outputs']
+
     architecture = plot_dict['architecture']
     kite_nodes = architecture.kite_nodes
     layer_nodes = architecture.layer_nodes
@@ -232,9 +240,10 @@ def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_ki
         node_set = layer_nodes
         set_name = 'layer'
 
-
     # collect all of induction values
-    y_dict = {}
+    y_interp = {}
+    y_sol = {}
+
     for node in node_set:
 
         if 'actuator' in plot_dict['outputs']:
@@ -244,10 +253,16 @@ def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_ki
                 key_name = y_var_sym + '_' + label + str(node)
 
                 if key_name in actuator_outputs.keys():
+                    if not (node in y_interp.keys()):
+                        y_interp[node] = {}
+                    if not (node in y_sol.keys()):
+                        y_sol[node] = {}
 
-                    if not (node in y_dict.keys()):
-                        y_dict[node] = {}
-                    y_dict[node][label] = actuator_outputs[key_name][0]
+                    if interpolation_or_solution in ['interpolation', 'both']:
+                        y_interp[node][label] = actuator_outputs[key_name][0]
+                    if interpolation_or_solution in ['solution', 'both']:
+                        odx = struct_op.find_output_idx(model_outputs, 'actuator', key_name)
+                        y_sol[node][label] = outputs_opt[odx, :]
 
         if 'vortex' in plot_dict['outputs']:
             vortex_outputs = plot_dict['outputs']['vortex']
@@ -255,48 +270,75 @@ def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_ki
             key_name = y_var_sym + str(node)
             if key_name in vortex_outputs.keys():
 
-                if not (node in y_dict.keys()):
-                    y_dict[node] = {}
-                y_dict[node]['vort'] = vortex_outputs[key_name][0]
+                if not (node in y_interp.keys()):
+                    y_interp[node] = {}
+                if not (node in y_sol.keys()):
+                    y_sol[node] = {}
 
+                if interpolation_or_solution in ['interpolation', 'both']:
+                    y_interp[node]['vort'] = plot_dict['outputs']['vortex'][key_name][0]
+                if interpolation_or_solution in ['solution', 'both']:
+                    odx = struct_op.find_output_idx(model_outputs, 'vortex', key_name)
+                    y_sol[node]['vort'] = outputs_opt[odx, :]
+
+    all_nodes = set(y_interp.keys()).union(set(y_sol.keys()))
+
+    colors = cosmetics['trajectory']['colors']
+    layers = architecture.layer_nodes
+
+    x_var_name = 'non-dim. time'
+    x_var_latex = r'$t/t_f$ [-]'
+
+    fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
+    title = y_var_name + ' by model and ' + x_var_name
+    axes = tools.set_layer_plot_titles(axes, nrows, title)
 
     ldx = 0
-    if [node_name for node_name in y_dict.keys()]:
+    if [node_name for node_name in all_nodes]:
 
-        colors = cosmetics['trajectory']['colors']
-        layers = architecture.layer_nodes
+        if interpolation_or_solution in ['interpolation', 'both']:
+            x_interp, tau = tools.get_nondim_time_and_switch(plot_dict)
 
-        x_var_name = 'non-dim. time'
-        x_var_latex = r'$t/t_f$ [-]'
-        x_vals, tau = tools.get_nondim_time_and_switch(plot_dict)
+        if interpolation_or_solution in ['solution', 'both']:
+            _, tau = tools.get_nondim_time_and_switch(plot_dict)
+            x_sol = plot_dict['time_grids']['x_coll'][:-1]
+            x_sol = x_sol / x_sol[-1]
 
-        fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
-        title = y_var_name + ' by model and ' + x_var_name
-        axes = tools.set_layer_plot_titles(axes, nrows, title)
-
-        x_min = np.min(x_vals)
-        x_max = np.max(x_vals)
+        x_min = 0.
+        x_max = 1.
         y_min = 10.
         y_max = 0.
 
         kdx = 0
-        for node in y_dict.keys():
+        for node in all_nodes:
             kdx += 1
 
             mdx = 0
-            for model in y_dict[node].keys():
+            for model in y_sol[node].keys():
                 mdx += 1
 
-                y_vals = y_dict[node][model]
-                line_label = set_name + ' ' + str(node) +', ' + model
-                y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
+                line_label = set_name + ' ' + str(node) + ', ' + model
 
                 color_vals = colors[mdx]
-                dash_style = dashes[kdx]
-                line_style = ':'
 
-                line, = axes.plot(x_vals, y_vals, color=color_vals, linestyle=line_style, label=line_label)
-                line.set_dashes(dash_style)
+                if interpolation_or_solution in ['interpolation', 'both']:
+                    y_vals = y_interp[node][model]
+
+                    line_style = ':'
+                    marker_style = 'None'
+                    dash_style = dashes[kdx]
+                    line_interp, = axes.plot(vect_op.columnize(x_interp), vect_op.columnize(y_vals), color=color_vals,
+                                      linestyle=line_style, label=line_label, marker=marker_style)
+                    line_interp.set_dashes(dash_style)
+                    y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
+
+                if interpolation_or_solution in ['solution', 'both']:
+                    y_vals = y_sol[node][model]
+                    line_style = 'None'
+                    marker_style = 'o'
+                    line_sol, = axes.plot(vect_op.columnize(x_sol), vect_op.columnize(y_vals), color=color_vals,
+                                      linestyle=line_style, label=line_label, marker=marker_style)
+                    y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
 
         xlabel = x_var_name + ' ' + x_var_latex
         ylabel = y_var_name + ' ' + y_var_latex

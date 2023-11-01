@@ -133,8 +133,9 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
 
                         if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
                             # ndx-1
+                            # ndx
                             print_op.warn_about_temporary_functionality_alteration()
-                            V_init_si['z', ndx, u_ind_elem_name] = value_eval
+                            V_init_si['z', ndx-1, u_ind_elem_name] = value_eval
 
                         if use_lifted_biot_savart_residual_assembly:
                             u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
@@ -158,8 +159,9 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                             if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
                                 print_op.warn_about_temporary_functionality_alteration()
                                 # ndx - 1
-                                V_init_si['z', ndx, u_ind_num_elem_name] = num_eval
-                                V_init_si['z', ndx, u_ind_den_elem_name] = den_eval
+                                # ndx
+                                V_init_si['z', ndx-1, u_ind_num_elem_name] = num_eval
+                                V_init_si['z', ndx-1, u_ind_den_elem_name] = den_eval
 
                                 elem.define_biot_savart_induction_residual_function(
                                     biot_savart_residual_assembly='lifted')

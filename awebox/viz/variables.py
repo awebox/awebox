@@ -322,7 +322,7 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time
 
     variables_dict = plot_dict['variables_dict']
     si_or_scaled = cosmetics['variables']['si_or_scaled']
-    scaling = plot_dict['variables'](plot_dict['scaling'])
+    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
 
     ax = plt.axes(ax)
     number_of_dimensions = variables_dict[var_type][var_name].shape[0]

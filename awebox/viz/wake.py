@@ -84,8 +84,8 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
 
-        model_variables = plot_dict['variables']
-        model_scaling = model_variables(plot_dict['scaling'])
+        model_variables = plot_dict['model_variables']
+        model_scaling = model_variables(plot_dict['model_scaling'])
 
         if cosmetics['variables']['si_or_scaled'] == 'scaled':
             variables_scaled = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
@@ -184,7 +184,7 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     # for name, object in plot_dict['vortex_objects_dir'].items():
     #
     #     if object.model_projected_induction_fun is not None:
-    #         object.make_awebox_model_induction_functions(plot_dict['variables'], plot_dict['parameters'])
+    #         object.make_awebox_model_induction_functions(plot_dict['model_variables'], plot_dict['model_parameters'])
     #
     #     local_projected_induction_sym += object.model_projected_induction_fun(local_variables, local_parameters, local_x_hat_sym, local_n_hat_sym)
     #

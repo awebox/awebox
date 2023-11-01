@@ -94,8 +94,10 @@ def interpolate_data(trial, freq):
     else:
         Collocation = None
 
-    interpolation = struct_op.interpolate_solution(parametric_options, time_grids, trial.model.variables, variables_dict, V_opt, outputs_dict, outputs_opt, integral_output_names, integral_outputs_opt, Collocation=Collocation, timegrid_label='ip', n_points=n_points)
-
+    interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt, outputs_dict,
+                                                   outputs_opt, trial.model.outputs, integral_output_names,
+                                                   integral_outputs_opt, Collocation=Collocation, timegrid_label='ip',
+                                                   n_points=n_points)
     return interpolation
 
 

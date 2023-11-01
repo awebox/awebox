@@ -767,7 +767,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     CL = estimate_CL(options)
     gamma_scale = vortex_alg_repr_scaling.get_filament_strength(options, geometry, CL)
 
-    circulation_max_estimate = 1.5 * gamma_scale
+    print_op.warn_about_temporary_functionality_alteration()
+    circulation_max_estimate = 10. * gamma_scale
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', gamma_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
     for kite in architecture.kite_nodes:

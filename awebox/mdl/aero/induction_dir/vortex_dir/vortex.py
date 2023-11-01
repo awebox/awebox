@@ -119,13 +119,7 @@ def get_superposition_cstr(model_options, wake, system_variables, architecture, 
                         for dim in range(3):
                             scaling_list += [float(scaling['z', elem_u_ind_name, dim])]
 
-        print_op.warn_about_temporary_functionality_alteration()
-        # scaling_val = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(scaling_list)
         scaling_val = np.max(np.array(scaling_list))
-
-        print_op.warn_about_temporary_functionality_alteration()
-        # var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
-        # resi_scaled = struct_op.var_si_to_scaled('z', var_name, resi_si, scaling)
         resi_scaled = resi_si / scaling_val
 
         local_cstr = cstr_op.Constraint(expr=resi_scaled,
