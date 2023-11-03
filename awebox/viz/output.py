@@ -38,6 +38,8 @@ from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
+
 
 def plot_outputs(plot_dict, cosmetics, fig_name, output_top_name, fig_num=None, epigraph=None):
 
@@ -66,7 +68,31 @@ def get_dictionary_with_output_dimensions(interesting_outputs, outputs, architec
         output_dimensions[opt] = number_of_output_dims
     return output_dimensions
 
-def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=None, epigraph=None):
+def include_specific_output_solution(relevant_axes, plot_dict, output_type, output_name, output_dim, local_color):
+
+    if ('output_vals' in plot_dict.keys()) and ('opt' in plot_dict['output_vals'].keys()):
+
+        original_times = struct_op.get_concatenated_coll_time_grid(plot_dict['time_grids'])
+
+        collocation_entries = plot_dict['time_grids']['coll'].shape[0] * plot_dict['time_grids']['coll'].shape[1]
+        collocation_d = int(collocation_entries / plot_dict['n_k'])
+
+        outputs_opt = plot_dict['output_vals']['opt']
+        model_outputs = plot_dict['model_outputs']
+        odx = struct_op.find_output_idx(model_outputs, output_type, output_name, output_dim)
+
+        original_series = outputs_opt[odx, :].T
+        if not (original_times.shape == original_series.shape):
+            original_series = struct_op.get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
+
+        label = output_name + " (found)"
+        relevant_axes.plot(original_times.full(), original_series.full(), '*', color=local_color, label=label)
+
+    return None
+
+def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=None, epigraph=None, all_together=False):
+
+    include_solution = cosmetics['outputs']['include_solution']
 
     outputs = plot_dict['outputs']
     architecture = plot_dict['architecture']
@@ -78,23 +104,30 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
         number_of_opts = len(interesting_outputs)
 
         output_dimensions_dict = get_dictionary_with_output_dimensions(interesting_outputs, outputs, architecture)
-        number_of_individual_plots = number_of_opts
+        number_of_individual_outputs_to_plot = number_of_opts
 
-        if number_of_individual_plots == 1:
+        number_of_individual_lines_to_draw = 0
+        for value in output_dimensions_dict.values():
+            number_of_individual_lines_to_draw += value
+
+        if all_together:
             plot_table_r = 1
             plot_table_c = 1
-        elif np.mod(number_of_individual_plots, 3) == 0:
+        elif number_of_individual_outputs_to_plot == 1:
+            plot_table_r = 1
+            plot_table_c = 1
+        elif np.mod(number_of_individual_outputs_to_plot, 3) == 0:
             plot_table_r = 3
-            plot_table_c = int(number_of_individual_plots / plot_table_r)
-        elif np.mod(number_of_individual_plots, 4) == 0:
+            plot_table_c = int(number_of_individual_outputs_to_plot / plot_table_r)
+        elif np.mod(number_of_individual_outputs_to_plot, 4) == 0:
             plot_table_r = 4
-            plot_table_c = int(number_of_individual_plots / plot_table_r)
-        elif np.mod(number_of_individual_plots, 5) == 0:
+            plot_table_c = int(number_of_individual_outputs_to_plot / plot_table_r)
+        elif np.mod(number_of_individual_outputs_to_plot, 5) == 0:
             plot_table_r = 5
-            plot_table_c = int(number_of_individual_plots / plot_table_r)
+            plot_table_c = int(number_of_individual_outputs_to_plot / plot_table_r)
         else:
             plot_table_r = 3
-            plot_table_c = int(np.ceil(np.float(number_of_individual_plots) / np.float(plot_table_r)))
+            plot_table_c = int(np.ceil(np.float(number_of_individual_outputs_to_plot) / np.float(plot_table_r)))
 
         # create new figure if desired
         if fig_num is not None:
@@ -114,56 +147,81 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         kite_nodes = architecture.kite_nodes
 
-        cdx = 0
+        number_of_outputs_plotted_so_far = 0
+        number_of_lines_drawn_so_far = 0
         for odx in range(len(interesting_outputs)):
 
+            if all_together or (number_of_opts == 1):
+                relevant_axes = axes[0]
+            else:
+                number_of_lines_drawn_so_far = 0
+                relevant_axes = axes[odx]
+
             opt = interesting_outputs[odx]
-            category = opt[0]
-            base_name = opt[1]
+            output_type = opt[0]
+            output_name = opt[1]
             number_of_output_dims = output_dimensions_dict[opt]
-            output_is_systemwide = base_name in outputs[category].keys()
+            output_is_systemwide = output_name in outputs[output_type].keys()
 
-            for jdx in range(number_of_output_dims):
+            if all_together:
+                number_of_lines_expected_in_this_axes = number_of_individual_lines_to_draw
+            else:
+                number_of_lines_expected_in_this_axes = number_of_output_dims
 
+            for output_dim in range(number_of_output_dims):
                 cmap = plt.get_cmap('brg')
-                strength_scaled = float(jdx - 0) / float(number_of_output_dims)
-                local_color = cmap(strength_scaled)
+                decimal_color = float(number_of_lines_drawn_so_far) / float(number_of_lines_expected_in_this_axes)
+                local_color = cmap(decimal_color)
 
                 if output_is_systemwide:
-                    data = np.array(outputs[opt[0]][base_name][jdx])
-                    axes[odx].plot(tgrid_ip, data, color=local_color)
+                    data = np.array(outputs[output_type][output_name][output_dim])
+                    relevant_axes.plot(tgrid_ip, data, color=local_color, label=output_name)
+                    number_of_lines_drawn_so_far += 1
 
+                    if include_solution:
+                        include_specific_output_solution(relevant_axes, plot_dict, output_type, output_name, output_dim,
+                                                         local_color)
                 else:
                     for kite in kite_nodes:
-                        data = np.array(outputs[opt[0]][base_name + str(kite)][jdx])
+                        local_name = output_name + str(kite)
+                        if local_name in outputs[output_type].keys():
+                            data = np.array(outputs[output_type][local_name][output_dim])
+                            relevant_axes.plot(tgrid_ip, data, color=local_color, label=local_name)
+                            number_of_lines_drawn_so_far += 1
 
-                        if number_of_opts == 1:
-                            axes.plot(tgrid_ip, data, color=local_color)
-                        else:
-                            axes[cdx].plot(tgrid_ip, data, color=local_color)
+                            if include_solution:
+                                include_specific_output_solution(relevant_axes, plot_dict, output_type, output_name,
+                                                                 output_dim,
+                                                                 local_color)
 
                 if (epigraph is not None) and (isinstance(epigraph, float)):
-                    axes[cdx].axhline(y=epigraph, color='gray', linestyle='--')
+                    relevant_axes.axhline(y=epigraph, color='gray', linestyle='--')
 
                 if 't_switch' in plot_dict['time_grids'].keys():
                     t_switch = float(plot_dict['time_grids']['t_switch'])
 
-                    axes[cdx].axvline(x=t_switch, color='gray', linestyle='--')
+                    relevant_axes.axvline(x=t_switch, color='gray', linestyle='--')
 
-                axes[cdx].set_ylabel(opt[1])
+                if not all_together:
+                    relevant_axes.set_ylabel(output_name)
 
-            cdx += 1
+            number_of_outputs_plotted_so_far += 1
 
-        if not (cdx == number_of_individual_plots):
-            message = 'something went wrong when drawing the output plots, because ' + str(number_of_individual_plots) + ' were expected and ' + str(cdx) + ' were draw'
+        if not (number_of_outputs_plotted_so_far == number_of_individual_outputs_to_plot):
+            message = 'something went wrong when drawing the output plots, because '
+            message += str(number_of_individual_outputs_to_plot) + ' were expected and '
+            message += str(number_of_outputs_plotted_so_far) + ' were draw'
             print_op.log_and_raise_error(message)
 
-        for cdx in range(number_of_individual_plots):
-            axes[cdx].set_xlabel('t [s]')
-            axes[cdx].autoscale(enable=True, axis='x', tight=True)
-            axes[cdx].grid(True)
-            axes[cdx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
-            axes[cdx].yaxis.set_major_locator(MaxNLocator(3))
+        for adx in range(len(axes)):
+            axes[adx].set_xlabel('t [s]')
+            axes[adx].autoscale(enable=True, axis='x', tight=True)
+            axes[adx].grid(True)
+            axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
+            axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+
+        if all_together:
+            plt.legend()
 
         plt.suptitle(fig_name)
         fig.canvas.draw()
@@ -204,192 +262,50 @@ def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
                            ('performance', 'f0')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+
 def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
 
     interesting_outputs = []
     for kite in plot_dict['architecture'].kite_nodes:
         interesting_outputs += [('aerodynamics', 'circulation' + str(kite))]
-    # #
-    # if plot_dict['architecture'].number_of_kites == 1:
-    #     interesting_outputs += [('aerodynamics', 'circulation_cl' + str(kite))]
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 
 
-# actuator outputs
-
-def plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels):
-
-    interpolation_or_solution = 'both' #'solution'
-
-    outputs_opt = plot_dict['output_vals']['opt']
-    outputs_dict = plot_dict['outputs_dict']
-    outputs = plot_dict['outputs']
-    model_outputs = plot_dict['model_outputs']
-
-    architecture = plot_dict['architecture']
-    kite_nodes = architecture.kite_nodes
-    layer_nodes = architecture.layer_nodes
-    dashes = plot_dict['dashes']
-
-    if y_is_per_kite:
-        node_set = kite_nodes
-        set_name = 'kite'
-    else:
-        node_set = layer_nodes
-        set_name = 'layer'
-
-    # collect all of induction values
-    y_interp = {}
-    y_sol = {}
-
-    for node in node_set:
-
-        if 'actuator' in plot_dict['outputs']:
-            actuator_outputs = plot_dict['outputs']['actuator']
-
-            for label in comparison_labels:
-                key_name = y_var_sym + '_' + label + str(node)
-
-                if key_name in actuator_outputs.keys():
-                    if not (node in y_interp.keys()):
-                        y_interp[node] = {}
-                    if not (node in y_sol.keys()):
-                        y_sol[node] = {}
-
-                    if interpolation_or_solution in ['interpolation', 'both']:
-                        y_interp[node][label] = actuator_outputs[key_name][0]
-                    if interpolation_or_solution in ['solution', 'both']:
-                        odx = struct_op.find_output_idx(model_outputs, 'actuator', key_name)
-                        y_sol[node][label] = outputs_opt[odx, :]
-
-        if 'vortex' in plot_dict['outputs']:
-            vortex_outputs = plot_dict['outputs']['vortex']
-
-            key_name = y_var_sym + str(node)
-            if key_name in vortex_outputs.keys():
-
-                if not (node in y_interp.keys()):
-                    y_interp[node] = {}
-                if not (node in y_sol.keys()):
-                    y_sol[node] = {}
-
-                if interpolation_or_solution in ['interpolation', 'both']:
-                    y_interp[node]['vort'] = plot_dict['outputs']['vortex'][key_name][0]
-                if interpolation_or_solution in ['solution', 'both']:
-                    odx = struct_op.find_output_idx(model_outputs, 'vortex', key_name)
-                    y_sol[node]['vort'] = outputs_opt[odx, :]
-
-    all_nodes = set(y_interp.keys()).union(set(y_sol.keys()))
-
-    colors = cosmetics['trajectory']['colors']
-    layers = architecture.layer_nodes
-
-    x_var_name = 'non-dim. time'
-    x_var_latex = r'$t/t_f$ [-]'
-
-    fig, axes, nrows = tools.make_layer_plot_in_fig(layers, fig_num)
-    title = y_var_name + ' by model and ' + x_var_name
-    axes = tools.set_layer_plot_titles(axes, nrows, title)
-
-    ldx = 0
-    if [node_name for node_name in all_nodes]:
-
-        if interpolation_or_solution in ['interpolation', 'both']:
-            x_interp, tau = tools.get_nondim_time_and_switch(plot_dict)
-
-        if interpolation_or_solution in ['solution', 'both']:
-            _, tau = tools.get_nondim_time_and_switch(plot_dict)
-            x_sol = plot_dict['time_grids']['x_coll'][:-1]
-            x_sol = x_sol / x_sol[-1]
-
-        x_min = 0.
-        x_max = 1.
-        y_min = 10.
-        y_max = 0.
-
-        kdx = 0
-        for node in all_nodes:
-            kdx += 1
-
-            mdx = 0
-            for model in y_sol[node].keys():
-                mdx += 1
-
-                line_label = set_name + ' ' + str(node) + ', ' + model
-
-                color_vals = colors[mdx]
-
-                if interpolation_or_solution in ['interpolation', 'both']:
-                    y_vals = y_interp[node][model]
-
-                    line_style = ':'
-                    marker_style = 'None'
-                    dash_style = dashes[kdx]
-                    line_interp, = axes.plot(vect_op.columnize(x_interp), vect_op.columnize(y_vals), color=color_vals,
-                                      linestyle=line_style, label=line_label, marker=marker_style)
-                    line_interp.set_dashes(dash_style)
-                    y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
-
-                if interpolation_or_solution in ['solution', 'both']:
-                    y_vals = y_sol[node][model]
-                    line_style = 'None'
-                    marker_style = 'o'
-                    line_sol, = axes.plot(vect_op.columnize(x_sol), vect_op.columnize(y_vals), color=color_vals,
-                                      linestyle=line_style, label=line_label, marker=marker_style)
-                    y_max, y_min = tools.set_max_and_min(y_vals, y_max, y_min)
-
-        xlabel = x_var_name + ' ' + x_var_latex
-        ylabel = y_var_name + ' ' + y_var_latex
-        axes = tools.set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx)
-        axes = tools.set_layer_plot_legend(axes, nrows, ldx)
-
-        ldx += 1
-
-        axes = tools.set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max)
-        axes = tools.add_switching_time_epigraph(axes, nrows, tau, y_min, y_max)
-
-    return None
-
-def plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
-    y_var_name = 'avg. induction factor'
-    y_var_sym = 'a0'
-    y_var_latex = r'$a_0$ [-]'
-    y_is_per_kite = False
-
-    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+# induction outputs
+def add_interesting_outputs_for_available_induction_model(interesting_outputs, plot_dict, search_name):
+    search_types = set(['vortex', 'actuator']).intersection(set(plot_dict['outputs'].keys()))
+    for output_type in search_types:
+        for output_name in plot_dict['outputs'][output_type].keys():
+            if search_name in output_name:
+                interesting_outputs += [(output_type, output_name)]
+    return interesting_outputs
 
 
-def plot_relative_radius_with_time(plot_dict, cosmetics, fig_name):
-    y_var_name = 'avg. relative radius'
-    y_var_sym = 'bar_varrho'
-    y_var_latex = r'$\bar{\varrho}$ [-]'
-    y_is_per_kite = False
+def plot_annulus_average_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
+    base_name = 'a0'
 
-    fig_num = 2100
-    comparison_labels = ['']
+    interesting_outputs = []
+    interesting_outputs = add_interesting_outputs_for_available_induction_model(interesting_outputs, plot_dict, base_name)
 
-    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
 
-def plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, fig_num, comparison_labels):
-    y_var_name = 'local induction factor'
-    y_var_sym = 'local_a'
-    y_var_latex = r'$a_k$ [-]'
-    y_is_per_kite = True
+def plot_local_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
+    base_name = 'local_a'
 
-    plot_generic_actuator_output(y_var_name, y_var_sym, y_var_latex, y_is_per_kite, plot_dict, cosmetics, fig_num, comparison_labels)
+    interesting_outputs = []
+    for kite in plot_dict['architecture'].kite_nodes:
+        local_name = base_name + str(kite)
+        interesting_outputs = add_interesting_outputs_for_available_induction_model(interesting_outputs, plot_dict, local_name)
 
-def plot_induction_factor(plot_dict, cosmetics, fig_name):
-
-    idx = 0
-    comparison_labels = tools.reconstruct_comparison_labels(plot_dict)
-
-    plot_modelled_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1000 + idx, comparison_labels)
-    plot_avg_induction_factor_with_time(plot_dict, cosmetics, fig_name, 1500, comparison_labels)
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
 
-def plot_relative_radius(plot_dict, cosmetics, fig_name):
-    plot_relative_radius_with_time(plot_dict, cosmetics, fig_name)
+def plot_relative_radius(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for parent in plot_dict['architecture'].layer_nodes:
+        interesting_outputs += [('geometry', 'average_relative_radius' + str(parent))]
 
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)

@@ -65,7 +65,7 @@ class Quality(object):
         quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
         time_grids['quality'] = quality_time_grid
 
-        quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, V_opt, outputs_dict, outputs_opt,
+        quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt,
                                                               trial.model.outputs, integral_output_names, integral_outputs_opt,
                                                               Collocation=Collocation, timegrid_label='quality')
 

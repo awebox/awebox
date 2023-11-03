@@ -741,14 +741,9 @@ def interpolate_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']
-    model_variables = plot_dict['model_variables']
     variables_dict = plot_dict['variables_dict']
-    model_parameters = plot_dict['model_parameters']
     V_plot_si = plot_dict['V_plot_si']
-    p_fix_num = plot_dict['p_fix_num']
-    model_scaling = plot_dict['model_scaling']
     model_outputs = plot_dict['model_outputs']
-    model_outputs_fun = plot_dict['model_outputs_fun']
     outputs_dict = plot_dict['outputs_dict']
     outputs_opt = plot_dict['output_vals']['opt']
     integral_output_names = plot_dict['integral_output_names']
@@ -781,14 +776,9 @@ def interpolate_ref_data(plot_dict, cosmetics):
     # extract information
     nlp_options = cosmetics
     time_grids = plot_dict['time_grids']['ref']
-    model_variables = plot_dict['model_variables']
-    model_scaling = plot_dict['model_scaling']
     variables_dict = plot_dict['variables_dict']
-    model_parameters = plot_dict['model_parameters']
     V_ref_si = plot_dict['V_ref_si']
-    p_fix_num = plot_dict['p_fix_num']
     model_outputs = plot_dict['outputs']
-    model_outputs_fun = plot_dict['outputs_fun']
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
     integral_output_names = plot_dict['integral_output_names']

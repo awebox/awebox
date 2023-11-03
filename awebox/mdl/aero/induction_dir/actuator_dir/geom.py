@@ -233,8 +233,8 @@ def get_varrho_and_psi_cstr(model_options, kite, variables, parameters, architec
     cospsi_var = get_cospsi_var(variables, kite, parent)
     sinpsi_var = get_sinpsi_var(variables, kite, parent)
 
-    f_sin = np.sin(psi_var) - sinpsi_var
-    f_cos = np.cos(psi_var) - cospsi_var
+    f_sin = cas.sin(psi_var) - sinpsi_var
+    f_cos = cas.cos(psi_var) - cospsi_var
 
     varrho_var = get_varrho_var(variables, kite, parent)
     radius = varrho_var * b_ref

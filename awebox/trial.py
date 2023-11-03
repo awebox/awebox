@@ -236,7 +236,7 @@ class Trial(object):
         if 'e' in self.__model.integral_outputs.keys():
             e_final = self.__optimization.integral_outputs_final['int_out',-1,'e']
         else:
-            e_final = self.__optimization.V_final['x', -1, 'e'][-1]
+            e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
 
         time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
         avg_power = e_final / time_period

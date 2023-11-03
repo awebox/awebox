@@ -74,14 +74,14 @@ def test_constraints_integration(epsilon=1.e-3):
     expected_time = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
 
     if 'total_time_unscaled' in trial.model.variables_dict['x'].keys():
-        time_unscaled = trial.optimization.V_final['x', -1, 'total_time_unscaled']
+        time_unscaled = trial.optimization.V_final_si['x', -1, 'total_time_unscaled']
     else:
         message = 'total_time_unscaled not in states.keys()'
         print_op.log_and_raise_error(message)
     unscaled_integration_works_correctly = ((time_unscaled - expected_time)**2. < epsilon**2.)
 
     if 'total_time_scaled' in trial.model.variables_dict['x'].keys():
-        time_scaled = trial.optimization.V_final['x', -1, 'total_time_scaled']
+        time_scaled = trial.optimization.V_final_si['x', -1, 'total_time_scaled']
     else:
         message = 'total_time_scaled not in states.keys()'
         print_op.log_and_raise_error(message)
@@ -91,3 +91,6 @@ def test_constraints_integration(epsilon=1.e-3):
     assert(scaled_integration_works_correctly)
 
     return None
+
+# test_integral_outputs_integration()
+# test_constraints_integration()

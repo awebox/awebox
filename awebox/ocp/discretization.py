@@ -329,6 +329,7 @@ def discretize(nlp_options, model, formulation):
                 elif nlp_options['collocation']['u_param'] == 'poly':
                     Outputs_list.append(coll_outputs[:, kdx * (d) + ddx])
 
+
     # Create Outputs struct and function
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
     Outputs = Outputs_fun(V, P)
@@ -340,7 +341,7 @@ def discretize(nlp_options, model, formulation):
     if nlp_options['induction']['induction_model'] == 'vortex':  # outputs are need for vortex constraint construction
         output_structure = setup_output_structure(nlp_options, mdl_outputs)
         Outputs_struct = output_structure(cas.vertcat(*Outputs_list))
-        Outputs_structured_fun = cas.Function('Outputs_fun', [V, P], [cas.vertcat(*Outputs_list)])
+        Outputs_structured_fun = cas.Function('Outputs_structured_fun', [V, P], [cas.vertcat(*Outputs_list)])
         Outputs_structured = Outputs_struct(Outputs_structured_fun(V, P))
 
     # Create Integral outputs struct and function

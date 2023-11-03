@@ -1138,11 +1138,38 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
     return integral_outputs_interpolated
 
 
+def get_concatenated_coll_time_grid(time_grids):
+    original = time_grids['coll']
+    n_k, collocation_d = original.shape
+
+    reshaped = []
+    for kdx in range(n_k):
+        for ddx in range(collocation_d):
+            reshaped = cas.vertcat(reshaped, original[kdx, ddx])
+    return reshaped
+
+def get_output_series_with_duplicates_removed(original_times, original_series, collocation_d):
+
+    series_without_duplicates = []
+    for idx in range(original_series.shape[0]):
+        if (np.mod(idx + 1, collocation_d + 1) > 0):
+            series_without_duplicates = cas.vertcat(series_without_duplicates, original_series[idx])
+
+    if not (original_times.shape == series_without_duplicates.shape):
+        message = 'something went wrong when removing duplicate entries from zoh outputs, prior to interpolation'
+        message += ": series does not have correct number of entries"
+        print_op.log_and_raise_error(message)
+
+    return series_without_duplicates
+
+
 def interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d, is_periodic=True):
 
     outputs_interpolated = {}
 
     expected_number_of_outputs = outputs_opt.shape[0]
+
+    original_times = get_concatenated_coll_time_grid(time_grids)
 
     confirmation_counter = 0
     for output_type in outputs_dict.keys():
@@ -1155,30 +1182,25 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, co
 
             for output_dim in range(outputs_dict[output_type][output_name].shape[0]):
                 odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
-                original_series = outputs_opt[odx, :]
+                original_series = outputs_opt[odx, :].T
 
-                time_list = list(time_grids['x_coll'].full().squeeze())
+                if not (original_times.shape == original_series.shape):
+                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
+
+                time_list = list(original_times.full().squeeze())
                 series_list = list(original_series.full().squeeze())
 
-                time_list_without_duplicates = []
-                series_list_without_duplicates = []
-                for ldx in range(len(series_list)):
-                    if np.mod(ldx + 1, collocation_d + 1) > 0:
-                        time_list_without_duplicates += [time_list[ldx]]
-                        series_list_without_duplicates += [series_list[ldx]]
+                if is_periodic and (time_list[0] > 0.0):
+                    time_list = [0.] + time_list
+                    series_list = [series_list[-1]] + series_list
 
-                epsilon = 1.e-10
-                if is_periodic and (time_grids['ip'][-1] > (time_list_without_duplicates[-1] + epsilon)):
-                    time_list_without_duplicates += [time_grids['ip'][-1]]
-                    series_list_without_duplicates += [series_list[0]]
-
-                if vect_op.data_is_obviously_uninterpolatable(time_list_without_duplicates,
-                                                              series_list_without_duplicates):
+                if vect_op.data_is_obviously_uninterpolatable(time_list,
+                                                              series_list):
                     message = 'something went wrong when trying to interpolate outputs'
                     print_op.log_and_raise_error(message)
 
                 local_interpolated = np.array(
-                    vect_op.spline_interpolation(time_list_without_duplicates, series_list_without_duplicates,
+                    vect_op.spline_interpolation(time_list, series_list,
                                                  time_grids['ip']))
 
                 outputs_interpolated[output_type][output_name] += [local_interpolated]
@@ -1193,44 +1215,51 @@ def interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, co
 
 
 def sanity_check_the_output_interpolation(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d,
-                                          is_periodic=True, acceptable_error=1.):
+                                          is_periodic=True, acceptable_error=1.e-5):
 
     time_grids_sanity = copy.deepcopy(time_grids)
 
-    known_times = time_grids['x_coll']
+    original_times = get_concatenated_coll_time_grid(time_grids)
 
     start_idx = 0
-    final_idx = np.max(outputs_opt[0, :].shape) - 1
+    final_idx = original_times.shape[0] - 1
     intermediate_idx = int(np.floor(final_idx/2))
 
-    start_time = known_times[start_idx]
-    intermediate_time = known_times[intermediate_idx]
-    final_time = known_times[final_idx]
+    list_of_indices = [start_idx, intermediate_idx, final_idx]
 
-    time_grids_sanity['ip'] = np.array([start_time, intermediate_time, final_time])
+    interpolation_time = [original_times[idx] for idx in list_of_indices]
+    time_grids_sanity['ip'] = np.array(interpolation_time)
 
     outputs_sanity = interpolate_outputs(time_grids_sanity, outputs_dict, outputs_opt, model_outputs, collocation_d, is_periodic=is_periodic)
 
     for output_type in outputs_sanity.keys():
         for output_name in outputs_sanity[output_type].keys():
             for output_dim in range(len(outputs_sanity[output_type][output_name])):
-                interpolated_series = cas.DM(outputs_sanity[output_type][output_name][output_dim])
 
                 odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
                 original_series = outputs_opt[odx, :].T
 
-                comparison_series = cas.vertcat(original_series[start_idx], original_series[intermediate_idx], original_series[final_idx])
+                if not (original_times.shape == original_series.shape):
+                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
+
+                comparison_series = []
+                for idx in list_of_indices:
+                    comparison_series = cas.vertcat(comparison_series, original_series[idx])
+
+                interpolated_series = cas.DM(outputs_sanity[output_type][output_name][output_dim])
 
                 diff = comparison_series - interpolated_series
                 resi = cas.mtimes(diff.T, diff)
+                epsilon = 1.e-4  # an incredibly arbitrary smoothing value
+                normalization = cas.mtimes(comparison_series.T, comparison_series) + epsilon**2.
 
-                normalized_resi = resi / vect_op.smooth_norm(comparison_series, epsilon=1.e-3) #an incredibly arbitrary smoothing value
+                normalized_resi = resi / normalization
 
-                if normalized_resi > acceptable_error:
+                if normalized_resi > acceptable_error**2.:
                     message = 'output (' + output_type + ": " + output_name + " [" + str(output_dim) + "]) seems to be badly interpolated."
                     message += " at times " + repr(time_grids_sanity['ip']) + ", the original outputs are " + repr(comparison_series)
                     message += ", whereas the interpolation gives " + repr(interpolated_series)
-                    print_op.base_print(message, level='warning')
+                    print_op.log_and_raise_error(message)
 
     return None
 
@@ -1241,6 +1270,8 @@ def produce_chi_by_eye_sanity_checks_for_output_interpolation(interpolation, mod
     # warning: therefore, slow.
 
     time_grids = interpolation['time_grids']
+    original_times = get_concatenated_coll_time_grid(time_grids)
+    collocation_d = time_grids['coll'].shape[1]
 
     for output_type in interpolation['outputs'].keys():
         for output_name in interpolation['outputs'][output_type].keys():
@@ -1249,11 +1280,12 @@ def produce_chi_by_eye_sanity_checks_for_output_interpolation(interpolation, mod
                 odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
 
                 original_series = outputs_opt[odx, :].T
-                time_grids_original = time_grids['x_coll'][:-1]
+                if not (original_times.shape == original_series.shape):
+                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
 
                 plt.clf()
                 plt.plot(time_grids['ip'], interpolated_series, label='interpolation')
-                plt.plot(time_grids_original, original_series, '*', label='original')
+                plt.plot(original_times.full(), original_series.full(), '*', label='original')
                 plt.legend()
                 plt.title(output_type + ": " + output_name + " [" + str(output_dim) + "]")
                 plt.show()

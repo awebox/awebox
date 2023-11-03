@@ -216,8 +216,8 @@ def get_gamma_cstr(parent, variables, scaling):
     f_cosproj_scaled = struct_op.var_si_to_scaled('z', var_name, f_cosproj, scaling)
     f_sinproj_scaled = struct_op.var_si_to_scaled('z', var_name, f_sinproj, scaling)
 
-    f_cos = np.cos(gamma_var) - cosgamma_var
-    f_sin = np.sin(gamma_var) - singamma_var
+    f_cos = cas.cos(gamma_var) - cosgamma_var
+    f_sin = cas.sin(gamma_var) - singamma_var
 
     resi = cas.vertcat(f_cos, f_sin, f_cosproj_scaled, f_sinproj_scaled)
 

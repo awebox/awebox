@@ -505,6 +505,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', None,         'plot_bounds', False,          ('plot the variable bounds', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'type',     'poly',         ('???', None), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'n_points', 100,            ('number of interpolation points', None), 'x'),
+        ('visualization', 'cosmetics', 'outputs',     'include_solution', False,    ('plot the actual outputs_opt values in addition to the interpolation', None), 'x'),
         ('visualization', 'cosmetics', 'states',      'colors',     dim_colors,     ('list of colors for states', None), 'x'),
         ('visualization', 'cosmetics', 'states',      'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'states',      'ylabelsize', 15,             ('???', None), 'x'),

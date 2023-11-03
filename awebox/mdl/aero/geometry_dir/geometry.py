@@ -157,7 +157,7 @@ def kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options,
     return kite_motion_is_right_hand_rule_positive_around_wind_direction
 
 
-def collect_geometry_outputs(model_options, wind, variables_si, outputs, architecture):
+def collect_geometry_outputs(model_options, wind, variables_si, outputs, parameters, architecture):
     if 'geometry' not in outputs.keys():
         outputs['geometry'] = {}
 
@@ -190,7 +190,10 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, archite
             average_period_of_rotation += outputs['geometry']['local_period_of_rotation' + str(kite)] / float(
                 architecture.get_number_siblings(kite))
 
+        b_ref = parameters['theta0', 'geometry', 'b_ref']
+
         outputs['geometry']['average_radius' + str(parent)] = average_radius
+        outputs['geometry']['average_relative_radius' + str(parent)] = average_radius / b_ref
         outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius
         outputs['geometry']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
 
