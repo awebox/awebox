@@ -386,7 +386,9 @@ def find_homotopy_cost(component_costs):
 
 
 def find_beta_cost(nlp_options, model, Outputs, P):
-    
+
+    struct_op.sanity_check_find_output_idx(model.outputs)
+
     int_weights = find_int_weights(nlp_options)
     d = nlp_options['collocation']['d']
 
@@ -429,13 +431,12 @@ def find_objective(component_costs, V, V_ref, nlp_options):
     trajectory_type = nlp_options['trajectory']['type']
 
     if trajectory_type == 'power_cycle':
-
         objective = V['phi', 'psi'] * tracking_problem_cost + \
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \
                     homotopy_cost
 
-    elif trajectory_type in ['transition', 'mpc']:
+    elif trajectory_type in ['transition', 'mpc', 'tracking']:
         objective = V['phi', 'upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + \
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \

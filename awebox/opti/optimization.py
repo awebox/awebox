@@ -210,7 +210,10 @@ class Optimization(object):
             self.__iterations[step_name] = 0.
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
-        self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
+        try:
+            self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
+        except:
+            pdb.set_trace()
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
         self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -401,7 +404,10 @@ class Optimization(object):
         # add up iterations of multi-step homotopies
         if step_name not in list(self.__iterations.keys()):
             self.__iterations[step_name] = 0.
+
+        if step_name not in list(self.__t_wall.keys()):
             self.__t_wall[step_name] = 0.
+
         self.__iterations[step_name] += self.__stats['iter_count']
         self.__t_wall[step_name] += self.__stats['t_wall_total']
         if 't_wall_callback_fun' in self.__stats.keys():

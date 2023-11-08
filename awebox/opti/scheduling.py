@@ -432,12 +432,18 @@ def define_bound_update_schedule(model, nlp, formulation):
             bound_schedule[name][1] = ['lb', 'u', 'final']
             bound_schedule[name][2] = ['ub', 'u', 'final']
 
-    if 'ddl_t' in list(model.variables_dict['u'].keys()):
-        bound_schedule['ddl_t'][1] = ['lb', 'u', 'final']
-        bound_schedule['ddl_t'][2] = ['ub', 'u', 'final']
-    elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-        bound_schedule['dddl_t'][1] = ['lb', 'u', 'final']
-        bound_schedule['dddl_t'][2] = ['ub', 'u', 'final']
+    traj_type = formulation.traj_type
+    fix_tether_length = formulation.fix_tether_length
+
+    for tether_control in ['ddl_t', 'dddl_t']:
+        if tether_control in list(model.variables_dict['u'].keys()):
+            bound_schedule[tether_control][1] = ['lb', 'u', 'final']
+            bound_schedule[tether_control][2] = ['ub', 'u', 'final']
+
+            # todo: @jochem, this cannot possibly be what's intended by the tracking trajectory_type, but the tests run, so... what needs to be here instead?
+            if traj_type == 'tracking' and fix_tether_length == False:
+                bound_schedule[tether_control][3] = ['lb', 'u', 'final']
+                bound_schedule[tether_control][4] = ['ub', 'u', 'final']
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):

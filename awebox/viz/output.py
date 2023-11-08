@@ -72,14 +72,16 @@ def include_specific_output_solution(relevant_axes, plot_dict, output_type, outp
 
     if ('output_vals' in plot_dict.keys()) and ('opt' in plot_dict['output_vals'].keys()):
 
-        original_times = struct_op.get_concatenated_coll_time_grid(plot_dict['time_grids'])
+        original_times = struct_op.get_original_time_data_for_output_interpolation(plot_dict['time_grids'])
 
-        collocation_entries = plot_dict['time_grids']['coll'].shape[0] * plot_dict['time_grids']['coll'].shape[1]
+        collocation_entries = original_times.shape[0] * original_times.shape[1]
         collocation_d = int(collocation_entries / plot_dict['n_k'])
 
         outputs_opt = plot_dict['output_vals']['opt']
         model_outputs = plot_dict['model_outputs']
         odx = struct_op.find_output_idx(model_outputs, output_type, output_name, output_dim)
+
+        struct_op.sanity_check_find_output_idx(model_outputs)
 
         original_series = outputs_opt[odx, :].T
         if not (original_times.shape == original_series.shape):

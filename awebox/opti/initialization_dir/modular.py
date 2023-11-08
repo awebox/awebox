@@ -682,11 +682,11 @@ def __get_configuration_from_simple_pos(description, model, initialization_optio
             else:
                 tether_length = l_s
                 e_hat_x = vect_op.normalize(q_parent - q_grandparent)
-            radius = tether_length * np.sin(sconf['var', 'Phi' + node_str])
-            l_x = tether_length * np.cos(sconf['var', 'Phi' + node_str])
+            radius = tether_length * cas.sin(sconf['var', 'Phi' + node_str])
+            l_x = tether_length * cas.cos(sconf['var', 'Phi' + node_str])
             e_hat_y = vect_op.yhat() #todo: what if azimuth is non-zero?
             e_hat_z = vect_op.cross(e_hat_x, e_hat_y)
-            e_hat_r = e_hat_z * np.sin(sconf['var', 'Omega' + node_str]) + e_hat_y * np.cos(sconf['var','Omega' + node_str])
+            e_hat_r = e_hat_z * cas.sin(sconf['var', 'Omega' + node_str]) + e_hat_y * cas.cos(sconf['var','Omega' + node_str])
             q = e_hat_x * l_x + e_hat_r * radius
 
         else:
@@ -698,8 +698,8 @@ def __get_configuration_from_simple_pos(description, model, initialization_optio
                 #todo: what if intermediate inclination is not 0?
 
             sinclination = sconf['var', 'inclination' + node_str]
-            e_hat_x[0] = np.cos(sinclination)
-            e_hat_x[2] = np.sin(sinclination)
+            e_hat_x[0] = cas.cos(sinclination)
+            e_hat_x[2] = cas.sin(sinclination)
             q = e_hat_x * tether_length
 
         q += q_parent

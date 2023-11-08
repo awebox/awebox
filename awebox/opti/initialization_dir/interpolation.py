@@ -389,8 +389,8 @@ def __process_interpolation_Variables(interpolation_variables, configurations, m
                 parent = sstates['var']['q' + parent_str]
                 grandparent = sstates['var']['q' + grandparent_str]
 
-                radius = tether_length * np.sin(Phi)
-                l_x = tether_length * np.cos(Phi)
+                radius = tether_length * cas.sin(Phi)
+                l_x = tether_length * cas.cos(Phi)
 
                 # define axis of rotation
                 if node != 1:
@@ -399,12 +399,12 @@ def __process_interpolation_Variables(interpolation_variables, configurations, m
                 else:
                     inclination = sinterp['var', 'inclination' + node_str]
                     axis_of_rot = np.zeros([3, 1])
-                    axis_of_rot[0] = np.cos(inclination)
-                    axis_of_rot[2] = np.sin(inclination)
+                    axis_of_rot[0] = cas.cos(inclination)
+                    axis_of_rot[2] = cas.sin(inclination)
                 e_hat_x = axis_of_rot
                 e_hat_y = vect_op.normed_cross(e_hat_x, vect_op.zhat())
                 e_hat_z = vect_op.normed_cross(e_hat_y, e_hat_x)
-                e_hat_r = e_hat_z * np.sin(Omega) + e_hat_y * np.cos(Omega)
+                e_hat_r = e_hat_z * cas.sin(Omega) + e_hat_y * cas.cos(Omega)
 
                 sstates['var']['q' + node_str] = sstates['var']['q' + parent_str] + e_hat_r*radius + e_hat_x*l_x
 
@@ -539,32 +539,32 @@ def get_rotation_matrix(axis, angle):
 
     if axis == 'x':
         rotation_mat = np.array([[1, 0, 0],
-                                 [0, np.cos(angle), -np.sin(angle)],
-                                 [0, np.sin(angle), np.cos(angle)]])
+                                 [0, cas.cos(angle), -cas.sin(angle)],
+                                 [0, cas.sin(angle), cas.cos(angle)]])
 
     elif axis == 'dx':
         rotation_mat = np.array([[0, 0, 0],
-                                 [0, -np.sin(angle)*angle, -np.cos(angle)*angle],
-                                 [0, np.cos(angle)*angle, -np.sin(angle)*angle]])
+                                 [0, -cas.sin(angle)*angle, -cas.cos(angle)*angle],
+                                 [0, cas.cos(angle)*angle, -cas.sin(angle)*angle]])
 
     elif axis == 'y':
-        rotation_mat = np.array([[np.cos(angle), 0, -np.sin(angle)],
+        rotation_mat = np.array([[cas.cos(angle), 0, -cas.sin(angle)],
                                  [0, 1, 0],
-                                 [np.sin(angle), 0, np.cos(angle)]])
+                                 [cas.sin(angle), 0, cas.cos(angle)]])
 
     elif axis == 'dy':
-        rotation_mat = np.array([[-np.sin(angle)*angle, 0, -np.cos(angle)*angle],
+        rotation_mat = np.array([[-cas.sin(angle)*angle, 0, -cas.cos(angle)*angle],
                                  [0, 0, 0],
-                                 [np.cos(angle)*angle, 0, -np.sin(angle)*angle]])
+                                 [cas.cos(angle)*angle, 0, -cas.sin(angle)*angle]])
 
     elif axis == 'z':
-        rotation_mat = np.array([[np.cos(angle), -np.sin(angle), 0],
-                                 [np.sin(angle), np.cos(angle), 0],
+        rotation_mat = np.array([[cas.cos(angle), -cas.sin(angle), 0],
+                                 [cas.sin(angle), cas.cos(angle), 0],
                                  [0, 0, 1]])
 
     elif axis == 'dz':
-        rotation_mat = np.array([[-np.sin(angle)*angle, -np.cos(angle)*angle, 0],
-                                 [np.cos(angle)*angle, -np.sin(angle)*angle, 0],
+        rotation_mat = np.array([[-cas.sin(angle)*angle, -cas.cos(angle)*angle, 0],
+                                 [cas.cos(angle)*angle, -cas.sin(angle)*angle, 0],
                                  [0, 0, 0]])
 
     return rotation_mat

@@ -54,6 +54,7 @@ def perform_initial_guess_generation_test(initialization_type='default'):
 
         for deriv_order in range(highest_order_derivative + 1):
             differentiated_name = (deriv_order * 'd') + 'c' + str(node) + str(parent)
+            struct_op.sanity_check_find_output_idx(trial.model.outputs)
             index = struct_op.find_output_idx(trial.model.outputs, 'invariants', differentiated_name, output_dim=0)
             avg_abs_value = np.average(abs(np.array(outputs_init[index, :])))
 

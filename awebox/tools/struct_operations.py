@@ -989,12 +989,63 @@ def find_output_idx(outputs, output_type, output_name, output_dim = 0):
     elif hasattr(outputs, 'keys'):
         odx = 0
         for found_type in outputs.keys():
-            for found_name in outputs[output_type].keys():
-                for found_dim in range(outputs[output_type][output_name].shape[0]):
+            for found_name in outputs[found_type].keys():
+                local_entry = outputs[found_type][found_name]
+                local_size = len(local_entry)
+
+                for found_dim in range(local_size):
                     if (output_type == found_type) and (output_name == found_name) and (output_dim == found_dim):
                         return odx
                     else:
                         odx += 1
+    return None
+
+
+def sanity_check_find_output_idx(outputs):
+
+    known_odx = 0
+    if hasattr(outputs, 'getCanonicalIndex'):
+        output_type, output_name, output_dim = outputs.getCanonicalIndex(known_odx)
+    else:
+        output_type = [ot for ot in outputs.keys()][0]
+        output_name = [on for on in outputs[output_type].keys()][0]
+        output_dim = 0
+
+    start_odx = find_output_idx(outputs, output_type, output_name, output_dim)
+    if not (known_odx == start_odx):
+        message = 'struct_op find_output_idx does not find the correct index at the start of the outputs'
+        print_op.log_and_raise_error(message)
+
+
+    # at end
+    if hasattr(outputs, 'getCanonicalIndex'):
+        known_odx = outputs.shape[0] - 1
+        output_type, output_name, output_dim = outputs.getCanonicalIndex(known_odx)
+    else:
+
+        dimensions_dict = {}
+        for output_type in outputs.keys():
+            if output_type not in dimensions_dict.keys():
+                dimensions_dict[output_type] = {}
+
+            for output_name in outputs[output_type].keys():
+                local_out = outputs[output_type][output_name]
+                dimensions_dict[output_type][output_name] = len(local_out)
+
+        known_odx = -1
+        for output_type in outputs.keys():
+            for output_name in outputs[output_type].keys():
+                known_odx += dimensions_dict[output_type][output_name]
+
+        output_type = [ot for ot in outputs.keys()][-1]
+        output_name = [on for on in outputs[output_type].keys()][-1]
+        output_dim = dimensions_dict[output_type][output_name] - 1
+
+    end_odx = find_output_idx(outputs, output_type, output_name, output_dim)
+    if not (known_odx == end_odx):
+        message = 'struct_op find_output_idx does not find the correct index at the end of the outputs'
+        print_op.log_and_raise_error(message)
+
     return None
 
 
@@ -1138,6 +1189,20 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
     return integral_outputs_interpolated
 
 
+def get_original_time_data_for_output_interpolation(time_grids):
+    use_collocation = 'coll' in time_grids.keys()
+    if use_collocation:
+        original_times = get_concatenated_coll_time_grid(time_grids)
+    elif 'u' in time_grids.keys():
+        original_times = time_grids['u']
+    else:
+        message = 'cannot find original time series for output interpolation.'
+        print_op.log_and_raise_error(message)
+
+    return original_times
+
+
+
 def get_concatenated_coll_time_grid(time_grids):
     original = time_grids['coll']
     n_k, collocation_d = original.shape
@@ -1165,11 +1230,13 @@ def get_output_series_with_duplicates_removed(original_times, original_series, c
 
 def interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d, is_periodic=True):
 
+    sanity_check_find_output_idx(model_outputs)
+
     outputs_interpolated = {}
 
     expected_number_of_outputs = outputs_opt.shape[0]
 
-    original_times = get_concatenated_coll_time_grid(time_grids)
+    original_times = get_original_time_data_for_output_interpolation(time_grids)
 
     confirmation_counter = 0
     for output_type in outputs_dict.keys():
@@ -1219,7 +1286,7 @@ def sanity_check_the_output_interpolation(time_grids, outputs_dict, outputs_opt,
 
     time_grids_sanity = copy.deepcopy(time_grids)
 
-    original_times = get_concatenated_coll_time_grid(time_grids)
+    original_times = get_original_time_data_for_output_interpolation(time_grids)
 
     start_idx = 0
     final_idx = original_times.shape[0] - 1
@@ -1270,7 +1337,13 @@ def produce_chi_by_eye_sanity_checks_for_output_interpolation(interpolation, mod
     # warning: therefore, slow.
 
     time_grids = interpolation['time_grids']
-    original_times = get_concatenated_coll_time_grid(time_grids)
+
+    if 'coll' not in time_grids.keys():
+        message = 'chi_by_eye output interpolation not yet available for multiple-shooting interpolation'
+        print_op.log_and_raise_error(message)
+
+    original_times = get_original_time_data_for_output_interpolation(time_grids)
+
     collocation_d = time_grids['coll'].shape[1]
 
     for output_type in interpolation['outputs'].keys():

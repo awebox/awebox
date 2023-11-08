@@ -224,7 +224,10 @@ def fill_in_dashboard(fig, plot_dict,index):
 
     # tether speed
     if 'dl_t' in plot_dict['x'].keys():
-        dl_t = plot_dict['x']['dl_t'][0][index][0]
+        if plot_dict['x']['dl_t'][0][index].shape == ():
+            dl_t = plot_dict['x']['dl_t'][0][index]
+        else:
+            dl_t = plot_dict['x']['dl_t'][0][index][0]
     else:
         dl_t = 0.
     global_string += 'dlt = ' + print_op.repr_g(dl_t) + ' m/s\n'

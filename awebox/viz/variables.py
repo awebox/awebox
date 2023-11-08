@@ -312,7 +312,7 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
         plt.suptitle(fig_name)
 
     else:
-        message = 'a request to plot variables of type ' + var_type + ' passed an empty list of variable-names.' \
+        message = 'a request to plot variables of type ' + var_type + ' was passed an empty list of variable-names.' \
                                                                       ' as a result, the request was ignored.'
         awelogger.logger.warning(message)
 
