@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import copy
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -34,6 +36,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.wind as wind
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.viz.tools as tools
 
@@ -80,28 +83,32 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
     return None
 
 
+def get_variables_scaled(plot_dict, cosmetics, index):
+    model_variables = plot_dict['model_variables']
+    model_scaling = model_variables(plot_dict['model_scaling'])
+
+    if cosmetics['variables']['si_or_scaled'] == 'scaled':
+        variables_scaled = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+    else:
+        variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+        variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
+    return variables_scaled
+
+
 def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
 
-        model_variables = plot_dict['model_variables']
-        model_scaling = model_variables(plot_dict['model_scaling'])
-
-        if cosmetics['variables']['si_or_scaled'] == 'scaled':
-            variables_scaled = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
-        else:
-            variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
-            variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
-
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, index)
         parameters = plot_dict['parameters_plot']
-
         wake = plot_dict['wake']
+
         wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
     return None
 
 
-def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, cosmetics, idx_at_eval, kdx):
+def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, idx_at_eval, kdx):
 
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
@@ -110,7 +117,6 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
 
     radius = kite_plane_induction_params['average_radius']
     center = kite_plane_induction_params['center']
-    u_zero = kite_plane_induction_params['u_zero']
 
     verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
     half_points = int(verification_points / 2.) + 1
@@ -143,8 +149,14 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
     length_psi = psi_grid_points.shape[0]
 
     # reserve mesh space
-    y_matr = np.ones((length_psi, length_mu))
-    z_matr = np.ones((length_psi, length_mu))
+    dimensionless_coordinates = {}
+    dimensioned_coordinates = {}
+    index_to_dimensions = get_index_to_dimensions_dict()
+    for idx, dim in index_to_dimensions.items():
+        dimensionless_coordinates[dim] = np.ones((length_psi, length_mu))
+        dimensioned_coordinates[dim] = np.ones((length_psi, length_mu))
+
+    n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification()
 
     for mdx in range(length_mu):
         mu_val = mu_grid_points[mdx]
@@ -152,154 +164,86 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
         for pdx in range(length_psi):
             psi_val = psi_grid_points[pdx]
 
-            r_val = mu_val * radius
+            ehat_radial = a_hat * cas.cos(psi_val) + b_hat * cas.sin(psi_val)
 
-            ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
-            added = r_val * ehat_radial
+            dimensionless = mu_val * ehat_radial
+            dimensioned = center + radius * dimensionless
 
-            unscaled = mu_val * ehat_radial
-            unscaled_x_val = float(unscaled[0])
-            unscaled_y_val = float(unscaled[1])
-            unscaled_z_val = float(unscaled[2])
+            for idx, dim in index_to_dimensions.items():
+                dimensionless_coordinates[dim][pdx, mdx] = float(dimensionless[idx])
+                dimensioned_coordinates[dim][pdx, mdx] = float(dimensioned[idx])
 
-            y_matr[pdx, mdx] = unscaled_y_val
-            z_matr[pdx, mdx] = unscaled_z_val
+    return dimensionless_coordinates, dimensioned_coordinates
 
-    return y_matr, z_matr
 
-def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, idx_at_eval, kdx, specified='radial_yz'):
+def get_index_to_dimensions_dict():
+    index_to_dimensions = {0: 'x', 1: 'y', 2: 'z'}
+    return index_to_dimensions
 
-    print_op.warn_about_temporary_functionality_alteration()
-    #
-    # local_variables = get_local_variables()
-    # local_parameters = get_local_parameters()
-    # stacked_x_hat_and_n_hat_sym = cas.SX.sym('x_hat_and_n_hat_sym', (6, 1))
-    # local_x_hat_sym = stacked_x_hat_and_n_hat_sym[:3]
-    # local_n_hat_sym = stacked_x_hat_and_n_hat_sym[-3:]
-    # print(local_x_hat_sym.shape)
-    # print(local_n_hat_sym.shape)
-    # pdb.set_trace()
-    #
-    # local_projected_induction_sym = cas.DM.zeros((1,1))
-    # for name, object in plot_dict['vortex_objects_dir'].items():
-    #
-    #     if object.model_projected_induction_fun is not None:
-    #         object.make_awebox_model_induction_functions(plot_dict['model_variables'], plot_dict['model_parameters'])
-    #
-    #     local_projected_induction_sym += object.model_projected_induction_fun(local_variables, local_parameters, local_x_hat_sym, local_n_hat_sym)
-    #
-    # induction_factor_normalizing_speed = cosmetics['vortex']['induction_factor_normalizing_speed']
-    # if induction_factor_normalizing_speed == 'u_zero':
-    #     normalizing_speed =
-    #
-    # induction_factor_sym = vortex_flow.compute_induction_factor(local_projected_induction_sym, u_zero)
-    #
-    #
-    # compute_induction_factor(u_projected, u_zero)
-    #
-    # # Get the name of the distribution of points
-    # if specified == 'radial_yz':
-    #     y_matr, z_matr = compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, cosmetics,
-    #                                                                                       idx_at_eval, kdx)
-    # else:
-    #     message = 'desired observer-coordinate-distribution (' + specified + ') is not yet available'
-    #     print_op.log_and_raise_error(message)
-    #
-    #
-    # # Calculated the points according to that distribution
-    # # Reformat entries as inputs to map
-    # # Compute map at points
-    # # Reformat points into mesh
-    #
-    # # get the observer position
-    #
-    # x_matr, y_matr, z_matr = compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, cosmetics, idx_at_eval, kdx)
-    # a_matr = np.ones(x_matr.shape)
-    #
-    # for pdx in range(x_matr.shape[0]):
-    #     for mdx in range(x_matr.shape[1]):
-    #         x_val = x_matr[pdx, mdx]
-    #         y_val = y_matr[pdx, mdx]
-    #         z_val = z_matr[pdx, mdx]
-    #
-    #         x_obs = cas.vertcat(x_val, y_val, z_val)
-    #
-    #
-    # pdb.set_trace()
-    #
-    # kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-    #
-    # architecture = plot_dict['architecture']
-    # filament_list = reconstruct_filament_list(plot_dict, idx_at_eval)
-    # number_of_kites = architecture.number_of_kites
-    #
-    # radius = kite_plane_induction_params['average_radius']
-    # center = kite_plane_induction_params['center']
-    # u_zero = kite_plane_induction_params['u_zero']
-    #
-    # verification_points = plot_dict['options']['model']['aero']['vortex']['verification_points']
-    # half_points = int(verification_points / 2.) + 1
-    #
-    # psi0_base = plot_dict['options']['solver']['initialization']['psi0_rad']
-    #
-    # mu_grid_min = kite_plane_induction_params['mu_start_by_path']
-    # mu_grid_max = kite_plane_induction_params['mu_end_by_path']
-    # psi_grid_min = psi0_base - np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
-    # psi_grid_max = psi0_base + np.pi / float(number_of_kites) + float(kdx) * 2. * np.pi / float(number_of_kites)
-    #
-    # # define mu with respect to kite mid-span radius
-    # mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
-    # length_mu = mu_grid_points.shape[0]
-    #
-    # verification_uniform_distribution = plot_dict['options']['model']['aero']['vortex']['verification_uniform_distribution']
-    # if verification_uniform_distribution:
-    #     psi_grid_unscaled = np.linspace(0., 1., 2 * half_points)
-    # else:
-    #     beta = np.linspace(0., np.pi / 2, half_points)
-    #     cos_front = 0.5 * (1. - np.cos(beta))
-    #     cos_back = -1. * cos_front[::-1]
-    #     psi_grid_unscaled = cas.vertcat(cos_back, cos_front) + 0.5
-    # psi_grid_points_cas = psi_grid_unscaled * (psi_grid_max - psi_grid_min) + psi_grid_min
-    #
-    # psi_grid_points_np = np.array(psi_grid_points_cas)
-    # psi_grid_points_recenter = np.deg2rad(np.rad2deg(psi_grid_points_np))
-    # psi_grid_points = np.unique(psi_grid_points_recenter)
-    #
-    # length_psi = psi_grid_points.shape[0]
-    #
-    # # reserve mesh space
-    # y_matr = np.ones((length_psi, length_mu))
-    # z_matr = np.ones((length_psi, length_mu))
-    # a_matr = np.ones((length_psi, length_mu))
-    #
-    # for mdx in range(length_mu):
-    #     mu_val = mu_grid_points[mdx]
-    #
-    #     for pdx in range(length_psi):
-    #         psi_val = psi_grid_points[pdx]
-    #
-    #         r_val = mu_val * radius
-    #
-    #         ehat_radial = vect_op.zhat_np() * cas.cos(psi_val) - vect_op.yhat_np() * cas.sin(psi_val)
-    #         added = r_val * ehat_radial
-    #         x_obs = center + added
-    #
-    #         unscaled = mu_val * ehat_radial
-    #
-    #         a_ind = float(vortex_flow.get_induction_factor_at_observer(plot_dict['options']['model'], filament_list, x_obs, u_zero, n_hat=vect_op.xhat()))
-    #
-    #         unscaled_y_val = float(cas.mtimes(unscaled.T, vect_op.yhat_np()))
-    #         unscaled_z_val = float(cas.mtimes(unscaled.T, vect_op.zhat_np()))
-    #
-    #         y_matr[pdx, mdx] = unscaled_y_val
-    #         z_matr[pdx, mdx] = unscaled_z_val
-    #         a_matr[pdx, mdx] = a_ind
-    #
-    # y_list = np.array(cas.reshape(y_matr, (length_psi * length_mu, 1)))
-    # z_list = np.array(cas.reshape(z_matr, (length_psi * length_mu, 1)))
-    #
-    # return y_matr, z_matr, a_matr, y_list, z_list
-    return None
+
+def get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation='radial', plane='yz', idx_at_eval=0):
+    if (orientation == 'radial') and (plane == 'yz'):
+        dimensionless_coordinates, dimensioned_coordinates = compute_observer_coordinates_for_radial_distribution_in_yz_plane(
+            plot_dict, idx_at_eval, kdx)
+
+    else:
+        message = 'only radial and yz options are currently available via get_distributed_coordinates_about_actuator_center function'
+        print_op.log_and_raise_error(message)
+
+    return dimensionless_coordinates, dimensioned_coordinates
+
+
+def get_coordinate_axes_for_haas_verification():
+    n_hat = vect_op.xhat_dm()
+    a_hat = vect_op.zhat_dm()
+    b_hat = -1. * vect_op.yhat_dm()
+    return n_hat, a_hat, b_hat
+
+
+def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial', plane='yz', idx_at_eval=0):
+
+    variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+    parameters = plot_dict['parameters_plot']
+    wake = plot_dict['wake']
+
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+
+    dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation, plane, idx_at_eval)
+
+    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+    u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(cosmetics, variables_scaled, parameters, x_obs=x_obs_sym)
+
+    n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification()
+
+    model_options = plot_dict['options']['model']
+    induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
+    if induction_factor_normalizing_speed == 'u_zero':
+        u_normalizing = kite_plane_induction_params['u_zero']
+    else:
+        message = 'computing induction factor at specific points is not yet defined for normalizing speed ' + induction_factor_normalizing_speed
+        print_op.log_and_raise_error(message)
+
+    a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
+    a_fun = cas.Function('a_fun', [x_obs_sym], [a_sym])
+
+    index_to_dimensions = get_index_to_dimensions_dict()
+    x_obs_dimensioned_stacked = []
+    for pdx in range(dimensioned_coordinates['y'].shape[0]):
+        for mdx in range(dimensioned_coordinates['y'].shape[1]):
+            local_x_obs_dimensioned = cas.DM.ones((3, 1))
+            for idx, dim in index_to_dimensions.items():
+                local_x_obs_dimensioned[idx] = dimensioned_coordinates[dim][pdx, mdx]
+            x_obs_dimensioned_stacked = cas.horzcat(x_obs_dimensioned_stacked, local_x_obs_dimensioned)
+
+    a_map = a_fun.map(x_obs_dimensioned_stacked.shape[1], 'openmp')
+    all_a = a_map(x_obs_dimensioned_stacked)
+    a_matr = cas.reshape(all_a, dimensioned_coordinates['y'].shape)
+
+    y_matr = dimensionless_coordinates['y']
+    z_matr = dimensionless_coordinates['z']
+
+    return y_matr, z_matr, a_matr
+
 
 def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
@@ -310,7 +254,7 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     kite_plane_induction_params['layer'] = layer
     
     b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
-    average_radius = plot_dict['outputs']['performance']['average_radius' + str(layer)][0][idx_at_eval]
+    average_radius = plot_dict['outputs']['geometry']['average_radius' + str(layer)][0][idx_at_eval]
     kite_plane_induction_params['average_radius'] = average_radius
 
     center_x = plot_dict['outputs']['performance']['trajectory_center' + str(layer)][0][idx_at_eval]
@@ -328,11 +272,12 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
     kite_plane_induction_params['u_infty'] = u_infty
 
-    u_zero_x = plot_dict['outputs']['performance']['u_zero' + str(layer)][0][idx_at_eval]
-    u_zero_y = plot_dict['outputs']['performance']['u_zero' + str(layer)][1][idx_at_eval]
-    u_zero_z = plot_dict['outputs']['performance']['u_zero' + str(layer)][2][idx_at_eval]
-    u_zero = cas.vertcat(u_zero_x, u_zero_y, u_zero_z)
-    kite_plane_induction_params['u_zero'] = u_zero
+    vec_u_zero = []
+    for dim in range(3):
+        local_u_zero = plot_dict['outputs']['geometry']['vec_u_zero' + str(layer)][0][idx_at_eval]
+        vec_u_zero = cas.vertcat(vec_u_zero, local_u_zero)
+    kite_plane_induction_params['vec_u_zero'] = vec_u_zero
+    kite_plane_induction_params['u_zero'] = vect_op.norm(vec_u_zero)
 
     varrho = average_radius / b_ref
     kite_plane_induction_params['varrho'] = varrho
@@ -360,10 +305,13 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     return kite_plane_induction_params
 
 
-def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
+def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
 
     vortex_info_exists = (plot_dict['wake'] is not None)
     if vortex_info_exists:
+
+        orientation = 'radial'
+        plane = 'yz'
 
         idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
         number_of_kites = plot_dict['architecture'].number_of_kites
@@ -401,7 +349,10 @@ def plot_vortex_verification(plot_dict, cosmetics, fig_name, fig_num=None):
         ax_contour.set_aspect(1.)
 
         for kdx in range(number_of_kites):
-            y_matr, z_matr, a_matr, y_list, z_list = compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, idx_at_eval, kdx)
+            y_matr, z_matr, a_matr = compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation, plane, idx_at_eval)
+
+            y_list = np.array(vect_op.columnize(y_matr))
+            z_list = np.array(vect_op.columnize(z_matr))
 
             max_y = np.min(y_list)
             min_y = np.min(y_list)

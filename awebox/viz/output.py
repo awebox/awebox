@@ -192,7 +192,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                             number_of_lines_drawn_so_far += 1
 
                             if include_solution:
-                                include_specific_output_solution(relevant_axes, plot_dict, output_type, output_name,
+                                include_specific_output_solution(relevant_axes, plot_dict, output_type, local_name,
                                                                  output_dim,
                                                                  local_color)
 

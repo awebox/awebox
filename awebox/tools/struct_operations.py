@@ -469,7 +469,7 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
 
     for idx in range(scaling_value.shape[0]):
         if scaling_value[idx] == cas.DM(0.):
-            message = 'cannot set scaling to a zero-value'
+            message = 'encountered at zero-value while trying to set the scaling of ' + var_type + ' variable (' + var_name + '). zero-values are not valid scaling entries'
             print_op.log_and_raise_error(message)
 
     return scaling_value
@@ -978,13 +978,13 @@ def generate_variable_struct(variable_list):
 
 def find_output_idx(outputs, output_type, output_name, output_dim = 0):
 
-    if hasattr(outputs, 'getCanonicalIndex'):
-        kk = 0
-        can_index = outputs.getCanonicalIndex(kk)
-        while not (can_index[0] == output_type and can_index[1] == output_name and can_index[2] == output_dim):
-            kk += 1
-            can_index = outputs.getCanonicalIndex(kk)
-        return kk
+    if hasattr(outputs, 'labels'):
+        search_label = '[' + output_type + ',' + output_name + ',' + str(output_dim) + ']'
+        if search_label in outputs.labels():
+            return outputs.labels().index(search_label)
+        else:
+            message = 'Search output ' + search_label + ' could not be found in passed outputs, so no index value could be returned'
+            print_op.log_and_raise_error(message)
 
     elif hasattr(outputs, 'keys'):
         odx = 0

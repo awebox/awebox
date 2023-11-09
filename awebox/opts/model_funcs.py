@@ -550,8 +550,6 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
         length = options['solver']['initialization']['l_t']
         n_vec_length_ref = number_of_kites * length**2.
     elif normal_vector_model == 'tether_parallel':
-        length = options['solver']['initialization']['l_t']
-        print_op.warn_about_temporary_functionality_alteration()
         n_vec_length_ref = 1.
     else:  # normal_vector_model == 'xhat':
         n_vec_length_ref = 1.
@@ -767,7 +765,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     CL = estimate_CL(options)
     gamma_scale = vortex_alg_repr_scaling.get_filament_strength(options, geometry, CL)
 
-    print_op.warn_about_temporary_functionality_alteration()
     circulation_max_estimate = 10. * gamma_scale
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', gamma_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),

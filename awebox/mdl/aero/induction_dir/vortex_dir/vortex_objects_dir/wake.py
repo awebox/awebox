@@ -114,6 +114,21 @@ class Wake:
         awelogger.logger.warning(message)
         return 1.
 
+    def calculate_total_biot_savart_residual_at_x_obs(self, cosmetics, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
+
+        # todo: try to remove cosmetics.
+        print_op.warn_about_temporary_functionality_alteration()
+
+        vec_u_ind = cas.DM.zeros((3, 1))
+        initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
+        for substructure_type in initialized_types:
+            local_u_ind = self.get_substructure(substructure_type).calculate_total_biot_savart_residual_at_x_obs(cosmetics, variables_scaled, parameters, x_obs)
+            vec_u_ind += local_u_ind
+
+        return vec_u_ind
+
+
+
     def construct_fake_cosmetics(self):
         if self.has_initialized_substructure_types():
             initialized_types = self.get_initialized_substructure_types()

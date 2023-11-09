@@ -180,12 +180,6 @@ class Element:
         print_op.log_and_raise_error(message)
         return None
 
-    def calculate_biot_savart_induction_scaling(self, q_scaling):
-        message = 'cannot calculate the biot savart scaling for this vortex object, because the object type ' + self.__element_type + ' is insufficiently specific'
-        print_op.log_and_raise_error(message)
-        return None
-
-
     def define_biot_savart_induction_function(self):
         expected_info_length = self.expected_info_length
         packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))

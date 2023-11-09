@@ -125,6 +125,21 @@ class WakeSubstructure:
             self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
         return None
 
+
+    def calculate_total_biot_savart_residual_at_x_obs(self, cosmetics, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
+        vec_u_ind = cas.DM.zeros((3, 1))
+        for element_type in self.get_initialized_element_types():
+            elem_list = self.get_list(element_type)
+            number_of_elements = elem_list.number_of_elements
+            for edx in range(number_of_elements):
+                elem = elem_list.list[edx]
+                unpacked, cosmetics = elem.prepare_to_draw(variables_scaled, parameters, cosmetics)
+                value, _, _ = elem.calculate_biot_savart_induction(unpacked, x_obs)
+                vec_u_ind += value
+
+        return vec_u_ind
+
+
     def construct_biot_savart_residual_at_kite(self, model_options, variables_si, kite_obs, architecture):
         resi = []
         for element_type in self.get_initialized_element_types():

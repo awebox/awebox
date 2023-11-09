@@ -275,12 +275,21 @@ class ElementList:
         return concatenated_list
 
 
-    def define_model_variables_to_info_function(self, model_variables, model_parameters):
-        for elem in self.__list:
-            if elem.info_fun is not None:
-                elem.define_model_variables_to_info_function(model_variables, model_parameters)
+    # def define_model_variables_to_info_function(self, model_variables, model_parameters):
+    #     for elem in self.__list:
+    #         if elem.info_fun is not None:
+    #             elem.define_model_variables_to_info_function(model_variables, model_parameters)
+    #
+    #     return None
 
+
+
+    def define_model_variables_to_info_functions(self, model_variables, model_parameters):
+        for elem in self.__list:
+            if elem.info_fun is None:
+                elem.define_model_variables_to_info_function(model_variables, model_parameters)
         return None
+
 
     def define_biot_savart_induction_function(self):
         elem = self.get_example_element()
@@ -341,13 +350,7 @@ class ElementList:
             print_op.log_and_raise_error(message)
 
 
-    def define_model_variables_to_info_functions(self, model_variables, model_parameters):
-        for elem in self.__list:
-            if elem.info_fun is None:
-                elem.define_model_variables_to_info_function(model_variables, model_parameters)
-        return None
-
-    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1)):
+    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), variables_scaled=None, parameters=None):
 
         if self.concatenated_biot_savart_fun is None:
             self.define_biot_savart_induction_function()

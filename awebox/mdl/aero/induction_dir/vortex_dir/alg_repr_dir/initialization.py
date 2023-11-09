@@ -44,7 +44,6 @@ import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 
 
-################# define the actual constraint
 
 def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
@@ -69,6 +68,9 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
     V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
+    for var_name in model.variables_dict['z'].keys():
+        sanity_check_on_z_vs_coll_z_overstepping(V_init_si, nlp.d, var_name)
+
     check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
     check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
 
@@ -83,6 +85,19 @@ def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
     return V_init_si
 
 
+def guess_biot_savart_lifted_assembly(model):
+    tentative_lifted_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
+                                                                              'finite_filament',
+                                                                              0,
+                                                                              model.architecture.kite_nodes[0])
+    if tentative_lifted_name in model.variables_dict['z'].keys():
+        biot_savart_residual_assembly = 'lifted'
+    else:
+        biot_savart_residual_assembly = 'division'
+
+    return biot_savart_residual_assembly
+
+
 def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, model, ndx, ddx):
 
     wake = model.wake
@@ -94,14 +109,9 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
     variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
     parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
 
-    tentative_lifted_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
-                                                                              'finite_filament',
-                                                                              0,
-                                                                              architecture.kite_nodes[0])
-    if tentative_lifted_name in model.variables_dict['z'].keys():
-        use_lifted_biot_savart_residual_assembly = True
-    else:
-        use_lifted_biot_savart_residual_assembly = False
+    ndx_on_collocation_overstepping = get_collocation_overstepping_ndx(nlp.n_k, ndx)
+
+    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
 
     for kite_obs in architecture.kite_nodes:
         parent_obs = architecture.parent_map[kite_obs]
@@ -132,12 +142,9 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                         V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
 
                         if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                            # ndx-1
-                            # ndx
-                            print_op.warn_about_temporary_functionality_alteration()
-                            V_init_si['z', ndx-1, u_ind_elem_name] = value_eval
+                            V_init_si['z', ndx_on_collocation_overstepping, u_ind_elem_name] = value_eval
 
-                        if use_lifted_biot_savart_residual_assembly:
+                        if biot_savart_residual_assembly == 'lifted':
                             u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
                                                                                                       element_type,
                                                                                                       element_number,
@@ -157,24 +164,11 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                             V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
 
                             if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                                print_op.warn_about_temporary_functionality_alteration()
-                                # ndx - 1
-                                # ndx
-                                V_init_si['z', ndx-1, u_ind_num_elem_name] = num_eval
-                                V_init_si['z', ndx-1, u_ind_den_elem_name] = den_eval
+                                V_init_si['z', ndx_on_collocation_overstepping, u_ind_num_elem_name] = num_eval
+                                V_init_si['z', ndx_on_collocation_overstepping, u_ind_den_elem_name] = den_eval
 
-                                elem.define_biot_savart_induction_residual_function(
-                                    biot_savart_residual_assembly='lifted')
-                                biot_savart_residual_fun = elem.biot_savart_residual_fun
-                                packed_info = elem.pack_info()
-                                residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
-                                resi_fun = cas.Function('resi_fun', [model.variables, model.parameters], [residual])
-                                variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot,
-                                                                               model.variables,
-                                                                               ndx)
-                                variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si,
-                                                                                    model.scaling)
-                                print(resi_fun(variables_scaled, parameters))
+                        sanity_check_biot_savart_at_initialization(init_options, V_init_si, p_fix_num, Xdot,
+                                                               model, elem, u_ind_elem_name, x_obs, value, num, den, ndx, ddx)
 
                     element_number += 1
                     total_u_ind += value_eval
@@ -187,9 +181,66 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
         V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_u_ind
 
         if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-            V_init_si['z', ndx - 1, u_ind_name] = total_u_ind
+            V_init_si['z', ndx_on_collocation_overstepping, u_ind_name] = total_u_ind
 
     return V_init_si
+
+
+
+def sanity_check_biot_savart_at_initialization(init_options, V_init_si, p_fix_num, Xdot,
+                                                   model, elem, u_ind_elem_name, x_obs, value, num, den, ndx, ddx, thresh=1.e-4):
+
+    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
+
+    parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
+
+    elem.define_biot_savart_induction_residual_function(
+        biot_savart_residual_assembly=biot_savart_residual_assembly)
+    biot_savart_residual_fun = elem.biot_savart_residual_fun
+    packed_info = elem.pack_info()
+    if biot_savart_residual_assembly == 'lifted':
+        residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
+    else:
+        residual = biot_savart_residual_fun(packed_info, x_obs, value)
+    resi_fun = cas.Function('resi_fun', [model.variables, model.parameters], [residual])
+    variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot,
+                                                   model.variables,
+                                                   ndx, ddx)
+    variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si,
+                                                        model.scaling)
+    resi_val = resi_fun(variables_scaled, parameters)
+    if cas.mtimes(resi_val.T, resi_val) > thresh**2.:
+        message = 'something went wrong when initializing the induced velocity related to (' + u_ind_elem_name + '). biot-savart is not satisfied.'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+
+def get_collocation_overstepping_ndx(n_k, ndx):
+    # E       A       B       C       D
+    # (A, -1) (B, -1) (C, -1) (D, -1) (E, -1)
+
+    if ndx < n_k - 1:
+        ndx_on_collocation_overstepping = ndx + 1
+    else:
+        ndx_on_collocation_overstepping = -1
+    return ndx_on_collocation_overstepping
+
+
+def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name, var_dim=0, thresh=1e-5):
+    # z time grid is the same as the u time grid
+    # and time_grid['u'][1] = time_grid['coll'][d-1], ie. ndx = 0, ddx = d-1
+
+    z_val = V_init_si['z', 1, var_name, var_dim]
+    coll_z_val = V_init_si['coll_var', 0, collocation_d-1, 'z', var_name, var_dim]
+
+    diff = z_val - coll_z_val
+    if diff**2 > thresh**2:
+        message = 'something went wrong with indexing, while initializing the wake lifted variable (' + var_name + ' [' + str(var_dim) + '])'
+        print_op.log_and_raise_error(message)
+
+    return None
+
 
 def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-4):
 

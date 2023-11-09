@@ -159,7 +159,6 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                         local_resi_si = resi_si[:, element_number]
                         cstr_expr = []
 
-                        print_op.warn_about_temporary_functionality_alteration()
                         if biot_savart_residual_assembly == 'lifted':
                             num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
                             num_scaling = scaling['z', num_name]
@@ -223,8 +222,7 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
-    print_op.warn_about_temporary_functionality_alteration()
-    # test(test_includes_visualization)
+    test(test_includes_visualization)
 
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}

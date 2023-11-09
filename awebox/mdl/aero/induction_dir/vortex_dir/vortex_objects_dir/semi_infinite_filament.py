@@ -90,14 +90,6 @@ class SemiInfiniteFilament(obj_element.Element):
         return value, num, den
 
 
-    def calculate_biot_savart_induction_scaling(self, q_scaling):
-        num = q_scaling
-        den = q_scaling**2.
-        value = num / den
-        return value, num, den
-
-
-
     def draw(self, ax, side, variables_scaled=None, parameters=None, cosmetics=None):
 
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
