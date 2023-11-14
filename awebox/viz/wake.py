@@ -211,7 +211,7 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation, plane, idx_at_eval)
 
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-    u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(cosmetics, variables_scaled, parameters, x_obs=x_obs_sym)
+    u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
     n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification()
 

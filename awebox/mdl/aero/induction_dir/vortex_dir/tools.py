@@ -237,7 +237,7 @@ def get_position_of_near_wake_element_in_horseshoe(model_options, element_number
         return filament_ordering[element_number_in_ring]
 
 
-def get_shedding_kite_from_element_number(options, wake_type, element_type, element_number, architecture):
+def get_shedding_kite_from_element_number(options, wake_type, element_type, element_number, architecture, suppress_error_logging=False):
 
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(
         options,
@@ -251,7 +251,7 @@ def get_shedding_kite_from_element_number(options, wake_type, element_type, elem
 
     if element_number >= total:
         message = 'input element number is greater than total number of elements of this type'
-        print_op.log_and_raise_error(message)
+        print_op.log_and_raise_error(message, suppress_error_logging=suppress_error_logging)
 
     element_number = np.mod(element_number, total)
     total_per_kite = total / float(architecture.number_of_kites)
@@ -348,28 +348,24 @@ def get_biot_savart_reference_object_properties(model_options, kite_obs_index=0,
 
 def compute_biot_savart_reference_object_inputs(model_options, parameters=None, geometry=None, inputs={}):
 
-    print_op.warn_about_temporary_functionality_alteration()
-    inputs['b_ref'] = 5.5
-    inputs['c_ref'] = 5.5/10.
-    inputs['u_ref'] = 5.
-    # for local_name in ['b_ref', 'c_ref']:
-    #     if (parameters is not None):
-    #         inputs[local_name] = parameters['theta0', 'geometry', local_name]
-    #     elif (geometry is not None):
-    #         inputs[local_name] = geometry[local_name]
-    #     else:
-    #         message = 'geometry is underdefined. cannot create biot-savart reference object'
-    #         print_op.log_and_raise_error(message)
+    for local_name in ['b_ref', 'c_ref']:
+        if (parameters is not None):
+            inputs[local_name] = parameters['theta0', 'geometry', local_name]
+        elif (geometry is not None):
+            inputs[local_name] = geometry[local_name]
+        else:
+            message = 'geometry is underdefined. cannot create biot-savart reference object'
+            print_op.log_and_raise_error(message)
 
-    # for local_name in ['u_ref']:
-    #     in_inputs = local_name in inputs.keys()
-    #     if in_inputs and (parameters is None):
-    #         pass
-    #     elif (not in_inputs) and (parameters is not None):
-    #         inputs[local_name] = parameters['theta0', 'wind', local_name]
-    #     else:
-    #         message = 'no ' + local_name + ' information available for biot-savart reference object'
-    #         print_op.log_and_raise_error(message)
+    for local_name in ['u_ref']:
+        in_inputs = local_name in inputs.keys()
+        if in_inputs and (parameters is None):
+            pass
+        elif (not in_inputs) and (parameters is not None):
+            inputs[local_name] = parameters['theta0', 'wind', local_name]
+        else:
+            message = 'no ' + local_name + ' information available for biot-savart reference object'
+            print_op.log_and_raise_error(message)
 
     for local_name in ['filament_strength_ref', 'varrho_ref',  'core_to_chord_ratio', 'wake_nodes', 'number_of_kites', 'winding_period', 'shedding_delta_time']:
         in_vortex_options = local_name in model_options['aero']['vortex'].keys()

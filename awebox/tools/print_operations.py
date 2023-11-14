@@ -117,11 +117,16 @@ def warn_about_temporary_functionality_alteration(editor='an editor', reason='im
     awelogger.logger.warning(message)
     return None
 
-def log_and_raise_error(message):
+def log_and_raise_error(message, suppress_error_logging=False):
+
     location = inspect.getouterframes(inspect.currentframe(), 2)[1][1]
     message += '\n' + location
-    awelogger.logger.error(message)
+
+    if not suppress_error_logging:
+        awelogger.logger.error(message)
+
     raise Exception(message)
+
     return None
 
 

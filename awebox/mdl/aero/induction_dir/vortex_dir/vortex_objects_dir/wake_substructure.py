@@ -126,14 +126,14 @@ class WakeSubstructure:
         return None
 
 
-    def calculate_total_biot_savart_residual_at_x_obs(self, cosmetics, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
+    def calculate_total_biot_savart_residual_at_x_obs(self, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
         vec_u_ind = cas.DM.zeros((3, 1))
         for element_type in self.get_initialized_element_types():
             elem_list = self.get_list(element_type)
             number_of_elements = elem_list.number_of_elements
             for edx in range(number_of_elements):
                 elem = elem_list.list[edx]
-                unpacked, cosmetics = elem.prepare_to_draw(variables_scaled, parameters, cosmetics)
+                unpacked, cosmetics = elem.prepare_to_draw(variables_scaled, parameters, {})
                 value, _, _ = elem.calculate_biot_savart_induction(unpacked, x_obs)
                 vec_u_ind += value
 
@@ -182,7 +182,10 @@ class WakeSubstructure:
         if biot_savart_residual_assembly == 'lifted':
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list)
         else:
+            print_op.warn_about_temporary_functionality_alteration()
+            # pdb.set_trace()
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
+
 
         return resi_si
 

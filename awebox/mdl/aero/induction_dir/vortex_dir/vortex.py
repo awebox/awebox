@@ -130,16 +130,57 @@ def get_superposition_cstr(model_options, wake, system_variables, architecture, 
     return cstr_list
 
 
+def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, biot_savart_residual_assembly, scaling, num_name=None, den_name=None):
+
+    cstr_expr = []
+    if biot_savart_residual_assembly == 'lifted':
+        num_scaling = scaling['z', num_name]
+        den_scaling = scaling['z', den_name]
+        constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
+    else:
+        constraint_scaling_extension = scaling['z', value_name]
+
+    for cdx in range(local_resi_si.shape[0]):
+        local_scale = constraint_scaling_extension[cdx]
+
+        local_expr = local_resi_si[cdx] / local_scale
+        cstr_expr = cas.vertcat(cstr_expr, local_expr)
+
+    local_cstr = cstr_op.Constraint(expr=cstr_expr,
+                                    name=cstr_name,
+                                    cstr_type='eq')
+    return local_cstr
+
+
 def get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling):
     biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
 
     variables_si = system_variables['SI']
 
-    constraint_name_extension = ['u', 'v', 'w', 'num_x', 'num_y', 'num_z', 'den']
-
     cstr_list = cstr_op.ConstraintList()
 
-    for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+    available_substructures = wake.get_initialized_substructure_types_with_at_least_one_element()
+
+    ## bound wake
+    for kite_obs in architecture.kite_nodes:
+        for element_number in range(architecture.number_of_kites):
+            substructure_type = 'bound'
+            element_type = 'finite_filament'
+            kite_shed = vortex_tools.get_shedding_kite_from_element_number(model_options, substructure_type, element_type,
+                                                              element_number, architecture)
+
+            if not (kite_obs == kite_shed):
+                cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(
+                    element_number) + '_' + str(kite_obs)
+
+
+
+
+
+
+    ## other parts of wake
+    substructures_without_bound = set(available_substructures) - set(['bound'])
+    for substructure_type in substructures_without_bound:
         substructure = wake.get_substructure(substructure_type)
 
         for kite_obs in architecture.kite_nodes:
@@ -152,34 +193,19 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                 number_of_elements = element_list.number_of_elements
                 for element_number in range(number_of_elements):
 
-                    biot_savart_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
+                    cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
 
-                    if vortex_tools.not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number, kite_obs, architecture):
+                    local_resi_si = resi_si[:, element_number]
 
-                        local_resi_si = resi_si[:, element_number]
-                        cstr_expr = []
+                    value_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type,
+                                                                                element_number, kite_obs)
+                    num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
+                    den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
 
-                        if biot_savart_residual_assembly == 'lifted':
-                            num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
-                            num_scaling = scaling['z', num_name]
-                            den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
-                            den_scaling = scaling['z', den_name]
-                            constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
-                        else:
-                            value_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type, element_number, kite_obs)
-                            constraint_scaling_extension = scaling['z', value_name]
-
-                        for cdx in range(local_resi_si.shape[0]):
-                            local_scale = constraint_scaling_extension[cdx]
-
-                            local_expr = local_resi_si[cdx] / local_scale
-                            cstr_expr = cas.vertcat(cstr_expr, local_expr)
-
-                        local_name = biot_savart_name
-                        local_cstr = cstr_op.Constraint(expr=cstr_expr,
-                                                        name=local_name,
-                                                        cstr_type='eq')
-                        cstr_list.append(local_cstr)
+                    local_cstr = get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name,
+                                                     biot_savart_residual_assembly, scaling, num_name=num_name,
+                                                     den_name=den_name)
+                    cstr_list.append(local_cstr)
 
     return cstr_list
 
@@ -362,7 +388,7 @@ def test_that_model_constraint_residuals_have_correct_shape(biot_savart_residual
         print_op.log_and_raise_error(message)
 
 
-def test_that_model_doesnt_include_velocity_from_bound_kite_on_iteself():
+def test_that_model_doesnt_include_velocity_from_bound_kite_on_itsself():
     wake_nodes = 3
     model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures(wake_nodes=wake_nodes, number_of_kites=2)
     includes = vortex_tools.model_includes_induced_velocity_from_kite_bound_on_itself(model_options, var_struct, architecture)
@@ -398,7 +424,7 @@ def test_that_get_shedding_kite_from_element_number_tool_works_correctly():
     for wake_type in from_element_number_to_expected_kite_shed_dict.keys():
         for element_number, expected_output in from_element_number_to_expected_kite_shed_dict[wake_type].items():
             try:
-                found_output = vortex_tools.get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture)
+                found_output = vortex_tools.get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture, suppress_error_logging=True)
             except:
                 found_output = 'error'
 
@@ -431,7 +457,7 @@ def test(test_includes_visualization=False):
     obj_wake_substructure.test()
     obj_wake.test()
 
-    test_that_model_doesnt_include_velocity_from_bound_kite_on_iteself()
+    test_that_model_doesnt_include_velocity_from_bound_kite_on_itsself()
 
     algebraic_representation.test(test_includes_visualization)
 
