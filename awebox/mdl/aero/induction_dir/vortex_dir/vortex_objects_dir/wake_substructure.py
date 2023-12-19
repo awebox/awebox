@@ -165,27 +165,29 @@ class WakeSubstructure:
         number_of_elements = self.get_list(element_type).number_of_elements
         for edx in range(number_of_elements):
 
-            if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
+            # doesn't matter what values these defaults take, as long as they clearly do not satisfy residuals
+            # but we need this here, otherwise the number_of_elements in the function map breaks.
+            local_var = cas.DM.ones((3, 1)) * 999.
+            local_num = cas.DM.ones((3, 1)) * 888.
+            local_den = cas.DM.ones((1, 1)) * 777.
 
+            if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
                 local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
-                vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
 
                 if biot_savart_residual_assembly == 'lifted':
                     local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
                                                                              element_type, edx, kite_obs)
-                    vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)
-
                     local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
                                                                              element_type, edx, kite_obs)
-                    vec_u_ind_den_list = cas.horzcat(vec_u_ind_den_list, local_den)
+
+            vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
+            vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)
+            vec_u_ind_den_list = cas.horzcat(vec_u_ind_den_list, local_den)
 
         if biot_savart_residual_assembly == 'lifted':
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list)
         else:
-            print_op.warn_about_temporary_functionality_alteration()
-            # pdb.set_trace()
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
-
 
         return resi_si
 

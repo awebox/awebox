@@ -97,7 +97,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
     return x
 
 
-def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012"):
+def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012", shift_tipn=0., shift_root=0., shift_tipp=0.):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
@@ -114,17 +114,24 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
 
         s = np.abs(y)/0.5 # 1 at tips and 0 at root
         if y < 0:
-            c_local = c_root * (1. - s) + c_tipn * s
+            c_side = c_tipn
+            shift_side = shift_tipn
         else:
-            c_local = c_root * (1. - s) + c_tipp * s
+            c_side = c_tipp
+            shift_side = shift_tipp
+
+        c_local = c_root * (1. - s) + c_side * s
+        shift_local = (shift_root * (1. - s) + shift_side * s) * c_root
 
         basic_shell = get_naca_shell(c_local, naca)
 
         basic_leading_ege = basic_shell[np.argmin(basic_shell[:, 0]), :]
         basic_trailing_ege = basic_shell[np.argmax(basic_shell[:, 0]), :]
 
-        new_leading_edge = q + yloc + np.array(cas.mtimes(r_dcm, basic_leading_ege.T))
-        new_trailing_edge = q + yloc + np.array(cas.mtimes(r_dcm, basic_trailing_ege.T))
+        base_position = q + yloc + np.array(cas.mtimes(r_dcm, shift_local * vect_op.xhat_dm()))
+
+        new_leading_edge = base_position + np.array(cas.mtimes(r_dcm, basic_leading_ege.T))
+        new_trailing_edge = base_position + np.array(cas.mtimes(r_dcm, basic_trailing_ege.T))
 
         leading_edges = cas.vertcat(leading_edges, new_leading_edge.T)
         trailing_edges = cas.vertcat(trailing_edges, new_trailing_edge.T)
@@ -132,7 +139,7 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
         horizontal_shell = []
         for idx in range(basic_shell[:, 0].shape[0]):
 
-            new_point = q + yloc + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
+            new_point = base_position + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
 
             horizontal_shell = cas.vertcat(horizontal_shell, new_point.T)
         horizontal_shell = np.array(horizontal_shell)
@@ -195,21 +202,31 @@ def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, sid
     draw_lifting_surface(ax, pos, r_dcm, b_ref / 3., c_ref / 3., c_ref / 2., c_ref / 3., kite_color, side, body_cross_sections_per_meter, naca)
 
 
-def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side, body_cross_sections_per_meter, naca="0012"):
+def draw_kite_vertical(ax, q, r, length, height, c_ref, kite_color, side):
 
-    r_dcm = np.array(cas.reshape(r, (3, 3)))
-    ehat_1 = np.reshape(r_dcm[:, 0], (3, 1))
-    ehat_3 = np.reshape(r_dcm[:, 2], (3, 1))
+    r_dcm = cas.reshape(r, (3, 3))
+    ehat_1 = vect_op.columnize(r_dcm[:, 0])
+    ehat_2 = vect_op.columnize(r_dcm[:, 1])
+    ehat_3 = vect_op.columnize(r_dcm[:, 2])
 
     new_ehat1 = ehat_1
-    new_ehat2 = ehat_3
-    new_ehat3 = np.array(vect_op.normed_cross(new_ehat1, new_ehat2))
+    new_ehat2 = -1. * ehat_3
+    new_ehat3 = ehat_2
     r_new = np.array(cas.horzcat(new_ehat1, new_ehat2, new_ehat3))
 
     horizontal_space = (3. * length / 4. - c_ref / 3.) * ehat_1
     pos = q + horizontal_space + ehat_3 * height / 2.
 
-    draw_lifting_surface(ax, pos, r_new, height, c_ref, c_ref / 2., c_ref / 4., kite_color, side, body_cross_sections_per_meter, naca)
+    c_fuselage = c_ref
+    c_top = c_ref / 4.
+    c_root = (c_fuselage + c_top) / 2.
+
+    shift_fuselage = 0.
+    shift_top = (c_top - c_fuselage) / c_root
+    shift_root = (shift_fuselage+ shift_top) / 2.
+
+    draw_lifting_surface(ax, pos, r_new, height, c_top, c_root, c_fuselage, kite_color, side, 3./height,
+                         shift_tipn=shift_fuselage, shift_root=shift_root, shift_tipp=shift_top)
     return None
 
 
@@ -223,15 +240,15 @@ def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per
 
     if geometry['wing']:
 
-        if not geometry['wing_profile'] == None:
+       if geometry['wing_profile'] is None:
+            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, body_cross_sections_per_meter)
+       else:
             draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side,
                            body_cross_sections_per_meter, geometry['wing_profile'])
-        else:
-            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, body_cross_sections_per_meter)
 
     if geometry['tail']:
         draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
-        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
+        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['c_ref'], kite_color, side)
 
     return None
 
@@ -562,21 +579,23 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
 
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
+        color=cosmetics['controls']['colors'][jdx]
+
         if plot_dict['u_param'] == 'poly':
-            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
+            plt.plot(np.array(tgrid_ip), np.array(plot_dict['u'][name][jdx]), color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
-                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
-                    linestyle='--', color=p[-1].get_color())
+                    linestyle='--', color=color)
 
         else:
-            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx], where='post')
+            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx], where='post', color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
-                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
                 plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
-                         where='post', linestyle='--', color=[-1].get_color())
+                         where='post', linestyle='--', color=color)
     plt.grid(True)
     plt.title(name)
     plt.autoscale(enable=True, axis= 'x', tight = True)
@@ -629,6 +648,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
+    plot_dict['global_outputs'] = nlp.global_outputs
 
     plot_dict['Collocation'] = nlp.Collocation
 
@@ -643,7 +663,7 @@ def calibrate_visualization(model, nlp, name, options):
     return plot_dict
 
 
-def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_outputs, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -671,7 +691,7 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     # get new outputs
     plot_dict['output_vals'] = output_vals
     plot_dict['integral_output_vals'] = integral_output_vals
-    plot_dict['global_outputs'] = global_outputs
+    plot_dict['global_output_vals'] = global_output_vals
 
     # get new time grids
     plot_dict['time_grids'] = time_grids
@@ -1008,7 +1028,17 @@ def assemble_model_parameters(plot_dict):
     return params
 
 
-def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
+def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p=None, color=None):
+
+    if (p is None) and (color is None):
+        message = 'not enough information to draw the bounds'
+        print_op.log_and_raise_error(message)
+    elif (p is not None):
+        color = p[-1].get_color()
+
+    if (color is None):
+        message = 'something went wrong when defining the color in which to plot bounds'
+        print_op.log_and_raise_error(message)
 
     bounds = plot_dict['variable_bounds'][var_type][name]
     scaling = plot_dict['model_variables'](plot_dict['model_scaling'])[var_type, name]
@@ -1034,7 +1064,7 @@ def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
 
         if np.isfinite(local_bound):
             bound_grid_ip = local_bound * local_scaling * np.ones(tgrid_ip.shape)
-            plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=p[-1].get_color())
+            plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=color)
 
     return None
 

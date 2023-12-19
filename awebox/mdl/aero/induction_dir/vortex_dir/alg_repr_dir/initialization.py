@@ -284,9 +284,9 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
     cond3 = True
     for ndx in range(average_circulation.shape[0]):
         circulation_outputs = Outputs_init['coll_outputs', ndx, :, 'aerodynamics', 'circulation' + str(kite_test)]
-        average_is_less_than_max = average_circulation_x[ndx] < np.max(np.array(circulation_outputs))
-        average_is_more_than_min = average_circulation_x[ndx] > np.min(np.array(circulation_outputs))
-        cond3 = cond3 and average_is_less_than_max and average_is_more_than_min
+        average_is_less_than_or_equal_to_max = average_circulation_x[ndx] <= np.max(np.array(circulation_outputs))
+        average_is_more_than_or_equal_to_min = average_circulation_x[ndx] >= np.min(np.array(circulation_outputs))
+        cond3 = cond3 and average_is_less_than_or_equal_to_max and average_is_more_than_or_equal_to_min
 
     criteria = cond1 and cond2 and cond3
     if not criteria:

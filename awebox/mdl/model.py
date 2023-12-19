@@ -198,6 +198,7 @@ class Model(object):
             'np_var': self.variables_dict['theta'].shape[0],
             'np_fix': self.parameters_dict['theta0'].shape[0]
         }
+        self.__dimensions_dict = dimensions_dict
         print_op.print_dict_as_table(dimensions_dict)
 
         awelogger.logger.info('Model constraints:')
@@ -381,6 +382,14 @@ class Model(object):
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+    @property
+    def dimensions_dict(self):
+        return self.__dimensions_dict
+
+    @dimensions_dict.setter
+    def dimensions_dict(self, value):
+        awelogger.logger.warning('Cannot set dimensions_dict object.')
 
     @property
     def wake(self):

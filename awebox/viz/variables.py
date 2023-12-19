@@ -242,7 +242,7 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
         lambdavec = plot_dict['z'][lam_name]
         p = plt.plot(tgrid_ip, lambdavec[0])
         if cosmetics['plot_bounds']:
-            tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
+            tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
         if cosmetics['plot_ref']:
             plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['z'][lam_name][0],
                      linestyle='--', color=p[-1].get_color())
@@ -256,7 +256,7 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
                 lambdavec = plot_dict['z'][lam_name]
                 p = plt.plot(tgrid_ip, lambdavec[0])
                 if cosmetics['plot_bounds']:
-                    tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
+                    tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
                 if cosmetics['plot_ref']:
                     plt.plot(
                         plot_dict['time_grids']['ref']['ip'],
@@ -270,7 +270,7 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
                     lambdavec = plot_dict['z'][lam_name]
                     p = plt.plot(tgrid_ip, lambdavec[0])
                     if cosmetics['plot_bounds']:
-                        tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p)
+                        tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
                     if cosmetics['plot_ref']:
                         plt.plot(
                             plot_dict['time_grids']['ref']['ip'],
@@ -354,7 +354,7 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time
         p = plt.plot(tgrid_ip, variable_data, linestyle=linestyle, color=color)
 
         if cosmetics['plot_bounds']:
-            tools.plot_bounds(plot_dict, var_type, var_name, dim, tgrid_ip, p)
+            tools.plot_bounds(plot_dict, var_type, var_name, dim, tgrid_ip, p=p)
 
     if show_ref:
         plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time_through=first_time_through)
@@ -373,7 +373,7 @@ def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=0):
     tgrid_out = plot_dict['time_grids']['ip']
     out_values = plot_dict['integral_outputs'][var_name][dim]
 
-    plt.plot(tgrid_out, out_values)
+    plt.plot(np.array(tgrid_out), np.array(out_values))
 
     plt.title(var_name)
     plt.autoscale(enable=True, axis = 'x', tight = True)

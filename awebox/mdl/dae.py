@@ -31,6 +31,7 @@ import pdb
 
 import awebox.tools.integrator_routines as int_rout
 import casadi.tools as cas
+import awebox.tools.print_operations as print_op
 
 class Dae(object):
     """
@@ -88,7 +89,9 @@ class Dae(object):
 
         # create rootfinder
         g = cas.Function('g', [self.__z.cat, self.__x.cat, self.__p.cat], [self.__dae['alg']])
-        G = cas.rootfinder('G', 'fast_newton', g, {'jit': True})
+        print_op.warn_about_temporary_functionality_alteration()
+        # G = cas.rootfinder('G', 'fast_newton', g, {'jit': True})
+        G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}})
 
         self.__rootfinder = G
 
@@ -102,7 +105,9 @@ class Dae(object):
         """
 
         # set options
-        opts = {'tf': time_step, 'jit': options['jit'], 'expand': True}
+        # opts = {'tf': time_step, 'jit': options['jit'], 'expand': True}
+        print_op.warn_about_temporary_functionality_alteration()
+        opts = {'tf': time_step, 'expand': True, "compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}}
 
         if options['type'] != 'rk4root':
 

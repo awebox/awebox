@@ -362,7 +362,6 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
-    vortex_options['model.aero.vortex.bound_induction_offset'] = 'c_ref' # 'r_core'
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 10.  # = 2 * span / chord = 2 * AR
     # "As a guideline, the regularization parameter may be chosen as twice the average spanwise discretization of the blade."
     # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
@@ -474,7 +473,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
 # #
 # test_single_kite_basic_health()
-# test_single_kite()
+test_single_kite()
 # test_single_kite_6_dof_basic_health()
 # test_single_kite_6_dof()
 # test_poly()

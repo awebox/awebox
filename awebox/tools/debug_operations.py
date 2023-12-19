@@ -185,7 +185,8 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
         tractability['model: n_' + key] = model.variables[key].shape[0]
 
     for cstr_type in ['eq', 'ineq']:
-        tractability['model: nnz_' + cstr_type] = model.constraints_list.get_expression_list(cstr_type).nnz()
+        if hasattr(model.constraints_list.get_expression_list(cstr_type), 'nnz'):
+            tractability['model: nnz_' + cstr_type] = model.constraints_list.get_expression_list(cstr_type).nnz()
 
     for key in model.variables.keys():
         tractability['model: nninf_bounds_' + key] = model.number_noninf_variable_bounds(key)
@@ -198,7 +199,8 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
     tractability['ocp: n_theta'] = nlp.V['theta'].shape[0]
 
     for cstr_type in ['eq', 'ineq']:
-        tractability['ocp: nnz_' + cstr_type] = nlp.ocp_cstr_list.get_expression_list(cstr_type).nnz()
+        if hasattr(nlp.ocp_cstr_list.get_expression_list(cstr_type), 'nnz'):
+            tractability['ocp: nnz_' + cstr_type] = nlp.ocp_cstr_list.get_expression_list(cstr_type).nnz()
 
     tractability['kkt: size'] = repr(kkt_matrix.shape)
     tractability['kkt: nnz'] = kkt_matrix.nnz()

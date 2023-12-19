@@ -131,6 +131,7 @@ def get_simple_residual(var_name, var_symbolic_si, var_value_si, model_scaling):
     return resi_scaled
 
 
+
 def get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, wake_node, ndx, ddx=None):
 
     # V['coll_var', ndx-1, -1, 'z', var_name] = V['z', ndx, var_name]

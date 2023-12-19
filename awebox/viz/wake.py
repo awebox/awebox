@@ -73,6 +73,16 @@ def plot_wake(plot_dict, cosmetics, fig_name, side):
     index = -1
     draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
 
+    strength_max = cosmetics['trajectory']['circulation_max_estimate']
+    strength_min = -1. * strength_max
+
+    norm = plt.Normalize(strength_min, strength_max)
+    cmap = plt.get_cmap('seismic')
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = ax.figure.colorbar(sm)
+    cbar.set_label('vortex filament strength [m$^2$/s]', rotation=270)
+
     if cosmetics['trajectory']['kite_bodies']:
         init_colors = False
         tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)

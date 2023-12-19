@@ -161,26 +161,7 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
 
     available_substructures = wake.get_initialized_substructure_types_with_at_least_one_element()
 
-    ## bound wake
-    for kite_obs in architecture.kite_nodes:
-        for element_number in range(architecture.number_of_kites):
-            substructure_type = 'bound'
-            element_type = 'finite_filament'
-            kite_shed = vortex_tools.get_shedding_kite_from_element_number(model_options, substructure_type, element_type,
-                                                              element_number, architecture)
-
-            if not (kite_obs == kite_shed):
-                cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(
-                    element_number) + '_' + str(kite_obs)
-
-
-
-
-
-
-    ## other parts of wake
-    substructures_without_bound = set(available_substructures) - set(['bound'])
-    for substructure_type in substructures_without_bound:
+    for substructure_type in available_substructures:
         substructure = wake.get_substructure(substructure_type)
 
         for kite_obs in architecture.kite_nodes:
@@ -193,19 +174,22 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                 number_of_elements = element_list.number_of_elements
                 for element_number in range(number_of_elements):
 
-                    cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
+                    if vortex_tools.not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number,
+                                                              kite_obs, architecture):
 
-                    local_resi_si = resi_si[:, element_number]
+                        cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
 
-                    value_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type,
-                                                                                element_number, kite_obs)
-                    num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
-                    den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
+                        local_resi_si = resi_si[:, element_number]
 
-                    local_cstr = get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name,
-                                                     biot_savart_residual_assembly, scaling, num_name=num_name,
-                                                     den_name=den_name)
-                    cstr_list.append(local_cstr)
+                        value_name = vortex_tools.get_element_induced_velocity_name(substructure_type, element_type,
+                                                                                    element_number, kite_obs)
+                        num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
+                        den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
+
+                        local_cstr = get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name,
+                                                         biot_savart_residual_assembly, scaling, num_name=num_name,
+                                                         den_name=den_name)
+                        cstr_list.append(local_cstr)
 
     return cstr_list
 
@@ -325,7 +309,9 @@ def compute_global_performance(global_outputs, Outputs_structured, architecture)
         max_u_ind_from_far_wake_over_u_ref_list = cas.vertcat(max_u_ind_from_far_wake_over_u_ref_list, local_max_normalized_far_u_ind)
 
     average_local_a = vect_op.average(all_local_a)
+    stdev_local_a = vect_op.stdev(all_local_a)
     global_outputs['vortex']['average_local_a'] = average_local_a
+    global_outputs['vortex']['stdev_local_a'] = stdev_local_a
 
     max_u_ind_from_far_wake_over_u_ref = vect_op.smooth_max(max_u_ind_from_far_wake_over_u_ref_list)
     global_outputs['vortex']['max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref

@@ -284,6 +284,7 @@ def power_balance_key_belongs_to_node(keyname, node):
 def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, global_input_values):
 
     if 'vortex' in input_values['outputs']:
+
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
         max_est_truncation_error = global_input_values['vortex', 'max_est_truncation_error']

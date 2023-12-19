@@ -356,6 +356,24 @@ def step_in_out(number, step_in, step_out, eps=1e-4):
     step = step_in - step_out
     return step
 
+def stdev(all_array):
+    # using the equation for a discrete random variable
+
+    all_array = columnize(all_array)
+
+    mean = average(all_array)
+    sum_square_deviations = 0.
+    for idx in range(all_array.shape[0]):
+        val = all_array[idx]
+        local_square_diff = (val - mean)**2.
+        sum_square_deviations += local_square_diff
+
+    count = float(all_array.shape[0] * all_array.shape[1])
+    variance = sum_square_deviations / count
+    stdev = variance**0.5
+    return stdev
+
+
 def average(all_array):
     total = sum(all_array)
     count = float(all_array.shape[0] * all_array.shape[1])
@@ -834,7 +852,7 @@ def test_altitude():
 
 
 def is_numeric(val):
-    return isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray)
+    return isinstance(val, cas.DM) or isinstance(val, float) or isinstance(val, np.ndarray) or isinstance(val, int)
 
 def is_numeric_columnar(val):
     return is_numeric(val) and (cas.DM(val).shape[1] == 1)
@@ -924,10 +942,22 @@ def data_is_obviously_uninterpolatable(x_data, y_data):
 
     return False
 
+
 def spline_interpolation(x_data, y_data, x_points):
     """ Interpolate solution values with b-splines
     """
-    n_points = columnize(cas.DM(x_points)).shape[0]
+
+    if hasattr(x_points, 'shape'):
+        n_points = np.prod(x_points.shape)
+
+        if len(x_points.shape) > 2 and is_numeric_scalar(x_points[0]):
+            x_points = cas.DM([float(val) for val in x_points])
+
+    elif hasattr(x_points, 'len'):
+        n_points = len(x_points)
+    else:
+        message = 'unable to count the number of interpolation points'
+        print_op.log_and_raise_error(message)
 
     # can't use splines if all y_data values are zero
     if isinstance(y_data, cas.DM):
@@ -942,9 +972,9 @@ def spline_interpolation(x_data, y_data, x_points):
     spline = cas.interpolant(name, 'bspline', [x_data], y_data, {})
 
     # function map to new discretization
-    spline = spline.map(n_points)
+    spline_map = spline.map(n_points)
     # interpolate
-    y_points = spline(x_points).full()[0]
+    y_points = spline_map(x_points).full()[0]
 
     return y_points
 

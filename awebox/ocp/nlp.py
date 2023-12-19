@@ -190,13 +190,26 @@ class NLP(object):
         awelogger.logger.info('NLP dimensions:')
         dimension_dict = {
             'n_var': self.__V.shape[0],
-            'n_param': self.__P.shape[0],
-            'n_eq': self.ocp_cstr_list.get_expression_list('eq').shape[0],
-            'n_ineq': self.ocp_cstr_list.get_expression_list('ineq').shape[0]
-        }
+            'n_param': self.__P.shape[0]}
+
+        for cstr_type in ['eq', 'ineq']:
+            if hasattr(self.ocp_cstr_list.get_expression_list(cstr_type), 'shape'):
+                dimension_dict['n_' + cstr_type] = self.ocp_cstr_list.get_expression_list(cstr_type).shape[0]
+            else:
+                dimension_dict['n_' + cstr_type] = 0
+
+        self.__dimensions_dict = dimension_dict
         print_op.print_dict_as_table(dimension_dict)
 
         return None
+
+    @property
+    def dimensions_dict(self):
+        return self.__dimensions_dict
+
+    @dimensions_dict.setter
+    def dimensions_dict(self, value):
+        awelogger.logger.warning('Cannot set dimensions_dict object.')
 
     @property
     def status(self):

@@ -193,3 +193,5 @@ def test_rk_4_integrator(tolerance=2e-2):
     base_options, x0, z0, p, trial = get_integration_test_inputs()
     perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
     return None
+
+# test_collocation_integrator()

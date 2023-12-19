@@ -552,6 +552,11 @@ class Optimization(object):
 
     def allow_next_homotopy_step(self):
 
+        max_cpu_time_reached = self.__stats['return_status'] == 'Maximum_CpuTime_Exceeded'
+        if max_cpu_time_reached and self.__options['raise_error_at_max_time']:
+            message = 'max_cpu_time limit reached'
+            print_op.log_and_raise_error(message)
+
         return_status_number = struct_op.convert_return_status_string_to_number(self.__stats['return_status'])
 
         previous_step_failed = (return_status_number > 3)
@@ -660,6 +665,7 @@ class Optimization(object):
         self.__integral_outputs_final = self.scaled_to_si_integral_outputs(nlp, model)
 
         return None
+
 
     def scaled_to_si_integral_outputs(self, nlp, model):
 
