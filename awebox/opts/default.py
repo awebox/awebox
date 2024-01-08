@@ -195,8 +195,6 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'theta',       'l_c',          [1.0e-2, 1.0e3],                                                                 ('cross-tether length bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'q',            [np.array([-cas.inf, -cas.inf, 10.0]), np.array([cas.inf, cas.inf, cas.inf])],    ('kite position bounds [m]', None),'x'),
         ('model',  'system_bounds', 'x',          'omega',        [np.pi/180.0*np.array([-50.0, -50.0, -50.0]), np.pi/180.0*np.array([50.0, 50.0, 50.0])],   ('kite angular velocity bounds [rad/s]', None),'s'),
-        # ('model',  'system_bounds', 'z',          'wz_ext',       [5.0, cas.inf],                                                                   ('wake node position (exterior wing-tips) bounds [m]', None), 'x'),
-        # ('model',  'system_bounds', 'z',          'wz_int',       [5.0, cas.inf],                                                                   ('wake node position (interior wing-tips) bounds [m]', None), 'x'),
         ('model',  'system_bounds', 'theta',       't_f',          [1e-3, 500.0],                                                                   ('main tether max acceleration [m/s^2]', None),'x'),
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                    ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),

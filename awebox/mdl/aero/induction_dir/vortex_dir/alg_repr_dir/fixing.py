@@ -91,6 +91,10 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
     var_name = vortex_tools.get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
     cstr_name = 'fixing_' + var_name + '_' + str(ndx)
 
+    if 'z' not in V.keys():
+        message = 'vortex model does not appear to be set up yet for this sort of discetization. have you tried turning on zoh controls?'
+        print_op.log_and_raise_error(message)
+
     if ddx is None:
         var_symbolic_scaled = V['z', ndx, var_name]
         var_val_scaled = V['coll_var', ndx - 1, -1, 'z', var_name]

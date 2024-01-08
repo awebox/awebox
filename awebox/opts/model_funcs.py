@@ -355,6 +355,9 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
     groundspeed = options['solver']['initialization']['groundspeed']
     options_tree.append(('model', 'model_bounds', 'anticollision_radius', 'num_ref', groundspeed ** 2., ('an estimate of the square of the kite speed, for normalization of the anticollision inequality', None),'x'))
 
+    include_acceleration_constraint = options['model']['model_bounds']['acceleration']['include']
+    options_tree.append(('solver', 'initialization', None, 'include_acceleration_constraint', include_acceleration_constraint, ('??', None), 'x'))
+
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     pythagorean_speed = (groundspeed ** 2. + u_altitude ** 2.) ** 0.5
     airspeed_ref = pythagorean_speed
@@ -762,10 +765,23 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
+    flight_radius = estimate_flight_radius(options, architecture)
+    b_ref = geometry['b_ref']
+    varrho_ref = flight_radius / b_ref
+    t_f_guess = estimate_time_period(options, architecture)
+    windings = options['user_options']['trajectory']['lift_mode']['windings']
+    winding_period = t_f_guess / float(windings)
+
     CL = estimate_CL(options)
     gamma_scale = vortex_alg_repr_scaling.get_filament_strength(options, geometry, CL)
+    if not (options['model']['aero']['overwrite']['f_lift_earth'] is None):
+        # L/b = rho v gamma
+        # gamma = L / (b rho v)
+        rotational_speed = 2. * np.pi * flight_radius / winding_period
+        rho_ref = options['params']['atmosphere']['rho_ref']
+        gamma_scale = vect_op.norm(options['model']['aero']['overwrite']['f_lift_earth']) / (b_ref * rho_ref * rotational_speed)
 
-    circulation_max_estimate = 10. * gamma_scale
+    circulation_max_estimate = 3. * gamma_scale
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', gamma_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
     for kite in architecture.kite_nodes:
@@ -780,12 +796,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('nlp', 'induction', None, 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
         options_tree.append(('solver', 'initialization', 'induction', 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
 
-    flight_radius = estimate_flight_radius(options, architecture)
-    b_ref = geometry['b_ref']
-    varrho_ref = flight_radius / b_ref
-    t_f_guess = estimate_time_period(options, architecture)
-    windings = options['user_options']['trajectory']['lift_mode']['windings']
-    winding_period = t_f_guess / float(windings)
 
     q_scaling = get_position_scaling(options, architecture)
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))

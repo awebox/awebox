@@ -102,6 +102,7 @@ def get_variables_scaled(plot_dict, cosmetics, index):
     else:
         variables_si = tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
         variables_scaled = struct_op.variables_si_to_scaled(model_variables, variables_si, model_scaling)
+
     return variables_scaled
 
 
@@ -206,7 +207,9 @@ def get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientatio
 def get_coordinate_axes_for_haas_verification():
     n_hat = vect_op.xhat_dm()
     a_hat = vect_op.zhat_dm()
-    b_hat = -1. * vect_op.yhat_dm()
+    print_op.warn_about_temporary_functionality_alteration()
+    # b_hat = -1. * vect_op.yhat_dm()
+    b_hat = vect_op.yhat_dm()
     return n_hat, a_hat, b_hat
 
 
@@ -223,7 +226,7 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
     u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
-    n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification()
+    n_hat, _, _ = get_coordinate_axes_for_haas_verification()
 
     model_options = plot_dict['options']['model']
     induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
@@ -335,10 +338,32 @@ def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
         fig_points, ax_points = plt.subplots(1, 1)
         add_annulus_background(ax_points, mu_min_by_path, mu_max_by_path)
         plt.grid(True)
-        plt.title('induction factors over the kite plane')
+        plt.title('induction factors over the kite plane:\n sample points')
         plt.xlabel("y/r [-]")
         plt.ylabel("z/r [-]")
         ax_points.set_aspect(1.)
+
+        ### draw in vortices
+        if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
+            variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+            parameters = plot_dict['parameters_plot']
+            wake = plot_dict['wake']
+            bound_wake = wake.get_substructure('bound')
+            finite_filament_list = bound_wake.get_list('finite_filament')
+
+            center = kite_plane_induction_params['center']
+            average_radius = kite_plane_induction_params['average_radius']
+            for elem in finite_filament_list.list:
+                unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
+                x_start = unpacked['x_start']
+                x_end = unpacked['x_end']
+
+                x_start_shifted = (x_start - center) / average_radius
+                x_end_shifted = (x_end - center) / average_radius
+
+                y_over_r_vals = [float(x_start_shifted[1]), float(x_end_shifted[1])]
+                z_over_r_vals = [float(x_start_shifted[2]), float(x_end_shifted[2])]
+                plt.plot(y_over_r_vals, z_over_r_vals)
 
         #### contour plot
         fig_contour, ax_contour = plt.subplots(1, 1)
@@ -380,7 +405,6 @@ def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
                 # for ldx in range(len(cs.collections)):
                 #     cs.collections[ldx].set_label(levels[ldx])
 
-            else:
                 cs = ax_contour.contour(y_matr, z_matr, a_matr, emergency_levels, colors=emergency_colors, linestyles=emergency_linestyles)
                 ax_contour.clabel(cs, inline=True, fontsize=10)
 

@@ -297,13 +297,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         for jdx in range(d):
             ldx = kdx * d + jdx
             if nlp_options['collocation']['u_param'] == 'poly':
-
-                cstr_list.append(cstr_op.Constraint(
-                    expr=ocp_ineqs_expr[:, ldx],
-                    name='path_{}_{}'.format(kdx, jdx),
-                    cstr_type='ineq'
+                if ocp_ineqs_expr.shape != (0, 0):
+                    cstr_list.append(cstr_op.Constraint(
+                        expr=ocp_ineqs_expr[:, ldx],
+                        name='path_{}_{}'.format(kdx, jdx),
+                        cstr_type='ineq'
+                        )
                     )
-                )
 
             if nlp_options['collocation']['name_constraints']:
                 for cdx in range(ocp_eqs_expr[:, ldx].shape[0]):

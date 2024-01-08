@@ -276,6 +276,7 @@ def set_precomputed_groundspeed(init_options):
 def clip_winding_period(init_options):
     winding_period = init_options['precompute']['winding_period']
     groundspeed = init_options['precompute']['groundspeed']
+    include_acceleration_constraint = init_options['include_acceleration_constraint']
 
     acc_max = init_options['acc_max']
 
@@ -283,7 +284,7 @@ def clip_winding_period(init_options):
     acc_centripetal = groundspeed * omega
     # acc = omega * ua = 2 pi ua / winding_period < hardware_limit
 
-    if acc_centripetal > acc_max:
+    if include_acceleration_constraint and (acc_centripetal > acc_max):
         omega_clip = acc_max / groundspeed
         winging_period = 2. * np.pi / omega_clip
 
