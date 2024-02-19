@@ -1,6 +1,6 @@
-# awebox
+# AWEbox
 
-`awebox` is a Python toolbox for modelling and optimal control of multiple-kite systems for Airborne Wind Energy (AWE). It provides interfaces that aim to take away from the user the burden of
+AWEbox is a Python toolbox for modelling and optimal control of multiple-kite systems for Airborne Wind Energy (AWE). It provides interfaces that aim to take away from the user the burden of
 
 * generating optimization-friendly system dynamics for different combinations of modeling options.
 * formulating optimal control problems for common multi-kite trajectory types.
@@ -40,7 +40,7 @@ python3 examples/ampyx_ap2_trajectory.py
 
 ## Acknowledgments
 
-This software has been developed in collaboration with the company [Kiteswarms Ltd](http://www.kiteswarms.com). The company has also supported the project through research funding.
+This software has been developed in collaboration with the company Kiteswarms Ltd. The company has also supported the project through research funding.
 
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
 
