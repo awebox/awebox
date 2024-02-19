@@ -42,7 +42,7 @@ def get_segment_drag(n_elements, variables, upper_node, architecture, element_dr
         elem_info = element.get_element_info_column(variables, upper_node, architecture, elem, n_elements)
         combined_info = cas.horzcat(combined_info, elem_info)
 
-    drag_map = element_drag_fun.map(n_elements, 'openmp')
+    drag_map = element_drag_fun.map(n_elements, 'serial')
     
     combined_drag = drag_map(combined_info, parameters)
 

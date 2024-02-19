@@ -364,7 +364,7 @@ def setup_fig_and_axes(variables_to_plot, integral_variables_to_plot, fig_num=No
         plot_table_c = int(counter / plot_table_r)
     else:
         plot_table_r = 3
-        plot_table_c = int(np.ceil(np.float(counter) / np.float(plot_table_r)))
+        plot_table_c = int(np.ceil(np.float64(counter) / np.float64(plot_table_r)))
 
     # create new figure if desired
     if fig_num is not None:

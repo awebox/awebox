@@ -65,7 +65,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
             plot_table_c = int(number_of_opts / plot_table_r)
         else:
             plot_table_r = 3
-            plot_table_c = int(np.ceil(np.float(number_of_opts) / np.float(plot_table_r)))
+            plot_table_c = int(np.ceil(np.float64(number_of_opts) / np.float64(plot_table_r)))
 
         # create new figure if desired
         if fig_num is not None:
