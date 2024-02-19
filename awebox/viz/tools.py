@@ -61,9 +61,9 @@ def get_naca_airfoil_coordinates(s, m, p, t):
 
 def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
-    m = np.float(naca[0]) / 100.
-    p = np.float(naca[1]) / 10.
-    t = np.float(naca[2:]) / 100.
+    m = np.float64(naca[0]) / 100.
+    p = np.float64(naca[1]) / 10.
+    t = np.float64(naca[2:]) / 100.
 
     s_list = np.arange(0., 101.) / 100.
 
@@ -172,7 +172,7 @@ def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_p
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
-    total_width = np.float(naca[2:]) / 100. * length
+    total_width = np.float64(naca[2:]) / 100. * length
 
     num_spanwise = np.ceil(total_width * body_cross_sections_per_meter / 2.)
 
@@ -686,7 +686,7 @@ def get_sweep_colors(number_of_trials):
 
     color_list = []
     for trial in range(number_of_trials):
-        color_list += [scalar_map.to_rgba(np.float(trial))]
+        color_list += [scalar_map.to_rgba(np.float64(trial))]
 
     return color_list
 
@@ -808,9 +808,9 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['mazim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
     plot_dict['scale_power'] = 1.  # e-3
     try:
-        plot_dict['scale_axes'] = np.float(V_plot['x', 0, 'l_t'])
+        plot_dict['scale_axes'] = np.float64(V_plot['x', 0, 'l_t'])
     except:
-        plot_dict['scale_axes'] = np.float(V_plot['theta', 'l_t'])
+        plot_dict['scale_axes'] = np.float64(V_plot['theta', 'l_t'])
 
     dashes = []
     for ldx in range(20):
