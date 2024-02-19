@@ -285,7 +285,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'cost',             None, 'output_quadrature',    True,                   ('use quadrature for integral system outputs in cost function', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_stop',       0.9,                    ('stop of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
-        ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
+        ('nlp',  'parallelization',  None, 'type',                 'serial',               ('parallellization type', None),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
