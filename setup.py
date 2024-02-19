@@ -50,7 +50,7 @@ setup(name='awebox',
    install_requires=[
         'casadi==3.6.4',
         'cycler==0.11.0',
-        'fonttools==4.34.4',
+        'fonttools==4.43.0',
         'kiwisolver==1.4.4',
         'matplotlib==3.7.5',
         'numpy==1.24.4',
