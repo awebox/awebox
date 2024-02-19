@@ -137,8 +137,7 @@ def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_nor
         psi0 = psi0_base + np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
 
     psi = psi0 + omega_norm * t
-
-    psi = cas.mod(psi, 2. * np.pi)
+    psi = np.mod(psi, 2. * np.pi)
     if psi < 0:
         psi += 2. * np.pi
 
