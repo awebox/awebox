@@ -3,7 +3,7 @@ cycler==0.11.0
 fonttools==4.34.4
 kiwisolver==1.4.4
 matplotlib==3.7.5
-numpy==1.26.4
+numpy==1.24.4
 packaging==21.3
 Pillow==9.2.0
 pyparsing==3.0.9
