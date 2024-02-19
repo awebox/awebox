@@ -10,7 +10,7 @@ import copy
 import matplotlib.pyplot as plt
 
 from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel('DEBUG')
+awelogger.logger.setLevel('INFO')
 
 # single kite with point-mass model
 options = {}
