@@ -10,6 +10,11 @@ AWEbox is a Python toolbox for modelling and optimal control of multiple-kite sy
 
 The main focus of the toolbox are _rigid-wing_, _lift_- and _drag_-mode multiple-kite systems.
 
+Single-kite optimal trajectory             |  Dual-kite optimal trajectory (reel-out)
+:-------------------------:|:-------------------------:
+<img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/single_kite.png" width="400">  |  <img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/dual_kites.png" width="400">
+
+
 ## Installation
 
 `awebox` runs on Python 3. It depends heavily on the modeling language CasADi, which is a symbolic framework for algorithmic differentiation. CasADi also provides the interface to the NLP solver IPOPT.  
