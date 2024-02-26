@@ -15,6 +15,7 @@ import awebox as awe
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
@@ -40,7 +41,7 @@ options['user_options.wind.u_ref'] = 10.
 options['nlp.n_k'] = 20
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
-options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
+options['solver.linear_solver'] = 'mumps' # if HSL is installed, otherwise 'mumps'
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'Ampyx_AP2')
@@ -56,6 +57,10 @@ plot_dict = trial.visualization.plot_dict
 outputs = plot_dict['outputs']
 time = plot_dict['time_grids']['ip']
 avg_power = plot_dict['power_and_performance']['avg_power']/1e3
+
+output_struct=trial.get_output_data_structure(True)
+file = open('output_struct.pkl', 'wb')
+pickle.dump(output_struct, file)
 
 print('======================================')
 print('Average power: {} kW'.format(avg_power))
