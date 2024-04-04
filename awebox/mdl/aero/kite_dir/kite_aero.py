@@ -46,6 +46,7 @@ import awebox.tools.print_operations as print_op
 import casadi.tools as cas
 
 def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture)

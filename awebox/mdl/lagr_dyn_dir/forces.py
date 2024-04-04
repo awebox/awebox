@@ -45,6 +45,7 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+
     # initialize dictionary
     node_forces = {}
     for node in range(1, architecture.number_of_nodes):

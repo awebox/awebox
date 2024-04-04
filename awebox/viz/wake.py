@@ -205,7 +205,7 @@ def get_coordinate_axes_for_haas_verification():
     return n_hat, a_hat, b_hat
 
 
-def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial', plane='yz', idx_at_eval=0):
+def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
 
     variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
     parameters = plot_dict['parameters_plot']
@@ -213,10 +213,8 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
 
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
-    dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation, plane, idx_at_eval)
-
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-    u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
+    u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
     n_hat, _, _ = get_coordinate_axes_for_haas_verification()
 
@@ -230,6 +228,15 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
 
     a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
     a_fun = cas.Function('a_fun', [x_obs_sym], [a_sym])
+
+    return a_fun
+
+
+def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial', plane='yz', idx_at_eval=0):
+
+    dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation, plane, idx_at_eval)
+
+    a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
 
     index_to_dimensions = get_index_to_dimensions_dict()
     x_obs_dimensioned_stacked = []
@@ -248,6 +255,44 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
     z_matr = dimensionless_coordinates['z']
 
     return y_matr, z_matr, a_matr
+
+
+def compute_the_scaled_haas_error(plot_dict, cosmetics):
+
+    # reference points digitized from haas 2017
+    data02 = [(0, -1.13084, -0.28134), (0, -0.89466, -0.55261), (0, -0.79354, -0.41195), (0, -0.79127, 0.02826), (0, -0.04449, 1.01208), (0, 0.22119, 0.83066), (0, 0.71947, -0.96407), (0, 0.52187, -0.66125), (0, 0.45227, 1.09891), (0, 0.92121, -0.46219), (0, 0.95625, -0.62566), (0, 0.19546, 1.12782)]
+    data00 = [(0, -0.69372, 1.24284), (0, -0.5894, -0.17062), (0, -0.83795, -1.18138), (0, 0.27077, 1.35428), (0, -1.20982, -0.71437), (0, -0.10682, 0.54558), (0, -0.3789, -0.3959), (0, 0.5081, -0.34622), (0, 0.23767, 0.61635), (0, 0.57386, -0.09835), (0, 1.10956, -0.867), (0, 1.4683, -0.06319)]
+    datan005 = [(0, -1.27365, 0.33177), (0, -1.21638, 0.65872), (0, -0.64295, 0.15234), (0, -0.50651, 0.31282), (0, -0.01271, -1.39519), (0, 0.03669, -0.60921), (0, 0.20264, -0.63812), (0, 0.38143, -1.27208), (0, 0.49584, 0.49075), (0, 0.52938, 0.32778), (0, 0.96982, 0.94579), (0, 1.3061, 0.48278)]
+
+    data = {-0.05: datan005, 0.0: data00, 0.2: data02}
+
+    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
+
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+    radius = kite_plane_induction_params['average_radius']
+    x_center = kite_plane_induction_params['center']
+
+    a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
+
+    total_squared_error = 0.
+    baseline_squared_error = 0.
+    for aa_haas in data.keys():
+        coord_list = data[aa_haas]
+        for scaled_x_obs_tuple in coord_list:
+
+            baseline_squared_error += aa_haas ** 2.
+
+            scaled_x_obs = []
+            for dim in range(3):
+                scaled_x_obs = cas.vertcat(scaled_x_obs, scaled_x_obs_tuple[dim])
+            x_obs = scaled_x_obs * radius + x_center
+
+            aa_computed = a_fun(x_obs)
+            diff = aa_haas - aa_computed
+            total_squared_error += diff ** 2.
+
+    scaled_squared_error = total_squared_error / baseline_squared_error
+    return scaled_squared_error
 
 
 def get_kite_plane_induction_params(plot_dict, idx_at_eval):
@@ -313,141 +358,108 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
 def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
 
-    vortex_info_exists = (plot_dict['wake'] is not None)
+    vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
 
-        orientation = 'radial'
-        plane = 'yz'
+        n_plot_points = 50
 
         idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-        number_of_kites = plot_dict['architecture'].number_of_kites
-        kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-        max_axes = -100.
-
-        mu_min_by_path = kite_plane_induction_params['mu_min_by_path']
-        mu_max_by_path = kite_plane_induction_params['mu_max_by_path']
-
-        base_title = 'induction factors over the kite plane'
-
-        ### points plot
-        fig_points, ax_points = plt.subplots(1, 1)
-        ax_points.set_title(base_title + ':\n sample points')
-
-        #### contour plot
-        fig_contour, ax_contour = plt.subplots(1, 1)
-        ax_contour.set_title(base_title)
-
-        for ax in [ax_points, ax_contour]:
-            add_annulus_background(ax, mu_min_by_path, mu_max_by_path)
-            ax.grid(True)
-            ax.set_xlabel("y/r [-]")
-            ax.set_ylabel("z/r [-]")
-            ax.set_aspect(1.)
-
-        ### draw in vortices
-        if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
-
-            if not (plot_dict['options']['visualization']['cosmetics']['variables']['si_or_scaled'] == 'si'):
-                message = 'be advised that the haas verification test might not plot correctly, since plotting choice is not si.'
-                print_op.base_print(message, level='warning')
-
-            variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
-            parameters = plot_dict['parameters_plot']
-            wake = plot_dict['wake']
-            bound_wake = wake.get_substructure('bound')
-            finite_filament_list = bound_wake.get_list('finite_filament')
-
-            center = kite_plane_induction_params['center']
-            average_radius = kite_plane_induction_params['average_radius']
-
-            print_op.warn_about_temporary_functionality_alteration()
-            for elem in finite_filament_list.list:
-                unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
-                x_start = unpacked['x_start']
-                x_end = unpacked['x_end']
-
-                x_start_shifted = (x_start - center) / average_radius
-                x_end_shifted = (x_end - center) / average_radius
-
-                y_over_r_vals = [float(x_start_shifted[1]), float(x_end_shifted[1])]
-                z_over_r_vals = [float(x_start_shifted[2]), float(x_end_shifted[2])]
-
-                ax_points.plot(y_over_r_vals, z_over_r_vals)
-                ax_contour.plot(y_over_r_vals, z_over_r_vals)
-
-
-        levels = [-0.05, 0., 0.2]
-        linestyles = ['dotted', 'solid', 'dashed']
-        colors = ['k', 'k', 'k']
-        emergency_levels = 5
-        emergency_colors = 'k'
-        emergency_linestyles = 'dashdot'
 
         kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-        x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-        u_ind_sym = wake.calculate_total_biot_savart_residual_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
-        n_hat, _, _ = get_coordinate_axes_for_haas_verification()
-        model_options = plot_dict['options']['model']
-        induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
-        if induction_factor_normalizing_speed == 'u_zero':
-            u_normalizing = kite_plane_induction_params['u_zero']
-        else:
-            message = 'computing induction factor at specific points is not yet defined for normalizing speed ' + induction_factor_normalizing_speed
-            print_op.log_and_raise_error(message)
-        a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
-        a_fun = cas.Function('a_fun', [x_obs_sym], [a_sym])
+        radius = kite_plane_induction_params['average_radius']
+        x_center = kite_plane_induction_params['center']
 
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+        parameters = plot_dict['parameters_plot']
+        wake = plot_dict['wake']
+        a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
+
+        ### compute the induction factors
         plot_radius_scaled = 1.6
-        plot_radius = plot_radius_scaled * average_radius
+        plot_radius = plot_radius_scaled * radius
         sym_start_plot = -1. * plot_radius
         sym_end_plot = plot_radius
-        number_of_slices = 100
-        delta_plot = plot_radius / float(number_of_slices)
+        delta_plot = plot_radius / float(n_plot_points)
         yy, zz = np.meshgrid(np.arange(sym_start_plot, sym_end_plot, delta_plot),
                              np.arange(sym_start_plot, sym_end_plot, delta_plot))
 
-        # Make the direction data for the arrows
-        print_op.base_print('computing the x-direction induction factor on the y-z plane, centered at the actuator center...')
-        total_progress = yy.shape[0] * yy.shape[1]
-        progress_count = 0
-
         aa = np.zeros(yy.shape)
-        yy_scaled = np.zeros(yy.shape)
-        zz_scaled = np.zeros(yy.shape)
 
+        print_op.base_print('making Haas verification plot...')
+        total_progress = yy.shape[0] * yy.shape[1]
+        progress_index = 0
         for idx in range(yy.shape[0]):
             for jdx in range(yy.shape[1]):
-                progress_count += 1
-                print_op.print_progress(progress_count, total_progress)
+                print_op.print_progress(progress_index, total_progress)
 
-                x_obs = cas.vertcat(0., yy[idx, jdx], zz[idx, jdx]) + center
-                computed = a_fun(x_obs)
-                aa[idx, jdx] = float(computed[0])
-                yy_scaled[idx, jdx] = float(yy[idx, jdx]) / average_radius
-                zz_scaled[idx, jdx] = float(zz[idx, jdx]) / average_radius
+                x_obs_centered = cas.vertcat(0., yy[idx, jdx], zz[idx, jdx])
+                x_obs = x_obs_centered + x_center
+                aa_computed = a_fun(x_obs)
+                aa[idx, jdx] = float(aa_computed)
 
-        #### contour plot
+                progress_index += 1
+
+        ### initialize the figure
+        fig, ax = plt.subplots()
+
+        ### draw the swept annulus
+        mu_min_by_path = kite_plane_induction_params['mu_min_by_path']
+        mu_max_by_path = kite_plane_induction_params['mu_max_by_path']
+        add_annulus_background(ax, mu_min_by_path, mu_max_by_path)
+
+        ### draw the contour
+        levels = [-0.05, 0., 0.2]
+        linestyles = ['dashdot', 'solid', 'dashed']
+        colors = ['k', 'k', 'k']
+        emergency_levels = 5
+        emergency_colors = 'k'
+        emergency_linestyles = 'solid'
+        yy_scaled = yy / radius
+        zz_scaled = zz / radius
         if (np.any(aa < levels[0])) and (np.any(aa > levels[-1])):
-            cs = ax_contour.contour(yy_scaled, zz_scaled, aa, levels, colors=colors, linestyles=linestyles)
+            cs = ax.contour(yy_scaled, zz_scaled, aa, levels, colors=colors, linestyles=linestyles)
         else:
-            cs = ax_contour.contour(yy_scaled, zz_scaled, aa, emergency_levels, colors=emergency_colors, linestyles=emergency_linestyles)
-        ax_contour.clabel(cs, inline=True, fontsize=10)
+            cs = ax.contour(yy_scaled, zz_scaled, aa, emergency_levels, colors=emergency_colors,
+                        linestyles=emergency_linestyles)
+        ax.clabel(cs, cs.levels, inline=True)
 
-        plt.legend(loc='lower right')
+        ### draw the vortex positions
+        for elem in wake.get_substructure('bound').get_list('finite_filament').list:
+            unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
+            x_start = unpacked['x_start']
+            x_end = unpacked['x_end']
 
-        y_list = np.array(vect_op.columnize(yy_scaled))
-        z_list = np.array(vect_op.columnize(zz_scaled))
-        ax_points.scatter(y_list, z_list, c='k')
+            x_start_shifted = (x_start - x_center) / radius
+            x_end_shifted = (x_end - x_center) / radius
+
+            y_over_r_vals = [float(x_start_shifted[1]), float(x_end_shifted[1])]
+            z_over_r_vals = [float(x_start_shifted[2]), float(x_end_shifted[2])]
+
+            ax.plot(y_over_r_vals, z_over_r_vals)
+
+        scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
+
+        ax.grid(True)
+        ax.set_title('induction factor over the kite plane \n scaled hass error is: ' + str(scaled_haas_error))
+        ax.set_xlabel("y/r [-]")
+        ax.set_ylabel("z/r [-]")
+        ax.set_aspect(1.)
 
         ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
-        for ax in [ax_points, ax_contour]:
-            ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_xticks(ticks_points)
-            ax.set_yticks(ticks_points)
+        ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
+        ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
+        ax.set_xticks(ticks_points)
+        ax.set_yticks(ticks_points)
+        plt.xticks(rotation=60)
+        plt.tight_layout()
 
-        fig_points.savefig('points.pdf')
-        fig_contour.savefig('contour.pdf')
+        fig.savefig('haas_contour.pdf')
+
+        return None
+
+
+
+
 
 
 

@@ -264,15 +264,8 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
         outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
 
-        haas_radius = cas.DM(255.77)
-        haas_l_hat = vect_op.xhat_dm()
-        haas_u_infty = cas.DM(10.)
-        scaled_haas_error = wake.compute_the_scaled_haas_error(haas_radius, haas_l_hat, haas_u_infty)
-        print(scaled_haas_error)
-        pdb.set_trace()
-        outputs['vortex']['scaled_haas_error'] = scaled_haas_error
-
     return outputs
+
 
 
 def compute_global_performance(global_outputs, Outputs_structured, architecture):

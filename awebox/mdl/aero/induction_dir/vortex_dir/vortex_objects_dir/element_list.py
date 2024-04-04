@@ -32,7 +32,6 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.vortex_object_structure as obj_structure
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
@@ -48,7 +47,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
 
-class ElementList(obj_structure.VortexObjectStructure):
+class ElementList():
 
     def __init__(self, expected_number_of_elements=None):
         self.__list = []
@@ -276,15 +275,6 @@ class ElementList(obj_structure.VortexObjectStructure):
             print_op.log_and_raise_error(message)
 
         return concatenated_list
-
-
-    # def define_model_variables_to_info_function(self, model_variables, model_parameters):
-    #     for elem in self.__list:
-    #         if elem.info_fun is not None:
-    #             elem.define_model_variables_to_info_function(model_variables, model_parameters)
-    #
-    #     return None
-
 
 
     def define_model_variables_to_info_functions(self, model_variables, model_parameters):
@@ -937,8 +927,42 @@ def construct_haas_filament_list(l_hat, a_hat, b_hat, radius, b_ref, strength, u
     return fil_list
 
 
+def compute_the_scaled_haas_error(fil_list, radius, l_hat, u_infty, x_center=cas.DM.zeros((3, 1))):
+
+    # reference points digitized from haas 2017
+    data02 = [(0, -1.13084, -0.28134), (0, -0.89466, -0.55261), (0, -0.79354, -0.41195), (0, -0.79127, 0.02826), (0, -0.04449, 1.01208), (0, 0.22119, 0.83066), (0, 0.71947, -0.96407), (0, 0.52187, -0.66125), (0, 0.45227, 1.09891), (0, 0.92121, -0.46219), (0, 0.95625, -0.62566), (0, 0.19546, 1.12782)]
+    data00 = [(0, -0.69372, 1.24284), (0, -0.5894, -0.17062), (0, -0.83795, -1.18138), (0, 0.27077, 1.35428), (0, -1.20982, -0.71437), (0, -0.10682, 0.54558), (0, -0.3789, -0.3959), (0, 0.5081, -0.34622), (0, 0.23767, 0.61635), (0, 0.57386, -0.09835), (0, 1.10956, -0.867), (0, 1.4683, -0.06319)]
+    datan005 = [(0, -1.27365, 0.33177), (0, -1.21638, 0.65872), (0, -0.64295, 0.15234), (0, -0.50651, 0.31282), (0, -0.01271, -1.39519), (0, 0.03669, -0.60921), (0, 0.20264, -0.63812), (0, 0.38143, -1.27208), (0, 0.49584, 0.49075), (0, 0.52938, 0.32778), (0, 0.96982, 0.94579), (0, 1.3061, 0.48278)]
+
+    data = {-0.05: datan005, 0.0: data00, 0.2: data02}
+
+    total_squared_error = 0.
+    baseline_squared_error = 0.
+    for aa_haas in data.keys():
+        coord_list = data[aa_haas]
+        for scaled_x_obs_tuple in coord_list:
+
+            baseline_squared_error += aa_haas ** 2.
+
+            scaled_x_obs = []
+            for dim in range(3):
+                scaled_x_obs = cas.vertcat(scaled_x_obs, scaled_x_obs_tuple[dim])
+            x_obs = scaled_x_obs * radius + x_center
+
+            u_ind_computed = fil_list.evaluate_total_biot_savart_induction(x_obs)
+
+            aa_computed = vect_op.dot(u_ind_computed, -1. * l_hat) / u_infty
+            diff = aa_haas - aa_computed
+            total_squared_error += diff ** 2.
+
+    scaled_squared_error = total_squared_error / baseline_squared_error
+    return scaled_squared_error
+
+
 def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
-    n_plot_points = 200
+    n_plot_points = 30
+
+    x_center = cas.DM.zeros((3, 1))
 
     # make a plot to show the x-projection induced velocity over the kite-mid-plane
     plot_radius_scaled = 1.6
@@ -950,17 +974,26 @@ def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
                           np.arange(sym_start_plot, sym_end_plot, delta_plot))
 
     aa = np.zeros(yy.shape)
+
+    print_op.base_print('making (test version of) Haas verification plot...')
+    total_progress = yy.shape[0] * yy.shape[1]
+    progress_index = 0
     for idx in range(yy.shape[0]):
         for jdx in range(yy.shape[1]):
-            x_obs = cas.vertcat(0., yy[idx, jdx], zz[idx, jdx])
+            print_op.print_progress(progress_index, total_progress)
+
+            x_obs_centered = cas.vertcat(0., yy[idx, jdx], zz[idx, jdx])
+            x_obs = x_obs_centered + x_center
             uu_ind_computed = fil_list.evaluate_total_biot_savart_induction(x_obs)
             aa_computed = cas.mtimes(uu_ind_computed.T, (-1. * l_hat)) / u_infty
             aa[idx, jdx] = float(aa_computed)
 
+            progress_index += 1
+
     fig, ax = plt.subplots()
 
     # draw annulus background
-    mu_max_by_path = (radius + 0.5 * b_ref)/radius
+    mu_max_by_path = (radius + 0.5 * b_ref) / radius
     mu_min_by_path = (radius - 0.5 * b_ref) / radius
     n, radii = 50, [mu_min_by_path, mu_max_by_path]
     theta = np.linspace(0, 2 * np.pi, n, endpoint=True)
@@ -989,7 +1022,10 @@ def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
                                 linestyles=emergency_linestyles)
     ax.clabel(cs, cs.levels, inline=False)
 
+    scaled_haas_error = compute_the_scaled_haas_error(fil_list, radius, l_hat, u_infty)
+
     ax.grid(True)
+    ax.set_title('(test) induction factor over the kite plane \n scaled hass error is: ' + str(scaled_haas_error))
     ax.set_xlabel("y/r [-]")
     ax.set_ylabel("z/r [-]")
     ax.set_aspect(1.)
@@ -999,11 +1035,14 @@ def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
     ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
     ax.set_xticks(ticks_points)
     ax.set_yticks(ticks_points)
+    plt.xticks(rotation=60)
+    plt.tight_layout()
 
     plt.show()
+    return None
 
 
-def test_that_a_construct_made_of_filaments_behaves_likes_haas_2017():
+def test_that_a_construct_made_of_filaments_behaves_like_haas_2017():
 
     l_hat = vect_op.xhat_dm()
     a_hat = vect_op.yhat_dm()
@@ -1026,7 +1065,7 @@ def test_that_a_construct_made_of_filaments_behaves_likes_haas_2017():
 
     fil_list = construct_haas_filament_list(l_hat, a_hat, b_hat, radius, b_ref, strength, u_infty, omega, total_windings, r_core)
     # make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref)
-    scaled_haas_error = fil_list.compute_the_scaled_haas_error(radius, l_hat, u_infty)
+    scaled_haas_error = compute_the_scaled_haas_error(fil_list, radius, l_hat, u_infty)
 
     baseline_scaled_haas_error = 1.
     if scaled_haas_error > baseline_scaled_haas_error:
@@ -1043,8 +1082,6 @@ def test(epsilon=1.e-4):
     test_filament_list()
     test_appending()
     test_that_biot_savart_function_evaluates_differently_for_different_elements(epsilon)
-    print_op.warn_about_temporary_functionality_alteration()
-    test_that_a_construct_made_of_filaments_behaves_likes_haas_2017()
+    test_that_a_construct_made_of_filaments_behaves_like_haas_2017()
 
 # test()
-test_that_a_construct_made_of_filaments_behaves_likes_haas_2017()

@@ -279,7 +279,10 @@ class Element():
     def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
         passed_information = (variables_scaled is not None) and (parameters is not None)
         if passed_information:
-            evaluated = self.evaluate_info(variables_scaled, parameters)
+            try:
+                evaluated = self.evaluate_info(variables_scaled, parameters)
+            except:
+                pdb.set_trace()
             unpacked = self.unpack_info(external_info=evaluated)
         else:
             unpacked = self.info_dict

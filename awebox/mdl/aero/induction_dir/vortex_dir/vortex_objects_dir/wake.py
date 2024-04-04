@@ -34,8 +34,6 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
-import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.vortex_object_structure as obj_structure
-
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -45,7 +43,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class Wake(obj_structure.VortexObjectStructure):
+class Wake():
     def __init__(self):
         accepted_types = self.get_accepted_substructure_types()
 
@@ -116,12 +114,13 @@ class Wake(obj_structure.VortexObjectStructure):
         awelogger.logger.warning(message)
         return 1.
 
-    def calculate_total_biot_savart_residual_at_x_obs(self, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
+
+    def calculate_total_biot_savart_at_x_obs(self, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):
 
         vec_u_ind = cas.DM.zeros((3, 1))
         initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
         for substructure_type in initialized_types:
-            local_u_ind = self.get_substructure(substructure_type).calculate_total_biot_savart_residual_at_x_obs(variables_scaled, parameters, x_obs)
+            local_u_ind = self.get_substructure(substructure_type).calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs)
             vec_u_ind += local_u_ind
 
         return vec_u_ind
