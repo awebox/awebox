@@ -145,6 +145,9 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
 
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    interpolation_x_si = plot_dict[search_name]['x']
+
     for side in sides:
         ax = 'ax_' + side
         axes[ax].clear()
@@ -164,9 +167,9 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
             local_color = init_colors
 
         parent = parent_map[n]
-        kite_locations = cas.horzcat(plot_dict['x']['q' + str(n) + str(parent)][0],
-                                    plot_dict['x']['q' + str(n) + str(parent)][1],
-                                    plot_dict['x']['q' + str(n) + str(parent)][2]).T
+        kite_locations = cas.horzcat(interpolation_x_si['q' + str(n) + str(parent)][0],
+                                    interpolation_x_si['q' + str(n) + str(parent)][1],
+                                    interpolation_x_si['q' + str(n) + str(parent)][2]).T
 
         for side in sides:
             ax_name = 'ax_' + side
@@ -208,26 +211,29 @@ def animation_snapshot(axes, plot_dict, index, cosmetics, init_colors=bool(False
 
 def fill_in_dashboard(fig, plot_dict,index):
 
+    interpolation_si = plot_dict['interpolation_si']
+    outputs_si = interpolation_si['outputs']
+
     global_string = ''
 
     # GLOBAL INFORMATION
     # immediate power output
-    power = (plot_dict['outputs']['performance']['p_current'][0][index]*1e-3).round(1)
+    power = (outputs_si['performance']['p_current'][0][index]*1e-3).round(1)
     global_string += 'P   = ' + str(power) + ' kW\n'
 
     # immediate tether forces
-    for name in list(plot_dict['outputs']['local_performance'].keys()):
+    for name in list(outputs_si['local_performance'].keys()):
         if 'tether_force' in name:
             num = name[12:]
-            tether_force = (plot_dict['outputs']['local_performance'][name][0][index]*1e-3).round(1)
+            tether_force = (outputs_si['local_performance'][name][0][index]*1e-3).round(1)
             global_string += 'Ft' + num + ' = ' + str(tether_force) + ' kN\n'
 
     # tether speed
-    if 'dl_t' in plot_dict['x'].keys():
-        if plot_dict['x']['dl_t'][0][index].shape == ():
-            dl_t = plot_dict['x']['dl_t'][0][index]
+    if 'dl_t' in interpolation_si['x'].keys():
+        if interpolation_si['x']['dl_t'][0][index].shape == ():
+            dl_t = interpolation_si['x']['dl_t'][0][index]
         else:
-            dl_t = plot_dict['x']['dl_t'][0][index][0]
+            dl_t = interpolation_si['x']['dl_t'][0][index][0]
     else:
         dl_t = 0.
     global_string += 'dlt = ' + print_op.repr_g(dl_t) + ' m/s\n'
@@ -237,15 +243,15 @@ def fill_in_dashboard(fig, plot_dict,index):
     kite = str(plot_dict['architecture'].kite_nodes[0]) # todo: set where?
     if plot_dict['options']['model']['kite_dof'] == 6:
         # angle of attack
-        alpha = plot_dict['outputs']['aerodynamics']['alpha_deg'+kite][0][index].round(1)
+        alpha = outputs_si['aerodynamics']['alpha_deg'+kite][0][index].round(1)
         local_string += 'alpha = ' + str(alpha) + ' deg\n'
 
         # side-slip
-        beta = plot_dict['outputs']['aerodynamics']['beta_deg'+kite][0][index].round(1)
+        beta = outputs_si['aerodynamics']['beta_deg'+kite][0][index].round(1)
         local_string += 'beta  = ' + str(beta)  + ' deg\n'
 
     # airspeed
-    va =  plot_dict['outputs']['aerodynamics']['airspeed'+kite][0][index].round(1)
+    va = outputs_si['aerodynamics']['airspeed'+kite][0][index].round(1)
     local_string += 'va     = ' + str(va) + ' m/s\n'
 
     textbox_global = plt.gcf().text(0.55, 0.1, global_string)

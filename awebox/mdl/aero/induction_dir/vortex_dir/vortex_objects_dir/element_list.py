@@ -32,6 +32,7 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.vortex_object_structure as obj_structure
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_finite_filament
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite_filament as obj_semi_infinite_filament
@@ -44,9 +45,11 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
+import matplotlib.pyplot as plt
 matplotlib.use('TkAgg')
 
-class ElementList:
+class ElementList(obj_structure.VortexObjectStructure):
+
     def __init__(self, expected_number_of_elements=None):
         self.__list = []
         self.set_element_type(None)
@@ -859,11 +862,189 @@ def test_that_biot_savart_function_evaluates_differently_for_different_elements(
 
     return None
 
+########### helix tests
+
+def get_node_position_in_helix_construction_test(l_pos, r_pos, psi_pos, l_hat, a_hat, b_hat):
+    x_pos = l_pos * l_hat + r_pos * (cas.cos(psi_pos) * a_hat + cas.sin(psi_pos) * b_hat)
+    return x_pos
+
+
+def construct_haas_filament_list(l_hat, a_hat, b_hat, radius, b_ref, strength, u_infty, omega, total_windings, r_core):
+    number_of_kites = 3
+    psi_phase_shift = 10. * np.pi / 180.
+    nodes_per_winding = int(360. / 10.)
+
+    # define the helix
+    period_per_rotation = np.abs(2. * np.pi / omega)
+    total_time = period_per_rotation * total_windings
+
+    radius_int = radius - 0.5 * b_ref
+    radius_ext = radius + 0.5 * b_ref
+
+    # construct the helix from filaments
+    fil_list = ElementList()
+
+    for kite in range(number_of_kites):
+        psi_0 = psi_phase_shift + float(kite) / float(number_of_kites) * 2. * np.pi
+
+        x_start_bound = get_node_position_in_helix_construction_test(0., radius_int, psi_0, l_hat, a_hat, b_hat)
+        x_end_bound = get_node_position_in_helix_construction_test(0., radius_ext, psi_0, l_hat, a_hat, b_hat)
+        dict_info = {'x_start': x_start_bound,
+                     'x_end': x_end_bound,
+                     'r_core': r_core,
+                     'strength': strength
+                     }
+        fil_bound = obj_finite_filament.FiniteFilament(dict_info)
+        fil_list.append(fil_bound)
+
+        total_nodes = total_windings * nodes_per_winding
+        delta_t = total_time / total_nodes
+
+        number_of_filaments = total_nodes
+        for fdx in range(number_of_filaments):
+            t_start = fdx * delta_t
+            t_end = (fdx + 1.) * delta_t
+
+            psi_start = psi_0 + t_start * omega
+            psi_end = psi_0 + t_end * omega
+            l_start = t_start * u_infty
+            l_end = t_end * u_infty
+
+            x_start_ext = get_node_position_in_helix_construction_test(l_start, radius_ext, psi_start, l_hat, a_hat, b_hat)
+            x_end_ext = get_node_position_in_helix_construction_test(l_end, radius_ext, psi_end, l_hat, a_hat, b_hat)
+            dict_info = {'x_start': x_start_ext,
+                         'x_end': x_end_ext,
+                         'r_core': r_core,
+                         'strength': strength
+                         }
+            fil_ext = obj_finite_filament.FiniteFilament(dict_info)
+            fil_list.append(fil_ext)
+
+            x_end_int = get_node_position_in_helix_construction_test(l_start, radius_int, psi_start, l_hat, a_hat, b_hat)
+            x_start_int = get_node_position_in_helix_construction_test(l_end, radius_int, psi_end, l_hat, a_hat, b_hat)
+            dict_info = {'x_start': x_start_int,
+                         'x_end': x_end_int,
+                         'r_core': r_core,
+                         'strength': strength
+                         }
+            fil_int = obj_finite_filament.FiniteFilament(dict_info)
+            fil_list.append(fil_int)
+
+    # fig, ax = plt.subplots(nrows=1, ncols=1, subplot_kw=dict(projection='3d'))
+    # fil_list.draw(ax, 'isometric')
+    # plt.show()
+
+    return fil_list
+
+
+def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
+    n_plot_points = 200
+
+    # make a plot to show the x-projection induced velocity over the kite-mid-plane
+    plot_radius_scaled = 1.6
+    plot_radius = plot_radius_scaled * radius
+    sym_start_plot = -1. * plot_radius
+    sym_end_plot = plot_radius
+    delta_plot = plot_radius / float(n_plot_points)
+    yy, zz = np.meshgrid(np.arange(sym_start_plot, sym_end_plot, delta_plot),
+                          np.arange(sym_start_plot, sym_end_plot, delta_plot))
+
+    aa = np.zeros(yy.shape)
+    for idx in range(yy.shape[0]):
+        for jdx in range(yy.shape[1]):
+            x_obs = cas.vertcat(0., yy[idx, jdx], zz[idx, jdx])
+            uu_ind_computed = fil_list.evaluate_total_biot_savart_induction(x_obs)
+            aa_computed = cas.mtimes(uu_ind_computed.T, (-1. * l_hat)) / u_infty
+            aa[idx, jdx] = float(aa_computed)
+
+    fig, ax = plt.subplots()
+
+    # draw annulus background
+    mu_max_by_path = (radius + 0.5 * b_ref)/radius
+    mu_min_by_path = (radius - 0.5 * b_ref) / radius
+    n, radii = 50, [mu_min_by_path, mu_max_by_path]
+    theta = np.linspace(0, 2 * np.pi, n, endpoint=True)
+    xs = np.outer(radii, np.cos(theta))
+    ys = np.outer(radii, np.sin(theta))
+    # in order to have a closed area, the circles
+    # should be traversed in opposite directions
+    xs[1, :] = xs[1, ::-1]
+    ys[1, :] = ys[1, ::-1]
+    color = (0.83,0.83,0.83,0.5)
+    ax.fill(np.ravel(xs), np.ravel(ys), color=color)
+
+    levels = [-0.05, 0., 0.2]
+    linestyles = ['dashdot', 'solid', 'dashed']
+    colors = ['k', 'k', 'k']
+    emergency_levels = 5
+    emergency_colors = 'k'
+    emergency_linestyles = 'solid'
+
+    yy_scaled = yy/radius
+    zz_scaled = zz/radius
+    if (np.any(aa < levels[0])) and (np.any(aa > levels[-1])):
+        cs = ax.contour(yy_scaled, zz_scaled, aa, levels, colors=colors, linestyles=linestyles)
+    else:
+        cs = ax.contour(yy_scaled, zz_scaled, aa, emergency_levels, colors=emergency_colors,
+                                linestyles=emergency_linestyles)
+    ax.clabel(cs, cs.levels, inline=False)
+
+    ax.grid(True)
+    ax.set_xlabel("y/r [-]")
+    ax.set_ylabel("z/r [-]")
+    ax.set_aspect(1.)
+
+    ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
+    ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
+    ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
+    ax.set_xticks(ticks_points)
+    ax.set_yticks(ticks_points)
+
+    plt.show()
+
+
+def test_that_a_construct_made_of_filaments_behaves_likes_haas_2017():
+
+    l_hat = vect_op.xhat_dm()
+    a_hat = vect_op.yhat_dm()
+    b_hat = vect_op.zhat_dm()
+
+    b_ref = 68.
+    s_ref = 580.
+    c_ref = s_ref / b_ref
+    u_infty = 10.
+    radius = 155.77
+    radius_ext = radius + 0.5 * b_ref
+    tsr = 7.
+    omega = tsr * u_infty / radius_ext
+    strength = -266.322
+    total_windings = 6
+
+    r_core_scaling_factor = c_ref
+    r_core_ratio = 0.05
+    r_core = r_core_ratio * r_core_scaling_factor
+
+    fil_list = construct_haas_filament_list(l_hat, a_hat, b_hat, radius, b_ref, strength, u_infty, omega, total_windings, r_core)
+    # make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref)
+    scaled_haas_error = fil_list.compute_the_scaled_haas_error(radius, l_hat, u_infty)
+
+    baseline_scaled_haas_error = 1.
+    if scaled_haas_error > baseline_scaled_haas_error:
+        print(scaled_haas_error)
+        message = 'haas construction does not work as intended'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+
 #############
 
 def test(epsilon=1.e-4):
     test_filament_list()
     test_appending()
     test_that_biot_savart_function_evaluates_differently_for_different_elements(epsilon)
+    print_op.warn_about_temporary_functionality_alteration()
+    test_that_a_construct_made_of_filaments_behaves_likes_haas_2017()
 
 # test()
+test_that_a_construct_made_of_filaments_behaves_likes_haas_2017()

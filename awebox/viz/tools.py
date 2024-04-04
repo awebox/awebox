@@ -389,9 +389,11 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
     parent = plot_dict['architecture'].parent_map[node]
 
     if ref:
-        x_vals = plot_dict['ref']['x']
+        search_name = 'ref'
     else:
-        x_vals = plot_dict['x']
+        search_name = 'interpolation'
+    search_name = search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
 
     data = []
     for dim in range(3):
@@ -406,9 +408,12 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
     architecture = plot_dict['architecture']
 
     if ref:
-        x_vals = plot_dict['ref']['x']
+        search_name = 'ref'
     else:
-        x_vals = plot_dict['x']
+        search_name = 'interpolation'
+    search_name += '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
+
 
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
@@ -530,13 +535,15 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
         message = 'selected dimension for q_limits not supported. setting dimension to x'
         awelogger.logger.warning(message)
 
-    for name in list(plot_dict['x'].keys()):
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
+    for name in list(plot_dict[search_name]['x'].keys()):
         if name[0] == 'q':
-            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict['x'][name][jdx])))
-            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['x'][name][jdx])))
+            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict[search_name]['x'][name][jdx])))
+            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict[search_name]['x'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['x'][name]))
+            vals = np.array(cas.vertcat(*plot_dict[search_name]['x'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 
@@ -577,24 +584,27 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     tgrid_u = plot_dict['time_grids']['u']
     tgrid_ip = plot_dict['time_grids']['ip']
 
+    interp_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    ref_name = 'ref_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
         color=cosmetics['controls']['colors'][jdx]
 
         if plot_dict['u_param'] == 'poly':
-            plt.plot(np.array(tgrid_ip), np.array(plot_dict['u'][name][jdx]), color=color)
+            plt.plot(np.array(tgrid_ip), np.array(plot_dict[interp_name]['u'][name][jdx]), color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
+                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['u'][name][jdx],
                     linestyle='--', color=color)
 
         else:
-            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx], where='post', color=color)
+            p = plt.step(tgrid_ip, plot_dict[interp_name]['u'][name][jdx], where='post', color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
+                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['u'][name][jdx],
                          where='post', linestyle='--', color=color)
     plt.grid(True)
     plt.title(name)
@@ -679,6 +689,8 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
 
     # add V_plot to dict
     scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+    plot_dict['V_plot_scaled'] = V_plot_scaled
+    plot_dict['V_ref_scaled'] = V_ref_scaled
     plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
     plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
     plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
@@ -763,6 +775,7 @@ def interpolate_data(plot_dict, cosmetics):
     time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
     V_plot_si = plot_dict['V_plot_si']
+    V_plot_scaled = plot_dict['V_plot_scaled']
     model_outputs = plot_dict['model_outputs']
     outputs_dict = plot_dict['outputs_dict']
     outputs_opt = plot_dict['output_vals']['opt']
@@ -772,14 +785,26 @@ def interpolate_data(plot_dict, cosmetics):
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_si,
+    interpolation_si = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_si,
+                                                   outputs_dict, outputs_opt, model_outputs,
+                                                   integral_output_names, integral_outputs_opt,
+                                                   Collocation=Collocation)
+
+    interpolation_scaled = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_scaled,
                                                    outputs_dict, outputs_opt, model_outputs,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
 
     # store the interpolation
-    for name, value in interpolation.items():
-        plot_dict[name] = value
+    for name in ['interpolation_si', 'interpolation_scaled']:
+        if name not in plot_dict.keys():
+            plot_dict[name] = {}
+
+    for name, value in interpolation_si.items():
+        plot_dict['interpolation_si'][name] = value
+
+    for name, value in interpolation_scaled.items():
+        plot_dict['interpolation_scaled'][name] = value
 
     return plot_dict
 
@@ -798,6 +823,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     time_grids = plot_dict['time_grids']['ref']
     variables_dict = plot_dict['variables_dict']
     V_ref_si = plot_dict['V_ref_si']
+    V_ref_scaled = plot_dict['V_ref_scaled']
     model_outputs = plot_dict['outputs']
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
@@ -806,16 +832,25 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    interpolation = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_si,
+    interpolation_si = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_si,
+                                                   outputs_dict, outputs_ref, model_outputs,
+                                                   integral_output_names, integral_outputs_ref,
+                                                   Collocation=Collocation)
+    interpolation_scaled = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_scaled,
                                                    outputs_dict, outputs_ref, model_outputs,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)
 
     # store the interpolation
-    if 'ref' not in plot_dict.keys():
-        plot_dict['ref'] = {}
-    for name, value in interpolation.items():
-        plot_dict['ref'][name] = value
+    for name in ['ref_si', 'ref_scaled']:
+        if name not in plot_dict.keys():
+            plot_dict[name] = {}
+
+    for name, value in interpolation_si.items():
+        plot_dict['ref_si'][name] = value
+
+    for name, value in interpolation_scaled.items():
+        plot_dict['ref_scaled'][name] = value
 
     return plot_dict
 
@@ -933,9 +968,15 @@ def get_nondim_time_and_switch(plot_dict):
 
     return time_nondim, tau
 
-def assemble_variable_slice_from_interpolated_data(plot_dict, index):
+
+def assemble_variable_slice_from_interpolated_data(plot_dict, index, si_or_scaled=None):
 
     collected_vals = []
+
+    if si_or_scaled is None:
+        si_or_scaled = plot_dict['cosmetics']['variables']['si_or_scaled']
+
+    interpolation_data = plot_dict['interpolation_' + si_or_scaled]
 
     model_variables = plot_dict['model_variables']
     for jdx in range(model_variables.shape[0]):
@@ -945,7 +986,7 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
         dim = canonical[2]
 
         if (var_type == 'theta'):
-            category = plot_dict['theta'][var_name]
+            category = interpolation_data['theta'][var_name]
             if category.shape == ():
                 local_val = category
             else:
@@ -953,15 +994,15 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         elif (var_type == 'xdot'):
-            if (var_name in plot_dict['x'].keys()):
-                local_val = plot_dict['x'][var_name][dim][index]
+            if (var_name in interpolation_data['x'].keys()):
+                local_val = interpolation_data['x'][var_name][dim][index]
             else:
                 # be advised: this function does not compute dynamics
                 local_val = cas.DM.zeros((1,1))
             collected_vals = cas.vertcat(collected_vals, local_val)
 
-        elif (var_type in plot_dict.keys()) and (var_name in plot_dict[var_type].keys()):
-            local_val = plot_dict[var_type][var_name][dim][index]
+        elif (var_type in interpolation_data.keys()) and (var_name in interpolation_data[var_type].keys()):
+            local_val = interpolation_data[var_type][var_name][dim][index]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         else:
@@ -971,7 +1012,7 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index):
     try:
         vars_si = model_variables(collected_vals)
     except:
-        message = 'unable to assign re-assembled interpolated data into a (model) variable structure'
+        message = 'interpolated data does not have the recognizable structure of a (model) variable'
         print_op.log_and_raise_error(message)
 
     return vars_si

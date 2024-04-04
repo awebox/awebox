@@ -120,14 +120,14 @@ def compute_power_indicators(power_and_performance, plot_dict):
     if 'e' in plot_dict['integral_output_names']:
         e_final = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
     else:
-        e_final = plot_dict['x']['e'][0][-1]
+        e_final = plot_dict['interpolation_si']['x']['e'][0][-1]
 
     time_period = plot_dict['global_output_vals']['time_period'].full()[0][0]
     avg_power = e_final / time_period
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
     power_per_surface_area = avg_power / surface_area
 
-    zeta = np.mean(plot_dict['outputs']['performance']['phf'][0])
+    zeta = np.mean(plot_dict['outputs_dict']['performance']['phf'][0])
 
     power_and_performance['e_final'] = e_final
     power_and_performance['time_period'] = time_period
@@ -135,15 +135,15 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
-    if 'l_t' in plot_dict['x'].keys():
-        power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['x']['l_t'])))
-    elif 'l_t' in plot_dict['theta'].keys():
-        power_and_performance['l_t_max'] = plot_dict['theta']['l_t']
+    if 'l_t' in plot_dict['interpolation_si']['x'].keys():
+        power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['interpolation_si']['x']['l_t'])))
+    elif 'l_t' in plot_dict['interpolation_si']['theta'].keys():
+        power_and_performance['l_t_max'] = plot_dict['interpolation_si']['theta']['l_t']
     else:
         message = 'unable to find main tether length in plot_dict'
         print_op.log_and_raise_error(message)
 
-    z_av = np.mean(plot_dict['x']['q10'][2])
+    z_av = np.mean(plot_dict['interpolation_si']['x']['q10'][2])
 
     power_and_performance['z_av'] = z_av
 
@@ -152,7 +152,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
 
 def compute_efficiency_measures(power_and_performance, plot_dict):
 
-    power_outputs = plot_dict['outputs']['power_balance']
+    power_outputs = plot_dict['outputs_dict']['power_balance']
     N = plot_dict['time_grids']['ip'].shape[0]
 
     # sum different power types over all system nodes
@@ -192,15 +192,17 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
 
     power_and_performance['eff_overall'] = - np.mean((power_outputs['P_tether1'][0]+P_gen_total))/P_in
     power_and_performance['eff_tether_drag_loss'] = -np.mean(P_tetherdrag_total)/P_in
-    power_and_performance['eff_drag_loss'] =  -np.mean(P_drag_total)/P_in
+    power_and_performance['eff_drag_loss'] = -np.mean(P_drag_total)/P_in
 
     return power_and_performance
 
 def compute_position_indicators(power_and_performance, plot_dict):
 
+    interpolated_x_si = plot_dict['interpolation_si']['x']
+
     # elevation angle
     architecture = plot_dict['architecture']
-    q10 = plot_dict['x']['q10']
+    q10 = interpolated_x_si['q10']
 
     n_interpolation = q10[0].shape[0]
 
@@ -229,27 +231,30 @@ def compute_position_indicators(power_and_performance, plot_dict):
             parent = architecture.parent_map[kite]
 
             label = 'q' + str(kite) + str(parent)
-            qkp_0 = plot_dict['x'][label][0][idx]
-            qkp_1 = plot_dict['x'][label][1][idx]
-            qkp_2 = plot_dict['x'][label][2][idx]
-            position_kite = np.reshape(np.array([qkp_0, qkp_1, qkp_2]), (3, 1))
+            position_kite = []
+            for dim in range(3):
+                local_position = interpolated_x_si[label][dim][idx]
+                position_kite = cas.vertcat(position_kite, local_position)
+            position_kite = np.array(position_kite)
 
             if parent == 0:
                 position_parent = np.zeros((3, 1))
-
-                average_tether_x = np.mean(np.array(plot_dict['x']['q10'][0]))
-                average_tether_y = np.mean(np.array(plot_dict['x']['q10'][1]))
-                average_tether_z = np.mean(np.array(plot_dict['x']['q10'][2]))
-                average_tether_vector = np.reshape(np.array([average_tether_x, average_tether_y, average_tether_z]), (3, 1))
+                average_tether_vector = []
+                for dim in range(3):
+                    local_position = np.mean(np.array(interpolated_x_si['q10'][dim]))
+                    average_tether_vector = cas.vertcat(average_tether_vector, local_position)
+                average_tether_vector = np.array(average_tether_vector)
                 position_grandparent = position_parent - average_tether_vector
             else:
                 grandparent = architecture.parent_map[parent]
 
                 label_parent = 'q' + str(parent) + str(grandparent)
-                qpg_0 = plot_dict['x'][label_parent][0][idx]
-                qpg_1 = plot_dict['x'][label_parent][1][idx]
-                qpg_2 = plot_dict['x'][label_parent][2][idx]
-                position_parent = np.reshape(np.array([qpg_0, qpg_1, qpg_2]), (3, 1))
+
+                position_parent = []
+                for dim in range(3):
+                    local_position = interpolated_x_si[label_parent][dim][idx]
+                    position_parent = cas.vertcat(position_parent, local_position)
+                position_parent = np.array(position_parent)
 
                 if grandparent == 0:
                     position_grandparent = np.zeros((3, 1))
@@ -257,10 +262,11 @@ def compute_position_indicators(power_and_performance, plot_dict):
                     great_grandparent = architecture.parent_map[grandparent]
 
                     label_grandparent = 'q' + str(grandparent) + str(great_grandparent)
-                    qgg_0 = plot_dict['x'][label_grandparent][0][idx]
-                    qgg_1 = plot_dict['x'][label_grandparent][1][idx]
-                    qgg_2 = plot_dict['x'][label_grandparent][2][idx]
-                    position_grandparent = np.reshape(np.array([qgg_0, qgg_1, qgg_2]), (3, 1))
+                    position_grandparent = []
+                    for dim in range(3):
+                        local_position = interpolated_x_si[label_grandparent][dim][idx]
+                        position_grandparent = cas.vertcat(position_grandparent, local_position)
+                    position_grandparent = np.array(position_grandparent)
 
             local_kite_cone_angle = perf_op.get_cone_angle(position_kite, position_parent, position_grandparent)
             local_average_cone_angle += local_kite_cone_angle / float(number_of_kites_in_lowest_layer)
@@ -284,7 +290,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     dq_final = 0.
     for node in range(1, number_of_nodes):
         parent = parent_map[node]
-        dq = plot_dict['x']['dq' + str(node) + str(parent)]
+        dq = interpolated_x_si['dq' + str(node) + str(parent)]
         parent = parent_map[node]
         dq_array = cas.vertcat(dq[0][-1], dq[1][-1], dq[2][-1])
         dq_norm_float = float(vect_op.norm(dq_array))
@@ -294,7 +300,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
     power_and_performance['dq_final'] = dq_final
 
     # average connex-point velocity
-    dq10 = plot_dict['x']['dq10']
+    dq10 = interpolated_x_si['dq10']
     dq10hat = []
     for i in range(dq10[0].shape[0]):
         dq = np.array([dq10[0][i], dq10[1][i], dq10[2][i]])
@@ -310,20 +316,20 @@ def compute_position_indicators(power_and_performance, plot_dict):
 def compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict):
 
     cmax = 0.0
-    for constraint in list(plot_dict['outputs']['invariants'].keys()):
+    for constraint in list(plot_dict['outputs_dict']['invariants'].keys()):
         if constraint[0] == 'c':
-            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['outputs']['invariants'][constraint]))])
+            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['outputs_dict']['invariants'][constraint]))])
     power_and_performance['cmax'] = cmax
 
     return power_and_performance
 
 def compute_tether_tension_indicators(power_and_performance, plot_dict):
 
-    max_tension = np.max(plot_dict['outputs']['local_performance']['tether_force10'])
+    max_tension = np.max(plot_dict['outputs_dict']['local_performance']['tether_force10'])
     power_and_performance['tension_max'] = max_tension
 
     # tension average over time
-    avg_tension = np.average(plot_dict['outputs']['local_performance']['tether_force10'])
+    avg_tension = np.average(plot_dict['outputs_dict']['local_performance']['tether_force10'])
     power_and_performance['tension_avg'] = avg_tension
 
     return power_and_performance
@@ -338,9 +344,9 @@ def compute_control_frequency(power_and_performance, plot_dict):
     parent = plot_dict['architecture'].parent_map[first_kite]
     tentative_var_name = 'delta' + str(first_kite) + str(parent)
 
-    if tentative_var_name in plot_dict['x'].keys():
+    if tentative_var_name in plot_dict['interpolation_si']['x'].keys():
         var_type = 'x'
-    elif tentative_var_name in plot_dict['u'].keys():
+    elif tentative_var_name in plot_dict['interpolation_si']['u'].keys():
         var_type = 'u'
     else:
         var_type = None
@@ -349,7 +355,7 @@ def compute_control_frequency(power_and_performance, plot_dict):
 
         time_period = power_and_performance['time_period']
 
-        number_control_surfaces = len(plot_dict[var_type][tentative_var_name])
+        number_control_surfaces = len(plot_dict['interpolation_si'][var_type][tentative_var_name])
 
         for kite in kite_nodes:
             parent = plot_dict['architecture'].parent_map[kite]
@@ -357,7 +363,7 @@ def compute_control_frequency(power_and_performance, plot_dict):
             frequency_stack = []
             for cs in range(number_control_surfaces):
                 var_name = 'delta' + str(kite) + str(parent)
-                vals = plot_dict[var_type][var_name][cs]
+                vals = plot_dict['interpolation_si'][var_type][var_name][cs]
                 steps = vals.shape[0] - 1
                 dt = time_period / steps
 
@@ -371,7 +377,9 @@ def compute_control_frequency(power_and_performance, plot_dict):
 
 def compute_windings(power_and_performance, plot_dict):
 
-    n_interpolation = plot_dict['x']['q10'][0].shape[0]
+    interpolated_x_si = plot_dict['interpolation_si']['x']
+
+    n_interpolation = interpolated_x_si['q10'][0].shape[0]
     total_steps = float(n_interpolation)
 
     parent_map = plot_dict['architecture'].parent_map
@@ -382,7 +390,7 @@ def compute_windings(power_and_performance, plot_dict):
     ehat_tether_z = 0.
 
     for idx in range(n_interpolation):
-        q10 = cas.vertcat(plot_dict['x']['q10'][0][idx], plot_dict['x']['q10'][1][idx], plot_dict['x']['q10'][2][idx])
+        q10 = cas.vertcat(interpolated_x_si['q10'][0][idx], interpolated_x_si['q10'][1][idx], interpolated_x_si['q10'][2][idx])
         local_ehat = vect_op.normalize(q10)
         ehat_tether_x += local_ehat[0] / total_steps
         ehat_tether_y += local_ehat[1] / total_steps
@@ -407,8 +415,8 @@ def compute_windings(power_and_performance, plot_dict):
         origin = np.zeros((3, 1))
         for idx in range(n_interpolation):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
-                              plot_dict['x'][name][2][idx])
+            q = cas.vertcat(interpolated_x_si[name][0][idx], interpolated_x_si[name][1][idx],
+                              interpolated_x_si[name][2][idx])
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
 
             origin = origin + q_in_plane / total_steps
@@ -416,14 +424,14 @@ def compute_windings(power_and_performance, plot_dict):
         # recenter the plane about origin
         for idx in range(n_interpolation-1):
             name = 'q' + str(n) + str(parent)
-            q = cas.vertcat(plot_dict['x'][name][0][idx], plot_dict['x'][name][1][idx],
-                              plot_dict['x'][name][2][idx])
+            q = cas.vertcat(interpolated_x_si[name][0][idx], interpolated_x_si[name][1][idx],
+                              interpolated_x_si[name][2][idx])
 
             q_in_plane = q - vect_op.dot(q, ehat_tether) * ehat_tether
             q_recentered = q_in_plane - origin
 
-            q_next = cas.vertcat(plot_dict['x'][name][0][idx+1], plot_dict['x'][name][1][idx+1],
-                              plot_dict['x'][name][2][idx+1])
+            q_next = cas.vertcat(interpolated_x_si[name][0][idx+1], interpolated_x_si[name][1][idx+1],
+                              interpolated_x_si[name][2][idx+1])
             q_next_in_plane = q_next - vect_op.dot(q_next, ehat_tether) * ehat_tether
             q_next_recentered = q_next_in_plane - origin
 

@@ -361,8 +361,10 @@ def calculate_kdx(params, V, t):
         k_reelout = round(n_k * params['phase_fix_reelout'])
         t_reelout = k_reelout * V['theta', 't_f', 0] / n_k
         if t <= t_reelout:
-            kdx = int(n_k * t / V['theta', 't_f', 0])
-            tau = t / V['theta', 't_f', 0]*n_k - kdx
+            noninteger_intervals_passed = t * n_k / V['theta', 't_f', 0]
+            kdx = int(noninteger_intervals_passed)
+            remainder_of_interval_since_last_control_node = noninteger_intervals_passed - kdx
+            tau = remainder_of_interval_since_last_control_node
         else:
             kdx = int(k_reelout + int(n_k * (t - t_reelout) / V['theta', 't_f', 1]))
             tau = (t - t_reelout) / V['theta', 't_f', 1] * n_k - (kdx-k_reelout)

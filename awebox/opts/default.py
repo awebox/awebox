@@ -135,7 +135,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'biot_savart_residual_assembly',        'division',     ('express the biot-savart residual as (division): (u_ind - num / den = 0); as a (split): (u_ind * den - num = 0); or as (lifted) by lifting num and den into the algebraic variables', ['division', 'split', 'lifted']), 'x'),
         ('model', 'aero', 'vortex',     'run_haas_verification_test',           False,          ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
-        ('model', 'aero', 'vortex',     'verification_points',                  20,             ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'verification_points',                  50,             ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 

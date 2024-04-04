@@ -34,6 +34,8 @@ import pdb
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.vortex_object_structure as obj_structure
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -43,7 +45,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class Wake:
+class Wake(obj_structure.VortexObjectStructure):
     def __init__(self):
         accepted_types = self.get_accepted_substructure_types()
 
@@ -124,6 +126,14 @@ class Wake:
 
         return vec_u_ind
 
+
+    def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1)):
+        vec_u_ind = cas.DM.zeros((3, 1))
+        initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
+        for substructure_type in initialized_types:
+            local = self.get_substructure(substructure_type).evaluate_total_biot_savart_induction(x_obs)
+        vec_u_ind += local
+        return vec_u_ind
 
 
     def construct_fake_cosmetics(self):

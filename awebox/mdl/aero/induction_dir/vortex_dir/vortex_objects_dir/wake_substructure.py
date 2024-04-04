@@ -40,6 +40,7 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.vortex_object_structure as obj_structure
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element_list as obj_element_list
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.finite_filament as obj_fin_fli
@@ -50,7 +51,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class WakeSubstructure:
+class WakeSubstructure(obj_structure.VortexObjectStructure):
     def __init__(self, substructure_type=None):
 
         self.__substructure_type = substructure_type
@@ -124,6 +125,15 @@ class WakeSubstructure:
         for element_type in initalized_types:
             self.get_list(element_type).define_model_variables_to_info_functions(model_variables, model_parameters)
         return None
+
+
+    def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1)):
+        vec_u_ind = cas.DM.zeros((3, 1))
+        for element_type in self.get_initialized_element_types():
+            elem_list = self.get_list(element_type)
+            local = elem_list.evaluate_total_biot_savart_induction(x_obs)
+        vec_u_ind += local
+        return vec_u_ind
 
 
     def calculate_total_biot_savart_residual_at_x_obs(self, variables_scaled, parameters, x_obs=cas.DM.zeros((3, 1))):

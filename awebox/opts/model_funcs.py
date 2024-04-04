@@ -773,22 +773,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     winding_period = t_f_guess / float(windings)
 
     CL = estimate_CL(options)
-    gamma_scale = vortex_alg_repr_scaling.get_filament_strength(options, geometry, CL)
-    if not (options['model']['aero']['overwrite']['f_lift_earth'] is None):
-        # L/b = rho v gamma
-        # gamma = L / (b rho v)
-        rotational_speed = 2. * np.pi * flight_radius / winding_period
-        rho_ref = options['params']['atmosphere']['rho_ref']
-        gamma_scale = vect_op.norm(options['model']['aero']['overwrite']['f_lift_earth']) / (b_ref * rho_ref * rotational_speed)
-
-    circulation_max_estimate = 3. * gamma_scale
-    options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', gamma_scale, ('????', None), 'x')),
-    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
-    for kite in architecture.kite_nodes:
-        for ring in range(rings):
-            gamma_name = 'wg_' + str(kite) + '_' + str(ring)
-            options_tree.append(('model', 'scaling', 'z', gamma_name, gamma_scale, ('descript', None), 'x'))
-    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', gamma_scale, ('????', None), 'x')),
 
     integrated_circulation = 1.
     for kite in architecture.kite_nodes:

@@ -407,7 +407,7 @@ def collect_actuator_support_outputs(model_options, atmos, wind, variables, outp
 
 
 def draw_actuator(ax, side, plot_dict, cosmetics, index):
-    if 'actuator' in plot_dict['outputs'].keys():
+    if 'actuator' in plot_dict['interpolation_si']['outputs'].keys():
         actuator_geom.draw_actuator_geometry(ax, side, plot_dict, cosmetics, index)
         actuator_flow.draw_actuator_flow(ax, side, plot_dict, cosmetics, index)
     return None

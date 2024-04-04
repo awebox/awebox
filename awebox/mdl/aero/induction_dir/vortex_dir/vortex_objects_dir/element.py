@@ -45,7 +45,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 matplotlib.use('TkAgg')
 
-class Element:
+class Element():
     def __init__(self, info_dict, info_order=None):
 
         for key, value in info_dict.items():

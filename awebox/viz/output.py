@@ -44,7 +44,7 @@ import awebox.tools.print_operations as print_op
 def plot_outputs(plot_dict, cosmetics, fig_name, output_top_name, fig_num=None, epigraph=None):
 
     interesting_outputs = []
-    for cstr_name in plot_dict['outputs'][output_top_name].keys():
+    for cstr_name in plot_dict['interpolation_si']['outputs'][output_top_name].keys():
         interesting_outputs += [(output_top_name, cstr_name)]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num=fig_num, epigraph=epigraph)
 
@@ -58,14 +58,23 @@ def get_dictionary_with_output_dimensions(interesting_outputs, outputs, architec
         base_name = opt[1]
 
         output_is_systemwide = base_name in outputs[category].keys()
+        kite = architecture.kite_nodes[0]
+        layer = architecture.layer_nodes[0]
 
+        search_name = 'empty'
         if output_is_systemwide:
-            number_of_output_dims = len(outputs[opt[0]][base_name])
+            search_name = base_name
+        elif base_name + str(kite) in outputs[category].keys():
+            search_name = base_name + str(kite)
+        elif base_name + str(layer) in outputs[category].keys():
+            search_name = base_name + str(layer)
         else:
-            kite = architecture.kite_nodes[0]
-            number_of_output_dims = len(outputs[opt[0]][base_name + str(kite)])
+            message = 'unable to find output (' + base_name + ') in outputs.'
+            print_op.log_and_raise_error(message)
 
+        number_of_output_dims = len(outputs[category][search_name])
         output_dimensions[opt] = number_of_output_dims
+
     return output_dimensions
 
 def include_specific_output_solution(relevant_axes, plot_dict, output_type, output_name, output_dim, local_color):
@@ -96,7 +105,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
     include_solution = cosmetics['outputs']['include_solution']
 
-    outputs = plot_dict['outputs']
+    outputs = plot_dict['interpolation_si']['outputs']
     architecture = plot_dict['architecture']
     tgrid_ip = plot_dict['time_grids']['ip']
 
@@ -251,7 +260,7 @@ def plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_outputs(plot_dict, cosmetics, fig_name, 'model_equalities', fig_num, epigraph=0.)
 
 def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
-    if len(plot_dict['outputs']['model_inequalities'].keys()) > 0:
+    if len(plot_dict['interpolation_si']['outputs']['model_inequalities'].keys()) > 0:
         plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
 
     plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num)
@@ -261,7 +270,7 @@ def plot_loyd_comparison(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = [('performance', 'phf_loyd_total'),
                            ('performance', 'loyd_factor'),
                            ('performance', 'p_loyd_total'),
-                           ('performance', 'f0')]
+                           ('performance', 'f')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 
@@ -277,9 +286,9 @@ def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
 
 # induction outputs
 def add_interesting_outputs_for_available_induction_model(interesting_outputs, plot_dict, search_name):
-    search_types = set(['vortex', 'actuator']).intersection(set(plot_dict['outputs'].keys()))
+    search_types = set(['vortex', 'actuator']).intersection(set(plot_dict['interpolation_si']['outputs'].keys()))
     for output_type in search_types:
-        for output_name in plot_dict['outputs'][output_type].keys():
+        for output_name in plot_dict['interpolation_si']['outputs'][output_type].keys():
             if search_name in output_name:
                 interesting_outputs += [(output_type, output_name)]
     return interesting_outputs

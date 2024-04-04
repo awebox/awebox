@@ -28,6 +28,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 from . import tools
 import numpy as np
@@ -188,13 +189,16 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
     number_of_nodes = plot_dict['architecture'].number_of_nodes
     parent_map = plot_dict['architecture'].parent_map
 
+    interp_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    ref_name = 'ref_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
     fig = plt.figure()
     fig.clf()
     legend_names = []
     tgrid_ip = plot_dict['time_grids']['ip']
-    invariants = plot_dict['outputs']['invariants']
+    invariants = plot_dict[interp_name]['outputs']['invariants']
     if cosmetics['plot_ref']:
-        ref_invariants = plot_dict['ref']['outputs']['invariants']
+        ref_invariants = plot_dict[ref_name]['outputs']['invariants']
         ref_tgrid_ip = plot_dict['ref']['time_grids']['ip']
 
     for n in range(1, number_of_nodes):
@@ -231,6 +235,9 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
     number_of_nodes = plot_dict['architecture'].number_of_nodes
     parent_map = plot_dict['architecture'].parent_map
 
+    interp_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    ref_name = 'ref_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
     fig = plt.figure()
     fig.clf()
     legend_names = []
@@ -239,12 +246,12 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
         lam_name = 'lambda' + str(n) + str(parent)
-        lambdavec = plot_dict['z'][lam_name]
+        lambdavec = plot_dict[interp_name]['z'][lam_name]
         p = plt.plot(tgrid_ip, lambdavec[0])
         if cosmetics['plot_bounds']:
             tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
         if cosmetics['plot_ref']:
-            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['z'][lam_name][0],
+            plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['z'][lam_name][0],
                      linestyle='--', color=p[-1].get_color())
         legend_names.append('lambda' + str(n) + str(parent))
 
@@ -253,28 +260,27 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
             kites = plot_dict['architecture'].kites_map[l]
             if len(kites) == 2:
                 lam_name = 'lambda{}{}'.format(kites[0], kites[1])
-                lambdavec = plot_dict['z'][lam_name]
+                lambdavec = plot_dict[interp_name]['z'][lam_name]
                 p = plt.plot(tgrid_ip, lambdavec[0])
                 if cosmetics['plot_bounds']:
                     tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
                 if cosmetics['plot_ref']:
                     plt.plot(
-                        plot_dict['time_grids']['ref']['ip'],
-                        plot_dict['ref']['z'][lam_name][0],
+                        plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['z'][lam_name][0],
                         linestyle='--', color=p[-1].get_color()
                     )
                 legend_names.append(lam_name)
             else:
                 for k in range(len(kites)):
                     lam_name = 'lambda{}{}'.format(kites[k], kites[(k + 1) % len(kites)])
-                    lambdavec = plot_dict['z'][lam_name]
+                    lambdavec = plot_dict[interp_name]['z'][lam_name]
                     p = plt.plot(tgrid_ip, lambdavec[0])
                     if cosmetics['plot_bounds']:
                         tools.plot_bounds(plot_dict, 'z', lam_name, 0, tgrid_ip, p=p)
                     if cosmetics['plot_ref']:
                         plt.plot(
                             plot_dict['time_grids']['ref']['ip'],
-                            plot_dict['ref']['z'][lam_name][0],
+                            plot_dict[ref_name]['z'][lam_name][0],
                             linestyle='--', color=p[-1].get_color()
                         )
                     legend_names.append(lam_name)
@@ -283,6 +289,8 @@ def plot_algebraic_variables(plot_dict, cosmetics, fig_name):
 
 
 def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables_to_plot, integral_variables_to_plot, fig_num=None):
+
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
 
     if len(variables_to_plot + integral_variables_to_plot) > 0:
 
@@ -302,7 +310,7 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
 
         for var_name in integral_variables_to_plot:
             ax = plt.axes(axes[counter])
-            variable_dimensions = len(plot_dict['integral_outputs'][var_name])
+            variable_dimensions = len(plot_dict[search_name]['integral_outputs'][var_name])
             for dim in range(variable_dimensions):
                 plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=dim)
                 counter += 1
@@ -321,32 +329,25 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
 def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time_through=True):
 
     variables_dict = plot_dict['variables_dict']
-    si_or_scaled = cosmetics['variables']['si_or_scaled']
-    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
 
     ax = plt.axes(ax)
     number_of_dimensions = variables_dict[var_type][var_name].shape[0]
 
     show_ref = cosmetics['plot_ref'] and first_time_through
     if show_ref:
+        search_name = 'ref'
+    else:
+        search_name = 'interpolation'
+    search_name = search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    variables_plot = plot_dict[search_name][var_type][var_name]
+
+    if show_ref:
         tgrid_ip = plot_dict['time_grids']['ref']['ip']
-        variables_plot = plot_dict['ref'][var_type][var_name]
         linestyle = '--'
         first_time_through = False
     else:
         tgrid_ip = plot_dict['time_grids']['ip']
-        variables_plot = plot_dict[var_type][var_name]
         linestyle = '-'
-
-    if si_or_scaled == 'scaled':
-        for tdx in range(tgrid_ip.shape[0]):
-            local_si = []
-            for dim in range(number_of_dimensions):
-                local_si = cas.vertcat(local_si, variables_plot[dim][tdx])
-
-            local_scaled = struct_op.var_si_to_scaled(var_type, var_name, local_si, scaling)
-            for dim in range(number_of_dimensions):
-                variables_plot[dim][tdx] = local_scaled[dim]
 
     for dim in range(number_of_dimensions):
         variable_data = variables_plot[dim]
@@ -371,7 +372,9 @@ def plot_indiv_integral_variable(ax, plot_dict, cosmetics, var_name, dim=0):
     ax = plt.axes(ax)
 
     tgrid_out = plot_dict['time_grids']['ip']
-    out_values = plot_dict['integral_outputs'][var_name][dim]
+
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    out_values = plot_dict[search_name]['integral_outputs'][var_name][dim]
 
     plt.plot(np.array(tgrid_out), np.array(out_values))
 

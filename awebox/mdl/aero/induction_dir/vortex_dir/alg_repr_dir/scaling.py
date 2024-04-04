@@ -49,15 +49,27 @@ def append_scaling_to_options_tree(options, geometry, options_tree, architecture
     return options_tree
 
 
-def get_filament_strength(options, geometry, CL):
+def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
     c_ref = geometry['c_ref']
+    b_ref = geometry['b_ref']
 
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
+
     axial_speed = u_ref * (1. - a_ref)
     airspeed_ref = axial_speed
 
-    filament_strength = 0.5 * CL * airspeed_ref * c_ref
+    if not (options['model']['aero']['overwrite']['f_lift_earth'] is None):
+        # L/b = rho v gamma
+        # gamma = L / (b rho v)
+        flight_radius = varrho_ref * b_ref
+        rotational_speed = 2. * np.pi * flight_radius / winding_period
+        rho_ref = options['params']['atmosphere']['rho_ref']
+        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_lift_earth']) / (b_ref * rho_ref * rotational_speed)
+        filament_strength = gamma
+    else:
+        filament_strength = 0.5 * CL * airspeed_ref * c_ref
+
     return filament_strength
 
 
@@ -69,7 +81,7 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     u_ref = options['user_options']['wind']['u_ref']
 
-    filament_strength = get_filament_strength(options, geometry, CL)
+    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
 
     inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
 
@@ -108,6 +120,12 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
         for ring in range(rings):
             var_name = vortex_tools.get_vortex_ring_strength_name(kite_shed, ring)
             options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
+    options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', wg_scale, ('????', None), 'x')),
+
+    circulation_max_estimate = 3. * wg_scale
+    options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', wg_scale, ('????', None), 'x')),
+    options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
+
 
     far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
     if 'cylinder' in far_wake_element_type:
@@ -131,7 +149,7 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    filament_strength = get_filament_strength(options, geometry, CL)
+    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
 
     inputs = {
         'u_ref': u_ref * a_ref,
@@ -214,6 +232,9 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
 
     x_int_shed = properties_ref['x_int_shed']
     x_ext_shed = properties_ref['x_ext_shed']
+    x_kite_shed = 0.5 * (x_int_shed + x_ext_shed)
+
+    distance = vect_op.norm(x_kite_shed - x_kite_obs)
 
     offset = cas.DM(0.)
     x_start = x_int_shed + offset * ehat_1
@@ -230,9 +251,11 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     x_obs = x_kite_obs
     value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
 
-    u_ref = properties_ref['u_ref']
-    a_ref = model_options['aero']['actuator']['a_ref']
-    value = u_ref * (1. - a_ref) * vect_op.xhat_dm()
+    # unfortunately, for even numbers of kites-per-layer, there are bound vortices that are co-linear with the kite observation points.
+    # so, keep the denominator, but approximate the numerator terms
+    distance = vect_op.smooth_norm(x_kite_shed - x_kite_obs)
+    estimated_magnitude = strength / distance**2.
+    value = estimated_magnitude * vect_op.xhat_dm()
 
     num = value * den
 
