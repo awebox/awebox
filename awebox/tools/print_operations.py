@@ -413,6 +413,12 @@ def repr_g(value):
         return repr(value)
 
 
+def close_progress():
+    print_progress(2, 2)
+    print('')
+    return None
+
+
 def print_progress(index, total_count):
     # warning: this does NOT log the progress, it only displays the progress, on-screen
     progress_width = 20

@@ -990,6 +990,8 @@ def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
 
             progress_index += 1
 
+    print_op.close_progress()
+
     fig, ax = plt.subplots()
 
     # draw annulus background

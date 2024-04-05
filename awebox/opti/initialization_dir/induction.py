@@ -80,6 +80,8 @@ def initial_guess_vortex(init_options, nlp, model, V_init_si, p_fix_num):
         message = 'vortex induction model is only defined for direct-collocation model, at this point'
         print_op.log_and_raise_error(message)
 
+    print_op.base_print('Initializing vortex variables...')
+
     V_init_si = vortex.get_initialization(init_options, V_init_si, p_fix_num, nlp, model)
 
     return V_init_si

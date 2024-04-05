@@ -424,7 +424,7 @@ def test_that_get_shedding_kite_from_element_number_tool_works_correctly():
 
 def test(test_includes_visualization=False):
 
-    message = 'check vortex model functionality...'
+    message = 'checking vortex model functionality...'
     awelogger.logger.info(message)
 
     vect_op.test_altitude()

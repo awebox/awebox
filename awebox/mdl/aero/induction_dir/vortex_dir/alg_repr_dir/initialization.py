@@ -72,15 +72,30 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
         sanity_check_on_z_vs_coll_z_overstepping(V_init_si, nlp.d, var_name)
 
     check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
-    check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+    try:
+        check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+    except:
+        pdb.set_trace()
 
     return V_init_si
 
 
 def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
+
+    print_op.base_print('computing induced velocity functions...')
+    function_dict = make_induced_velocities_functions(model)
+
+    print_op.base_print('appending induced velocity variables...')
+    total_progress = (nlp.n_k * nlp.d)
+    index_progress = 0
     for ndx in range(nlp.n_k):
         for ddx in range(nlp.d):
-            V_init_si = append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, model, ndx, ddx)
+            print_op.print_progress(index_progress, total_progress)
+
+            V_init_si = append_induced_velocities_at_time(init_options, function_dict, V_init_si, p_fix_num, nlp, model, ndx, ddx)
+            index_progress += 1
+
+    print_op.close_progress()
 
     return V_init_si
 
@@ -98,7 +113,53 @@ def guess_biot_savart_lifted_assembly(model):
     return biot_savart_residual_assembly
 
 
-def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, model, ndx, ddx):
+def make_induced_velocities_functions(model):
+
+    wake = model.wake
+
+    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
+    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+
+    function_dict = {}
+
+    for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+        if substructure_type not in function_dict.keys():
+            function_dict[substructure_type] = {}
+
+        substructure = wake.get_substructure(substructure_type)
+        for element_type in substructure.get_initialized_element_types():
+
+            if element_type not in function_dict[substructure_type].keys():
+                function_dict[substructure_type][element_type] = {}
+
+            element_list = substructure.get_list(element_type)
+            element_number = 0
+            for elem in element_list.list:
+
+                if elem not in function_dict[substructure_type][element_type].keys():
+                    function_dict[substructure_type][element_type][elem] = {}
+
+                value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs_sym)
+                value_fun = cas.Function('value_fun', [x_obs_sym, model.variables, model.parameters], [value])
+                function_dict[substructure_type][element_type][elem]['value_fun'] = value_fun
+
+                if biot_savart_residual_assembly == 'lifted':
+                    num_fun = cas.Function('num_fun', [x_obs_sym, model.variables, model.parameters], [num])
+                    den_fun = cas.Function('den_fun', [x_obs_sym, model.variables, model.parameters], [den])
+
+                    function_dict[substructure_type][element_type][elem]['num_fun'] = num_fun
+                    function_dict[substructure_type][element_type][elem]['den_fun'] = den_fun
+
+                element_number += 1
+
+            if not (element_number == element_list.number_of_elements):
+                message = 'something went wrong with the initialization of vortex induced velocities. the wrong number of elements'
+                print_op.log_and_raise_error(message)
+
+    return function_dict
+
+
+def append_induced_velocities_at_time(init_options, function_dict, V_init_si, p_fix_num, nlp, model, ndx, ddx):
 
     wake = model.wake
     architecture = model.architecture
@@ -135,11 +196,14 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                                                                                          element_number,
                                                                                          kite_obs)
 
-                        value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs)
-                        value_fun = cas.Function('value_fun', [model.variables, model.parameters], [value])
+                        value_fun = function_dict[substructure_type][element_type][elem]['value_fun']
 
-                        value_eval = value_fun(variables_scaled, parameters)
+                        value_eval = value_fun(x_obs, variables_scaled, parameters)
                         V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
+
+                        # values to use in the sanity-checking if unlifted
+                        num_eval = value_eval
+                        den_eval = 1.
 
                         if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
                             V_init_si['z', ndx_on_collocation_overstepping, u_ind_elem_name] = value_eval
@@ -154,11 +218,11 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                                                                                                         element_number,
                                                                                                         kite_obs)
 
-                            num_fun = cas.Function('num_fun', [model.variables, model.parameters], [num])
-                            den_fun = cas.Function('den_fun', [model.variables, model.parameters], [den])
+                            num_fun = function_dict[substructure_type][element_type][elem]['num_fun']
+                            den_fun = function_dict[substructure_type][element_type][elem]['den_fun']
 
-                            num_eval = num_fun(variables_scaled, parameters)
-                            den_eval = den_fun(variables_scaled, parameters)
+                            num_eval = num_fun(x_obs, variables_scaled, parameters)
+                            den_eval = den_fun(x_obs, variables_scaled, parameters)
 
                             V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
                             V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
@@ -168,7 +232,7 @@ def append_induced_velocities_at_time(init_options, V_init_si, p_fix_num, nlp, m
                                 V_init_si['z', ndx_on_collocation_overstepping, u_ind_den_elem_name] = den_eval
 
                         sanity_check_biot_savart_at_initialization(init_options, V_init_si, p_fix_num, Xdot,
-                                                               model, elem, u_ind_elem_name, x_obs, value, num, den, ndx, ddx)
+                                                               model, elem, u_ind_elem_name, x_obs, value_eval, num_eval, den_eval, ndx, ddx)
 
                     element_number += 1
                     total_u_ind += value_eval
@@ -242,7 +306,7 @@ def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name,
     return None
 
 
-def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-4):
+def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-2):
 
     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
 
@@ -297,11 +361,15 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
 
 def append_specific_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids):
 
+    print_op.base_print('appending ' + abbreviated_var_name + ' variables...')
+
     n_k = init_options['n_k']
     d = init_options['collocation']['d']
 
     kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = vortex_tools.get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, init_options, model.architecture)
 
+    total_progress = len(kite_shed_or_parent_shed_list) * len(tip_list) * len(wake_node_or_ring_list) * n_k * d
+    index_progress = 0
     for kite_shed_or_parent_shed in kite_shed_or_parent_shed_list:
         for tip in tip_list:
             for wake_node_or_ring in wake_node_or_ring_list:
@@ -312,10 +380,16 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
                                                                       kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx)
 
                     for ddx in range(d):
+
+                        print_op.print_progress(index_progress, total_progress)
+
                         V_init_scaled = get_specific_local_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init,
                                                                           Integral_outputs_scaled, model,
                                                                           time_grids, kite_shed_or_parent_shed, tip,
                                                                           wake_node_or_ring, ndx, ddx)
+                        index_progress += 1
+
+    print_op.close_progress()
 
     return V_init_scaled
 

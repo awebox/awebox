@@ -112,6 +112,8 @@ class Optimization(object):
 
         if self.__status in ['I am an optimization.', 'I am a solved optimization.', 'I am a failed optimization.']:
 
+            print_op.base_print('Setting up homotopy schedule...', level='info')
+
             # save final homotopy step
             self.__final_homotopy_step = final_homotopy_step
             self.__intermediate_solve = intermediate_solve
@@ -260,6 +262,8 @@ class Optimization(object):
 
     def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
 
+        print_op.base_print('Proceeding into homotopy...', level='info')
+
         available_homotopy_steps = self.__schedule['homotopy']
         if final_homotopy_step not in available_homotopy_steps:
             message = 'final_homotopy_step (' + final_homotopy_step + ') not recognized. available scheduling steps are: ' + repr(available_homotopy_steps)
@@ -344,6 +348,7 @@ class Optimization(object):
                     self.__perform_classic_continuation(step_name, phi_name, options, solver)
 
             else:
+                print_op.base_print('Calling the solver...', level='info')
 
                 self.__solution = solver(**self.__arg)
                 self.__stats = solver.stats()

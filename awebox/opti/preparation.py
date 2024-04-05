@@ -47,6 +47,8 @@ def initialize_arg(nlp, formulation, model, options, schedule):
 
     p_fix_num = initialize_opti_parameters_with_model_parameters(nlp, options)
 
+    print_op.base_print('Generating the initial guess...', level='info')
+
     if options['initialization']['initialization_type'] == 'default':
         V_init = initialization.get_initial_guess(nlp, model, formulation, options['initialization'], p_fix_num)
     elif options['initialization']['initialization_type'] == 'modular':

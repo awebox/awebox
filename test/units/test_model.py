@@ -945,7 +945,7 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
 
         tdx += 1
 
-    print('')
+    print_op.close_progress()
 
     if make_plot:
         qx = np.array(q_history[0, :]).T

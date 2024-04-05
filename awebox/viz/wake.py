@@ -361,7 +361,7 @@ def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
     vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
 
-        n_plot_points = 50
+        n_plot_points = 300
 
         idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
 
@@ -398,6 +398,8 @@ def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
                 aa[idx, jdx] = float(aa_computed)
 
                 progress_index += 1
+
+        print_op.close_progress()
 
         ### initialize the figure
         fig, ax = plt.subplots()
