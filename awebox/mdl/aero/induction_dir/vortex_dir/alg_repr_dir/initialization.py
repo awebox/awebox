@@ -81,22 +81,8 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
 
 def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
-
-    print_op.base_print('computing induced velocity functions...')
-    function_dict = make_induced_velocities_functions(model)
-
-    print_op.base_print('appending induced velocity variables...')
-    total_progress = (nlp.n_k * nlp.d)
-    index_progress = 0
-    for ndx in range(nlp.n_k):
-        for ddx in range(nlp.d):
-            print_op.print_progress(index_progress, total_progress)
-
-            V_init_si = append_induced_velocities_at_time(init_options, function_dict, V_init_si, p_fix_num, nlp, model, ndx, ddx)
-            index_progress += 1
-
-    print_op.close_progress()
-
+    function_dict = make_induced_velocities_functions(model, nlp)
+    V_init_si = append_induced_velocities_using_parallelization(init_options, function_dict, V_init_si, p_fix_num, nlp, model)
     return V_init_si
 
 
@@ -113,15 +99,16 @@ def guess_biot_savart_lifted_assembly(model):
     return biot_savart_residual_assembly
 
 
-def make_induced_velocities_functions(model):
+def make_induced_velocities_functions(model, nlp):
+
+    print_op.base_print('computing induced velocity functions...')
 
     wake = model.wake
-
     biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
+
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
 
     function_dict = {}
-
     for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
         if substructure_type not in function_dict.keys():
             function_dict[substructure_type] = {}
@@ -140,15 +127,93 @@ def make_induced_velocities_functions(model):
                     function_dict[substructure_type][element_type][elem] = {}
 
                 value, num, den = elem.calculate_biot_savart_induction(elem.info_dict, x_obs_sym)
-                value_fun = cas.Function('value_fun', [x_obs_sym, model.variables, model.parameters], [value])
-                function_dict[substructure_type][element_type][elem]['value_fun'] = value_fun
+                value_separate_fun = cas.Function('value_separate_fun', [x_obs_sym, model.variables, model.parameters], [value])
+                num_separate_fun = cas.Function('num_separate_fun', [x_obs_sym, model.variables, model.parameters], [num])
+                den_separate_fun = cas.Function('den_separate_fun', [x_obs_sym, model.variables, model.parameters], [den])
 
+                value_sym = cas.SX.sym('value_sym', value.shape)
+                num_sym = cas.SX.sym('num_sym', num.shape)
+                den_sym = cas.SX.sym('den_sym', den.shape)
+
+                if elem.biot_savart_residual_fun is None:
+                    elem.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+                residual_fun = elem.biot_savart_residual_fun
                 if biot_savart_residual_assembly == 'lifted':
-                    num_fun = cas.Function('num_fun', [x_obs_sym, model.variables, model.parameters], [num])
-                    den_fun = cas.Function('den_fun', [x_obs_sym, model.variables, model.parameters], [den])
+                    residual = residual_fun(elem.info, x_obs_sym, value_sym, num_sym, den_sym)
+                else:
+                    residual = residual_fun(elem.info, x_obs_sym, value_sym)
+                resi_separate_fun = cas.Function('value_separate_fun', [x_obs_sym, model.variables, model.parameters, value_sym, num_sym, den_sym], [residual])
 
-                    function_dict[substructure_type][element_type][elem]['num_fun'] = num_fun
-                    function_dict[substructure_type][element_type][elem]['den_fun'] = den_fun
+                x_obs_len = x_obs_sym.shape[0]
+                model_variables_len = model.variables.cat.shape[0]
+                model_parameters_len = model.parameters.cat.shape[0]
+
+                all_inputs_shape = (x_obs_len + model_variables_len + model_parameters_len, 1)
+                inputs_sym = cas.SX.sym('inputs_sym', all_inputs_shape)
+                inputs_x_obs = inputs_sym[0:x_obs_len]
+                inputs_variables = inputs_sym[x_obs_len: x_obs_len + model_variables_len]
+                inputs_parameters = inputs_sym[x_obs_len + model_variables_len: x_obs_len + model_variables_len + model_parameters_len]
+
+                test_value_len = value_sym.shape[0]
+                test_num_len = num_sym.shape[0]
+                test_den_len = den_sym.shape[0]
+                test_inputs_shape = (x_obs_len + model_variables_len + model_parameters_len + test_value_len + test_num_len + test_den_len, 1)
+                test_inputs_sym = cas.SX.sym('test_inputs_sym', test_inputs_shape)
+                test_inputs_x_obs = test_inputs_sym[0:x_obs_len]
+                test_inputs_variables = test_inputs_sym[x_obs_len: x_obs_len + model_variables_len]
+                test_inputs_parameters = test_inputs_sym[x_obs_len + model_variables_len: x_obs_len + model_variables_len + model_parameters_len]
+                test_inputs_value = test_inputs_sym[x_obs_len + model_variables_len + model_parameters_len: x_obs_len + model_variables_len + model_parameters_len + test_value_len]
+                test_inputs_num = test_inputs_sym[x_obs_len + model_variables_len + model_parameters_len + test_value_len: x_obs_len + model_variables_len + model_parameters_len + test_value_len + test_num_len]
+                test_inputs_den = test_inputs_sym[x_obs_len + model_variables_len + model_parameters_len + test_value_len + test_num_len: x_obs_len + model_variables_len + model_parameters_len + test_value_len + test_num_len + test_den_len]
+
+                if not (inputs_x_obs.shape == x_obs_sym.shape and test_inputs_x_obs.shape == x_obs_sym.shape):
+                    message = 'mapping concatenation of x_obs does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+                if not (inputs_variables.shape == model.variables.shape and test_inputs_variables.shape == model.variables.shape):
+                    message = 'mapping concatenation of model.variables does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+                if not (inputs_parameters.shape == model.parameters.shape and test_inputs_parameters.shape == model.parameters.shape):
+                    message = 'mapping concatenation of model.parameters does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+                if not (test_inputs_value.shape == value.shape):
+                    message = 'mapping concatenation of biot-savart value does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+                if not (test_inputs_num.shape == num.shape):
+                    message = 'mapping concatenation of biot-savart numerator does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+                if not (test_inputs_den.shape == den.shape):
+                    message = 'mapping concatenation of biot-savart denominator does not have the necessary shape'
+                    print_op.log_and_raise_error(message)
+
+
+                separate_function_types = ['value', 'num', 'den', 'resi']
+                for separate_type in separate_function_types:
+
+                    if separate_type == 'value':
+                        local_concat = value_separate_fun(inputs_x_obs, inputs_variables, inputs_parameters)
+                    elif separate_type == 'num':
+                        local_concat = num_separate_fun(inputs_x_obs, inputs_variables, inputs_parameters)
+                    elif separate_type == 'den':
+                        local_concat = den_separate_fun(inputs_x_obs, inputs_variables, inputs_parameters)
+                    elif separate_type == 'resi':
+                        local_concat = resi_separate_fun(test_inputs_x_obs, test_inputs_variables,
+                                                              test_inputs_parameters, test_inputs_value,
+                                                              test_inputs_num, test_inputs_den)
+                    else:
+                        message = 'something went wrong when deciding between supposedly pre-defined options: ' + str(separate_type)
+                        print_op.log_and_raise_error(message)
+
+                    if separate_type == 'resi':
+                        concat_fun = cas.Function(separate_type + '_fun', [test_inputs_sym], [local_concat])
+                    else:
+                        concat_fun = cas.Function(separate_type + '_fun', [inputs_sym], [local_concat])
+
+                    map_on_control_nodes = concat_fun.map(nlp.n_k, 'openmp')
+                    map_on_collocation_nodes = concat_fun.map(nlp.n_k * nlp.d, 'openmp')
+                    function_dict[substructure_type][element_type][elem][
+                        separate_type + '_map_on_control_nodes'] = map_on_control_nodes
+                    function_dict[substructure_type][element_type][elem][
+                        separate_type + '_map_on_collocation_nodes'] = map_on_collocation_nodes
 
                 element_number += 1
 
@@ -159,122 +224,163 @@ def make_induced_velocities_functions(model):
     return function_dict
 
 
-def append_induced_velocities_at_time(init_options, function_dict, V_init_si, p_fix_num, nlp, model, ndx, ddx):
+def append_induced_velocities_using_parallelization(init_options, function_dict, V_init_si, p_fix_num, nlp, model):
 
     wake = model.wake
     architecture = model.architecture
-
-    Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
-    variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
-                                                   ddx=ddx)
-    variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
-    parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
-
-    ndx_on_collocation_overstepping = get_collocation_overstepping_ndx(nlp.n_k, ndx)
-
     biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
 
+    Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
+
+    stacked_inputs_on_control_nodes = []
+    for ndx in range(nlp.n_k):
+        ddx = 0
+        variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
+                                                       ddx=ddx)
+        variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
+        parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
+        stacked_inputs_on_control_nodes = cas.horzcat(stacked_inputs_on_control_nodes, cas.vertcat(variables_scaled, parameters))
+
+    stacked_inputs_on_collocation_nodes = []
+    for ndx in range(nlp.n_k):
+        for ddx in range(nlp.d):
+            variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
+                                                           ddx=ddx)
+            variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si, model.scaling)
+            parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
+            stacked_inputs_on_collocation_nodes = cas.horzcat(stacked_inputs_on_collocation_nodes,
+                                                          cas.vertcat(variables_scaled, parameters))
+
+    total_of_values_on_control = cas.DM.zeros((3, nlp.n_k))
+    total_of_values_on_collocation = cas.DM.zeros((3, nlp.n_k * nlp.d))
+
+    # prepare the progress bar. (does nothing except count items in following for-loop)
+    print_op.base_print('appending induced velocity variables...')
+    index_progress = 0
+    total_progress = 0
+    for kite_obs in architecture.kite_nodes:
+        for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
+            substructure = wake.get_substructure(substructure_type)
+            for element_type in substructure.get_initialized_element_types():
+                element_list = substructure.get_list(element_type)
+                element_number = -1
+                for elem in element_list.list:
+                    element_number += 1
+                    if vortex_tools.not_bound_and_shed_is_obs(init_options, substructure_type, element_type, element_number, kite_obs, architecture):
+                        separate_function_types = ['value', 'num', 'den']
+                        for separate_type in separate_function_types:
+                            total_progress += 1
+
+    # actually do the calculation
     for kite_obs in architecture.kite_nodes:
         parent_obs = architecture.parent_map[kite_obs]
-        x_obs = variables_si['x', 'q' + str(kite_obs) + str(parent_obs)]
+        u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
 
-        total_u_ind = cas.DM.zeros((3, 1))
+        horizontally_concat_x_obs = []
+        for ndx in range(nlp.n_k):
+            ddx = 0
+            variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
+                                                           ddx=ddx)
+            x_obs = variables_si['x', 'q' + str(kite_obs) + str(parent_obs)]
+            horizontally_concat_x_obs = cas.horzcat(horizontally_concat_x_obs, x_obs)
+
+        kite_stacked_inputs_on_control_nodes = cas.vertcat(horizontally_concat_x_obs, stacked_inputs_on_control_nodes)
+
+        horizontally_concat_x_obs = []
+        for ndx in range(nlp.n_k):
+            for ddx in range (nlp.d):
+                variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot, model.variables, ndx,
+                                                               ddx=ddx)
+                x_obs = variables_si['x', 'q' + str(kite_obs) + str(parent_obs)]
+                horizontally_concat_x_obs = cas.horzcat(horizontally_concat_x_obs, x_obs)
+        kite_stacked_inputs_on_collocation_nodes = cas.vertcat(horizontally_concat_x_obs,
+                                                           stacked_inputs_on_collocation_nodes)
 
         for substructure_type in wake.get_initialized_substructure_types_with_at_least_one_element():
             substructure = wake.get_substructure(substructure_type)
             for element_type in substructure.get_initialized_element_types():
                 element_list = substructure.get_list(element_type)
-                element_number = 0
+                element_number = -1
                 for elem in element_list.list:
+                    element_number += 1
 
-                    value_eval = cas.DM.zeros((3, 1))
                     if vortex_tools.not_bound_and_shed_is_obs(init_options, substructure_type, element_type, element_number, kite_obs, architecture):
 
+                        test_kite_stacked_inputs_on_control_nodes = copy.deepcopy(kite_stacked_inputs_on_control_nodes)
+                        test_kite_stacked_inputs_on_collocation_nodes = copy.deepcopy(
+                            kite_stacked_inputs_on_collocation_nodes)
 
                         u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
                                                                                          element_type,
                                                                                          element_number,
                                                                                          kite_obs)
+                        separate_function_types = ['value', 'num', 'den']
+                        for separate_type in separate_function_types:
+                            index_progress += 1
+                            print_op.print_progress(index_progress, total_progress)
 
-                        value_fun = function_dict[substructure_type][element_type][elem]['value_fun']
+                            map_on_control_nodes = function_dict[substructure_type][element_type][elem][
+                                separate_type + '_map_on_control_nodes']
+                            map_on_collocation_nodes = function_dict[substructure_type][element_type][elem][
+                                separate_type + '_map_on_collocation_nodes']
 
-                        value_eval = value_fun(x_obs, variables_scaled, parameters)
-                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = value_eval
+                            outputs_on_control = map_on_control_nodes(kite_stacked_inputs_on_control_nodes)
+                            outputs_on_collocation = map_on_collocation_nodes(
+                                kite_stacked_inputs_on_collocation_nodes)
 
-                        # values to use in the sanity-checking if unlifted
-                        num_eval = value_eval
-                        den_eval = 1.
+                            test_kite_stacked_inputs_on_control_nodes = cas.vertcat(test_kite_stacked_inputs_on_control_nodes, outputs_on_control)
+                            test_kite_stacked_inputs_on_collocation_nodes = cas.vertcat(
+                                test_kite_stacked_inputs_on_collocation_nodes, outputs_on_collocation)
 
-                        if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                            V_init_si['z', ndx_on_collocation_overstepping, u_ind_elem_name] = value_eval
+                            if (separate_type == 'value') or (biot_savart_residual_assembly == 'lifted'):
+                                cdx = 0
+                                for ndx in range(nlp.n_k):
+                                    V_init_si['z', ndx, u_ind_elem_name] = outputs_on_control[:, cdx]
+                                    cdx += 1
 
-                        if biot_savart_residual_assembly == 'lifted':
-                            u_ind_num_elem_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
-                                                                                                      element_type,
-                                                                                                      element_number,
-                                                                                                      kite_obs)
-                            u_ind_den_elem_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type,
-                                                                                                        element_type,
-                                                                                                        element_number,
-                                                                                                        kite_obs)
+                                cdx = 0
+                                for ndx in range(nlp.n_k):
+                                    for ddx in range(nlp.d):
+                                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = outputs_on_collocation[:, cdx]
 
-                            num_fun = function_dict[substructure_type][element_type][elem]['num_fun']
-                            den_fun = function_dict[substructure_type][element_type][elem]['den_fun']
+                            if separate_type == 'value':
+                                total_of_values_on_control = total_of_values_on_control + outputs_on_control
+                                total_of_values_on_collocation = total_of_values_on_collocation + outputs_on_collocation
 
-                            num_eval = num_fun(x_obs, variables_scaled, parameters)
-                            den_eval = den_fun(x_obs, variables_scaled, parameters)
+                        # test that the residual is satisfied
+    sanity_check_biot_savart_at_initialization(function_dict, substructure_type, element_type, elem,
+                                               test_kite_stacked_inputs_on_control_nodes,
+                                               test_kite_stacked_inputs_on_collocation_nodes)
 
-                            V_init_si['coll_var', ndx, ddx, 'z', u_ind_num_elem_name] = num_eval
-                            V_init_si['coll_var', ndx, ddx, 'z', u_ind_den_elem_name] = den_eval
+    print_op.close_progress()
 
-                            if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-                                V_init_si['z', ndx_on_collocation_overstepping, u_ind_num_elem_name] = num_eval
-                                V_init_si['z', ndx_on_collocation_overstepping, u_ind_den_elem_name] = den_eval
+    cdx = 0
+    for ndx in range(nlp.n_k):
+        V_init_si['z', ndx, u_ind_name] = total_of_values_on_control[:, cdx]
+        cdx += 1
 
-                        sanity_check_biot_savart_at_initialization(init_options, V_init_si, p_fix_num, Xdot,
-                                                               model, elem, u_ind_elem_name, x_obs, value_eval, num_eval, den_eval, ndx, ddx)
-
-                    element_number += 1
-                    total_u_ind += value_eval
-
-                if not (element_number == element_list.number_of_elements):
-                    message = 'something went wrong with the initialization of vortex induced velocities. the wrong number of elements'
-                    print_op.log_and_raise_error(message)
-
-        u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
-        V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_u_ind
-
-        if (ddx == nlp.d - 1) and ('z' in list(V_init_si.keys())):
-            V_init_si['z', ndx_on_collocation_overstepping, u_ind_name] = total_u_ind
+    cdx = 0
+    for ndx in range(nlp.n_k):
+        for ddx in range(nlp.d):
+            V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_of_values_on_collocation[:, cdx]
 
     return V_init_si
 
 
+def sanity_check_biot_savart_at_initialization(function_dict, substructure_type, element_type, elem, test_kite_stacked_inputs_on_control_nodes, test_kite_stacked_inputs_on_collocation_nodes, threshold=1.e-6):
+    resi_map_on_control_nodes = function_dict[substructure_type][element_type][elem]['resi_map_on_control_nodes']
+    resi_map_on_collocation_nodes = function_dict[substructure_type][element_type][elem][
+        'resi_map_on_collocation_nodes']
 
-def sanity_check_biot_savart_at_initialization(init_options, V_init_si, p_fix_num, Xdot,
-                                                   model, elem, u_ind_elem_name, x_obs, value, num, den, ndx, ddx, thresh=1.e-4):
+    resi_on_control = resi_map_on_control_nodes(test_kite_stacked_inputs_on_control_nodes)
+    resi_on_collocation = resi_map_on_collocation_nodes(test_kite_stacked_inputs_on_collocation_nodes)
+    norm_sq_resi_on_control = cas.mtimes(vect_op.columnize(resi_on_control).T, vect_op.columnize(resi_on_control))
+    norm_sq_resi_on_collocation = cas.mtimes(vect_op.columnize(resi_on_collocation).T,
+                                             vect_op.columnize(resi_on_collocation))
 
-    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
-
-    parameters = struct_op.get_parameters_at_time(V_init_si, p_fix_num, model.parameters)
-
-    elem.define_biot_savart_induction_residual_function(
-        biot_savart_residual_assembly=biot_savart_residual_assembly)
-    biot_savart_residual_fun = elem.biot_savart_residual_fun
-    packed_info = elem.pack_info()
-    if biot_savart_residual_assembly == 'lifted':
-        residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
-    else:
-        residual = biot_savart_residual_fun(packed_info, x_obs, value)
-    resi_fun = cas.Function('resi_fun', [model.variables, model.parameters], [residual])
-    variables_si = struct_op.get_variables_at_time(init_options, V_init_si, Xdot,
-                                                   model.variables,
-                                                   ndx, ddx)
-    variables_scaled = struct_op.variables_si_to_scaled(model.variables, variables_si,
-                                                        model.scaling)
-    resi_val = resi_fun(variables_scaled, parameters)
-    if cas.mtimes(resi_val.T, resi_val) > thresh**2.:
-        message = 'something went wrong when initializing the induced velocity related to (' + u_ind_elem_name + '). biot-savart is not satisfied.'
+    mapping_failure = (norm_sq_resi_on_control > threshold ** 2.) or (norm_sq_resi_on_collocation > threshold ** 2.)
+    if mapping_failure:
+        message = 'something went wrong with the mapping of the induced velocity initialization'
         print_op.log_and_raise_error(message)
 
     return None
