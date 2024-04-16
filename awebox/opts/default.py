@@ -254,6 +254,10 @@ def set_default_options(default_user_options, help_options):
         ('model',   'integration',  None, 'method',                     'integral_outputs',     ('how to perform the quadrature integration, such as the power, with integral_outputs or with constraints', ['integral_outputs', 'constraints']),'x'),
         ('model',   'integration',  None, 'include_integration_test',   False,                  ('add an integration into the output-integrals to check for correct implementation', None), 'x'),
 
+        #### ground_station
+        ('params', 'ground_station', None, 'eta_DT',        1.0,   ('Drive train efficiency',None),'x'),
+        ('params', 'ground_station', None, 'eta_RT',        1.0,   ('Round-trip storage efficiency',None),'x'),
+
         #### emergency landing
         ('formulation', 'nominal_landing', None, 'main_node_radius', 40.,   ('???', None), 'x'),
         ('formulation', 'nominal_landing', None, 'kite_node_radius', 80.,   ('???', None), 'x'),
