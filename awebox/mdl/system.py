@@ -196,7 +196,7 @@ def generate_structure(options, architecture):
     if options['tether']['use_wound_tether']:
         system_parameters += [('l_t_full', (1, 1))]
     
-    if 'P_max' in options['system_bounds']['theta'].keys():
+    if options['include_P_max']:
         system_parameters += [('P_max', (1, 1))] # max power
 
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
