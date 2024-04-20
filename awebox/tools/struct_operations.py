@@ -126,7 +126,7 @@ def get_coll_params(nlp_options, V, P, model):
         theta0_reelin = []
         for j in range(P['theta0'].shape[0]):
             Index = model.parameters_dict['theta0'].getCanonicalIndex(j)
-            if Index[2] == 'eta_DT':
+            if Index[1] == 'eta_DT':
                 theta0_reelin.append(1/P['theta0'][j])
             else:
                 theta0_reelin.append(P['theta0'][j])
