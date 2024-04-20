@@ -325,7 +325,7 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     else:
-        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t'] * parameters['theta0',  'ground_station', 'eta_DT']
         outputs['performance']['p_current'] = power
 
     return power, outputs
@@ -596,6 +596,12 @@ def max_power_inequality(options, variables, power):
                                     name='max_power_cstr',
                                     cstr_type='ineq')
         cstr_list.append(max_power_cstr)
+
+        min_power_ineq = - (power + variables['theta']['P_max'])/options['scaling']['theta']['P_max']
+        P_min_cstr = cstr_op.Constraint(expr=min_power_ineq,
+                                    name='P_min_cstr',
+                                    cstr_type='ineq')
+        cstr_list.append(P_min_cstr)
 
     return cstr_list
 
