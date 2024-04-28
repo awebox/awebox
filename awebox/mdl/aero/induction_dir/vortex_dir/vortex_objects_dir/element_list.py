@@ -1027,7 +1027,7 @@ def make_the_haas_contour_plot(fil_list, l_hat, u_infty, radius, b_ref):
     scaled_haas_error = compute_the_scaled_haas_error(fil_list, radius, l_hat, u_infty)
 
     ax.grid(True)
-    ax.set_title('(test) induction factor over the kite plane \n scaled hass error is: ' + str(scaled_haas_error))
+    ax.set_title('(test) Induction factor over the kite plane \n Scaled Haas Error is: ' + str(scaled_haas_error))
     ax.set_xlabel("y/r [-]")
     ax.set_ylabel("z/r [-]")
     ax.set_aspect(1.)

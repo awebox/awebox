@@ -67,7 +67,7 @@ def draw_actuator(ax, side, plot_dict, cosmetics, index):
     actuator.draw_actuator(ax, side, plot_dict, cosmetics, index)
     return None
 
-def plot_wake(plot_dict, cosmetics, fig_name, side):
+def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
     fig, ax = tools.setup_axes_for_side(cosmetics, side)
 
     index = -1
@@ -442,7 +442,7 @@ def plot_haas_verification_test(plot_dict, cosmetics, fig_name, fig_num=None):
         scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
 
         ax.grid(True)
-        ax.set_title('induction factor over the kite plane \n scaled hass error is: ' + str(scaled_haas_error))
+        ax.set_title('Induction factor over the kite plane \n Scaled Haas Error is: ' + str(scaled_haas_error))
         ax.set_xlabel("y/r [-]")
         ax.set_ylabel("z/r [-]")
         ax.set_aspect(1.)

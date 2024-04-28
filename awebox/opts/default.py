@@ -127,7 +127,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'far_wake_element_type', 'semi_infinite_filament', ('the type of vortex elements used to model the far-wake vorticity', ['finite_filament', 'semi_infinite_filament', 'semi_infinite_right_cylinder', 'not_in_use']), 'x'),
         ('model', 'aero', 'vortex',     'approximation_order_for_elliptic_integrals', 5, ('the approximation order for the elliptic integrals, must be an integer between 0 and 6', None), 'x'),
         ('model', 'aero', 'vortex',     'far_wake_convection_time',  120.,  ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
-        ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.1,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.05,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_m',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, dimensionless, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',        0.01,           ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),

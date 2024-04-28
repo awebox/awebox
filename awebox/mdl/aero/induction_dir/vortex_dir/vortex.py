@@ -250,17 +250,17 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
         local_a = general_flow.compute_induction_factor(vec_u_ind, n_hat, u_normalizing)
 
         vec_u_ind_from_far_wake = vortex_tools.superpose_induced_velocities_at_kite(model_options, wake, variables_si, kite_obs, architecture, substructure_types=['far'])
-        u_ind_from_far_wake = vect_op.norm(vec_u_ind_from_far_wake)
-        u_ind_from_far_wake_over_u_ref = u_ind_from_far_wake / wind.get_speed_ref()
+        u_ind_norm_from_far_wake = vect_op.norm(vec_u_ind_from_far_wake)
+        u_ind_norm_from_far_wake_over_u_ref = u_ind_norm_from_far_wake / wind.get_speed_ref()
 
-        est_truncation_error = u_ind_from_far_wake / u_ind
+        est_truncation_error = u_ind_norm_from_far_wake / u_ind
 
         outputs['vortex']['u_ind' + str(kite_obs)] = u_ind
         outputs['vortex']['u_ind_norm' + str(kite_obs)] = vect_op.norm(u_ind)
         outputs['vortex']['local_a' + str(kite_obs)] = local_a
 
-        outputs['vortex']['u_ind_from_far_wake' + str(kite_obs)] = u_ind_from_far_wake
-        outputs['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite_obs)] = u_ind_from_far_wake_over_u_ref
+        outputs['vortex']['u_ind_from_far_wake' + str(kite_obs)] = u_ind_norm_from_far_wake
+        outputs['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite_obs)] = u_ind_norm_from_far_wake_over_u_ref
 
         outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
 
@@ -300,6 +300,9 @@ def compute_global_performance(global_outputs, Outputs_structured, architecture)
             all_local_a = kite_local_a
         else:
             all_local_a = cas.vertcat(all_local_a, kite_local_a)
+
+        # todo: something here does not work correctly
+        print_op.warn_about_temporary_functionality_alteration()
 
         max_kite_local_a = vect_op.smooth_max(kite_local_a)
         min_kite_local_a = vect_op.smooth_min(kite_local_a)

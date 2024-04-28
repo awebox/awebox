@@ -354,6 +354,9 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
     parent_map = architecture.parent_map
     body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
+    search_name = 'interpolation' + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
+
     for kite in kite_nodes:
 
         # kite colors
@@ -367,16 +370,16 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
         # kite position information
         q_kite = []
         for j in range(3):
-            q_kite = cas.vertcat(q_kite, plot_dict['x']['q' + str(kite) + str(parent)][j][index])
+            q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][index])
 
         # dcm information
         r_dcm = []
         for j in range(3):
-            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
         for j in range(3):
-            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
         for j in range(3):
-            r_dcm = cas.vertcat(r_dcm, plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
 
         # draw kite body
         draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
@@ -444,6 +447,8 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
     architecture = plot_dict['architecture']
     kite_nodes = architecture.kite_nodes
 
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
     body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
     old_label = None
@@ -463,12 +468,12 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
             q_local = []
             for dim in range(3):
-                local_val = plot_dict['x']['q' + str(kite) + str(parent)][dim][local_index]
+                local_val = plot_dict[search_name]['x']['q' + str(kite) + str(parent)][dim][local_index]
                 q_local = cas.vertcat(q_local, local_val)
 
             r_local = []
             for dim in range(9):
-                local_val = plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim][local_index]
+                local_val = plot_dict[search_name]['outputs']['aerodynamics']['r' + str(kite)][dim][local_index]
                 r_local = cas.vertcat(r_local, local_val)
 
             draw_kite(ax, q_local, r_local, model_options, local_color, side, body_cross_sections_per_meter)
@@ -484,7 +489,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
     plot_tether = (len(kite_nodes) == 1)
     if plot_tether:
-        time_entries = plot_dict['x']['q10'][0].shape[0]
+        time_entries = plot_dict[search_name]['x']['q10'][0].shape[0]
         for index in range(time_entries):
             plot_all_tethers(ax, side, plot_dict, ref=False, index=index)
             if cosmetics['plot_ref']:

@@ -142,7 +142,11 @@ def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
     if (ddx is None):
         if var_type in list(V.keys()):
-            return V[var_type, kdx]
+            if kdx < nlp_options['n_k']:
+                return V[var_type, kdx]
+            else:
+                message = 'something went wrong with the index of an algebraic variable with kdx = ' + str(kdx)
+                print_op.log_and_raise_error(message)
         else:
             return V['coll_var', kdx, 0, var_type]
     else:
@@ -204,7 +208,7 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     lifted_derivs = ('xdot' in list(V.keys()))
     passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
-    if at_control_node and lifted_derivs:
+    if at_control_node and lifted_derivs and kdx < n_k:
         return V[var_type, kdx]
     elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
