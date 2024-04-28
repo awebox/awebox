@@ -863,6 +863,11 @@ def interpolate_ref_data(plot_dict, cosmetics):
 def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
 
     standard_args = (plot_dict, cosmetics, fig_name)
+    if flag not in plot_logic_dict.keys():
+        message = 'cannot process plot with flag (' + flag +'). skipping it, instead.'
+        print_op.base_print(message, level='warning')
+        return None
+
     additional_args = plot_logic_dict[flag][1]
 
     # execute function from dict

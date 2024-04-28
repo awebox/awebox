@@ -87,7 +87,7 @@ class WakeSubstructure():
 
         return None
 
-    def define_biot_savart_induction_residual_functions(self, biot_savart_residual_assembly='split'):
+    def define_biot_savart_induction_residual_functions(self, degree_of_induced_velocity_lifting=3):
 
         x_obs = cas.SX.sym('x_obs', (3, 1))
 
@@ -97,22 +97,25 @@ class WakeSubstructure():
                 number_of_elements = self.get_list(element_type).number_of_elements
                 vec_u_ind_list = cas.SX.sym('vec_u_ind_list', (3, number_of_elements))
 
-                self.get_list(element_type).define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+                self.get_list(element_type).define_biot_savart_induction_residual_function(degree_of_induced_velocity_lifting)
 
-                if biot_savart_residual_assembly == 'lifted':
+                if degree_of_induced_velocity_lifting == 1:
+                    return None
+
+                elif degree_of_induced_velocity_lifting == 2:
+                    all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list, degree_of_induced_velocity_lifting)
+                    mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all])
+
+                elif degree_of_induced_velocity_lifting == 3:
                     vec_u_ind_num_list = cas.SX.sym('vec_u_ind_num_list', (3, number_of_elements))
                     vec_u_ind_den_list = cas.SX.sym('vec_u_ind_den_list', (1, number_of_elements))
 
                     all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list,
                                                                                                                vec_u_ind_num_list,
                                                                                                                vec_u_ind_den_list,
-                                                                                                               biot_savart_residual_assembly)
+                                                                                                               degree_of_induced_velocity_lifting)
                     mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun',
                                                                    [x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list], [all])
-
-                else:
-                    all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list, biot_savart_residual_assembly)
-                    mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all])
 
                 self.set_mapped_biot_savart_residual_fun(element_type, mapped_biot_savart_residual_fun)
 
@@ -161,10 +164,10 @@ class WakeSubstructure():
 
         parent_obs = architecture.parent_map[kite_obs]
 
-        biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
+        degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
         if not self.mapped_biot_savart_residual_function_is_defined_for_initialized_lists():
-            self.define_biot_savart_induction_residual_functions(biot_savart_residual_assembly)
+            self.define_biot_savart_induction_residual_functions(degree_of_induced_velocity_lifting)
 
         x_obs = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(kite_obs) + str(parent_obs))
 
@@ -183,7 +186,7 @@ class WakeSubstructure():
             if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
                 local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
 
-                if biot_savart_residual_assembly == 'lifted':
+                if degree_of_induced_velocity_lifting == 3:
                     local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
                                                                              element_type, edx, kite_obs)
                     local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
@@ -193,10 +196,15 @@ class WakeSubstructure():
             vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)
             vec_u_ind_den_list = cas.horzcat(vec_u_ind_den_list, local_den)
 
-        if biot_savart_residual_assembly == 'lifted':
+        if degree_of_induced_velocity_lifting == 1:
+            resi_si = None
+        if degree_of_induced_velocity_lifting == 2:
+            resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
+        elif degree_of_induced_velocity_lifting == 3:
             resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list)
         else:
-            resi_si = self.get_mapped_biot_savart_residual_fun(element_type)(x_obs, vec_u_ind_list)
+            message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ') found'
+            print_op.log_and_raise_error(message)
 
         return resi_si
 
@@ -467,32 +475,34 @@ def test_mapped_biot_savart():
 
 def test_mapped_biot_savart_residual(epsilon=1.e-4):
     local_substructure = construct_test_object()
-    local_substructure.define_biot_savart_induction_functions()
-    local_substructure.define_biot_savart_induction_residual_functions()
 
-    x_obs = cas.DM([1., 2., 3.])
+    for degree_of_induced_velocity_lifting in [2]:
+        local_substructure.define_biot_savart_induction_functions()
+        local_substructure.define_biot_savart_induction_residual_functions(degree_of_induced_velocity_lifting=degree_of_induced_velocity_lifting)
 
-    conditions = {}
-    total_conditions = 0
-    initialized_types = local_substructure.get_initialized_element_types()
-    for elem_type in initialized_types:
-        mapped_biot_savart_fun = local_substructure.get_mapped_biot_savart_fun(elem_type)
-        vec_u_ind_list = mapped_biot_savart_fun(x_obs)
+        x_obs = cas.DM([1., 2., 3.])
 
-        mapped_biot_savart_residual_fun = local_substructure.get_mapped_biot_savart_residual_fun(elem_type)
-        resi = mapped_biot_savart_residual_fun(x_obs, vec_u_ind_list)
+        conditions = {}
+        total_conditions = 0
+        initialized_types = local_substructure.get_initialized_element_types()
+        for elem_type in initialized_types:
+            mapped_biot_savart_fun = local_substructure.get_mapped_biot_savart_fun(elem_type)
+            vec_u_ind_list = mapped_biot_savart_fun(x_obs)
 
-        resi_columnized = vect_op.columnize(resi)
+            mapped_biot_savart_residual_fun = local_substructure.get_mapped_biot_savart_residual_fun(elem_type)
+            resi = mapped_biot_savart_residual_fun(x_obs, vec_u_ind_list)
 
-        local_condition = all(local_resi**2. < epsilon**2. for local_resi in np.array(resi_columnized))
-        conditions[elem_type] = local_condition
-        total_conditions += local_condition
+            resi_columnized = vect_op.columnize(resi)
 
-    criteria = (total_conditions == len(initialized_types))
+            local_condition = all(local_resi**2. < epsilon**2. for local_resi in np.array(resi_columnized))
+            conditions[elem_type] = local_condition
+            total_conditions += local_condition
 
-    if not criteria:
-        message = 'something went wrong with the biot-savart or biot-savart residuals or their mapping: the output of the mapped biot-savart function does not satisfy the mapped biot-savart residual function'
-        print_op.log_and_raise_error(message)
+        criteria = (total_conditions == len(initialized_types))
+
+        if not criteria:
+            message = 'something went wrong with the biot-savart or biot-savart residuals or their mapping: the output of the mapped biot-savart function does not satisfy the mapped biot-savart residual function'
+            print_op.log_and_raise_error(message)
 
     return None
 

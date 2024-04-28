@@ -195,7 +195,7 @@ class Element():
         return None
 
 
-    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split'):
+    def define_biot_savart_induction_residual_function(self, degree_of_induced_velocity_lifting=2):
         expected_info_length = self.expected_info_length
         packed_sym = cas.SX.sym('packed_sym', (expected_info_length, 1))
         unpacked_sym = self.unpack_info(external_info=packed_sym)
@@ -205,16 +205,14 @@ class Element():
 
         value, num, den = self.calculate_biot_savart_induction(unpacked_sym, x_obs)
 
-        if biot_savart_residual_assembly == 'division':
+        if degree_of_induced_velocity_lifting == 1:
+            biot_savart_residual_fun = None
+
+        elif degree_of_induced_velocity_lifting == 2:
             resi = vec_u_ind - value
             biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
 
-        elif biot_savart_residual_assembly == 'split':
-            resi = vec_u_ind * den - num
-            biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind], [resi])
-
-        elif biot_savart_residual_assembly == 'lifted':
-
+        elif degree_of_induced_velocity_lifting == 3:
             num_sym = cas.SX.sym('vec_u_ind_num', (3, 1))
             den_sym = cas.SX.sym('vec_u_ind_den', (1, 1))
 
@@ -227,7 +225,7 @@ class Element():
             biot_savart_residual_fun = cas.Function('biot_savart_residual_fun', [packed_sym, x_obs, vec_u_ind, num_sym, den_sym], [resi])
 
         else:
-            message = 'unexpected biot-savart-residual assembly instructions (' + biot_savart_residual_assembly + ')'
+            message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ')'
             print_op.log_and_raise_error(message)
 
         self.set_biot_savart_residual_fun(biot_savart_residual_fun)
@@ -360,33 +358,38 @@ class Element():
         return True
 
     def test_calculated_biot_savart_induction_satisfies_residual(self, epsilon=1.e-6):
-        for biot_savart_residual_assembly in ['division', 'split', 'lifted']:
+        for degree_of_induced_velocity_lifting in [1, 2, 3]:
             for x_obs in [cas.DM.ones((3, 1)), 5. * np.random.rand(3, 1)]:
                 self.test_calculated_biot_savart_induction_satisfies_residual_at_specific_point_and_assembly(x_obs=x_obs,
-                                                                             biot_savart_residual_assembly=biot_savart_residual_assembly,
+                                                                             degree_of_induced_velocity_lifting=degree_of_induced_velocity_lifting,
                                                                              epsilon=epsilon)
         return None
 
 
-    def test_calculated_biot_savart_induction_satisfies_residual_at_specific_point_and_assembly(self, x_obs=cas.DM.ones((3, 1)), biot_savart_residual_assembly='lifted', epsilon=1.e-6):
-        self.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+    def test_calculated_biot_savart_induction_satisfies_residual_at_specific_point_and_assembly(self, x_obs=cas.DM.ones((3, 1)), degree_of_induced_velocity_lifting=3, epsilon=1.e-6):
+        self.define_biot_savart_induction_residual_function(degree_of_induced_velocity_lifting)
         biot_savart_residual_fun = self.biot_savart_residual_fun
 
         packed_info = self.pack_info()
         value, num, den = self.calculate_biot_savart_induction(self.info_dict, x_obs)
 
-        if biot_savart_residual_assembly == 'lifted':
+        if degree_of_induced_velocity_lifting == 3:
             residual = biot_savart_residual_fun(packed_info, x_obs, value, num, den)
-        else:
+        elif degree_of_induced_velocity_lifting == 2:
             residual = biot_savart_residual_fun(packed_info, x_obs, value)
+        elif degree_of_induced_velocity_lifting == 1:
+            residual = cas.DM.zeros((1, 1))
+        else:
+            message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ")"
+            print_op.log_and_raise_error(message)
 
         condition = cas.mtimes(residual.T, residual) < epsilon**2.
 
         if not condition:
             message = 'biot-savart residual function does not work as expected for element of type ('
             message += self.__element_type
-            message += ') and biot_savart_residual_assembly ('
-            message += biot_savart_residual_assembly + ')'
+            message += ') and degree_of_induced_velocity_lifting ('
+            message += degree_of_induced_velocity_lifting + ')'
             print_op.log_and_raise_error(message)
 
         return None

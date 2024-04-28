@@ -68,8 +68,8 @@ def build(options, architecture, wind, variables_si, parameters):
     wake.set_substructure(near_wake)
     wake.set_substructure(far_wake)
 
-    biot_savart_residual_assembly = options['induction']['vortex_biot_savart_residual_assembly']
-    wake.define_biot_savart_induction_residual_functions(biot_savart_residual_assembly)
+    degree_of_induced_velocity_lifting = options['induction']['vortex_degree_of_induced_velocity_lifting']
+    wake.define_biot_savart_induction_residual_functions(degree_of_induced_velocity_lifting)
 
     return wake
 

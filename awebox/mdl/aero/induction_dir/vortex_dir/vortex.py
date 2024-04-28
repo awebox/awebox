@@ -72,18 +72,50 @@ def build(model_options, architecture, wind, variables_si, parameters):
 
 
 def get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling):
+    degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
     cstr_list = cstr_op.ConstraintList()
 
-    superposition_cstr = get_superposition_cstr(model_options, wake, system_variables, architecture, scaling)
-    cstr_list.append(superposition_cstr)
+    if degree_of_induced_velocity_lifting == 1:
+        unlifted_cstr = get_unlifted_cstr(model_options, wake, system_variables, architecture, scaling)
+        cstr_list.append(unlifted_cstr)
 
-    biot_savart_cstr = get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling)
-    cstr_list.append(biot_savart_cstr)
+    if degree_of_induced_velocity_lifting >= 2:
+        superposition_cstr = get_superposition_cstr(model_options, wake, system_variables, architecture, scaling)
+        cstr_list.append(superposition_cstr)
+
+        biot_savart_cstr = get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling)
+        cstr_list.append(biot_savart_cstr)
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'state':
         vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
+
+    return cstr_list
+
+def get_unlifted_cstr(model_options, wake, system_variables, architecture, scaling):
+
+    variables_si = system_variables['SI']
+
+    cstr_list = cstr_op.ConstraintList()
+
+    for kite_obs in architecture.kite_nodes:
+        parent_obs = architecture.parent_map[kite_obs]
+
+        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
+        vec_u_computed = wake.evaluate_total_biot_savart_induction(x_obs=x_obs)
+
+        vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
+        resi_si = vec_u_ind - vec_u_computed
+
+        var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+        scaling_val = scaling['z', var_name]
+        resi_scaled = resi_si / scaling_val
+
+        local_cstr = cstr_op.Constraint(expr=resi_scaled,
+                                        name='induced_velocity' + str(kite_obs),
+                                        cstr_type='eq')
+        cstr_list.append(local_cstr)
 
     return cstr_list
 
@@ -96,9 +128,7 @@ def get_superposition_cstr(model_options, wake, system_variables, architecture, 
 
     for kite_obs in architecture.kite_nodes:
         vec_u_superposition = vortex_tools.superpose_induced_velocities_at_kite(model_options, wake, variables_si, kite_obs, architecture)
-
         vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
-
         resi_si = vec_u_ind - vec_u_superposition
 
         scaling_list = []
@@ -130,15 +160,25 @@ def get_superposition_cstr(model_options, wake, system_variables, architecture, 
     return cstr_list
 
 
-def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, biot_savart_residual_assembly, scaling, num_name=None, den_name=None):
+def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, degree_of_induced_velocity_lifting, scaling, num_name=None, den_name=None):
 
     cstr_expr = []
-    if biot_savart_residual_assembly == 'lifted':
+
+    if degree_of_induced_velocity_lifting == 1:
+        message = 'this constraint (get_local_biot_savart_constraint) should not have been called in this circumstance, because the induced velocities are unlifted'
+        print_op.log_and_raise_error(message)
+
+    elif degree_of_induced_velocity_lifting == 2:
+        constraint_scaling_extension = scaling['z', value_name]
+
+    elif degree_of_induced_velocity_lifting == 3:
         num_scaling = scaling['z', num_name]
         den_scaling = scaling['z', den_name]
         constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
+
     else:
-        constraint_scaling_extension = scaling['z', value_name]
+        message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ')'
+        print_op.log_and_raise_error(message)
 
     for cdx in range(local_resi_si.shape[0]):
         local_scale = constraint_scaling_extension[cdx]
@@ -153,7 +193,7 @@ def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, biot_
 
 
 def get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling):
-    biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
+    degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
     variables_si = system_variables['SI']
 
@@ -187,7 +227,7 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                         den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
 
                         local_cstr = get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name,
-                                                         biot_savart_residual_assembly, scaling, num_name=num_name,
+                                                         degree_of_induced_velocity_lifting, scaling, num_name=num_name,
                                                          den_name=den_name)
                         cstr_list.append(local_cstr)
 
@@ -249,7 +289,9 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
         local_a = general_flow.compute_induction_factor(vec_u_ind, n_hat, u_normalizing)
 
-        vec_u_ind_from_far_wake = vortex_tools.superpose_induced_velocities_at_kite(model_options, wake, variables_si, kite_obs, architecture, substructure_types=['far'])
+        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
+        vec_u_ind_from_far_wake = wake.get_substructure('far').evaluate_total_biot_savart_induction(x_obs=x_obs)
+
         u_ind_norm_from_far_wake = vect_op.norm(vec_u_ind_from_far_wake)
         u_ind_norm_from_far_wake_over_u_ref = u_ind_norm_from_far_wake / wind.get_speed_ref()
 
@@ -340,18 +382,26 @@ def get_dictionary_of_derivatives(outputs, architecture):
     return derivative_dict
 
 
-def test_that_model_constraint_residuals_have_correct_shape(biot_savart_residual_assembly='split'):
+def test_that_model_constraint_residuals_have_correct_shape(degree_of_induced_velocity_lifting=3):
 
-    model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures(biot_savart_residual_assembly=biot_savart_residual_assembly)
+    model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures(degree_of_induced_velocity_lifting=degree_of_induced_velocity_lifting)
     wake = build(model_options, architecture, wind, var_struct, param_struct)
 
     total_number_of_elements = vortex_tools.get_total_number_of_vortex_elements(model_options, architecture)
     number_of_observers = architecture.number_of_kites
 
-    dimension_of_velocity = 3
-    number_of_constraints_per_element_and_observer = dimension_of_velocity
-    if biot_savart_residual_assembly == 'lifted':
-        number_of_constraints_per_element_and_observer += 4
+    if degree_of_induced_velocity_lifting == 1:
+        message = 'this test (test_that_model_constraint_residuals_have_correct_shape) is not appropriate for the unlifted velocities case, as there should not *be* any constraints applied'
+        print_op.log_and_raise_error(message)
+
+    if degree_of_induced_velocity_lifting >= 2:
+        dimension_of_velocity = 3
+        number_of_constraints_per_element_and_observer = dimension_of_velocity
+
+    if degree_of_induced_velocity_lifting == 3:
+        len_bs_numerator = 3
+        len_bs_denominator = 1
+        number_of_constraints_per_element_and_observer += len_bs_numerator + len_bs_denominator
 
     variables_si = var_struct
     system_variables = {'SI': variables_si, 'scaled': variables_si}
@@ -377,6 +427,7 @@ def test_that_model_constraint_residuals_have_correct_shape(biot_savart_residual
         message = 'an incorrect number of induction residuals have been defined for the algebraic-representation vortex wake'
         print_op.log_and_raise_error(message)
 
+    return None
 
 def test_that_model_doesnt_include_velocity_from_bound_kite_on_itsself():
     wake_nodes = 3
@@ -451,8 +502,8 @@ def test(test_includes_visualization=False):
 
     algebraic_representation.test(test_includes_visualization)
 
-    for biot_savart_residual_assembly in ['division', 'split', 'lifted']:
-        test_that_model_constraint_residuals_have_correct_shape(biot_savart_residual_assembly)
+    for degree_of_induced_velocity_lifting in [2, 3]:
+        test_that_model_constraint_residuals_have_correct_shape(degree_of_induced_velocity_lifting)
 
     test_that_get_shedding_kite_from_element_number_tool_works_correctly()
 

@@ -165,11 +165,21 @@ class ElementList():
         number_symbolics = self.__expected_element_info_length + 3
         return number_symbolics
 
-    def get_number_of_symbolics_for_concatenated_biot_savart_residual(self, biot_savart_residual_assembly='split'):
-        number_symbolics = self.__expected_element_info_length + 6
+    def get_number_of_symbolics_for_concatenated_biot_savart_residual(self, degree_of_induced_velocity_lifting=3):
 
-        if biot_savart_residual_assembly == 'lifted':
-            number_symbolics += 4
+        if degree_of_induced_velocity_lifting == 1:
+            return 0
+
+        len_x_observer = 3
+        len_u_induced = 3
+        len_numerator = 3
+        len_denominator = 1
+
+        if degree_of_induced_velocity_lifting >= 2:
+            number_symbolics = self.__expected_element_info_length + len_x_observer + len_u_induced
+
+        if degree_of_induced_velocity_lifting == 3:
+            number_symbolics += len_numerator + len_denominator
 
         return number_symbolics
 
@@ -187,19 +197,27 @@ class ElementList():
 
         return obs_info
 
-    def get_velocity_info_from_concatenated_inputs(self, concatenated, biot_savart_residual_assembly='split'):
+    def get_velocity_info_from_concatenated_inputs(self, concatenated, degree_of_induced_velocity_lifting=3):
+
+        length_obs = 3
+        length_u_induced = 3
+
+        start_index = self.__expected_element_info_length
+        start_index += length_obs
+        end_index = start_index + length_u_induced
+
         info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
-        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly):
-            obs_info = concatenated[self.__expected_element_info_length+3:self.__expected_element_info_length+6]
+        if concatenated.shape[info_dim] >= end_index:
+            vel_info = concatenated[start_index:end_index]
         else:
             message = 'trying to pull velocity info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
             print_op.log_and_raise_error(message)
 
-        return obs_info
+        return vel_info
 
-    def get_velocity_numerator_info_from_concatenated_inputs(self, concatenated, biot_savart_residual_assembly='split'):
+    def get_velocity_numerator_info_from_concatenated_inputs(self, concatenated, degree_of_induced_velocity_lifting=3):
         info_dim = self.dimension_of_the_concatenated_list_that_stores_entry_info()
-        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly):
+        if concatenated.shape[info_dim] >= self.get_number_of_symbolics_for_concatenated_biot_savart_residual(degree_of_induced_velocity_lifting):
             obs_info = concatenated[self.__expected_element_info_length+6:self.__expected_element_info_length+9]
         else:
             message = 'trying to pull numerator info from either an unconcatenated list, or one onto which velocity information was not concatenate.'
@@ -306,32 +324,36 @@ class ElementList():
         return None
 
 
-    def define_biot_savart_induction_residual_function(self, biot_savart_residual_assembly='split'):
-        elem = self.get_example_element()
+    def define_biot_savart_induction_residual_function(self, degree_of_induced_velocity_lifting=2):
 
-        if elem.biot_savart_residual_fun is None:
-            elem.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+        if degree_of_induced_velocity_lifting >= 2:
 
-        biot_savart_residual_fun = elem.biot_savart_residual_fun
-        self.set_biot_savart_residual_fun(biot_savart_residual_fun)
+            elem = self.get_example_element()
 
-        number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart_residual(biot_savart_residual_assembly)
-        concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
-        elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
-        x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
-        vec_u_ind = self.get_velocity_info_from_concatenated_inputs(concatenated_sym)
+            if elem.biot_savart_residual_fun is None:
+                elem.define_biot_savart_induction_residual_function(degree_of_induced_velocity_lifting)
 
-        if biot_savart_residual_assembly == 'lifted':
-            vec_u_ind_num = self.get_velocity_numerator_info_from_concatenated_inputs(concatenated_sym, biot_savart_residual_assembly)
-            vec_u_ind_den = self.get_velocity_denominator_info_from_concatenated_inputs(concatenated_sym, biot_savart_residual_assembly)
+            biot_savart_residual_fun = elem.biot_savart_residual_fun
+            self.set_biot_savart_residual_fun(biot_savart_residual_fun)
 
-            biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind, vec_u_ind_num, vec_u_ind_den)
+            number_sym = self.get_number_of_symbolics_for_concatenated_biot_savart_residual(degree_of_induced_velocity_lifting)
 
-        else:
-            biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind)
+            concatenated_sym = cas.SX.sym('concatenated_sym', number_sym)
+            elem_info = self.get_element_info_from_concatenated_inputs(concatenated_sym)
+            x_obs = self.get_observer_info_from_concatenated_inputs(concatenated_sym)
+            vec_u_ind = self.get_velocity_info_from_concatenated_inputs(concatenated_sym)
 
-        concatenated_biot_savart_residual_fun = cas.Function('concatenated_biot_savart_residual_fun', [concatenated_sym], [biot_savart_residual_output])
-        self.set_concatenated_biot_savart_residual_fun(concatenated_biot_savart_residual_fun)
+            if degree_of_induced_velocity_lifting == 2:
+                biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind)
+
+            if degree_of_induced_velocity_lifting == 3:
+                vec_u_ind_num = self.get_velocity_numerator_info_from_concatenated_inputs(concatenated_sym, degree_of_induced_velocity_lifting)
+                vec_u_ind_den = self.get_velocity_denominator_info_from_concatenated_inputs(concatenated_sym, degree_of_induced_velocity_lifting)
+
+                biot_savart_residual_output = biot_savart_residual_fun(elem_info, x_obs, vec_u_ind, vec_u_ind_num, vec_u_ind_den)
+
+            concatenated_biot_savart_residual_fun = cas.Function('concatenated_biot_savart_residual_fun', [concatenated_sym], [biot_savart_residual_output])
+            self.set_concatenated_biot_savart_residual_fun(concatenated_biot_savart_residual_fun)
 
         return None
 
@@ -362,21 +384,23 @@ class ElementList():
         u_ind = cas.sum2(all)
         return u_ind
 
-    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, vec_u_ind_num_list=None, vec_u_ind_den_list=None, biot_savart_residual_assembly='split'):
+    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, vec_u_ind_num_list=None, vec_u_ind_den_list=None, degree_of_induced_velocity_lifting=2):
 
-        if self.concatenated_biot_savart_residual_fun is None:
-            self.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+        if degree_of_induced_velocity_lifting >= 2:
 
-        concatenated_biot_savart_residual_fun = self.__concatenated_biot_savart_residual_fun
-        concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
-        concatenated_list = self.get_concatenated_list_concatenated_with_velocity_info(concatenated_list, vec_u_ind_list)
+            if self.concatenated_biot_savart_residual_fun is None:
+                self.define_biot_savart_induction_residual_function(degree_of_induced_velocity_lifting)
 
-        if biot_savart_residual_assembly == 'lifted':
-            concatenated_list = self.get_concatenated_list_concatenated_with_numerator_and_denominator_info(concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list)
+            concatenated_biot_savart_residual_fun = self.__concatenated_biot_savart_residual_fun
+            concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
+            concatenated_list = self.get_concatenated_list_concatenated_with_velocity_info(concatenated_list, vec_u_ind_list)
 
-        number_of_elements = self.number_of_elements
-        concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'openmp')
-        all = concatenated_biot_savart_residual_map(concatenated_list)
+            if degree_of_induced_velocity_lifting == 3:
+                concatenated_list = self.get_concatenated_list_concatenated_with_numerator_and_denominator_info(concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list)
+
+            number_of_elements = self.number_of_elements
+            concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'openmp')
+            all = concatenated_biot_savart_residual_map(concatenated_list)
 
         return all
 

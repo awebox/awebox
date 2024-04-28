@@ -165,46 +165,51 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
 
 def append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period):
 
-    biot_savart_residual_assembly = options['model']['aero']['vortex']['biot_savart_residual_assembly']
-
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
-    wu_ind_scale = u_ref * a_ref
-    for kite_obs in architecture.kite_nodes:
-        var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
-        options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))
-
     inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
-
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
         architecture)
 
-    for kite_obs in architecture.kite_nodes:
-        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
-            for element_type, expected_number in local_expected_number_of_elements_dict.items():
-                for element_number in range(expected_number):
-                    kite_shed = vortex_tools.get_shedding_kite_from_element_number(options, wake_type, element_type, element_number, architecture)
-                    var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
+    degree_of_induced_velocity_lifting = options['model']['aero']['vortex']['degree_of_induced_velocity_lifting']
+    if degree_of_induced_velocity_lifting < 1:
+        message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ').'
+        print_op.log_and_raise_error(message)
 
-                    kite_shed_index = architecture.kite_nodes.index(kite_shed)
-                    kite_obs_index = architecture.kite_nodes.index(kite_obs)
+    if degree_of_induced_velocity_lifting >= 1:
+        wu_ind_scale = u_ref * a_ref
+        for kite_obs in architecture.kite_nodes:
+            var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+            options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))
 
-                    if wake_type == 'bound':
-                        value, num, den = get_induced_velocity_scaling_for_bound_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
-                    elif wake_type == 'far':
-                        value, num, den = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
-                    elif wake_type == 'near':
-                        value, num, den = get_induced_velocity_scaling_for_near_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
-                    else:
-                        message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
-                        print_op.log_and_raise_error(message)
+    if degree_of_induced_velocity_lifting >= 2:
+        for kite_obs in architecture.kite_nodes:
+            for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
+                for element_type, expected_number in local_expected_number_of_elements_dict.items():
+                    for element_number in range(expected_number):
 
-                    value = vect_op.smooth_norm(value) * cas.DM.ones((3, 1))
-                    options_tree.append(
-                        ('model', 'scaling', 'z', var_name, value, ('descript', None), 'x'))
+                        kite_shed = vortex_tools.get_shedding_kite_from_element_number(options, wake_type, element_type, element_number, architecture)
+                        var_name = vortex_tools.get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
 
-                    if biot_savart_residual_assembly == 'lifted':
+                        kite_shed_index = architecture.kite_nodes.index(kite_shed)
+                        kite_obs_index = architecture.kite_nodes.index(kite_obs)
+
+                        if wake_type == 'bound':
+                            value, num, den = get_induced_velocity_scaling_for_bound_filament(options['model'], geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        elif wake_type == 'far':
+                            value, num, den = get_induced_velocity_scaling_for_far_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        elif wake_type == 'near':
+                            value, num, den = get_induced_velocity_scaling_for_near_filament(options['model'], geometry, element_number=element_number, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
+                        else:
+                            message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
+                            print_op.log_and_raise_error(message)
+
+                        value = vect_op.smooth_norm(value) * cas.DM.ones((3, 1))
+                        options_tree.append(
+                            ('model', 'scaling', 'z', var_name, value, ('descript', None), 'x'))
+
+                    if degree_of_induced_velocity_lifting >= 3:
 
                         num = vect_op.smooth_norm(num) * cas.DM.ones((3, 1))
                         num_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)

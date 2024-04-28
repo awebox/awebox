@@ -169,28 +169,32 @@ def extend_velocity_variables(model_options, system_lifted, system_states, archi
 
     # induced velocity part: the part that depends on the wake types and wake structure
     expected_number_of_elements_dict_for_wake_types = get_expected_number_of_elements_dict_for_wake_types(model_options, architecture)
-    biot_savart_residual_assembly = model_options['aero']['vortex']['biot_savart_residual_assembly']
+    degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
     for kite_obs in architecture.kite_nodes:
-        var_name = get_induced_velocity_at_kite_name(kite_obs)
-        system_lifted.extend([(var_name, (3, 1))])
 
-        for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
-            for element_type, expected_number in local_expected_number_of_elements_dict.items():
-                for element_number in range(expected_number):
+        if degree_of_induced_velocity_lifting >= 1:
+            var_name = get_induced_velocity_at_kite_name(kite_obs)
+            system_lifted.extend([(var_name, (3, 1))])
 
-                    kite_shed = get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture)
-                    if not (wake_type == 'bound' and kite_obs == kite_shed):
+        if degree_of_induced_velocity_lifting >= 2:
 
-                        var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-                        system_lifted.extend([(var_name, (3, 1))])
+            for wake_type, local_expected_number_of_elements_dict in expected_number_of_elements_dict_for_wake_types.items():
+                for element_type, expected_number in local_expected_number_of_elements_dict.items():
+                    for element_number in range(expected_number):
 
-                        if biot_savart_residual_assembly == 'lifted':
-                            var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                        kite_shed = get_shedding_kite_from_element_number(model_options, wake_type, element_type, element_number, architecture)
+                        if not (wake_type == 'bound' and kite_obs == kite_shed):
+
+                            var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
                             system_lifted.extend([(var_name, (3, 1))])
 
-                            var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
-                            system_lifted.extend([(var_name, (1, 1))])
+                            if degree_of_induced_velocity_lifting >= 3:
+                                var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
+                                system_lifted.extend([(var_name, (3, 1))])
+
+                                var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
+                                system_lifted.extend([(var_name, (1, 1))])
 
     return system_lifted, system_states
 

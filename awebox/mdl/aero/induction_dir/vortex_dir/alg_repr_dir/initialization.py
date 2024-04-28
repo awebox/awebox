@@ -78,22 +78,45 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
 
 def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
-    function_dict = make_induced_velocities_functions(model, nlp)
-    V_init_si = append_induced_velocities_using_parallelization(init_options, function_dict, V_init_si, p_fix_num, nlp, model)
+
+    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
+    if degree_of_induced_velocity_lifting == 1:
+        for kite_obs in model.architecture.kite_nodes:
+            u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
+            ref_value = model.scaling['z', u_ind_name]
+
+            control_length = count_z_length_on_controls(model, nlp)
+            for ndx in range(control_length):
+                V_init_si['z', ndx, u_ind_name] = ref_value
+
+            for ndx in range(nlp.n_k):
+                for ddx in range(nlp.d):
+                    V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = ref_value
+
+    elif degree_of_induced_velocity_lifting >= 2:
+        function_dict = make_induced_velocities_functions(model, nlp)
+        V_init_si = append_induced_velocities_using_parallelization(init_options, function_dict, V_init_si, p_fix_num, nlp, model)
+
     return V_init_si
 
 
-def guess_biot_savart_lifted_assembly(model):
-    tentative_lifted_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
+def guess_degree_of_induced_velocity_lifting(model):
+    tentative_combined_name = vortex_tools.get_element_induced_velocity_name('bound',
+                                                                        'finite_filament',
+                                                                        0,
+                                                                        model.architecture.kite_nodes[0])
+
+    tentative_numerator_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
                                                                               'finite_filament',
                                                                               0,
                                                                               model.architecture.kite_nodes[0])
-    if tentative_lifted_name in model.variables_dict['z'].keys():
-        biot_savart_residual_assembly = 'lifted'
+    z_keys = model.variables_dict['z'].keys()
+    if (tentative_combined_name in z_keys) and (tentative_numerator_name in z_keys):
+        return 3
+    elif (tentative_combined_name in z_keys):
+        return 2
     else:
-        biot_savart_residual_assembly = 'division'
-
-    return biot_savart_residual_assembly
+        return 1
 
 
 def make_induced_velocities_functions(model, nlp):
@@ -101,7 +124,7 @@ def make_induced_velocities_functions(model, nlp):
     print_op.base_print('computing induced velocity functions...')
 
     wake = model.wake
-    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
+    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
 
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
 
@@ -133,12 +156,20 @@ def make_induced_velocities_functions(model, nlp):
                 den_sym = cas.SX.sym('den_sym', den.shape)
 
                 if elem.biot_savart_residual_fun is None:
-                    elem.define_biot_savart_induction_residual_function(biot_savart_residual_assembly)
+                    elem.define_biot_savart_induction_residual_function(degree_of_induced_velocity_lifting)
                 residual_fun = elem.biot_savart_residual_fun
-                if biot_savart_residual_assembly == 'lifted':
+
+                if degree_of_induced_velocity_lifting == 1:
+                    message = 'this method (make_induced_velocities_functions) should not have been called when initializing the induced velocity variables'
+                    print_op.log_and_raise_error(message)
+                elif degree_of_induced_velocity_lifting == 2:
+                    residual = residual_fun(elem.info, x_obs_sym, value_sym)
+                elif degree_of_induced_velocity_lifting == 3:
                     residual = residual_fun(elem.info, x_obs_sym, value_sym, num_sym, den_sym)
                 else:
-                    residual = residual_fun(elem.info, x_obs_sym, value_sym)
+                    message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ')'
+                    print_op.log_and_raise_error(message)
+
                 resi_separate_fun = cas.Function('value_separate_fun', [x_obs_sym, model.variables, model.parameters, value_sym, num_sym, den_sym], [residual])
 
                 x_obs_len = x_obs_sym.shape[0]
@@ -239,7 +270,7 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
 
     wake = model.wake
     architecture = model.architecture
-    biot_savart_residual_assembly = guess_biot_savart_lifted_assembly(model)
+    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
 
     Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
 
@@ -343,7 +374,7 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
                             test_kite_stacked_inputs_on_collocation_nodes = cas.vertcat(
                                 test_kite_stacked_inputs_on_collocation_nodes, outputs_on_collocation)
 
-                            if (separate_type == 'value') or (biot_savart_residual_assembly == 'lifted'):
+                            if (separate_type == 'value') or (degree_of_induced_velocity_lifting == 3):
                                 cdx = 0
                                 for ndx in range(control_length):
                                     V_init_si['z', ndx, u_ind_elem_name] = outputs_on_control[:, cdx]

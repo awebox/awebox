@@ -741,13 +741,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'far_wake_convection_time'), 'vortex_far_wake_convection_time')
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'vortex_far_wake_convection_time', far_wake_convection_time, ('???? of trajectories in animation', None), 'x')),
 
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'biot_savart_residual_assembly'), 'vortex_biot_savart_residual_assembly')
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'far_wake_element_type'), 'vortex_far_wake_element_type')
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'epsilon_m'), 'vortex_epsilon_m')
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'epsilon_r'), 'vortex_epsilon_r')
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'representation'), 'vortex_representation')
-
-    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'representation'), 'vortex_representation')
+    for vortex_name in ['degree_of_induced_velocity_lifting', 'far_wake_element_type', 'epsilon_m', 'epsilon_r', 'representation']:
+        options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', vortex_name), 'vortex_' + vortex_name)
     options_tree = share_among_induction_subaddresses(options, options_tree, ('solver', 'initialization', 'inclination_deg'), 'inclination_ref_deg')
 
     geometry = get_geometry(options)

@@ -55,7 +55,7 @@ from awebox.logger.logger import Logger as awelogger
 # but not the positions and strengths; those belong to the wake nodes
 
 
-def construct_test_model_variable_structures(element_type='finite_filament', wake_nodes=2, number_of_kites=1, biot_savart_residual_assembly='lifted'):
+def construct_test_model_variable_structures(element_type='finite_filament', wake_nodes=2, number_of_kites=1, degree_of_induced_velocity_lifting=3):
 
     archi_dict = {1: 0}
     if number_of_kites > 1:
@@ -87,7 +87,7 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['aero']['vortex']['near_wake_unit_length'] = 1.
     options['aero']['vortex']['far_wake_l_start'] = 1.
     options['aero']['vortex']['position_scaling_source'] = 'b_ref'
-    options['aero']['vortex']['biot_savart_residual_assembly'] = biot_savart_residual_assembly
+    options['aero']['vortex']['degree_of_induced_velocity_lifting'] = degree_of_induced_velocity_lifting
 
     options['scaling'] = {'z': {}}
     for kite_obs in architecture.kite_nodes:
@@ -119,7 +119,7 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['induction']['vortex_rings'] = rings
     options['induction']['vortex_far_wake_convection_time'] = 1.
     options['induction']['vortex_far_wake_element_type'] = element_type
-    options['induction']['vortex_biot_savart_residual_assembly'] = biot_savart_residual_assembly
+    options['induction']['vortex_degree_of_induced_velocity_lifting'] = degree_of_induced_velocity_lifting
     options['induction']['vortex_representation'] = 'alg'
     options['induction']['vortex_epsilon_m'] = 1.0e-8
     options['induction']['vortex_epsilon_r'] = 1.0e-8
