@@ -97,6 +97,8 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     for name in list(model.parameters_dict['phi'].keys()):
         V_init_si['phi', name] = 1.
 
+    struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model, threshold=1.e-3)
+
     return V_init_si
 
 

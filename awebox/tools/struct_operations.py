@@ -203,13 +203,19 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     var_type = 'xdot'
     n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
 
+    # if ddx == d - 1:
+    #     kdx = kdx + 1
+    #     ddx = None
     at_control_node = (ddx is None)
+
     lifted_derivs = ('xdot' in list(V.keys()))
     passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
     if at_control_node and lifted_derivs and kdx < n_k:
         return V[var_type, kdx]
+        print_op.warn_about_temporary_functionality_alteration()
     elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
     elif lifted_derivs and ('coll' in V.keys()) and kdx < n_k:
@@ -217,6 +223,12 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     elif passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['coll_x', kdx, ddx]
     else:
+
+        if ddx == d - 1:
+            kdx = kdx + 1
+            ddx = None
+        at_control_node = (ddx is None)
+
         attempted_reassamble = []
         for idx in range(model_variables.shape[0]):
             can_index = model_variables.getCanonicalIndex(idx)
@@ -232,8 +244,10 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
                 if at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls and kdx < n_k:
+                elif at_control_node and deriv_name_in_controls and kdx < (n_k - 1):
                     local_val = V['u', kdx, deriv_name, dim]
+                elif at_control_node and deriv_name_in_controls and kdx == (n_k - 1):
+                    local_val = V['u', kdx-1, deriv_name, dim]
                 elif deriv_name_in_states and ('coll' in V.keys()) and kdx < n_k:
                     local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
                 elif deriv_name_in_controls and ('coll' in V.keys()) and kdx < n_k:
@@ -244,6 +258,42 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                 attempted_reassamble = cas.vertcat(attempted_reassamble, local_val)
         return attempted_reassamble
 
+
+def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model, threshold=1.e-7):
+
+    Xdot = None
+
+    ndx_coll = 0
+    ddx_coll = nlp_options['collocation']['d'] - 1
+
+    ndx_control = ndx_coll + 1
+
+    extract_vars_coll = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_coll, ddx_coll)
+    extract_vars_control = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_control)
+
+    diff = extract_vars_control.cat - extract_vars_coll.cat
+    diff_allocated = model.variables(diff)
+    listed_differences = {}
+    for idx in range(diff.shape[0]):
+        local_label = diff_allocated.labels()[idx]
+        local_canonical = diff_allocated.getCanonicalIndex(idx)
+
+        is_non_xdot = not(local_canonical[0] == 'xdot')
+        is_xdot_but_known = (local_canonical[0] == 'xdot') and (local_canonical[1] in (model.variables_dict['x'].keys() + model.variables_dict['u'].keys()))
+        is_reasonable_comparison = is_non_xdot or is_xdot_but_known
+
+        if is_reasonable_comparison and diff[idx]**2 > threshold**2:
+            listed_differences[local_label] = diff[idx]
+
+    if len(listed_differences.keys()) > 0:
+        message = 'the variable slices produced by struct_op are not continuous. differences above the threshold (' + print_op.repr_g(threshold)
+        message += ') at: '
+        print_op.base_print(message, level='error')
+        print_op.print_dict_as_table(listed_differences, level='error')
+        # raise Exception(message + repr(listed_differences))
+        print_op.warn_about_temporary_functionality_alteration()
+
+    return None
 
 def get_variables_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 

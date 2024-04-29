@@ -79,7 +79,8 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
 def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
 
-    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
+    degree_of_induced_velocity_lifting = get_degree_of_induced_velocity_lifting(model)
+
     if degree_of_induced_velocity_lifting == 1:
         for kite_obs in model.architecture.kite_nodes:
             u_ind_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
@@ -93,30 +94,15 @@ def append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model):
                 for ddx in range(nlp.d):
                     V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = ref_value
 
-    elif degree_of_induced_velocity_lifting >= 2:
+    if degree_of_induced_velocity_lifting >= 2:
         function_dict = make_induced_velocities_functions(model, nlp)
         V_init_si = append_induced_velocities_using_parallelization(init_options, function_dict, V_init_si, p_fix_num, nlp, model)
 
     return V_init_si
 
 
-def guess_degree_of_induced_velocity_lifting(model):
-    tentative_combined_name = vortex_tools.get_element_induced_velocity_name('bound',
-                                                                        'finite_filament',
-                                                                        0,
-                                                                        model.architecture.kite_nodes[0])
-
-    tentative_numerator_name = vortex_tools.get_element_biot_savart_numerator_name('bound',
-                                                                              'finite_filament',
-                                                                              0,
-                                                                              model.architecture.kite_nodes[0])
-    z_keys = model.variables_dict['z'].keys()
-    if (tentative_combined_name in z_keys) and (tentative_numerator_name in z_keys):
-        return 3
-    elif (tentative_combined_name in z_keys):
-        return 2
-    else:
-        return 1
+def get_degree_of_induced_velocity_lifting(model):
+    return model.options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
 
 def make_induced_velocities_functions(model, nlp):
@@ -124,7 +110,7 @@ def make_induced_velocities_functions(model, nlp):
     print_op.base_print('computing induced velocity functions...')
 
     wake = model.wake
-    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
+    degree_of_induced_velocity_lifting = get_degree_of_induced_velocity_lifting(model)
 
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
 
@@ -270,9 +256,9 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
 
     wake = model.wake
     architecture = model.architecture
-    degree_of_induced_velocity_lifting = guess_degree_of_induced_velocity_lifting(model)
+    degree_of_induced_velocity_lifting = get_degree_of_induced_velocity_lifting(model)
 
-    Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
+    Xdot = None
 
     control_length = count_z_length_on_controls(model, nlp)
     stacked_inputs_on_control_nodes = []
@@ -441,18 +427,18 @@ def get_collocation_overstepping_ndx(n_k, ndx):
     return ndx_on_collocation_overstepping
 
 
-def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name, var_dim=0, thresh=0.1):
+def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name, var_dim=0, thresh=1.e-4):
     # z time grid is the same as the u time grid
     # and time_grid['u'][1] = time_grid['coll'][d-1], ie. ndx = 0, ddx = d-1
 
-    z_val = V_init_si['z', 1, var_name, var_dim]
-    coll_z_val = V_init_si['coll_var', 0, collocation_d-1, 'z', var_name, var_dim]
+    z_val = V_init_si['z', 0, var_name, var_dim]
+    coll_z_val = V_init_si['coll_var', 0, -1, 'z', var_name, var_dim]
 
     diff = z_val - coll_z_val
     if vect_op.abs(diff) > thresh:
         message = 'something went wrong with indexing, while initializing the wake lifted variable (' + var_name + ' [' + str(var_dim) + ']).'
-        message += '\n z_val is: ' + str(z_val)
-        message += ', while coll_z_val is: ' + str(coll_z_val)
+        message += '\n z_val[1] is: ' + str(z_val)
+        message += ', while coll_z_val[0, -1] is: ' + str(coll_z_val)
         print_op.log_and_raise_error(message)
 
     return None

@@ -25,6 +25,7 @@ import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
 import matplotlib.pyplot as plt
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 awelogger.logger.setLevel(10)
 
 
@@ -351,7 +352,7 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.degree_of_induced_velocity_lifting'] = 3
     vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
     vortex_options['visualization.cosmetics.save_figs'] = True
-    vortex_options['model.aero.vortex.far_wake_element_type'] = 'not_in_use' #'semi_infinite_filament'
+    vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
     wake_nodes = 2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
@@ -464,6 +465,22 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
+
+    value_name = vortex_tools.get_element_induced_velocity_name('near', 'finite_filament',0, 1)
+    print('value ' + value_name)
+    print(trial.optimization.V_final_si['coll_var', :, :, 'z', value_name])
+    print()
+    numerator_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type='near', element_type='finite_filament', element_number=0, kite_obs=1)
+    print('value ' + numerator_name)
+    print(trial.optimization.V_final_si['coll_var', :, :, 'z', numerator_name])
+    print()
+
+    cstr_name = 'biot_savart_near_finite_filament_0_1'
+    print('constraint violation for ' + cstr_name)
+    for output_dim in range(10):
+        odx = struct_op.find_output_idx(trial.model.outputs, output_type='model_equalities', output_name=cstr_name, output_dim=output_dim)
+        print(trial.optimization.outputs_opt[odx, :])
+    print_op.warn_about_temporary_functionality_alteration()
 
     print_op.warn_about_temporary_functionality_alteration()
     trial.plot(['lifted_variables', 'wake_lifted_variables', 'constraints', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'animation_snapshot', 'local_induction_factor', 'average_induction_factor', 'relative_radius', 'states', 'controls', 'isometric', 'outputs:vortex'])
