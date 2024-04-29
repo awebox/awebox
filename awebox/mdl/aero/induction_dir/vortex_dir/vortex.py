@@ -174,7 +174,15 @@ def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, degre
     elif degree_of_induced_velocity_lifting == 3:
         num_scaling = scaling['z', num_name]
         den_scaling = scaling['z', den_name]
-        constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
+        value_scaling = scaling['z', value_name]
+        print_op.warn_about_temporary_functionality_alteration()
+        # top_scaling = den_scaling * cas.DM.ones((3, 1)) > restoration failed in 97 iterates
+        # top_scaling = num_scaling > max iterations exceeded, but no significant restoration phase
+        # top_scaling = value_scaling > significant restoration
+        top_scaling = num_scaling
+        # constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
+        constraint_scaling_extension = cas.vertcat(top_scaling, num_scaling, den_scaling)
+        print(constraint_scaling_extension)
 
     else:
         message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ')'
@@ -193,6 +201,13 @@ def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, degre
 
 
 def get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling):
+
+    this_is_not_a_test = 'model_bounds' in model_options.keys()
+    all_scaling_values_are_unity = vect_op.norm(scaling.cat - cas.DM.ones(scaling.shape)) < 1.e-8
+    if this_is_not_a_test and all_scaling_values_are_unity:
+        message = 'something went terribly wrong when passing scaling values into biot-savart constraint'
+        print_op.log_and_raise_error(message)
+
     degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
     variables_si = system_variables['SI']
@@ -225,6 +240,16 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                                                                                     element_number, kite_obs)
                         num_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type, element_type, element_number, kite_obs)
                         den_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type, element_type, element_number, kite_obs)
+
+                        # double check that we actually passed the scaling values in
+                        if this_is_not_a_test:
+                            biot_savart_scaling_values = scaling['z', value_name]
+                            if degree_of_induced_velocity_lifting == 3:
+                                biot_savart_scaling_values = cas.vertcat(scaling['z', value_name], scaling['z', num_name], scaling['z', den_name])
+                            for idx in range(biot_savart_scaling_values.shape[0]):
+                                if(biot_savart_scaling_values[idx] == 1):
+                                    message = 'there is (at least one) unit value in the biot-savart scaling entries. therefore, something must have gone wrong when passing them into the biot-savart constraint.'
+                                    print_op.log_and_raise_error(message)
 
                         local_cstr = get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name,
                                                          degree_of_induced_velocity_lifting, scaling, num_name=num_name,

@@ -209,8 +209,7 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
                         options_tree.append(
                             ('model', 'scaling', 'z', var_name, value, ('descript', None), 'x'))
 
-                    if degree_of_induced_velocity_lifting >= 3:
-
+                        # remember, that if degree_of_induced_velocity_lifting is not 3, then these values won't be assigned into model.scaling
                         num = vect_op.smooth_norm(num) * cas.DM.ones((3, 1))
                         num_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
                         options_tree.append(
@@ -239,8 +238,6 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     x_ext_shed = properties_ref['x_ext_shed']
     x_kite_shed = 0.5 * (x_int_shed + x_ext_shed)
 
-    distance = vect_op.norm(x_kite_shed - x_kite_obs)
-
     offset = cas.DM(0.)
     x_start = x_int_shed + offset * ehat_1
     x_end = x_ext_shed + offset * ehat_1
@@ -259,7 +256,8 @@ def get_induced_velocity_scaling_for_bound_filament(model_options, geometry, kit
     # unfortunately, for even numbers of kites-per-layer, there are bound vortices that are co-linear with the kite observation points.
     # so, keep the denominator, but approximate the numerator terms
     distance = vect_op.smooth_norm(x_kite_shed - x_kite_obs)
-    estimated_magnitude = strength / distance**2.
+    # remember, it's 1/r^2 in 3D and 1/r in 2D. and the initialization is circular, therefore planar.
+    estimated_magnitude = strength / distance
     value = estimated_magnitude * vect_op.xhat_dm()
 
     num = value * den
@@ -383,10 +381,5 @@ def get_induced_velocity_scaling_for_near_filament(model_options, geometry, elem
 
     x_obs = x_kite_obs
     value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
-
-    u_ref = properties_ref['u_ref']
-    a_ref = model_options['aero']['actuator']['a_ref']
-    value = u_ref * (1. - a_ref) * vect_op.xhat_dm()
-    num = value * den
 
     return value, num, den

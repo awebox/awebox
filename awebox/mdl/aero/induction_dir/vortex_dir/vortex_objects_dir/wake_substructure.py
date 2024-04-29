@@ -131,6 +131,9 @@ class WakeSubstructure():
 
     def evaluate_total_biot_savart_induction(self, x_obs=cas.DM.zeros(3, 1)):
         vec_u_ind = cas.DM.zeros((3, 1))
+        local = cas.DM.zeros((3, 1)) #just in case there are no elements,
+        # ie. far-wake = not_in_use and wake_nodes = 1 and number_of_kites = 1
+
         for element_type in self.get_initialized_element_types():
             elem_list = self.get_list(element_type)
             local = elem_list.evaluate_total_biot_savart_induction(x_obs)

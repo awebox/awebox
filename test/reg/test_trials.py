@@ -345,14 +345,13 @@ def generate_options_dict():
     vortex_options['nlp.collocation.d'] = 3
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
-    vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.biot_savart_residual_assembly'] = 'division'
+    vortex_options['model.aero.vortex.degree_of_induced_velocity_lifting'] = 3
     vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
     vortex_options['visualization.cosmetics.save_figs'] = True
-
+    vortex_options['model.aero.vortex.far_wake_element_type'] = 'not_in_use' #'semi_infinite_filament'
     wake_nodes = 2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
@@ -362,9 +361,7 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
-    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 2. * 10.  # = 2 * span / chord = 2 * AR
-    # "As a guideline, the regularization parameter may be chosen as twice the average spanwise discretization of the blade."
-    # https: // openfast.readthedocs.io / en / main / source / user / aerodyn - olaf / OLAFTheory.html  # regularization
+    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -468,12 +465,16 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
+    print_op.warn_about_temporary_functionality_alteration()
+    trial.plot(['lifted_variables', 'wake_lifted_variables', 'constraints', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'animation_snapshot', 'local_induction_factor', 'average_induction_factor', 'relative_radius', 'states', 'controls', 'isometric', 'outputs:vortex'])
+    plt.show()
+
     return trial
 
 
 # #
 # test_single_kite_basic_health()
-test_single_kite()
+# test_single_kite()
 # test_single_kite_6_dof_basic_health()
 # test_single_kite_6_dof()
 # test_poly()
@@ -493,7 +494,7 @@ test_single_kite()
 ## test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
 # test_vortex_force_zero()
-# test_vortex_basic_health()
+test_vortex_basic_health(final_homotopy_step='initial_guess')
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

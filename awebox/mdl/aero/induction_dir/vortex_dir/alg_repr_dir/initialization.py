@@ -390,10 +390,9 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
                                 total_of_values_on_collocation = total_of_values_on_collocation + outputs_on_collocation
 
                         # test that the residual is satisfied
-    print_op.warn_about_temporary_functionality_alteration()
-    # sanity_check_biot_savart_at_initialization(function_dict, nlp, substructure_type, element_type, elem,
-    #                                            test_kite_stacked_inputs_on_control_nodes,
-    #                                            test_kite_stacked_inputs_on_collocation_nodes)
+                        sanity_check_biot_savart_at_initialization(function_dict, nlp, substructure_type, element_type, elem,
+                                                                   test_kite_stacked_inputs_on_control_nodes,
+                                                                   test_kite_stacked_inputs_on_collocation_nodes)
 
     print_op.close_progress()
 
@@ -410,7 +409,7 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
     return V_init_si
 
 
-def sanity_check_biot_savart_at_initialization(function_dict, nlp, substructure_type, element_type, elem, test_kite_stacked_inputs_on_control_nodes, test_kite_stacked_inputs_on_collocation_nodes, threshold=1.e-2):
+def sanity_check_biot_savart_at_initialization(function_dict, nlp, substructure_type, element_type, elem, test_kite_stacked_inputs_on_control_nodes, test_kite_stacked_inputs_on_collocation_nodes, threshold=1.e-4):
     resi_map_on_control_nodes = function_dict[substructure_type][element_type][elem]['resi_map_on_control_nodes']
     resi_map_on_collocation_nodes = function_dict[substructure_type][element_type][elem][
         'resi_map_on_collocation_nodes']
