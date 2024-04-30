@@ -25,6 +25,8 @@
 import pdb
 
 import matplotlib
+import awebox.tools.vector_operations as vect_op
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import awebox.tools.struct_operations as struct_op
@@ -82,6 +84,37 @@ def plot_wake_states(plot_dict, cosmetics, fig_name, individual_state=None, fig_
     integral_variables_to_plot = []
 
     plot_variables_from_list(plot_dict, cosmetics, fig_name, 'x', variables_to_plot, integral_variables_to_plot, fig_num)
+
+    return None
+
+
+def include_specific_variable_solution(relevant_axes, plot_dict, var_type, var_name, var_dim, local_color):
+
+    if plot_dict['cosmetics']['plot_ref']:
+        search_name = 'ref'
+    else:
+        search_name = 'plot'
+    search_name = "V_" + search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    V_search = plot_dict[search_name]
+
+    base_size = 5
+
+    if var_type in set(V_search.keys()) - set(['theta', 'xi', 'phi', 'u']):
+        if var_type == 'x':
+            control_times = np.array(vect_op.columnize(plot_dict['time_grids']['x']))
+        else:
+            control_times = np.array(vect_op.columnize(plot_dict['time_grids']['u']))
+        control_series = np.array(vect_op.columnize(V_search[var_type, :, var_name, var_dim]))
+
+        label = var_name + " [" + str(var_dim) + "] (found at control)"
+        relevant_axes.plot(control_times, control_series, '*', markersize=base_size*2, color=local_color, label=label)
+
+    if 'coll_var' in V_search.keys():
+        collocation_times = np.array(vect_op.columnize(plot_dict['time_grids']['coll']))
+        collocation_series = np.array(vect_op.columnize(V_search["coll_var", :, :, var_type, var_name, var_dim]))
+
+        label = var_name + " [" + str(var_dim) + "] (found at collocation)"
+        relevant_axes.plot(collocation_times, collocation_series, '*', markersize=base_size, color=local_color, label=label)
 
     return None
 
@@ -306,6 +339,7 @@ def plot_variables_from_list(plot_dict, cosmetics, fig_name, var_type, variables
         for var_name in variables_to_plot:
             ax = plt.axes(axes[counter])
             plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name)
+            plot_indiv_variable_at_discete_solution(ax, plot_dict, cosmetics, var_type, var_name)
             counter += 1
 
         for var_name in integral_variables_to_plot:
@@ -364,6 +398,19 @@ def plot_indiv_variable(ax, plot_dict, cosmetics, var_type, var_name, first_time
     plt.autoscale(enable=True, axis='x', tight=True)
     plt.grid(True)
     ax.tick_params(axis='both', which='major')
+    return None
+
+def plot_indiv_variable_at_discete_solution(ax, plot_dict, cosmetics, var_type, var_name):
+
+    if cosmetics['variables']['include_solution']:
+
+        ax = plt.axes(ax)
+        variables_dict = plot_dict['variables_dict']
+        number_of_dimensions = variables_dict[var_type][var_name].shape[0]
+        for var_dim in range(number_of_dimensions):
+            color = cosmetics['trajectory']['colors'][var_dim]
+            include_specific_variable_solution(ax, plot_dict, var_type, var_name, var_dim, color)
+
     return None
 
 

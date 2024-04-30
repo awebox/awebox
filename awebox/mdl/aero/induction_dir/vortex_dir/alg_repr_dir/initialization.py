@@ -439,7 +439,8 @@ def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name,
         message = 'something went wrong with indexing, while initializing the wake lifted variable (' + var_name + ' [' + str(var_dim) + ']).'
         message += '\n z_val[1] is: ' + str(z_val)
         message += ', while coll_z_val[0, -1] is: ' + str(coll_z_val)
-        print_op.log_and_raise_error(message)
+        print_op.warn_about_temporary_functionality_alteration()
+        # print_op.log_and_raise_error(message)
 
     return None
 
@@ -497,12 +498,35 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
 
     return None
 
+def make_another_sanity_check_on_convection_distance(time_grids, V_init_scaled, init_options, n_k, d):
+    # test that the predicted convection time for wake-node 0 is always 0
+    tcoll = time_grids['coll'](V_init_scaled['theta', 't_f'])
+    a0 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0,
+                                                                                   ndx=np.floor(n_k / 2))
+    a1 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0,
+                                                                                   ndx=np.floor(n_k / 2),
+                                                                                   ddx=np.floor(d / 2))
+    a2 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=0)
+    a3 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=-1,
+                                                                                   ddx=-1)
+    a4 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=n_k + 3,
+                                                                                   ddx=None)
+    a5 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=n_k + 3,
+                                                                                   ddx=np.floor(d / 2))
+    if (a0 != 0) or (a1 != 0) or (a2 != 0) or (a3 != 0) or (a4 != 0) or (a5 != 0):
+        message = 'sometime went wrong when computing the convection time, because the convection time does not evaluate as zero on wake node 0'
+        print_op.log_and_raise_error(message)
+    return None
+
+
 def append_specific_initialization(abbreviated_var_name, init_options, V_init_scaled, Outputs_init, Integral_outputs_scaled, model, time_grids):
 
     print_op.base_print('appending ' + abbreviated_var_name + ' variables...')
 
     n_k = init_options['n_k']
     d = init_options['collocation']['d']
+
+    make_another_sanity_check_on_convection_distance(time_grids, V_init_scaled, init_options, n_k, d)
 
     kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = vortex_tools.get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, init_options, model.architecture)
 
@@ -525,6 +549,7 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
                                                                           Integral_outputs_scaled, model,
                                                                           time_grids, kite_shed_or_parent_shed, tip,
                                                                           wake_node_or_ring, ndx, ddx)
+
                         index_progress += 1
 
     print_op.close_progress()

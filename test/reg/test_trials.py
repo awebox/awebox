@@ -363,6 +363,8 @@ def generate_options_dict():
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
+    print_op.warn_about_temporary_functionality_alteration()
+    vortex_options['visualization.cosmetics.variables.include_solution'] = True
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -466,24 +468,8 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
-    value_name = vortex_tools.get_element_induced_velocity_name('near', 'finite_filament',0, 1)
-    print('value ' + value_name)
-    print(trial.optimization.V_final_si['coll_var', :, :, 'z', value_name])
-    print()
-    numerator_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type='near', element_type='finite_filament', element_number=0, kite_obs=1)
-    print('value ' + numerator_name)
-    print(trial.optimization.V_final_si['coll_var', :, :, 'z', numerator_name])
-    print()
-
-    cstr_name = 'biot_savart_near_finite_filament_0_1'
-    print('constraint violation for ' + cstr_name)
-    for output_dim in range(10):
-        odx = struct_op.find_output_idx(trial.model.outputs, output_type='model_equalities', output_name=cstr_name, output_dim=output_dim)
-        print(trial.optimization.outputs_opt[odx, :])
     print_op.warn_about_temporary_functionality_alteration()
-
-    print_op.warn_about_temporary_functionality_alteration()
-    trial.plot(['lifted_variables', 'wake_lifted_variables', 'constraints', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'animation_snapshot', 'local_induction_factor', 'average_induction_factor', 'relative_radius', 'states', 'controls', 'isometric', 'outputs:vortex'])
+    trial.plot(['states', 'controls', 'algebraic_variables', 'lifted_variables', 'wake_lifted_variables', 'constraints', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'animation_snapshot', 'local_induction_factor', 'average_induction_factor', 'relative_radius', 'states', 'controls', 'isometric', 'outputs:vortex'])
     plt.show()
 
     return trial

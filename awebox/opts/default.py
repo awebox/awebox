@@ -517,6 +517,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'algebraic_variables', 'axisfont', {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'algebraic_variables', 'ylabelsize', 15,     ('???', None), 'x'),
         ('visualization', 'cosmetics', 'variables',    'si_or_scaled', 'si',        ('should the si or scaled solution be plotted', ['si', 'scaled']), 'x'),
+        ('visualization', 'cosmetics', 'variables',    'include_solution',  False,  ('plot the actual variable values in addition to the interpolation', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'colors',     dim_colors,     ('list of colors for algebraic variables', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'ylabelsize', 15,             ('???', None), 'x'),

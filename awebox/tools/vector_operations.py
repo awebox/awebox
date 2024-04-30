@@ -297,26 +297,48 @@ def columnize(matrix):
     if is_scalar(matrix):
         return matrix
 
-    if not hasattr(matrix, 'shape'):
-        message = 'the columnize function is not yet available for objects that do not have a shape attribute'
+    elif hasattr(matrix, 'shape'):
+
+        shape = matrix.shape
+
+        if len(shape) == 1:
+            if isinstance(matrix, np.ndarray):
+                matrix = cas.DM(matrix)
+            else:
+                message = 'the columnize function is not yet available for 1D objects that are not numpy ndarrays.'
+                print_op.log_and_raise_error(message)
+
+        # only procede with 2D matrices for variable
+        [counted_rows, counted_columns] = matrix.shape
+        number_elements = counted_rows * counted_columns
+
+        column_var = cas.reshape(matrix, (number_elements, 1))
+        return column_var
+
+    elif hasattr(matrix, '__len__'):
+        columnized = []
+        for idx in range(len(matrix)):
+            submatrix = matrix[idx]
+            if is_numeric(submatrix):
+                columnized = cas.vertcat(columnized, submatrix)
+
+            elif hasattr(submatrix, '__len__'):
+                for jdx in range(len(submatrix)):
+                    subsubmatrix = submatrix[jdx]
+                    if is_numeric(subsubmatrix):
+                        columnized = cas.vertcat(columnized, subsubmatrix)
+
+            else:
+                message = 'vect_op.columnize does not know how to treat this object (' + repr(matrix) + ') yet.'
+                print_op.log_and_raise_error(message)
+
+        return columnized
+
+    else:
+        message = 'vect_op.columnize does not know how to treat this object (' + repr(matrix) + ') yet.'
         print_op.log_and_raise_error(message)
 
-    shape = matrix.shape
-
-    if len(shape) == 1:
-        if isinstance(matrix, np.ndarray):
-            matrix = cas.DM(matrix)
-        else:
-            message = 'the columnize function is not yet available for 1D objects that are not numpy ndarrays.'
-            print_op.log_and_raise_error(message)
-
-    # only procede with 2D matrices for variable
-    [counted_rows, counted_columns] = matrix.shape
-    number_elements = counted_rows * counted_columns
-
-    column_var = cas.reshape(matrix, (number_elements, 1))
-
-    return column_var
+    return None
 
 def resquare(column):
 

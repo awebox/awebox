@@ -190,17 +190,23 @@ def get_the_convected_position_from_the_current_indices_and_wake_node(nlp_option
 
 def get_the_convection_time_from_the_current_indices_and_wake_node(nlp_options, tcoll, wake_node, ndx, ddx=None):
 
-    if ddx == None:
-        ndx = ndx - 1
-        ddx = -1
+    ndx_search = np.mod(ndx, nlp_options['n_k'])
+    if (ndx_search == 0) and (ddx is None):
+        ndx_search = nlp_options['n_k'] - 1
+        ddx_search = -1
+    elif (ddx is None):
+        ndx_search = ndx_search - 1
+        ddx_search = -1
+    else:
+        ddx_search = ddx
 
     ndx_shed, ddx_shed, periods_passed = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options,
-                                                                                                         wake_node, ndx,
-                                                                                                         ddx)
+                                                                                                         wake_node, ndx_search,
+                                                                                                         ddx_search)
 
     t_period = tcoll[-1, -1]
     shedding_time = t_period * periods_passed + tcoll[ndx_shed, ddx_shed]
-    current_time = tcoll[ndx, ddx]
+    current_time = tcoll[ndx_search, ddx_search]
     delta_t = current_time - shedding_time
 
     return delta_t
