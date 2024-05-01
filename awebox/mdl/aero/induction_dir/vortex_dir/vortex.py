@@ -72,6 +72,11 @@ def build(model_options, architecture, wind, variables_si, parameters):
 
 
 def get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling):
+
+    vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
+    if vortex_representation == 'state':
+        vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
+
     degree_of_induced_velocity_lifting = model_options['aero']['vortex']['degree_of_induced_velocity_lifting']
 
     cstr_list = cstr_op.ConstraintList()
@@ -80,16 +85,13 @@ def get_model_constraints(model_options, wake, system_variables, parameters, arc
         unlifted_cstr = get_unlifted_cstr(model_options, wake, system_variables, architecture, scaling)
         cstr_list.append(unlifted_cstr)
 
-    if degree_of_induced_velocity_lifting >= 2:
+    elif degree_of_induced_velocity_lifting >= 2:
         superposition_cstr = get_superposition_cstr(model_options, wake, system_variables, architecture, scaling)
         cstr_list.append(superposition_cstr)
 
         biot_savart_cstr = get_biot_savart_cstr(wake, model_options, system_variables, parameters, architecture, scaling)
         cstr_list.append(biot_savart_cstr)
 
-    vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
-    if vortex_representation == 'state':
-        vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
     return cstr_list
 

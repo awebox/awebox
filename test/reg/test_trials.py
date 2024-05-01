@@ -363,8 +363,6 @@ def generate_options_dict():
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
-    print_op.warn_about_temporary_functionality_alteration()
-    vortex_options['visualization.cosmetics.variables.include_solution'] = True
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -497,7 +495,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 ## test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
 # test_vortex_force_zero()
-test_vortex_basic_health(final_homotopy_step='initial_guess')
+test_vortex_basic_health()
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()

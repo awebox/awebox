@@ -27,6 +27,7 @@ various structural tools for the vortex model
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-2021
 '''
+import copy
 import pdb
 
 import casadi.tools as cas
@@ -344,13 +345,15 @@ def get_adjustment_factor_for_trailing_vortices_due_to_interior_and_exterior_cir
     return local_adjustment_factor
 
 
-def get_biot_savart_reference_object_properties(model_options, kite_obs_index=0, kite_shed_index=0, parameters=None, geometry=None, inputs={}):
-    inputs = compute_biot_savart_reference_object_inputs(model_options, parameters=parameters, geometry=geometry, inputs=inputs)
+def get_biot_savart_reference_object_properties(options, kite_obs_index=0, kite_shed_index=0, parameters=None, geometry=None, inputs={}):
+    inputs = compute_biot_savart_reference_object_inputs(options, parameters=parameters, geometry=geometry, inputs=inputs)
     properties = compute_biot_savart_reference_object_properties_from_inputs(kite_shed_index, kite_obs_index, inputs)
     return properties
 
 
-def compute_biot_savart_reference_object_inputs(model_options, parameters=None, geometry=None, inputs={}):
+def compute_biot_savart_reference_object_inputs(options, parameters=None, geometry=None, inputs={}):
+
+    model_options = options['model']
 
     for local_name in ['b_ref', 'c_ref']:
         if (parameters is not None):
@@ -386,23 +389,27 @@ def compute_biot_savart_reference_object_inputs(model_options, parameters=None, 
             message = 'no ' + local_name + ' information available for biot-savart reference object'
             print_op.log_and_raise_error(message)
 
+    inputs['inclination_deg'] = options['solver']['initialization']['inclination_deg']
+
     return inputs
 
 def compute_biot_savart_reference_object_properties_from_inputs(kite_shed_index, kite_obs_index, inputs):
-    properties = {}
+    properties = copy.deepcopy(inputs)
 
     b_ref = inputs['b_ref']
     c_ref = inputs['c_ref']
-    properties['b_ref'] = b_ref
-    properties['c_ref'] = c_ref
 
     properties['filament_strength'] = inputs['filament_strength_ref']
 
     x_center = cas.DM.zeros((3, 1))
     properties['x_center'] = x_center
 
-    a_hat = vect_op.zhat_dm()
-    b_hat = -1. * vect_op.yhat_dm()
+    # it's tempting to include the elevation angle into this calculation but we shouldn't,
+    # because the scaling is going to apply for all time periods, ie. over the entire azimuth.
+    n_hat = vect_op.xhat_dm()
+    temp_hat = vect_op.yhat_dm()
+    a_hat = vect_op.normed_cross(n_hat, temp_hat)
+    b_hat = vect_op.normed_cross(n_hat, a_hat)
     properties['a_hat'] = a_hat
     properties['b_hat'] = b_hat
 
@@ -578,11 +585,11 @@ def get_vortex_ring_strength_name(kite_shed, ring):
 
 
 def get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs):
-    var_name = 'wu_' + wake_type + '_' + element_type + '_' + str(element_number) + '_' + str(kite_obs) + '_num'
+    var_name = 'wu_' + wake_type + '_' + element_type + '_num_' + str(element_number) + '_' + str(kite_obs)
     return var_name
 
 def get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs):
-    var_name = 'wu_' + wake_type + '_' + element_type + '_' + str(element_number) + '_' + str(kite_obs) + '_den'
+    var_name = 'wu_' + wake_type + '_' + element_type + '_den_' + str(element_number) + '_' + str(kite_obs)
     return var_name
 
 def get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs):

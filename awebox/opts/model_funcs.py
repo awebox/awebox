@@ -775,7 +775,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('nlp', 'induction', None, 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
         options_tree.append(('solver', 'initialization', 'induction', 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
 
-
     q_scaling = get_position_scaling(options, architecture)
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     options_tree = vortex_alg_repr_scaling.append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)

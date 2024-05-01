@@ -41,6 +41,7 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.tools.print_operations as print_op
 
 def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
@@ -97,7 +98,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     for name in list(model.parameters_dict['phi'].keys()):
         V_init_si['phi', name] = 1.
 
-    struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model, threshold=1.e-3)
+    struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model)
 
     return V_init_si
 

@@ -259,7 +259,14 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         return attempted_reassamble
 
 
-def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model, threshold=1.e-7):
+def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model):
+
+    thresholds = {}
+    for var_type in set(V_init_si.keys()) - set(['z', 'theta', 'phi', 'xi', 'u', 'coll_var']):
+        thresholds[var_type] = 1.e-5
+    # notice that the algebraic variables are computed depending on the rest of the inputs, potentially including the
+    # controls, so the computation might look different across the control node, where u is discontinuous.
+    thresholds['z'] = 0.1
 
     Xdot = None
 
@@ -272,26 +279,29 @@ def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model, thre
     extract_vars_control = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_control)
 
     diff = extract_vars_control.cat - extract_vars_coll.cat
-    diff_allocated = model.variables(diff)
+    factor = cas.inv(cas.diag(vect_op.smooth_abs(extract_vars_coll.cat)))
+    normalized_diff = cas.mtimes(factor, diff)
+    diff_allocated = model.variables(normalized_diff)
     listed_differences = {}
     for idx in range(diff.shape[0]):
         local_label = diff_allocated.labels()[idx]
         local_canonical = diff_allocated.getCanonicalIndex(idx)
 
-        is_non_xdot = not(local_canonical[0] == 'xdot')
-        is_xdot_but_known = (local_canonical[0] == 'xdot') and (local_canonical[1] in (model.variables_dict['x'].keys() + model.variables_dict['u'].keys()))
-        is_reasonable_comparison = is_non_xdot or is_xdot_but_known
+        if local_canonical in thresholds.keys():
 
-        if is_reasonable_comparison and diff[idx]**2 > threshold**2:
-            listed_differences[local_label] = diff[idx]
+            is_non_u = (local_canonical[0] != 'u')
+            is_non_xdot = (local_canonical[0] != 'xdot')
+            is_xdot_but_known = (local_canonical[0] == 'xdot') and (local_canonical[1] in (model.variables_dict['x'].keys() + model.variables_dict['u'].keys()))
+            is_reasonable_comparison = is_non_u and (is_non_xdot or is_xdot_but_known)
+
+            if is_reasonable_comparison and vect_op.smooth_abs(normalized_diff[idx]) > thresholds[local_canonical]:
+                listed_differences[local_label] = normalized_diff[idx]
 
     if len(listed_differences.keys()) > 0:
-        message = 'the variable slices produced by struct_op are not continuous. differences above the threshold (' + print_op.repr_g(threshold)
-        message += ') at: '
+        message = 'the variable slices produced by struct_op are not continuous. normalized differences are: '
         print_op.base_print(message, level='error')
         print_op.print_dict_as_table(listed_differences, level='error')
-        # raise Exception(message + repr(listed_differences))
-        print_op.warn_about_temporary_functionality_alteration()
+        raise Exception(message + repr(listed_differences))
 
     return None
 

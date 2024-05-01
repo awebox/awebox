@@ -68,9 +68,6 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
     V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
-    for var_name in model.variables_dict['z'].keys():
-        sanity_check_on_z_vs_coll_z_overstepping(V_init_si, nlp.d, var_name)
-
     check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
     check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
 
@@ -198,7 +195,6 @@ def make_induced_velocities_functions(model, nlp):
                 if not (test_inputs_den.shape == den.shape):
                     message = 'mapping concatenation of biot-savart denominator does not have the necessary shape'
                     print_op.log_and_raise_error(message)
-
 
                 separate_function_types = ['value', 'num', 'den', 'resi']
                 for separate_type in separate_function_types:
@@ -338,12 +334,25 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
                         test_kite_stacked_inputs_on_collocation_nodes = copy.deepcopy(
                             kite_stacked_inputs_on_collocation_nodes)
 
-                        u_ind_elem_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
-                                                                                         element_type,
-                                                                                         element_number,
-                                                                                         kite_obs)
                         separate_function_types = ['value', 'num', 'den']
                         for separate_type in separate_function_types:
+
+                            if separate_type == 'value':
+                                var_name = vortex_tools.get_element_induced_velocity_name(substructure_type,
+                                                                                               element_type,
+                                                                                               element_number, kite_obs)
+                            elif separate_type == 'num':
+                                var_name = vortex_tools.get_element_biot_savart_numerator_name(substructure_type,
+                                                                                               element_type,
+                                                                                               element_number, kite_obs)
+                            elif separate_type == 'den':
+                                var_name = vortex_tools.get_element_biot_savart_denominator_name(substructure_type,
+                                                                                               element_type,
+                                                                                               element_number, kite_obs)
+                            else:
+                                message = 'reached mutually exclusive option'
+                                print_op.log_and_raise_error(message)
+
                             index_progress += 1
                             print_op.print_progress(index_progress, total_progress)
 
@@ -360,16 +369,16 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
                             test_kite_stacked_inputs_on_collocation_nodes = cas.vertcat(
                                 test_kite_stacked_inputs_on_collocation_nodes, outputs_on_collocation)
 
-                            if (separate_type == 'value') or (degree_of_induced_velocity_lifting == 3):
-                                cdx = 0
+                            if '[z,0,' + var_name + ',0]' in V_init_si.labels():
                                 for ndx in range(control_length):
-                                    V_init_si['z', ndx, u_ind_elem_name] = outputs_on_control[:, cdx]
-                                    cdx += 1
+                                    V_init_si['z', ndx, var_name] = outputs_on_control[:, ndx]
 
+                            if '[coll_var,0,0,z,' + var_name + ',0]' in V_init_si.labels():
                                 cdx = 0
                                 for ndx in range(nlp.n_k):
                                     for ddx in range(nlp.d):
-                                        V_init_si['coll_var', ndx, ddx, 'z', u_ind_elem_name] = outputs_on_collocation[:, cdx]
+                                        V_init_si['coll_var', ndx, ddx, 'z', var_name] = outputs_on_collocation[:, cdx]
+                                        cdx += 1
 
                             if separate_type == 'value':
                                 total_of_values_on_control = total_of_values_on_control + outputs_on_control
@@ -382,15 +391,14 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
 
     print_op.close_progress()
 
-    cdx = 0
     for ndx in range(control_length):
-        V_init_si['z', ndx, u_ind_name] = total_of_values_on_control[:, cdx]
-        cdx += 1
+        V_init_si['z', ndx, u_ind_name] = total_of_values_on_control[:, ndx]
 
     cdx = 0
     for ndx in range(nlp.n_k):
         for ddx in range(nlp.d):
             V_init_si['coll_var', ndx, ddx, 'z', u_ind_name] = total_of_values_on_collocation[:, cdx]
+            cdx += 1
 
     return V_init_si
 
@@ -425,24 +433,6 @@ def get_collocation_overstepping_ndx(n_k, ndx):
     else:
         ndx_on_collocation_overstepping = -1
     return ndx_on_collocation_overstepping
-
-
-def sanity_check_on_z_vs_coll_z_overstepping(V_init_si, collocation_d, var_name, var_dim=0, thresh=1.e-4):
-    # z time grid is the same as the u time grid
-    # and time_grid['u'][1] = time_grid['coll'][d-1], ie. ndx = 0, ddx = d-1
-
-    z_val = V_init_si['z', 0, var_name, var_dim]
-    coll_z_val = V_init_si['coll_var', 0, -1, 'z', var_name, var_dim]
-
-    diff = z_val - coll_z_val
-    if vect_op.abs(diff) > thresh:
-        message = 'something went wrong with indexing, while initializing the wake lifted variable (' + var_name + ' [' + str(var_dim) + ']).'
-        message += '\n z_val[1] is: ' + str(z_val)
-        message += ', while coll_z_val[0, -1] is: ' + str(coll_z_val)
-        print_op.warn_about_temporary_functionality_alteration()
-        # print_op.log_and_raise_error(message)
-
-    return None
 
 
 def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-2):

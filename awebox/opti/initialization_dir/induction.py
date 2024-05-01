@@ -85,17 +85,6 @@ def initial_guess_vortex(init_options, nlp, model, V_init_si, p_fix_num):
 
     V_init_si = vortex.get_initialization(init_options, V_init_si, p_fix_num, nlp, model)
 
-    print_op.warn_about_temporary_functionality_alteration()
-    value_name = vortex_tools.get_element_induced_velocity_name('near', 'finite_filament',0, 1)
-    print('value ' + value_name)
-    print(V_init_si['coll_var', :, :, 'z', value_name])
-    print()
-    numerator_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type='near', element_type='finite_filament', element_number=0, kite_obs=1)
-    print('value ' + numerator_name)
-    print(V_init_si['coll_var', :, :, 'z', numerator_name])
-    print()
-
-
     return V_init_si
 
 

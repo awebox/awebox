@@ -199,8 +199,6 @@ def get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientatio
 def get_coordinate_axes_for_haas_verification():
     n_hat = vect_op.xhat_dm()
     a_hat = vect_op.zhat_dm()
-    print_op.warn_about_temporary_functionality_alteration()
-    # b_hat = -1. * vect_op.yhat_dm()
     b_hat = vect_op.yhat_dm()
     return n_hat, a_hat, b_hat
 
