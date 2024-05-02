@@ -349,7 +349,7 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
     vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.degree_of_induced_velocity_lifting'] = 2
+    vortex_options['model.aero.vortex.degree_of_induced_velocity_lifting'] = 1
     vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
     vortex_options['visualization.cosmetics.save_figs'] = True
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
@@ -466,10 +466,6 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
 
-    print_op.warn_about_temporary_functionality_alteration()
-    trial.plot(['states', 'controls', 'algebraic_variables', 'lifted_variables', 'wake_lifted_variables', 'constraints', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'animation_snapshot', 'local_induction_factor', 'average_induction_factor', 'relative_radius', 'states', 'controls', 'isometric', 'outputs:vortex'])
-    plt.show()
-
     return trial
 
 
@@ -495,7 +491,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 ## test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
 # test_vortex_force_zero()
-test_vortex_basic_health()
+# test_vortex_basic_health()
 # test_vortex()
 # test_dual_kite_tracking()
 # test_dual_kite_tracking_winch()
