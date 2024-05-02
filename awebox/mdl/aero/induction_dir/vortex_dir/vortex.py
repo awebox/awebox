@@ -177,14 +177,8 @@ def get_local_biot_savart_constraint(local_resi_si, cstr_name, value_name, degre
         num_scaling = scaling['z', num_name]
         den_scaling = scaling['z', den_name]
         value_scaling = scaling['z', value_name]
-        print_op.warn_about_temporary_functionality_alteration()
-        # top_scaling = den_scaling * cas.DM.ones((3, 1)) > restoration failed in 97 iterates
-        # top_scaling = num_scaling > max iterations exceeded, but no significant restoration phase
-        # top_scaling = value_scaling > significant restoration
         top_scaling = num_scaling
-        # constraint_scaling_extension = cas.vertcat(num_scaling, num_scaling, den_scaling)
         constraint_scaling_extension = cas.vertcat(top_scaling, num_scaling, den_scaling)
-        print(constraint_scaling_extension)
 
     else:
         message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ')'

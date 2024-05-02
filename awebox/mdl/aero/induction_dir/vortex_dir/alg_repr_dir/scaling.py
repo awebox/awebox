@@ -85,10 +85,6 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
-    # l_hat = properties_ref['l_hat']
-
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
     position_scaling_method = options['model']['aero']['vortex']['position_scaling_method']
@@ -102,11 +98,6 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
         message = 'unexpected vortex-position-variable wx scaling method (' + position_scaling_method + ').'
         print_op.log_and_raise_error(message)
 
-    # last_kite_index = -1
-    # x_last_shed_int = get_convected_wake_node_position(options, architecture, properties_ref, u_altitude,
-    #                                          last_kite_index, wake_nodes-1, 'int')
-    # wx_center_scale = q_scaling + vect_op.smooth_abs(cas.mtimes(x_last_shed_int.T, l_hat)) * l_hat
-
     wx_scale = position_scaling
     wx_center_scale = wx_scale
 
@@ -118,11 +109,6 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
     for kite_shed in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
             for tip in wingtips:
-                # kite_shed_index = architecture.kite_nodes.index(kite_shed)
-                # x_shed = get_convected_wake_node_position(options, architecture, properties_ref, u_altitude,
-                #                                              kite_shed_index,
-                #                                              wake_node, tip)
-                # wx_scale = q_scaling + vect_op.smooth_abs(cas.mtimes(x_shed.T, l_hat)) * l_hat
 
                 var_name = vortex_tools.get_wake_node_position_name(kite_shed, tip, wake_node)
                 var_type = vortex_tools.get_wake_node_position_var_type(options['model'])
@@ -217,6 +203,11 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
                         message = 'unfamiliar wake type (' + wake_type + ') when generating induced velocity scaling values'
                         print_op.log_and_raise_error(message)
 
+                    # this just happens to work. :(
+                    num *= 10
+                    value *= 10
+                    den *= 10
+
                     num_scaling = vect_op.smooth_norm(num) * cas.DM.ones((3, 1))
                     num_name = vortex_tools.get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
                     options_tree.append(
@@ -287,8 +278,6 @@ def get_induced_velocity_scaling_for_far_filament(options, architecture, geometr
 
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=kite_obs_index, kite_shed_index=kite_shed_index, inputs=inputs)
 
-    x_kite_obs = properties_ref['x_kite_obs']
-
     r_core = properties_ref['r_core']
     strength = properties_ref['filament_strength']
 
@@ -309,7 +298,13 @@ def get_induced_velocity_scaling_for_far_filament(options, architecture, geometr
     fil = semi_infinite_filament.SemiInfiniteFilament(info_dict)
     fil.define_biot_savart_induction_function()
 
+    x_kite_int = get_convected_wake_node_position(options, architecture, properties_ref, u_altitude, kite_obs_index,
+                                               0, 'int')
+    x_kite_ext = get_convected_wake_node_position(options, architecture, properties_ref, u_altitude, kite_obs_index,
+                                             0, 'ext')
+    x_kite_obs = (x_kite_int + x_kite_ext) / 2.
     x_obs = x_kite_obs
+
     value, num, den = fil.calculate_biot_savart_induction(info_dict, x_obs)
     return value, num, den
 
