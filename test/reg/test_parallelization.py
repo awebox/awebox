@@ -7,3 +7,5 @@ def test_parallelization():
     func = cd.integrator('func', 'idas', dae)
     F = func.map(N, 'openmp')
     F(x0=0, z0=0, p=0)
+
+# test_parallelization()

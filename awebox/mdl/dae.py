@@ -29,6 +29,7 @@ python-3.5 / casadi 3.0.0
 """
 import pdb
 
+import platform
 import awebox.tools.integrator_routines as int_rout
 import casadi.tools as cas
 import awebox.tools.print_operations as print_op
@@ -89,7 +90,12 @@ class Dae(object):
 
         # create rootfinder
         g = cas.Function('g', [self.__z.cat, self.__x.cat, self.__p.cat], [self.__dae['alg']])
-        G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}})
+        if platform.system() == 'Darwin':
+            # this is a Mac machine
+            G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}})
+        else:
+            # this is a windows or a linux machine
+            G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True})
 
         self.__rootfinder = G
 
@@ -103,7 +109,12 @@ class Dae(object):
         """
 
         # set options
-        opts = {'tf': time_step, 'expand': True, "compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}}
+        if platform.system() == 'Darwin':
+            # this is a Mac machine
+            opts = {'tf': time_step, 'expand': True, "compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}}
+        else:
+            # this is a windows or a linux machine
+            opts = {'tf': time_step, 'jit': options['jit'], 'expand': True}
 
         if options['type'] != 'rk4root':
 

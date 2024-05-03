@@ -67,9 +67,9 @@ def get_naca_airfoil_coordinates(s, m, p, t):
 
 def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
-    m = np.float(naca[0]) / 100.
-    p = np.float(naca[1]) / 10.
-    t = np.float(naca[2:]) / 100.
+    m = float(naca[0]) / 100.
+    p = float(naca[1]) / 10.
+    t = float(naca[2:]) / 100.
 
     s_list = np.arange(0., 101.) / 100.
 
@@ -155,7 +155,7 @@ def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_p
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
-    total_width = np.float(naca[2:]) / 100. * length
+    total_width = float(naca[2:]) / 100. * length
 
     num_spanwise = np.ceil(total_width * body_cross_sections_per_meter / 2.)
 
@@ -624,7 +624,7 @@ def get_sweep_colors(number_of_trials):
 
     color_list = []
     for trial in range(number_of_trials):
-        color_list += [scalar_map.to_rgba(np.float(trial))]
+        color_list += [scalar_map.to_rgba(float(trial))]
 
     return color_list
 
@@ -746,9 +746,9 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['scale_power'] = 1.  # e-3
 
     if '[x,0,l_t,0]' in V_plot_si.labels():
-        plot_dict['scale_axes'] = np.float(V_plot_si['x', 0, 'l_t'])
+        plot_dict['scale_axes'] = float(V_plot_si['x', 0, 'l_t'])
     elif '[theta,l_t,0]' in V_plot_si.labels():
-        plot_dict['scale_axes'] = np.float(V_plot_si['theta', 'l_t'])
+        plot_dict['scale_axes'] = float(V_plot_si['theta', 'l_t'])
     else:
         message = '(main) tether length could not be found in V_plot_si'
         print_op.log_and_raise_error(message)
@@ -1156,9 +1156,9 @@ def setup_axes_for_side(cosmetics, side):
 def test_naca_coordinates():
 
     naca = "0012"
-    m = np.float(naca[0]) / 100.
-    p = np.float(naca[1]) / 10.
-    t = np.float(naca[2:]) / 100.
+    m = float(naca[0]) / 100.
+    p = float(naca[1]) / 10.
+    t = float(naca[2:]) / 100.
 
     s_le = 0.
     s_te = 1.0

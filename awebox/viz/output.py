@@ -138,7 +138,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
             plot_table_c = int(number_of_individual_outputs_to_plot / plot_table_r)
         else:
             plot_table_r = 3
-            plot_table_c = int(np.ceil(np.float(number_of_individual_outputs_to_plot) / np.float(plot_table_r)))
+            plot_table_c = int(np.ceil(float(number_of_individual_outputs_to_plot) / float(plot_table_r)))
 
         # create new figure if desired
         if fig_num is not None:

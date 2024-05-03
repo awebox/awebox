@@ -764,10 +764,10 @@ def collect_var_constraints(health_solver_options, nlp, arg, solution):
 
     for idx in range(var.shape[0]):
 
-        local_lambda = np.float(lam[idx])
-        local_lbx = np.float(lbx.cat[idx])
-        local_ubx = np.float(ubx.cat[idx])
-        local_variable = np.float(var[idx])
+        local_lambda = float(lam[idx])
+        local_lbx = float(lbx.cat[idx])
+        local_ubx = float(ubx.cat[idx])
+        local_variable = float(var[idx])
 
         name_list_strings = list(map(str, nlp.V.getCanonicalIndex(idx)))
         name_underscore = [name + '_' for name in name_list_strings[:-1]] + [name_list_strings[-1]]

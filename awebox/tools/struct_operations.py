@@ -229,6 +229,16 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
             ddx = None
         at_control_node = (ddx is None)
 
+        u_is_zoh = ('u' in V.keys())
+        collocation_var_name_possibilities = ['coll', 'coll_var']
+        V_has_collocation_vars = False
+        coll_var_name = 'coll'
+        for coll_var_name_poss in collocation_var_name_possibilities:
+            if coll_var_name_poss in V.keys():
+                V_has_collocation_vars = True
+                coll_var_name = coll_var_name_poss
+
+
         attempted_reassamble = []
         for idx in range(model_variables.shape[0]):
             can_index = model_variables.getCanonicalIndex(idx)
@@ -242,16 +252,21 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                 deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
                 deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
 
+                print_op.warn_about_temporary_functionality_alteration()
                 if at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls and kdx < (n_k - 1):
+                elif at_control_node and deriv_name_in_controls and u_is_zoh: # and kdx < (n_k - 1):
                     local_val = V['u', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls and kdx == (n_k - 1):
-                    local_val = V['u', kdx-1, deriv_name, dim]
-                elif deriv_name_in_states and ('coll' in V.keys()) and kdx < n_k:
-                    local_val = V['coll', kdx, ddx, 'x', deriv_name, dim]
-                elif deriv_name_in_controls and ('coll' in V.keys()) and kdx < n_k:
-                    local_val = V['coll', kdx, ddx, 'u', deriv_name, dim]
+                    # elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx == (n_k - 1):
+                    #     local_val = V['u', 0, deriv_name, dim]
+                elif at_control_node and deriv_name_in_controls and not(u_is_zoh):
+                    kdx_local = kdx - 1
+                    ddx_local = -1
+                    local_val = V[coll_var_name, kdx_local, ddx_local, 'u', deriv_name, dim]
+                elif deriv_name_in_states and V_has_collocation_vars and kdx < n_k:
+                    local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
+                elif deriv_name_in_controls and V_has_collocation_vars and kdx < n_k:
+                    local_val = V[coll_var_name, kdx, ddx, 'u', deriv_name, dim]
                 else:
                     local_val = cas.DM.zeros((1, 1))
 

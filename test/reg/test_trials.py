@@ -481,14 +481,14 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_dual_kite()
 # test_dual_kite_6_dof_basic_health()
 # test_dual_kite_6_dof()
-## test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
-## test_large_dual_kite() << ?
-## test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
-## test_actuator_qaxi()
-## test_actuator_qasym()
-## test_actuator_uaxi()
-## test_actuator_uasym()
-## test_actuator_comparison()
+# # test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
+# # test_large_dual_kite() << ?
+# # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
+# # test_actuator_qaxi()
+# # test_actuator_qasym()
+# # test_actuator_uaxi()
+# # test_actuator_uasym()
+# # test_actuator_comparison()
 # test_vortex_force_zero_basic_health()
 # test_vortex_force_zero()
 # test_vortex_basic_health()

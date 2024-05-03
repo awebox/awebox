@@ -185,11 +185,14 @@ class Sweep:
                 # so, decrease the dict depth for better performance
                 self.__plot_dict[trial_to_run][param] = {}
                 for name, value in recalibrated_plot_dict.items():
-                    self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
+                    print_op.warn_about_temporary_functionality_alteration()
+                    # self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
+                    self.__plot_dict[trial_to_run][param][name] = value
 
                 # overwrite outputs to work around pickle bug
-                for key in recalibrated_plot_dict['outputs']:
-                    self.__plot_dict[trial_to_run][param]['outputs'][key] = copy.deepcopy(recalibrated_plot_dict['outputs'][key])
+                for local_subkey in ['outputs_dict', 'output_vals']:
+                    for key in recalibrated_plot_dict[local_subkey]:
+                        self.__plot_dict[trial_to_run][param][local_subkey][key] = copy.deepcopy(recalibrated_plot_dict[local_subkey][key])
 
                 # save result
                 single_trial_solution_dict = single_trial.generate_solution_dict()

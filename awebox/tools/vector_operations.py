@@ -970,10 +970,21 @@ def spline_interpolation(x_data, y_data, x_points):
     """
 
     if hasattr(x_points, 'shape'):
-        n_points = np.prod(x_points.shape)
 
-        if len(x_points.shape) > 2 and is_numeric_scalar(x_points[0]):
-            x_points = cas.DM([float(val) for val in x_points])
+        counter = 0
+        while len(x_points.shape) > 2:
+            x_points_reassembled = []
+            for local_x_points in x_points:
+                local_x_points_reassembled = columnize(local_x_points)
+                x_points_reassembled = cas.vertcat(x_points_reassembled, local_x_points_reassembled)
+            x_points = x_points_reassembled
+
+            counter += 1
+            if counter > 5:
+                message = 'the x_points vector that is trying to be interpolated has too high a dimensionality'
+                print_op.log_and_raise_error(message)
+
+        n_points = np.prod(x_points.shape)
 
     elif hasattr(x_points, 'len'):
         n_points = len(x_points)
