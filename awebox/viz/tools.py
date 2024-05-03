@@ -601,16 +601,13 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['u'][name][jdx],
-                    linestyle='--', color=color)
-
+                plt.plot(np.array(plot_dict['time_grids']['ref']['ip']), np.array(plot_dict[ref_name]['u'][name][jdx]), linestyle='--', color=color)
         else:
             p = plt.step(tgrid_ip, plot_dict[interp_name]['u'][name][jdx], where='post', color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
                 plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict[ref_name]['u'][name][jdx],
-                         where='post', linestyle='--', color=color)
+                plt.step(np.array(plot_dict['time_grids']['ref']['ip']), np.array(plot_dict[ref_name]['u'][name][jdx]), where='post', linestyle='--', color=color)
     plt.grid(True)
     plt.title(name)
     plt.autoscale(enable=True, axis= 'x', tight = True)
@@ -829,7 +826,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     variables_dict = plot_dict['variables_dict']
     V_ref_si = plot_dict['V_ref_si']
     V_ref_scaled = plot_dict['V_ref_scaled']
-    model_outputs = plot_dict['outputs']
+    model_outputs = plot_dict['model_outputs']
     outputs_dict = plot_dict['outputs_dict']
     outputs_ref = plot_dict['output_vals']['ref']
     integral_output_names = plot_dict['integral_output_names']

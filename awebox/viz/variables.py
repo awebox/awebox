@@ -232,7 +232,7 @@ def plot_invariants(plot_dict, cosmetics, fig_name):
     invariants = plot_dict[interp_name]['outputs']['invariants']
     if cosmetics['plot_ref']:
         ref_invariants = plot_dict[ref_name]['outputs']['invariants']
-        ref_tgrid_ip = plot_dict['ref']['time_grids']['ip']
+        ref_tgrid_ip = plot_dict['time_grids']['ref']['ip']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]

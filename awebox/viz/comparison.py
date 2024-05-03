@@ -34,6 +34,7 @@ import numpy as np
 from . import tools
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
 
@@ -160,7 +161,7 @@ def get_stats_values_from_trial(plot_dict, stat_name):
         return plot_dict['return_status_numeric']['optimization']
 
     elif stat_name == 'loyd_factor':
-        return np.mean(plot_dict['outputs']['performance']['loyd_factor'][0])
+        return np.mean(plot_dict['interpolation_si']['outputs']['performance']['loyd_factor'][0])
         awelogger.logger.warning('loyd factor calculation should be revisited!')
         #todo: loyd power factor calculation?
 
