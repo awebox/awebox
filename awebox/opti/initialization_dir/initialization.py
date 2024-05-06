@@ -173,8 +173,6 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
 
     for ndx in range(n_k + 1):
 
-        print_op.print_progress(ndx, n_k + 1)
-
         t = tgrid_x[ndx]
 
         ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
@@ -194,8 +192,6 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                     for name in struct_op.subkeys(model.variables, var_type):
                         if name in ret.keys():
                             V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
-
-    print_op.close_progress()
 
     return V_init_si
 

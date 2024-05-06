@@ -660,7 +660,8 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
-    plot_dict['global_outputs'] = nlp.global_outputs
+    print_op.warn_about_temporary_functionality_alteration()
+    # plot_dict['global_outputs'] = nlp.global_outputs
 
     plot_dict['Collocation'] = nlp.Collocation
 

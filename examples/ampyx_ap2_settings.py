@@ -45,7 +45,7 @@ def set_ampyx_ap2_settings(options):
     # variable bounds
     options['model.system_bounds.x.l_t'] = [10.0, 700.0]  # [m]
     options['model.system_bounds.x.dl_t'] = [-15.0, 20.0]  # [m/s]
-    options['model.ground_station.ddl_t_max'] = 2.4  # [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-2.4, 2.4]  # [m/s^2]
     options['model.system_bounds.x.q'] = [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
     options['model.system_bounds.theta.t_f'] = [20.0, 70.0]  # [s]
     options['model.system_bounds.z.lambda'] = [0., ca.inf]  # [N/m]

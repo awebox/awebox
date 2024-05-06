@@ -74,7 +74,7 @@ class Sweep:
 
         self.__trials_opts = trials_opts
         self.__params_opts = params_opts
-        self.__total_number = np.product(np.array([len(local_opt[1]) for local_opt in (trials_opts + params_opts)]))
+        self.__total_number = np.prod(np.array([len(local_opt[1]) for local_opt in (trials_opts + params_opts)]))
 
         self.__name = name
         self.__type = 'Sweep'
@@ -185,9 +185,10 @@ class Sweep:
                 # so, decrease the dict depth for better performance
                 self.__plot_dict[trial_to_run][param] = {}
                 for name, value in recalibrated_plot_dict.items():
-                    print_op.warn_about_temporary_functionality_alteration()
-                    # self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
-                    self.__plot_dict[trial_to_run][param][name] = value
+                    try:
+                        self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
+                    except:
+                        pdb.set_trace()
 
                 # overwrite outputs to work around pickle bug
                 for local_subkey in ['outputs_dict', 'output_vals']:

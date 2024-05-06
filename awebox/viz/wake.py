@@ -80,7 +80,7 @@ def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
     cmap = plt.get_cmap('seismic')
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = ax.figure.colorbar(sm)
+    cbar = ax.figure.colorbar(sm, ax=plt.gca())
     cbar.set_label('vortex filament strength [m$^2$/s]', rotation=270)
 
     if cosmetics['trajectory']['kite_bodies']:

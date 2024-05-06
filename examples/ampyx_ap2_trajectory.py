@@ -46,7 +46,7 @@ options['user_options.wind.u_ref'] = 10.
 # here: nlp discretization, with a zero-order-hold control parametrization, and
 # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
 # within ipopt.
-options['nlp.n_k'] = 20
+options['nlp.n_k'] = 25
 options['nlp.collocation.u_param'] = 'zoh'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
 options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
@@ -57,12 +57,12 @@ trial.build()
 trial.optimize()
 
 # draw some of the pre-coded plots for analysis
-trial.plot(['states', 'controls', 'constraints', 'quad'])
+trial.plot(['states', 'controls', 'constraints', 'quad', 'outputs:local_performance'])
 
 # extract information from the solution for independent plotting or post-processing
 # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
 plot_dict = trial.visualization.plot_dict
-outputs = plot_dict['outputs']
+outputs = plot_dict['interpolation_si']['outputs']
 time = plot_dict['time_grids']['ip']
 avg_power = plot_dict['power_and_performance']['avg_power']/1e3
 
@@ -72,13 +72,13 @@ print('======================================')
 
 plt.subplots(5, 1, sharex=True)
 plt.subplot(511)
-plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
+plt.plot(time, plot_dict['interpolation_si']['x']['l_t'][0], label='Tether Length')
 plt.ylabel('[m]')
 plt.legend()
 plt.grid(True)
 
 plt.subplot(512)
-plt.plot(time, plot_dict['x']['dl_t'][0], label='Tether Reel-out Speed')
+plt.plot(time, plot_dict['interpolation_si']['x']['dl_t'][0], label='Tether Reel-out Speed')
 plt.ylabel('[m/s]')
 plt.legend()
 plt.hlines([20, -15], time[0], time[-1], linestyle='--', color='black')
@@ -106,4 +106,5 @@ plt.xlabel('t [s]')
 plt.legend()
 plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
 plt.grid(True)
+
 plt.show()

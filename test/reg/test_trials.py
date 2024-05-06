@@ -268,13 +268,14 @@ def generate_options_dict():
     dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     dual_kite_options['solver.initialization.theta.l_s'] = 75.
     dual_kite_options['solver.initialization.check_reference'] = True
-    dual_kite_options['nlp.collocation.u_param'] = 'zoh'
+    dual_kite_options['nlp.collocation.u_param'] = 'poly'
     dual_kite_options['model.system_bounds.theta.t_f'] = [5., 20.]
 
     dual_kite_basic_health_options = make_basic_health_variant(dual_kite_options)
 
     dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
     dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
+    dual_kite_6_dof_options['nlp.collocation.u_param'] = 'zoh'
 
     dual_kite_6_dof_basic_health_options = make_basic_health_variant(dual_kite_6_dof_options)
 
@@ -469,7 +470,7 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     return trial
 
 
-# #
+#
 # test_single_kite_basic_health()
 # test_single_kite()
 # test_single_kite_6_dof_basic_health()

@@ -139,18 +139,27 @@ def get_ms_params(nlp_options, V, P, Xdot, model):
 def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
     var_type = 'z'
+    coll_var_name = get_collocation_var_name(V)
+    V_has_collocation_vars = (coll_var_name != 'not_in_use')
 
-    if (ddx is None):
-        if var_type in list(V.keys()):
-            if kdx < nlp_options['n_k']:
-                return V[var_type, kdx]
-            else:
-                message = 'something went wrong with the index of an algebraic variable with kdx = ' + str(kdx)
-                print_op.log_and_raise_error(message)
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    at_control_node = (ddx is None)
+    z_in_V_keys = var_type in V.keys()
+
+    if at_control_node and z_in_V_keys:
+        if kdx < nlp_options['n_k']:
+            return V[var_type, kdx]
         else:
-            return V['coll_var', kdx, 0, var_type]
+            message = 'something went wrong with the index of an algebraic variable with kdx = ' + str(kdx)
+            print_op.log_and_raise_error(message)
+    elif at_control_node and V_has_collocation_vars:
+        return V[coll_var_name, kdx, 0, var_type]
+    elif direct_collocation and V_has_collocation_vars:
+        return V[coll_var_name, kdx, ddx, var_type]
     else:
-        return V['coll_var', kdx, ddx, var_type]
+        pdb.set_trace()
+        message = 'something went wrong when returning algebraic variables'
+        print_op.log_and_raise_error(message)
 
 
 def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
@@ -159,11 +168,15 @@ def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     at_control_node = (ddx is None)
+    coll_var_name = get_collocation_var_name(V)
+    V_has_collocation_vars = (coll_var_name != 'not_in_use')
 
     if at_control_node:
         return V[var_type, kdx]
-    elif direct_collocation:
-        return V['coll_var', kdx, ddx, var_type]
+    elif direct_collocation and V_has_collocation_vars:
+        return V[coll_var_name, kdx, ddx, var_type]
+    else:
+        pdb.set_trace()
 
 
 def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
@@ -172,6 +185,7 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
 
     multiple_shooting = (nlp_options['discretization'] == 'multiple_shooting')
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    coll_var_name = get_collocation_var_name(V)
 
     piecewise_constant_controls = not (nlp_options['collocation']['u_param'] == 'poly')
     at_control_node = (ddx is None)
@@ -184,10 +198,10 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
         return V[var_type, -1]
 
     elif direct_collocation and (not piecewise_constant_controls) and at_control_node and before_last_node:
-        return V['coll_var', kdx, 0, var_type]
+        return V[coll_var_name, kdx, 0, var_type]
 
     elif direct_collocation and (not piecewise_constant_controls) and before_last_node:
-        return V['coll_var', kdx, ddx, var_type]
+        return V[coll_var_name, kdx, ddx, var_type]
 
     elif multiple_shooting and before_last_node:
         return V[var_type, kdx]
@@ -197,11 +211,21 @@ def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):
         print_op.log_and_raise_error(message)
 
 
+def get_collocation_var_name(V):
+    collocation_var_name_possibilities = ['coll', 'coll_var']
+    coll_var_name = 'not_in_use'
+    for coll_var_name_poss in collocation_var_name_possibilities:
+        if coll_var_name_poss in V.keys():
+            coll_var_name = coll_var_name_poss
+            return coll_var_name
+    return coll_var_name
 
 
 def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
     var_type = 'xdot'
+    coll_var_name = get_collocation_var_name(V)
+
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
@@ -210,16 +234,19 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     #     ddx = None
     at_control_node = (ddx is None)
 
-    lifted_derivs = ('xdot' in list(V.keys()))
+    derivs_lifted_in_V = ('xdot' in list(V.keys()))
+
+    sample_deriv = 'd' + subkeys(model_variables, 'x')[0]
+    sample_label = '[' + coll_var_name + ',0,0,xdot,' + sample_deriv + ',0]'
+    derivs_lifted_in_coll_vars = sample_label in V.labels()
     passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
-    if at_control_node and lifted_derivs and kdx < n_k:
+    if at_control_node and derivs_lifted_in_V and kdx < n_k:
         return V[var_type, kdx]
-        print_op.warn_about_temporary_functionality_alteration()
     elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
-    elif lifted_derivs and ('coll' in V.keys()) and kdx < n_k:
-        return V['coll', kdx, ddx, 'xdot']
+    elif derivs_lifted_in_coll_vars and kdx < n_k:
+        return V[coll_var_name, kdx, ddx, 'xdot']
     elif passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['coll_x', kdx, ddx]
     else:
@@ -230,14 +257,7 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
         at_control_node = (ddx is None)
 
         u_is_zoh = ('u' in V.keys())
-        collocation_var_name_possibilities = ['coll', 'coll_var']
-        V_has_collocation_vars = False
-        coll_var_name = 'coll'
-        for coll_var_name_poss in collocation_var_name_possibilities:
-            if coll_var_name_poss in V.keys():
-                V_has_collocation_vars = True
-                coll_var_name = coll_var_name_poss
-
+        V_has_collocation_vars = (coll_var_name != 'not_in_use')
 
         attempted_reassamble = []
         for idx in range(model_variables.shape[0]):
@@ -252,13 +272,10 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                 deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
                 deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
 
-                print_op.warn_about_temporary_functionality_alteration()
                 if at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and u_is_zoh: # and kdx < (n_k - 1):
                     local_val = V['u', kdx, deriv_name, dim]
-                    # elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx == (n_k - 1):
-                    #     local_val = V['u', 0, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and not(u_is_zoh):
                     kdx_local = kdx - 1
                     ddx_local = -1
@@ -276,47 +293,59 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
 
 def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model):
 
-    thresholds = {}
-    for var_type in set(V_init_si.keys()) - set(['z', 'theta', 'phi', 'xi', 'u', 'coll_var']):
-        thresholds[var_type] = 1.e-5
-    # notice that the algebraic variables are computed depending on the rest of the inputs, potentially including the
-    # controls, so the computation might look different across the control node, where u is discontinuous.
-    thresholds['z'] = 0.1
+    direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
+    coll_var_name = get_collocation_var_name(V_init_si)
+    V_has_collocation_vars = (coll_var_name != 'not_in_use')
 
-    Xdot = None
+    if direct_collocation and V_has_collocation_vars:
 
-    ndx_coll = 0
-    ddx_coll = nlp_options['collocation']['d'] - 1
+        coll_var_name = get_collocation_var_name(V_init_si)
 
-    ndx_control = ndx_coll + 1
+        thresholds = {}
+        for var_type in set(V_init_si.keys()) - set(['z', 'theta', 'phi', 'xi', 'u', coll_var_name]):
+            thresholds[var_type] = 1.e-5
+        # notice that the algebraic variables are computed depending on the rest of the inputs, potentially including the
+        # controls, so the computation might look different across the control node, where u is discontinuous.
+        thresholds['z'] = 0.1
 
-    extract_vars_coll = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_coll, ddx_coll)
-    extract_vars_control = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_control)
+        Xdot = None
 
-    diff = extract_vars_control.cat - extract_vars_coll.cat
-    factor = cas.inv(cas.diag(vect_op.smooth_abs(extract_vars_coll.cat)))
-    normalized_diff = cas.mtimes(factor, diff)
-    diff_allocated = model.variables(normalized_diff)
-    listed_differences = {}
-    for idx in range(diff.shape[0]):
-        local_label = diff_allocated.labels()[idx]
-        local_canonical = diff_allocated.getCanonicalIndex(idx)
+        ndx_coll = 0
+        ddx_coll = nlp_options['collocation']['d'] - 1
 
-        if local_canonical in thresholds.keys():
+        ndx_control = ndx_coll + 1
 
-            is_non_u = (local_canonical[0] != 'u')
-            is_non_xdot = (local_canonical[0] != 'xdot')
-            is_xdot_but_known = (local_canonical[0] == 'xdot') and (local_canonical[1] in (model.variables_dict['x'].keys() + model.variables_dict['u'].keys()))
-            is_reasonable_comparison = is_non_u and (is_non_xdot or is_xdot_but_known)
+        extract_vars_coll = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_coll, ddx_coll)
+        extract_vars_control = get_variables_at_time(nlp_options, V_init_si, Xdot, model.variables, ndx_control)
 
-            if is_reasonable_comparison and vect_op.smooth_abs(normalized_diff[idx]) > thresholds[local_canonical]:
-                listed_differences[local_label] = normalized_diff[idx]
+        diff = extract_vars_control.cat - extract_vars_coll.cat
+        factor = cas.inv(cas.diag(vect_op.smooth_abs(extract_vars_coll.cat)))
+        normalized_diff = cas.mtimes(factor, diff)
+        diff_allocated = model.variables(normalized_diff)
+        listed_differences = {}
+        for idx in range(diff.shape[0]):
+            local_label = diff_allocated.labels()[idx]
+            local_canonical = diff_allocated.getCanonicalIndex(idx)
 
-    if len(listed_differences.keys()) > 0:
-        message = 'the variable slices produced by struct_op are not continuous. normalized differences are: '
-        print_op.base_print(message, level='error')
-        print_op.print_dict_as_table(listed_differences, level='error')
-        raise Exception(message + repr(listed_differences))
+            if local_canonical in thresholds.keys():
+
+                is_non_u = (local_canonical[0] != 'u')
+                is_non_xdot = (local_canonical[0] != 'xdot')
+                is_xdot_but_known = (local_canonical[0] == 'xdot') and (local_canonical[1] in (model.variables_dict['x'].keys() + model.variables_dict['u'].keys()))
+                is_reasonable_comparison = is_non_u and (is_non_xdot or is_xdot_but_known)
+
+                if is_reasonable_comparison and vect_op.smooth_abs(normalized_diff[idx]) > thresholds[local_canonical]:
+                    listed_differences[local_label] = normalized_diff[idx]
+
+        if len(listed_differences.keys()) > 0:
+            message = 'the variable slices produced by struct_op are not continuous. normalized differences are: '
+            print_op.base_print(message, level='error')
+            print_op.print_dict_as_table(listed_differences, level='error')
+            raise Exception(message + repr(listed_differences))
+
+    elif direct_collocation and not(V_has_collocation_vars):
+        message = 'WARNING: if you are not re-initializing from multiple-shooting to direct-collocation or vice-versa, something may have gone wrong with the structuring of V.'
+        print_op.base_print(message, level='warning')
 
     return None
 
@@ -596,6 +625,8 @@ def get_set_of_canonical_names_for_V_variables_without_dimensions(V):
 def si_to_scaled(V_ori, scaling):
     V = copy.deepcopy(V_ori)
 
+    coll_var_name = get_collocation_var_name(V_ori)
+
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
 
@@ -612,13 +643,13 @@ def si_to_scaled(V_ori, scaling):
             var_si = V[var_type, kdx, var_name]
             V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
 
-        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
             kdx = local_canonical[1]
             ddx = local_canonical[2]
             var_type = local_canonical[3]
             var_name = local_canonical[4]
-            var_si = V['coll_var', kdx, ddx, var_type, var_name]
-            V['coll_var', kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+            V[coll_var_name, kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
         else:
             message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
             print_op.log_and_raise_error(message)
@@ -628,6 +659,7 @@ def si_to_scaled(V_ori, scaling):
 
 def scaled_to_si(V_ori, scaling):
     V = copy.deepcopy(V_ori)
+    coll_var_name = get_collocation_var_name(V_ori)
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
@@ -645,13 +677,13 @@ def scaled_to_si(V_ori, scaling):
             var_si = V[var_type, kdx, var_name]
             V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
 
-        elif (len(local_canonical) == 5) and (local_canonical[0] == 'coll_var'):
+        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
             kdx = local_canonical[1]
             ddx = local_canonical[2]
             var_type = local_canonical[3]
             var_name = local_canonical[4]
-            var_si = V['coll_var', kdx, ddx, var_type, var_name]
-            V['coll_var', kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
+            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+            V[coll_var_name, kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
         else:
             message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
             print_op.log_and_raise_error(message)
@@ -759,7 +791,8 @@ def get_return_status_dictionary():
 
 def get_V_index(canonical):
 
-    var_is_coll_var = (canonical[0] == 'coll_var')
+    coll_var_name = 'coll_var'
+    var_is_coll_var = (canonical[0] == coll_var_name)
 
     length = len(canonical)
 
