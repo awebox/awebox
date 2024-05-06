@@ -212,10 +212,7 @@ class Optimization(object):
             self.__iterations[step_name] = 0.
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
-        try:
-            self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
-        except:
-            pdb.set_trace()
+        self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
         self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss

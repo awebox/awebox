@@ -2,6 +2,7 @@
 """Test write to csv functionality
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
+@edit: Rachel Leuthold, ALUF, 2024
 """
 
 import os

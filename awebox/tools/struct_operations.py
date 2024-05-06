@@ -157,7 +157,6 @@ def get_algebraics_at_time(nlp_options, V, model_variables, kdx, ddx=None):
     elif direct_collocation and V_has_collocation_vars:
         return V[coll_var_name, kdx, ddx, var_type]
     else:
-        pdb.set_trace()
         message = 'something went wrong when returning algebraic variables'
         print_op.log_and_raise_error(message)
 
@@ -176,7 +175,8 @@ def get_states_at_time(nlp_options, V, model_variables, kdx, ddx=None):
     elif direct_collocation and V_has_collocation_vars:
         return V[coll_var_name, kdx, ddx, var_type]
     else:
-        pdb.set_trace()
+        message = 'something went wrong when getting the states'
+        print_op.log_and_raise_error(message)
 
 
 def get_controls_at_time(nlp_options, V, model_variables, kdx, ddx=None):

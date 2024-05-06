@@ -185,10 +185,7 @@ class Sweep:
                 # so, decrease the dict depth for better performance
                 self.__plot_dict[trial_to_run][param] = {}
                 for name, value in recalibrated_plot_dict.items():
-                    try:
-                        self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
-                    except:
-                        pdb.set_trace()
+                    self.__plot_dict[trial_to_run][param][name] = copy.deepcopy(value)
 
                 # overwrite outputs to work around pickle bug
                 for local_subkey in ['outputs_dict', 'output_vals']:

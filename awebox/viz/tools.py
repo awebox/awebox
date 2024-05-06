@@ -653,15 +653,13 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
     plot_dict['model_outputs'] = struct_op.strip_of_contents(model.outputs)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
-    # plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['model_scaling'] = model.scaling.cat
     plot_dict['model_parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['model_variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
-    print_op.warn_about_temporary_functionality_alteration()
-    # plot_dict['global_outputs'] = nlp.global_outputs
+    plot_dict['global_output_names'] = nlp.global_outputs.keys()
 
     plot_dict['Collocation'] = nlp.Collocation
 
