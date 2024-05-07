@@ -337,8 +337,8 @@ class ConstraintList:
         expr_list = self.get_expression_list(cstr_type)
 
         # constraints function options
-        if options['jit_code_gen']['include']:
-            opts = {'jit': True, 'compiler': options['jit_code_gen']['compiler']}
+        if options['construction']['jit_code_gen']['include']:
+            opts = {'jit': True, 'compiler': options['construction']['jit_code_gen']['compiler']}
         else:
             opts = {}
 

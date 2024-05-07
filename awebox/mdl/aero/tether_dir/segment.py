@@ -35,23 +35,23 @@ import numpy as np
 import awebox.mdl.aero.tether_dir.element as element
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 
-def get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun):
+def get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun, parameters):
 
     combined_info = []
     for elem in range(n_elements):
         elem_info = element.get_element_info_column(variables, upper_node, architecture, elem, n_elements)
         combined_info = cas.horzcat(combined_info, elem_info)
 
-    drag_map = element_drag_fun.map(n_elements, 'openmp')
+    drag_map = element_drag_fun.map(n_elements, 'serial')
     
-    combined_drag = drag_map(combined_info)
+    combined_drag = drag_map(combined_info, parameters)
 
     return combined_drag
 
-def get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun):
+def get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun, parameters):
 
     q_upper, q_lower, _, _ = element.get_upper_and_lower_pos_and_vel(variables, upper_node, architecture)
-    combined_drag = get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun)
+    combined_drag = get_segment_drag(n_elements, variables, upper_node, architecture, element_drag_fun, parameters)
 
     # integration step size
     ds = 1.0/n_elements
@@ -66,7 +66,7 @@ def get_distributed_segment_forces(n_elements, variables, upper_node, architectu
     return force_lower, force_upper
 
 
-def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun):
+def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun, parameters):
 
     force_lower = cas.DM.zeros((3, 1))
     force_upper = cas.DM.zeros((3, 1))
@@ -88,7 +88,7 @@ def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architec
 
         air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
         re_number = reynolds.get_reynolds_number(atmos, air_velocity, diam, q_upper, q_lower)
-        cd_tether = cd_tether_fun(re_number)
+        cd_tether = cd_tether_fun(re_number, parameters)
 
         d_mag = (1./4.) * cd_tether * kite_dyn_pressure * diam * length
 

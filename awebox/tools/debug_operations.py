@@ -177,7 +177,7 @@ def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kk
     for stat_name in ['nlp_f', 'nlp_g', 'nlp_grad', 'nlp_grad_f', 'nlp_hess_l', 'nlp_jac_g']:
         for time_name in ['t_proc', 't_wall']:
             if ('n_call_' + stat_name in stats.keys()) and (time_name + '_' + stat_name in stats.keys()):
-                tractability['avg: ' + time_name + '_' + stat_name] = stats[time_name + '_' + stat_name] / stats['n_call_' + stat_name]
+                tractability['avg: ' + time_name + '_' + stat_name] = float(stats[time_name + '_' + stat_name]) / vect_op.smooth_abs(stats['n_call_' + stat_name])
 
     tractability['total_iterations'] = get_total_iterations(iterations)
 

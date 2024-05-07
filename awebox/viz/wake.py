@@ -245,7 +245,8 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
                 local_x_obs_dimensioned[idx] = dimensioned_coordinates[dim][pdx, mdx]
             x_obs_dimensioned_stacked = cas.horzcat(x_obs_dimensioned_stacked, local_x_obs_dimensioned)
 
-    a_map = a_fun.map(x_obs_dimensioned_stacked.shape[1], 'openmp')
+    parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
+    a_map = a_fun.map(x_obs_dimensioned_stacked.shape[1], parallelization_type)
     all_a = a_map(x_obs_dimensioned_stacked)
     a_matr = cas.reshape(all_a, dimensioned_coordinates['y'].shape)
 

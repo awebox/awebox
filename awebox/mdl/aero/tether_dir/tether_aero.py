@@ -122,14 +122,14 @@ def get_tether_cstr(options, variables_si, architecture, outputs):
 
 def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_node, tether_cd_fun, outputs, architecture):
 
-    element_drag_fun = element.get_element_drag_fun(wind, atmos, tether_cd_fun)
+    element_drag_fun = element.get_element_drag_fun(wind, atmos, tether_cd_fun, parameters)
 
-    kite_only_lower, kite_only_upper = segment.get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, tether_cd_fun)
+    kite_only_lower, kite_only_upper = segment.get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, tether_cd_fun, parameters)
 
-    split_lower, split_upper = segment.get_distributed_segment_forces(1, variables, upper_node, architecture, element_drag_fun)
+    split_lower, split_upper = segment.get_distributed_segment_forces(1, variables, upper_node, architecture, element_drag_fun, parameters)
 
     n_elements = model_options['tether']['aero_elements']
-    multi_lower, multi_upper = segment.get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun)
+    multi_lower, multi_upper = segment.get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun, parameters)
 
     re_number = segment.get_segment_reynolds_number(variables, atmos, wind, upper_node, architecture)
 

@@ -53,7 +53,7 @@ def get_tether_cd_fun(model_options, parameters):
     else:
         raise ValueError('invalid tether drag coefficient model selected: %s',model_options['tether']['cd_model'])
 
-    tether_cd_fun = cas.Function('tether_cd_fun', [reynolds], [drag_coeff])
+    tether_cd_fun = cas.Function('tether_cd_fun', [reynolds, parameters], [drag_coeff])
 
     return tether_cd_fun
 

@@ -239,8 +239,9 @@ def set_default_options(default_user_options, help_options):
         ('model',   'scaling_overwrite',    None,           'lambda_factor',    1.,     ('factor applied in the scaling of the tether tension-per-unit-length [-]', None),'t'),
         ('model',   'scaling_overwrite',    None,           'energy_factor',    1.,     ('factor applied in the scaling of the energy [-]', None),'t'),
 
-        ('model',  'jit_code_gen',  None, 'include',                    False,                  ('generate code with jit for model functions'),'t'),
-        ('model',  'jit_code_gen',  None, 'compiler',                   'clang',                ('compiler for generated code'),'t'),
+        ('model',   'construction', 'jit_code_gen',     'include',      False,                  ('generate code with jit for model functions'),'t'),
+        ('model',   'construction', 'jit_code_gen',     'compiler',     'clang',                ('compiler for generated code'),'t'),
+        ('model',   'construction', 'parallelization',  'type',         'thread',               ('parallellization type', ['serial', 'openmp', 'thread']), 't'),
 
         ('params',   None,          None, 'kappa_r',                    1.,                     ('baumgarte stabilization constant for dcm dynamics', None),'x'),
 
@@ -286,7 +287,8 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_stop',       0.9,                    ('stop of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
-        ('nlp',  'parallelization',  None, 'type',                 'openmp',               ('parallellization type', None),'t'),
+        ('nlp',  'parallelization',  None, 'type',                 'thread',               ('parallellization type', ['serial', 'openmp', 'thread']),'t'),
+        ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
         ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),

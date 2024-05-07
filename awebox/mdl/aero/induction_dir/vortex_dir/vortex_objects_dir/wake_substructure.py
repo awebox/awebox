@@ -104,7 +104,7 @@ class WakeSubstructure():
 
                 elif degree_of_induced_velocity_lifting == 2:
                     all = self.get_list(element_type).evaluate_biot_savart_induction_residual_for_all_elements(x_obs, vec_u_ind_list, degree_of_induced_velocity_lifting)
-                    mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all])
+                    mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun', [x_obs, vec_u_ind_list], [all], {"allow_free": True})
 
                 elif degree_of_induced_velocity_lifting == 3:
                     vec_u_ind_num_list = cas.SX.sym('vec_u_ind_num_list', (3, number_of_elements))
@@ -115,7 +115,7 @@ class WakeSubstructure():
                                                                                                                vec_u_ind_den_list,
                                                                                                                degree_of_induced_velocity_lifting)
                     mapped_biot_savart_residual_fun = cas.Function('mapped_biot_savart_residual_fun',
-                                                                   [x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list], [all])
+                                                                   [x_obs, vec_u_ind_list, vec_u_ind_num_list, vec_u_ind_den_list], [all], {"allow_free": True})
 
                 self.set_mapped_biot_savart_residual_fun(element_type, mapped_biot_savart_residual_fun)
 

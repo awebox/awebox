@@ -602,6 +602,9 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
 
     # todo: ensure that system bounds don't get enforced when actuator is only comparison against vortex model
 
+    message = 'current problem tunings may not be optimally set for actuator-model induction problems. the fix is currently in progress! please stay tuned for the update!'
+    print_op.base_print(message, level='warning')
+
     user_options = options['user_options']
 
     actuator_symmetry = options['model']['aero']['actuator']['symmetry']

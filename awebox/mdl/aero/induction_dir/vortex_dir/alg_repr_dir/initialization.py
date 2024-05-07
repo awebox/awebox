@@ -218,8 +218,9 @@ def make_induced_velocities_functions(model, nlp):
                     else:
                         concat_fun = cas.Function(separate_type + '_fun', [inputs_sym], [local_concat])
 
-                    map_on_control_nodes = concat_fun.map(count_z_length_on_controls(model, nlp), 'openmp')
-                    map_on_collocation_nodes = concat_fun.map(nlp.n_k * nlp.d, 'openmp')
+                    parallelization_type = model.options['construction']['parallelization']['type']
+                    map_on_control_nodes = concat_fun.map(count_z_length_on_controls(model, nlp), parallelization_type)
+                    map_on_collocation_nodes = concat_fun.map(nlp.n_k * nlp.d, parallelization_type)
                     function_dict[substructure_type][element_type][elem][
                         separate_type + '_map_on_control_nodes'] = map_on_control_nodes
                     function_dict[substructure_type][element_type][elem][

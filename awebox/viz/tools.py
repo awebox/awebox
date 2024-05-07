@@ -26,9 +26,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-
-import pdb
-
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op

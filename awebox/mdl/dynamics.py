@@ -102,7 +102,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
         cstr_list.append(tether_force_cstr)
 
     # induction constraint
-    if options['induction_model'] is 'not_in_use':
+    if options['induction_model'] == 'not_in_use':
         pass
     else:
         induction_cstr = induction.get_model_constraints(options, wake, scaling, atmos, wind, system_variables, parameters, outputs, architecture)
@@ -264,8 +264,8 @@ def manage_alongside_integration(model_options, derivative_dict, system_variable
     integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
 
     # dynamics function options
-    if model_options['jit_code_gen']['include']:
-        opts = {'jit': True, 'compiler': model_options['jit_code_gen']['compiler']}
+    if model_options['construction']['jit_code_gen']['include']:
+        opts = {'jit': True, 'compiler': model_options['construction']['jit_code_gen']['compiler']}
     else:
         opts = {}
 

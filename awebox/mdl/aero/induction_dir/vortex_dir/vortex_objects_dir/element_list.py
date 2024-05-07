@@ -365,7 +365,7 @@ class ElementList():
             print_op.log_and_raise_error(message)
 
 
-    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), variables_scaled=None, parameters=None):
+    def evaluate_biot_savart_induction_for_all_elements(self, x_obs=cas.DM.zeros(3, 1), parallelization_type='thread'):
 
         if self.concatenated_biot_savart_fun is None:
             self.define_biot_savart_induction_function()
@@ -374,7 +374,7 @@ class ElementList():
         concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
 
         number_of_elements = self.number_of_elements
-        concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, 'openmp')
+        concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, parallelization_type)
         all = concatenated_biot_savart_map(concatenated_list)
 
         return all
@@ -399,7 +399,7 @@ class ElementList():
                 concatenated_list = self.get_concatenated_list_concatenated_with_numerator_and_denominator_info(concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list)
 
             number_of_elements = self.number_of_elements
-            concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'openmp')
+            concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'thread')
             all = concatenated_biot_savart_residual_map(concatenated_list)
 
         return all

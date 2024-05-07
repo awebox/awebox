@@ -738,16 +738,6 @@ def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, va
     u_normalizing = vect_op.smooth_norm(u_vec)
     return u_normalizing
 
-def evaluate_symbolic_on_segments_and_sum(filament_fun, segment_list):
-
-    n_filaments = segment_list.shape[1]
-    filament_map = filament_fun.map(n_filaments, 'openmp')
-    all_eval = filament_map(segment_list)
-
-    total = cas.sum2(all_eval)
-
-    return total
-
 
 def get_epsilon(options, parameters):
     c_ref = parameters['theta0', 'geometry', 'c_ref']

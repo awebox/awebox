@@ -190,11 +190,11 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('nlp', 'system_model', None, 'kite_dof', user_options['system_model']['kite_dof'], ('???', None),'x'))
 
-    options_tree.append(('nlp', 'jit_code_gen', None, 'include', options['model']['jit_code_gen']['include'],  ('????', None),'x'))
-    options_tree.append(('nlp', 'jit_code_gen', None, 'compiler', options['model']['jit_code_gen']['compiler'], ('????', None), 'x'))
+    options_tree.append(('nlp', 'construction', 'jit_code_gen', 'include', options['model']['construction']['jit_code_gen']['include'],  ('????', None),'x'))
+    options_tree.append(('nlp', 'construction', 'jit_code_gen', 'compiler', options['model']['construction']['jit_code_gen']['compiler'], ('????', None), 'x'))
 
-    options_tree.append(('solver', 'jit_code_gen', None, 'include', options['model']['jit_code_gen']['include'],  ('????', None),'x'))
-    options_tree.append(('solver', 'jit_code_gen', None, 'compiler', options['model']['jit_code_gen']['compiler'], ('????', None), 'x'))
+    options_tree.append(('solver', 'construction', 'jit_code_gen', 'include', options['model']['construction']['jit_code_gen']['include'],  ('????', None),'x'))
+    options_tree.append(('solver', 'construction', 'jit_code_gen', 'compiler', options['model']['construction']['jit_code_gen']['compiler'], ('????', None), 'x'))
 
      # integrator options
     if options['nlp']['integrator']['jit_overwrite'] is not None:

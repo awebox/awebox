@@ -155,7 +155,7 @@ def generate_optimal_model(trial, param_options=None):
     u_reg = reg_costs_fun(var, refs, weights)[2]
     beta_reg = 0.0
     for kite in trial.model.architecture.kite_nodes:
-        beta_sq = trial.model.outputs(trial.model.outputs_fun(variables, parameters))['aerodynamics', 'beta{}'.format(kite)]**2
+        beta_sq = trial.model.outputs(trial.model.outputs_fun(var, trial.model.parameters))['aerodynamics', 'beta{}'.format(kite)]**2
         beta_reg += trial.optimization.p_fix_num['cost', 'beta']*beta_sq / trial.options['nlp']['cost']['normalization']['beta']
     if not 'e' in trial.model.variables_dict['x'].keys():
         power = trial.model.integral_outputs_fun(var, trial.model.parameters)

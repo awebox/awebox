@@ -57,7 +57,7 @@ def get_uapp(q_upper, q_lower, dq_upper, dq_lower, wind):
 
     return ua
 
-def get_element_drag_fun(wind, atmos, cd_tether_fun):
+def get_element_drag_fun(wind, atmos, cd_tether_fun, parameters):
 
     info_sym = cas.SX.sym('info_sym', (13, 1))
 
@@ -84,12 +84,12 @@ def get_element_drag_fun(wind, atmos, cd_tether_fun):
     length_perp_to_wind = vect_op.smooth_sqrt(length_sq - length_parallel_to_wind**2., epsilon**2.)
 
     re_number = reynolds.get_reynolds_number(atmos, ua, diam, q_upper, q_lower)
-    cd = cd_tether_fun(re_number)
+    cd = cd_tether_fun(re_number, parameters)
 
     density = atmos.get_density(zz)
     drag = cd * 0.5 * density * ua_norm * diam * length_perp_to_wind * ua
 
-    element_drag_fun = cas.Function('element_drag_fun', [info_sym], [drag])
+    element_drag_fun = cas.Function('element_drag_fun', [info_sym, parameters], [drag])
 
     return element_drag_fun
 

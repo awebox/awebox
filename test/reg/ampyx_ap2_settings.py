@@ -5,7 +5,6 @@ import awebox as awe
 import numpy as np
 import casadi as ca
 
-
 def set_ampyx_ap2_settings(options):
 
     # 6DOF Ampyx Ap2 model

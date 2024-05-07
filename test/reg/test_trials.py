@@ -33,68 +33,124 @@ awelogger.logger.setLevel(10)
 logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
 
-def test_single_kite(final_homotopy_step='final'):
-    trial_name = 'single_kite_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
-    return None
-
-
+# 1
 def test_single_kite_basic_health(final_homotopy_step='final'):
     trial_name = 'single_kite_basic_health_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
-def test_single_kite_6_dof(final_homotopy_step='final'):
-    trial_name = 'single_kite_6_dof_trial'
+# 2
+def test_single_kite(final_homotopy_step='final'):
+    trial_name = 'single_kite_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
+# 3
 def test_single_kite_6_dof_basic_health(final_homotopy_step='final'):
     trial_name = 'single_kite_6_dof_basic_health_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
+# 4
+def test_single_kite_6_dof(final_homotopy_step='final'):
+    trial_name = 'single_kite_6_dof_trial'
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    return None
+
+
+# 5
 def test_poly(final_homotopy_step='final'):
     trial_name = 'poly_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
+# 6
 def test_drag_mode():
     trial_name = 'drag_mode_trial'
     run_a_solve_and_check_test(trial_name)
     return None
 
 
+# 7
 def test_save_trial():
     trial_name = 'save_trial'
     run_a_solve_and_check_test(trial_name)
     return None
 
 
+# 8
 def test_dual_kite(final_homotopy_step='final'):
     trial_name = 'dual_kite_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
+
+# 9
 def test_dual_kite_basic_health(final_homotopy_step='final'):
     trial_name = 'dual_kite_basic_health_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
+# 10
 def test_dual_kite_6_dof(final_homotopy_step='final'):
     trial_name = 'dual_kite_6_dof_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
+# 11
 def test_dual_kite_6_dof_basic_health(final_homotopy_step='final'):
     trial_name = 'dual_kite_6_dof_basic_health_trial'
     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    return None
+
+
+# 12
+def test_dual_kite_tracking():
+    trial_name = 'dual_kite_tracking_trial'
+    run_a_solve_and_check_test(trial_name)
+    return None
+
+
+# 13
+def test_dual_kite_tracking_winch():
+    trial_name = 'dual_kite_tracking_winch_trial'
+    run_a_solve_and_check_test(trial_name)
+    return None
+
+
+# 14
+def test_vortex_force_zero_basic_health(final_homotopy_step='final'):
+    trial_name = 'vortex_force_zero_basic_health_trial'
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    return None
+
+
+# 15
+def test_vortex_force_zero(final_homotopy_step='final'):
+    trial_name = 'vortex_force_zero_trial'
+    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    return None
+
+
+# 16
+def test_vortex_basic_health(final_homotopy_step='final'):
+    options_dict = generate_options_dict()
+    trial_name = 'vortex_basic_health_trial'
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
+    return None
+
+
+# 17
+def test_vortex(final_homotopy_step='final'):
+    options_dict = generate_options_dict()
+    trial_name = 'vortex_trial'
+    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
     return None
 
 
@@ -145,43 +201,6 @@ def test_dual_kite_6_dof_basic_health(final_homotopy_step='final'):
 #     return None
 
 
-def test_dual_kite_tracking():
-    trial_name = 'dual_kite_tracking_trial'
-    run_a_solve_and_check_test(trial_name)
-    return None
-
-
-def test_dual_kite_tracking_winch():
-    trial_name = 'dual_kite_tracking_winch_trial'
-    run_a_solve_and_check_test(trial_name)
-    return None
-
-
-def test_vortex_force_zero(final_homotopy_step='final'):
-    trial_name = 'vortex_force_zero_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
-    return None
-
-
-def test_vortex_force_zero_basic_health(final_homotopy_step='final'):
-    trial_name = 'vortex_force_zero_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
-    return None
-
-
-def test_vortex(final_homotopy_step='final'):
-    options_dict = generate_options_dict()
-    trial_name = 'vortex_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
-    return None
-
-
-
-def test_vortex_basic_health(final_homotopy_step='final'):
-    options_dict = generate_options_dict()
-    trial_name = 'vortex_basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
-    return None
 
 
 def make_basic_health_variant(base_options):
@@ -277,6 +296,7 @@ def generate_options_dict():
     dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
     dual_kite_6_dof_options['nlp.collocation.u_param'] = 'zoh'
 
+
     dual_kite_6_dof_basic_health_options = make_basic_health_variant(dual_kite_6_dof_options)
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
@@ -298,7 +318,6 @@ def generate_options_dict():
 
 
     actuator_qaxi_options = copy.deepcopy(dual_kite_6_dof_options)
-    actuator_qaxi_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1} #, 4: 1}
     actuator_qaxi_options['user_options.kite_standard'] = ampyx_data.data_dict()
     actuator_qaxi_options['user_options.induction_model'] = 'actuator'
     actuator_qaxi_options['model.aero.actuator.steadyness'] = 'quasi-steady'
@@ -308,13 +327,13 @@ def generate_options_dict():
     actuator_qaxi_options['model.system_bounds.theta.a'] = [-0., 0.5]
     # actuator_qaxi_options['model.aero.actuator.normal_vector_model'] = 'least_squares'
 
-    actuator_qaxi_options['solver.cost.gamma.1'] = 1.e2  # 1e3 fictitious problem by 1e-1
-    actuator_qaxi_options['solver.cost.psi.1'] = 1.e2  # 1e4 power problem scaled by 1e-2
-    # actuator_qaxi_options['solver.cost.theta_regularisation.0'] = 1.e0
-    actuator_qaxi_options['solver.cost.iota.1'] = 1.e2  # 1e3 induction problem scaled by 1e-1
-    # actuator_qaxi_options['solver.max_iter'] = 90
-    # actuator_qaxi_options['solver.max_iter_hippo'] = 90
-    actuator_qaxi_options['solver.cost_factor.power'] = 1e5  # 1e4 -> high reg in final step
+    # actuator_qaxi_options['solver.cost.gamma.1'] = 1.e2  # 1e3 fictitious problem by 1e-1
+    # actuator_qaxi_options['solver.cost.psi.1'] = 1.e2  # 1e4 power problem scaled by 1e-2
+    # # actuator_qaxi_options['solver.cost.theta_regularisation.0'] = 1.e0
+    # actuator_qaxi_options['solver.cost.iota.1'] = 1.e2  # 1e3 induction problem scaled by 1e-1
+    # # actuator_qaxi_options['solver.max_iter'] = 90
+    # # actuator_qaxi_options['solver.max_iter_hippo'] = 90
+    # actuator_qaxi_options['solver.cost_factor.power'] = 1e5  # 1e4 -> high reg in final step
 
     # actuator_qaxi_options['solver.cost.theta_regularisation.0'] = 1.e-1
     actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 3
@@ -482,6 +501,12 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # test_dual_kite()
 # test_dual_kite_6_dof_basic_health()
 # test_dual_kite_6_dof()
+# test_dual_kite_tracking()
+# test_dual_kite_tracking_winch()
+# test_vortex_force_zero_basic_health()
+# test_vortex_force_zero()
+# test_vortex_basic_health()
+# test_vortex()
 # # test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
 # # test_large_dual_kite() << ?
 # # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
@@ -490,9 +515,3 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 # # test_actuator_uaxi()
 # # test_actuator_uasym()
 # # test_actuator_comparison()
-# test_vortex_force_zero_basic_health()
-# test_vortex_force_zero()
-# test_vortex_basic_health()
-# test_vortex()
-# test_dual_kite_tracking()
-# test_dual_kite_tracking_winch()
