@@ -151,6 +151,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=(2, 1)))
 
+
     # Constraints structure
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 

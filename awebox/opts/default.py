@@ -172,7 +172,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'cd',                   1.,         ('drag coefficient [-]', None),'s'),
         ('params',  'tether', None,         'f_max',                5.,         ('max. reel-out factor [-]', None),'s'),
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
-        ('params',  'tether', None,         'stress_safety_factor', 10.,        ('tether stress safety factor [-]', None),'x'),
+        ('params',  'tether', None,         'stress_safety_factor', 1.5,        ('tether stress safety factor [-]', None),'x'),
         ('params',  'tether', None,         'youngs_modulus',       1.e11,      ('the ratio of stress over strain in elastic deformation [Pa/fractional-elongation]', None), 'x'),
         ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']), 'x'),
         ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),

@@ -84,11 +84,9 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
-
                 if nlp_options['phase_fix'] == 'single_reelout':
                     vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
-
-                if nlp_options['phase_fix'] == 'simple':
+                else: # lift-mode with 'simple' phase_fix or drag-mode
                     vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
                     vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']
             else:

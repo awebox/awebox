@@ -738,7 +738,8 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         max_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][1]
 
         maximum_allowed_stress = parameters['theta0', 'tether', 'max_stress'] / parameters['theta0', 'tether', 'stress_safety_factor']
-        max_tension_from_stress = maximum_allowed_stress * max_area
+        print_op.warn_about_temporary_functionality_alteration()
+        characteristic_tension = vect_op.smooth_abs(scaling['z', 'lambda' + node_label] * seg_props['scaling_length'])
 
         # outputs related to the constraints themselves
         tether_constraint_includes = options['model_bounds']['tether']['tether_constraint_includes']
@@ -747,11 +748,12 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
             # stress_max = max_tension_from_stress / A_max
             # (tension / A) < stress_max
-            # tension / A < max_tension_from_stress / Amax
-            # tension / max_tension_from_stress < A / Amax
-            # tension / max_tension_from_stress - A / Amax < 0
-            stress_inequality_untightened = tension / max_tension_from_stress - cross_section_area / max_area
-            stress_inequality = stress_inequality_untightened * tightness
+            print_op.warn_about_temporary_functionality_alteration()
+            # tension < A * stress_max
+            # tension - A * stress_max < 0
+            # (tension - A * stress_max) / characteristic_tension < 0
+            stress_inequality_untightened = tension - cross_section_area * maximum_allowed_stress
+            stress_inequality = stress_inequality_untightened / characteristic_tension * tightness
 
             stress_cstr = cstr_op.Constraint(expr=stress_inequality,
                                            name='tether_stress' + node_label,

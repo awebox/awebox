@@ -601,9 +601,9 @@ def build_induction_options(options, help_options, options_tree, fixed_params, a
 def build_actuator_options(options, options_tree, fixed_params, architecture):
 
     # todo: ensure that system bounds don't get enforced when actuator is only comparison against vortex model
-
-    message = 'current problem tunings may not be optimally set for actuator-model induction problems. the fix is currently in progress! please stay tuned for the update!'
-    print_op.base_print(message, level='warning')
+    if 'actuator' in options['user_options']['induction_model']:
+        message = 'current problem tunings may not be optimally set for actuator-model induction problems. the fix is currently in progress! please stay tuned for the update!'
+        print_op.base_print(message, level='warning')
 
     user_options = options['user_options']
 
@@ -1323,7 +1323,9 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
 
     available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_force_summation, tension_estimate_via_min_force]
-    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    print_op.warn_about_temporary_functionality_alteration()
+    # tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    tension_estimate = tension_estimate_via_force_summation
 
     multiplier = tension_estimate / length
 
