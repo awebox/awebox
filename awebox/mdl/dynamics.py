@@ -730,7 +730,6 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=node)
         seg_length = seg_props['seg_length']
         cross_section_area = seg_props['cross_section_area']
-        max_area = seg_props['max_area']
 
         tension = z['lambda' + node_label] * seg_length
 
@@ -738,7 +737,6 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
         max_tension = parameters['theta0', 'model_bounds', 'tether_force_limits'][1]
 
         maximum_allowed_stress = parameters['theta0', 'tether', 'max_stress'] / parameters['theta0', 'tether', 'stress_safety_factor']
-        print_op.warn_about_temporary_functionality_alteration()
         characteristic_tension = vect_op.smooth_abs(scaling['z', 'lambda' + node_label] * seg_props['scaling_length'])
 
         # outputs related to the constraints themselves
@@ -748,7 +746,6 @@ def tether_stress_inequality(options, variables_si, outputs, parameters, archite
 
             # stress_max = max_tension_from_stress / A_max
             # (tension / A) < stress_max
-            print_op.warn_about_temporary_functionality_alteration()
             # tension < A * stress_max
             # tension - A * stress_max < 0
             # (tension - A * stress_max) / characteristic_tension < 0

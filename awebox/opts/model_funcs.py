@@ -1323,9 +1323,7 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
 
     available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_force_summation, tension_estimate_via_min_force]
-    print_op.warn_about_temporary_functionality_alteration()
-    # tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
-    tension_estimate = tension_estimate_via_force_summation
+    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     multiplier = tension_estimate / length
 
