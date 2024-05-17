@@ -30,6 +30,7 @@ python version 3.5 / casadi 3.4.5
     Jochem De Schutter, alu-fr 2018
 """
 import os.path
+import pdb
 
 import awebox.tools.vector_operations as vect_op
 import awebox.viz.tools as tools
@@ -147,7 +148,7 @@ def generate_optimal_model(trial, param_options=None):
     # create stage cost function
     import awebox.ocp.objective as obj
     import awebox.ocp.discretization as discr
-    reg_costs_fun, reg_costs_struct = obj.get_general_reg_costs_function(trial.model.variables, trial.nlp.V)
+    reg_costs_fun, reg_costs_struct = obj.get_general_reg_costs_function(trial.nlp.options, trial.model.variables, trial.nlp.V)
     weights = obj.get_regularization_weights(trial.model.variables, trial.optimization.p_fix_num, trial.options['nlp']).cat
     refs = struct_op.get_variables_at_time(trial.options['nlp'], trial.nlp.V(trial.optimization.p_fix_num['p','ref']), trial.nlp.Xdot(0.0), trial.model.variables, 0, 0)
     var = trial.model.variables
@@ -211,33 +212,32 @@ def generate_var_bounds_fun(model):
 
             for var in list(model.variables_dict[var_type].keys()):
 
-                var_array = (type(var_bounds[var_type][var]['ub']) == np.ndarray)
-                if var_array:
-                    for i in range(var_bounds[var_type][var]['ub'].shape[0]):
+                variables_sym = model.variables[var_type, var]
+                upper_bounds = vect_op.columnize(var_bounds[var_type][var]['ub'])
+                lower_bounds = vect_op.columnize(var_bounds[var_type][var]['lb'])
 
-                        if var_bounds[var_type][var]['ub'][i] != np.inf:
-                            var_constraints.append(
-                                model.variables[var_type, var, i] - var_bounds[var_type][var]['ub'][i]
-                            )
-                            var_constr_str.append(var_type + ' ' + var + ' ' + str(i) + ' ub')
+                if (upper_bounds.shape != variables_sym.shape) and vect_op.is_numeric_scalar(upper_bounds):
+                    upper_bounds = upper_bounds * cas.DM.ones(variables_sym.shape)
+                if (lower_bounds.shape != variables_sym.shape) and vect_op.is_numeric_scalar(lower_bounds):
+                    lower_bounds = lower_bounds * cas.DM.ones(variables_sym.shape)
+                if (upper_bounds.shape != lower_bounds.shape) or (upper_bounds.shape != variables_sym.shape) or (lower_bounds.shape != variables_sym.shape):
+                    message = 'something went wrong with the dimension of the variable '
+                    message += 'bounds for ' + var_type + ' variable ' + var + ' with shape ' + str(variables_sym.shape) + '. '
+                    message += 'ub shape is ' + str(upper_bounds.shape) + ', while lb shape is ' + str(lower_bounds.shape)
+                    print_op.log_and_raise_error(message)
 
-                        if var_bounds[var_type][var]['lb'][i] != -np.inf:
-                            var_constraints.append(
-                                - model.variables[var_type, var, i] + var_bounds[var_type][var]['lb'][i]
-                            )
-                            var_constr_str.append(var_type + ' ' + var + ' ' + str(i) + ' lb')
-                else:
-                    if var_bounds[var_type][var]['ub'] != np.inf:
+                for dim in range(variables_sym.shape[0]):
+                    if upper_bounds[dim] != np.inf:
                         var_constraints.append(
-                            model.variables[var_type, var] - var_bounds[var_type][var]['ub']
+                            model.variables[var_type, var, dim] - upper_bounds[dim]
                         )
-                        var_constr_str.append(var_type + ' ' + var + ' ' + str(0) + ' ub')
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(dim) + ' ub')
 
-                    if var_bounds[var_type][var]['lb'] != -np.inf:
+                    if lower_bounds[dim] != -np.inf:
                         var_constraints.append(
-                            - model.variables[var_type, var] + var_bounds[var_type][var]['lb']
+                            - model.variables[var_type, var, dim] + lower_bounds[dim]
                         )
-                        var_constr_str.append(var_type + ' ' + var + ' ' + str(0) + ' lb')
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(dim) + ' lb')
 
     var_bounds_fun = cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
     return [var_bounds_fun, var_constr_str]

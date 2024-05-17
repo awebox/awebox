@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 - edit, rachel leuthold 2018-21
 '''
 import copy
+import datetime
 import pdb
 
 import matplotlib
@@ -40,13 +41,14 @@ import numpy as np
 import numpy.ma as ma
 import scipy.linalg as scila
 import resource
+import datetime as datetime
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 from awebox.logger.logger import Logger as awelogger
 
-def health_check(health_solver_options, nlp, model, solution, arg, stats, iterations, step_name, cumulative_max_memory):
+def health_check(trial_name, solver_options, nlp, model, solution, arg, stats, iterations, step_name, cumulative_max_memory):
 
     awelogger.logger.info('Checking health...')
 
@@ -56,6 +58,7 @@ def health_check(health_solver_options, nlp, model, solution, arg, stats, iterat
     V_opt = nlp.V(solution['x'])
     p_fix_num = nlp.P(arg['p'])
 
+    health_solver_options = solver_options['health_check']
     cstr_fun, lam_fun, cstr_labels = collect_equality_and_active_inequality_constraints(health_solver_options, nlp, solution, arg)
 
     cstr_jacobian_eval = get_jacobian_of_eq_and_active_ineq_constraints(nlp, solution, arg, cstr_fun)
@@ -74,7 +77,7 @@ def health_check(health_solver_options, nlp, model, solution, arg, stats, iterat
         vect_op.spy(np.absolute(np.array(reduced_hessian)), title='Reduced Hessian')
         plt.show()
 
-    tractability = collect_tractability_indicators(step_name, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory)
+    tractability = collect_tractability_indicators(trial_name, step_name, solver_options, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory)
 
     if health_solver_options['save_health_indicators']:
         filename = health_solver_options['filename_identifier'].strip()
@@ -163,14 +166,23 @@ def get_nonzeros_as_strings(matrix, cdx, nlp):
 
     return repr(dict)
 
-def collect_tractability_indicators(step_name, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory):
+def collect_tractability_indicators(trial_name, step_name, solver_options, stats, iterations, nlp, model, kkt_matrix, reduced_hessian, local_cumulative_max_memory):
 
     awelogger.logger.info('collect tractability indicators...')
     tractability = {}
 
-    # todo: add autoscaling_triggered? indicator
+    # trial identification
+    tractability['trial_name'] = trial_name
+    datetime_now = datetime.datetime.now()
+    tractability['datetime_year'] = datetime_now.year
+    tractability['datetime_month'] = datetime_now.month
+    tractability['datetime_day'] = datetime_now.day
+    tractability['datetime_hour'] = datetime_now.hour
+    tractability['datetime_second'] = datetime_now.second
     tractability['step_name'] = step_name
 
+    tractability['autoscale'] = solver_options['ipopt']['autoscale']
+    # todo: find a way to determine this from ipopt output directly, just-in-case our autoscaling-block ever changes
     for stat_name in stats.keys():
         tractability['stats: ' + stat_name] = stats[stat_name]
 

@@ -55,6 +55,7 @@ def build_options_dict(options, help_options, architecture):
     options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
     options_tree = build_quality_options(options, options_tree)
     options_tree = build_visualization_options(options, options_tree)
+    options_tree = build_mpc_options(options, options_tree)
 
     # assemble all of the options into a complete options tree
     options, help_options = assemble_options_tree(options_tree, options, help_options)
@@ -336,6 +337,10 @@ def build_formulation_options(options, help_options, user_options, options_tree,
 
     return options_tree
 
+def build_mpc_options(options, options_tree):
+    ref_interpolator = options['mpc']['ref_interpolator']
+    options_tree.append(('mpc', 'interpolation', None, 'type', ref_interpolator, ('', None), 'x'))
+    return options_tree
 
 
 def make_fictitious_bounds_update(user_options, architecture):

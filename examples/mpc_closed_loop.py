@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 """
 MPC-based closed loop simulation example for a single 3DOF kite system.
+
+:author: Jochem De Schutter
+:edited: Rachel Leuthold
 """
 
 # imports
@@ -38,7 +41,7 @@ trial = awe.Trial(options, 'single_kite_lift_mode')
 trial.build()
 trial.optimize()
 trial.plot(['isometric'])
-plt.show()
+plt.show(block=False) # the block=False argument isn't strictly necessary for you, it's only here so that we can automatically run this example in the awebox's tests
 
 # set-up closed-loop simulation
 N_mpc = 10 # MPC horizon
@@ -72,4 +75,4 @@ options['sim.sys_params']['wind']['u_ref'] = 1.0*options['sim.sys_params']['wind
 closed_loop_sim = sim.Simulation(trial, 'closed_loop', ts, options)
 closed_loop_sim.run(N_sim)
 closed_loop_sim.plot(['isometric','states'])
-plt.show()
+plt.show(block=False) # the block=False argument isn't strictly necessary for you, it's only here so that we can automatically run this example in the awebox's tests

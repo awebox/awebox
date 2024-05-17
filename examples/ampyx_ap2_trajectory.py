@@ -107,4 +107,4 @@ plt.legend()
 plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
 plt.grid(True)
 
-plt.show()
+plt.show(block=False) # the block=False argument isn't strictly necessary for you, it's only here so that we can automatically run this example in the awebox's tests

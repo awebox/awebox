@@ -100,7 +100,7 @@ class Optimization(object):
 
         return None
 
-    def solve(self, options, nlp, model, formulation, visualization,
+    def solve(self, trial_name, options, nlp, model, formulation, visualization,
               final_homotopy_step='final', warmstart_file=None, debug_flags=[],
               debug_locations=[], intermediate_solve=False):
 
@@ -137,9 +137,9 @@ class Optimization(object):
             # solve the problem
             if make_steps:
                 if use_warmstart:
-                    self.solve_from_warmstart(nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization)
+                    self.solve_from_warmstart(trial_name, nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization)
                 else:
-                    self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
+                    self.solve_homotopy(trial_name, nlp, model, options, final_homotopy_step, visualization)
 
             else:
                 self.__generate_outputs_from_V(nlp, self.__V_init)
@@ -241,23 +241,25 @@ class Optimization(object):
         return None
 
 
-    def solve_from_warmstart(self, nlp, formulation, model, options, warmstart_file, final_homotopy_step, visualization):
+    def solve_from_warmstart(self, trial_name, nlp, formulation, model, solver_options, warmstart_file, final_homotopy_step, visualization):
 
         self.__solve_succeeded = True
 
         warmstart_trial = self.extract_warmstart_trial(warmstart_file)
         self.set_warmstart_args(warmstart_trial, nlp)
-        self.define_warmstart_schedule(final_homotopy_step, warmstart_trial, nlp, model)
+
+        self.define_homotopy_update_schedule(model, formulation, nlp, solver_options)
+        self.modify_schedule_for_warmstart(final_homotopy_step, warmstart_trial, nlp, model)
 
         # solve homotopy with warmstart
-        self.solve_homotopy(nlp, model, options, final_homotopy_step, visualization)
+        self.solve_homotopy(trial_name, nlp, model, solver_options, final_homotopy_step, visualization)
 
         awelogger.logger.info(print_op.hline('#'))
 
         return None
 
 
-    def solve_homotopy(self, nlp, model, options, final_homotopy_step, visualization):
+    def solve_homotopy(self, trial_name, nlp, model, options, final_homotopy_step, visualization):
 
         print_op.base_print('Proceeding into homotopy...', level='info')
 
@@ -278,7 +280,7 @@ class Optimization(object):
             if self.__solve_succeeded:
 
                 timer = time.time()
-                self.solve_specific_homotopy_step(step_name, final_homotopy_step, nlp, model, options, visualization)
+                self.solve_specific_homotopy_step(trial_name, step_name, final_homotopy_step, nlp, model, options, visualization)
                 self.update_runtime_info(timer, step_name)
 
         awelogger.logger.info(print_op.hline('#'))
@@ -297,21 +299,21 @@ class Optimization(object):
             return self.__solvers['middle']
 
 
-    def solve_specific_homotopy_step(self, step_name, final_homotopy_step, nlp, model, options, visualization):
+    def solve_specific_homotopy_step(self, trial_name, step_name, final_homotopy_step, nlp, model, options, visualization):
 
         local_solver = self.get_appropriate_solver_for_step(step_name)
 
         if (step_name == 'initial') or (step_name == 'final'):
-            self.solve_general_homotopy_step(step_name, final_homotopy_step, 0, options, nlp, model, local_solver, visualization)
+            self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, 0, options, nlp, model, local_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
             for homotopy_part in range(number_of_steps):
-                self.solve_general_homotopy_step(step_name, final_homotopy_step, homotopy_part, options, nlp, model, local_solver, visualization)
+                self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, homotopy_part, options, nlp, model, local_solver, visualization)
 
         return None
 
-    def solve_general_homotopy_step(self, step_name, final_homotopy_step, counter, options, nlp, model, solver, visualization):
+    def solve_general_homotopy_step(self, trial_name, step_name, final_homotopy_step, counter, solver_options, nlp, model, solver, visualization):
 
         if self.__solve_succeeded:
 
@@ -332,17 +334,17 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # find current homotopy parameter
-            if options['homotopy_method']['type'] == 'single':
+            if solver_options['homotopy_method']['type'] == 'single':
                 phi_name = 'middle'
-                options['homotopy_method']['middle'] = 'penalty'
+                solver_options['homotopy_method']['middle'] = 'penalty'
             else:
                 phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
             # solve
-            step_has_defined_method = phi_name in options['homotopy_method'].keys()
-            if (phi_name != None) and step_has_defined_method and (options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
-                if (options['homotopy_step'][phi_name] < 1.0):
-                    self.__perform_classic_continuation(step_name, phi_name, options, solver)
+            step_has_defined_method = phi_name in solver_options['homotopy_method'].keys()
+            if (phi_name != None) and step_has_defined_method and (solver_options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
+                if (solver_options['homotopy_step'][phi_name] < 1.0):
+                    self.__perform_classic_continuation(step_name, phi_name, solver_options, solver)
 
             else:
                 print_op.base_print('Calling the solver...', level='info')
@@ -356,7 +358,7 @@ class Optimization(object):
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
 
-            problem_is_healthy_or_unchecked = diagnostics.health_check(step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, options, self.__stats, self.__iterations, self.__cumulative_max_memory)
+            problem_is_healthy_or_unchecked = diagnostics.health_check(trial_name, step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, solver_options, self.__stats, self.__iterations, self.__cumulative_max_memory)
             if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
                 self.__solve_succeeded = False
 
@@ -505,8 +507,8 @@ class Optimization(object):
 
     ### scheduling
 
-    def define_homotopy_update_schedule(self, model, formulation, nlp, cost_options):
-        self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, cost_options)
+    def define_homotopy_update_schedule(self, model, formulation, nlp, solver_options):
+        self.__schedule = scheduling.define_homotopy_update_schedule(model, formulation, nlp, solver_options)
         return None
 
     def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_trial, nlp, model):

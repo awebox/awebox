@@ -163,7 +163,7 @@ class Trial(object):
         awelogger.logger.info('')
 
 
-        self.__optimization.solve(options['solver'], self.__nlp, self.__model,
+        self.__optimization.solve(self.__name, options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
                                   final_homotopy_step, warmstart_file, debug_flags = debug_flags, debug_locations =
                                   debug_locations, intermediate_solve = intermediate_solve)

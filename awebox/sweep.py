@@ -161,7 +161,7 @@ class Sweep:
                     warmstart_file = single_trial.solution_dict
 
                     if single_trial.return_status_numeric < 3:
-                        single_trial.save(fn=prev_trial_save_name)
+                        single_trial.save(filename=prev_trial_save_name)
                         have_already_saved_prev_trial = True
 
                 single_trial.optimize(options_seed=param_options,
