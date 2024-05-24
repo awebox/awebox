@@ -213,20 +213,22 @@ def make_basic_health_variant(base_options):
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
 
-    basic_health_options['solver.health_check.when'] = 'always'
+    basic_health_options['solver.health_check.when'] = 'success'
+    basic_health_options['nlp.collocation.name_constraints'] = False
+    basic_health_options['solver.health_check.help_with_debugging'] = False
+
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
+    basic_health_options['solver.health_check.raise_exception'] = True
     basic_health_options['solver.initialization.check_reference'] = True
     basic_health_options['solver.initialization.check_feasibility.raise_exception'] = True
     basic_health_options['solver.max_iter'] = 300
     basic_health_options['solver.ipopt.autoscale'] = False
-    basic_health_options['solver.health_check.raise_exception'] = True
     basic_health_options['solver.health_check.spy_matrices'] = False
-    basic_health_options['nlp.collocation.name_constraints'] = False # << set this and the help_with_debugging to true, if anything fails the health check.
-    basic_health_options['solver.health_check.help_with_debugging'] = False
     basic_health_options['quality.when'] = 'never'
     basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
+
 
     return basic_health_options
 

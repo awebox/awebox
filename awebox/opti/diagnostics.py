@@ -79,18 +79,19 @@ def health_check(trial_name, step_name, final_homotopy_step, nlp, model, solutio
     solve_succeeded = stats['success']
 
     when = solver_options['health_check']['when']
-    allowed_whens = ['never', 'failure', 'final', 'always', 'failure_or_final']
+    allowed_whens = ['never', 'failure', 'success', 'final', 'always', 'failure_or_final']
 
     if when not in allowed_whens:
         message = 'health check specified to run ' + when + ', but this is not among the expected frequency names: ' + repr(allowed_whens)
         print_op.log_and_raise_error(message)
 
     should_make_autorun_check = (when == 'always')
+    should_make_success_check = (solve_succeeded) and (when == 'success')
     should_make_failure_check = (not solve_succeeded) and (when in ['failure', 'failure_or_final'])
     should_make_final_check = (when in ['final', 'failure_or_final']) and (step_name == final_homotopy_step)
     do_not_make_check = (when == 'never')
 
-    should_make_check = (not do_not_make_check) and (should_make_autorun_check or should_make_failure_check or should_make_final_check)
+    should_make_check = (not do_not_make_check) and (should_make_autorun_check or should_make_success_check or should_make_failure_check or should_make_final_check)
 
     if should_make_check:
         return debug_op.health_check(trial_name, solver_options, nlp, model, solution, arg, stats, iterations, step_name, cumulative_max_memory)

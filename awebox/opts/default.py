@@ -447,7 +447,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',    None,          None,        'save_format',    'dict',     ('trial save format', ['awe', 'dict']), 'x'),
 
         ### problem health diagnostics options
-        ('solver',  'health_check',     None,       'when',                     'never',  ('run a health-check never (never), after every homotopy step (always, CAUTION: VERY SLOW!), when a homotopy step fails (failure, caution: slow), at final solution (final, caution: slow), at either failure or final solution (failure_or_final, caution:slow)', ['never', 'always', 'failure', 'final', 'failure_or_final']), 'x'),
+        ('solver',  'health_check',     None,       'when',                     'never',  ('run a health-check never (never), after every homotopy step (always, CAUTION: VERY SLOW!), when a homotopy step succeeds (success, CAUTION: VERY SLOW!), when a homotopy step fails (failure, caution: slow), at final solution (final, caution: slow), at either failure or final solution (failure_or_final, caution:slow)', ['never', 'always', 'success', 'failure', 'final', 'failure_or_final']), 'x'),
         ('solver',  'health_check',     'thresh',   'active',                   1e0,    ('threshold for a constraint to be considered active (smallest ratio between lambda and g). should be larger than 1', None), 'x'),
         ('solver',  'health_check',     'thresh',   'weak',                     1e-6,   ('threshold for a constraint to be considered weakly active (abs[lambda] < threshold. should be small and positive', None), 'x'),
         ('solver',  'health_check',     'thresh',   'reduced_hessian_eig',      1e-8,   ('minimum value of eigenvalues of the reduced hessian, allowed for positive-definiteness', None), 'x'),
