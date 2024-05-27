@@ -77,7 +77,7 @@ class Quality(object):
 
         return None
 
-    def run_tests(self, trial):
+    def run_tests(self, trial, final_homotopy_step='final'):
 
         # prepare relevant inputs
         self.get_test_inputs(trial)
@@ -87,7 +87,7 @@ class Quality(object):
         test_param_dict = self.__test_param_dict
 
         # run tests
-        results = quality_funcs.test_opti_success(trial, test_param_dict, results)
+        results = quality_funcs.test_opti_success(trial, test_param_dict, results, final_homotopy_step=final_homotopy_step)
         results = quality_funcs.test_numerics(trial, test_param_dict, results)
         results = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values)
         results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
@@ -98,9 +98,9 @@ class Quality(object):
         # save test results
         self.__results = results
 
-    def check_quality(self, trial):
+    def check_quality(self, trial, final_homotopy_step='final'):
     
-        self.run_tests(trial)
+        self.run_tests(trial, final_homotopy_step=final_homotopy_step)
         self.__interpret_test_results()
 
     def __interpret_test_results(self):

@@ -185,7 +185,7 @@ class Trial(object):
         # perform quality check
         if not intermediate_solve:
             if (self.__options['quality']['when'] == 'final') or (self.__options['quality']['when'] == 'final_success' and self.__optimization.solve_succeeded):
-                self.__quality.check_quality(self)
+                self.__quality.check_quality(self, final_homotopy_step=final_homotopy_step)
             else:
                 message = 'final solution quality was not checked!'
                 print_op.base_print(message, level='warning')

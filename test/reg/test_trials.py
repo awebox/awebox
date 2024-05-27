@@ -229,7 +229,6 @@ def make_basic_health_variant(base_options):
     basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
 
-
     return basic_health_options
 
 

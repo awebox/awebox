@@ -37,13 +37,17 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 
-def test_opti_success(trial, test_param_dict, results):
+def test_opti_success(trial, test_param_dict, results, final_homotopy_step='final'):
     """
     Test whether optimization was successful
     :return: results
     """
 
-    results['solve_succeeded'] = trial.optimization.solve_succeeded
+    at_final_step = (trial.optimization.get_current_step() == final_homotopy_step)
+    last_homotopy_step_succeeded = trial.optimization.solve_succeeded
+    opti_success = at_final_step and last_homotopy_step_succeeded
+
+    results['opti_success'] = opti_success
 
     return results
 
