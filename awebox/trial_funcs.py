@@ -29,17 +29,34 @@ python version 3.5 / casadi 3.4.5
     Thilo Bronnenmeyer, kiteswarms 2018
     Jochem De Schutter, alu-fr 2018
 """
+import os.path
+import pdb
 
-import csv
-import collections
 import awebox.tools.vector_operations as vect_op
 import awebox.viz.tools as tools
 import casadi.tools as cas
 import numpy as np
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.save_operations as save_op
 
-def generate_trial_data_csv(trial, name, freq, rotation_representation):
+
+def is_possibly_an_already_loaded_seed(loaded_dict):
+
+    loaded_dict_is_a_dict = isinstance(loaded_dict, dict)
+    if not loaded_dict_is_a_dict:
+        return False
+
+    contains_expected = ('plot_dict' in loaded_dict.keys()) and ('solution_dict' in loaded_dict.keys())
+    if not contains_expected:
+        return False
+
+    return True
+
+
+
+def generate_trial_data_and_write_to_csv(trial, filename, freq, rotation_representation):
     """
     Generate an output .csv file containing all information from the trial
     :param trial: trial whose data is to be stored in the .csv
@@ -47,62 +64,11 @@ def generate_trial_data_csv(trial, name, freq, rotation_representation):
     :param freq: sampling frequency for output
     :return: None
     """
-
-    # get dictionaries
-    plot_dict = interpolate_data(trial, freq)
-    write_csv_dict = init_write_csv_dict(plot_dict)
-
-    # write into .csv
-    with open(name + '.csv', 'w') as point_cloud:
-        pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
-        pcdw.writeheader()
-        for k in range(plot_dict['time_grids']['ip'].shape[0]):
-            write_data_row(pcdw, plot_dict, write_csv_dict, plot_dict['time_grids']['ip'], k, rotation_representation)
-
+    data_dict = interpolate_data(trial, freq)
+    data_dict['architecture'] = trial.model.architecture
+    data_dict['options'] = trial.options
+    save_op.write_csv_data(data_dict=data_dict, filename=filename, rotation_representation=rotation_representation)
     return None
-
-def init_write_csv_dict(plot_dict):
-    """
-    Initialize dictionary used to write into .csv
-    :param plot_dict: data dictionary containing all data for the .csv with the necessary structure
-    :return: Empty dictionary used to write into .csv
-    """
-
-    # initialize ordered dict
-    write_csv_dict = collections.OrderedDict()
-
-    # create empty entries corresponding to the structure of plot_dict
-    for variable_type in ['x', 'z', 'u', 'outputs']:
-        for variable in list(plot_dict[variable_type].keys()):
-
-            # check for sub_variables in case there are some
-            if type(plot_dict[variable_type][variable]) is dict:
-                for sub_variable in list(plot_dict[variable_type][variable].keys()):
-                    variable_length = len(plot_dict[variable_type][variable][sub_variable])
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = None
-
-            # continue without sub_variables in case there are none
-            else:
-                variable_length = len(plot_dict[variable_type][variable])
-                for index in range(variable_length):
-                    write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = None
-
-    # add time stamp
-    write_csv_dict['time'] = None
-
-    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
-        variable_length = plot_dict['variables']['theta', variable].shape[0]
-        for index in range(variable_length):
-            write_csv_dict['theta_' + variable + '_' + str(index)] = None
-
-    # add architecture information
-    write_csv_dict['nodes'] = None
-    write_csv_dict['parent'] = None
-    write_csv_dict['kites'] = None
-    write_csv_dict['cross_tether'] = None
-
-    return write_csv_dict
 
 def interpolate_data(trial, freq):
     """
@@ -112,107 +78,31 @@ def interpolate_data(trial, freq):
     :return: dictionary with trial data, interpolation time grid
     """
 
-    # extract info
-    tf = trial.optimization.V_final['theta', 't_f', 0]  # TODO: phase fix tf
+    tf = trial.optimization.V_final_si['theta', 't_f', 0]  # TODO: phase fix tf
+    n_points = int(freq * tf) # number of interpolating points
 
-    # number of interpolating points
-    N = int(freq * tf)
-
-    # recalibrate plot_dict
-    plot_dict = trial.visualization.plot_dict
-    V_plot = trial.optimization.V_opt
-    p_fix_num = trial.optimization.p_fix_num
-    output_vals = trial.optimization.output_vals
+    parametric_options = trial.options['visualization']['cosmetics']
     time_grids = trial.optimization.time_grids
-    integral_outputs_final = trial.optimization.integral_outputs_final
-    cost_fun = trial.nlp.cost_components[0]
-    cost = struct_op.evaluate_cost_dict(cost_fun, V_plot, p_fix_num)
-    name = trial.name
-    parametric_options = trial.options
-    V_ref = trial.optimization.V_ref
-    global_outputs = trial.optimization.global_outputs_opt
-    plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs, N=N)
+    variables_dict = trial.model.variables_dict
+    V_opt = trial.optimization.V_opt
+    outputs_dict = trial.model.outputs_dict
+    outputs_opt = trial.optimization.outputs_opt
+    integral_output_names = trial.model.integral_scaling.keys()
+    integral_outputs_opt = trial.optimization.integral_outputs_opt
 
-    return plot_dict
-
-
-def write_data_row(pcdw, plot_dict, write_csv_dict, tgrid_ip, k, rotation_representation):
-    """
-    Write one row of data into the .csv file
-    :param pcdw: dictWriter object
-    :param plot_dict: dictionary containing trial data
-    :param write_csv_dict: csv helper dict used to write the trial data into the .csv
-    :param k: time step in trajectory
-    :return: None
-    """
-
-    # loop over variables
-    for variable_type in ['x', 'z', 'u', 'outputs']:
-        for variable in list(plot_dict[variable_type].keys()):
-
-            # check whether sub_variables exist
-            if type(plot_dict[variable_type][variable]) == dict:
-                for sub_variable in list(plot_dict[variable_type][variable].keys()):
-                    var = plot_dict[variable_type][variable][sub_variable]
-                    variable_length = len(var)
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = str(var[index][k])
-
-            # continue if no sub_variables exist
-            else:
-
-                # convert rotations from dcm to euler
-                if variable[0] == 'r' and rotation_representation == 'euler':
-                    dcm = []
-                    for i in range(9):
-                        dcm = cas.vertcat(dcm, plot_dict[variable_type][variable][i][k])
-
-                    var = vect_op.rotation_matrix_to_euler_angles(cas.reshape(dcm, 3, 3))
-
-                    for index in range(3):
-                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index])
-                elif rotation_representation not in ['euler', 'dcm']:
-                    awelogger.logger.error('Error: Only euler angles and direct cosine matrix supported.')
-                else:
-                    var = plot_dict[variable_type][variable]
-                    variable_length = len(var)
-                    for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
-
-    write_csv_dict['time'] = tgrid_ip[k]
-
-    for variable in struct_op.subkeys(plot_dict['variables'], 'theta'):
-        V_plot = plot_dict['V_plot']
-        variable_length = V_plot['theta',variable].shape[0]
-        for index in range(variable_length):
-            if k == 0:
-                write_csv_dict['theta_' + variable + '_' + str(index)] = str(V_plot['theta', variable, index])
-            else:
-                write_csv_dict['theta_' + variable + '_' + str(index)] = None
-
-    parent_map = plot_dict['architecture'].parent_map
-    if k < plot_dict['architecture'].number_of_nodes-1:
-        node = list(parent_map.keys())[k]
-        write_csv_dict['nodes']  = str(node)
-        write_csv_dict['parent'] = str(parent_map[node])
-        if k < len(plot_dict['architecture'].kite_nodes):
-            write_csv_dict['kites']  = plot_dict['architecture'].kite_nodes[k]
-        else:
-            write_csv_dict['kites']  = None
+    if trial.options['nlp']['discretization'] == 'direct_collocation':
+        Collocation = trial.nlp.Collocation
     else:
-        write_csv_dict['nodes']  = None
-        write_csv_dict['parent'] = None
-        write_csv_dict['kites']  = None
+        Collocation = None
 
-    write_csv_dict['cross_tether'] = int(plot_dict['options']['user_options']['system_model']['cross_tether'])
+    interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt, outputs_dict,
+                                                   outputs_opt, trial.model.outputs, integral_output_names,
+                                                   integral_outputs_opt, Collocation=Collocation, timegrid_label='ip',
+                                                   n_points=n_points)
+    return interpolation
 
-    # write out sorted row
-    ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
-    pcdw.writerow(ordered_dict)
 
-    return None
-
-def generate_optimal_model(trial, param_options = None):
+def generate_optimal_model(trial, param_options=None):
 
     """
     Generate optimal model dict based on both optimized parameter values
@@ -258,7 +148,7 @@ def generate_optimal_model(trial, param_options = None):
     # create stage cost function
     import awebox.ocp.objective as obj
     import awebox.ocp.discretization as discr
-    reg_costs_fun, reg_costs_struct = obj.get_general_reg_costs_function(trial.model.variables, trial.nlp.V)
+    reg_costs_fun, reg_costs_struct = obj.get_general_reg_costs_function(trial.nlp.options, trial.model.variables, trial.nlp.V)
     weights = obj.get_regularization_weights(trial.model.variables, trial.optimization.p_fix_num, trial.options['nlp']).cat
     refs = struct_op.get_variables_at_time(trial.options['nlp'], trial.nlp.V(trial.optimization.p_fix_num['p','ref']), trial.nlp.Xdot(0.0), trial.model.variables, 0, 0)
     var = trial.model.variables
@@ -310,6 +200,7 @@ def generate_optimal_model(trial, param_options = None):
 
     return model
 
+
 def generate_var_bounds_fun(model):
 
     var_constraints = []
@@ -317,37 +208,36 @@ def generate_var_bounds_fun(model):
     var_bounds = model.variable_bounds
     for var_type in list(model.variables.keys()):
 
-        if var_type in ['x','u','z']:
+        if var_type in ['x', 'u', 'z']:
 
             for var in list(model.variables_dict[var_type].keys()):
 
-                var_array = (type(var_bounds[var_type][var]['ub']) == np.ndarray)
-                if var_array:
-                    for i in range(var_bounds[var_type][var]['ub'].shape[0]):
+                variables_sym = model.variables[var_type, var]
+                upper_bounds = vect_op.columnize(var_bounds[var_type][var]['ub'])
+                lower_bounds = vect_op.columnize(var_bounds[var_type][var]['lb'])
 
-                        if var_bounds[var_type][var]['ub'][i] != np.inf:
-                            var_constraints.append(
-                                model.variables[var_type,var,i] - var_bounds[var_type][var]['ub'][i]
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(i)+' ub')
+                if (upper_bounds.shape != variables_sym.shape) and vect_op.is_numeric_scalar(upper_bounds):
+                    upper_bounds = upper_bounds * cas.DM.ones(variables_sym.shape)
+                if (lower_bounds.shape != variables_sym.shape) and vect_op.is_numeric_scalar(lower_bounds):
+                    lower_bounds = lower_bounds * cas.DM.ones(variables_sym.shape)
+                if (upper_bounds.shape != lower_bounds.shape) or (upper_bounds.shape != variables_sym.shape) or (lower_bounds.shape != variables_sym.shape):
+                    message = 'something went wrong with the dimension of the variable '
+                    message += 'bounds for ' + var_type + ' variable ' + var + ' with shape ' + str(variables_sym.shape) + '. '
+                    message += 'ub shape is ' + str(upper_bounds.shape) + ', while lb shape is ' + str(lower_bounds.shape)
+                    print_op.log_and_raise_error(message)
 
-                        if var_bounds[var_type][var]['lb'][i] != -np.inf:
-                            var_constraints.append(
-                                - model.variables[var_type,var,i] + var_bounds[var_type][var]['lb'][i]
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(i)+' lb')
-                else:
-                        if var_bounds[var_type][var]['ub'] != np.inf:
-                            var_constraints.append(
-                                model.variables[var_type,var] - var_bounds[var_type][var]['ub']
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(0)+' ub')
+                for dim in range(variables_sym.shape[0]):
+                    if upper_bounds[dim] != np.inf:
+                        var_constraints.append(
+                            model.variables[var_type, var, dim] - upper_bounds[dim]
+                        )
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(dim) + ' ub')
 
-                        if var_bounds[var_type][var]['lb'] != -np.inf:
-                            var_constraints.append(
-                                - model.variables[var_type,var] + var_bounds[var_type][var]['lb']
-                            )
-                            var_constr_str.append(var_type+' '+var+' '+str(0)+' lb')
+                    if lower_bounds[dim] != -np.inf:
+                        var_constraints.append(
+                            - model.variables[var_type, var, dim] + lower_bounds[dim]
+                        )
+                        var_constr_str.append(var_type + ' ' + var + ' ' + str(dim) + ' lb')
 
     var_bounds_fun = cas.Function('var_bounds', [model.variables], [cas.vertcat(*var_constraints)])
     return [var_bounds_fun, var_constr_str]

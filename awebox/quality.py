@@ -27,9 +27,13 @@
 # information about quality check results
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.quality_funcs as quality_funcs
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 class Quality(object):
 
@@ -46,27 +50,57 @@ class Quality(object):
         else:
             self.__test_param_dict = test_param_dict
 
-    def run_tests(self, trial):
+    def get_test_inputs(self, trial):
+        time_grids = trial.optimization.time_grids
+        quality_options = trial.options['quality']
+        variables_dict = trial.model.variables_dict
+        V_opt = trial.optimization.V_opt
+        outputs_dict = struct_op.strip_of_contents(trial.model.outputs_dict)
+        outputs_opt = trial.optimization.outputs_opt
+        integral_output_names = trial.model.integral_outputs.keys()
+        integral_outputs_opt = trial.optimization.integral_outputs_opt
+        Collocation = trial.nlp.Collocation
+
+        n_points = trial.options['quality']['interpolation']['n_points']
+        quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
+        time_grids['quality'] = quality_time_grid
+
+        quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt,
+                                                              trial.model.outputs, integral_output_names, integral_outputs_opt,
+                                                              Collocation=Collocation, timegrid_label='quality')
+
+        self.__input_values = quality_input_values
+        self.__input_time_grid = time_grids
+
+        global_input_values = trial.nlp.global_outputs(trial.nlp.global_outputs_fun(V_opt, trial.optimization.p_fix_num))
+        self.__global_input_values = global_input_values
+
+        return None
+
+    def run_tests(self, trial, final_homotopy_step='final'):
+
+        # prepare relevant inputs
+        self.get_test_inputs(trial)
 
         # get relevant self params
         results = self.__results
         test_param_dict = self.__test_param_dict
 
         # run tests
-        results = quality_funcs.test_invariants(trial, test_param_dict, results)
-        results = quality_funcs.test_variables(trial, test_param_dict, results)
+        results = quality_funcs.test_opti_success(trial, test_param_dict, results, final_homotopy_step=final_homotopy_step)
         results = quality_funcs.test_numerics(trial, test_param_dict, results)
-        results = quality_funcs.test_power_balance(trial, test_param_dict, results)
-        results = quality_funcs.test_opti_success(trial, test_param_dict, results)
-        results = quality_funcs.test_slack_equalities(trial, test_param_dict, results)
-        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results)
+        results = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values)
+        results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
+        results = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values)
+        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values, self.__global_input_values)
+        results = quality_funcs.test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, results)
 
         # save test results
         self.__results = results
 
-    def check_quality(self, trial):
-
-        self.run_tests(trial)
+    def check_quality(self, trial, final_homotopy_step='final'):
+    
+        self.run_tests(trial, final_homotopy_step=final_homotopy_step)
         self.__interpret_test_results()
 
     def __interpret_test_results(self):
@@ -91,14 +125,20 @@ class Quality(object):
     def print_results(self):
 
         results = self.__results
+
+        pass_label = 'PASSED'
+        fail_label = 'FAILED'
+
+        pass_fail_dict = {}
+        for name, value in results.key():
+            if value:
+                pass_fail_dict[name] = pass_label
+            else:
+                pass_fail_dict[name] = fail_label
+
         print('########################################')
         print('QUALITY CHECK details:')
-        for key in list(results.keys()):
-            if results[key]:
-                result = 'PASSED'
-            else:
-                result = 'FAILED'
-            print((key + ':  ' + result))
+        print_op.print_dict_as_table(pass_fail_dict)
         print('#######################################')
 
     @property
@@ -107,7 +147,7 @@ class Quality(object):
 
     @results.setter
     def results(self, value):
-        print('Cannot set results object.')
+        print_op.log_and_raise_error('Cannot set results object.')
 
     def all_tests_passed(self):
         return (self.__number_of_passed == self.__number_of_tests)

@@ -38,7 +38,8 @@ def build_options_dict(options, help_options, architecture):
 
     # check for unsupported settings
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
-        awelogger.logger.error('Error: ' + user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.')
+        message = user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.'
+        print_op.log_and_raise_error(message)
 
     # initialize additional options tree
     options_tree = []
@@ -52,6 +53,9 @@ def build_options_dict(options, help_options, architecture):
     options_tree, phase_fix = build_nlp_options(options, help_options, user_options, options_tree, architecture)
     options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
     options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
+    options_tree = build_quality_options(options, options_tree)
+    options_tree = build_visualization_options(options, options_tree)
+    options_tree = build_mpc_options(options, options_tree)
 
     # assemble all of the options into a complete options tree
     options, help_options = assemble_options_tree(options_tree, options, help_options)
@@ -158,7 +162,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     ### switch off phase fixing for landing/transition trajectories
     if user_options['trajectory']['type'] in ['nominal_landing', 'compromised_landing', 'transition', 'mpc']:
-        phase_fix = False
+        phase_fix = False 
     else:
         if user_options['trajectory']['system_type'] == 'lift_mode':
             phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
@@ -175,7 +179,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  n_k*N_n,             ('xdot_regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k*N_k,             ('fictitious cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'slack',                n_k,             ('regularisation cost normalization', None),'x'))
     options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 n_k*N_k,             ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
@@ -188,8 +191,11 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('solver', 'initialization', 'compromised_landing', 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('nlp', 'system_model', None, 'kite_dof', user_options['system_model']['kite_dof'], ('???', None),'x'))
 
-    options_tree.append(('nlp', 'jit_code_gen', None, 'include', options['model']['jit_code_gen']['include'],  ('????', None),'x'))
-    options_tree.append(('nlp', 'jit_code_gen', None, 'compiler', options['model']['jit_code_gen']['compiler'], ('????', None), 'x'))
+    options_tree.append(('nlp', 'construction', 'jit_code_gen', 'include', options['model']['construction']['jit_code_gen']['include'],  ('????', None),'x'))
+    options_tree.append(('nlp', 'construction', 'jit_code_gen', 'compiler', options['model']['construction']['jit_code_gen']['compiler'], ('????', None), 'x'))
+
+    options_tree.append(('solver', 'construction', 'jit_code_gen', 'include', options['model']['construction']['jit_code_gen']['include'],  ('????', None),'x'))
+    options_tree.append(('solver', 'construction', 'jit_code_gen', 'compiler', options['model']['construction']['jit_code_gen']['compiler'], ('????', None), 'x'))
 
      # integrator options
     if options['nlp']['integrator']['jit_overwrite'] is not None:
@@ -249,7 +255,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     for param in list(initialization_theta.keys()):
         options_tree.append(('solver', 'initialization', 'theta', param, initialization_theta[param], ('initial guess for parameter ' + param, None), 'x'))
 
-    options_tree.append(('solver', 'initialization', 'model','architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
+    options_tree.append(('solver', 'initialization', 'model', 'architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
+    options_tree.append(('solver', 'initialization', None, 'min_altitude', options['model']['system_bounds']['x']['q'][0][2], ('?????', None),'x'))
+
 
     ## cross-tether
     options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
@@ -272,6 +280,9 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
     else:
         options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
+
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'solver', 'initialization')
+
     options_tree.append(('solver', None, None,'expand', expand, ('choose True or False', [True, False]),'x'))
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
@@ -293,27 +304,29 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
         options['solver']['initialization']['fix_tether_length'] = True
 
     if options['solver']['homotopy_method']['gamma'] not in ['penalty', 'classic']:
-        awelogger.logger.error('Error: homotopy method "' + options['solver']['homotopy_method'] + '" unknown!')
+        message = 'homotopy method "' + options['solver']['homotopy_method'] + '" unknown!'
+        print_op.log_and_raise_error(message)
+
+    options_tree.append(('solver', 'initialization', None, 'n_k', options['nlp']['n_k'], ('???', None), 'x'))
 
     return options_tree
 
+def build_visualization_options(options, options_tree):
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'visualization', 'cosmetics')
+    return options_tree
 
+
+def build_quality_options(options, options_tree):
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'quality')
+    return options_tree
 
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
+    options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'formulation')
+
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
-    options_tree.append(('formulation', None, None, 'n_k', options['nlp']['n_k'], ('???', None),'x'))
-    options_tree.append(('formulation', None, None, 'phase_fix', options['user_options']['trajectory']['lift_mode']['phase_fix'], ('???', None), 'x'))
-    options_tree.append(('formulation', 'collocation', None, 'd', options['nlp']['collocation']['d'], ('???', None),'x'))
-    options_tree.append(('formulation', None, None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('???', None),'x'))
-    options_tree.append(
-        ('formulation', None, None, 'discretization', options['nlp']['discretization'], ('???', None), 'x'))
-    options_tree.append(
-        ('formulation', 'collocation', None, 'u_param', options['nlp']['collocation']['u_param'], ('???', None), 'x'))
 
-    options_tree.append(
-        ('formulation', 'collocation', None, 'scheme', options['nlp']['collocation']['scheme'], ('???', None), 'x'))
     if int(user_options['system_model']['kite_dof']) == 3:
         coeff_max = options['model']['system_bounds']['x']['coeff'][1]
         coeff_min = options['model']['system_bounds']['x']['coeff'][0]
@@ -324,6 +337,10 @@ def build_formulation_options(options, help_options, user_options, options_tree,
 
     return options_tree
 
+def build_mpc_options(options, options_tree):
+    ref_interpolator = options['mpc']['ref_interpolator']
+    options_tree.append(('mpc', 'interpolation', None, 'type', ref_interpolator, ('', None), 'x'))
+    return options_tree
 
 
 def make_fictitious_bounds_update(user_options, architecture):
@@ -356,3 +373,20 @@ def load_battery_parameters(kite_standard, coeff_max, coeff_min):
 
     return battery
 
+
+def add_discretization_options_necessary_for_interpolation(options, options_tree, heading_1, heading_2=None):
+
+    for entry_name in ['d', 'u_param', 'scheme']:
+        from_tuple = ('nlp', 'collocation', entry_name)
+        if heading_2 is None:
+            to_tuple = (heading_1, 'collocation', None, entry_name)
+        else:
+            to_tuple = (heading_1, heading_2, 'collocation', entry_name)
+        options_tree = model_funcs.share(options, options_tree, from_tuple, to_tuple)
+
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'n_k'), (heading_1, heading_2, 'n_k'))
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'discretization'), (heading_1, heading_2, 'discretization'))
+    options_tree = model_funcs.share(options, options_tree, ('user_options', 'trajectory', 'lift_mode', 'phase_fix'), (heading_1, heading_2, 'phase_fix'))
+    options_tree = model_funcs.share(options, options_tree, ('nlp', 'phase_fix_reelout'), (heading_1, heading_2, 'phase_fix_reelout'))
+
+    return options_tree

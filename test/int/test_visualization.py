@@ -3,14 +3,19 @@
 
 @author: Thilo Bronnenmeyer
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import os
 import awebox as awe
 import logging
-import matplotlib.pyplot as plt
+import awebox.viz.tools as viz_tools
+
 plt.rcParams.update({'figure.max_open_warning': 0})
 
 logging.basicConfig(filemode='w',format='%(message)s', level=logging.DEBUG)
+
 
 def test_visualization():
 
@@ -19,7 +24,7 @@ def test_visualization():
     options['user_options.system_model.architecture'] = {1:0}
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    options['user_options.trajectory.type'] = 'lift_mode'
+    options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.system_model.kite_dof'] = 3
     options['user_options.induction_model'] = 'not_in_use'
     options['nlp.n_k'] = 2
@@ -45,8 +50,8 @@ def test_visualization():
     sweep_flags = ['all', 'comp_all', 'outputs:tether_length', 'comp_outputs:tether_length']
     sweep.plot(sweep_flags)
 
-def test_animation():
 
+def test_animation():
 
     # basic options
     options = {}
@@ -62,7 +67,7 @@ def test_animation():
     options['solver.max_iter'] = 0
 
     options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    options['visualization.cosmetics.interpolation.N'] = 2
+    options['visualization.cosmetics.interpolation.n_points'] = 2
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')
@@ -71,3 +76,11 @@ def test_animation():
 
     trial.plot('animation')
     os.remove('trial1.mp4')
+
+def test_components():
+    viz_tools.test_naca_coordinates()
+    return None
+
+# test_visualization()
+# test_animation()
+# test_components()

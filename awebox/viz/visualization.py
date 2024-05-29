@@ -26,6 +26,7 @@
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
 ###################################
+import pdb
 
 from . import tools
 from . import trajectory
@@ -38,9 +39,9 @@ import os
 
 
 import matplotlib
-
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
+import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
@@ -50,8 +51,9 @@ from awebox.logger.logger import Logger as awelogger
 class Visualization(object):
 
     def __init__(self):
-
         self.__plot_dict = None
+        self.__has_been_initially_calibrated = False
+        self.__has_been_recalibrated = False
 
     def build(self, model, nlp, name, options):
         """
@@ -63,29 +65,31 @@ class Visualization(object):
         """
 
         self.__plot_dict = tools.calibrate_visualization(model, nlp, name, options)
+        self.__has_been_initially_calibrated = True
+
         self.create_plot_logic_dict()
         self.__options = options
 
         return None
 
-    def recalibrate(self, V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs):
-
-        self.__plot_dict = tools.recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
+    def recalibrate(self, V_plot_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
+        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
+        self.__has_been_recalibrated = True
 
         return None
 
-    def plot(self, V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, name, sweep_toggle, V_ref, global_outputs, fig_name='plot', fig_num = None, recalibrate = True):
+    def plot(self, V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, name, sweep_toggle, V_ref_scaled, global_outputs, fig_name='plot', fig_num = None, recalibrate = True):
         """
         Generate plots with given parametric and visualization options
-        :param V_plot: plot data (scaled)
+        :param V_plot_scaled: plot data (scaled)
         :param parametric_options: values for parametric options
         :param visualization_options: visualization related options
         :return: None
         """
 
         # recalibrate plot_dict
-        if recalibrate:
-            self.recalibrate(V_plot, self.__plot_dict, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
+        if recalibrate or (not self.__has_been_recalibrated):
+            self.recalibrate(V_plot_scaled, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
 
         if type(flags) is not list:
             flags = [flags]
@@ -135,7 +139,7 @@ class Visualization(object):
 
         outputs = self.plot_dict['outputs_dict']
         variables_dict = self.plot_dict['variables_dict']
-        integral_variables = self.plot_dict['integral_variables']
+        integral_variables = self.plot_dict['integral_output_names']
 
         plot_logic_dict = {}
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})
@@ -145,12 +149,17 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
-        plot_logic_dict['vortex_verification'] = (wake.plot_vortex_verification, None)
-        plot_logic_dict['induction_factor'] = (output.plot_induction_factor, None)
+        plot_logic_dict['vortex_haas_verification'] = (wake.plot_haas_verification_test, None)
+        plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
+        plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
         plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
+        plot_logic_dict['actuator_isometric'] = (wake.plot_actuator, {'side':'isometric'})
+        plot_logic_dict['actuator_xy'] = (wake.plot_actuator, {'side':'xy'})
+        plot_logic_dict['actuator_yz'] = (wake.plot_actuator, {'side':'yz'})
+        plot_logic_dict['actuator_xz'] = (wake.plot_actuator, {'side':'xz'})
         plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
@@ -168,6 +177,7 @@ class Visualization(object):
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, None)
+
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
 
@@ -226,6 +236,14 @@ class Visualization(object):
     @options.setter
     def options(self, value):
        self.__options = value
+
+    @property
+    def has_been_initially_calibrated(self):
+        return self.__has_been_initially_calibrated
+
+    @property
+    def has_been_recalibrated(self):
+        return self.__has_been_recalibrated
 
     @property
     def plot_logic_dict(self):

@@ -27,16 +27,20 @@ energy terms
 _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
+import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 from awebox.logger.logger import Logger as awelogger
 
-def energy_outputs(options, parameters, outputs, variables_si, architecture):
+
+def energy_outputs(options, parameters, outputs, variables_si, architecture, scaling):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
@@ -46,61 +50,86 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture):
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
-        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture)
-        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture)
-
-    outputs = add_ground_station_kinetic(options, variables_si, parameters, outputs)
-    outputs = add_ground_station_potential(outputs)
+        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling)
+        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling)
 
     return outputs
 
 
-def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture):
+def get_reelout_speed(variables_si):
+
+    q_node = variables_si['x']['q10']
+
+    # q_parent = cas.DM.zeros((3, 1))
+    # segment_vector = q_node - q_parent
+    segment_vector = q_node
+    ehat_tether = vect_op.normalize(segment_vector)
+
+    reelout_speed = cas.mtimes(variables_si['x']['dq10'].T, ehat_tether)
+
+    return reelout_speed
+
+
+def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
 
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
-    node_has_rotational_energy = node_has_a_kite and kites_have_6dof
 
-    # add tether translational kinetic energy
-    m_t = outputs['masses']['m_tether{}'.format(node)]
-    dq_n = variables_si['x']['dq' + label]
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    segment_length = segment_properties['seg_length']
+    mass_segment = segment_properties['seg_mass']
+
+    q_node = variables_si['x']['q' + label]
+    dq_node = variables_si['x']['dq' + label]
     if node == 1:
-        q10 = variables_si['x']['q10']
-        if 'l_t' in variables_si['x'].keys():
-            l_t = variables_si['x']['l_t']
-        else:
-            l_t = variables_si['theta']['l_t']
-        e_t = q10/l_t
-        dq_parent = cas.mtimes(e_t, cas.mtimes(dq_n.T, e_t))
-    else:
-        dq_parent = variables_si['x']['dq' + parent_label]
-    e_kin_trans = 0.5 * m_t/3 * (cas.mtimes(dq_n.T, dq_n) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_n.T, dq_parent))
-    
-    # add kite translational kinetic energy
-    if node_has_a_kite:
-        mass = parameters['theta0', 'geometry', 'm_k']
-        e_kin_trans += 0.5 * mass * cas.mtimes(dq_n.T, dq_n)
+        q_parent = cas.DM.zeros((3, 1))
+        segment_vector = q_node - q_parent
+        ehat_tether = vect_op.normalize(segment_vector)
 
-    # add kite rotational energy
-    if node_has_rotational_energy:
+        reelout_speed = get_reelout_speed(variables_si)
+        dq_parent = reelout_speed * ehat_tether
+
+    else:
+        q_parent = variables_si['x']['q' + parent_label]
+        dq_parent = variables_si['x']['dq' + parent_label]
+
+        segment_vector = q_node - q_parent
+        ehat_tether = vect_op.normalize(segment_vector)
+
+    dq_average = (dq_node + dq_parent) / 2.
+    e_kin_tether_trans = 0.5 * mass_segment * cas.mtimes(dq_average.T, dq_average)
+    outputs['e_kinetic']['tether_trans' + label] = e_kin_tether_trans
+
+    e_kin_kite_trans = cas.DM(0.)
+    if node_has_a_kite:
+        mass_kite = parameters['theta0', 'geometry', 'm_k']
+        e_kin_kite_trans = 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
+    outputs['e_kinetic']['kite_trans' + label] = e_kin_kite_trans
+
+    v_difference = dq_node - dq_average
+    v_rotation = v_difference - cas.mtimes(v_difference.T, ehat_tether) * ehat_tether
+    radius_of_rod_rotation = (segment_length / 2.)
+    omega = v_rotation / radius_of_rod_rotation
+    moment_of_inertia = (1. / 12.) * mass_segment * segment_length**2.
+    e_kin_tether_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
+
+    outputs['e_kinetic']['tether_rot' + label] = e_kin_tether_rot
+
+    e_kinetic_kite_rot = cas.DM(0.)
+    if node_has_a_kite and kites_have_6dof:
         omega = variables_si['x']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
-        e_kin_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
+        e_kinetic_kite_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
 
-    else:
-        e_kin_rot = cas.DM.zeros((1, 1))
-
-    e_kinetic = e_kin_trans + e_kin_rot
-
-    outputs['e_kinetic']['q' + label] = e_kinetic
+    outputs['e_kinetic']['kite_rot' + label] = e_kinetic_kite_rot
 
     return outputs
 
 
-def add_node_potential(node, options, variables_si, parameters, outputs, architecture):
+def add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
@@ -109,51 +138,24 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
 
     gravity = parameters['theta0', 'atmosphere', 'g']
 
-    m_t = outputs['masses']['m_tether{}'.format(node)]
-    q_n = variables_si['x']['q' + label]
+    q_node = variables_si['x']['q' + label]
     if node == 1:
-        q_parent = cas.DM.zeros((3,1))
+        q_parent = cas.DM.zeros((3, 1))
     else:
-        q_parent = variables_si['x']['q'+label]
-    e_potential = gravity * m_t/2 *(q_n[2] + q_parent[2])
+        q_parent = variables_si['x']['q' + parent_label]
+    q_mean = (q_node + q_parent) / 2.
 
+    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    mass_segment = segment_properties['seg_mass']
+
+    e_potential_tether = gravity * mass_segment * q_mean[2]
+    outputs['e_potential']['tether' + label] = e_potential_tether
+
+    e_potential_kite = cas.DM(0.)
     if node_has_a_kite:
-        mass = parameters['theta0', 'geometry', 'm_k']
-        e_potential = gravity * mass * q_n[2]
+        mass_kite = parameters['theta0', 'geometry', 'm_k']
+        e_potential_kite += gravity * mass_kite * q_node[2]
 
-    outputs['e_potential']['q' + label] = e_potential
-
-    return outputs
-
-
-def add_ground_station_potential(outputs):
-    # the winch is at ground level
-    e_potential = cas.DM(0.)
-    outputs['e_potential']['ground_station'] = e_potential
-    return outputs
-
-
-def add_ground_station_kinetic(options, variables_si, parameters, outputs):
-
-    # E_kinetic_ground_station
-    # = 1/2 J omega_gen^2, with no-slip condition
-    # = 1/2 (1/2 m r^2) omega^2
-    # = 1/4 m dl_t^2
-    # add mass of first half of main tether, and the mass of wound tether.
-
-    total_ground_station_mass = outputs['masses']['ground_station']
-
-    dq10 = variables_si['x']['dq10']
-    q10 = variables_si['x']['q10']
-    if 'l_t' in variables_si['x'].keys():
-        l_t = variables_si['x']['l_t']
-    else:
-        l_t = variables_si['theta']['l_t']
-
-    speed_ground_station = cas.mtimes(dq10.T, q10) / l_t
-
-    e_kinetic = 0.5 * total_ground_station_mass * speed_ground_station ** 2.
-
-    outputs['e_kinetic']['ground_station'] = e_kinetic
+    outputs['e_potential']['kite' + label] = e_potential_kite
 
     return outputs

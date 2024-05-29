@@ -27,6 +27,7 @@ the forces on the rhs of the lagrangian dynamics
 python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -43,7 +44,8 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 
-def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, architecture):
+def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+
     # initialize dictionary
     node_forces = {}
     for node in range(1, architecture.number_of_nodes):
@@ -52,8 +54,7 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, ar
         if int(options['kite_dof']) == 6:
             node_forces['m' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
-    aero_forces, outputs = generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs,
-                                                       architecture)
+    aero_forces, outputs = generate_aerodynamic_forces(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
 
     # # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
@@ -70,6 +71,7 @@ def generate_f_nodes(options, atmos, wind, variables_si, parameters, outputs, ar
             if options['trajectory']['system_type'] == 'drag_mode':
                 if force in list(generator_forces.keys()):
                     node_forces[force] += generator_forces[force]
+
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
 
@@ -119,12 +121,12 @@ def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, 
     return tether_drag_forces, outputs
 
 
-def generate_aerodynamic_forces(options, variables_si, parameters, atmos, wind, outputs, architecture):
+def generate_aerodynamic_forces(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
     # homotopy parameters
     p_dec = parameters.prefix['phi']
 
     # get aerodynamic forces and moments
-    outputs = kite_aero.get_forces_and_moments(options, atmos, wind, variables_si, outputs, parameters, architecture)
+    outputs = kite_aero.get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
 
     # attribute aerodynamic forces to kites
     aero_forces = {}
