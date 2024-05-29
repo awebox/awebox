@@ -28,7 +28,7 @@ Class sweep contains functions to manipulate multiple trials at once
 @author: jochem de schutter alu-freiburg 2018
 edit: rachel leuthold, alu-fr, 2020
 """
-import pdb
+
 
 import matplotlib
 matplotlib.use('TkAgg')

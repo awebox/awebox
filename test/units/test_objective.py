@@ -2,7 +2,7 @@
 """Test to check objective functionality
 @author: rachel leuthold, 2023
 """
-import pdb
+
 
 import awebox as awe
 import logging

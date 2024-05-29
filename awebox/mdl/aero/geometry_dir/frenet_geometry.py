@@ -30,7 +30,6 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-20
 - edit: jochem de schutter, alu-fr 2019
 '''
-import pdb
 
 import numpy as np
 import casadi.tools as cas

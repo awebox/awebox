@@ -27,7 +27,6 @@ induction and local flow manager
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 """
-import pdb
 
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
@@ -54,7 +53,7 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
 
     cstr_list = cstr_op.ConstraintList()
 
-    if model_options['induction_model'] is 'averaged':
+    if model_options['induction_model'] == 'averaged':
         ellipse_half_cstr = averaged.get_ellipse_half_constraint(model_options, variables_si, parameters, architecture, outputs)
         cstr_list.append(ellipse_half_cstr)
 

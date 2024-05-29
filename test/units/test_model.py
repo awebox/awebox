@@ -5,7 +5,7 @@
 edit: rachel leuthold, alu-fr 2020
 """
 import copy
-import pdb
+
 
 import casadi
 

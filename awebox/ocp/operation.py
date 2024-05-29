@@ -33,7 +33,7 @@ constraints are divided as initial, terminal and periodic constraints, that are 
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-21
 '''
-import pdb
+
 
 import casadi.tools as cas
 

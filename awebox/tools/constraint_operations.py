@@ -27,7 +27,7 @@ model (time-independent) constraint handling
 _python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
-import pdb
+
 
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger

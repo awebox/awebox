@@ -6,7 +6,6 @@
 """
 
 import os
-import pdb
 
 import awebox.opts.options as awe_options
 import awebox.trial as awe_trial

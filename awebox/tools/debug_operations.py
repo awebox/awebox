@@ -30,7 +30,7 @@ _python-3.5 / casadi-3.4.5
 '''
 import copy
 import datetime
-import pdb
+
 
 import matplotlib
 matplotlib.use('TkAgg')

@@ -32,7 +32,6 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 import copy
-import pdb
 
 import casadi.tools as cas
 import numpy as np

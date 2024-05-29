@@ -28,7 +28,7 @@ various diagnostics for the optimization object
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, jochem de schutter alu-fr 2018
 '''
-import pdb
+
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op

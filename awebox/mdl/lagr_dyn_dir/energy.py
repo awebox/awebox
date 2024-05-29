@@ -27,7 +27,7 @@ energy terms
 _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-20
 '''
-import pdb
+
 
 import casadi.tools as cas
 import numpy as np

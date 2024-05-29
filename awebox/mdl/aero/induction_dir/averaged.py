@@ -28,7 +28,6 @@ python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, 2021-2022
 - edit: rachel leuthold, 2022
 '''
-import pdb
 
 import casadi.tools as cas
 import numpy as np

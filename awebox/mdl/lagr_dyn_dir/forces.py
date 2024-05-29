@@ -27,7 +27,7 @@ the forces on the rhs of the lagrangian dynamics
 python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
-import pdb
+
 
 import casadi.tools as cas
 import numpy as np

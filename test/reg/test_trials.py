@@ -9,8 +9,6 @@
 import collections
 import copy
 import logging
-import pdb
-import casadi.tools as cas
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data

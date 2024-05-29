@@ -27,7 +27,6 @@ object-oriented-vortex-filament-and-cylinder operations
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021
 '''
-import pdb
 
 import casadi.tools as cas
 import numpy as np

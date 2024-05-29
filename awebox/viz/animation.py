@@ -32,7 +32,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
-import pdb
+
 import sys
 
 import matplotlib.animation as manimation

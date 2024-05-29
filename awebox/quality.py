@@ -27,7 +27,7 @@
 # information about quality check results
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
-import pdb
+
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex

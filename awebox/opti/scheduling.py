@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, alu-fr 2018
 - edited: jochem de schutter, alu-fr 2018-2020
 '''
-import pdb
+
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op

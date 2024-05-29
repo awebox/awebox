@@ -27,7 +27,6 @@ DAE routines for awebox models
 python-3.5 / casadi 3.0.0
 - author: jochem de schutter, alu-fr 2018
 """
-import pdb
 
 import platform
 import awebox.tools.integrator_routines as int_rout

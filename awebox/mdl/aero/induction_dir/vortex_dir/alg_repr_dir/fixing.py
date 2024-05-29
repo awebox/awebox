@@ -28,9 +28,6 @@ to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 '''
-import copy
-import pdb
-
 import numpy as np
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools

@@ -25,7 +25,7 @@
 ###################################
 # Class Model contains physics description necessary to model the tree-structure multi-kite system
 ###################################
-import pdb
+
 
 from . import atmosphere
 from . import wind

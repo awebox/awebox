@@ -29,7 +29,7 @@ _python _version 2.7 / casadi-3.4.5
 '''
 
 import copy
-import pdb
+
 
 import numpy as np
 import casadi.tools as ct

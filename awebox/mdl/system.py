@@ -30,7 +30,7 @@ python-3.5 / casadi 3.0.0
           jochem de schutter, alu-fr 2017
 '''
 
-import pdb
+
 
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op

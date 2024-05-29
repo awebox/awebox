@@ -6,7 +6,6 @@ whithout compromising functionality.
 """
 
 import os
-import pdb
 
 import awebox as awe
 import logging

@@ -30,7 +30,7 @@ python version 3.5 / casadi 3.4.5
     Jochem De Schutter, alu-fr 2018
 """
 import os.path
-import pdb
+
 
 import awebox.tools.vector_operations as vect_op
 import awebox.viz.tools as tools

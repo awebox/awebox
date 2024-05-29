@@ -2,7 +2,7 @@
 """Test of initial guess generation w.r.t. consistency
 @author: Thilo Bronnenmeyer
 """
-import pdb
+
 
 import awebox as awe
 import logging

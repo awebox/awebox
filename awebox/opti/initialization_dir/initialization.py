@@ -30,7 +30,7 @@ _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
 '''
 import copy
-import pdb
+
 
 import numpy as np
 import casadi.tools as cas

@@ -45,7 +45,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
-import pdb
+
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 def initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num):

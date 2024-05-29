@@ -39,7 +39,7 @@ import awebox.mdl.architecture as archi
 import copy
 import numpy as np
 import awebox.tools.print_operations as print_op
-import pdb
+
 
 class Simulation:
     def __init__(self, trial, sim_type, ts, options_seed):

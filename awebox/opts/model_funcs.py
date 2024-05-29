@@ -27,7 +27,7 @@ options_tree extension functions for options initially related to heading 'model
 _python-3.5 / casadi-3.4.5
 - author: jochem de scutter, rachel leuthold, thilo bronnenmeyer, alu-fr/kiteswarms 2017-20
 '''
-import pdb
+
 
 import numpy as np
 import awebox as awe

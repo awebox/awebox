@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
            rachel leuthold, jochem de schutter alu-fr 2017-18
 - edited:  thilo bronnenmeyer 2018
 '''
-import pdb
+
 
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger

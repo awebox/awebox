@@ -4,7 +4,7 @@ against direct collocation solution of NLP
 
 @author: Jochem De Schutter
 """
-import pdb
+
 
 from awebox.logger.logger import Logger as awelogger
 from ampyx_ap2_settings import set_ampyx_ap2_settings

@@ -28,7 +28,7 @@ finds various total-trajectory performance metrics requiring knowlege of V
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter alu-fr 2017-18
 '''
-import pdb
+
 
 import casadi.tools as cas
 import numpy as np
@@ -44,7 +44,7 @@ def collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_ou
     global_outputs = {}
     global_outputs = include_time_period(nlp_options, V, global_outputs)
 
-    if 'Outputs_structured' is not None and ('vortex' in model.outputs.keys()):
+    if 'Outputs_structured' != None and ('vortex' in model.outputs.keys()):
         global_outputs = vortex.compute_global_performance(global_outputs, Outputs_structured, model.architecture)
 
     [outputs_struct, outputs_dict] = make_output_structure(global_outputs)

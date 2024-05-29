@@ -43,8 +43,6 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-import pdb as pdb
-
 def construct_time_grids(nlp_options):
 
     time_grids = {}

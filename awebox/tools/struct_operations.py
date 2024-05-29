@@ -27,7 +27,7 @@ file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
-import pdb
+
 
 import casadi.tools as cas
 import numpy as np

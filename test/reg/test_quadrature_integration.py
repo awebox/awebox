@@ -4,7 +4,7 @@
 @author: Jochem De Schutter,
 edit: rachel leuthold, alu-fr 2020
 """
-import pdb
+
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.options as options
