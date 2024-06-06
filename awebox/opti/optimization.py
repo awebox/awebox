@@ -666,7 +666,7 @@ class Optimization(object):
             self.__V_opt = nlp.V(self.__solution['x'])
 
         self.__V_final_si = struct_op.scaled_to_si(self.__V_opt, model.scaling)
-        self.__integral_outputs_final = self.scaled_to_si_integral_outputs(nlp, model)
+        self.__integral_outputs_final_si = self.scaled_to_si_integral_outputs(nlp, model)
 
         return None
 
@@ -860,12 +860,12 @@ class Optimization(object):
         awelogger.logger.warning('Cannot set output_vals object.')
 
     @property
-    def integral_outputs_final(self):
-        return self.__integral_outputs_final
+    def integral_outputs_final_si(self):
+        return self.__integral_outputs_final_si
 
-    @integral_outputs_final.setter
-    def integral_outputs_final(self, value):
-        awelogger.logger.warning('Cannot set integral_outputs_final object.')
+    @integral_outputs_final_si.setter
+    def integral_outputs_final_si(self, value):
+        awelogger.logger.warning('Cannot set integral_outputs_final_si object.')
 
     @property
     def solve_succeeded(self):

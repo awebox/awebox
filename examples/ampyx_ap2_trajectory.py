@@ -19,6 +19,7 @@ import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
 import logging
+import awebox.tools.print_operations as print_op
 logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 awelogger.logger.setLevel(10)
 
@@ -34,6 +35,9 @@ options = set_ampyx_ap2_settings(options)
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.windings'] = 1
+
+print_op.warn_about_temporary_functionality_alteration()
+options['solver.cost_factor.power'] = 1e2
 
 # indicate desired environment
 # here: wind velocity profile according to power-law
@@ -107,4 +111,13 @@ plt.legend()
 plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
 plt.grid(True)
 
-plt.show(block=False) # the block=False argument isn't strictly necessary for you, it's only here so that we can automatically run this example in the awebox's tests
+print_op.warn_about_temporary_functionality_alteration()
+plot_block_message = 'If you would like the images to stay longer, please remove the argument from plt.show())'
+print_op.base_print(plot_block_message)
+# plt.show(block=False) # the block=False argument isn't necessary for you, it's only here so that we can automatically run this example in the awebox's tests
+plt.show()
+
+
+expected_solution = 0.
+if not expected_solution:
+    message = 'something went wrong. contact awebox developers'

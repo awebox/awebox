@@ -29,7 +29,6 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, jochem de schutter alu-fr 2018
 '''
 
-
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.debug_operations as debug_op
@@ -119,7 +118,10 @@ def compute_power_indicators(power_and_performance, plot_dict):
 
     # the actual power indicators
     if 'e' in plot_dict['integral_output_names']:
-        e_final = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
+        e_final_scaled = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
+        print_op.warn_about_temporary_functionality_alteration()
+        e_final = e_final_scaled * plot_dict['options']['nlp']['scaling']['x']['e']
+
     else:
         e_final = plot_dict['interpolation_si']['x']['e'][0][-1]
 

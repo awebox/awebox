@@ -245,22 +245,22 @@ def generate_options_dict():
     single_kite_options['visualization.cosmetics.plot_bounds'] = True
     single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
     single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = False
-    single_kite_options['solver.weights.q'] = 1e0
-    single_kite_options['solver.weights.dq'] = 1.e0
-    single_kite_options['solver.weights.l_t'] = 1e-5
-    single_kite_options['solver.weights.dl_t'] = 1e-3
-    single_kite_options['solver.weights.ddl_t'] = 1e-1
-    single_kite_options['solver.weights.dddl_t'] = 1e-1
-    single_kite_options['solver.weights.coeff'] = 1e-6
-    single_kite_options['solver.weights.r'] = 1e0
-    single_kite_options['solver.cost.fictitious.0'] = 1.e0
-    single_kite_options['solver.cost.fictitious.1'] = 1.e3
-    single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
+    # single_kite_options['solver.weights.q'] = 1e0
+    # single_kite_options['solver.weights.dq'] = 1.e0
+    # single_kite_options['solver.weights.l_t'] = 1e-5
+    # single_kite_options['solver.weights.dl_t'] = 1e-3
+    # single_kite_options['solver.weights.ddl_t'] = 1e-1
+    # single_kite_options['solver.weights.dddl_t'] = 1e-1
+    # single_kite_options['solver.weights.coeff'] = 1e-6
+    # single_kite_options['solver.weights.r'] = 1e0
+    # single_kite_options['solver.cost.fictitious.0'] = 1.e0
+    # single_kite_options['solver.cost.fictitious.1'] = 1.e3
+    # single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
+    # single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
     single_kite_options['solver.initialization.groundspeed'] = 20.
-    single_kite_options['solver.cost.tracking.0'] = 1e0
-    single_kite_options['solver.cost.psi.1'] = 1.e2
-    single_kite_options['solver.cost_factor.power'] = 1e5  #1e4
+    # single_kite_options['solver.cost.tracking.0'] = 1e0
+    # single_kite_options['solver.cost.psi.1'] = 1.e2
+    single_kite_options['solver.cost_factor.power'] = 1e1  #1e4
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['visualization.cosmetics.outputs.include_solution'] = True
@@ -303,7 +303,7 @@ def generate_options_dict():
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options.kite_standard'] = bubbledancer_data.data_dict()
     small_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
-    small_dual_kite_options['solver.cost_factor.power'] = 1e7
+    # small_dual_kite_options['solver.cost_factor.power'] = 1e7
     small_dual_kite_options['model.system_bounds.theta.t_f'] = [2., 60.]
 
     large_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
@@ -377,7 +377,7 @@ def generate_options_dict():
     wake_nodes = 2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
-    vortex_options['solver.cost_factor.power'] = 1e4
+    # vortex_options['solver.cost_factor.power'] = 1e4
     vortex_options['solver.weights.vortex'] = 1e-3
     vortex_options['solver.cost.iota.1'] = 1.e3
     vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
@@ -491,28 +491,28 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
 
 
 #
-# test_single_kite_basic_health()
-# test_single_kite()
-# test_single_kite_6_dof_basic_health()
-# test_single_kite_6_dof()
-# test_poly()
-# test_drag_mode()
-# test_save_trial()
-# test_dual_kite_basic_health()
-# test_dual_kite()
-# test_dual_kite_6_dof_basic_health()
-# test_dual_kite_6_dof()
-# test_dual_kite_tracking()
-# test_dual_kite_tracking_winch()
-# test_vortex_force_zero_basic_health()
-# test_vortex_force_zero()
-# test_vortex_basic_health()
-# test_vortex()
-# # test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
-# # test_large_dual_kite() << ?
-# # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
-# # test_actuator_qaxi()
-# # test_actuator_qasym()
-# # test_actuator_uaxi()
-# # test_actuator_uasym()
-# # test_actuator_comparison()
+test_single_kite_basic_health()
+test_single_kite()
+test_single_kite_6_dof_basic_health()
+test_single_kite_6_dof()
+test_poly()
+test_drag_mode()
+test_save_trial()
+test_dual_kite_basic_health()
+test_dual_kite()
+test_dual_kite_6_dof_basic_health()
+test_dual_kite_6_dof()
+test_dual_kite_tracking()
+test_dual_kite_tracking_winch()
+test_vortex_force_zero_basic_health()
+test_vortex_force_zero()
+test_vortex_basic_health()
+test_vortex()
+test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
+test_large_dual_kite() #<< ?
+# test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
+# test_actuator_qaxi()
+# test_actuator_qasym()
+# test_actuator_uaxi()
+# test_actuator_uasym()
+# test_actuator_comparison()

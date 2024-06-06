@@ -209,9 +209,9 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
     # ensure that energy matches power integration
-    power, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+    power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
     energy_scaling = model_options['scaling']['x']['e']
-    derivative_dict = {'e': (power, energy_scaling)}
+    derivative_dict = {'e': (power_si, energy_scaling)}
 
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.

@@ -50,14 +50,14 @@ def test_integral_outputs_integration(epsilon=1.e-3):
     expected_time = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
 
     if 'total_time_unscaled' in trial.model.integral_outputs.keys():
-        time_unscaled = trial.optimization.integral_outputs_final['int_out', -1, 'total_time_unscaled']
+        time_unscaled = trial.optimization.integral_outputs_final_si['int_out', -1, 'total_time_unscaled']
     else:
         message = 'total_time_unscaled not in integral_outputs.keys()'
         print_op.log_and_raise_error(message)
     unscaled_integration_works_correctly = ((time_unscaled - expected_time)**2. < epsilon**2.)
 
     if 'total_time_scaled' in trial.model.integral_outputs.keys():
-        time_scaled = trial.optimization.integral_outputs_final['int_out', -1, 'total_time_scaled']
+        time_scaled = trial.optimization.integral_outputs_final_si['int_out', -1, 'total_time_scaled']
     else:
         message = 'total_time_scaled not in integral_outputs.keys()'
         print_op.log_and_raise_error(message)

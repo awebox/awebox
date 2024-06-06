@@ -323,6 +323,7 @@ def test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, resu
         too_much_non_power_contribution_to_objective = non_power_percent_of_objective_found > non_power_percent_of_objective_thresh
         power_cost_dominates_objective = not too_much_non_power_contribution_to_objective
 
+        results['power_dominance'] = power_cost_dominates_objective
         if not power_cost_dominates_objective:
             message = 'there may be too much regularization on this problem. '
             message += "at the final solution, the power cost is {:0.2G}, ".format(power_cost)
@@ -331,11 +332,7 @@ def test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, resu
             message += 'of the objective is due to sources other than the power cost: '
             message += "{:0.2G} percent.".format(non_power_percent_of_objective_found)
             message += " we suggest increasing options['solver.cost_factor.power']."
-
             awelogger.logger.warning(message)
-            results['power_dominance'] = False
-        else:
-            results['power_dominance'] = True
 
     return results
 

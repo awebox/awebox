@@ -234,7 +234,7 @@ class Trial(object):
 
         # the actual power indicators
         if 'e' in self.__model.integral_outputs.keys():
-            e_final = self.__optimization.integral_outputs_final['int_out',-1,'e']
+            e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
         else:
             e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
 
