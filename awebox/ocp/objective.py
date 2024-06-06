@@ -30,7 +30,6 @@ python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
 
-
 import casadi.tools as cas
 import numpy as np
 from . import collocation
@@ -277,12 +276,7 @@ def find_power_cost(nlp_options, model, V, P, Integral_outputs):
     if not nlp_options['cost']['output_quadrature']:
         total_energy_scaled = V['x', -1, 'e']
     else:
-        total_energy_si = Integral_outputs['int_out', -1, 'e']
-        if '[x,e,0]' in model.scaling.labels():
-            total_energy_scaled = struct_op.var_si_to_scaled('x', 'e', total_energy_si, model.scaling)
-        else:
-            e_scale = nlp_options['scaling']['x']['e']
-            total_energy_scaled = total_energy_si / e_scale
+        total_energy_scaled = Integral_outputs['int_out', -1, 'e']
 
     average_scaled_power = total_energy_scaled / time_period
 
@@ -400,7 +394,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
             for kdx in range(nlp_options['n_k']):
                 if nlp_options['discretization'] == 'direct_collocation':
                     for ddx in range(d):
-                        local_beta = Outputs[idx, kdx * d + ddx]
+                        local_beta = Outputs[idx, kdx * (d + 1) + ddx + 1]
                         beta_cost += int_weights[ddx] * local_beta**2.
 
                 else:

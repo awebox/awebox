@@ -251,7 +251,7 @@ def manage_alongside_integration(model_options, derivative_dict, system_variable
             local_expr = local_expression_scaled
             integral_outputs_expr_entries += [cas.entry(integral_var_name, expr=local_expr)]
 
-            local_shape = integral_derivative_expression_si.shape
+            local_shape = local_expr.shape
             integral_outputs_struct_entries += [cas.entry(integral_var_name, shape=local_shape)]
 
         else:

@@ -219,6 +219,7 @@ def setup_output_structure(nlp_options, model_outputs):
             )
 
         elif nlp_options['collocation']['u_param'] == 'zoh':
+            # notice that both of these show up in the eventual Outputs
             entry_tuple += (
                 cas.entry('outputs', repeat=[nk], struct=model_outputs),
                 cas.entry('coll_outputs', repeat=[nk, d], struct=model_outputs),

@@ -61,14 +61,21 @@ def get_reassigned_cost_type():
 
 
 def we_expect_shooting_nodes_to_also_be_weighted(trial):
+    u_param = trial.options['nlp']['collocation']['u_param']
+    nlp_discretization = trial.options['nlp']['discretization']
 
-    if trial.options['nlp']['discretization'] == 'multiple_shooting':
+     # for direct_collocation true-false, see ocp/discretization (# compute outputs for this time interval)
+    if (nlp_discretization == 'multiple_shooting'):
         return True
-    elif trial.options['nlp']['discretization'] == 'direct_collocation':
+    elif (nlp_discretization == 'direct_collocation') and (u_param == 'zoh'):
         return False
+    elif (nlp_discretization == 'direct_collocation') and (u_param == 'poly'):
+        return True
     else:
         message = 'unexpected discretization type'
         print_op.log_and_raise_error(message)
+
+    return None
 
 
 def get_the_indices_of_the_relevant_variable_instances(V, var_type, var_to_find, include_shooting_nodes=False):

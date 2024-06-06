@@ -92,5 +92,5 @@ def test_constraints_integration(epsilon=1.e-3):
 
     return None
 
-# test_integral_outputs_integration()
-# test_constraints_integration()
+test_integral_outputs_integration()
+test_constraints_integration()
