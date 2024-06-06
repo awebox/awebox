@@ -79,7 +79,6 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     kites_have_6dof = int(options['kite_dof']) == 6
 
     segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
-    segment_length = segment_properties['seg_length']
     mass_segment = segment_properties['seg_mass']
 
     q_node = variables_si['x']['q' + label]
@@ -88,35 +87,20 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
         q_parent = cas.DM.zeros((3, 1))
         segment_vector = q_node - q_parent
         ehat_tether = vect_op.normalize(segment_vector)
-
         reelout_speed = get_reelout_speed(variables_si)
         dq_parent = reelout_speed * ehat_tether
-
     else:
-        q_parent = variables_si['x']['q' + parent_label]
         dq_parent = variables_si['x']['dq' + parent_label]
 
-        segment_vector = q_node - q_parent
-        ehat_tether = vect_op.normalize(segment_vector)
-
-    dq_average = (dq_node + dq_parent) / 2.
-    e_kin_tether_trans = 0.5 * mass_segment * cas.mtimes(dq_average.T, dq_average)
-    outputs['e_kinetic']['tether_trans' + label] = e_kin_tether_trans
+    e_kin_trans = 0.5 * mass_segment / 3 * (
+                cas.mtimes(dq_node.T, dq_node) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_node.T, dq_parent))
+    outputs['e_kinetic']['tether' + label] = e_kin_trans
 
     e_kin_kite_trans = cas.DM(0.)
     if node_has_a_kite:
         mass_kite = parameters['theta0', 'geometry', 'm_k']
         e_kin_kite_trans = 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
     outputs['e_kinetic']['kite_trans' + label] = e_kin_kite_trans
-
-    v_difference = dq_node - dq_average
-    v_rotation = v_difference - cas.mtimes(v_difference.T, ehat_tether) * ehat_tether
-    radius_of_rod_rotation = (segment_length / 2.)
-    omega = v_rotation / radius_of_rod_rotation
-    moment_of_inertia = (1. / 12.) * mass_segment * segment_length**2.
-    e_kin_tether_rot = 0.5 * moment_of_inertia * cas.mtimes(omega.T, omega)
-
-    outputs['e_kinetic']['tether_rot' + label] = e_kin_tether_rot
 
     e_kinetic_kite_rot = cas.DM(0.)
     if node_has_a_kite and kites_have_6dof:
