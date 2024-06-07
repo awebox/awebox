@@ -21,7 +21,8 @@ def set_ampyx_ap2_settings(options):
     options['model.tether.aero_elements'] = 5
 
     # tether force limit
-    options['model.model_bounds.tether_stress.include'] = False
+    options['model.model_bounds.tether_stress.include'] = False  # please be advised: if you want to use the
+    # tether_stress constraint, you should also specify the safety factor params.tether.stress_safety_factor
     options['model.model_bounds.tether_force.include'] = True
     options['params.model_bounds.tether_force_limits'] = np.array([50, 1800.0])
 

@@ -16,13 +16,7 @@ import awebox as awe
 from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
-
-from awebox.logger.logger import Logger as awelogger
-import logging
 import awebox.tools.print_operations as print_op
-logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
-awelogger.logger.setLevel(10)
-
 
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model

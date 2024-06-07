@@ -73,12 +73,15 @@ class Visualization(object):
         return None
 
     def recalibrate(self, V_plot_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
-        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
+        print_op.base_print('recalibrating visualization...')
+        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals,
+                                                           parametric_options, time_grids, cost, name, V_ref_scaled,
+                                                           global_outputs)
         self.__has_been_recalibrated = True
 
         return None
 
-    def plot(self, V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, name, sweep_toggle, V_ref_scaled, global_outputs, fig_name='plot', fig_num = None, recalibrate = True):
+    def plot(self, V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, name, sweep_toggle, V_ref_scaled, global_outputs, fig_name='plot', fig_num=None, recalibrate = True):
         """
         Generate plots with given parametric and visualization options
         :param V_plot_scaled: plot data (scaled)
@@ -88,7 +91,8 @@ class Visualization(object):
         """
 
         # recalibrate plot_dict
-        if recalibrate or (not self.__has_been_recalibrated):
+        interpolation_length_is_inconsistent = ('interpolation_si' not in self.__plot_dict.keys()) or (len(self.__plot_dict['interpolation_si']['time_grids']['ip']) != len(self.__plot_dict['interpolation_si']['x']['q10'][0]))
+        if recalibrate or (not self.__has_been_recalibrated) or interpolation_length_is_inconsistent:
             self.recalibrate(V_plot_scaled, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
 
         if type(flags) is not list:

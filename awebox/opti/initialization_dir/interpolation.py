@@ -576,7 +576,7 @@ def get_rotation_matrix(axis, angle):
         #                          [cas.cos(angle)*angle, 0, -cas.sin(angle)*angle]])
 
     elif axis == 'z':
-        col1 = cas.cos(angle) * vect_op.xhat_dm() - cas.sin(angle) * vect_op.yhat_dm()
+        col1 = cas.cos(angle) * vect_op.xhat_dm() + cas.sin(angle) * vect_op.yhat_dm()
         col3 = -cas.sin(angle) * vect_op.xhat_dm() + cas.cos(angle) * vect_op.yhat_dm()
         col2 = vect_op.zhat_dm()
         rotation_mat = cas.horzcat(col1, col2, col3)

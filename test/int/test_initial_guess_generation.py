@@ -10,7 +10,7 @@ import awebox.opts.kite_data.ampyx_data as ampyx_data
 import numpy as np
 import awebox.tools.struct_operations as struct_op
 
-logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
+# logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 
 
 def build_initial_guess_problem(initialization_type='default'):
@@ -20,11 +20,13 @@ def build_initial_guess_problem(initialization_type='default'):
     options['user_options.induction_model'] = 'not_in_use'
     options['user_options.kite_standard'] = ampyx_data.data_dict()
     options['solver.initialization.initialization_type'] = initialization_type
-    options['model.tether.control_var'] = 'dddl_t'
+    options['model.tether.control_var'] = 'ddl_t'
     options['solver.hippo_strategy'] = False
     options['solver.generate_solvers'] = False
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['nlp.n_k'] = 10
 
-     # make trial, build and run
+    # make trial, build and run
     trial = awe.Trial(name='test', seed=options)
     trial.build()
     trial.optimize(final_homotopy_step='initial_guess')

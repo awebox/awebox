@@ -159,6 +159,11 @@ def recalibrate_visualization(single_trial):
     V_ref_scaled = single_trial.optimization.V_ref
     global_outputs_opt = single_trial.optimization.global_outputs_opt
 
-    recalibrated_plot_dict = tools.recalibrate_visualization(V_opt_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs_opt, iterations=iterations, return_status_numeric=return_status_numeric, timings=timings)
+    recalibrated_plot_dict = tools.recalibrate_visualization(V_opt_scaled, plot_dict, output_vals,
+                                                             integral_output_vals, parametric_options, time_grids,
+                                                             cost, name, V_ref_scaled, global_outputs_opt,
+                                                             iterations=iterations,
+                                                             return_status_numeric=return_status_numeric,
+                                                             timings=timings)
 
     return recalibrated_plot_dict

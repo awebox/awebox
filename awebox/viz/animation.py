@@ -27,6 +27,8 @@ animation routines for awebox trajectories
 python-3.5 / casadi 3.0.0
 - authors: jochem de schutter, rachel leuthold alu-fr 2018-2020
 """
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -67,10 +69,13 @@ def animate_monitor_plot(plot_dict, cosmetics, fig_name, init_colors=bool(False)
 
     plt.ion()
 
-    time_grid = plot_dict['time_grids']['ip']
-
-    # time grid length
+    time_grid = plot_dict['interpolation_si']['time_grids']['ip']
     N = time_grid.shape[0]
+
+    length_of_available_data = len(plot_dict['interpolation_si']['x']['q10'][0])
+    if N != length_of_available_data:
+        message = 'something went wrong when generating either the interpolation time_grid or the interpolated solution'
+        print_op.log_and_raise_error(message)
 
     # set-up mp4-writer
     total_time = time_grid[-1]

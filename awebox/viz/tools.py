@@ -22,6 +22,8 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -414,7 +416,6 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
     search_name += '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
     x_vals = plot_dict[search_name]['x']
 
-
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
 
@@ -691,7 +692,9 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['V_ref_scaled'] = V_ref_scaled
     plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
     plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
-    plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
+
+    print_op.warn_about_temporary_functionality_alteration()
+    # plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
 
     V_plot_si = plot_dict['V_plot_si']
 
@@ -769,7 +772,6 @@ def interpolate_data(plot_dict, cosmetics):
     '''
 
     # extract information
-    nlp_options = cosmetics
     time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
     V_plot_si = plot_dict['V_plot_si']
@@ -783,26 +785,21 @@ def interpolate_data(plot_dict, cosmetics):
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation_si = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_si,
+    interpolation_si = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_plot_si,
                                                    outputs_dict, outputs_opt, model_outputs,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
 
-    interpolation_scaled = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_plot_scaled,
+    interpolation_scaled = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_plot_scaled,
                                                    outputs_dict, outputs_opt, model_outputs,
                                                    integral_output_names, integral_outputs_opt,
                                                    Collocation=Collocation)
 
     # store the interpolation
-    for name in ['interpolation_si', 'interpolation_scaled']:
-        if name not in plot_dict.keys():
-            plot_dict[name] = {}
-
-    for name, value in interpolation_si.items():
-        plot_dict['interpolation_si'][name] = value
-
-    for name, value in interpolation_scaled.items():
-        plot_dict['interpolation_scaled'][name] = value
+    print_op.warn_about_temporary_functionality_alteration()
+    dict_transfer = {'interpolation_si': interpolation_si, 'interpolation_scaled': interpolation_scaled}
+    for interpolation_type, interpolation_output in dict_transfer.items():
+        plot_dict[interpolation_type] = interpolation_output
 
     return plot_dict
 
@@ -817,7 +814,6 @@ def interpolate_ref_data(plot_dict, cosmetics):
     '''
 
     # extract information
-    nlp_options = cosmetics
     time_grids = plot_dict['time_grids']['ref']
     variables_dict = plot_dict['variables_dict']
     V_ref_si = plot_dict['V_ref_si']
@@ -830,11 +826,11 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    interpolation_si = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_si,
+    interpolation_si = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
                                                    outputs_dict, outputs_ref, model_outputs,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)
-    interpolation_scaled = struct_op.interpolate_solution(nlp_options, time_grids, variables_dict, V_ref_scaled,
+    interpolation_scaled = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_scaled,
                                                    outputs_dict, outputs_ref, model_outputs,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation)

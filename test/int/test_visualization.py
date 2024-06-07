@@ -6,11 +6,13 @@
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
+import numpy as np
 
 import os
 import awebox as awe
 import logging
 import awebox.viz.tools as viz_tools
+import awebox.tools.print_operations as print_op
 
 plt.rcParams.update({'figure.max_open_warning': 0})
 
@@ -51,7 +53,7 @@ def test_visualization():
     sweep.plot(sweep_flags)
 
 
-def test_animation():
+def test_animation(threshold=1e-4):
 
     # basic options
     options = {}
@@ -67,15 +69,22 @@ def test_animation():
     options['solver.max_iter'] = 0
 
     options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    options['visualization.cosmetics.interpolation.n_points'] = 2
+    n_points = 5
+    options['visualization.cosmetics.interpolation.n_points'] = n_points
 
     # build trial and optimize
     trial = awe.Trial(options, 'trial1')
     trial.build()
     trial.optimize(final_homotopy_step='initial')
 
+    # check that able to plot without errors
     trial.plot('animation')
+
+    # check that save worked correctly
     os.remove('trial1.mp4')
+
+    return None
+
 
 def test_components():
     viz_tools.test_naca_coordinates()

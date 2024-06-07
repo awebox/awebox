@@ -29,7 +29,7 @@ _python _version 2.7 / casadi-3.4.5
 '''
 
 import copy
-
+import pdb
 
 import numpy as np
 import casadi.tools as ct
@@ -1079,7 +1079,8 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
         for name in struct_op.subkeys(model.variables, 'x'):
             V_init['x', k, name] = continuous_guess[name]
             deriv_name = 'd' + name
-            if ('xdot' in V_init.keys()) and deriv_name in continuous_guess.keys():
+            test_label = '[xdot,' + str(k) + ',' + deriv_name + ',0]'
+            if (test_label in V_init.labels()) and (deriv_name in continuous_guess.keys()):
                 V_init['xdot', k, deriv_name] = continuous_guess[deriv_name]
 
         if k < (n_max):
@@ -1099,11 +1100,13 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                     V_init['coll_var', k, j, 'x', name] = continuous_guess[name]
 
                     deriv_name = 'd' + name
-                    if ('xdot' in V_init.keys()) and deriv_name in continuous_guess.keys():
+                    test_label = '[coll_var,' + str(k) +',' + str(j) + ',0,xdot,' + deriv_name + ',0]'
+                    if (test_label in V_init.labels()) and (deriv_name in continuous_guess.keys()):
                         V_init['coll_var', k, j, 'xdot', deriv_name] = continuous_guess[deriv_name]
 
                 if model.options['tether']['control_var'] == 'ddl_t':
-                    if 'u' in V_init.keys():
+                    test_label = '[coll_var,' + str(k) + ',' + str(j) + ',u,ddl_t,0]'
+                    if test_label in V_init.labels():
                         V_init['coll_var', k, j, 'u', 'ddl_t'] = continuous_guess['ddl_t']
     return V_init
 

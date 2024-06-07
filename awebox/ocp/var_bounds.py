@@ -198,7 +198,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                     vars_ub[var_type, kdx, name] = max
                     vars_lb[var_type, kdx, name] = min
 
-            elif nlp_options['phase_fix'] == 'single_reelout':
+            elif nlp_options['phase_fix'] == 'simple':
                 if at_initial_control_node:
                     max = 0.
                     min = 0.

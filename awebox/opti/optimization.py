@@ -25,9 +25,9 @@
 ##################################
 # Class Optimization solves the NLP of the multi-kite system
 ###################################
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
+# import matplotlib
+# matplotlib.use('TkAgg')
+# import matplotlib.pyplot as plt
 
 
 import pickle
@@ -63,8 +63,6 @@ class Optimization(object):
         self.__outputs_ref = None
         self.__time_grids = None
         self.__debug_fig_num = 1000
-
-        plt.close('all')
 
     def build(self, options, nlp, model, formulation, name):
 

@@ -136,9 +136,9 @@ class Trial(object):
         awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
         awelogger.logger.info('')
 
-    def optimize(self, options_seed = [], final_homotopy_step = 'final',
-                 warmstart_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False, intermediate_solve = False):
+    def optimize(self, options_seed=[], final_homotopy_step='final',
+                 warmstart_file=None, debug_flags=[],
+                 debug_locations=[], save_flag=False, intermediate_solve=False, recalibrate_viz=True):
 
         if not options_seed:
             options = self.__options
@@ -165,8 +165,8 @@ class Trial(object):
 
         self.__optimization.solve(self.__name, options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file, debug_flags = debug_flags, debug_locations =
-                                  debug_locations, intermediate_solve = intermediate_solve)
+                                  final_homotopy_step, warmstart_file, debug_flags=debug_flags,
+                                  debug_locations=debug_locations, intermediate_solve=intermediate_solve)
 
         self.__solution_dict = self.generate_solution_dict()
 
@@ -184,6 +184,15 @@ class Trial(object):
 
         # perform quality check
         if not intermediate_solve:
+
+            if recalibrate_viz:
+                cost_fun = self.nlp.cost_components[0]
+                cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
+                self.visualization.recalibrate(self.__optimization.V_opt, self.visualization.plot_dict,
+                                          self.__optimization.output_vals, self.__optimization.integral_output_vals,
+                                          self.options, self.__optimization.time_grids, cost, self.name,
+                                          self.__optimization.V_ref, self.__optimization.global_outputs_opt)
+
             if (self.__options['quality']['when'] == 'final') or (self.__options['quality']['when'] == 'final_success' and self.__optimization.solve_succeeded):
                 self.__quality.check_quality(self)
             else:
@@ -200,13 +209,13 @@ class Trial(object):
 
         awelogger.logger.info('')
 
-    def plot(self, flags, V_plot_scaled=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
+    def plot(self, flags, V_plot_scaled=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num=None):
 
         recalibrate = True
-
         if V_plot_scaled is None:
             V_plot_scaled = self.__solution_dict['V_opt']
             recalibrate = False
+
         if parametric_options is None:
             parametric_options = self.__options
         if output_vals == None:

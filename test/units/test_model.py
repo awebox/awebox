@@ -112,7 +112,6 @@ def test_drag_mode_model():
     """ Test drag mode construction routines
     """
 
-
     # single kite with point-mass model
     options = {}
     options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
@@ -157,11 +156,7 @@ def test_drag_mode_model():
     dynamics = model.dynamics(model.variables, model.parameters)
     assert (cas.jacobian(dynamics, model.variables['x', 'kappa21']).nnz() != 0)
     assert (cas.jacobian(dynamics, model.variables['x', 'kappa31']).nnz() != 0)
-    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
-    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
-    assert (cas.jacobian(dynamics, model.variables['x', 'kappa21']).nnz() != 0)
-    assert (cas.jacobian(dynamics, model.variables['x', 'kappa31']).nnz() != 0)
-    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
+    assert (cas.jacobian(dynamics, model.variables['u', 'dkappa21']).nnz() != 0)
     assert (cas.jacobian(dynamics, model.variables['u', 'dkappa31']).nnz() != 0)
 
     # test power expression

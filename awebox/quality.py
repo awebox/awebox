@@ -27,7 +27,7 @@
 # information about quality check results
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 #####################################################
-
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
@@ -61,16 +61,18 @@ class Quality(object):
         integral_outputs_opt = trial.optimization.integral_outputs_opt
         Collocation = trial.nlp.Collocation
 
-        n_points = trial.options['quality']['interpolation']['n_points']
-        quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
-        time_grids['quality'] = quality_time_grid
+        print_op.warn_about_temporary_functionality_alteration()
+        # n_points = trial.options['quality']['interpolation']['n_points']
+        # quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
+        # time_grids['quality'] = quality_time_grid
 
         quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt,
                                                               trial.model.outputs, integral_output_names, integral_outputs_opt,
-                                                              Collocation=Collocation, timegrid_label='quality')
+                                                              Collocation=Collocation) #, timegrid_label='quality')
+        print_op.warn_about_temporary_functionality_alteration()
+        time_grids['quality'] = quality_input_values['time_grids']['ip']
 
         self.__input_values = quality_input_values
-        self.__input_time_grid = time_grids
 
         global_input_values = trial.nlp.global_outputs(trial.nlp.global_outputs_fun(V_opt, trial.optimization.p_fix_num))
         self.__global_input_values = global_input_values
