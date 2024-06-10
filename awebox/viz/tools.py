@@ -715,9 +715,16 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['options'] = options
 
     # interpolate data
-    plot_dict = interpolate_data(plot_dict, cosmetics)
+    plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt')
+    # compatibility with previous plot_dict variable access
+    for keys, values in plot_dict['interpolation_si'].items():
+        plot_dict[keys] = values
+
+    si_or_scaled = cosmetics['variables']['si_or_scaled']
+    if si_or_scaled == 'scaled':
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
     if cosmetics['plot_ref']:
-        plot_dict = interpolate_ref_data(plot_dict, cosmetics)
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
 
     # interations
     if iterations is not None:
@@ -762,7 +769,7 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     return plot_dict
 
 
-def interpolate_data(plot_dict, cosmetics):
+def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     '''
     Postprocess data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -774,30 +781,37 @@ def interpolate_data(plot_dict, cosmetics):
     # extract information
     time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
-    V_plot_si = plot_dict['V_plot_si']
-    V_plot_scaled = plot_dict['V_plot_scaled']
     model_outputs = plot_dict['model_outputs']
     outputs_dict = plot_dict['outputs_dict']
-    outputs_opt = plot_dict['output_vals']['opt']
     integral_output_names = plot_dict['integral_output_names']
-    integral_outputs_opt = plot_dict['integral_output_vals']['opt']
     Collocation = plot_dict['Collocation']
+
+    if opt_or_ref == 'opt':
+        time_grids_plot = plot_dict['time_grids']
+        V_plot = plot_dict['V_plot_' + si_or_scaled]
+        outputs_plot = plot_dict['output_vals']['opt']
+        integral_outputs_plot = plot_dict['integral_output_vals']['opt']
+
+    elif opt_or_ref == 'ref':
+
+        time_grids_plot = plot_dict['time_grids']['ref']
+        V_plot = plot_dict['V_ref_' + si_or_scaled]
+        outputs_plot = plot_dict['output_vals']['ref']
+        integral_outputs_plot = plot_dict['integral_output_vals']['ref']
+
+    else:
+        message = 'unexpected option in plotting: si_or_scaled = ' + si_or_scaled + ', opt_or_ref = ' + opt_or_ref
+        print_op.log_and_raise_error(message)
 
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
-    interpolation_si = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_plot_si,
-                                                   outputs_dict, outputs_opt, model_outputs,
-                                                   integral_output_names, integral_outputs_opt,
-                                                   Collocation=Collocation)
-
-    interpolation_scaled = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_plot_scaled,
-                                                   outputs_dict, outputs_opt, model_outputs,
-                                                   integral_output_names, integral_outputs_opt,
+    interpolation = struct_op.interpolate_solution(cosmetics, time_grids_plot, variables_dict, V_plot,
+                                                   outputs_dict, outputs_plot, model_outputs,
+                                                   integral_output_names, integral_outputs_plot,
                                                    Collocation=Collocation)
 
     # store the interpolation
-    print_op.warn_about_temporary_functionality_alteration()
-    dict_transfer = {'interpolation_si': interpolation_si, 'interpolation_scaled': interpolation_scaled}
+    dict_transfer = {'interpolation_' + si_or_scaled: interpolation}
     for interpolation_type, interpolation_output in dict_transfer.items():
         plot_dict[interpolation_type] = interpolation_output
 
