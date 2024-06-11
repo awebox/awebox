@@ -26,7 +26,7 @@
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
 ###################################
-
+import pdb
 
 from . import tools
 from . import trajectory
@@ -42,6 +42,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
@@ -90,9 +91,21 @@ class Visualization(object):
         :return: None
         """
 
-        # recalibrate plot_dict
-        interpolation_length_is_inconsistent = ('interpolation_si' not in self.__plot_dict.keys()) or (len(self.__plot_dict['interpolation_si']['time_grids']['ip']) != len(self.__plot_dict['interpolation_si']['x']['q10'][0]))
-        if recalibrate or (not self.__has_been_recalibrated) or interpolation_length_is_inconsistent:
+        has_not_been_recalibrated = (not self.__has_been_recalibrated)
+
+        interpolation_in_plot_dict = 'interpolation_si' in self.__plot_dict.keys()
+        if interpolation_in_plot_dict:
+            ip_time_length = len(self.__plot_dict['interpolation_si']['time_grids']['ip'])
+            ip_vars_length = len(self.__plot_dict['interpolation_si']['x']['q10'][0])
+        interpolation_length_is_inconsistent = (not interpolation_in_plot_dict) or (ip_time_length != ip_vars_length)
+
+        threshold = 1e-2
+        V_plot_scaled_in_plot_dict = 'V_plot_scaled' in self.__plot_dict.keys()
+        if V_plot_scaled_in_plot_dict:
+            V_plot_scaled_is_same = vect_op.norm(self.__plot_dict['V_plot_scaled'].cat - V_plot_scaled.cat) / V_plot_scaled.cat.shape[0] < threshold
+        using_new_V_plot = (not V_plot_scaled_in_plot_dict) or (not V_plot_scaled_is_same)
+
+        if recalibrate or has_not_been_recalibrated or interpolation_length_is_inconsistent or using_new_V_plot:
             self.recalibrate(V_plot_scaled, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
 
         if type(flags) is not list:

@@ -693,9 +693,6 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
     plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict)
-
     V_plot_si = plot_dict['V_plot_si']
 
     # get new name
@@ -716,7 +713,7 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
 
     # interpolate data
     plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt')
-    # compatibility with previous plot_dict variable access
+    # backwards-compatibility with previous plot_dict's variable access
     for keys, values in plot_dict['interpolation_si'].items():
         plot_dict[keys] = values
 
@@ -724,7 +721,7 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     if si_or_scaled == 'scaled':
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
     if cosmetics['plot_ref']:
-        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='ref')
 
     # interations
     if iterations is not None:
@@ -787,13 +784,14 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     Collocation = plot_dict['Collocation']
 
     if opt_or_ref == 'opt':
+        store_name = 'interpolation'
         time_grids_plot = plot_dict['time_grids']
         V_plot = plot_dict['V_plot_' + si_or_scaled]
         outputs_plot = plot_dict['output_vals']['opt']
         integral_outputs_plot = plot_dict['integral_output_vals']['opt']
 
     elif opt_or_ref == 'ref':
-
+        store_name = 'ref'
         time_grids_plot = plot_dict['time_grids']['ref']
         V_plot = plot_dict['V_ref_' + si_or_scaled]
         outputs_plot = plot_dict['output_vals']['ref']
@@ -811,7 +809,7 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
                                                    Collocation=Collocation)
 
     # store the interpolation
-    dict_transfer = {'interpolation_' + si_or_scaled: interpolation}
+    dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
     for interpolation_type, interpolation_output in dict_transfer.items():
         plot_dict[interpolation_type] = interpolation_output
 
