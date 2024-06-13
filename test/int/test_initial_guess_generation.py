@@ -72,5 +72,6 @@ def test_modular_generation():
     perform_initial_guess_generation_test(initialization_type='modular')
     return None
 
-# test_modular_generation()
-# test_default_generation()
+if __name__ == "__main__":
+    test_modular_generation()
+    test_default_generation()

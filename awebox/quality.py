@@ -61,21 +61,17 @@ class Quality(object):
         integral_outputs_opt = trial.optimization.integral_outputs_opt
         Collocation = trial.nlp.Collocation
 
-        print_op.warn_about_temporary_functionality_alteration()
-        # n_points = trial.options['quality']['interpolation']['n_points']
-        # quality_time_grid = struct_op.build_time_grid_for_interpolation(time_grids, n_points)
-        # time_grids['quality'] = quality_time_grid
-
         quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt,
                                                               trial.model.outputs, integral_output_names, integral_outputs_opt,
                                                               Collocation=Collocation) #, timegrid_label='quality')
-        print_op.warn_about_temporary_functionality_alteration()
         time_grids['quality'] = quality_input_values['time_grids']['ip']
 
         self.__input_values = quality_input_values
 
         global_input_values = trial.nlp.global_outputs(trial.nlp.global_outputs_fun(V_opt, trial.optimization.p_fix_num))
         self.__global_input_values = global_input_values
+
+        self.__raise_exception_if_quality_fails = quality_options['raise_exception']
 
         return None
 
@@ -111,15 +107,26 @@ class Quality(object):
         name = self.__name
         number_of_passed = sum(results.values())
         number_of_tests = len(list(results.keys()))
-        awelogger.logger.warning('#################################################')
-        awelogger.logger.warning('QUALITY CHECK results for ' + name + ':')
-        awelogger.logger.warning(str(number_of_passed) + ' of ' + str(number_of_tests) + ' tests passed.')
-        if number_of_tests == number_of_passed:
-            awelogger.logger.warning('All tests passed, solution is numerically sound.')
+
+        quality_standards_are_met = (number_of_tests == number_of_passed)
+
+        block_width = 20
+        block_line = block_width * '#'
+        message = block_line + '\n'
+        message += 'QUALITY CHECK results for ' + name + ': \n'
+        message += str(number_of_passed) + ' of ' + str(number_of_tests) + ' tests passed. \n'
+
+        if quality_standards_are_met:
+            message += 'All tests passed, solution is numerically sound. \n'
         else:
-            awelogger.logger.warning(str(number_of_tests - number_of_passed) + ' tests failed. Solution might be numerically unsound.')
-        awelogger.logger.warning('For more information, use trial.quality.print_results()')
-        awelogger.logger.warning('#################################################')
+            message += str(number_of_tests - number_of_passed) + ' tests failed. Solution might be numerically unsound. \n'
+
+        message += 'For more information, use trial.quality.print_results(). \n'
+        message += block_line
+
+        print_op.base_print(message, level='warning')
+        if self.__raise_exception_if_quality_fails and not quality_standards_are_met:
+            print_op.log_and_raise_error(message)
 
         self.__number_of_passed = number_of_passed
         self.__number_of_tests = number_of_tests

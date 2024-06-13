@@ -8,4 +8,6 @@ def test_parallelization():
     F = func.map(N, 'thread')
     F(x0=0, z0=0, p=0)
 
-# test_parallelization()
+
+if __name__ == "__main__":
+    test_parallelization()

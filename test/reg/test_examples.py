@@ -5,41 +5,47 @@
 """
 
 import os
-import awebox.tools.print_operations as print_op
-import matplotlib.pyplot as plt
-import subprocess
-import glob
 
-def test_examples():
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+import matplotlib.pyplot as plt
+import glob
+import importlib.util
+
+def test_examples(threshold=0.2):
 
     current_directory = os.getcwd()
     test_reg_index = current_directory.find("test/reg")
     base_directory = current_directory[:test_reg_index]
     example_directory = base_directory + 'examples/'
+    extension = '.py'
 
-    python_files = glob.glob(example_directory + "*.py")
+    python_files = glob.glob(example_directory + "*" + extension)
     for filename in python_files:
 
-        print_op.warn_about_temporary_functionality_alteration()
-        # todo: @Jochem, I don't know how your mpc interpolation stuff works, and I don't want to break anything.
-        #  so, that's just temporarily not included.
-        if not 'mpc_closed_loop' in filename:
+        module_name = filename[len(example_directory):-len(extension)]
+        module_spec = importlib.util.spec_from_file_location(module_name, filename)
+        local_module = importlib.util.module_from_spec(module_spec)
+        module_spec.loader.exec_module(local_module)
 
-            with open(filename) as file:
+        local_output = None
+        if hasattr(local_module, 'run'):
+            local_output = local_module.run(plot_show_block=False, quality_raise_exception=True)
 
-                action_message = 'running >> python3 ' + filename
-                print_op.base_print(action_message)
+        if (local_output is not None) and hasattr(local_module, 'make_comparison'):
+            comparison_dict = local_module.make_comparison(local_output)
+            for comparison_name in comparison_dict.keys():
+                expected = comparison_dict[comparison_name]['expected']
+                found = comparison_dict[comparison_name]['found']
+                error = (expected - found) / vect_op.smooth_norm(expected)
 
-                # use subprocess instead of exec, even though it's slower,
-                # because otherwise, you won't be able to automatically close the plots
-                p = subprocess.run(["python3", filename])
-
-                if p.returncode != 0:
-                    error_message = "something went wrong when " + action_message
-                    error_message += ". return code = " + str(p.returncode)
-                    print_op.log_and_raise_error(error_message)
+                if vect_op.norm(error) > threshold:
+                    message = 'something went wrong with the example at ' + filename + ';'
+                    message += ' error for ' + comparison_name + ' is ' + print_op.repr_g(error)
+                    print_op.log_and_raise_error(message)
 
                 plt.close('all')
 
 
-# test_examples()
+if __name__ == "__main__":
+    test_examples()

@@ -264,6 +264,7 @@ def generate_options_dict():
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['visualization.cosmetics.outputs.include_solution'] = True
+    single_kite_options['quality.raise_exception'] = True
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
@@ -490,29 +491,29 @@ def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
     return trial
 
 
-#
-test_single_kite_basic_health()
-test_single_kite()
-test_single_kite_6_dof_basic_health()
-test_single_kite_6_dof()
-test_poly()
-test_drag_mode()
-test_save_trial()
-test_dual_kite_basic_health()
-test_dual_kite()
-test_dual_kite_6_dof_basic_health()
-test_dual_kite_6_dof()
-test_dual_kite_tracking()
-test_dual_kite_tracking_winch()
-test_vortex_force_zero_basic_health()
-test_vortex_force_zero()
-test_vortex_basic_health()
-test_vortex()
-test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
-test_large_dual_kite() #<< ?
-# test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
-# test_actuator_qaxi()
-# test_actuator_qasym()
-# test_actuator_uaxi()
-# test_actuator_uasym()
-# test_actuator_comparison()
+if __name__ == "__main__":
+    test_single_kite_basic_health()
+    test_single_kite()
+    test_single_kite_6_dof_basic_health()
+    test_single_kite_6_dof()
+    test_poly()
+    test_drag_mode()
+    test_save_trial()
+    test_dual_kite_basic_health()
+    test_dual_kite()
+    test_dual_kite_6_dof_basic_health()
+    test_dual_kite_6_dof()
+    test_dual_kite_tracking()
+    test_dual_kite_tracking_winch()
+    test_vortex_force_zero_basic_health()
+    test_vortex_force_zero()
+    test_vortex_basic_health()
+    test_vortex()
+    test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
+    test_large_dual_kite() #<< ?
+    # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
+    # test_actuator_qaxi()
+    # test_actuator_qasym()
+    # test_actuator_uaxi()
+    # test_actuator_uasym()
+    # test_actuator_comparison()

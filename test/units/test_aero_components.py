@@ -8,6 +8,8 @@ def test_vortex_components():
 def test_geometry_components():
     geometry.test()
     return None
-#
-# test_vortex_components()
-# test_geometry_components()
+
+
+if __name__ == "__main__":
+    test_vortex_components()
+    test_geometry_components()

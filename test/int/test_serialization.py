@@ -178,9 +178,11 @@ def test_sweep_serial_loading_from_filename():
     perform_sweep_serial(sweep_type, load_type)
 
 
-# test_trial_serial_direct_collocation()
-# test_trial_serial_multiple_shooting()
-# test_trial_serial_loading_from_filename()
-# test_sweep_serial_parametric()
-# test_sweep_serial_trial()
-# test_sweep_serial_loading_from_filename()
+
+if __name__ == "__main__":
+    test_trial_serial_direct_collocation()
+    test_trial_serial_multiple_shooting()
+    test_trial_serial_loading_from_filename()
+    test_sweep_serial_parametric()
+    test_sweep_serial_trial()
+    test_sweep_serial_loading_from_filename()

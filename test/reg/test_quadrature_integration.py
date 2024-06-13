@@ -92,5 +92,7 @@ def test_constraints_integration(epsilon=1.e-3):
 
     return None
 
-test_integral_outputs_integration()
-test_constraints_integration()
+
+if __name__ == "__main__":
+    test_integral_outputs_integration()
+    test_constraints_integration()

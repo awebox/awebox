@@ -23,4 +23,5 @@ def test_seed_fill_in():
 
     return None
 
-# test_seed_fill_in()
+if __name__ == "__main__":
+    test_seed_fill_in()

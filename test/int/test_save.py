@@ -97,7 +97,8 @@ def test_write_to_csv():
     os.remove('trial1.csv')
 
     return None
-#
-# test_trial_save()
-# test_sweep_save()
-# test_write_to_csv()
+
+if __name__ == "__main__":
+    test_trial_save()
+    test_sweep_save()
+    test_write_to_csv()

@@ -27,10 +27,12 @@ def test_struct_op():
 def test_vect_op():
     vect_op.test()
 
-# test_cstr_op()
-# test_debug_op()
-# test_perf_op()
-# test_print_op()
-# test_save_op()
-# test_struct_op()
-# test_vect_op()
+
+if __name__ == "__main__":
+    test_cstr_op()
+    test_debug_op()
+    test_perf_op()
+    test_print_op()
+    test_save_op()
+    test_struct_op()
+    test_vect_op()

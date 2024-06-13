@@ -232,7 +232,8 @@ def test_generalized_regularization_mechanism_with_exception_mechanism():
     run_generalized_regularization_mechanism_test(with_additional_exceptions=True)
     return None
 
-# test_generalized_regularization_mechanism_without_additional_exceptions()
-# test_generalized_regularization_mechanism_with_exception_mechanism()
-# test_that_cost_values_are_not_all_zero_in_default_problem()
-# test_that_changing_the_weights_on_a_regularized_variable_influences_the_objective_predictably()
+if __name__ == "__main__":
+    test_generalized_regularization_mechanism_without_additional_exceptions()
+    test_generalized_regularization_mechanism_with_exception_mechanism()
+    test_that_cost_values_are_not_all_zero_in_default_problem()
+    test_that_changing_the_weights_on_a_regularized_variable_influences_the_objective_predictably()

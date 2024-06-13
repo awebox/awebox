@@ -1168,31 +1168,32 @@ def test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massi
     return None
 
 
-# test_architecture()
-# test_drag_mode_model()
-# test_constraint_mechanism()
-# test_cross_tether_model()
-# test_tether_moments()
-#
-# test_time_derivative_under_scaling()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
-# test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
-#
-# test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
-# test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
-#
-# test_idas_dae_integration()
-# test_that_dae_integration_actually_does_something()
-# check_that_arbitrary_pseudo_atwood_tf_doesnt_cause_problems()
-#
-# test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod()
-# test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod()
-#
-# test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable()
-# test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable()
-#
+if __name__ == "__main__":
+    test_architecture()
+    test_drag_mode_model()
+    test_constraint_mechanism()
+    test_cross_tether_model()
+    test_tether_moments()
+
+    test_time_derivative_under_scaling()
+
+    test_that_lagrangian_dynamics_residual_is_nonzero_for_pendulum_with_inconsistent_inputs()
+    test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs()
+    test_that_lagrangian_dynamics_residual_is_zero_for_pendulum_with_consistent_inputs_and_nontrivial_scaling()
+    test_that_lagrangian_dynamics_residual_is_zero_with_consistent_inputs_when_pendulum_rod_has_mass()
+
+    test_that_lagrangian_dynamics_residual_is_nonzero_for_pseudo_atwood_with_inconsistent_inputs()
+    test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_is_massless()
+    test_that_lagrangian_dynamics_residual_is_zero_for_pseudo_atwood_with_consistent_inputs_when_tether_has_mass()
+
+    test_idas_dae_integration()
+    test_that_dae_integration_actually_does_something()
+    check_that_arbitrary_pseudo_atwood_tf_doesnt_cause_problems()
+
+    test_that_energy_is_not_conserved_for_a_massless_pendulum_with_drag()
+    test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massless_rod()
+    test_that_energy_is_conserved_in_a_frictionless_pendulum_with_massive_rod()
+
+    test_that_energy_is_conserved_in_a_frictionless_pseudo_atwood_with_massless_cable()
+    test_that_energy_is_not_conserved_in_a_frictionless_pseudo_atwood_with_massive_cable()
+

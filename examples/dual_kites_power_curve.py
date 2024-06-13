@@ -16,34 +16,42 @@ from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 
-# dual kite with point-mass model
-options = {}
-options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
-options = set_ampyx_ap2_settings(options)
+def run(plot_show_block=True, quality_raise_exception=False):
 
-# trajectory should be a single pumping cycle with 1 windings
-options['user_options.trajectory.type'] = 'power_cycle'
-options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.windings'] = 1
-options['model.system_bounds.x.l_t'] = [1.0e-2, 1.0e3]
+    # dual kite with point-mass model
+    options = {}
+    options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
+    options = set_ampyx_ap2_settings(options)
 
-# wind model
-options['params.wind.z_ref'] = 10.0
-options['params.wind.power_wind.exp_ref'] = 0.15
-options['user_options.wind.model'] = 'power'
-options['user_options.wind.u_ref'] = 10.
+    # trajectory should be a single pumping cycle with 1 windings
+    options['user_options.trajectory.type'] = 'power_cycle'
+    options['user_options.trajectory.system_type'] = 'lift_mode'
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['model.system_bounds.x.l_t'] = [1.0e-2, 1.0e3]
 
-# discretization
-options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
-options['nlp.n_k'] = 20
-options['solver.linear_solver'] = 'ma57'
+    # wind model
+    options['params.wind.z_ref'] = 10.0
+    options['params.wind.power_wind.exp_ref'] = 0.15
+    options['user_options.wind.model'] = 'power'
+    options['user_options.wind.u_ref'] = 10.
 
-# set-up sweep options
-sweep_opts = [('user_options.wind.u_ref', np.linspace(5,8,4, endpoint=True))]
+    # discretization
+    options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
+    options['nlp.n_k'] = 20
+    options['solver.linear_solver'] = 'ma57'
+    options['quality.raise_exception'] = quality_raise_exception
 
-sweep = awe.Sweep(name = 'dual_kites_power_curve', options = options, seed = sweep_opts)
-sweep.build()
-sweep.run(apply_sweeping_warmstart = True)
-sweep.plot(['comp_stats', 'comp_convergence'])
+    # set-up sweep options
+    sweep_opts = [('user_options.wind.u_ref', np.linspace(5,8,4, endpoint=True))]
 
-plt.show(block=False) # the block=False argument isn't strictly necessary for you, it's only here so that we can automatically run this example in the awebox's tests
+    sweep = awe.Sweep(name = 'dual_kites_power_curve', options = options, seed = sweep_opts)
+    sweep.build()
+    sweep.run(apply_sweeping_warmstart = True)
+    sweep.plot(['comp_stats', 'comp_convergence'])
+
+    plt.show(plot_show_block)
+
+    return sweep
+
+if __name__ == "__main__":
+    sweep = run()

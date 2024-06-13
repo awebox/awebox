@@ -528,6 +528,7 @@ def set_default_options(default_user_options, help_options):
 
         # quality check options
         ('quality', None,       None, 'when',           'final_success',    ('run a quality-check never (never), at final solution (final), at a final solution if solve succeeded (final_success)', ['never', 'final', 'final_success']), 'x'),
+        ('quality', None,       None, 'raise_exception', False,             ('raise an exception when quality standards are not met', None), 'x'),
         ('quality', 'interpolation',    None, 'type',       'poly',         ('type of interpolation desired. be advised, not all combinations may be possible with all nlp discretization types', ['poly', 'spline']), 'x'),
         ('quality', 'interpolation',    None, 'n_points',   100,            ('number of interpolation points. must be an integer value', None), 'x'),
         ('quality', 'test_param', None, 'c_max', 1e0,                       ('maximum invariant test parameter', None), 'x'),

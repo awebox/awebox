@@ -90,6 +90,8 @@ def test_components():
     viz_tools.test_naca_coordinates()
     return None
 
-# test_visualization()
-# test_animation()
-# test_components()
+
+if __name__ == "__main__":
+    test_visualization()
+    test_animation()
+    test_components()

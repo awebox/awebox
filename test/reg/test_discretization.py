@@ -194,5 +194,7 @@ def test_rk_4_integrator(tolerance=2e-2):
     perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
     return None
 
-# test_collocation_integrator()
-# test_rk_4_integrator()
+
+if __name__ == "__main__":
+    test_collocation_integrator()
+    test_rk_4_integrator()
