@@ -16,7 +16,7 @@ from ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 
-def run(plot_show_block=True, quality_raise_exception=False):
+def run(plot_show_block=True, overwrite_options={}):
 
     # dual kite with point-mass model
     options = {}
@@ -39,7 +39,9 @@ def run(plot_show_block=True, quality_raise_exception=False):
     options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
     options['nlp.n_k'] = 20
     options['solver.linear_solver'] = 'ma57'
-    options['quality.raise_exception'] = quality_raise_exception
+
+    for option_name, option_val in overwrite_options.items():
+        options[option_name] = option_val
 
     # set-up sweep options
     sweep_opts = [('user_options.wind.u_ref', np.linspace(5,8,4, endpoint=True))]

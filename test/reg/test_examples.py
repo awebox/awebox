@@ -28,9 +28,11 @@ def test_examples(threshold=0.2):
         local_module = importlib.util.module_from_spec(module_spec)
         module_spec.loader.exec_module(local_module)
 
+        overwrite_options = {'quality.raise_exception': True}
+
         local_output = None
         if hasattr(local_module, 'run'):
-            local_output = local_module.run(plot_show_block=False, quality_raise_exception=True)
+            local_output = local_module.run(plot_show_block=False, overwrite_options=overwrite_options)
 
         if (local_output is not None) and hasattr(local_module, 'make_comparison'):
             comparison_dict = local_module.make_comparison(local_output)

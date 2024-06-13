@@ -107,15 +107,16 @@ class Quality(object):
         name = self.__name
         number_of_passed = sum(results.values())
         number_of_tests = len(list(results.keys()))
+        self.__number_of_passed = number_of_passed
+        self.__number_of_tests = number_of_tests
 
-        quality_standards_are_met = (number_of_tests == number_of_passed)
-
-        block_width = 20
+        block_width = 40
         block_line = block_width * '#'
-        message = block_line + '\n'
+        message = '\n' + block_line + '\n'
         message += 'QUALITY CHECK results for ' + name + ': \n'
         message += str(number_of_passed) + ' of ' + str(number_of_tests) + ' tests passed. \n'
 
+        quality_standards_are_met = self.all_tests_passed()
         if quality_standards_are_met:
             message += 'All tests passed, solution is numerically sound. \n'
         else:
@@ -124,12 +125,11 @@ class Quality(object):
         message += 'For more information, use trial.quality.print_results(). \n'
         message += block_line
 
-        print_op.base_print(message, level='warning')
         if self.__raise_exception_if_quality_fails and not quality_standards_are_met:
             print_op.log_and_raise_error(message)
+        else:
+            print_op.base_print(message, level='warning')
 
-        self.__number_of_passed = number_of_passed
-        self.__number_of_tests = number_of_tests
 
     def print_results(self):
 

@@ -13,7 +13,7 @@ import casadi as ca
 import copy
 import matplotlib.pyplot as plt
 
-def run(plot_show_block=True, quality_raise_exception=False):
+def run(plot_show_block=True, overwrite_options={}):
 
     # single kite with point-mass model
     options = {}
@@ -38,7 +38,8 @@ def run(plot_show_block=True, quality_raise_exception=False):
     options['solver.linear_solver'] = 'ma57' # if HSL
     options['solver.mu_hippo'] = 1e-2
 
-    options['quality.raise_exception'] = quality_raise_exception
+    for option_name, option_val in overwrite_options.items():
+        options[option_name] = option_val
 
     # initialize and optimize trial
     trial = awe.Trial(options, 'single_kite_lift_mode')

@@ -19,7 +19,7 @@ import numpy as np
 import awebox.tools.print_operations as print_op
 
 
-def run(plot_show_block=True, quality_raise_exception=False):
+def run(plot_show_block=True, overwrite_options={}):
     # indicate desired system architecture
     # here: single kite with 6DOF Ampyx AP2 model
     options = {}
@@ -51,7 +51,8 @@ def run(plot_show_block=True, quality_raise_exception=False):
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
 
-    options['quality.raise_exception'] = quality_raise_exception
+    for option_name, option_val in overwrite_options.items():
+        options[option_name] = option_val
 
     # build and optimize the NLP (trial)
     trial = awe.Trial(options, 'Ampyx_AP2')
