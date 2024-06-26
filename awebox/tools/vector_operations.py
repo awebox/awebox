@@ -62,7 +62,9 @@ def norm(a):
 
 
 def smooth_norm(a, epsilon=1e-8):
-    if type(a) == np.ndarray:
+    if isinstance(a, float):
+        dot_product = a**2.
+    elif type(a) == np.ndarray:
         dot_product = np.matmul(a.T, a)
     else:
         dot_product = cas.mtimes(a.T, a)

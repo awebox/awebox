@@ -28,10 +28,10 @@ _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
 - edited: rachel leuthold, alu-fr 2018-2022
 '''
-
+import pdb
 
 from awebox.logger.logger import Logger as awelogger
-
+import pandas as pd
 import os
 import casadi.tools as cas
 import numpy as np
@@ -183,13 +183,27 @@ def print_variable_info(object_name, variable_struct):
     return None
 
 class Table:
-    def __init__(self):
-        self.__column_headers = set([])
+    def __init__(self, list_of_lists=None, list_of_headers=None):
+        self.__column_headers = []
         self.__dict = {}
+        if isinstance(list_of_lists, list) and isinstance(list_of_headers, list):
+            self.populate_from_lists_of_listed_entries_and_headers(list_of_lists, list_of_headers)
+
+
+    def populate_from_lists_of_listed_entries_and_headers(self, list_of_lists, list_of_headers):
+        for entry in list_of_lists:
+            local_row = {}
+            for idx in range(len(list_of_headers)):
+                local_row[list_of_headers[idx]] = entry[idx]
+            self.append_row_with_overwrite(local_row)
+        return None
+
 
     def add_column_headers(self, list_of_headers):
-        for head in list_of_headers:
-            self.__column_headers.add(head)
+        # for head in list_of_headers:
+        tentative_list = self.__column_headers + list_of_headers
+        # self.__column_headers += list_of_headers #[head]
+        self.__column_headers = list(dict.fromkeys(tentative_list))
         return None
 
     def get_row_headers(self):
@@ -197,7 +211,8 @@ class Table:
 
     def get_column_headers(self):
         for row_head, row_dict in self.__dict.items():
-            self.add_column_headers(row_dict.keys())
+            row_dict_keys = list(dict.fromkeys(row_dict))
+            self.add_column_headers(row_dict_keys)
         return self.__column_headers
 
     def is_row_empty(self, row_head):
@@ -259,19 +274,29 @@ class Table:
 
         self.uniformify_column_headers()
 
-    def to_string(self):
+    def to_pandas(self, digits=4, repr_type='E'):
+        skeleton = '{:.' + str(digits) + repr_type + '}'
+        pd.set_option('display.float_format', skeleton.format)
+
         self.uniformify_column_headers()
-
         table = []
-
         for row_head, row_dict in self.__dict.items():
-            local_row = row_dict.values()
+            local_row = [repr_g(val, digits=digits, repr_type=repr_type) for val in row_dict.values()]
             table += [local_row]
-
         headers = row_dict.keys()
+        df = pd.DataFrame(table, columns=headers)
+        return df
 
-        message = '\n' + tabulate(table, headers=headers)
+    def to_string(self):
+        df = self.to_pandas()
+        message = '\n' + tabulate(df, headers=self.__column_headers, showindex=False)
         return message
+
+    def to_latex(self, digits=4, repr_type='E'):
+        df = self.to_pandas(digits=digits, repr_type=repr_type)
+        column_format = "r" + ("l" * (len(self.__column_headers) - 1))
+        df_tex = df.to_latex(index=False, escape=False, column_format=column_format)
+        return df_tex
 
     def print(self, level='info'):
         base_print(self.to_string())
@@ -294,30 +319,49 @@ class Table:
         awelogger.logger.warning('Cannot set column_headers object.')
 
 
-def test_table_print():
+def make_sample_table():
+    list_of_lists = [["Sun", 696000., 1989100000], ["Earth", 6371, 5973.6], ["Moon", 1737, 73.5], ["Mars", 3390, 641.85]]
+    list_of_headers = ["Planet", "R (km)", "mass (x 10^29 kg)"]
+    tab = Table(list_of_lists=list_of_lists, list_of_headers=list_of_headers)
 
-    table = [["Sun", 696000, 1989100000], ["Earth", 6371, 5973.6], ["Moon", 1737, 73.5], ["Mars", 3390, 641.85]]
-    headers = ["Planet", "R (km)", "mass (x 10^29 kg)"]
-    tabulate_string = '\n' + tabulate(table, headers=headers)
+    return list_of_lists, list_of_headers, tab
 
-    tab = Table()
 
-    body_label = headers[0]
-    radius_label = headers[1]
-    mass_label = headers[2]
+def test_table_to_latex():
+    table, headers, tab = make_sample_table()
+    test_latex = tab.to_latex(digits=2, repr_type='E')
 
-    for entry in table:
-        local_row = {body_label:entry[0],
-                     radius_label:entry[1],
-                     mass_label:entry[2]
-                     }
-        tab.append_row_with_overwrite(local_row)
-    test_string = tab.to_string()
+    includes_header = 'Planet & R (km) & mass (x 10^29 kg) \\' in test_latex
+    includes_midrule = '\midrule' in test_latex
+    test_entries = ['Sun', 'Mars', '6.96E+05', '6.42E+02']
+    includes_entries = [entry in test_latex for entry in test_entries]
+    includes_information = all(includes_entries)
 
-    criteria = (test_string == tabulate_string)
+    criteria = includes_header and includes_midrule and includes_information
     if not criteria:
         message = 'table to_string does not work as expected.'
         log_and_raise_error(message)
+    return None
+
+
+def test_table_print():
+
+    table, headers, tab = make_sample_table()
+    test_string = tab.to_string()
+
+    includes_header = 'Planet      R (km)    mass (x 10^29 kg)' in test_string
+    includes_midrule = '--------  --------  -------------------' in test_string
+    test_entries = ['Sun', 'Mars', '696000', '641.85']
+    includes_entries = [entry in test_string for entry in test_entries]
+    includes_information = all(includes_entries)
+
+    criteria = includes_header and includes_midrule and includes_information
+    if not criteria:
+        message = 'table to_string does not work as expected.'
+        log_and_raise_error(message)
+
+    return None
+
 
 
 def get_depth_of_dict(dict):
@@ -403,9 +447,12 @@ def print_dot_separated_info(name, value, level='info'):
     return None
 
 
-def repr_g(value):
-    if isinstance(value, int) or isinstance(value, float):
-        message = "{:0.4G}".format(value)
+def repr_g(value, digits=4, repr_type='G'):
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, int) or isinstance(value, float):
+        skeleton = "{:0." + str(digits) + repr_type + "}"
+        message = skeleton.format(value)
         return message
     elif isinstance(value, cas.DM) and value.shape == (1, 1):
         return repr_g(float(value))
@@ -431,5 +478,9 @@ def print_progress(index, total_count):
     return None
 
 def test():
-    test_table_print()
     test_depth_function()
+    test_table_print()
+    test_table_to_latex()
+
+if __name__ == "__main__":
+    test()

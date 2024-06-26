@@ -302,13 +302,8 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
     return None
 
 
-def test():
-    test_table_save()
-    # todo: test variable saving? and/or join with the table-save routine?
-    return None
 
-
-def test_table_save():
+def test_table_save_to_csv():
 
     filename = 'save_op_test.csv'
 
@@ -359,4 +354,31 @@ def test_table_save():
 
     return None
 
-# test()
+
+
+
+def save_dict_as_latex(table_1, filename):
+    pass
+
+
+
+def test_table_save_as_latex():
+    filename = 'save_op_test.tex'
+
+    table, headers, tab = print_op.make_sample_table()
+    save_dict_as_latex(tab.to_latex(), filename)
+
+    message = 'save to latex does not yet work'
+    print_op.log_and_raise_error(message)
+    return None
+
+
+def test():
+    # todo: test variable saving? and/or join with the table-save routine?
+    test_table_save_to_csv()
+    test_table_save_as_latex()
+    return None
+
+
+if __name__ == "__main__":
+    test()

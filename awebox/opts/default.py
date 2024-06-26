@@ -230,7 +230,11 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'other', 'position_scaling_method',  'altitude_and_radius',   ('values to use when scaling the node position states q', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
+        ('model',  'scaling', 'other', 'position_scaling_method',  'altitude_and_radius',   ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
+        ('model',  'scaling', 'other', 'force_scaling_method',     'synthesized',           ('the method of estimating the force in the dynamics for problem scaling', ['max_acceleration', 'tension', 'gravity', 'centripetal', 'aero', 'synthesized']), 'x'),
+        ('model',  'scaling', 'other', 'flight_radius_estimate',   'synthesized',           ('the method of estimating the trajectory radius for problem scaling', ['anticollision', 'centripetal', 'cone', 'synthesized']), 'x'),
+        ('model',  'scaling', 'other', 'tension_estimate',         'synthesized',           ('the method of estimating the main tether tension for problem scaling', ['power', 'max_stress', 'average_force', 'force_summation', 'synthesized']), 'x'),
+
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other', 'g',	       9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
         ('model',  'scaling', 'x',     'kappa',    1e1,      ('generator braking parameter [m]', None), 'x'),

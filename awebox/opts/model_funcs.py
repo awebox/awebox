@@ -1003,7 +1003,24 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     tension = tension_per_unit_length * length
 
     available_estimates = [max_acceleration_force, tension, gravity_force, centripetal_force, aero_force]
-    f_scaling = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    synthesized_force = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+
+    force_scaling_method = options['model']['scaling']['other']['force_scaling_method']
+    if force_scaling_method == 'max_acceleration':
+        f_scaling = max_acceleration_force
+    elif force_scaling_method == 'tension':
+        f_scaling = tension
+    elif force_scaling_method == 'gravity':
+        f_scaling = gravity_force
+    elif force_scaling_method == 'centripetal':
+        f_scaling = centripetal_force
+    elif force_scaling_method == 'aero':
+        f_scaling = aero_force
+    elif force_scaling_method == 'synthesized':
+        f_scaling = synthesized_force
+    else:
+        message = 'unknown force_scaling_method (' + force_scaling_method + ')'
+        print_op.log_and_raise_error(message)
 
     moment_scaling_factor = b_ref / 2.
 
@@ -1144,7 +1161,6 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
 def estimate_flight_radius(options, architecture):
 
     b_ref = get_geometry(options)['b_ref']
-
     anticollision_radius = b_ref * options['model']['model_bounds']['anticollision']['safety_factor']
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
@@ -1159,8 +1175,22 @@ def estimate_flight_radius(options, architecture):
     cone_radius = float(length * np.sin(cone_angle))
 
     available_estimates = [anticollision_radius, centripetal_radius, cone_radius]
-    radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
-    return radius
+    synthesized_radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+
+    flight_radius_estimate = options['model']['scaling']['other']['flight_radius_estimate']
+    if flight_radius_estimate == 'anticollision':
+        return anticollision_radius
+    elif flight_radius_estimate == 'centripetal':
+        return centripetal_radius
+    elif flight_radius_estimate == 'cone':
+        return cone_radius
+    elif flight_radius_estimate == 'synthesized':
+        return synthesized_radius
+    else:
+        message = 'unknown flight radius scaling method (' + flight_radius_estimate + ')'
+        print_op.log_and_raise_error(message)
+
+    return None
 
 
 def estimate_aero_force(options, architecture):
@@ -1295,8 +1325,6 @@ def estimate_altitude(options):
 
 def estimate_main_tether_tension_per_unit_length(options, architecture):
 
-    length = options['solver']['initialization']['l_t']
-
     power = estimate_power(options, architecture)
     reelout_speed = estimate_reelout_speed(options)
     tension_estimate_via_power = float(power/reelout_speed)
@@ -1321,12 +1349,28 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
 
     tension_estimate_via_min_force = options['params']['model_bounds']['tether_force_limits'][0]
     tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
+    tension_estimate_via_average_force = (tension_estimate_via_min_force + tension_estimate_via_max_force)/2.
 
-    available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_max_force, tension_estimate_via_force_summation, tension_estimate_via_min_force]
-    tension_estimate = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
+    available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_average_force, tension_estimate_via_force_summation]
+    tension_estimate_via_synthesis = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
-    multiplier = tension_estimate / length
+    tension_estimate = options['model']['scaling']['other']['tension_estimate']
+    if tension_estimate == 'power':
+        tension = tension_estimate_via_power
+    elif tension_estimate == 'max_stress':
+        tension = tension_estimate_via_max_stress
+    elif tension_estimate == 'average_force':
+        tension = tension_estimate_via_average_force
+    elif tension_estimate == 'force_summation':
+        tension = tension_estimate_via_force_summation
+    elif tension_estimate == 'synthesized':
+        tension = tension_estimate_via_synthesis
+    else:
+        message = 'unknown tension estimation method (' + tension_estimate + ')'
+        print_op.log_and_raise_error(message)
 
+    length = options['solver']['initialization']['l_t']
+    multiplier = tension / length
     return multiplier
 
 

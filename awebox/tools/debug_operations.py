@@ -42,6 +42,7 @@ import numpy.ma as ma
 import scipy.linalg as scila
 import resource
 import datetime as datetime
+import time as time
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -179,6 +180,7 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
     tractability['datetime_day'] = datetime_now.day
     tractability['datetime_hour'] = datetime_now.hour
     tractability['datetime_second'] = datetime_now.second
+    tractability['datetime_unix'] = datetime.datetime.timestamp(datetime_now)*1000
     tractability['step_name'] = step_name
 
     tractability['autoscale'] = solver_options['ipopt']['autoscale']

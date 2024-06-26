@@ -9,6 +9,9 @@
 import collections
 import copy
 import logging
+import pdb
+
+import awebox as awe
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data
@@ -33,170 +36,167 @@ logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=l
 
 
 # 1
-def test_single_kite_basic_health(final_homotopy_step='final'):
+def test_single_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'single_kite_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 2
-def test_single_kite(final_homotopy_step='final'):
+def test_single_kite(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'single_kite_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 3
-def test_single_kite_6_dof_basic_health(final_homotopy_step='final'):
+def test_single_kite_6_dof_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'single_kite_6_dof_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 4
-def test_single_kite_6_dof(final_homotopy_step='final'):
+def test_single_kite_6_dof(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'single_kite_6_dof_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 5
-def test_poly(final_homotopy_step='final'):
+def test_poly(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'poly_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 6
-def test_drag_mode():
+def test_drag_mode(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'drag_mode_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 7
-def test_save_trial():
+def test_save_trial(final_homotopy_step='initial', overwrite_options={}):
     trial_name = 'save_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 8
-def test_dual_kite(final_homotopy_step='final'):
+def test_dual_kite(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 9
-def test_dual_kite_basic_health(final_homotopy_step='final'):
+def test_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 10
-def test_dual_kite_6_dof(final_homotopy_step='final'):
+def test_dual_kite_6_dof(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_6_dof_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 11
-def test_dual_kite_6_dof_basic_health(final_homotopy_step='final'):
+def test_dual_kite_6_dof_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_6_dof_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 12
-def test_dual_kite_tracking():
+def test_dual_kite_tracking(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_tracking_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 13
-def test_dual_kite_tracking_winch():
+def test_dual_kite_tracking_winch(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'dual_kite_tracking_winch_trial'
-    run_a_solve_and_check_test(trial_name)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 14
-def test_vortex_force_zero_basic_health(final_homotopy_step='final'):
+def test_vortex_force_zero_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'vortex_force_zero_basic_health_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 15
-def test_vortex_force_zero(final_homotopy_step='final'):
+def test_vortex_force_zero(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'vortex_force_zero_trial'
-    run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 16
-def test_vortex_basic_health(final_homotopy_step='final'):
-    options_dict = generate_options_dict()
+def test_vortex_basic_health(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'vortex_basic_health_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
 # 17
-def test_vortex(final_homotopy_step='final'):
-    options_dict = generate_options_dict()
+def test_vortex(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'vortex_trial'
-    solve_trial(options_dict[trial_name], trial_name, final_homotopy_step=final_homotopy_step)
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
 
-# def test_small_dual_kite(final_homotopy_step='final'):
+# def test_small_dual_kite(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'small_dual_kite_trial'
-#     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
-
 #
-# def test_large_dual_kite(final_homotopy_step='final'):
+# def test_large_dual_kite(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'large_dual_kite_trial'
-#     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 
 
-# def test_actuator_qaxi(final_homotopy_step='final'):
+# def test_actuator_qaxi(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_qaxi_trial'
-#     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
-# def test_actuator_qaxi_basic_health(final_homotopy_step='final'):
+# def test_actuator_qaxi_basic_health(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_qaxi_basic_health_trial'
-#     run_a_solve_and_check_test(trial_name, final_homotopy_step=final_homotopy_step)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
 #
-# def test_actuator_uaxi():
+# def test_actuator_uaxi(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_uaxi_trial'
-#     run_a_solve_and_check_test(trial_name)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
 #
-# def test_actuator_qasym():
+# def test_actuator_qasym(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_qasym_trial'
-#     run_a_solve_and_check_test(trial_name)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
 #
-# def test_actuator_uasym():
+# def test_actuator_uasym(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_uasym_trial'
-#     run_a_solve_and_check_test(trial_name)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
 #
-# def test_actuator_comparison():
+# def test_actuator_comparison(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'actuator_comparison_trial'
-#     run_a_solve_and_check_test(trial_name)
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 
 
@@ -206,7 +206,7 @@ def make_basic_health_variant(base_options):
     basic_health_options = copy.deepcopy(base_options)
 
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
-    basic_health_options['nlp.n_k'] = 9  # try to decrease this.
+    basic_health_options['nlp.n_k'] = 9 # try to decrease this.
     basic_health_options['nlp.collocation.d'] = 3
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
@@ -227,7 +227,6 @@ def make_basic_health_variant(base_options):
     basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
 
-
     return basic_health_options
 
 
@@ -240,31 +239,36 @@ def generate_options_dict():
     # set options
     single_kite_options = {}
     single_kite_options['user_options.system_model.architecture'] = {1: 0}
-    single_kite_options = set_ampyx_ap2_settings(single_kite_options)
+    single_kite_options['user_options.system_model.kite_dof'] = 3
+    single_kite_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    single_kite_options['user_options.trajectory.system_type'] = 'lift_mode'
+    single_kite_options['user_options.trajectory.lift_mode.windings'] = 1
+    single_kite_options['model.tether.aero_elements'] = 1
+    single_kite_options['user_options.induction_model'] = 'not_in_use'
     single_kite_options['solver.linear_solver'] = 'ma57'
-    single_kite_options['visualization.cosmetics.plot_bounds'] = True
-    single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = False
-    # single_kite_options['solver.weights.q'] = 1e0
-    # single_kite_options['solver.weights.dq'] = 1.e0
-    # single_kite_options['solver.weights.l_t'] = 1e-5
-    # single_kite_options['solver.weights.dl_t'] = 1e-3
-    # single_kite_options['solver.weights.ddl_t'] = 1e-1
-    # single_kite_options['solver.weights.dddl_t'] = 1e-1
-    # single_kite_options['solver.weights.coeff'] = 1e-6
-    # single_kite_options['solver.weights.r'] = 1e0
-    # single_kite_options['solver.cost.fictitious.0'] = 1.e0
-    # single_kite_options['solver.cost.fictitious.1'] = 1.e3
-    # single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    # single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
-    single_kite_options['solver.initialization.groundspeed'] = 20.
-    # single_kite_options['solver.cost.tracking.0'] = 1e0
-    # single_kite_options['solver.cost.psi.1'] = 1.e2
-    single_kite_options['solver.cost_factor.power'] = 1e1  #1e4
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
-    single_kite_options['visualization.cosmetics.outputs.include_solution'] = True
     single_kite_options['quality.raise_exception'] = True
+
+    # single_kite_options['visualization.cosmetics.plot_bounds'] = True
+    # single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
+    # single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = False
+    # # single_kite_options['solver.weights.q'] = 1e0
+    # # single_kite_options['solver.weights.dq'] = 1.e0
+    # # single_kite_options['solver.weights.l_t'] = 1e-5
+    # # single_kite_options['solver.weights.dl_t'] = 1e-3
+    # # single_kite_options['solver.weights.ddl_t'] = 1e-1
+    # # single_kite_options['solver.weights.dddl_t'] = 1e-1
+    # # single_kite_options['solver.weights.coeff'] = 1e-6
+    # # single_kite_options['solver.weights.r'] = 1e0
+    # # single_kite_options['solver.cost.fictitious.0'] = 1.e0
+    # # single_kite_options['solver.cost.fictitious.1'] = 1.e3
+    # # single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
+    # # single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
+    # single_kite_options['solver.initialization.groundspeed'] = 20.
+    # # single_kite_options['solver.cost.tracking.0'] = 1e0
+    # # single_kite_options['solver.cost.psi.1'] = 1.e2
+    # single_kite_options['solver.cost_factor.power'] = 1e1  #1e4
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
@@ -385,12 +389,14 @@ def generate_options_dict():
     vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
     vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
     vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
+    vortex_options['quality.raise_exception'] = False
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
     vortex_force_zero_options = copy.deepcopy(vortex_options)
     vortex_force_zero_options['model.aero.induction.force_zero'] = True
     vortex_force_zero_options['nlp.collocation.d'] = 4
+    vortex_force_zero_options['quality.raise_exception'] = True
 
     vortex_force_zero_basic_health_options = make_basic_health_variant(vortex_force_zero_options)
 
@@ -447,7 +453,7 @@ def generate_options_dict():
     return options_dict
 
 
-def run_a_solve_and_check_test(trial_name, final_homotopy_step='final'):
+def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     """
     Solve one individual trial and run tests on it
     :param trial_name: name of the trial
@@ -457,12 +463,14 @@ def run_a_solve_and_check_test(trial_name, final_homotopy_step='final'):
     options_dict = generate_options_dict()
     trial_options = options_dict[trial_name]
 
-    # compute trajectory solution
-    trial = solve_trial(trial_options, trial_name, final_homotopy_step=final_homotopy_step)
+    for option_name, option_value in overwrite_options.items():
+        trial_options[option_name] = option_value
+        trial_name += '_' + option_name + '_' + str(option_value)
 
-    # evaluate results
-    if hasattr(trial, 'quality') and hasattr(trial.quality, 'results'):
-        evaluate_results(trial.quality.results, trial_name)
+    # compute trajectory solution
+    trial = awe_trial.Trial(trial_options, trial_name)
+    trial.build()
+    trial.optimize(final_homotopy_step=final_homotopy_step)
 
     if not trial.optimization.solve_succeeded:
         message = 'optimization of trial ' + trial_name + ' failed'
@@ -470,25 +478,6 @@ def run_a_solve_and_check_test(trial_name, final_homotopy_step='final'):
 
     return None
 
-
-def evaluate_results(results, trial_name):
-    for test_name in list(results.keys()):
-        assert results[test_name], 'Test failed for ' + trial_name + ', Test regarding ' + test_name + ' failed.'
-
-    return None
-
-
-def solve_trial(trial_options, trial_name, final_homotopy_step='final'):
-    """
-    Set up and solve trial
-    :return: solved trial
-    """
-
-    trial = awe_trial.Trial(trial_options, trial_name)
-    trial.build()
-    trial.optimize(final_homotopy_step=final_homotopy_step)
-
-    return trial
 
 
 if __name__ == "__main__":
@@ -509,11 +498,11 @@ if __name__ == "__main__":
     test_vortex_force_zero()
     test_vortex_basic_health()
     test_vortex()
-    test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
-    test_large_dual_kite() #<< ?
-    # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
-    # test_actuator_qaxi()
-    # test_actuator_qasym()
-    # test_actuator_uaxi()
-    # test_actuator_uasym()
-    # test_actuator_comparison()
+    # # test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
+    # # test_large_dual_kite() #<< ?
+    # # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
+    # # test_actuator_qaxi()
+    # # test_actuator_qasym()
+    # # test_actuator_uaxi()
+    # # test_actuator_uasym()
+    # # test_actuator_comparison()

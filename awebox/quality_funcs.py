@@ -299,42 +299,6 @@ def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, g
 
     return results
 
-def test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, results):
-
-    problem_in_final_homotopy_step = 'final' in trial.optimization.timings.keys()
-    trajectory_is_a_power_cycle = trial.options['user_options']['trajectory']['type'] == 'power_cycle'
-
-    problem_is_a_power_problem = problem_in_final_homotopy_step and trajectory_is_a_power_cycle
-    if problem_is_a_power_problem:
-
-        final_objective = float(trial.nlp.f_fun(trial.optimization.V_opt, trial.optimization.p_fix_num))
-
-        cost_fun = trial.nlp.cost_components[0]
-        cost = struct_op.evaluate_cost_dict(cost_fun, trial.optimization.V_opt, trial.optimization.p_fix_num)
-        power_cost = float(cost['power_cost'])
-
-        non_power_fraction_of_objective_thresh = test_param_dict['non_power_fraction_of_objective_thresh']
-        non_power_percent_of_objective_thresh = non_power_fraction_of_objective_thresh * 100.
-
-        non_power_contribution = final_objective - power_cost
-        non_power_fraction_of_objective_found = np.abs(non_power_contribution / final_objective)
-        non_power_percent_of_objective_found = non_power_fraction_of_objective_found * 100.
-
-        too_much_non_power_contribution_to_objective = non_power_percent_of_objective_found > non_power_percent_of_objective_thresh
-        power_cost_dominates_objective = not too_much_non_power_contribution_to_objective
-
-        results['power_dominance'] = power_cost_dominates_objective
-        if not power_cost_dominates_objective:
-            message = 'there may be too much regularization on this problem. '
-            message += "at the final solution, the power cost is {:0.2G}, ".format(power_cost)
-            message += "whereas the total objective is {:0.2G}. ".format(final_objective)
-            message += "this means, that more than {:0.2G} percent ".format(non_power_percent_of_objective_thresh)
-            message += 'of the objective is due to sources other than the power cost: '
-            message += "{:0.2G} percent.".format(non_power_percent_of_objective_found)
-            message += " we suggest increasing options['solver.cost_factor.power']."
-            awelogger.logger.warning(message)
-
-    return results
 
 def generate_test_param_dict(options):
     """

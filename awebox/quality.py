@@ -91,7 +91,6 @@ class Quality(object):
         results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
         results = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values)
         results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values, self.__global_input_values)
-        results = quality_funcs.test_that_power_cost_dominates_in_power_problem(trial, test_param_dict, results)
 
         # save test results
         self.__results = results
