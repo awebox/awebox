@@ -46,7 +46,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # here: nlp discretization, with a zero-order-hold control parametrization, and
     # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
     # within ipopt.
-    options['nlp.n_k'] = 40 #80
+    options['nlp.n_k'] = 80
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
@@ -121,10 +121,10 @@ def make_comparison(trial):
     criteria = {'winding_period_s': {},
                 'avg_power_kw': {}}
 
-    criteria['avg_power_kw']['found'] = plot_dict['time_grids']['ip'][-1]
+    criteria['avg_power_kw']['found'] = plot_dict['power_and_performance']['avg_power']/1e3
     criteria['avg_power_kw']['expected'] = 4.4
 
-    criteria['winding_period_s']['found'] = plot_dict['power_and_performance']['avg_power']/1e3
+    criteria['winding_period_s']['found'] = plot_dict['time_grids']['ip'][-1]
     criteria['winding_period_s']['expected'] = 39.6
 
     return criteria

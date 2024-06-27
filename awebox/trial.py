@@ -255,12 +255,10 @@ class Trial(object):
         dimension_label = 'Dimension'
 
         dict_parameters = {
-            0: {parameter_label: 'Average power output',
-                                         optimal_label: str(avg_power/1.e3),
-                                         dimension_label: 'kW'},
-            1: {parameter_label: 'Time period',
-                                         optimal_label: str(time_period),
-                                         dimension_label: 's'}
+            'Average power output': {optimal_label: str(avg_power/1.e3),
+                                     dimension_label: 'kW'},
+            'Time period': {optimal_label: str(time_period),
+                            dimension_label: 's'}
             }
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
@@ -279,9 +277,8 @@ class Trial(object):
         for theta in self.model.variables_dict['theta'].keys():
             if theta != 't_f':
                 info = theta_info[theta]
-                dict_parameters[len(dict_parameters.keys())] = {parameter_label: info[0],
-                                                 optimal_label: str(round(self.__optimization.V_final_si['theta', theta].full()[0][0]*info[1],3)),
-                                                 dimension_label: info[2]}
+                dict_parameters[info[0]] = {optimal_label: str(round(self.__optimization.V_final_si['theta', theta].full()[0][0]*info[1],3)),
+                                            dimension_label: info[2]}
 
         print_op.print_dict_as_table(dict_parameters)
 

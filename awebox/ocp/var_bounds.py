@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2020
 '''
-
+import pdb
 
 import casadi.tools as cas
 
@@ -84,8 +84,11 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
-                if nlp_options['phase_fix'] == 'single_reelout':
+                if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
+                    # the period constraint is applied within ocp.constraints,
+                    # but we don't want the component times to go negative.
                     vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
+
                 else: # lift-mode with 'simple' phase_fix or drag-mode
                     vars_lb[var_type, name] = model.variable_bounds[var_type][name]['lb']
                     vars_ub[var_type, name] = model.variable_bounds[var_type][name]['ub']

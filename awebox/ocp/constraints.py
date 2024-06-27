@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2021
 '''
-
+import pdb
 
 import casadi.tools as cas
 from . import ocp_outputs
@@ -124,32 +124,15 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape=(1, 1)))
 
-    if nlp_options['phase_fix'] == 'single_reelout':
 
-        phase_fix_reelout = nlp_options['phase_fix_reelout']
-
-        cstr_list = cstr_op.OcpConstraintList()
-        t_f = ocp_outputs.find_time_period(nlp_options, V)
-        upper_bound = model.variable_bounds['theta']['t_f']['ub']
-        lower_bound = model.variable_bounds['theta']['t_f']['lb']
-
-        scale = phase_fix_reelout
-
-        t_f_max = (t_f - upper_bound) / scale
-        t_f_min = (lower_bound - t_f) / scale
-
-        t_f_max_cstr = cstr_op.Constraint(expr=t_f_max,
-                                      name='t_f_max',
-                                      cstr_type='ineq')
-        cstr_list.append(t_f_max_cstr)
-
-        t_f_min_cstr = cstr_op.Constraint(expr=t_f_min,
-                                      name='t_f_min',
-                                      cstr_type='ineq')
-        cstr_list.append(t_f_min_cstr)
-
-        ocp_cstr_list.append(cstr_list)
-        ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=(2, 1)))
+    if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
+        t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
+        shape = t_f_cstr_list.get_expression_list('ineq').shape
+        ocp_cstr_list.append(t_f_cstr_list)
+        ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
+    else:
+        # period-length t_f constraint is set in ocp.var_bounds
+        pass
 
 
     # Constraints structure
@@ -162,6 +145,29 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     assert test_shapes, f'Mismatch in dimension between constraint vector ({vec_length}) and constraint structure ({struct_length})!'
 
     return ocp_cstr_list, ocp_cstr_struct
+
+def get_t_f_bounds_contraints(nlp_options, V, model):
+    phase_fix_reelout = nlp_options['phase_fix_reelout']
+
+    cstr_list = cstr_op.OcpConstraintList()
+    t_f = ocp_outputs.find_time_period(nlp_options, V)
+    upper_bound = model.variable_bounds['theta']['t_f']['ub']
+    lower_bound = model.variable_bounds['theta']['t_f']['lb']
+
+    scale = phase_fix_reelout
+
+    t_f_max = (t_f - upper_bound) / scale
+    t_f_min = (lower_bound - t_f) / scale
+
+    t_f_max_cstr = cstr_op.Constraint(expr=t_f_max,
+                                      name='t_f_max',
+                                      cstr_type='ineq')
+    cstr_list.append(t_f_max_cstr)
+    t_f_min_cstr = cstr_op.Constraint(expr=t_f_min,
+                                      name='t_f_min',
+                                      cstr_type='ineq')
+    cstr_list.append(t_f_min_cstr)
+    return cstr_list
 
 def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
 

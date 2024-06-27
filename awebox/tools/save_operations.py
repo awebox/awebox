@@ -302,19 +302,11 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
     return None
 
 
-
 def test_table_save_to_csv():
 
     filename = 'save_op_test.csv'
 
-    table_1 = {'int': 234,
-               'float': 2333.33,
-               'neg': -2.8,
-               'sci': 3.4e-2,
-               'cas.dm - scalar': cas.DM(4.),
-               'cas.dm - array': 4.5 * cas.DM.ones((3, 1)),
-               'boolean': False,
-               'string': 'apples'}
+    table_1 = print_op.make_sample_two_column_dict()
     write_or_append_two_column_dict_to_csv(table_1, filename)
 
     table_2 = copy.deepcopy(table_1)
@@ -324,6 +316,7 @@ def test_table_save_to_csv():
     table_3 = copy.deepcopy(table_1)
     table_3['other'] = 234.3
     table_3['string'] = 'peaches'
+    print_op.base_print('be advised, the next printed line should be a warning:', level='info')
     write_or_append_two_column_dict_to_csv(table_3, filename)
 
     set_found_strings = set([])
@@ -338,6 +331,8 @@ def test_table_save_to_csv():
     only_apples_and_pears_mentioned = (table_1['string'] in set_found_strings) and (table_2['string'] in set_found_strings) and (table_3['string'] not in set_found_strings)
     csv_file_has_correct_number_of_entries = (number_of_rows == 2)
 
+    os.remove(filename)
+
     if not csv_file_has_correct_number_of_entries:
         message = 'unexpected number of entries in test_table_save csv file'
         print_op.log_and_raise_error(message)
@@ -350,23 +345,27 @@ def test_table_save_to_csv():
         message = 'variable information is getting lost in test_table_save csv files'
         print_op.log_and_raise_error(message)
 
-    os.remove(filename)
+    return None
+
+
+def save_dict_as_latex(dict, filename, digits=4, repr_type='E', write_mode='w'):
+
+    tab = print_op.Table(input_dict=dict)
+    latex = tab.to_latex(digits=digits, repr_type=repr_type)
+
+    file_handler = open(filename, write_mode)
+    file_handler.write(latex)
+    file_handler.close()
 
     return None
 
 
-
-
-def save_dict_as_latex(table_1, filename):
-    pass
-
-
-
 def test_table_save_as_latex():
-    filename = 'save_op_test.tex'
+    filename = 'save_latex_test.tex'
 
-    table, headers, tab = print_op.make_sample_table()
-    save_dict_as_latex(tab.to_latex(), filename)
+    test_table = print_op.make_sample_two_column_table()
+
+    # os.remove(filename)
 
     message = 'save to latex does not yet work'
     print_op.log_and_raise_error(message)
