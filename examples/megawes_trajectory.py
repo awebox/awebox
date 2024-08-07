@@ -52,7 +52,7 @@ options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is '
 trial = awe.Trial(options, 'MegAWES')
 trial.build()
 trial.optimize()
-trial.write_to_csv('megawes_trajectory'+aero_model, rotation_representation='euler')
+trial.write_to_csv('megawes_trajectory_'+aero_model, rotation_representation='euler')
 
 # plot results
 trial.plot(['isometric', 'states', 'controls', 'constraints'])
