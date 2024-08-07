@@ -25,14 +25,14 @@
 import numpy as np
 from casadi.tools import vertcat
 
-def data_dict():
+def data_dict(aero_model):
 
     data_dict = {}
     data_dict['name'] = 'megawes'
 
     data_dict['geometry'] = geometry() # kite geometry
 
-    stab_derivs, aero_validity = aero()
+    stab_derivs, aero_validity = aero(aero_model)
     data_dict['stab_derivs'] = stab_derivs # stability derivatives
     data_dict['aero_validity'] = aero_validity
 
