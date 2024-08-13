@@ -156,11 +156,18 @@ def fictitious_embedding(options, p_dec, variables_si, kite, parent, outputs):
             true_moment = outputs['aerodynamics']['m_aero_body' + str(kite)]
 
     fict_force = variables_si['u']['f_fict' + str(kite) + str(parent)]
-    homotopy_force = p_dec['gamma'] * fict_force + true_force
+
+    if options['aero']['fictitious_embedding'] == 'additive':
+        homotopy_force = p_dec['gamma'] * fict_force + true_force
+    elif options['aero']['fictitious_embedding'] == 'substitute':
+        homotopy_force = p_dec['gamma'] * fict_force + (1-p_dec['gamma']) * true_force
 
     if int(options['kite_dof']) == 6:
         fict_moment = variables_si['u']['m_fict' + str(kite) + str(parent)]
-        homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
+        if options['aero']['fictitious_embedding'] == 'additive':
+            homotopy_moment = p_dec['gamma'] * fict_moment + true_moment
+        elif options['aero']['fictitious_embedding'] == 'substitute':
+            homotopy_moment = p_dec['gamma'] * fict_moment + (1 - p_dec['gamma']) * true_moment
     else:
         homotopy_moment = []
 
