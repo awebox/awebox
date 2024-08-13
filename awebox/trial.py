@@ -369,6 +369,10 @@ class Trial(object):
     def options_seed(self):
         return self.__options_seed
 
+    @options_seed.setter
+    def options_seed(self, new_options_seed):
+        self.__options_seed = new_options_seed
+
     @property
     def options(self):
         return self.__options
