@@ -208,7 +208,7 @@ class Pmpc(object):
             homotopy_opts = copy.deepcopy(opts)
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
-            homotopy_opts['ipopt.max_iter'] = 2
+            homotopy_opts['ipopt.max_iter'] = 200
 
             self.__homotopy_solver = ct.nlpsol('solver', 'ipopt', nlp, homotopy_opts)
 
