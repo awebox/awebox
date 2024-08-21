@@ -21,9 +21,12 @@ figures/
 *.awe
 *.dict
 *.ipynb
+*.pckl
 
 # Code-generated files
 *.c
+*.o
+*.so
 
 # Documentation
 docs/build/
