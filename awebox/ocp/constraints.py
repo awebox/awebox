@@ -219,12 +219,16 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
     # create maps of relevant functions
+    u_poly = (nlp_options['collocation']['u_param'] == 'poly')
+    u_zoh_ineq_shoot = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes')
+    u_zoh_ineq_coll = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes')
+    inequalities_at_shooting_nodes = u_zoh_ineq_shoot
+    inequalities_at_collocation_nodes = u_poly or u_zoh_ineq_coll
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    if nlp_options['collocation']['u_param'] == 'poly':
+    if inequalities_at_collocation_nodes:
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
-    elif nlp_options['collocation']['u_param'] == 'zoh':
+    elif inequalities_at_shooting_nodes:
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
-
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
 
@@ -232,9 +236,9 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
-    if nlp_options['collocation']['u_param'] == 'poly':
+    if inequalities_at_collocation_nodes:
         ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
-    elif nlp_options['collocation']['u_param'] == 'zoh':
+    elif inequalities_at_shooting_nodes:
         ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
     ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
     ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
@@ -262,7 +266,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
                 )
 
             # path constraints on shooting nodes
-            if (ocp_ineqs_expr.shape != (0, 0)):
+            if (ocp_ineqs_expr.shape != (0, 0)) and inequalities_at_shooting_nodes:
                 if nlp_options['collocation']['name_constraints']:
                     for cdx in range(ocp_ineqs_expr[:,kdx].shape[0]):
                         cstr_list.append(cstr_op.Constraint(
@@ -282,7 +286,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         # collocation constraints
         for jdx in range(d):
             ldx = kdx * d + jdx
-            if nlp_options['collocation']['u_param'] == 'poly':
+            if inequalities_at_collocation_nodes:
 
                 cstr_list.append(cstr_op.Constraint(
                     expr = ocp_ineqs_expr[:,ldx],
@@ -313,13 +317,19 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
     
-    if nlp_options['collocation']['u_param'] == 'zoh':
+    if u_zoh_ineq_shoot:
         entry_tuple += (
             cas.entry('shooting',       repeat = [n_k],     shape = mdl_shooting_cstr_sublist.get_expression_list('eq').shape),
             cas.entry('path',           repeat = [n_k],     struct = mdl_path_constraints),
         )
     
-    elif nlp_options['collocation']['u_param'] == 'poly':
+    elif u_zoh_ineq_coll:
+        entry_tuple += (
+            cas.entry('shooting',       repeat = [n_k],     shape = mdl_shooting_cstr_sublist.get_expression_list('eq').shape),
+            cas.entry('path',           repeat = [n_k,d],     struct = mdl_path_constraints),
+        )
+
+    elif u_poly:
         entry_tuple += (
             cas.entry('path',           repeat = [n_k, d],     struct = mdl_path_constraints),
         )
