@@ -42,7 +42,3 @@ experimental/
 *.srctrlbm
 *.srctrldb
 *.srctrlprj
-
-# exceptions
-!examples/borne_examples/megawes_path.png
-!examples/borne_examples/megawes_power.png
