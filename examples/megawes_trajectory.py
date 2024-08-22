@@ -14,13 +14,14 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 
 import awebox as awe
 from megawes_settings import set_megawes_path_generation_settings
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
-import numpy as np
 
 # ----------------- user-specific options ----------------- #
 
-# indicate aerodynamic model of aircraft: options are 'VLM', 'ALM', and 'CFD'
-aero_model = 'VLM'
+# indicate aerodynamic model of aircraft
+aero_model = 'VLM' # options are 'VLM', 'ALM', and 'CFD'
 
 # indicate desired system architecture
 options = {}
@@ -52,10 +53,7 @@ options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is '
 trial = awe.Trial(options, 'MegAWES')
 trial.build()
 trial.optimize()
-trial.write_to_csv('megawes_trajectory_'+aero_model, rotation_representation='euler')
-
-# plot results
-trial.plot(['isometric', 'states', 'controls', 'constraints'])
+trial.write_to_csv('outputs_megawes_trajectory_'+aero_model.lower()+'_results', rotation_representation='dcm')
 
 # extract information from the solution for independent plotting or post-processing
 # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
@@ -66,4 +64,39 @@ avg_power = plot_dict['power_and_performance']['avg_power']/1e3
 print('======================================')
 print('Average power: {} kW'.format(avg_power))
 print('======================================')
+
+# ----------------- specific plots ----------------- #
+
+# plot 3D flight path
+trial.plot(['isometric'])
+fig = plt.gcf()
+fig.set_size_inches(8,8)
+fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
+ax = fig.get_axes()[0]
+ax.tick_params(labelsize=12)
+ax.set_xlabel(ax.get_xlabel(), fontsize=12)
+ax.set_ylabel(ax.get_ylabel(), fontsize=12)
+ax.set_zlabel(ax.get_zlabel(), fontsize=12)
+ax.set_xlim([0,400])
+ax.set_ylim([-200,200])
+ax.set_zlim([0,400])
+ax.view_init(azim=-70, elev=20)
+l = ax.get_lines()
+l[0].set_color('b')
+ax.get_legend().remove()
+ax.legend([l[0]], ['reference ('+aero_model+', P='+'{:.2f}'.format(avg_power.full()[0][0]/1e3)+'MW)'], fontsize=12)
+fig.suptitle("")
+fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_3dpath.png')
+
+# plot power profile
+fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
+fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
+ax.plot(trial.visualization.plot_dict['time_grids']['ip'], 1e-6*trial.visualization.plot_dict['outputs']['performance']['p_current'][0], 'b')
+ax.legend(['reference ('+aero_model+', P='+'{:.2f}'.format(avg_power.full()[0][0]/1e3)+'MW)'], fontsize=12)
+ax.tick_params(axis='both', labelsize=12)
+ax.set_xlabel('t [s]', fontsize=12)
+ax.set_ylabel('P [MW]', fontsize=12)
+ax.grid()
+fig.savefig('outputs_megawes_trajectory_'+aero_model.lower()+'_plot_power.png')
+plt.show()
 
