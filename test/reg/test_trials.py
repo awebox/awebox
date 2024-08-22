@@ -226,6 +226,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['quality.when'] = 'never'
     basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
+    basic_health_options['solver.health_check.thresh.condition_number'] = 1e10
 
     return basic_health_options
 
@@ -250,25 +251,16 @@ def generate_options_dict():
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
 
-    # single_kite_options['visualization.cosmetics.plot_bounds'] = True
-    # single_kite_options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    # single_kite_options['visualization.cosmetics.trajectory.kite_aero_dcm'] = False
-    # # single_kite_options['solver.weights.q'] = 1e0
-    # # single_kite_options['solver.weights.dq'] = 1.e0
-    # # single_kite_options['solver.weights.l_t'] = 1e-5
-    # # single_kite_options['solver.weights.dl_t'] = 1e-3
-    # # single_kite_options['solver.weights.ddl_t'] = 1e-1
-    # # single_kite_options['solver.weights.dddl_t'] = 1e-1
-    # # single_kite_options['solver.weights.coeff'] = 1e-6
-    # # single_kite_options['solver.weights.r'] = 1e0
-    # # single_kite_options['solver.cost.fictitious.0'] = 1.e0
-    # # single_kite_options['solver.cost.fictitious.1'] = 1.e3
-    # # single_kite_options['solver.cost.u_regularisation.0'] = 1e-3
-    # # single_kite_options['solver.cost.theta_regularisation.0'] = 1.e1
-    # single_kite_options['solver.initialization.groundspeed'] = 20.
-    # # single_kite_options['solver.cost.tracking.0'] = 1e0
-    # # single_kite_options['solver.cost.psi.1'] = 1.e2
-    # single_kite_options['solver.cost_factor.power'] = 1e1  #1e4
+    # 42913_s
+    single_kite_options['solver.cost_factor.power'] = 10.
+    single_kite_options['model.scaling.other.position_scaling_method'] = 'b_ref'
+    single_kite_options['model.scaling.other.force_scaling_method'] = 'centripetal'
+    single_kite_options['model.scaling.other.flight_radius_estimate'] = 'cone'
+    single_kite_options['model.scaling.other.tension_estimate'] = 'synthesized'
+    single_kite_options['solver.cost.beta.0'] = 10.
+    single_kite_options['solver.cost.tracking.0'] = 0.1
+    single_kite_options['solver.cost.u_regularisation.0'] = 0.00001
+    single_kite_options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
@@ -284,7 +276,9 @@ def generate_options_dict():
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
     drag_mode_options['quality.test_param.power_balance_thresh'] = 2.
-    drag_mode_options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
+    drag_mode_options['model.system_bounds.theta.t_f'] = [5., 70.]  # [s]
+    drag_mode_options['nlp.n_k'] = 30
+    drag_mode_options['solver.cost_factor.power'] = 1e0  # 1e4
 
     save_trial_options = copy.deepcopy(single_kite_options)
     save_trial_options['solver.save_trial'] = True
@@ -293,35 +287,29 @@ def generate_options_dict():
     dual_kite_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     dual_kite_options['solver.initialization.theta.l_s'] = 75.
     dual_kite_options['solver.initialization.check_reference'] = True
-    dual_kite_options['nlp.collocation.u_param'] = 'poly'
-    dual_kite_options['model.system_bounds.theta.t_f'] = [5., 20.]
 
     dual_kite_basic_health_options = make_basic_health_variant(dual_kite_options)
 
-    dual_kite_6_dof_options = copy.deepcopy(dual_kite_options)
+    dual_kite_6_dof_options = copy.deepcopy(single_kite_6_dof_options)
     dual_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
-    dual_kite_6_dof_options['nlp.collocation.u_param'] = 'zoh'
-
+    dual_kite_6_dof_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    dual_kite_6_dof_options['solver.initialization.theta.l_s'] = 75.
 
     dual_kite_6_dof_basic_health_options = make_basic_health_variant(dual_kite_6_dof_options)
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options.kite_standard'] = bubbledancer_data.data_dict()
-    small_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
-    # small_dual_kite_options['solver.cost_factor.power'] = 1e7
-    small_dual_kite_options['model.system_bounds.theta.t_f'] = [2., 60.]
+    small_dual_kite_options['model.system_bounds.theta.t_f'] = [1., 60.]
 
     large_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     large_dual_kite_options['user_options.kite_standard'] = boeing747_data.data_dict()
-    large_dual_kite_options['user_options.trajectory.lift_mode.windings'] = 1
     large_dual_kite_options['solver.initialization.theta.l_s'] = 60. * 10.
     large_dual_kite_options['solver.initialization.l_t'] = 2.e3
     large_dual_kite_options['model.system_bounds.theta.t_f'] = [1.e-3, 500.]
     large_dual_kite_options['model.model_bounds.tether_force.include'] = False
     large_dual_kite_options['model.model_bounds.tether_stress.include'] = True
     large_dual_kite_options['solver.cost.tracking.0'] = 1e-1
-    large_dual_kite_options['model.system_bounds.theta.t_f'] = [5., 120.]
-
+    large_dual_kite_options['model.system_bounds.theta.t_f'] = [20., 120.]
 
     actuator_qaxi_options = copy.deepcopy(dual_kite_6_dof_options)
     actuator_qaxi_options['user_options.kite_standard'] = ampyx_data.data_dict()
@@ -360,7 +348,7 @@ def generate_options_dict():
     actuator_qasym_options['solver.cost.psi.1'] = 1.e1
 
     actuator_uasym_options = copy.deepcopy(actuator_qaxi_options)
-    actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
+    actuator_uasym_options['model.aero.actuator.steadyness'] = 'unsteady'
     actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
     actuator_uasym_options['solver.cost.psi.1'] = 1.e1
 
@@ -465,7 +453,7 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
 
     for option_name, option_value in overwrite_options.items():
         trial_options[option_name] = option_value
-        trial_name += '_' + option_name + '_' + str(option_value)
+        trial_name += '_' + option_name + '_' + repr(option_value)
 
     # compute trajectory solution
     trial = awe_trial.Trial(trial_options, trial_name)
@@ -481,19 +469,19 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
 
 
 if __name__ == "__main__":
-    test_single_kite_basic_health()
-    test_single_kite()
-    test_single_kite_6_dof_basic_health()
-    test_single_kite_6_dof()
-    test_poly()
-    test_drag_mode()
-    test_save_trial()
-    test_dual_kite_basic_health()
-    test_dual_kite()
+    # test_single_kite_basic_health()
+    # test_single_kite()
+    # test_single_kite_6_dof_basic_health()
+    # test_single_kite_6_dof()
+    # test_poly()
+    # test_drag_mode()
+    # test_save_trial()
+    # test_dual_kite_basic_health()
+    # test_dual_kite()
     test_dual_kite_6_dof_basic_health()
     test_dual_kite_6_dof()
-    test_dual_kite_tracking()
-    test_dual_kite_tracking_winch()
+    # test_dual_kite_tracking()
+    # test_dual_kite_tracking_winch()
     test_vortex_force_zero_basic_health()
     test_vortex_force_zero()
     test_vortex_basic_health()

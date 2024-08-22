@@ -2,7 +2,7 @@
 import awebox as awe
 import numpy as np
 import casadi as ca
-
+import awebox.tools.print_operations as print_op
 
 def set_ampyx_ap2_settings(options):
 
@@ -48,7 +48,9 @@ def set_ampyx_ap2_settings(options):
     options['model.system_bounds.x.dl_t'] = [-15.0, 20.0]  # [m/s]
     options['model.system_bounds.x.ddl_t'] = [-2.4, 2.4]  # [m/s^2]
     options['model.system_bounds.x.q'] = [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
-    options['model.system_bounds.theta.t_f'] = [20.0, 70.0]  # [s]
+
+    print_op.warn_about_temporary_functionality_alteration() #20, 70
+    options['model.system_bounds.theta.t_f'] = [20., 50.]  # [s]
     options['model.system_bounds.z.lambda'] = [0., ca.inf]  # [N/m]
     omega_bound = 50.0*np.pi/180.0
     options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])]

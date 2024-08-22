@@ -134,7 +134,6 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         # period-length t_f constraint is set in ocp.var_bounds
         pass
 
-
     # Constraints structure
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 

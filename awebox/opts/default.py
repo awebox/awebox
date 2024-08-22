@@ -444,7 +444,7 @@ def set_default_options(default_user_options, help_options):
         ('solver', 'cost',      'psi',      2, 1e-3, ('update cost for psi', None), 's'),
         ('solver', 'cost',      'tau',      2, 1e-3, ('update cost for tau', None), 's'),
 
-        ('solver',  'cost',             'fictitious',           2,  1e1,        ('update cost for fictitious', None), 's'),
+        ('solver',  'cost',             'fictitious',           2,  1e-3,        ('update cost for fictitious', None), 's'),
         ('solver',  'cost',             'compromised_battery',  2,  0,          ('second update cost for compromised_battery', None),'s'),
 
         ('solver',    None,          None,        'save_trial',            False,              ('Automatically save trial after solving', [True, False]),'x'),

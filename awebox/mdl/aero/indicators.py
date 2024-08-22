@@ -38,6 +38,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
+import awebox.tools.print_operations as print_op
 
 
 def get_mach(options, atmos, ua, q):
@@ -128,7 +129,8 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
 
     epsilon = 1.0e-8
     p_loyd_total = outputs['performance']['p_loyd_total']
-    outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
+    print_op.warn_about_temporary_functionality_alteration()
+    # outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
 
     outputs['performance']['power_density'] = current_power / len(kite_nodes) / parameters['theta0','geometry','s_ref']
 
@@ -312,12 +314,11 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
     outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
-
     CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
     CD_min = options['model_bounds']['aero_validity']['CD_min']
+    print_op.warn_about_temporary_functionality_alteration()
     # drag_lb = CD_min - CD
     # outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
-
 
     return outputs
 

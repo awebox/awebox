@@ -263,10 +263,11 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     dl_t_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
+    print_op.warn_about_temporary_functionality_alteration()
+    # comment out the following
     dl_t_min = -5. * u_altitude
     dl_t_max = 1./3. * u_altitude
     t_f_guess = estimate_time_period(options, architecture)
-
     ddl_t_guess = (dl_t_max - dl_t_min) / (t_f_guess / 2.)
     ddl_t_scaling = ddl_t_guess
     options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
@@ -898,10 +899,18 @@ def build_tether_control_options(options, options_tree, fixed_params):
     else:
         if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
+            print_op.warn_about_temporary_functionality_alteration()
+            # apply the following
+            # options_tree.append(('model', 'scaling', 'u', 'ddl_t', np.max(np.array(ddl_t_bounds)) / 2., ('???', None), 'x'))
 
         elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', dddl_t_bounds,   ('main tether max jerk [m/s^3]', None),'x'))
+            print_op.warn_about_temporary_functionality_alteration()
+            # apply the following
+            # options_tree.append(('model', 'scaling', 'x', 'ddl_t', np.max(np.array(ddl_t_bounds))/2., ('???', None), 'x'))
+            # options_tree.append(('model', 'scaling', 'u', 'dddl_t', np.max(np.array(dddl_t_bounds))/2., ('???', None), 'x'))
+
         else:
             raise ValueError('invalid tether control variable chosen')
 
@@ -1148,9 +1157,20 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
         # this will be used to weight the scaled power (energy / time) cost
         # so: for clarity of what is physically happening, I've written this in terms of the
         # power and energy scaling values.
-        # but, what's actually happening depends ONLY on the tuning factor and on the estimated time period.
+        # but, what's actually happening depends ONLY on the tuning factor and on the estimated time period*.
         # so, if this scaling leads to bad convergence in final solution step of homotopy, then check the
         # estimate time period function (below) FIRST.
+        #
+        # *: Because the integral E = \int_0^T {p dt} actually integrates the power-scaled-by-the-characteristic-energy,
+        # as in integral_output = \int_0^T {p/\char{E} dt}, which means that the term in the power cost which we
+        # normally think of as (1/T) \int_0^T {d pT}, ie, [(1/s)(kg m^2/s^2)] is actually being implemented as [(1/s)(-)],
+        # and we should normalize/nondimensionalize that above output by (1/\char{T}) to get a completely nondimensional
+        # power term, ie: multiply by 1/(1/\char{T}) -> multiply by \char{T}.
+        # That is, the term in the objective is actually equivalent to
+        # (1/T) \int_0^T {p dt} * (\char{T}/\char{E}) = (\average{p}/\char{p})
+        #
+        # see model.dynamics get_dictionary_of_derivatives and manage_alongside_integration for implementation
+
         estimated_average_power = estimate_power(options, architecture)
         estimated_inverse_time_period = estimated_average_power / corrected_estimated_energy  # yes, this = (1 / time_period_estimate)
         power_cost_factor = options['solver']['cost_factor']['power']
@@ -1164,8 +1184,9 @@ def estimate_flight_radius(options, architecture):
     anticollision_radius = b_ref * options['model']['model_bounds']['anticollision']['safety_factor']
 
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+    gravity = options['model']['scaling']['other']['g']
     groundspeed = options['solver']['initialization']['groundspeed']
-    centripetal_radius = groundspeed**2. / acc_max
+    centripetal_radius = groundspeed**2. / (acc_max * gravity)
 
     cone_angle = float(options['solver']['initialization']['cone_deg']) * np.pi / 180.0
     if architecture.number_of_kites == 1:
@@ -1199,6 +1220,10 @@ def estimate_aero_force(options, architecture):
     CL = estimate_CL(options)
     q_altitude = get_q_at_altitude(options, estimate_altitude(options))
     s_ref = geometry['s_ref']
+
+    print_op.warn_about_temporary_functionality_alteration()
+    # replace below line with this:
+    # aero_force = CL * q_altitude * s_ref
     aero_force = 0.5 * CL * q_altitude * s_ref
     return aero_force
 
@@ -1377,6 +1402,7 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
 def estimate_total_mass(options, architecture):
 
     mass_of_all_kites = get_geometry(options)['m_k'] * architecture.number_of_kites
+
     diam_t = options['solver']['initialization']['theta']['diam_t']
     rho_tether = options['params']['tether']['rho']
     cross_sectional_area_t = np.pi * (diam_t / 2.) ** 2.
@@ -1404,14 +1430,9 @@ def estimate_total_mass(options, architecture):
     return total_mass
 
 def estimate_energy(options, architecture):
-
     power = estimate_power(options, architecture)
-
     time_period = estimate_time_period(options, architecture)
     energy = power * time_period
-
-    energy = energy
-
     return energy
 
 def estimate_time_period(options, architecture):

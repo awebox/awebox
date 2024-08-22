@@ -94,7 +94,6 @@ def make_output_structure(outputs):
 
 
 def find_time_spent_in_reelout(nlp_numerics_options, V):
-
     nk = nlp_numerics_options['n_k']
     phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
     time_period_zeroth = V['theta', 't_f', 0] * round(nk * phase_fix_reel_out) / nk
@@ -106,12 +105,14 @@ def find_time_spent_in_reelin(nlp_numerics_options, V):
     time_period_first = V['theta', 't_f', 1] * (nk - round(nk * phase_fix_reel_out)) / nk
     return time_period_first
 
-def find_time_period(nlp_numerics_options, V):
 
-    if nlp_numerics_options['phase_fix'] == 'single_reelout':
+def find_time_period(nlp_numerics_options, V):
+    print_op.warn_about_temporary_functionality_alteration()
+    lift_mode = nlp_numerics_options['system_type'] == 'lift_mode'
+    single_reelout = nlp_numerics_options['phase_fix'] == 'single_reelout'
+    if lift_mode and single_reelout:
         reelout_time = find_time_spent_in_reelout(nlp_numerics_options, V)
         reelin_time = find_time_spent_in_reelin(nlp_numerics_options, V)
-
         time_period = (reelout_time + reelin_time)
     else:
         time_period = V['theta', 't_f']

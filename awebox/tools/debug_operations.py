@@ -179,6 +179,7 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
     tractability['datetime_month'] = datetime_now.month
     tractability['datetime_day'] = datetime_now.day
     tractability['datetime_hour'] = datetime_now.hour
+    tractability['datetime_minute'] = datetime_now.minute
     tractability['datetime_second'] = datetime_now.second
     tractability['datetime_unix'] = datetime.datetime.timestamp(datetime_now)*1000
     tractability['step_name'] = step_name

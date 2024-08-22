@@ -12,7 +12,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 """
 
 import awebox as awe
-from ampyx_ap2_settings import set_ampyx_ap2_settings
+import ampyx_ap2_examples_settings as ampyx_ap2
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,7 +21,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # dual kite with point-mass model
     options = {}
     options['user_options.system_model.architecture'] = {1:0, 2:1, 3:1}
-    options = set_ampyx_ap2_settings(options)
+    options = ampyx_ap2.set_ampyx_ap2_settings(options)
 
     # trajectory should be a single pumping cycle with 1 windings
     options['user_options.trajectory.type'] = 'power_cycle'

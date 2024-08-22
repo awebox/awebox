@@ -30,11 +30,13 @@ Stores helper functions for saving data
 import copy
 
 import os
+import pdb
 import pickle
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 import csv
 import collections
+import pandas as pd
 import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
@@ -347,35 +349,9 @@ def test_table_save_to_csv():
 
     return None
 
-
-def save_dict_as_latex(dict, filename, digits=4, repr_type='E', write_mode='w'):
-
-    tab = print_op.Table(input_dict=dict)
-    latex = tab.to_latex(digits=digits, repr_type=repr_type)
-
-    file_handler = open(filename, write_mode)
-    file_handler.write(latex)
-    file_handler.close()
-
-    return None
-
-
-def test_table_save_as_latex():
-    filename = 'save_latex_test.tex'
-
-    test_table = print_op.make_sample_two_column_table()
-
-    # os.remove(filename)
-
-    message = 'save to latex does not yet work'
-    print_op.log_and_raise_error(message)
-    return None
-
-
 def test():
     # todo: test variable saving? and/or join with the table-save routine?
     test_table_save_to_csv()
-    test_table_save_as_latex()
     return None
 
 

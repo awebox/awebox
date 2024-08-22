@@ -193,7 +193,7 @@ def recursionably_make_pandas_sanitized_copy(val):
     elif isinstance(val, cas.DM) and val.shape == (1, 1):
         return float(val)
     elif isinstance(val, cas.DM) or isinstance(val, np.ndarray):
-        return str(val)
+        return repr_g(val)
     elif isinstance(val, dict):
         local_copy = {}
         for subkey, subval in val.items():
@@ -220,9 +220,16 @@ class Table:
                 two_columned_version = {'item': {}, 'value':{}}
                 idx = 0
                 for key, val in input_dict.items():
-                    two_columned_version['item'][idx] = key
-                    two_columned_version['value'][idx] = val
-                    idx += 1
+                    if isinstance(val, dict) and not(isinstance(val, cas.DM) or isinstance(val, cas.SX) or isinstance(val, cas.MX)):
+                        for subkey, subval in val.items():
+                            two_columned_version['item'][idx] = key + ' ' + subkey
+                            two_columned_version['value'][idx] = subval
+                            idx += 1
+                    else:
+                        two_columned_version['item'][idx] = key
+                        two_columned_version['value'][idx] = val
+                        idx += 1
+
                 self.__dict = two_columned_version
 
             else:
@@ -293,10 +300,7 @@ class Table:
         else:
             body_string = df.to_string(float_format=float_skeleton, header=True, col_space=column_width, index=True)
 
-        line_length = body_string.index('\n')
-        divider_line = hline('-', length=line_length)
-
-        message = '\n' + body_string + '\n'
+        message = body_string + '\n'
 
         return message
 
@@ -321,8 +325,21 @@ class Table:
         return df_tex
 
     def print(self, level='info'):
-        base_print(self.to_string())
+        string = self.to_string()
+        string_list = string.split('\n')
+        for substring in string_list:
+            base_print(substring, level=level)
+
         return None
+
+    @property
+    def repr_dict(self):
+        return self.__repr_dict
+
+    @repr_dict.setter
+    def repr_dict(self, value):
+        log_and_raise_error('Cannot set repr_dict object.')
+
 
     @property
     def dict(self):
@@ -349,7 +366,9 @@ def make_sample_two_column_dict():
                'cas.dm - scalar': cas.DM(8.13),
                'cas.dm - array': 4.5 * cas.DM.ones((3, 1)),
                'boolean': False,
-               'string': 'apples'}
+               'string': 'apples',
+               'dict': {'aa1': 3, 'bb1': 'happy', 'cc1': [1,2]}
+               }
     return input_dict
 
 
@@ -376,17 +395,25 @@ def make_sample_multicolumn_table():
 
 def test_two_column_table_to_string():
     tab = make_sample_two_column_table()
-    string = tab.to_string(digits=3, repr_type='E')
-    print(string)
+    found_string = tab.to_string(digits=3, repr_type='E')
+    print(found_string)
 
     all_items = tab.dict['item'].values()
-    all_items_included = [str(item) in string for item in all_items]
+    all_items_included = [str(item) in found_string for item in all_items]
 
     all_values = tab.dict['value'].values()
-    all_values_included = [str(val) in string for val in all_values]
+    all_values_included = [repr_g(val, digits=3, repr_type='E') in found_string for val in all_values]
+    for idx in range(len(all_items)):
+        print(idx)
+        print(tab.repr_dict['item'][idx])
+        print(tab.repr_dict['value'][idx])
+        print(tab.dict['value'][idx])
+        print(repr_g(tab.dict['value'][idx], digits=3, repr_type='E'))
+        print(repr_g(tab.dict['value'][idx], digits=3, repr_type='E') in found_string)
+        print()
 
-    example_line = 'cas.dm - array............ [4.5, 4.5, 4.5]'
-    example_line_included = example_line in string
+    example_line = 'cas.dm - array............................... DM([4.5, 4.5, 4.5])'
+    example_line_included = example_line in found_string
 
     criteria = all_items_included and all_values_included and example_line_included
     if not criteria:
@@ -410,7 +437,10 @@ def test_two_column_table_to_latex():
                   'cas.dm - scalar & \\num{8.130E+00} \\',
                   'cas.dm - array & [4.5, 4.5, 4.5] \\',
                   'boolean & False \\',
-                  'string & apples \\']
+                  'string & apples \\',
+                  'dict aa1 & 3 \\',
+                  'dict bb1 & happy \\',
+                  'dict cc1 & [1, 2] \\']
     all_body_included = [str(line) in latex for line in body_lines]
 
     criteria = opening_in_latex and header_in_latex and ending_in_latex and all_body_included
@@ -512,7 +542,7 @@ def print_dict_as_table(dict, level='info'):
 
 
 def column_size_for_dot_separated_items():
-    return 26
+    return 45
 
 def repr_g(value, digits=4, repr_type='G'):
     if isinstance(value, str):
