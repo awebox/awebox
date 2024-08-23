@@ -258,7 +258,7 @@ class Trial(object):
             'l_i': ('Intermediate tether length', 1, 'm'),
             'diam_i': ('Intermediate tether diameter', 1e3, 'mm'),
             'l_t_full': ('Wound tether length', 1, 'm'),
-            'P_max': ('Peak power', 1e3, 'kW'),
+            'P_max': ('Peak power', 1e-3, 'kW'),
             'ell_radius': ('Ellipse radius', 1, 'm'),
             'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
             'ell_theta': ('Ellipse division angle', 180.0/np.pi, 'deg'), 
@@ -362,12 +362,16 @@ class Trial(object):
 
         return None
 
-    def generate_optimal_model(self, param_options = None):
-        return trial_funcs.generate_optimal_model(self, param_options= param_options)
+    def generate_optimal_model(self, param_options = None, external_forces = False):
+        return trial_funcs.generate_optimal_model(self, param_options= param_options, external_forces = external_forces)
 
     @property
     def options_seed(self):
         return self.__options_seed
+
+    @options_seed.setter
+    def options_seed(self, new_options_seed):
+        self.__options_seed = new_options_seed
 
     @property
     def options(self):

@@ -52,6 +52,11 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
     periodic = perf_op.determine_if_periodic(nlp_options)
 
+    u_poly = (nlp_options['collocation']['u_param'] == 'poly')
+    u_zoh_ineq_shoot = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes')
+    u_zoh_ineq_coll = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes')
+    inequalities_at_collocation_nodes = u_poly or u_zoh_ineq_coll
+
     # fill in bounds
     for canonical in distinct_variables:
 
@@ -60,11 +65,11 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         if (var_type == 'x'):
 
-            if nlp_options['collocation']['u_param'] == 'poly' and var_is_coll_var:
+            if var_is_coll_var and u_poly:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
             
-            elif nlp_options['collocation']['u_param'] == 'zoh' and use_depending_on_periodicity  and (not var_is_coll_var):
+            elif use_depending_on_periodicity  and (not var_is_coll_var) and not u_poly:
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
@@ -77,7 +82,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-            elif nlp_options['collocation']['u_param'] == 'poly' and var_is_coll_var:
+            elif var_is_coll_var and inequalities_at_collocation_nodes:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 

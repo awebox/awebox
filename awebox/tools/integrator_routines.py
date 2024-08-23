@@ -26,9 +26,62 @@
 self-written integrator routines for DAE systems
 python-3.5 / casadi-3.4.5
 - author: jochem de schutter alu-fr 2018
+- update: thomas haas ugent 2024
 """
 
 import casadi.tools as cas
+
+def ee1root(name, dae, rootfinder, options):
+    """1st order explicit Euler integrator for DAE systems, using rootfinder
+    for the algebraic equations
+
+    @param name integrator name
+    @param dae dae object
+    @param rootfinder newton solver for algebraic equations
+    @param options integrator options
+    @return I ee1root integrator function
+    """
+
+    # discretization info
+    N = options['number_of_finite_elements']
+    h = options['tf']/N
+
+    # dae functions
+    odef  = cas.Function('odef',[dae['x'],dae['p'],dae['z']], [dae['ode']])
+    quadf = cas.Function('quadf',[dae['x'],dae['p'],dae['z']], [dae['quad']])
+
+    # initialize
+    x0 = dae['x'](cas.MX.sym('x',dae['x'].shape))
+    z0  = dae['z'](cas.MX.sym('z',dae['z'].shape))
+    p   = dae['p'](cas.MX.sym('p',dae['p'].shape))
+    qf = 0.0
+
+    for i in range(N):
+
+        # first iteration starts with x0
+        if i == 0:
+            xf = x0
+
+        # exp. Euler with rootfinder step
+        [xf, zf, qf] = ee1root_step(odef, rootfinder, quadf, h, xf, z0, p, qf)
+
+    I = cas.Function(name, [x0, z0, p], [xf, zf, qf], ['x0','z0','p'],['xf','zf','qf'])
+
+    return I
+
+def ee1root_step(my_ode, rootfinder, quad, h, x0, z_guess, p, q0):
+
+   # EE1 function evaluations
+   z   = rootfinder(z_guess, x0, p)
+   k1  = my_ode(x0, p, z)
+   qk1 = quad(x0, p, z)
+
+   # Output state, algebraic and quadrature variables
+   xout = x0 + h * k1
+   zout = rootfinder(z, xout, p)
+   qout = q0 + h * qk1
+
+   return [xout, zout, qout]
 
 def rk4root(name, dae, rootfinder, options):
     """explicit RK4 integrator for DAE systems, using rootfinder

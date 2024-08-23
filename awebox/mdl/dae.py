@@ -171,6 +171,16 @@ class Dae(object):
         return self.__z
 
     @property
+    def x(self):
+        """state variable struct"""
+        return self.__x
+
+    @property
+    def p(self):
+        """algebraic variable struct"""
+        return self.__p
+
+    @property
     def dae(self):
         """dae dictionary"""
         return self.__dae
