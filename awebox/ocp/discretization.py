@@ -41,6 +41,8 @@ import awebox.ocp.var_struct as var_struct
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
+import numpy as np
+
 def construct_time_grids(nlp_options):
 
     time_grids = {}
@@ -50,7 +52,10 @@ def construct_time_grids(nlp_options):
         ms = False
         d = nlp_options['collocation']['d']
         scheme = nlp_options['collocation']['scheme']
-        tau_root = cas.vertcat(cas.collocation_points(d, scheme))
+        if scheme in ['legendre', 'radau']:
+            tau_root = cas.vertcat(cas.collocation_points(d, scheme))
+        else:
+            tau_root = np.linspace(0, 1, d, endpoint = False)
         tcoll = []
 
     elif nlp_options['discretization'] == 'multiple_shooting':
@@ -109,10 +114,12 @@ def construct_time_grids(nlp_options):
         time_grids['coll'] = cas.Function('tgrid_coll',[tfsym],[tcoll])
         time_grids['x_coll'] = cas.Function('tgrid_x_coll',[tfsym],[tx_coll])
 
+        if scheme in ['fourier']:
+            tu = tcoll
+
     # write out interval grid
     time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
     time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
-
 
     return time_grids
 
