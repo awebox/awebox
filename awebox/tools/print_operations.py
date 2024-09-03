@@ -28,7 +28,6 @@ _python-3.5 / casadi-3.4.5
 - author:  jochem de schutter 2018
 - edited: rachel leuthold, alu-fr 2018-2022
 '''
-import pdb
 
 from awebox.logger.logger import Logger as awelogger
 import pandas as pd

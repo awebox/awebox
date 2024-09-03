@@ -127,10 +127,9 @@ def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, p
 
     outputs['performance']['phf_loyd_total'] = outputs['performance']['p_loyd_total'] / hubheight_power_availability
 
-    epsilon = 1.0e-8
+    epsilon = 1.e-4
     p_loyd_total = outputs['performance']['p_loyd_total']
-    print_op.warn_about_temporary_functionality_alteration()
-    # outputs['performance']['loyd_factor'] = current_power / (p_loyd_total + epsilon)
+    outputs['performance']['loyd_factor'] = current_power / vect_op.smooth_abs(p_loyd_total, epsilon=epsilon)
 
     outputs['performance']['power_density'] = current_power / len(kite_nodes) / parameters['theta0','geometry','s_ref']
 
@@ -314,9 +313,9 @@ def collect_aero_validity_outputs(options, base_aerodynamic_quantities, outputs)
     outputs['aerodynamics']['alpha_deg' + str(kite)] = alpha * 180. / np.pi
     outputs['aerodynamics']['beta_deg' + str(kite)] = beta * 180. / np.pi
 
-    CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
-    CD_min = options['model_bounds']['aero_validity']['CD_min']
-    print_op.warn_about_temporary_functionality_alteration()
+    # todo: add switch to allow minimum drag constraint
+    # CD = base_aerodynamic_quantities['aero_coefficients']['CD_var']
+    # CD_min = options['model_bounds']['aero_validity']['CD_min']
     # drag_lb = CD_min - CD
     # outputs['aero_validity']['drag_lb' + str(kite)] = drag_lb
 

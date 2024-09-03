@@ -119,7 +119,6 @@ def compute_power_indicators(power_and_performance, plot_dict):
     # the actual power indicators
     if 'e' in plot_dict['integral_output_names']:
         e_final_scaled = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
-        print_op.warn_about_temporary_functionality_alteration()
         e_final = e_final_scaled * plot_dict['options']['nlp']['scaling']['x']['e']
 
     else:

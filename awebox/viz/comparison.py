@@ -23,7 +23,6 @@
 #
 #
 
-
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -57,7 +56,7 @@ def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
     for stat_name in interesting_stats:
 
         if stat_name not in local_print_dict.keys():
-            local_print_dict[stat_name] = {'trial': stat_name}
+            local_print_dict[stat_name] = {}
 
         counter += 1
         ax = plt.subplot(plot_table_r, plot_table_c, counter)

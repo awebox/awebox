@@ -9,15 +9,12 @@
 import collections
 import copy
 import logging
-import pdb
 
 import awebox as awe
 
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import awebox.opts.kite_data.bubbledancer_data as bubbledancer_data
 import awebox.opts.kite_data.boeing747_data as boeing747_data
-from ampyx_ap2_settings import set_ampyx_ap2_settings
-import awebox.opts.options as options
 import awebox.trial as awe_trial
 import awebox.tools.save_operations as save_op
 import awebox.tools.print_operations as print_op
@@ -159,8 +156,18 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
 #     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 #
+# def test_small_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'small_dual_kite_basic_health_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
+#
 # def test_large_dual_kite(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'large_dual_kite_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
+#
+# def test_large_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'large_dual_kite_basic_health_trial'
 #     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
 #     return None
 
@@ -251,17 +258,6 @@ def generate_options_dict():
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
 
-    # 42913_s
-    single_kite_options['solver.cost_factor.power'] = 10.
-    single_kite_options['model.scaling.other.position_scaling_method'] = 'b_ref'
-    single_kite_options['model.scaling.other.force_scaling_method'] = 'centripetal'
-    single_kite_options['model.scaling.other.flight_radius_estimate'] = 'cone'
-    single_kite_options['model.scaling.other.tension_estimate'] = 'synthesized'
-    single_kite_options['solver.cost.beta.0'] = 10.
-    single_kite_options['solver.cost.tracking.0'] = 0.1
-    single_kite_options['solver.cost.u_regularisation.0'] = 0.00001
-    single_kite_options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
-
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
     single_kite_6_dof_options = copy.deepcopy(single_kite_options)
@@ -272,6 +268,7 @@ def generate_options_dict():
 
     poly_options = copy.deepcopy(single_kite_options)
     poly_options['nlp.collocation.u_param'] = 'poly'
+    poly_options['solver.cost_factor.power'] = 1e1  # 1e4
 
     drag_mode_options = copy.deepcopy(single_kite_options)
     drag_mode_options['user_options.trajectory.system_type'] = 'drag_mode'
@@ -299,17 +296,24 @@ def generate_options_dict():
 
     small_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     small_dual_kite_options['user_options.kite_standard'] = bubbledancer_data.data_dict()
-    small_dual_kite_options['model.system_bounds.theta.t_f'] = [1., 60.]
+    # small_dual_kite_options['model.system_bounds.theta.t_f'] = [5., 50.]
+    small_dual_kite_options['solver.initialization.check_reference'] = True
+
+    small_dual_kite_basic_health_options = make_basic_health_variant(small_dual_kite_options)
 
     large_dual_kite_options = copy.deepcopy(dual_kite_6_dof_options)
     large_dual_kite_options['user_options.kite_standard'] = boeing747_data.data_dict()
     large_dual_kite_options['solver.initialization.theta.l_s'] = 60. * 10.
     large_dual_kite_options['solver.initialization.l_t'] = 2.e3
-    large_dual_kite_options['model.system_bounds.theta.t_f'] = [1.e-3, 500.]
-    large_dual_kite_options['model.model_bounds.tether_force.include'] = False
-    large_dual_kite_options['model.model_bounds.tether_stress.include'] = True
-    large_dual_kite_options['solver.cost.tracking.0'] = 1e-1
-    large_dual_kite_options['model.system_bounds.theta.t_f'] = [20., 120.]
+    large_dual_kite_options['model.system_bounds.theta.t_f'] = [5., 5. * 60.]
+    large_dual_kite_options['solver.initialization.groundspeed'] = 100.
+    large_dual_kite_options['params.model_bounds.airspeed_limits'] = np.array([77., 273.])
+    large_dual_kite_options['model.model_bounds.tether_force.include'] = True
+    large_dual_kite_options['model.model_bounds.tether_stress.include'] = False
+    large_dual_kite_options['params.model_bounds.tether_force_limits'] = np.array([1e0, 2e6])
+    large_dual_kite_options['solver.initialization.check_reference'] = True
+
+    large_dual_kite_basic_health_options = make_basic_health_variant(large_dual_kite_options)
 
     actuator_qaxi_options = copy.deepcopy(dual_kite_6_dof_options)
     actuator_qaxi_options['user_options.kite_standard'] = ampyx_data.data_dict()
@@ -319,23 +323,7 @@ def generate_options_dict():
     actuator_qaxi_options['visualization.cosmetics.trajectory.actuator'] = True
     actuator_qaxi_options['visualization.cosmetics.trajectory.kite_bodies'] = True
     actuator_qaxi_options['model.system_bounds.theta.a'] = [-0., 0.5]
-    # actuator_qaxi_options['model.aero.actuator.normal_vector_model'] = 'least_squares'
-
-    # actuator_qaxi_options['solver.cost.gamma.1'] = 1.e2  # 1e3 fictitious problem by 1e-1
-    # actuator_qaxi_options['solver.cost.psi.1'] = 1.e2  # 1e4 power problem scaled by 1e-2
-    # # actuator_qaxi_options['solver.cost.theta_regularisation.0'] = 1.e0
-    # actuator_qaxi_options['solver.cost.iota.1'] = 1.e2  # 1e3 induction problem scaled by 1e-1
-    # # actuator_qaxi_options['solver.max_iter'] = 90
-    # # actuator_qaxi_options['solver.max_iter_hippo'] = 90
-    # actuator_qaxi_options['solver.cost_factor.power'] = 1e5  # 1e4 -> high reg in final step
-
-    # actuator_qaxi_options['solver.cost.theta_regularisation.0'] = 1.e-1
     actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 3
-    # actuator_qaxi_options['solver.cost.beta.0'] = 1.e0
-    # actuator_qaxi_options['solver.weights.r'] = 1e-1
-    # actuator_qaxi_options['solver.weights.q'] = 1e2
-    # actuator_qaxi_options['solver.weights.dq'] = 1e2
-    # actuator_qaxi_options['solver.cost.u_regularisation.0'] = 1e-5
 
     actuator_qaxi_basic_health_options = make_basic_health_variant(actuator_qaxi_options)
 
@@ -345,12 +333,10 @@ def generate_options_dict():
 
     actuator_qasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_qasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
-    actuator_qasym_options['solver.cost.psi.1'] = 1.e1
 
     actuator_uasym_options = copy.deepcopy(actuator_qaxi_options)
     actuator_uasym_options['model.aero.actuator.steadyness'] = 'unsteady'
     actuator_uasym_options['model.aero.actuator.symmetry'] = 'asymmetric'
-    actuator_uasym_options['solver.cost.psi.1'] = 1.e1
 
     actuator_comparison_options = copy.deepcopy(actuator_qaxi_options)
     actuator_comparison_options['model.aero.actuator.steadyness_comparison'] = ['q', 'u']
@@ -362,21 +348,17 @@ def generate_options_dict():
     vortex_options['user_options.induction_model'] = 'vortex'
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
-    vortex_options['nlp.collocation.u_param'] = 'zoh'
-    vortex_options['model.aero.vortex.degree_of_induced_velocity_lifting'] = 1
     vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
     vortex_options['visualization.cosmetics.save_figs'] = True
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
     wake_nodes = 2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
-    # vortex_options['solver.cost_factor.power'] = 1e4
-    vortex_options['solver.weights.vortex'] = 1e-3
-    vortex_options['solver.cost.iota.1'] = 1.e3
-    vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
-    vortex_options['model.scaling.other.position_scaling_method'] = 'altitude'
-    vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
-    vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
+    # vortex_options['solver.weights.vortex'] = 1e-3
+    # vortex_options['solver.cost.iota.1'] = 1.e2 #1e3
+    # vortex_options['model.aero.vortex.rate_of_change_scaling_factor'] = 1.e-1
+    # vortex_options['model.aero.vortex.position_scaling_method'] = 'convection'
+    # vortex_options['model.aero.vortex.core_to_chord_ratio'] = 0.05
     vortex_options['quality.raise_exception'] = False
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
@@ -420,7 +402,9 @@ def generate_options_dict():
     options_dict['dual_kite_trial'] = dual_kite_options
     options_dict['dual_kite_basic_health_trial'] = dual_kite_basic_health_options
     options_dict['small_dual_kite_trial'] = small_dual_kite_options
+    options_dict['small_dual_kite_basic_health_trial'] = small_dual_kite_basic_health_options
     options_dict['large_dual_kite_trial'] = large_dual_kite_options
+    options_dict['large_dual_kite_basic_health_trial'] = large_dual_kite_basic_health_options
     options_dict['dual_kite_6_dof_trial'] = dual_kite_6_dof_options
     options_dict['dual_kite_6_dof_basic_health_trial'] = dual_kite_6_dof_basic_health_options
     options_dict['actuator_qaxi_trial'] = actuator_qaxi_options
@@ -478,16 +462,22 @@ if __name__ == "__main__":
     # test_save_trial()
     # test_dual_kite_basic_health()
     # test_dual_kite()
-    test_dual_kite_6_dof_basic_health()
-    test_dual_kite_6_dof()
+    # test_dual_kite_6_dof_basic_health()
+    # test_dual_kite_6_dof()
+    #
+    # # test_small_dual_kite()
+    # # test_small_dual_kite_basic_health()
+    # # test_large_dual_kite()
+    # # test_large_dual_kite_basic_health()
+    #
     # test_dual_kite_tracking()
     # test_dual_kite_tracking_winch()
+
     test_vortex_force_zero_basic_health()
     test_vortex_force_zero()
     test_vortex_basic_health()
     test_vortex()
-    # # test_small_dual_kite() #<< this does not work. "Test failed for small_dual_kite_trial, Test regarding power_dominance failed."
-    # # test_large_dual_kite() #<< ?
+
     # # test_actuator_qaxi_basic_health() #final_homotopy_step='induction')
     # # test_actuator_qaxi()
     # # test_actuator_qasym()

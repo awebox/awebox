@@ -43,11 +43,8 @@ def get_loyd_power(power_density, CL, CD, s_ref, elevation_angle=0.):
 def get_loyd_phf(CL, CD, elevation_angle=0.):
     epsilon = 1.e-6
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # replace below line with this:
-    # interior = CD**2. / (CL**2 + epsilon**2.)
-    # CR = CL * (1. + interior)**0.5
-    CR = CL * (1. + (CD / (CL + epsilon))**2.)**0.5
+    interior = CD**2. / (CL**2 + epsilon**2.)
+    CR = CL * (1. + interior)**0.5
 
     phf = 4. / 27. * CR * (CR / CD) ** 2. * cas.cos(elevation_angle) ** 3.
     return phf

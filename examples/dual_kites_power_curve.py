@@ -12,7 +12,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 """
 
 import awebox as awe
-import ampyx_ap2_examples_settings as ampyx_ap2
+import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -51,7 +51,7 @@ def run(plot_show_block=True, overwrite_options={}):
     sweep.run(apply_sweeping_warmstart = True)
     sweep.plot(['comp_stats', 'comp_convergence'])
 
-    plt.show(plot_show_block)
+    plt.show(block=plot_show_block)
 
     return sweep
 

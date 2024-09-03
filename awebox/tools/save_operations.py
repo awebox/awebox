@@ -30,14 +30,11 @@ Stores helper functions for saving data
 import copy
 
 import os
-import pdb
 import pickle
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 import csv
 import collections
-import pandas as pd
-import awebox.tools.struct_operations as struct_op
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
 

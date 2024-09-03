@@ -28,7 +28,6 @@ _python-3.5 / casadi-3.4.5
 - author: jochem de scutter, rachel leuthold, thilo bronnenmeyer, alu-fr/kiteswarms 2017-20
 '''
 
-
 import numpy as np
 import awebox as awe
 import casadi as cas
@@ -262,15 +261,6 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     dl_t_scaling = u_altitude
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
-
-    print_op.warn_about_temporary_functionality_alteration()
-    # comment out the following
-    dl_t_min = -5. * u_altitude
-    dl_t_max = 1./3. * u_altitude
-    t_f_guess = estimate_time_period(options, architecture)
-    ddl_t_guess = (dl_t_max - dl_t_min) / (t_f_guess / 2.)
-    ddl_t_scaling = ddl_t_guess
-    options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
     options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
@@ -899,17 +889,13 @@ def build_tether_control_options(options, options_tree, fixed_params):
     else:
         if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
-            print_op.warn_about_temporary_functionality_alteration()
-            # apply the following
-            # options_tree.append(('model', 'scaling', 'u', 'ddl_t', np.max(np.array(ddl_t_bounds)) / 2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'ddl_t', np.max(np.array(ddl_t_bounds)) / 2., ('???', None), 'x'))
 
         elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', dddl_t_bounds,   ('main tether max jerk [m/s^3]', None),'x'))
-            print_op.warn_about_temporary_functionality_alteration()
-            # apply the following
-            # options_tree.append(('model', 'scaling', 'x', 'ddl_t', np.max(np.array(ddl_t_bounds))/2., ('???', None), 'x'))
-            # options_tree.append(('model', 'scaling', 'u', 'dddl_t', np.max(np.array(dddl_t_bounds))/2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'x', 'ddl_t', np.max(np.array(ddl_t_bounds))/2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'dddl_t', np.max(np.array(dddl_t_bounds))/2., ('???', None), 'x'))
 
         else:
             raise ValueError('invalid tether control variable chosen')
@@ -1221,10 +1207,7 @@ def estimate_aero_force(options, architecture):
     q_altitude = get_q_at_altitude(options, estimate_altitude(options))
     s_ref = geometry['s_ref']
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # replace below line with this:
-    # aero_force = CL * q_altitude * s_ref
-    aero_force = 0.5 * CL * q_altitude * s_ref
+    aero_force = CL * q_altitude * s_ref
     return aero_force
 
 def estimate_centripetal_force(options, architecture):
@@ -1260,10 +1243,19 @@ def estimate_power(options, architecture):
     else:
         induction_efficiency = 0.5
 
+    kite_dof = get_kite_dof(options['user_options'])
+    if kite_dof == 3:
+        dof_efficiency = 1.
+    elif kite_dof == 6:
+        dof_efficiency = 0.5
+    else:
+        message = 'something went wrong with the number of kite degrees of freedom (' + str(kite_dof) + ')'
+        print_op.log_and_raise_error(message)
+
     number_of_kites = architecture.number_of_kites
 
-    loyd_estimate = number_of_kites * p_loyd * induction_efficiency
-    power = loyd_estimate
+    loyd_estimate = number_of_kites * p_loyd
+    power = loyd_estimate * induction_efficiency * dof_efficiency
 
     return power
 

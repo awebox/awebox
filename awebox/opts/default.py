@@ -230,10 +230,10 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'other', 'position_scaling_method',  'altitude_and_radius',   ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
+        ('model',  'scaling', 'other', 'position_scaling_method',  'radius',                 ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
         ('model',  'scaling', 'other', 'force_scaling_method',     'synthesized',           ('the method of estimating the force in the dynamics for problem scaling', ['max_acceleration', 'tension', 'gravity', 'centripetal', 'aero', 'synthesized']), 'x'),
-        ('model',  'scaling', 'other', 'flight_radius_estimate',   'synthesized',           ('the method of estimating the trajectory radius for problem scaling', ['anticollision', 'centripetal', 'cone', 'synthesized']), 'x'),
-        ('model',  'scaling', 'other', 'tension_estimate',         'synthesized',           ('the method of estimating the main tether tension for problem scaling', ['power', 'max_stress', 'average_force', 'force_summation', 'synthesized']), 'x'),
+        ('model',  'scaling', 'other', 'flight_radius_estimate',   'centripetal',           ('the method of estimating the trajectory radius for problem scaling', ['anticollision', 'centripetal', 'cone', 'synthesized']), 'x'),
+        ('model',  'scaling', 'other', 'tension_estimate',         'average_force',           ('the method of estimating the main tether tension for problem scaling', ['power', 'max_stress', 'average_force', 'force_summation', 'synthesized']), 'x'),
 
         ('model',  'scaling', 'z',     'a',        1.0,      ('induction factor [-]', None),'x'),
         ('model',  'scaling', 'other', 'g',	       9.81,     ('acceleration to use for scaling [m/s^2]', None), 'x'),
@@ -376,7 +376,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
-        ('solver',   'cost_factor',    None,   'power',                 1e1,       ('factor used in generating the power cost [-]', None), 'x'),
+        ('solver',   'cost_factor',    None,   'power',                 1e0,       ('factor used in generating the power cost [-]', None), 'x'),
 
         ('solver',  'weights',      None,   'q',        1e-1,       ('optimization weight for all q variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'dq',       1e-1,       ('optimization weight for all dq variables [-]', None), 'x'),
@@ -402,9 +402,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'weights',      None,   'diam_t',   1e0,        ('optimization weight for the diam_t variable [-]', None),'s'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
-        ('solver',  'cost',             'u_regularisation',     0,  1e-1,       ('starting cost for u_regularisation', None),'s'),
+        ('solver',  'cost',             'u_regularisation',     0,  1e-6,       ('starting cost for u_regularisation', None),'s'),
         ('solver',  'cost',             'xdot_regularisation', 0,   1e-8,       ('starting cost for xdot regularisation', None),'s'),
-        ('solver',  'cost',             'theta_regularisation', 0,  1e-2,       ('starting cost for theta', None), 's'),
+        ('solver',  'cost',             'theta_regularisation', 0,  1e-0,       ('starting cost for theta', None), 's'),
 
         ('solver',  'cost',             'gamma',            0,      0.,         ('starting cost for gamma', None),'s'),
         ('solver',  'cost',             'iota',             0,      0.,         ('starting cost for iota', None),'s'),
@@ -421,12 +421,12 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
-        ('solver',  'cost',             'beta',             0,      8e0,        ('starting cost for beta', None),'s'),
+        ('solver',  'cost',             'beta',             0,      1e3,        ('starting cost for beta', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
         ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),
-        ('solver',  'cost',             'iota',             1,      1e3,        ('update cost for iota', None),'s'),
-        ('solver',  'cost',             'psi',              1,      1e1,        ('update cost for psi', None),'s'),
+        ('solver',  'cost',             'iota',             1,      1e2,        ('update cost for iota', None),'s'),
+        ('solver',  'cost',             'psi',              1,      1e2,        ('update cost for psi', None),'s'),
         ('solver',  'cost',             'tau',              1,      1e3,        ('update cost for tau', None),'s'),
         ('solver',  'cost',             'eta',              1,      1e3,        ('update cost for eta', None),'s'),
         ('solver',  'cost',             'nu',               1,      1e3,        ('update cost for nu', None),'s'),

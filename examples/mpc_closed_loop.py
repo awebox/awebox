@@ -46,7 +46,7 @@ def run(plot_show_block=True, overwrite_options={}):
     trial.build()
     trial.optimize()
     trial.plot(['isometric'])
-    plt.show(plot_show_block)
+    plt.show(block=plot_show_block)
 
     # set-up closed-loop simulation
     N_mpc = 10 # MPC horizon
@@ -80,7 +80,7 @@ def run(plot_show_block=True, overwrite_options={}):
     closed_loop_sim = sim.Simulation(trial, 'closed_loop', ts, options)
     closed_loop_sim.run(N_sim)
     closed_loop_sim.plot(['isometric','states'])
-    plt.show(plot_show_block)
+    plt.show(block=plot_show_block)
 
     return closed_loop_sim
 

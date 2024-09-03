@@ -107,7 +107,6 @@ def find_time_spent_in_reelin(nlp_numerics_options, V):
 
 
 def find_time_period(nlp_numerics_options, V):
-    print_op.warn_about_temporary_functionality_alteration()
     lift_mode = nlp_numerics_options['system_type'] == 'lift_mode'
     single_reelout = nlp_numerics_options['phase_fix'] == 'single_reelout'
     if lift_mode and single_reelout:

@@ -7,13 +7,14 @@ against direct collocation solution of NLP
 
 
 from awebox.logger.logger import Logger as awelogger
-from ampyx_ap2_settings import set_ampyx_ap2_settings
+import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 
 import awebox as awe
 import logging
 import awebox.tools.struct_operations as struct_op
 from casadi.tools import *
 import numpy as np
+import awebox.tools.print_operations as print_op
 logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 awelogger.logger.setLevel(10)
 
@@ -26,7 +27,7 @@ def get_integration_test_inputs():
     # choose a problem that we know solves reliably
     base_options = {}
     base_options['user_options.system_model.architecture'] = {1: 0}
-    base_options = set_ampyx_ap2_settings(base_options)
+    base_options = ampyx_ap2_settings.set_ampyx_ap2_settings(base_options)
 
     # # specify direct collocation options
     # # because we need them for struct_op.get_variables_at_time, later on.
@@ -129,7 +130,7 @@ def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
 
     # set discretization to multiple shooting
     base_options['nlp.integrator.type'] = 'rk4root'
-    base_options['nlp.integrator.num_steps_overwrite'] = 20
+    base_options['nlp.integrator.num_steps_overwrite'] = 30
 
     test_name = base_options['nlp.integrator.type']
 

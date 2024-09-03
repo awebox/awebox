@@ -8,7 +8,7 @@ import casadi as ca
 def set_ampyx_ap2_settings(options):
 
     # 6DOF Ampyx Ap2 model
-    options['user_options.system_model.kite_dof'] = 3
+    options['user_options.system_model.kite_dof'] = 6
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.trajectory.system_type'] = 'lift_mode'
     options['user_options.trajectory.lift_mode.windings'] = 1
@@ -51,8 +51,6 @@ def set_ampyx_ap2_settings(options):
 
     options['model.system_bounds.x.ddl_t'] = [-2.4, 2.4]  # [m/s^2]
     options['model.system_bounds.x.q'] = [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
-    print_op.warn_about_temporary_functionality_alteration()
-    # options['model.system_bounds.theta.t_f'] = [5., 20.]  # [s]
     options['model.system_bounds.theta.t_f'] = [2., 100.]  # [s]
     options['model.system_bounds.z.lambda'] = [0., ca.inf]  # [N/m]
     omega_bound = 50.0*np.pi/180.0

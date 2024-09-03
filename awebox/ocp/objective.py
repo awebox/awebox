@@ -405,9 +405,8 @@ def find_beta_cost(nlp_options, model, Outputs, P):
     else:
         beta_cost = 0
 
-    print_op.warn_about_temporary_functionality_alteration()
-    # divide this by number of kites.
-    # put this into quadrature integration, so that it doesn't have to be done manually and uncontrolled here.
+    # todo: put this into quadrature integration, so that it doesn't have to be done manually and uncontrolled here.
+    # todo: maybe also, divide by number of kites
 
     return beta_cost
 

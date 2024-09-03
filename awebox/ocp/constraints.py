@@ -29,7 +29,6 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: jochem de schutter, rachel leuthold, alu-fr 2018 - 2021
 '''
-import pdb
 
 import casadi.tools as cas
 from . import ocp_outputs

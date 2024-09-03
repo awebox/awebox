@@ -363,7 +363,6 @@ def compute_global_performance(global_outputs, Outputs_structured, architecture)
             all_local_a = cas.vertcat(all_local_a, kite_local_a)
 
         # todo: there might be something wrong with the way the global-performance-metrics compute. check.
-        print_op.warn_about_temporary_functionality_alteration()
 
         max_kite_local_a = vect_op.smooth_max(kite_local_a)
         min_kite_local_a = vect_op.smooth_min(kite_local_a)
