@@ -27,7 +27,6 @@
 # Author: Thilo Bronnenmeyer, Kiteswarms, 2018
 # edit: Rachel Leuthold, ALU-FR, 2019-20
 
-
 ######################################
 
 import numpy as np
@@ -287,7 +286,11 @@ def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, g
 
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        max_est_truncation_error = global_input_values['vortex', 'max_est_truncation_error']
+        local_max = []
+        for keyname in input_values['outputs']['vortex'].keys():
+            if 'est_truncation_error' in keyname:
+                local_max += [np.max(np.array(input_values['outputs']['vortex'][keyname]))]
+        max_est_truncation_error = np.max(np.array(local_max))
         if max_est_truncation_error > vortex_truncation_error_thresh:
             message = 'Vortex model estimates a large truncation error' \
                       + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \

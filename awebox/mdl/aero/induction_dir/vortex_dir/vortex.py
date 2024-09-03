@@ -380,9 +380,6 @@ def compute_global_performance(global_outputs, Outputs_structured, architecture)
     max_u_ind_from_far_wake_over_u_ref = vect_op.smooth_max(max_u_ind_from_far_wake_over_u_ref_list)
     global_outputs['vortex']['max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref
 
-    max_est_trunc = vect_op.smooth_max(local_est_trunc)
-    global_outputs['vortex']['max_est_truncation_error'] = max_est_trunc
-
     max_est_discr = vect_op.smooth_max(max_est_discr_list)
     global_outputs['vortex']['max_est_discretization_error'] = max_est_discr
 
