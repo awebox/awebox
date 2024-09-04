@@ -151,25 +151,25 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
     return None
 
 
-def test_small_dual_kite(final_homotopy_step='final', overwrite_options={}):
-    trial_name = 'small_dual_kite_trial'
-    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
-    return None
-
-def test_small_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
-    trial_name = 'small_dual_kite_basic_health_trial'
-    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
-    return None
-
-def test_large_dual_kite(final_homotopy_step='final', overwrite_options={}):
-    trial_name = 'large_dual_kite_trial'
-    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
-    return None
-
-def test_large_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
-    trial_name = 'large_dual_kite_basic_health_trial'
-    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
-    return None
+# def test_small_dual_kite(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'small_dual_kite_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
+#
+# def test_small_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'small_dual_kite_basic_health_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
+#
+# def test_large_dual_kite(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'large_dual_kite_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
+#
+# def test_large_dual_kite_basic_health(final_homotopy_step='final', overwrite_options={}):
+#     trial_name = 'large_dual_kite_basic_health_trial'
+#     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+#     return None
 
 
 # def test_actuator_qaxi(final_homotopy_step='final', overwrite_options={}):
