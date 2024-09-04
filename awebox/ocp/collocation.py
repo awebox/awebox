@@ -30,6 +30,7 @@ python-3.5 / casadi-3.4.5
 - edited:  thilo bronnenmeyer 2018
 '''
 
+
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import numpy as np
@@ -159,13 +160,13 @@ class Collocation(object):
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
                 if var_type == 'x':
-                    poly_vars = cas.vertcat(V['x',kdx, name, dim], *V['coll_var',kdx, :,'x', name, dim])
+                    poly_vars = cas.vertcat(V['x', kdx, name, dim], *V['coll_var', kdx, :, 'x', name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
                 elif var_type in ['u', 'z']:
-                    poly_vars = cas.vertcat(*V['coll_var',kdx, :,var_type, name, dim])
+                    poly_vars = cas.vertcat(*V['coll_var', kdx, :, var_type, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
-                    poly_vars = cas.vertcat(integral_outputs['int_out',kdx, name, dim], *integral_outputs['coll_int_out',kdx, :, name, dim])
+                    poly_vars = cas.vertcat(integral_outputs['int_out', kdx, name, dim], *integral_outputs['coll_int_out', kdx, :, name, dim])
                     vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
 
             return vals
@@ -264,7 +265,8 @@ class Collocation(object):
         # number of integral outputs
         ni = model.integral_outputs.cat.shape[0]
 
-        if ni > 0:
+        number_of_integral_outputs_is_positive = (ni > 0)
+        if number_of_integral_outputs_is_positive:
 
             # constant term
             i0 =  model.integral_outputs(cas.vertcat(*Integral_outputs_list)[-ni:])
@@ -301,10 +303,6 @@ class Collocation(object):
             for i in range(integral_output[list(integral_output.keys())[0]].shape[0]):
                 for name in list(model.integral_outputs.keys()):
                     Integral_outputs_list.append(integral_output[name][i])
-
-        else:
-            # do nothing
-            32.0
 
         return Integral_outputs_list
 
@@ -378,8 +376,10 @@ class Collocation(object):
         Integral_constraints_list = []
         for kdx in range(self.__n_k):
             tf = struct_op.calculate_tf(options, V, kdx)
+
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
+
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 

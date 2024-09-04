@@ -41,6 +41,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 def get_LL_matrix_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
     corr = actuator_flow.get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
@@ -78,9 +79,10 @@ def get_MM_matrix():
 
     return MM
 
+
 def get_ct_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture):
-    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
-    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    thrust = actuator_force.get_thrust_var(variables, parent)
+    area = actuator_geom.get_area_var(variables, parent)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
     ct = thrust / area / qzero
@@ -108,38 +110,16 @@ def get_actuator_moment_z_rotor(model_options, variables, outputs, parent, archi
 
 
 # references
-def get_ct_ref(model_options):
-    a_ref = actuator_flow.get_a_ref(model_options)
-    ct_ref = 4. * a_ref * (1. - a_ref)
-
-    return ct_ref
 
 
 def get_thrust_ref(model_options, atmos, wind, parameters):
-
-    qzero_ref = actuator_flow.get_qzero_ref(atmos, wind)
-    area_ref = actuator_geom.get_area_ref(model_options, parameters)
-    ct_ref = get_ct_ref(model_options)
-
-    thrust_ref = ct_ref * qzero_ref * area_ref
-
-    scaling = model_options['aero']['actuator']['scaling']
-    reference = scaling * thrust_ref
-
+    reference = model_options['scaling']['z']['f_aero']
     return reference
 
 
 def get_moment_ref(model_options, atmos, wind, parameters):
-
-    qzero_ref = actuator_flow.get_qzero_ref(atmos, wind)
-    area_ref = actuator_geom.get_area_ref(model_options, parameters)
-    bar_varrho_ref = actuator_geom.get_varrho_ref(model_options)
-    b_ref = parameters['theta0', 'geometry', 'b_ref']
-    bar_radius = (bar_varrho_ref) * b_ref
-
-    moment = qzero_ref * area_ref * bar_radius
-
-    return moment
+    reference = model_options['scaling']['z']['m_aero']
+    return reference
 
 
 def get_t_star(variables, parameters, parent):
@@ -171,16 +151,16 @@ def get_t_star_denominator_ref(wind):
 
 
 def get_c_all_components(model_options, atmos, wind, variables, parameters, outputs, parent, architecture):
-    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
+    thrust = actuator_force.get_actuator_thrust_var(variables, parent)
     moment_y_val = get_actuator_moment_y_rotor(model_options, variables, outputs, parent, architecture)
     moment_z_val = get_actuator_moment_z_rotor(model_options, variables, outputs, parent, architecture)
 
-    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    area = actuator_geom.get_area_var(variables, parent)
     qzero = actuator_flow.get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
     bar_varrho_var = actuator_geom.get_bar_varrho_var(variables, parent)
     b_ref = parameters['theta0', 'geometry', 'b_ref']
-    radius_bar =  bar_varrho_var * b_ref
+    radius_bar = bar_varrho_var * b_ref
 
     thrust_denom = area * qzero
     moment_denom = thrust_denom * radius_bar

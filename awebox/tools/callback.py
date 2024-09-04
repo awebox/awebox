@@ -95,10 +95,10 @@ class awebox_callback(cas.Callback):
 
             for theta in list(self.model.variables_dict['theta'].keys()):
                 for dim in range(self.model.variables_dict['theta'][theta].shape[0]):
-                    self.theta_dict[theta+'_'+str(dim)].append(V['theta',theta, dim])
+                    self.theta_dict[theta+'_'+str(dim)].append(V['theta', theta, dim])
 
             for t in list(self.t_dict.keys()):
-                self.t_dict[t].append(self.nlp.time_grids[t](V['theta','t_f']))
+                self.t_dict[t].append(self.nlp.time_grids[t](V['theta', 't_f']))
 
             energy = self.nlp.integral_output_components[1](V, P)
             self.avg_power.append(energy[-1]/self.t_dict['x'][-1][-1])

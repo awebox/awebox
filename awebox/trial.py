@@ -31,18 +31,20 @@ import awebox.tools.print_operations as print_op
 import awebox.trial_funcs as trial_funcs
 import awebox.ocp.nlp as nlp
 import awebox.opti.optimization as optimization
-import awebox.sim as sim
 import awebox.mdl.model as model
 import awebox.mdl.architecture as archi
 import awebox.ocp.formulation as formulation
 import awebox.viz.visualization as visualization
 import awebox.quality as quality
-import awebox.tools.save_operations as data_tools
+import awebox.tools.save_operations as save_op
 import awebox.opts.options as opts
 import awebox.tools.struct_operations as struct_op
 from awebox.logger.logger import Logger as awelogger
-from tabulate import tabulate
+
+import numpy as np
+
 import copy
+
 
 class Trial(object):
     __isfrozen = False
@@ -54,39 +56,59 @@ class Trial(object):
     def _freeze(self):
         self.__isfrozen = True
 
-    def __init__(self, seed, name = 'trial'):
+    def __init__(self, seed, name='trial'):
 
-        # check if constructed with solved trial dict
-        if 'solution_dict' in seed.keys():
+        treat_as_filename = save_op.is_possibly_a_filename_containing_reloadable_seed(seed)
+        treat_as_dict = (not treat_as_filename) and (trial_funcs.is_possibly_an_already_loaded_seed(seed))
+        treat_as_options = (not treat_as_filename) and (not treat_as_dict)
 
-            self.__solution_dict = seed['solution_dict']
-            self.__visualization = visualization.Visualization()
-            self.__visualization.options = seed['solution_dict']['options']
-            self.__visualization.plot_dict = seed['plot_dict']
-            self.__visualization.create_plot_logic_dict()
-            self.__options = seed['solution_dict']['options']
-
+        if treat_as_filename:
+            self.__initialize_from_filename_seed(seed)
+        elif treat_as_dict:
+            self.__initialize_from_dict_seed(seed)
+        elif treat_as_options:
+            self.__initialize_from_options_seed(seed, name=name)
         else:
+            message = 'unable to initialize an awebox trial from the given seed'
+            print_op.log_and_raise_error(message)
 
-            self.__options_seed   = seed
-            self.__options        = opts.Options()
-            self.__options.fill_in_seed(self.__options_seed)
-            self.__model          = model.Model()
-            self.__formulation    = formulation.Formulation()
-            self.__nlp            = nlp.NLP()
-            self.__optimization   = optimization.Optimization()
-            self.__visualization  = visualization.Visualization()
-            self.__quality        = quality.Quality()
-            self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
-            self.__type           = 'Trial'
-            self.__status         = None
-            self.__timings        = {}
-            self.__solution_dict  = {}
-            self.__save_flag      = False
+        return None
 
-            self.__return_status_numeric = -1
+    def __initialize_from_filename_seed(self, filename):
+        seed = save_op.load_saved_data_from_dict(filename)
+        self.__initialize_from_dict_seed(seed)
+        return None
 
-            self._freeze()
+    def __initialize_from_dict_seed(self, seed):
+        self.__solution_dict = seed['solution_dict']
+        self.__options = seed['solution_dict']['options']
+
+        self.__visualization = visualization.Visualization()
+        self.__visualization.options = seed['solution_dict']['options']['visualization']
+
+        self.__visualization.plot_dict = seed['plot_dict']
+        self.__visualization.create_plot_logic_dict()
+        return None
+
+    def __initialize_from_options_seed(self, seed, name=None):
+        self.__options_seed   = seed
+        self.__options        = opts.Options()
+        self.__options.fill_in_seed(self.__options_seed)
+        self.__model          = model.Model()
+        self.__formulation    = formulation.Formulation()
+        self.__nlp            = nlp.NLP()
+        self.__optimization   = optimization.Optimization()
+        self.__visualization  = visualization.Visualization()
+        self.__quality        = quality.Quality()
+        self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
+        self.__type           = 'Trial'
+        self.__status         = None
+        self.__timings        = {}
+        self.__solution_dict  = {}
+        self.__save_flag      = False
+        self.__return_status_numeric = -1
+        self._freeze()
+        return None
 
     def build(self, is_standalone_trial=True):
 
@@ -114,9 +136,9 @@ class Trial(object):
         awelogger.logger.info('Trial construction time: %s',print_op.print_single_timing(self.__timings['construction']))
         awelogger.logger.info('')
 
-    def optimize(self, options_seed = [], final_homotopy_step = 'final',
-                 warmstart_file = None, vortex_linearization_file = None, debug_flags = [],
-                 debug_locations = [], save_flag = False, intermediate_solve = False, recalibrate_viz = True):
+    def optimize(self, options_seed=[], final_homotopy_step='final',
+                 warmstart_file=None, debug_flags=[],
+                 debug_locations=[], save_flag=False, intermediate_solve=False, recalibrate_viz=True):
 
         if not options_seed:
             options = self.__options
@@ -126,7 +148,6 @@ class Trial(object):
             options.fill_in_seed(options_seed)
             architecture = archi.Architecture(self.__options['user_options']['system_model']['architecture'])
             options.build(architecture)
-            import awebox.mdl.dynamics as dyn
             self.__model.generate_scaled_variable_bounds(options['model'])
             self.__nlp.generate_variable_bounds(options['nlp'], self.__model)
 
@@ -142,11 +163,10 @@ class Trial(object):
         awelogger.logger.info('')
 
 
-        self.__optimization.solve(options['solver'], self.__nlp, self.__model,
+        self.__optimization.solve(self.__name, options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file, vortex_linearization_file,
-                                  debug_flags = debug_flags, debug_locations =
-                                  debug_locations, intermediate_solve = intermediate_solve)
+                                  final_homotopy_step, warmstart_file, debug_flags=debug_flags,
+                                  debug_locations=debug_locations, intermediate_solve=intermediate_solve)
 
         self.__solution_dict = self.generate_solution_dict()
 
@@ -156,21 +176,28 @@ class Trial(object):
 
         if self.__optimization.solve_succeeded:
             awelogger.logger.info('Trial "%s" optimized.', self.__name)
-            awelogger.logger.info('Trial optimization time: %s',print_op.print_single_timing(self.__timings['optimization']))
+            awelogger.logger.info('Trial optimization time: %s', print_op.print_single_timing(self.__timings['optimization']))
 
         else:
 
             awelogger.logger.info('WARNING: Optimization of Trial (%s) failed.', self.__name)
 
-        if (not intermediate_solve and recalibrate_viz):
-            cost_fun = self.nlp.cost_components[0]
-            cost = struct_op.evaluate_cost_dict(cost_fun, self.optimization.V_opt, self.optimization.p_fix_num)
-            self.visualization.recalibrate(self.optimization.V_opt,self.visualization.plot_dict, self.optimization.output_vals,
-                                            self.optimization.integral_outputs_final, self.options, self.optimization.time_grids,
-                                            cost, self.name, self.__optimization.V_ref, self.__optimization.global_outputs_opt)
+        # perform quality check
+        if not intermediate_solve:
 
-            # perform quality check
-            self.__quality.check_quality(self)
+            if recalibrate_viz:
+                cost_fun = self.nlp.cost_components[0]
+                cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
+                self.visualization.recalibrate(self.__optimization.V_opt, self.visualization.plot_dict,
+                                          self.__optimization.output_vals, self.__optimization.integral_output_vals,
+                                          self.options, self.__optimization.time_grids, cost, self.name,
+                                          self.__optimization.V_ref, self.__optimization.global_outputs_opt)
+
+            if (self.__options['quality']['when'] == 'final') or (self.__options['quality']['when'] == 'final_success' and self.__optimization.solve_succeeded):
+                self.__quality.check_quality(self)
+            else:
+                message = 'final solution quality was not checked!'
+                print_op.base_print(message, level='warning')
 
         # print solution
         self.print_solution()
@@ -178,15 +205,17 @@ class Trial(object):
         # save trial if option is set
         if self.__save_flag is True or self.__options['solver']['save_trial'] == True:
             saving_method = self.__options['solver']['save_format']
-            self.save(saving_method = saving_method)
+            self.save(saving_method=saving_method)
 
         awelogger.logger.info('')
 
-    def plot(self, flags, V_plot=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num = None):
+    def plot(self, flags, V_plot_scaled=None, cost=None, parametric_options=None, output_vals=None, sweep_toggle=False, fig_num=None):
 
-        if V_plot is None:
-            V_plot = self.__solution_dict['V_opt']
+        recalibrate = True
+        if V_plot_scaled is None:
+            V_plot_scaled = self.__solution_dict['V_opt']
             recalibrate = False
+
         if parametric_options is None:
             parametric_options = self.__options
         if output_vals == None:
@@ -194,11 +223,12 @@ class Trial(object):
         if cost == None:
             cost = self.__solution_dict['cost']
         time_grids = self.__solution_dict['time_grids']
-        integral_outputs_final = self.__solution_dict['integral_outputs_final']
-        V_ref = self.__solution_dict['V_ref']
+        integral_output_vals = self.__solution_dict['integral_output_vals']
+        V_ref_scaled = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
+        global_outputs_opt = self.__solution_dict['global_outputs_opt']
 
-        self.__visualization.plot(V_plot, parametric_options, output_vals, integral_outputs_final, flags, time_grids, cost, trial_name, sweep_toggle, V_ref, self.__optimization.global_outputs_opt, 'plot',fig_num, recalibrate = recalibrate)
+        self.__visualization.plot(V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 
@@ -209,47 +239,27 @@ class Trial(object):
         elif timing == 'optimization':
             self.__timings['optimization'] = self.optimization.timings['optimization']
 
-    def save(self, saving_method = 'dict', fn = None):
-
-        # log saving method
-        awelogger.logger.info('Saving trial ' + self.__name + ' using ' + saving_method)
-
-        # set savefile name to trial name if unspecified
-        if not fn:
-            fn = self.__name
-
-        # choose correct function for saving method
-        if saving_method == 'awe':
-            self.save_to_awe(fn)
-        elif saving_method == 'dict':
-            self.save_to_dict(fn)
-        else:
-            awelogger.logger.error(saving_method + ' is not a supported saving method. Trial ' + self.__name + ' could not be saved!')
-
-        # log that save is complete
-        awelogger.logger.info('Trial (%s) saved.', self.__name)
-        awelogger.logger.info('')
-        awelogger.logger.info(print_op.hline('&'))
-        awelogger.logger.info(print_op.hline('&'))
-        awelogger.logger.info('')
-        awelogger.logger.info('')
-
     def print_solution(self):
 
         # the actual power indicators
         if 'e' in self.__model.integral_outputs.keys():
-            e_final = self.__optimization.integral_outputs_final['int_out',-1,'e']
+            e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
         else:
-            e_final = self.__optimization.V_final['x', -1, 'e'][-1]
+            e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
 
         time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
         avg_power = e_final / time_period
 
-        headers = ['Parameter / output', 'Optimal value', 'Dimension']
+        parameter_label = 'Parameter or Output'
+        optimal_label = 'Value at Optimal Solution'
+        dimension_label = 'Dimension'
 
-        table = [['Average power output', str(avg_power/1e3), 'kW']]
-        table.append(['Time period', str(time_period), 's'])
-        import numpy as np
+        dict_parameters = {
+            'Average power output': {optimal_label: str(avg_power/1.e3),
+                                     dimension_label: 'kW'},
+            'Time period': {optimal_label: str(time_period),
+                            dimension_label: 's'}
+            }
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
@@ -257,8 +267,7 @@ class Trial(object):
             'l_t': ('Main tether length', 1, 'm'),
             'l_i': ('Intermediate tether length', 1, 'm'),
             'diam_i': ('Intermediate tether diameter', 1e3, 'mm'),
-            'l_t_full': ('Wound tether length', 1, 'm'),
-            'P_max': ('Peak power', 1e3, 'kW'),
+            'P_max': ('Peak power', 1e-3, 'kW'),
             'ell_radius': ('Ellipse radius', 1, 'm'),
             'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
             'ell_theta': ('Ellipse division angle', 180.0/np.pi, 'deg'), 
@@ -268,25 +277,42 @@ class Trial(object):
         for theta in self.model.variables_dict['theta'].keys():
             if theta != 't_f':
                 info = theta_info[theta]
-                table.append([
-                    info[0],
-                    str(round(self.__optimization.V_final['theta', theta].full()[0][0]*info[1],3)),
-                    info[2]]
-                    )
-        print(tabulate(table, headers=headers))
+                dict_parameters[info[0]] = {optimal_label: str(round(self.__optimization.V_final_si['theta', theta].full()[0][0]*info[1],3)),
+                                            dimension_label: info[2]}
 
-    def save_to_awe(self, fn):
+        print_op.print_dict_as_table(dict_parameters)
 
-        # reset multiple_shooting trial
-        if self.__options['nlp']['discretization'] == 'multiple_shooting':
-            self.__nlp = nlp.NLP()
-            self.__optimization = optimization.Optimization()
-            self.__visualization = visualization.Visualization()
+        return None
 
-        # pickle data
-        data_tools.save(self, fn, 'awe')
+    def save(self, saving_method='reloadable_seed', filename=None, frequency=30., rotation_representation='euler'):
 
-    def save_to_dict(self, fn):
+        object_to_save, file_extension = save_op.get_object_and_extension(saving_method=saving_method, trial_or_sweep=self.__type)
+
+        # log saving method
+        awelogger.logger.info('Saving the ' + object_to_save + ' of trial ' + self.__name + ' to ' + file_extension)
+
+        # set savefile name to trial name if unspecified
+        if filename is None:
+            filename = self.__name
+
+        # choose correct function for saving method
+        if object_to_save == 'reloadable_seed':
+            self.save_reloadable_seed(filename, file_extension)
+        elif object_to_save == 'trajectory_only':
+            self.write_to_csv(filename=filename, frequency=frequency, rotation_representation=rotation_representation)
+        else:
+            message = 'unable to save ' + object_to_save + ' object.'
+            print_op.log_and_raise_error(message)
+
+        # log that save is complete
+        awelogger.logger.info('Trial (%s) saved.', self.__name)
+        awelogger.logger.info('')
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info(print_op.hline('&'))
+        awelogger.logger.info('')
+        awelogger.logger.info('')
+
+    def save_reloadable_seed(self, filename, file_extension):
 
         # create dict to be saved
         data_to_save = {}
@@ -296,7 +322,14 @@ class Trial(object):
         data_to_save['plot_dict'] = self.__visualization.plot_dict
 
         # pickle data
-        data_tools.save(data_to_save, fn, 'dict')
+        save_op.save(data_to_save, filename, file_extension)
+
+    def write_to_csv(self, filename=None, frequency=30., rotation_representation='euler'):
+        if filename is None:
+            filename = self.name
+        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation)
+
+        return None
 
     def generate_solution_dict(self):
 
@@ -308,21 +341,18 @@ class Trial(object):
 
         # parametric sweep data
         solution_dict['V_opt'] = self.__optimization.V_opt
-        solution_dict['V_final'] = self.__optimization.V_final
+        solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['options'] = self.__options
-        solution_dict['output_vals'] = [
-            copy.deepcopy(self.__optimization.output_vals[0]),
-            copy.deepcopy(self.__optimization.output_vals[1]),
-            copy.deepcopy(self.__optimization.output_vals[2])
-        ]
-        solution_dict['integral_outputs_final'] = self.__optimization.integral_outputs_final
+        solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
+        solution_dict['integral_output_vals'] = self.__optimization.integral_output_vals
         solution_dict['stats'] = self.__optimization.stats
         solution_dict['iterations'] = self.__optimization.iterations
         solution_dict['timings'] = self.__optimization.timings
         cost_fun = self.__nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['cost'] = cost
+        solution_dict['global_outputs_opt'] = self.__optimization.global_outputs_opt
 
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
@@ -334,8 +364,11 @@ class Trial(object):
 
     def print_cost_information(self):
 
-        sol = self.optimization.solution
-        V_solution_scaled = self.nlp.V(sol['x'])
+        if hasattr(self.optimization, 'solution'):
+            sol = self.optimization.solution
+            V_solution_scaled = self.nlp.V(sol['x'])
+        else:
+            V_solution_scaled = self.optimization.V_init
 
         p_fix_num = self.optimization.p_fix_num
 
@@ -354,13 +387,6 @@ class Trial(object):
 
         return None
 
-    def write_to_csv(self, file_name=None, frequency=30., rotation_representation='euler'):
-
-        if file_name is None:
-            file_name = self.name
-        trial_funcs.generate_trial_data_csv(self, file_name, frequency, rotation_representation)
-
-        return None
 
     def generate_optimal_model(self, param_options = None):
         return trial_funcs.generate_optimal_model(self, param_options= param_options)
@@ -375,7 +401,7 @@ class Trial(object):
 
     @options.setter
     def options(self, value):
-        print('Cannot set options object.')
+        print_op.log_and_raise_error('Cannot set options object.')
 
     @property
     def status(self):
@@ -387,7 +413,7 @@ class Trial(object):
 
     @status.setter
     def status(self, value):
-        print('Cannot set status object.')
+        print_op.log_and_raise_error('Cannot set status object.')
 
     @property
     def model(self):
@@ -395,7 +421,7 @@ class Trial(object):
 
     @model.setter
     def model(self, value):
-        print('Cannot set model object.')
+        print_op.log_and_raise_error('Cannot set model object.')
 
     @property
     def nlp(self):
@@ -403,7 +429,7 @@ class Trial(object):
 
     @nlp.setter
     def nlp(self, value):
-        print('Cannot set nlp object.')
+        print_op.log_and_raise_error('Cannot set nlp object.')
 
     @property
     def optimization(self):
@@ -411,7 +437,7 @@ class Trial(object):
 
     @optimization.setter
     def optimization(self, value):
-        print('Cannot set optimization object.')
+        print_op.log_and_raise_error('Cannot set optimization object.')
 
     @property
     def formulation(self):
@@ -419,7 +445,7 @@ class Trial(object):
 
     @formulation.setter
     def formulation(self, value):
-        print('Cannot set formulation object.')
+        print_op.log_and_raise_error('Cannot set formulation object.')
 
     @property
     def type(self):
@@ -427,7 +453,7 @@ class Trial(object):
 
     @type.setter
     def type(self, value):
-        print('Cannot set type object.')
+        print_op.log_and_raise_error('Cannot set type object.')
 
     @property
     def name(self):
@@ -435,7 +461,7 @@ class Trial(object):
 
     @name.setter
     def name(self, value):
-        print('Cannot set name object.')
+        print_op.log_and_raise_error('Cannot set name object.')
 
     @property
     def timings(self):
@@ -443,7 +469,7 @@ class Trial(object):
 
     @timings.setter
     def timings(self, value):
-        print('Cannot set timings object.')
+        print_op.log_and_raise_error('Cannot set timings object.')
 
     @property
     def visualization(self):
@@ -451,7 +477,7 @@ class Trial(object):
 
     @visualization.setter
     def visualization(self, value):
-        print('Cannot set visualization object.')
+        print_op.log_and_raise_error('Cannot set visualization object.')
 
     @property
     def quality(self):
@@ -459,7 +485,7 @@ class Trial(object):
 
     @quality.setter
     def quality(self, value):
-        print('Cannot set quality object.')
+        print_op.log_and_raise_error('Cannot set quality object.')
 
     @property
     def return_status_numeric(self):
@@ -467,7 +493,7 @@ class Trial(object):
 
     @return_status_numeric.setter
     def return_status_numeric(self, value):
-        print('Cannot set return_status_numeric object.')
+        print_op.log_and_raise_error('Cannot set return_status_numeric object.')
 
     @property
     def solution_dict(self):
@@ -475,9 +501,10 @@ class Trial(object):
 
     @solution_dict.setter
     def solution_dict(self, value):
-        print('Cannot set solution_dict object.')
+        print_op.log_and_raise_error('Cannot set solution_dict object.')
 
 def generate_initial_state(model, V_init):
+    # todo: is this being used anywhere?
     x0 = model.struct_list['x'](0.)
     for name in list(model.struct_list['x'].keys()):
         x0[name] = V_init['x',0,0,name]

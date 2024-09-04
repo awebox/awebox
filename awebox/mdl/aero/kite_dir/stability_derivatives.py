@@ -34,6 +34,8 @@ import casadi.tools as cas
 
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+
 from awebox.logger.logger import Logger as awelogger
 
 def stability_derivatives(options, alpha, beta, airspeed, omega, delta, parameters):
@@ -60,7 +62,7 @@ def check_associated_coeffs_defined_for_frame(associated_coeffs, frame, type='')
     if not frame in associated_coeffs.keys():
         message = 'desired ' + type + ' frame ' + frame + ' is not in the list of ' \
             + 'expected frames: ' + repr(associated_coeffs.keys())
-        awelogger.logger.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -75,7 +77,7 @@ def check_associated_coeffs_exist_in_coeff_data(coeffs, associated_coeffs, frame
     if not all(expected_in_coeffs):
         message = 'the associated coefficients (' + repr(coeffs_associated_to_frame) + ') for the reference frame ' \
             + frame + ' do not all exist in the computed stability derivative data.'
-        awelogger.logger.error(message)
+        print_op.log_and_raise_error(message)
 
     return None
 
@@ -179,7 +181,7 @@ def collect_contributions(parameters, inputs):
                 if not input_name in inputs.keys():
                     message = 'desired stability derivative input ' + input_name + ' is not recognized. ' \
                         + 'The following inputs are defined: ' + repr(inputs.keys())
-                    awelogger.logger.error(message)
+                    print_op.log_and_raise_error(message)
 
                 input_val = inputs[input_name]
                 alpha_val = inputs['alpha']
@@ -211,8 +213,8 @@ def get_p_q_r(airspeed, omega, parameters, named_frame):
     # notice that the norm is independent of frame, iff frames are orthonormal
     omega_hat = omega / (2. * airspeed)
 
-    b_ref = parameters['theta0','geometry','b_ref']
-    c_ref = parameters['theta0','geometry','c_ref']
+    b_ref = parameters['theta0', 'geometry', 'b_ref']
+    c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     omega_hat[0] *= b_ref  # pb/2|ua|
     omega_hat[1] *= c_ref  # qc/2|ua|

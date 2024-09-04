@@ -81,7 +81,7 @@ def get_element_drag_fun(wind, atmos, cd_tether_fun, parameters):
 
     length_sq = cas.mtimes(tether.T, tether)
     length_parallel_to_wind = cas.mtimes(tether.T, ehat_ua)
-    length_perp_to_wind = vect_op.smooth_sqrt(length_sq - length_parallel_to_wind**2., epsilon)
+    length_perp_to_wind = vect_op.smooth_sqrt(length_sq - length_parallel_to_wind**2., epsilon**2.)
 
     re_number = reynolds.get_reynolds_number(atmos, ua, diam, q_upper, q_lower)
     cd = cd_tether_fun(re_number, parameters)

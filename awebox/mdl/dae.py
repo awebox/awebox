@@ -28,8 +28,10 @@ python-3.5 / casadi 3.0.0
 - author: jochem de schutter, alu-fr 2018
 """
 
+import platform
 import awebox.tools.integrator_routines as int_rout
 import casadi.tools as cas
+import awebox.tools.print_operations as print_op
 
 class Dae(object):
     """
@@ -39,7 +41,7 @@ class Dae(object):
     solvers for awebox Model objects .
     """
 
-    def __init__(self, variables, parameters, dynamics, integral_outputs_fun, param = 'sym'):
+    def __init__(self, variables, parameters, dynamics, integral_outputs_fun, param='sym'):
         """ Constructor.
     
         :type variables: casadi.tools.structure.ssymStruct
@@ -64,19 +66,20 @@ class Dae(object):
 
         # model equations
         alg = dynamics(variables, parameters)
-        ode = variables['theta','t_f']*variables['xdot']
-        quad = variables['theta','t_f']*integral_outputs_fun(variables, parameters)
+        ode = variables['theta', 't_f'] * variables['xdot']
+        quad = variables['theta', 't_f'] * integral_outputs_fun(variables, parameters)
 
         # create dae dictionary
-        dae = {'x': x, 'z': z, 'p': p, 'alg': alg,'ode': ode, 'quad': quad}
+        dae = {'x': x, 'z': z, 'p': p, 'alg': alg, 'ode': ode, 'quad': quad}
 
-        if cas.sprank(cas.jacobian(alg,z)) < z.cat.size()[0]:  # check dae index
+        if cas.sprank(cas.jacobian(alg, z)) < z.cat.size()[0]:  # check dae index
             raise ValueError('jacobian of dynamics is structurally rank-deficient: DAE is not of index 1!')
 
         self.__x = x
         self.__z = z
         self.__p = p
         self.__dae = dae
+        self.__rootfinder = None
 
         return None
 
@@ -85,8 +88,13 @@ class Dae(object):
         """
 
         # create rootfinder
-        g = cas.Function('g',[self.__z.cat,self.__x.cat,self.__p.cat],[self.__dae['alg']])
-        G = cas.rootfinder('G', 'fast_newton', g, {'jit': True})
+        g = cas.Function('g', [self.__z.cat, self.__x.cat, self.__p.cat], [self.__dae['alg']])
+        if platform.system() == 'Darwin':
+            # this is a Mac machine
+            G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}})
+        else:
+            # this is a windows or a linux machine
+            G = cas.rootfinder('G', 'fast_newton', g, {"compiler": "shell", "jit": True})
 
         self.__rootfinder = G
 
@@ -100,7 +108,12 @@ class Dae(object):
         """
 
         # set options
-        opts =  {'tf': time_step,'jit': options['jit'],'expand':True}
+        if platform.system() == 'Darwin':
+            # this is a Mac machine
+            opts = {'tf': time_step, 'expand': True, "compiler": "shell", "jit": True, "jit_options": {"compiler": "gcc"}}
+        else:
+            # this is a windows or a linux machine
+            opts = {'tf': time_step, 'jit': options['jit'], 'expand': True}
 
         if options['type'] != 'rk4root':
 
@@ -131,18 +144,22 @@ class Dae(object):
         """
 
         # differential states
-        x = cas.struct_SX([cas.entry('x', expr = variables['x'])])
-        z = cas.struct_SX([cas.entry('xdot', expr = variables['xdot']), # state derivatives
-                    cas.entry('z', expr = variables['z']), # algebraic variables
-                ])
+        x = cas.struct_SX([cas.entry('x', expr=variables['x'])])
+        z = cas.struct_SX([
+            cas.entry('xdot', expr=variables['xdot']),  # state derivatives
+            cas.entry('z', expr=variables['z'])  # algebraic variables
+            ])
 
         # parameters
         if param == 'sym':
-            p = cas.struct_SX([cas.entry('u', expr = variables['u']), # controls
-                            cas.entry('theta', expr = variables['theta']), # free parameters
-                            cas.entry('param', expr = parameters)]) # fixed parameters
+            p = cas.struct_SX([
+                cas.entry('u', expr=variables['u']),  # controls
+                cas.entry('theta', expr=variables['theta']),  # free parameters
+                cas.entry('param', expr=parameters)  # fixed parameters
+            ])
+
         elif param == 'num':
-            p = cas.struct_SX([cas.entry('u', expr = variables['u'])]) # controls
+            p = cas.struct_SX([cas.entry('u', expr=variables['u'])])  # controls
 
         return x, z, p
 
@@ -159,6 +176,29 @@ class Dae(object):
         )
 
         return x, z, p
+
+    def reassemble_dae_outputs_into_model_variables(self, variables, integration_outputs, p):
+        xf = integration_outputs['xf']
+        zf = integration_outputs['zf']
+        qf = integration_outputs['qf']
+
+        reconstructed = []
+        for var_type in variables.keys():
+            if var_type == 'x':
+                local_entry = xf
+            elif var_type == 'xdot':
+                xdot_length = variables['xdot'].shape[0]
+                local_entry = zf[:xdot_length]
+            elif var_type == 'z':
+                z_length = variables['z'].shape[0]
+                local_entry = zf[-z_length:]
+            elif var_type == 'u':
+                local_entry = p['u']
+            elif var_type == 'theta':
+                local_entry = p['theta']
+            reconstructed = cas.vertcat(reconstructed, local_entry)
+        reconstructed = variables(reconstructed)
+        return reconstructed
 
     @property
     def rootfinder(self):

@@ -74,7 +74,7 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
         # add collocation node variables
         if Collocation is None:
             message = 'a None instance of Collocation was passed to the NLP variable structure generator'
-            raise Exception(message)
+            print_op.log_and_raise_error(message)
 
         d = nlp_options['collocation']['d'] # interpolating polynomial order
         coll_var = Collocation.get_collocation_variables_struct(variables_dict, nlp_options['collocation']['u_param'])
@@ -101,9 +101,9 @@ def get_phase_fix_theta(variables_dict):
     entry_list = []
     for name in list(variables_dict['theta'].keys()):
         if name == 't_f':
-            entry_list.append(cas.entry('t_f', shape = (2,1)))
+            entry_list.append(cas.entry('t_f', shape=(2, 1)))
         else:
-            entry_list.append(cas.entry(name, shape = variables_dict['theta'][name].shape))
+            entry_list.append(cas.entry(name, shape=variables_dict['theta'][name].shape))
 
     theta = cas.struct_symSX(entry_list)
 
