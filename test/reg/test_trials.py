@@ -450,25 +450,25 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
 
 
 if __name__ == "__main__":
-    # test_single_kite_basic_health()
-    # test_single_kite()
-    # test_single_kite_6_dof_basic_health()
-    # test_single_kite_6_dof()
-    # test_poly()
-    # test_drag_mode()
-    # test_save_trial()
-    # test_dual_kite_basic_health()
-    # test_dual_kite()
-    # test_dual_kite_6_dof_basic_health()
-    # test_dual_kite_6_dof()
+    test_single_kite_basic_health()
+    test_single_kite()
+    test_single_kite_6_dof_basic_health()
+    test_single_kite_6_dof()
+    test_poly()
+    test_drag_mode()
+    test_save_trial()
+    test_dual_kite_basic_health()
+    test_dual_kite()
+    test_dual_kite_6_dof_basic_health()
+    test_dual_kite_6_dof()
     #
     # # test_small_dual_kite()
     # # test_small_dual_kite_basic_health()
     # # test_large_dual_kite()
     # # test_large_dual_kite_basic_health()
-    #
-    # test_dual_kite_tracking()
-    # test_dual_kite_tracking_winch()
+
+    test_dual_kite_tracking()
+    test_dual_kite_tracking_winch()
 
     test_vortex_force_zero_basic_health()
     test_vortex_force_zero()

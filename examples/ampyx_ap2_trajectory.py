@@ -44,7 +44,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # here: nlp discretization, with a zero-order-hold control parametrization, and
     # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
     # within ipopt.
-    options['nlp.n_k'] = 40
+    options['nlp.n_k'] = 10
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' #'simple'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
@@ -74,13 +74,16 @@ def run(plot_show_block=True, overwrite_options={}):
 
     plt.subplots(5, 1, sharex=True)
     plt.subplot(511)
-    plt.plot(time, plot_dict['interpolation_si']['x']['l_t'][0], label='Tether Length')
+    # just for reference: if options['visualization.cosmetics.variables.si_or_scaled'] = 'si', as in the default options,
+    # then plot_dict['x']['l_t'] is the same as plot_dict['interpolation_si']['x']['l_t']
+    # that is: it's the interpolation of the solution, in si units.
+    plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
     plt.ylabel('[m]')
     plt.legend()
     plt.grid(True)
 
     plt.subplot(512)
-    plt.plot(time, plot_dict['interpolation_si']['x']['dl_t'][0], label='Tether Reel-out Speed')
+    plt.plot(time, plot_dict['x']['dl_t'][0], label='Tether Reel-out Speed')
     plt.ylabel('[m/s]')
     plt.legend()
     plt.hlines([20, -15], time[0], time[-1], linestyle='--', color='black')
@@ -94,15 +97,16 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.grid(True)
 
     plt.subplot(514)
-    plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['alpha1'][0], label='Angle of Attack')
-    plt.plot(time, 180.0/np.pi*outputs['aerodynamics']['beta1'][0], label='Side-Slip Angle')
+    plt.plot(time, 180.0 / np.pi * outputs['aerodynamics']['alpha1'][0], label='Angle of Attack')
+    plt.plot(time, 180.0 / np.pi * outputs['aerodynamics']['beta1'][0], label='Side-Slip Angle')
+
     plt.ylabel('[deg]')
     plt.legend()
     plt.hlines([9, -6], time[0], time[-1], linestyle='--', color='black')
     plt.grid(True)
 
     plt.subplot(515)
-    plt.plot(time, outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
+    plt.plot(time, 1e-3 * outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
     plt.ylabel('[kN]')
     plt.xlabel('t [s]')
     plt.legend()
