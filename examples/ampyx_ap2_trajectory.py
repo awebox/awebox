@@ -44,7 +44,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # here: nlp discretization, with a zero-order-hold control parametrization, and
     # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
     # within ipopt.
-    options['nlp.n_k'] = 10
+    options['nlp.n_k'] = 40
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' #'simple'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
