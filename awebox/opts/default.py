@@ -507,6 +507,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', None,         'plot_coll',   True,           ('plot the collocation variables', [True, False]), 'x'),
         ('visualization', 'cosmetics', None,         'plot_ref',    False,          ('plot the tracking reference trajectory', [True, False]), 'x'),
         ('visualization', 'cosmetics', None,         'plot_bounds', False,          ('plot the variable bounds', [True, False]), 'x'),
+        ('visualization', 'cosmetics', None,         'plot_eq_constraints', False,  ('plot the equality constraints', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'type',     'poly',         ('???', None), 'x'),
         ('visualization', 'cosmetics', 'interpolation', 'n_points', 100,            ('number of interpolation points', None), 'x'),
         ('visualization', 'cosmetics', 'outputs',     'include_solution', False,    ('plot the actual outputs_opt values in addition to the interpolation', None), 'x'),
