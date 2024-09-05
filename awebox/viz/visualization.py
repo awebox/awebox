@@ -72,9 +72,9 @@ class Visualization(object):
 
         return None
 
-    def recalibrate(self, V_plot_scaled, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
+    def recalibrate(self, V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
         print_op.base_print('recalibrating visualization...')
-        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals,
+        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
                                                            parametric_options, time_grids, cost, name, V_ref_scaled,
                                                            global_outputs)
         self.__has_been_recalibrated = True

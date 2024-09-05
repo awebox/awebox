@@ -653,6 +653,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['model_scaling'] = model.scaling.cat
     plot_dict['model_parameters'] = struct_op.strip_of_contents(model.parameters)
     plot_dict['model_variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['outputs_fun'] = model.outputs_fun
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
@@ -671,7 +672,7 @@ def calibrate_visualization(model, nlp, name, options):
     return plot_dict
 
 
-def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -693,6 +694,9 @@ def recalibrate_visualization(V_plot_scaled, plot_dict, output_vals, integral_ou
     plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
 
     V_plot_si = plot_dict['V_plot_si']
+
+    # add parameters to dict
+    plot_dict['P'] = P_fix_num
 
     # get new name
     plot_dict['name'] = name
@@ -778,9 +782,13 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
     model_outputs = plot_dict['model_outputs']
+    model_scaling = plot_dict['model_scaling']
     outputs_dict = plot_dict['outputs_dict']
+    outputs_fun = plot_dict['outputs_fun']
     integral_output_names = plot_dict['integral_output_names']
     Collocation = plot_dict['Collocation']
+    P_fix_num = plot_dict['P']
+    model_parameters = plot_dict['model_parameters']
 
     if opt_or_ref == 'opt':
         store_name = 'interpolation'
@@ -803,9 +811,8 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
     interpolation = struct_op.interpolate_solution(cosmetics, time_grids_plot, variables_dict, V_plot,
-                                                   outputs_dict, outputs_plot, model_outputs,
-                                                   integral_output_names, integral_outputs_plot,
-                                                   Collocation=Collocation)
+        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names,
+        integral_outputs_plot, Collocation=Collocation)
 
     # store the interpolation
     dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
@@ -813,52 +820,6 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
         plot_dict[interpolation_type] = interpolation_output
 
     return plot_dict
-
-
-def interpolate_ref_data(plot_dict, cosmetics):
-    '''
-    Postprocess tracking reference data from V-structure to (interpolated) data vectors
-        with associated time grid
-    :param plot_dict: dictionary of all relevant plot information
-    :param cosmetics: dictionary of cosmetic plot choices
-    :return: plot dictionary with added entries corresponding to interpolation
-    '''
-
-    # extract information
-    time_grids = plot_dict['time_grids']['ref']
-    variables_dict = plot_dict['variables_dict']
-    V_ref_si = plot_dict['V_ref_si']
-    V_ref_scaled = plot_dict['V_ref_scaled']
-    model_outputs = plot_dict['model_outputs']
-    outputs_dict = plot_dict['outputs_dict']
-    outputs_ref = plot_dict['output_vals']['ref']
-    integral_output_names = plot_dict['integral_output_names']
-    integral_outputs_ref = plot_dict['integral_output_vals']['ref']
-    Collocation = plot_dict['Collocation']
-
-    # make the interpolation
-    interpolation_si = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
-                                                   outputs_dict, outputs_ref, model_outputs,
-                                                   integral_output_names, integral_outputs_ref,
-                                                   Collocation=Collocation)
-    interpolation_scaled = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_scaled,
-                                                   outputs_dict, outputs_ref, model_outputs,
-                                                   integral_output_names, integral_outputs_ref,
-                                                   Collocation=Collocation)
-
-    # store the interpolation
-    for name in ['ref_si', 'ref_scaled']:
-        if name not in plot_dict.keys():
-            plot_dict[name] = {}
-
-    for name, value in interpolation_si.items():
-        plot_dict['ref_si'][name] = value
-
-    for name, value in interpolation_scaled.items():
-        plot_dict['ref_scaled'][name] = value
-
-    return plot_dict
-
 
 def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
 

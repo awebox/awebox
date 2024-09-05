@@ -1166,7 +1166,6 @@ def sanity_check_find_output_idx(outputs):
 
     return None
 
-
 def get_variable_from_model_or_reconstruction(variables, var_type, name):
 
     has_labels = hasattr(variables, 'labels')
@@ -1185,7 +1184,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
     print_op.log_and_raise_error(message)
     return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt, model_outputs, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1227,7 +1226,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
     time_grids['ip'] = time_grid_interpolated
     interpolation['time_grids'] = time_grids
 
-    # x-values
+    # interpolate x, z and u values from V
     V_interpolated, V_vector_series_interpolated =  interpolate_V(
         time_grids, variables_dict, control_parametrization, V_opt,
         collocation_interpolator=collocation_interpolator,
@@ -1242,12 +1241,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
         interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
 
     # output values
-    interpolation['outputs'] = interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d,
-                                                   is_periodic=is_periodic)
-    sanity_check_the_output_interpolation(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d,
-                                          is_periodic=is_periodic)
-    # produce_chi_by_eye_sanity_checks_for_output_interpolation(interpolation, model_outputs, outputs_opt)
-
+    interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict)
 
     # integral-output values
     interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
@@ -1262,6 +1256,47 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
 def build_time_grid_for_interpolation(time_grids, n_points):
     time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
     return time_grid_interpolated
+
+def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict):
+
+    # extra variables time series (SI units)
+    x = V_vector_series_interpolated['x']
+    z = V_vector_series_interpolated['z']
+    u = V_vector_series_interpolated['u']
+
+    # time series length
+    N_ip = x.shape[1]
+
+    # model parameters
+    theta = variables_dict['theta'](1.0)
+    for theta_var in variables_dict['theta'].keys():
+        if theta_var != 't_f':
+            theta[theta_var] = V_sol['theta', theta_var]
+    theta = cas.repmat(theta.cat, 1, N_ip)
+    xdot = np.zeros(x.shape) # TODO
+
+    # construct variables input time series
+    variables = cas.vertcat(x, xdot, u, z, theta)
+
+    # scale variables time series to evaluate output function
+    variables = cas.mtimes(cas.diag(1./model_scaling), variables)
+    parameters = cas.repmat(get_parameters_at_time(V_sol, P_num, model_parameters).cat, 1, N_ip)
+
+    # compute outputs on interpolation grid
+    outputs_fun_map = outputs_fun.map(N_ip)
+    outputs_series = outputs_fun_map(variables, parameters)
+
+    # distribute results in plot_dict
+    outputs = {}
+    output_counter = 0
+    for output_type in outputs_dict.keys():
+        outputs[output_type] = {}
+        for output_name in outputs_dict[output_type].keys():
+            outputs[output_type][output_name] = []
+            for dim in range(outputs_dict[output_type][output_name].shape[0]):
+                outputs[output_type][output_name] += [outputs_series[output_counter, :]]
+                output_counter += 1
+    return None
 
 def interpolate_integral_outputs(time_grids, integral_output_names, integral_outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', integral_collocation_interpolator=None):
 
