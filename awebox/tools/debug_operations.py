@@ -40,9 +40,10 @@ import casadi.tools as cas
 import numpy as np
 import numpy.ma as ma
 import scipy.linalg as scila
-import rsrc as resource
 import datetime as datetime
 import time as time
+
+from sys import platform
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -54,7 +55,9 @@ def health_check(trial_name, solver_options, nlp, model, solution, arg, stats, i
     awelogger.logger.info('Checking health...')
 
     local_cumulative_max_memory = {'setup': cumulative_max_memory['setup'], 'optimization': cumulative_max_memory['optimization']}
-    local_cumulative_max_memory['pre-health-check'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    if platform == 'linux':
+        import resource
+        local_cumulative_max_memory['pre-health-check'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     V_opt = nlp.V(solution['x'])
     p_fix_num = nlp.P(arg['p'])
@@ -225,7 +228,9 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
     tractability['kkt: condition'] = get_condition_number(kkt_matrix)
     tractability['kkt: min_red_hessian_eig'] = get_min_reduced_hessian_eigenvalue(reduced_hessian)
 
-    local_cumulative_max_memory['at_indicator_report'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    if platform == 'linux':
+        import resource
+        local_cumulative_max_memory['at_indicator_report'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     for cmm_key in local_cumulative_max_memory.keys():
         tractability['memory: ' + cmm_key] = local_cumulative_max_memory[cmm_key]
 
