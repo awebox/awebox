@@ -60,6 +60,7 @@ setup(name='awebox',
         'six==1.16.0',
         'tk==0.1.0',
 	    'tabulate==0.8.10',
-        'pandas==2.0.3'
+        'pandas==2.0.3',
+        'resource'
    ],
 )
