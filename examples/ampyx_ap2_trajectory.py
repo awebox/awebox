@@ -64,7 +64,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # extract information from the solution for independent plotting or post-processing
     # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
     plot_dict = trial.visualization.plot_dict
-    outputs = plot_dict['interpolation_si']['outputs']
+    outputs = plot_dict['outputs']
     time = plot_dict['time_grids']['ip']
     avg_power = plot_dict['power_and_performance']['avg_power']/1e3
 
