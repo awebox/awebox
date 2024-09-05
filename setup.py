@@ -61,7 +61,7 @@ setup(name='awebox',
         'tk==0.1.0',
 	    'tabulate==0.8.10',
         'pandas==2.0.3',
-        'resource',
+        'python-resources',
         'jinja2'
    ],
 )
