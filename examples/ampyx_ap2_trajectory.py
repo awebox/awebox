@@ -56,7 +56,7 @@ def run(plot_show_block=True, overwrite_options={}):
     trial.optimize()
 
     # draw some of the pre-coded plots for analysis
-    trial.plot(['states', 'controls', 'constraints', 'quad', 'outputs:local_performance'])
+    trial.plot(['states', 'controls', 'constraints', 'quad'])
 
     # extract information from the solution for independent plotting or post-processing
     # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
@@ -100,8 +100,8 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.grid(True)
 
     plt.subplot(515)
-    plt.plot(time, 1e-3 * outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
-    plt.ylabel('[kN]')
+    plt.plot(time, outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
+    plt.ylabel('[N]')
     plt.xlabel('t [s]')
     plt.legend()
     plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
