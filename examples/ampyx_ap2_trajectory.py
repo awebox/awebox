@@ -16,11 +16,9 @@ import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 import awebox.tools.print_operations as print_op
-import logging
-
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
 def run(plot_show_block=True, overwrite_options={}):
+
     # indicate desired system architecture
     # here: single kite with 6DOF Ampyx AP2 model
     options = {}
@@ -46,7 +44,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # within ipopt.
     options['nlp.n_k'] = 40
     options['nlp.collocation.u_param'] = 'zoh'
-    options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' #'simple'
+    options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
 
     for option_name, option_val in overwrite_options.items():
@@ -55,7 +53,6 @@ def run(plot_show_block=True, overwrite_options={}):
     # build and optimize the NLP (trial)
     trial = awe.Trial(options, 'Ampyx_AP2')
     trial.build()
-
     trial.optimize()
 
     # draw some of the pre-coded plots for analysis
@@ -74,9 +71,6 @@ def run(plot_show_block=True, overwrite_options={}):
 
     plt.subplots(5, 1, sharex=True)
     plt.subplot(511)
-    # just for reference: if options['visualization.cosmetics.variables.si_or_scaled'] = 'si', as in the default options,
-    # then plot_dict['x']['l_t'] is the same as plot_dict['interpolation_si']['x']['l_t']
-    # that is: it's the interpolation of the solution, in si units.
     plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
     plt.ylabel('[m]')
     plt.legend()
@@ -119,6 +113,7 @@ def run(plot_show_block=True, overwrite_options={}):
     return trial
 
 def make_comparison(trial):
+
     plot_dict = trial.visualization.plot_dict
 
     criteria = {'winding_period_s': {},
