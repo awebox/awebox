@@ -1228,25 +1228,14 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, outpu
     interpolation['time_grids'] = time_grids
 
     # x-values
-    Vx_interpolated = interpolate_Vx(time_grids, variables_dict, V_opt, interpolation_type, nlp_discretization,
-                                     collocation_scheme=collocation_scheme,
-                                     collocation_interpolator=collocation_interpolator,
-                                     timegrid_label=timegrid_label)
-    interpolation['x'] = Vx_interpolated
+    V_interpolated, V_vector_series_interpolated =  interpolate_V(
+        time_grids, variables_dict, control_parametrization, V_opt,
+        collocation_interpolator=collocation_interpolator,
+        timegrid_label=timegrid_label)
 
-    # z-values
-    Vz_interpolated = interpolate_Vz(time_grids, variables_dict, V_opt, nlp_discretization,
-                                     collocation_scheme=collocation_scheme,
-                                     collocation_interpolator=collocation_interpolator,
-                                     timegrid_label=timegrid_label)
-    interpolation['z'] = Vz_interpolated
-
-    # u-values
-    Vu_interpolated = interpolate_Vu(time_grids, variables_dict, V_opt,
-                                     control_parametrization=control_parametrization,
-                                     collocation_interpolator=collocation_interpolator,
-                                     timegrid_label=timegrid_label)
-    interpolation['u'] = Vu_interpolated
+    interpolation['x'] = V_interpolated['x']
+    interpolation['z'] = V_interpolated['z']
+    interpolation['u'] = V_interpolated['u']
 
     # theta values
     for name in list(subkeys(V_opt, 'theta')):
@@ -1331,367 +1320,54 @@ def get_concatenated_coll_time_grid(time_grids):
             reshaped = cas.vertcat(reshaped, original[kdx, ddx])
     return reshaped
 
-def get_output_series_with_duplicates_removed(original_times, original_series, collocation_d):
+def interpolate_V(time_grids, variables_dict, control_parametrization, V,  collocation_interpolator=None, timegrid_label='ip'):
 
-    series_without_duplicates = []
-    for idx in range(original_series.shape[0]):
-        if (np.mod(idx + 1, collocation_d + 1) > 0):
-            series_without_duplicates = cas.vertcat(series_without_duplicates, original_series[idx])
+    V_interpolated = {'x': {}, 'z': {}, 'u': {}}
+    V_vector_series_interpolated = {}
 
-    if not (original_times.shape == series_without_duplicates.shape):
-        message = 'something went wrong when removing duplicate entries from zoh outputs, prior to interpolation'
-        message += ": series does not have correct number of entries"
-        print_op.log_and_raise_error(message)
+    for var_type in V_interpolated.keys():
 
-    return series_without_duplicates
+        # interpolate system variables in vector form
+        if var_type in ['x', 'z']:
+            V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
+        elif var_type in ['u']:
+            if control_parametrization == 'poly':
+                V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
+            elif control_parametrization == 'zoh':
+                controls = V['u', :]
+                V_vector_series = sample_and_hold_controls(time_grids, controls, timegrid_label=timegrid_label)
 
+        # distribute results into results dictionary
+        variable_names = variables_dict[var_type].keys()
+        var_counter = 0
+        for name in variable_names:
 
-def interpolate_outputs(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d, is_periodic=True):
+            V_interpolated[var_type][name] = []
+            variable_dimension = variables_dict[var_type][name].shape[0]
 
-    sanity_check_find_output_idx(model_outputs)
+            for dim in range(variable_dimension):
+                V_interpolated[var_type][name] += [V_vector_series[var_counter,:].squeeze()]
+                var_counter += 1
 
-    outputs_interpolated = {}
+        # save vector series for output computation
+        V_vector_series_interpolated[var_type] = V_vector_series
 
-    expected_number_of_outputs = outputs_opt.shape[0]
+    return V_interpolated, V_vector_series_interpolated
 
-    original_times = get_original_time_data_for_output_interpolation(time_grids)
-
-    confirmation_counter = 0
-    for output_type in outputs_dict.keys():
-        if output_type not in list(outputs_interpolated.keys()):
-            outputs_interpolated[output_type] = {}
-
-        for output_name in outputs_dict[output_type].keys():
-            if output_name not in list(outputs_interpolated[output_type].keys()):
-                outputs_interpolated[output_type][output_name] = []
-
-            for output_dim in range(outputs_dict[output_type][output_name].shape[0]):
-                odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
-                original_series = outputs_opt[odx, :].T
-
-                if not (original_times.shape == original_series.shape):
-                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
-
-                time_list = list(original_times.full().squeeze())
-                series_list = list(original_series.full().squeeze())
-
-                if is_periodic and (time_list[0] > 0.0):
-                    time_list = [0.] + time_list
-                    series_list = [series_list[-1]] + series_list
-
-                if vect_op.data_is_obviously_uninterpolatable(time_list,
-                                                              series_list):
-                    message = 'something went wrong when trying to interpolate outputs'
-                    print_op.log_and_raise_error(message)
-
-                local_interpolated = np.array(
-                    vect_op.spline_interpolation(time_list, series_list,
-                                                 time_grids['ip']))
-
-                outputs_interpolated[output_type][output_name] += [local_interpolated]
-                confirmation_counter += 1
-
-
-    if not confirmation_counter == expected_number_of_outputs:
-        message = 'something went wrong when interpolating outputs. the number of outputs that were interpolated is ' + str(odx) + ' when it should have been ' + str(expected_number_of_outputs)
-        print_op.log_and_raise_error(message)
-
-    return outputs_interpolated
-
-
-def sanity_check_the_output_interpolation(time_grids, outputs_dict, outputs_opt, model_outputs, collocation_d,
-                                          is_periodic=True, acceptable_error=1.e-4):
-
-    time_grids_sanity = copy.deepcopy(time_grids)
-
-    original_times = get_original_time_data_for_output_interpolation(time_grids)
-
-    start_idx = 0
-    final_idx = original_times.shape[0] - 1
-    intermediate_idx = int(np.floor(final_idx/2))
-
-    list_of_indices = [start_idx, intermediate_idx, final_idx]
-
-    interpolation_time = [original_times[idx] for idx in list_of_indices]
-    time_grids_sanity['ip'] = np.array(interpolation_time)
-
-    outputs_sanity = interpolate_outputs(time_grids_sanity, outputs_dict, outputs_opt, model_outputs, collocation_d, is_periodic=is_periodic)
-
-    for output_type in outputs_sanity.keys():
-        for output_name in outputs_sanity[output_type].keys():
-            for output_dim in range(len(outputs_sanity[output_type][output_name])):
-
-                odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
-                original_series = outputs_opt[odx, :].T
-
-                if not (original_times.shape == original_series.shape):
-                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
-
-                comparison_series = []
-                for idx in list_of_indices:
-                    comparison_series = cas.vertcat(comparison_series, original_series[idx])
-
-                interpolated_series = cas.DM(outputs_sanity[output_type][output_name][output_dim])
-
-                diff = comparison_series - interpolated_series
-                resi = cas.mtimes(diff.T, diff)
-                epsilon = 1.e-4  # an incredibly arbitrary smoothing value
-                normalization = cas.mtimes(comparison_series.T, comparison_series) + epsilon**2.
-
-                normalized_resi = resi / normalization
-
-                if normalized_resi > acceptable_error**2.:
-                    message = 'output (' + output_type + ": " + output_name + " [" + str(output_dim) + "]) seems to be badly interpolated."
-                    message += " at times " + repr(time_grids_sanity['ip']) + ", the original outputs are " + repr(comparison_series)
-                    message += ", whereas the interpolation gives " + repr(interpolated_series)
-                    print_op.log_and_raise_error(message)
-
-    return None
-
-
-def produce_chi_by_eye_sanity_checks_for_output_interpolation(interpolation, model_outputs, outputs_opt):
-    # a chi-by-eye test to see if the interpolated output lines up with computed output
-    # requires manual click-through / allows manual inspection
-    # warning: therefore, slow.
-
-    time_grids = interpolation['time_grids']
-
-    if 'coll' not in time_grids.keys():
-        message = 'chi_by_eye output interpolation not yet available for multiple-shooting interpolation'
-        print_op.log_and_raise_error(message)
-
-    original_times = get_original_time_data_for_output_interpolation(time_grids)
-
-    collocation_d = time_grids['coll'].shape[1]
-
-    for output_type in interpolation['outputs'].keys():
-        for output_name in interpolation['outputs'][output_type].keys():
-            for output_dim in range(len(interpolation['outputs'][output_type][output_name])):
-                interpolated_series = interpolation['outputs'][output_type][output_name][output_dim]
-                odx = find_output_idx(model_outputs, output_type, output_name, output_dim)
-
-                original_series = outputs_opt[odx, :].T
-                if not (original_times.shape == original_series.shape):
-                    original_series = get_output_series_with_duplicates_removed(original_times, original_series, collocation_d)
-
-                plt.clf()
-                plt.plot(time_grids['ip'], interpolated_series, label='interpolation')
-                plt.plot(original_times.full(), original_series.full(), '*', label='original')
-                plt.legend()
-                plt.title(output_type + ": " + output_name + " [" + str(output_dim) + "]")
-                plt.show()
-
-    return None
-
-
-def interpolate_Vu(time_grids, variables_dict, V, control_parametrization='zoh', collocation_interpolator=None, timegrid_label='ip'):
-
-    Vu_interpolated = {}
-
-    var_type = 'u'
-    variable_names = variables_dict[var_type].keys()
-    for name in variable_names:
-        Vu_interpolated[name] = []
-
-        variable_dimension = variables_dict[var_type][name].shape[0]
-        for dim in range(variable_dimension):
-            if control_parametrization == 'zoh':
-                control = V['u', :, name, dim]
-                values_ip = sample_and_hold_controls(time_grids, control, timegrid_label=timegrid_label)
-
-            elif (control_parametrization == 'poly') and (collocation_interpolator is not None):
-                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'u')
-
-            Vu_interpolated[name] += [values_ip]
-
-    return Vu_interpolated
-
-
-def interpolate_Vz(time_grids, variables_dict, V, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
-
-    Vz_interpolated = {}
-
-    var_type = 'z'
-    variable_names = variables_dict[var_type].keys()
-    for name in variable_names:
-        Vz_interpolated[name] = []
-
-        variable_dimension = variables_dict[var_type][name].shape[0]
-        for dim in range(variable_dimension):
-
-            if (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
-                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'z')
-            else:
-                values, time_grid_data = merge_z_values(V, name, dim, time_grids, nlp_discretization,
-                                                   collocation_scheme=collocation_scheme,
-                                                   include_collocation=include_collocation)
-                # interpolate
-                values_ip = vect_op.spline_interpolation(time_grid_data, values, time_grids[timegrid_label])
-
-            if hasattr(values_ip, 'full'):
-                Vz_interpolated[name] += [values_ip.full()]
-            else:
-                Vz_interpolated[name] += [values_ip]
-
-    return Vz_interpolated
-
-
-def interpolate_Vx(time_grids, variables_dict, V, interpolation_type, nlp_discretization, collocation_scheme='radau', collocation_interpolator=None, include_collocation=True, timegrid_label='ip'):
-
-    Vx_interpolated = {}
-
-    var_type = 'x'
-    variable_names = variables_dict[var_type].keys()
-    for name in variable_names:
-        Vx_interpolated[name] = []
-
-        variable_dimension = variables_dict[var_type][name].shape[0]
-        for dim in range(variable_dimension):
-
-            # interpolate
-            if (interpolation_type == 'spline') or (nlp_discretization == 'multiple_shooting'):
-                values_data, time_grid_data = merge_x_values(V, name, dim, time_grids, nlp_discretization,
-                                                             collocation_scheme=collocation_scheme,
-                                                             include_collocation=include_collocation)
-                values_ip = vect_op.spline_interpolation(time_grid_data, values_data, time_grids[timegrid_label])
-
-            elif (interpolation_type == 'poly') and (nlp_discretization == 'direct_collocation') and (collocation_interpolator is not None):
-                values_ip = collocation_interpolator(time_grids[timegrid_label], name, dim, 'x')
-
-            else:
-                message = 'interpolation not yet enabled for the combination of interpolation_type (' + interpolation_type + ') and nlp_discretization (' + nlp_discretization + ')'
-                print_op.log_and_raise_error(message)
-
-            if hasattr(values_ip, 'full'):
-                Vx_interpolated[name] += [values_ip.full()]
-            else:
-                Vx_interpolated[name] += [values_ip]
-
-    return Vx_interpolated
-
-
-def merge_z_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
-
-    # read in inputs
-    if nlp_discretization == 'direct_collocation':
-        tgrid_coll = time_grids['coll']
-        # total time points
-        tgrid_z_coll = time_grids['x_coll'][:-1]
-
-    # interval time points
-    tgrid_z = time_grids['u']
-    n_k = tgrid_z.shape[0]
-
-    if nlp_discretization == 'multiple_shooting':
-        # take interval values
-        z_values = np.array(cas.vertcat(*V['z', :, name, dim]).full())
-        tgrid = tgrid_z
-
-    elif nlp_discretization == 'direct_collocation':
-        if collocation_scheme == 'radau':
-            if include_collocation:
-                # add node values
-                z_values = np.array(coll_slice_to_vec(V['coll_var', :, :, 'z', name, dim]))
-                tgrid = tgrid_coll
-            else:
-                z_values = []
-                tgrid = []
-        else:
-            z_values = []
-            # merge interval and node values
-            for ndx in range(n_k):
-                # add interval values
-                z_values = cas.vertcat(z_values, V['z', ndx, name, dim])
-                if include_collocation:
-                    # add node values
-                    z_values = cas.vertcat(z_values, cas.vertcat(*V['coll_var', ndx, :, 'z', name, dim]))
-            z_values = np.array(z_values)
-
-            if include_collocation:
-                tgrid = tgrid_z_coll
-            else:
-                tgrid = tgrid_z
-
-    # make list of time grid and values
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    values = list(chain.from_iterable(z_values))
-
-    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
-
-    return values, tgrid
-
-
-def merge_x_values(V, name, dim, time_grids, nlp_discretization, collocation_scheme='radau', include_collocation=True):
-
-    # read in inputs
-    if nlp_discretization == 'direct_collocation':
-        tgrid_coll = time_grids['coll']
-        # total time points
-        tgrid_x_coll = time_grids['x_coll']
-
-    # interval time points
-    tgrid_x = time_grids['x']
-    n_k = tgrid_x.shape[0] - 1
-
-    if nlp_discretization == 'multiple_shooting':
-        # take interval values
-        x_values = np.array(cas.vertcat(*V['x', :, name, dim]).full())
-        tgrid = tgrid_x
-
-    elif nlp_discretization == 'direct_collocation':
-        if collocation_scheme == 'radau':
-            if include_collocation:
-                # add node values
-                x_values = np.array(coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
-                tgrid = tgrid_coll
-            else:
-                x_values = []
-                tgrid = []
-
-        else:
-            x_values = []
-            # merge interval and node values
-            for ndx in range(n_k + 1):
-                # add interval values
-                x_values = cas.vertcat(x_values, V['x', ndx, name, dim])
-                if include_collocation and (ndx < n_k):
-                    # add node values
-                    x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var', ndx, :, 'x', name, dim]).full())
-
-            x_values = np.array(x_values)
-            if include_collocation:
-                tgrid = tgrid_x_coll
-            else:
-                tgrid = tgrid_x
-
-    # make list of time grid
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    values = list(chain.from_iterable(x_values))
-
-    assert (not vect_op.data_is_obviously_uninterpolatable(tgrid, values))
-
-    return values, tgrid
-
-
-
-def sample_and_hold_controls(time_grids, control, timegrid_label='ip'):
+def sample_and_hold_controls(time_grids, controls, timegrid_label='ip'):
 
     tgrid_u = time_grids['u']
     tgrid_ip = time_grids[timegrid_label]
-    values_ip = np.zeros(len(tgrid_ip),)
+    values_ip = np.zeros((controls[0].shape[0], len(tgrid_ip)))
     for idx in range(len(tgrid_ip)):
         for jdx in range(tgrid_u.shape[0] - 1):
             if tgrid_u[jdx] < tgrid_ip[idx] and tgrid_ip[idx] < tgrid_u[jdx + 1]:
-                values_ip[idx] = control[jdx]
+                values_ip[:, idx] = controls[jdx].full().squeeze()
                 break
         if tgrid_u[-1] < tgrid_ip[idx]:
-            values_ip[idx] = control[-1]
+            values_ip[:, idx] = controls[-1].full().squeeze()
 
-    tgrid = tgrid_ip
     values = values_ip
-
-    if vect_op.data_is_obviously_uninterpolatable(tgrid, values):
-        return None
 
     return values
 
