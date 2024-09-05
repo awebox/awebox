@@ -40,7 +40,7 @@ import casadi.tools as cas
 import numpy as np
 import numpy.ma as ma
 import scipy.linalg as scila
-import resource
+import rsrc as resource
 import datetime as datetime
 import time as time
 
