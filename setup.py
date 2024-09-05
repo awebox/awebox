@@ -59,6 +59,7 @@ setup(name='awebox',
         'scipy==1.10.1',
         'six==1.16.0',
         'tk==0.1.0',
-	'tabulate==0.8.10'
+	    'tabulate==0.8.10',
+        'pandas==2.0.3'
    ],
 )
