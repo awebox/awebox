@@ -148,28 +148,28 @@ class Collocation(object):
         @return interpolation function
         """
 
-        def coll_interpolator(time_grid, name, dim, var_type):
+        def coll_interpolator(time_grid, var_type):
             """Interpolating function
 
             @param time_grid list with time points
-            @param name x variable name
-            @param dim x variable dimension index
+            @param var_type variable type: state, control or algebraic
+            @return vector_series interpolated variable time series
             """
 
-            vals = []
+            vector_series = []
             for t in time_grid:
                 kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
                 if var_type == 'x':
-                    poly_vars = cas.vertcat(V['x', kdx, name, dim], *V['coll_var', kdx, :, 'x', name, dim])
-                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                    poly_vars = cas.horzcat(V['x', kdx], *V['coll_var', kdx, :, 'x'])
+                    vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun(tau)))
                 elif var_type in ['u', 'z']:
-                    poly_vars = cas.vertcat(*V['coll_var', kdx, :, var_type, name, dim])
-                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun_u(tau)))
+                    poly_vars = cas.horzcat(*V['coll_var', kdx, :, var_type])
+                    vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun_u(tau)))
                 elif var_type in ['int_out']:
-                    poly_vars = cas.vertcat(integral_outputs['int_out', kdx, name, dim], *integral_outputs['coll_int_out', kdx, :, name, dim])
-                    vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                    poly_vars = cas.horzcat(integral_outputs['int_out', kdx], *integral_outputs['coll_int_out', kdx, :])
+                    vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun(tau)))
 
-            return vals
+            return vector_series
 
         return coll_interpolator
 
