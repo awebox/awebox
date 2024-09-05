@@ -324,10 +324,14 @@ class Trial(object):
         # pickle data
         save_op.save(data_to_save, filename, file_extension)
 
-    def write_to_csv(self, filename=None, frequency=30., rotation_representation='euler'):
+    def write_to_csv(self, filename=None, frequency=None, rotation_representation='euler'):
         if filename is None:
             filename = self.name
-        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation)
+        if frequency is None:
+            interpolate = False
+        else:
+            interpolate = True
+        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation, interpolate)
 
         return None
 

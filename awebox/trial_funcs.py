@@ -56,7 +56,7 @@ def is_possibly_an_already_loaded_seed(loaded_dict):
 
 
 
-def generate_trial_data_and_write_to_csv(trial, filename, freq, rotation_representation):
+def generate_trial_data_and_write_to_csv(trial, filename, freq, rotation_representation, interpolate = False):
     """
     Generate an output .csv file containing all information from the trial
     :param trial: trial whose data is to be stored in the .csv
@@ -64,7 +64,14 @@ def generate_trial_data_and_write_to_csv(trial, filename, freq, rotation_represe
     :param freq: sampling frequency for output
     :return: None
     """
-    data_dict = interpolate_data(trial, freq)
+
+    if not interpolate:
+        if 'interpolation_si' in trial.visualization.plot_dict.keys():
+            data_dict = trial.visualization.plot_dict['interpolation_si']
+        else:
+            data_dict = trial.visualization.plot_dict['interpolation_scaled']
+    else:
+        data_dict = interpolate_data(trial, freq)
     data_dict['architecture'] = trial.model.architecture
     data_dict['options'] = trial.options
     save_op.write_csv_data(data_dict=data_dict, filename=filename, rotation_representation=rotation_representation)
@@ -85,7 +92,11 @@ def interpolate_data(trial, freq):
     parametric_options['interpolation']['n_points'] = n_points
     time_grids = trial.optimization.time_grids
     variables_dict = trial.model.variables_dict
+    outputs_fun = trial.model.outputs_fun
+    P_fix_num = trial.optimization.p_fix_num
     V_opt = trial.optimization.V_opt
+    model_scaling = trial.model.scaling.cat
+    model_parameters = struct_op.strip_of_contents(trial.model.parameters)
     outputs_dict = trial.model.outputs_dict
     outputs_opt = trial.optimization.outputs_opt
     integral_output_names = trial.model.integral_scaling.keys()
@@ -96,9 +107,9 @@ def interpolate_data(trial, freq):
     else:
         Collocation = None
 
-    interpolation = (struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt, outputs_dict,
-                                                   outputs_opt, trial.model.outputs, integral_output_names,
-                                                   integral_outputs_opt, Collocation=Collocation))
+    interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt,
+        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, trial.model.outputs, 
+        integral_output_names, integral_outputs_opt, Collocation=Collocation)
     return interpolation
 
 
