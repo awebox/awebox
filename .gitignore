@@ -11,6 +11,7 @@ dist/
 figures/
 *.jpg
 *.eps
+*.mp4
 
 # Savefiles
 *.csv
@@ -21,6 +22,9 @@ figures/
 *.awe
 *.dict
 *.ipynb
+
+# Profiler
+*.prof
 
 # Code-generated files
 *.c
