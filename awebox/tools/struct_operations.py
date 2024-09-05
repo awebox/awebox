@@ -1284,7 +1284,7 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
 
     # compute outputs on interpolation grid
     outputs_fun_map = outputs_fun.map(N_ip)
-    outputs_series = outputs_fun_map(variables, parameters)
+    outputs_series = outputs_fun_map(variables, parameters).full()
 
     # distribute results in plot_dict
     outputs = {}
@@ -1294,15 +1294,17 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
         for output_name in outputs_dict[output_type].keys():
             outputs[output_type][output_name] = []
             for dim in range(outputs_dict[output_type][output_name].shape[0]):
-                outputs[output_type][output_name] += [outputs_series[output_counter, :]]
+                outputs[output_type][output_name] += [outputs_series[output_counter, :].squeeze()]
                 output_counter += 1
-    return None
+    return outputs
 
 def interpolate_integral_outputs(time_grids, integral_output_names, integral_outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', integral_collocation_interpolator=None):
 
+    integral_outputs_vector_series = integral_collocation_interpolator(time_grids[timegrid_label], 'int_out').full()
     integral_outputs_interpolated = {}
 
     # integral-output values
+    integral_outputs_counter = 0
     for name in integral_output_names:
         if name not in list(integral_outputs_interpolated.keys()):
             integral_outputs_interpolated[name] = []
@@ -1310,23 +1312,8 @@ def interpolate_integral_outputs(time_grids, integral_output_names, integral_out
         integral_output_dimension = integral_outputs_opt['int_out', 0, name].shape[0]
 
         for dim in range(integral_output_dimension):
-            if (nlp_discretization == 'direct_collocation'):
-                if (integral_collocation_interpolator is not None):
-                    values_ip = integral_collocation_interpolator(time_grids[timegrid_label], name, dim, 'int_out')
-                else:
-                    message = 'awebox is not yet able to interpolate integral_outputs for direct collocation without the use of the integral_collocation_interpolator'
-                    print_op.log_and_raise_error(message)
-            else:
-                output_values = cas.DM(integral_outputs_opt['int_out', :, name, dim])
-                tgrid = time_grids['x']
-
-                # make list of time grid and values
-                tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-                output_values = output_values.full().squeeze()
-
-                values_ip = vect_op.spline_interpolation(tgrid, output_values, time_grids[timegrid_label])
-
-            integral_outputs_interpolated[name] += [values_ip]
+            integral_outputs_interpolated[name] += [integral_outputs_vector_series[integral_outputs_counter, :].squeeze()]
+            integral_outputs_counter += 1
 
     return integral_outputs_interpolated
 
