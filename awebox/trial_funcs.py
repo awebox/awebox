@@ -40,7 +40,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.save_operations as save_op
-
+import copy
 
 def is_possibly_an_already_loaded_seed(loaded_dict):
 
@@ -90,7 +90,7 @@ def interpolate_data(trial, freq):
 
     parametric_options = trial.options['visualization']['cosmetics']
     parametric_options['interpolation']['n_points'] = n_points
-    time_grids = trial.optimization.time_grids
+    time_grids = copy.deepcopy(trial.optimization.time_grids)
     variables_dict = trial.model.variables_dict
     outputs_fun = trial.model.outputs_fun
     P_fix_num = trial.optimization.p_fix_num
@@ -108,7 +108,7 @@ def interpolate_data(trial, freq):
         Collocation = None
 
     interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt,
-        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, trial.model.outputs, 
+        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, 
         integral_output_names, integral_outputs_opt, Collocation=Collocation)
     return interpolation
 
