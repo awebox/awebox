@@ -227,8 +227,9 @@ class Trial(object):
         V_ref_scaled = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
+        P_fix_num = self.__optimization.p_fix_num
 
-        self.__visualization.plot(V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
+        self.__visualization.plot(V_plot_scaled, P_fix_num, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 
