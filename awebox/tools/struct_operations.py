@@ -1342,6 +1342,20 @@ def get_concatenated_coll_time_grid(time_grids):
             reshaped = cas.vertcat(reshaped, original[kdx, ddx])
     return reshaped
 
+def get_output_series_with_duplicates_removed(original_times, original_series, collocation_d):
+
+    series_without_duplicates = []
+    for idx in range(original_series.shape[0]):
+        if (np.mod(idx, collocation_d + 1) > 0):
+            series_without_duplicates = cas.vertcat(series_without_duplicates, original_series[idx])
+
+    if not (original_times.shape == series_without_duplicates.shape):
+        message = 'something went wrong when removing duplicate entries from zoh outputs, prior to interpolation'
+        message += ": series does not have correct number of entries"
+        print_op.log_and_raise_error(message)
+
+    return series_without_duplicates
+
 def interpolate_V(time_grids, variables_dict, control_parametrization, V,  collocation_interpolator=None, timegrid_label='ip'):
 
     V_interpolated = {'x': {}, 'z': {}, 'u': {}}
