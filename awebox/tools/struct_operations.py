@@ -1235,6 +1235,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     interpolation['x'] = V_interpolated['x']
     interpolation['z'] = V_interpolated['z']
     interpolation['u'] = V_interpolated['u']
+    interpolation['xdot'] = V_interpolated['xdot']
 
     # theta values
     for name in list(subkeys(V_opt, 'theta')):
@@ -1263,6 +1264,7 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
     x = V_vector_series_interpolated['x']
     z = V_vector_series_interpolated['z']
     u = V_vector_series_interpolated['u']
+    xdot = V_vector_series_interpolated['xdot']
 
     # time series length
     N_ip = x.shape[1]
@@ -1273,7 +1275,6 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
         if theta_var != 't_f':
             theta[theta_var] = V_sol['theta', theta_var]
     theta = cas.repmat(theta.cat, 1, N_ip)
-    xdot = np.zeros(x.shape) # TODO
 
     # construct variables input time series
     variables = cas.vertcat(x, xdot, u, z, theta)
@@ -1358,13 +1359,13 @@ def get_output_series_with_duplicates_removed(original_times, original_series, c
 
 def interpolate_V(time_grids, variables_dict, control_parametrization, V,  collocation_interpolator=None, timegrid_label='ip'):
 
-    V_interpolated = {'x': {}, 'z': {}, 'u': {}}
+    V_interpolated = {'x': {}, 'z': {}, 'u': {}, 'xdot': {}}
     V_vector_series_interpolated = {}
 
     for var_type in V_interpolated.keys():
 
         # interpolate system variables in vector form
-        if var_type in ['x', 'z']:
+        if var_type in ['x', 'z', 'xdot']:
             V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
         elif var_type in ['u']:
             if control_parametrization == 'poly':
