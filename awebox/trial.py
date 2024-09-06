@@ -227,7 +227,7 @@ class Trial(object):
         V_ref_scaled = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
-        P_fix_num = self.__optimization.p_fix_num
+        P_fix_num = self.__solution_dict['p_fix_num']
 
         self.__visualization.plot(V_plot_scaled, P_fix_num, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
@@ -348,6 +348,7 @@ class Trial(object):
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
+        solution_dict['p_fix_num'] = self.__optimization.p_fix_num
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
         solution_dict['integral_output_vals'] = self.__optimization.integral_output_vals
