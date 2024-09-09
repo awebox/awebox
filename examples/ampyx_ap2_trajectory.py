@@ -126,7 +126,7 @@ def make_comparison(trial):
     criteria['avg_power_kw']['expected'] = 4.7
 
     criteria['winding_period_s']['found'] = plot_dict['time_grids']['ip'][-1]
-    criteria['winding_period_s']['expected'] = 35
+    criteria['winding_period_s']['expected'] = 35.0
 
     return criteria
 
