@@ -55,6 +55,9 @@ def run(plot_show_block=True, overwrite_options={}):
     trial.build()
     trial.optimize()
 
+    # write the solution to CSV file, interpolating the collocation solution with given frequency.
+    # trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
+
     # draw some of the pre-coded plots for analysis
     trial.plot(['states', 'controls', 'constraints', 'quad'])
 
