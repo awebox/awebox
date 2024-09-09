@@ -32,7 +32,7 @@ _python _version 2.7 / casadi-3.4.5
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
-from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
 
 def get_ehat_tether(init_options):
@@ -134,11 +134,11 @@ def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_nor
         psi0 = psi0_base + 0.
     else:
         idx = level_siblings[parent].index(node)
-        psi0 = psi0_base + np.float(idx) / np.float(number_of_siblings) * 2. * np.pi
+        psi0 = psi0_base + float(idx) / float(number_of_siblings) * 2. * np.pi
 
     psi = psi0 + omega_norm * t
 
-    psi = cas.mod(psi, 2. * np.pi)
+    psi = np.mod(psi, 2. * np.pi)
     if psi < 0:
         psi += 2. * np.pi
 
@@ -153,6 +153,18 @@ def get_velocity_vector(t, init_options, model, node, ret):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
+def get_acceleration_vector(t, init_options, model, node, ret):
+
+    radius = init_options['precompute']['radius']
+    groundspeed = init_options['precompute']['groundspeed']
+    sign = get_rotation_direction_sign(init_options)
+
+    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
+    acceleration_magnitude = groundspeed**2 / radius
+    acceleration = acceleration_magnitude * sign * ehat_radial
+    return acceleration
+
+
 def get_velocity_vector_from_psi(init_options, groundspeed, psi):
 
     n_rot_hat, _, _ = get_rotor_reference_frame(init_options)
@@ -163,10 +175,17 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
     velocity = sign * groundspeed * ehat_tangential
     return velocity
 
-def get_kite_dcm(init_options, model, node, ret):
+def get_air_velocity(init_options, model, node, ret):
 
     position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
     velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
+
+    vec_u_infty = get_wind_velocity(init_options)
+    vec_u_app = vec_u_infty - velocity
+
+    return vec_u_app
+
+def get_kite_dcm(init_options, model, node, ret):
 
     normal_vector = ret['q10']
     ehat_normal = vect_op.normalize(normal_vector)
@@ -174,11 +193,7 @@ def get_kite_dcm(init_options, model, node, ret):
     kite_dcm_setting_method = init_options['kite_dcm']
     if kite_dcm_setting_method == 'aero_validity':
 
-        position = ret['q' + str(node) + str(model.architecture.parent_map[node])]
-        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
-
-        vec_u_infty = get_wind_speed(init_options, position[2])
-        vec_u_app = vec_u_infty - velocity
+        vec_u_app = get_air_velocity(init_options, model, node, ret)
 
         ehat1 = vect_op.normalize(vec_u_app)
         ehat2 = vect_op.normed_cross(ehat_normal, ehat1)
@@ -186,6 +201,7 @@ def get_kite_dcm(init_options, model, node, ret):
 
     elif kite_dcm_setting_method == 'circular':
 
+        velocity = ret['dq' + str(node) + str(model.architecture.parent_map[node])]
         ehat_forwards = vect_op.normalize(velocity)
 
         ehat1 = -1. * ehat_forwards
@@ -194,37 +210,44 @@ def get_kite_dcm(init_options, model, node, ret):
 
     else:
         message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
     return kite_dcm
 
 
+def get_l_t_from_init_options(init_options):
+    if 'l_t' in init_options.keys():
+        l_t = init_options['l_t']
+    elif 'x' in init_options.keys() and 'l_t' in init_options['x'].keys():
+        l_t = init_options['x']['l_t']
+    elif 'theta' in init_options.keys() and 'l_t' in init_options['theta'].keys():
+        l_t = init_options['theta']['l_t']
+    else:
+        print_op.log_and_raise_error('missing l_t initialization information')
+    return l_t
+
+
 def find_airspeed(init_options, groundspeed, psi):
 
     dq_kite = get_velocity_vector_from_psi(init_options, groundspeed, psi)
 
-    if 'l_t' in init_options['x'].keys():
-        l_t = init_options['x']['l_t']
-    else:
-        l_t = init_options['theta']['l_t']
+    l_t = get_l_t_from_init_options(init_options)
 
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
-    uu = get_wind_speed(init_options, zz)
-    u_app = dq_kite - uu
-    airspeed = float(vect_op.norm(u_app))
+    vec_u_infty = get_wind_velocity(init_options)
+    vec_u_app = dq_kite - vec_u_infty
+    airspeed = float(vect_op.norm(vec_u_app))
 
     return airspeed
 
-def get_wind_speed(init_options, zz):
-    if 'l_t' in init_options['x'].keys():
-        l_t = init_options['x']['l_t']
-    else:
-        l_t = init_options['theta']['l_t']
+def get_wind_velocity(init_options):
+
+    l_t = get_l_t_from_init_options(init_options)
+
     ehat_tether = get_ehat_tether(init_options)
     zz = l_t * ehat_tether[2]
 
@@ -239,27 +262,38 @@ def get_wind_speed(init_options, zz):
     return uu
 
 def insert_dict(dict, var_type, name, name_stripped, V_init):
-    init_val = dict[name_stripped]
-
-    if not isinstance(init_val, float):
-        for idx in range(init_val.shape[0]):
-            V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
-    else:
-        V_init = insert_val(V_init, var_type, name, init_val)
+    init_val = cas.DM(dict[name_stripped])
+    for idx in range(init_val.shape[0]):
+        V_init = insert_val(V_init, var_type, name, init_val[idx], idx)
 
     return V_init
 
 
-def insert_val(V_init, var_type, name, init_val, idx = 0):
+def insert_val(V_init, var_type, name, init_val, idx=0):
+
+    if not hasattr(init_val, 'shape'):
+        init_val = cas.DM(init_val)
 
     # initialize on collocation nodes
-    V_init['coll_var', :, :, var_type, name, idx] = init_val
+    if '[coll_var,0,0,' + var_type + ',' + name + ',0]' in V_init.labels():
+        if V_init['coll_var', 0, 0, var_type, name].shape == init_val.shape:
+            V_init['coll_var', :, :, var_type, name, idx] = init_val[idx]
+        elif init_val.shape == (1, 1):
+            V_init['coll_var', :, :, var_type, name, idx] = init_val
+        else:
+            substructure = 'coll_var'
+            message = 'something went wrong when trying to insert the ' + var_type + ' variable ' + name + "'s value (" + str(init_val) + ') into the ' + substructure + ' part of V_init'
+            print_op.log_and_raise_error(message)
 
-    if var_type in ['x', 'z']:
-        if var_type in list(V_init.keys()):
-        # initialize on interval nodes
-        # V_init[var_type, :, :, name] = init_val
-
+    if '[' + var_type + ',0,' + name + ',0]' in V_init.labels():
+        if V_init[var_type, 0, name].shape == init_val.shape:
+            V_init[var_type, :, name, idx] = init_val[idx]
+        elif init_val.shape == (1, 1):
             V_init[var_type, :, name, idx] = init_val
+        else:
+            substructure = 'shooting node'
+            message = 'something went wrong when trying to insert the ' + var_type + ' variable ' + name + "'s value (" + str(
+                init_val) + ') into the ' + substructure + ' part of V_init'
+            print_op.log_and_raise_error(message)
 
     return V_init

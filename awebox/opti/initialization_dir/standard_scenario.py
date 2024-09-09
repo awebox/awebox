@@ -28,6 +28,7 @@ _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
 
+
 import numpy as np
 import casadi.tools as cas
 import awebox.tools.vector_operations as vect_op
@@ -71,10 +72,8 @@ def guess_values_at_time(t, init_options, model):
         ret[name] = 0.0
     ret['e'] = 0.0
 
-    if 'l_t' in init_options['x'].keys():
-        ret['l_t'] = init_options['x']['l_t']
-    else:
-        ret['l_t'] = init_options['theta']['l_t']
+    l_t = tools.get_l_t_from_init_options(init_options)
+    ret['l_t'] = l_t
 
     ret['dl_t'] = 0.0
 
@@ -96,6 +95,7 @@ def guess_values_at_time(t, init_options, model):
         if not node in kite_nodes:
             ret['q' + str(node) + str(parent)] = get_tether_node_position(init_options, parent_position, node, ret['l_t'])
             ret['dq' + str(node) + str(parent)] = np.zeros((3, 1))
+            ret['ddq' + str(node) + str(parent)] = np.zeros((3, 1))
 
         else:
             height = init_options['precompute']['height']
@@ -107,8 +107,10 @@ def guess_values_at_time(t, init_options, model):
 
             position = parent_position + tether_vector
             velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+            acceleration = tools.get_acceleration_vector(t, init_options, model, node, ret)
             ret['q' + str(node) + str(parent)] = position
             ret['dq' + str(node) + str(parent)] = velocity
+            ret['ddq' + str(node) + str(parent)] = acceleration
 
             rho = init_options['sys_params_num']['atmosphere']['rho_ref']
             diam = init_options['theta']['diam_s']
@@ -192,10 +194,7 @@ def precompute_path_parameters(init_options, model):
 def set_fixed_hypotenuse(init_options, model):
     number_kites = model.architecture.number_of_kites
     if number_kites == 1:
-        if 'l_t' in init_options['x'].keys():
-            hypotenuse = init_options['x']['l_t']
-        else:
-            hypotenuse = init_options['theta']['l_t']
+        hypotenuse = tools.get_l_t_from_init_options(init_options)
     else:
         hypotenuse = init_options['theta']['l_s']
 
@@ -277,6 +276,7 @@ def set_precomputed_groundspeed(init_options):
 def clip_winding_period(init_options):
     winding_period = init_options['precompute']['winding_period']
     groundspeed = init_options['precompute']['groundspeed']
+    include_acceleration_constraint = init_options['include_acceleration_constraint']
 
     acc_max = init_options['acc_max']
 
@@ -284,7 +284,7 @@ def clip_winding_period(init_options):
     acc_centripetal = groundspeed * omega
     # acc = omega * ua = 2 pi ua / winding_period < hardware_limit
 
-    if acc_centripetal > acc_max:
+    if include_acceleration_constraint and (acc_centripetal > acc_max):
         omega_clip = acc_max / groundspeed
         winging_period = 2. * np.pi / omega_clip
 
@@ -314,25 +314,25 @@ def clip_groundspeed(init_options):
 
             if groundspeed <= 0.:
                 adjust_count = 10 + max_adjustments
-                awelogger.logger.error(
-                    'proposed initial kite speed is not positive. does not satisfy airspeed limits, and cannot be adjusted to do so.')
+                message = 'proposed initial kite speed is not positive. does not satisfy airspeed limits, and cannot be adjusted to do so.'
+                print_op.log_and_raise_error(message)
 
             elif (not above_min) and (not below_max):
                 adjust_count = 10 + max_adjustments
-                awelogger.logger.error(
-                    'proposed initial kite speed does not satisfy airspeed limits, and cannot be adjusted to do so.')
+                message = 'proposed initial kite speed does not satisfy airspeed limits, and cannot be adjusted to do so.'
+                print_op.log_and_raise_error(message)
 
             elif (not above_min):
                 groundspeed += increment
-                awelogger.logger.warning(
-                    'proposed initial kite speed does not satisfy the minimum airspeed limits. kite speed will be incremented to ' + str(
-                        groundspeed) + 'm/s.')
+                message = 'proposed initial kite speed does not satisfy the minimum airspeed limits. kite speed will be incremented to ' + str(
+                        groundspeed) + 'm/s.'
+                print_op.log_and_raise_error(message)
 
             elif (not below_max):
                 groundspeed -= increment
-                awelogger.logger.warning(
-                    'proposed initial kite speed does not satisfy the maximum airspeed limits. kite speed will be decremented to ' + str(
-                        groundspeed) + 'm/s.')
+                message = 'proposed initial kite speed does not satisfy the maximum airspeed limits. kite speed will be decremented to ' + str(
+                        groundspeed) + 'm/s.'
+                print_op.log_and_raise_error(message)
 
             else:
                 # we have finally found a working value!
@@ -341,9 +341,9 @@ def clip_groundspeed(init_options):
 
             adjust_count += 1
 
-        awelogger.logger.error(
-            'proposed initial kite speed does not satisfy airspeed limits, and could not be adjusted to do so within ' + str(
-                max_adjustments) + ' adjustments. kite speed remains as specified by user.')
+        message = 'proposed initial kite speed does not satisfy airspeed limits, and could not be adjusted to do so within ' + str(
+                max_adjustments) + ' adjustments. kite speed remains as specified by user.'
+        print_op.log_and_raise_error(message)
 
     return init_options
 

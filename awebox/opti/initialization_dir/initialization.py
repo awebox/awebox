@@ -27,8 +27,10 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 20)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
 '''
+import copy
+
 
 import numpy as np
 import casadi.tools as cas
@@ -39,56 +41,66 @@ import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.landing_scenario as landing
 import awebox.opti.initialization_dir.standard_scenario as standard
 import awebox.opti.initialization_dir.transition_scenario as transition
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+import awebox.tools.print_operations as print_op
 
-def get_initial_guess(nlp, model, formulation, init_options):
-    V_init_si = build_si_initial_guess(nlp, model, formulation, init_options)
+def get_initial_guess(nlp, model, formulation, init_options, p_fix_num):
+
+    V_init_si = build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num)
 
     if True in np.isnan(np.array(V_init_si.cat)):
         raise ValueError('NaN detected in V_init_si')
+
     V_init = struct_op.si_to_scaled(V_init_si, model.scaling)
 
     return V_init
 
 
-def initialize_multipliers_to_nonzero(V_init):
+def initialize_multipliers_to_nonzero(V_init, nlp, model):
+
+    V_scaled = nlp.V(1.)
+    V_si = struct_op.scaled_to_si(V_scaled, model.scaling)
+
     if 'z' in list(V_init.keys()):
-        V_init['z', :] = 1.
+        V_init['z', :] = V_si['z', :]
     if 'coll_var' in list(V_init.keys()):
-        V_init['coll_var', :, :, 'z'] = 1.
+        V_init['coll_var', :, :, 'z'] = V_si['coll_var', :, :, 'z']
 
     return V_init
 
 
-def build_si_initial_guess(nlp, model, formulation, init_options):
+def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     V = nlp.V
-    V_init = V(0.0)
+    V_init_si = V(0.0)
 
     # set lagrange multipliers different from zero to avoid singularity
-    V_init = initialize_multipliers_to_nonzero(V_init)
+    V_init_si = initialize_multipliers_to_nonzero(V_init_si, nlp, model)
 
     if not init_options['type'] in ['nominal_landing', 'compromised_landing', 'transition']:
         init_options = standard.precompute_path_parameters(init_options, model)
 
-    ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init)
-    V_init = set_normalized_time_params(init_options, formulation, V_init)
+    ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init_si)
+    V_init_si = set_normalized_time_params(init_options, formulation, V_init_si)
 
-    V_init = set_final_time(init_options, V_init, model, formulation, ntp_dict)
+    V_init_si = set_final_time(init_options, V_init_si, model, formulation, ntp_dict)
 
-    V_init = extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict)
+    V_init_si = extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict)
 
-    V_init = induction.initial_guess_induction(init_options, nlp, formulation, model, V_init)
+    V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
-    V_init = set_xdot(V_init, nlp)
+    V_init_si = set_xdot(V_init_si, nlp)
 
     # specified initial values for system parameters
-    V_init = set_nontime_system_parameters(init_options, model, V_init)
+    V_init_si = set_nontime_system_parameters(init_options, model, V_init_si)
 
     # initial values for homotopy parameters
     for name in list(model.parameters_dict['phi'].keys()):
-        V_init['phi', name] = 1.
+        V_init_si['phi', name] = 1.
 
-    return V_init
+    struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model)
+
+    return V_init_si
 
 
 def get_normalized_time_param_dict(nlp, formulation, init_options, V_init):
@@ -148,8 +160,8 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     return V_init
 
 
-def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
-    tf_guess = V_init['theta', 't_f']
+def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict):
+    tf_guess = V_init_si['theta', 't_f']
 
     # extract time grid
     tgrid_x = nlp.time_grids['x'](tf_guess)
@@ -167,8 +179,8 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
 
         for var_type in ['x', 'z']:
             for name in struct_op.subkeys(model.variables, var_type):
-                if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init.keys():
-                    V_init[var_type, ndx, name] = ret[name]
+                if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init_si.keys():
+                    V_init_si[var_type, ndx, name] = ret[name]
 
         if nlp.discretization == 'direct_collocation' and (ndx < n_k):
             for ddx in range(d):
@@ -179,9 +191,9 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init, ntp_dict):
                 for var_type in ['x', 'z']:
                     for name in struct_op.subkeys(model.variables, var_type):
                         if name in ret.keys():
-                            V_init['coll_var', ndx, ddx, var_type, name] = ret[name]
+                            V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
 
-    return V_init
+    return V_init_si
 
 
 def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict):
@@ -224,5 +236,5 @@ def set_xdot(V_init, nlp):
     if 'xdot' in list(V_init.keys()):
         Xdot_init = nlp.Xdot(nlp.Xdot_fun(V_init))
         for k in range(nlp.n_k):
-            V_init['xdot',k] = Xdot_init['x',k]
+            V_init['xdot', k] = Xdot_init['x', k]
     return V_init 

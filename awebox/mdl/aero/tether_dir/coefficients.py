@@ -27,13 +27,14 @@ file to generate the tether drag coefficient vs. reynolds number relationship, f
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2018
 '''
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-
-import matplotlib.pyplot as plt
 
 def get_tether_cd_fun(model_options, parameters):
 
@@ -52,7 +53,7 @@ def get_tether_cd_fun(model_options, parameters):
     else:
         raise ValueError('invalid tether drag coefficient model selected: %s',model_options['tether']['cd_model'])
 
-    tether_cd_fun = cas.Function('tether_cd_fun', [reynolds], [drag_coeff])
+    tether_cd_fun = cas.Function('tether_cd_fun', [reynolds, parameters], [drag_coeff])
 
     return tether_cd_fun
 

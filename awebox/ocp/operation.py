@@ -34,6 +34,7 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018-21
 '''
 
+
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
@@ -42,10 +43,6 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.parameterization as parameterization
 import awebox.tools.constraint_operations as cstr_op
 
-import awebox.ocp.ocp_constraint as ocp_constraint
-
-import awebox.mdl.aero.induction_dir.vortex_dir.fixing as vortex_fix
-import awebox.mdl.aero.induction_dir.vortex_dir.strength as vortex_strength
 import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 
 from awebox.logger.logger import Logger as awelogger
@@ -89,17 +86,19 @@ def determine_if_initial_conditions(options):
 def determine_if_param_terminal_conditions(options):
     return (options['trajectory']['type'] in ['transition', 'launch'])
 
+
 def get_initial_constraints(options, initial_variables, ref_variables, model, xi_dict):
-
-    cstr_list = ocp_constraint.OcpConstraintList()
-
     # list all initial equalities ==> put SX expressions in dict
-    if 'e' in list(model.variables_dict['x'].keys()):
-        init_energy_eq = make_initial_energy_equality(initial_variables, ref_variables)
-        init_energy_cstr = cstr_op.Constraint(expr=init_energy_eq,
-                                    name='initial_energy',
-                                    cstr_type='eq')
-        cstr_list.append(init_energy_cstr)
+
+    cstr_list = cstr_op.OcpConstraintList()
+
+    for possibly_integrated_variable in model.integral_scaling.keys():
+        if possibly_integrated_variable in list(model.variables_dict['x'].keys()):
+            local_initial_integration_eq = make_initial_integration_equality(initial_variables, ref_variables, possibly_integrated_variable)
+            local_initial_integration_cstr = cstr_op.Constraint(expr=local_initial_integration_eq,
+                                        name='initial_' + possibly_integrated_variable,
+                                        cstr_type='eq')
+            cstr_list.append(local_initial_integration_cstr)
 
     _, initial_conditions, param_initial_conditions, _, _, _, _ = get_operation_conditions(options)
 
@@ -162,7 +161,7 @@ def generate_integral_constraints(options, variables, parameters, model):
 
 def get_terminal_constraints(options, terminal_variables, ref_variables, model, xi_dict):
 
-    cstr_list = ocp_constraint.OcpConstraintList()
+    cstr_list = cstr_op.OcpConstraintList()
 
     _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions = get_operation_conditions(options)
 
@@ -198,21 +197,24 @@ def make_terminal_point_constraint(terminal_variables, ref_variables, model):
         if state_name in ['q', 'dq']:
             terminal_point_constr.append(terminal_variables['x',state,:2] - ref_variables['x',state,:2])
         elif state_name == 'r':
-            terminal_point_constr.append(terminal_variables['x',state,:2] - ref_variables['x',state,:2])
-            terminal_point_constr.append(terminal_variables['x',state,3] - ref_variables['x',state,3])
+            r_state = cas.reshape(terminal_variables['x',state], 3, 3)
+            r_ref   = cas.reshape(ref_variables['x',state], 3, 3)
+            constr  = cas.mtimes(r_state.T, r_ref) - cas.DM.eye(3)
+            projected_cstr = cas.vertcat(constr[0, 1], constr[0, 2], constr[1,2])
+            terminal_point_constr.append(projected_cstr)
         else:
             terminal_point_constr.append(terminal_variables['x',state] - ref_variables['x',state])
 
     return cas.vertcat(*terminal_point_constr)
 
-def get_periodic_constraints(options, initial_model_variables, terminal_model_variables):
-    cstr_list = ocp_constraint.OcpConstraintList()
+def get_periodic_constraints(options, model, initial_model_variables, terminal_model_variables):
+    cstr_list = cstr_op.OcpConstraintList()
 
     periodic, _, _, _, _, _, _ = get_operation_conditions(options)
 
     # list all periodic equalities ==> put SX expressions in dict
     if periodic:
-        periodic_eq = make_periodicity_equality(initial_model_variables, terminal_model_variables, options)
+        periodic_eq = make_periodicity_equality(model, initial_model_variables, terminal_model_variables, options)
         cstr = cstr_op.Constraint(expr=periodic_eq,
                                   name='state_periodicity',
                                   cstr_type='eq')
@@ -220,14 +222,11 @@ def get_periodic_constraints(options, initial_model_variables, terminal_model_va
 
     return cstr_list
 
-def make_initial_energy_equality(initial_model_variables, ref_variables):
-
-    initial_energy = initial_model_variables['x', 'e']
-    e_0 = ref_variables['x', 'e']
-
-    initial_energy_eq = initial_energy - e_0
-
-    return initial_energy_eq
+def make_initial_integration_equality(initial_model_variables, ref_variables, integrated_variable_name):
+    initial_value = initial_model_variables['x', integrated_variable_name]
+    reference_value = ref_variables['x', integrated_variable_name]
+    initial_integration_equality = initial_value - reference_value
+    return initial_integration_equality
 
 def is_induction_variable_from_comparison_model(name, options):
 
@@ -243,15 +242,18 @@ def is_induction_variable_from_comparison_model(name, options):
         return False
 
 
-def make_periodicity_equality(initial_model_variables, terminal_model_variables, options):
+def make_periodicity_equality(model, initial_model_variables, terminal_model_variables, options):
 
     periodicity_cstr = []
 
     for name in struct_op.subkeys(initial_model_variables, 'x'):
 
-        from_comparison_model = is_induction_variable_from_comparison_model(name, options)
+        variable_is_an_integration_variable = name in model.integral_scaling.keys()
+        variable_is_a_wake_variable = (name[0] == 'w') or (name[:2] == 'dw')
+        variable_is_from_comparison_model = is_induction_variable_from_comparison_model(name, options)
 
-        if (not name[0] == 'e') and (not name[0] == 'w') and (not name[:2] == 'dw') and (not from_comparison_model):
+        variable_is_not_periodic = variable_is_an_integration_variable or variable_is_a_wake_variable or variable_is_from_comparison_model
+        if not variable_is_not_periodic:
 
             initial_value = vect_op.columnize(initial_model_variables['x', name])
             final_value = vect_op.columnize(terminal_model_variables['x', name])
@@ -293,7 +295,7 @@ def make_param_initial_conditions(initial_model_variables, ref_variables, xi_dic
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        initial_conditions_eq_list += [initial_states['x', variable] - var_ref_initial[variable] / model.scaling['x'][variable]]
+        initial_conditions_eq_list += [initial_states['x', variable] - struct_op.var_si_to_scaled('x', variable, var_ref_initial[variable], model.scaling)]
     initial_conditions_eq = cas.vertcat(*initial_conditions_eq_list)
 
     return initial_conditions_eq
@@ -310,8 +312,15 @@ def make_initial_conditions(initial_model_variables, ref_variables, xi_dict, mod
     variable_list = set(x_struct.keys()) - set(black_list)
 
     # iterate over variables to construct constraints
-    for variable in variable_list:
-        initial_conditions_eq_list += [initial_states['x', variable] - ref_variables['x',variable]]
+    for state in variable_list:
+        state_name, _ = struct_op.split_name_and_node_identifier(state)
+        if state_name == 'r':
+            r_state = cas.reshape(initial_states['x',state], 3, 3)
+            r_ref   = cas.reshape(ref_variables['x',state], 3, 3)
+            constr  = cas.mtimes(r_state.T, r_ref) - cas.DM.eye(3)
+            initial_conditions_eq_list += [cas.reshape(constr, 9, 1)]
+        else:
+            initial_conditions_eq_list += [initial_states['x', state] - ref_variables['x',state]]
     initial_conditions_eq = cas.vertcat(*initial_conditions_eq_list)
 
     return initial_conditions_eq
@@ -341,7 +350,9 @@ def make_param_terminal_conditions(terminal_model_variables, ref_variables, xi_d
 
     # iterate over variables to construct constraints
     for variable in variable_list:
-        terminal_conditions_eq_list += [terminal_states['x', variable] - var_ref_terminal[variable] / model.scaling['x'][variable]]
+        terminal_conditions_eq_list += [
+            terminal_states['x', variable] - struct_op.var_si_to_scaled('x', variable, var_ref_terminal[variable],
+                                                                       model.scaling)]
     terminal_conditions_eq = cas.vertcat(*terminal_conditions_eq_list)
 
     return terminal_conditions_eq
