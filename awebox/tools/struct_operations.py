@@ -1204,16 +1204,17 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     if Collocation is not None:
         collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
         integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
+        time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
     else:
         control_parametrization = 'zoh'
         collocation_interpolator = None
         integral_collocation_interpolator = None
+        time_grid_interpolated = time_grids['x'].full()
 
     # add states and outputs to plotting dict
     interpolation = {'x': {}, 'xdot': {}, 'u': {}, 'z': {}, 'theta': {}, 'time_grids': {}, 'outputs': {}, 'integral_outputs': {}}
 
     # time
-    time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
     time_grids['ip'] = time_grid_interpolated
     interpolation['time_grids'] = time_grids
 
@@ -1254,8 +1255,8 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
 
     # extra variables time series (SI units)
     x = V_vector_series_interpolated['x']
-    z = V_vector_series_interpolated['z']
     u = V_vector_series_interpolated['u']
+    z = V_vector_series_interpolated['z']
     xdot = V_vector_series_interpolated['xdot']
 
     # time series length
@@ -1293,7 +1294,10 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
 
 def interpolate_integral_outputs(time_grids, integral_output_names, integral_outputs_opt, nlp_discretization, collocation_scheme='radau', timegrid_label='ip', integral_collocation_interpolator=None):
 
-    integral_outputs_vector_series = integral_collocation_interpolator(time_grids[timegrid_label], 'int_out').full()
+    if integral_collocation_interpolator is not None:
+        integral_outputs_vector_series = integral_collocation_interpolator(time_grids[timegrid_label], 'int_out').full()
+    else:
+        integral_outputs_vector_series = cas.horzcat(*integral_outputs_opt['int_out', :]).full()
     integral_outputs_interpolated = {}
 
     # integral-output values
@@ -1356,15 +1360,20 @@ def interpolate_V(time_grids, variables_dict, control_parametrization, V,  collo
 
     for var_type in V_interpolated.keys():
 
-        # interpolate system variables in vector form
-        if var_type in ['x', 'z', 'xdot']:
-            V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
-        elif var_type in ['u']:
-            if control_parametrization == 'poly':
+        if collocation_interpolator is not None:
+            # interpolate system variables in vector form
+            if var_type in ['x', 'z', 'xdot']:
                 V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
-            elif control_parametrization == 'zoh':
-                controls = V['u', :]
-                V_vector_series = sample_and_hold_controls(time_grids, controls, timegrid_label=timegrid_label)
+            elif var_type in ['u']:
+                if control_parametrization == 'poly':
+                    V_vector_series = collocation_interpolator(time_grids[timegrid_label], var_type).full()
+                elif control_parametrization == 'zoh':
+                    controls = V['u', :]
+                    V_vector_series = sample_and_hold_controls(time_grids, controls, timegrid_label=timegrid_label)
+        else:
+            V_vector_series = cas.horzcat(*V[var_type, :]).full()
+            if var_type in ['u', 'z', 'xdot']:
+                V_vector_series = cas.horzcat(V_vector_series, V_vector_series[:, 0]).full()
 
         # distribute results into results dictionary
         variable_names = variables_dict[var_type].keys()
