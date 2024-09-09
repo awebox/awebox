@@ -27,7 +27,8 @@ def run(plot_show_block=True, overwrite_options={}):
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'lift_mode'
     options['user_options.trajectory.lift_mode.windings'] = 1
-    options['model.system_bounds.x.l_t'] = [1.0e-2, 1.0e3]
+    options['model.system_bounds.x.l_t'] = [0.0, 1.0e3]
+    options['model.system_bounds.theta.t_f'] = [10.0, 20.0]
 
     # wind model
     options['params.wind.z_ref'] = 10.0
