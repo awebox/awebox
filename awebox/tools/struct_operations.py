@@ -1197,15 +1197,6 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     nlp_discretization = local_options['discretization']
     collocation_scheme = local_options['collocation']['scheme']
     control_parametrization = local_options['collocation']['u_param']
-    interpolation_type = local_options['interpolation']['type']
-    n_k = local_options['n_k']
-    collocation_d = local_options['collocation']['d']
-
-    # todo: find a less hacky way to decide if the trajectory is periodic
-    epsilon_periodic = 1.e-5
-    states_at_start = V_opt['x', 0]
-    states_at_end = V_opt['x', -1]
-    is_periodic = vect_op.norm(states_at_start - states_at_end)**2. < epsilon_periodic**2.
 
     if n_points is None:
         n_points = local_options['interpolation']['n_points']
