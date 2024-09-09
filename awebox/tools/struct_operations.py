@@ -1236,11 +1236,12 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict)
 
     # integral-output values
-    interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
-                                                                     integral_outputs_opt, nlp_discretization,
-                                                                     collocation_scheme=collocation_scheme,
-                                                                     timegrid_label=timegrid_label,
-                                                                     integral_collocation_interpolator=integral_collocation_interpolator)
+    if integral_outputs_opt.shape[0] != 0:
+        interpolation['integral_outputs'] = interpolate_integral_outputs(time_grids, integral_output_names,
+                                                                        integral_outputs_opt, nlp_discretization,
+                                                                        collocation_scheme=collocation_scheme,
+                                                                        timegrid_label=timegrid_label,
+                                                                        integral_collocation_interpolator=integral_collocation_interpolator)
 
     return interpolation
 
