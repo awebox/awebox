@@ -69,7 +69,7 @@ trial.optimize(options)
 avg_power += [trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
 q_alm = np.array(trial.visualization.plot_dict['x']['q10']).T
 time_alm = trial.visualization.plot_dict['time_grids']['ip']
-p_current_alm = trial.visualization.plot_dict['outputs']['performance']['p_curset_megawes_path_generation_settingsrent'][0]
+p_current_alm = trial.visualization.plot_dict['outputs']['performance']['p_current'][0]
 
 # ----------------- 3. generate path with CFD aero model ----------------- #
 
@@ -92,9 +92,9 @@ for k, (model, power) in enumerate(zip(['VLM', 'ALM', 'CFD'], avg_power)):
 
 # plot 3D flight path
 fig = plt.figure()
+ax = fig.add_subplot(projection = '3d')
 fig.set_size_inches(8,8)
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
-ax = fig.get_axes()[0]
 ax.plot(q_vlm[:,0], q_vlm[:,1], q_vlm[:,2])
 ax.plot(q_alm[:,0], q_alm[:,1], q_alm[:,2])
 ax.plot(q_cfd[:,0], q_cfd[:,1], q_cfd[:,2])
@@ -110,7 +110,6 @@ l = ax.get_lines()
 l[0].set_color('b')
 l[-2].set_color('g')
 l[-1].set_color('r')
-ax.get_legend().remove()
 ax.legend([l[0],l[-2],l[-1]], legend_labs, fontsize=12)
 fig.suptitle("")
 fig.savefig('outputs_megawes_aero_models_plot_3dpath.png')
