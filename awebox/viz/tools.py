@@ -22,9 +22,13 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
 import casadi.tools as cas
 import numpy as np
-import matplotlib.pyplot as plt
 import awebox.tools.struct_operations as struct_op
 from itertools import chain
 import matplotlib.colors as colors
@@ -32,7 +36,6 @@ import matplotlib.cm as cmx
 import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.tools.print_operations as print_op
 
 def get_naca_airfoil_coordinates(s, m, p, t):
@@ -59,11 +62,12 @@ def get_naca_airfoil_coordinates(s, m, p, t):
 
     return xu, xl, yu, yl
 
+
 def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
-    m = np.float64(naca[0]) / 100.
-    p = np.float64(naca[1]) / 10.
-    t = np.float64(naca[2:]) / 100.
+    m = float(naca[0]) / 100.
+    p = float(naca[1]) / 10.
+    t = float(naca[2:]) / 100.
 
     s_list = np.arange(0., 101.) / 100.
 
@@ -71,7 +75,7 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
     x_lower = []
 
     for s in s_list:
-        [xu, xl, yu, yl] = get_naca_airfoil_coordinates(s, m, p, t)
+        xu, xl, yu, yl = get_naca_airfoil_coordinates(s, m, p, t)
 
         new_x_upper = xu * vect_op.xhat_np() + yu * vect_op.zhat_np()
         new_x_lower = xl * vect_op.xhat_np() + yl * vect_op.zhat_np()
@@ -90,38 +94,8 @@ def get_naca_shell(chord, naca="0012", center_at_quarter_chord = True):
 
     return x
 
-def make_side_plot(ax, vertically_stacked_array, side, plot_color, plot_marker=' ', label=None, alpha = 1, linestyle = '-', plot_tether = False):
-    vsa = np.array(cas.DM(vertically_stacked_array))
 
-    if vsa.shape[0] == 3 and (not vsa.shape[1] == 3):
-        vsa = vsa.T
-
-    if side == 'isometric':
-        ax.plot(vsa[:, 0], vsa[:, 1], zs=vsa[:, 2], color=plot_color, marker=plot_marker, label=label, alpha = alpha, linestyle = linestyle)
-        if plot_tether:
-            for kk in range(int(vsa.shape[0]/5)-1):
-                ax.plot([0, vsa[5*kk, 0]], [0, vsa[5*kk,1]], zs=[0, vsa[5*kk, 2]], color = 'black', alpha = 0.3)
-    else:
-        side_num = ''
-        for sdx in side:
-            if sdx == 'x':
-                side_num += '0'
-            elif sdx == 'y':
-                side_num += '1'
-            elif sdx == 'z':
-                side_num += '2'
-
-        idx = int(side_num[0])
-        jdx = int(side_num[1])
-
-        ax.plot(vsa[:, idx], vsa[:, jdx], color=plot_color, marker=plot_marker, label = label, alpha = alpha, linestyle = linestyle)
-        if plot_tether:
-            for kk in range(int(vsa.shape[0]/5)-1):
-                ax.plot([0, vsa[5*kk, idx]], [0, vsa[5*kk,jdx]], color = 'black', alpha = 0.3)
-
-    return None
-
-def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012"):
+def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, side, body_cross_sections_per_meter, naca="0012", shift_tipn=0., shift_root=0., shift_tipp=0.):
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
@@ -138,17 +112,24 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
 
         s = np.abs(y)/0.5 # 1 at tips and 0 at root
         if y < 0:
-            c_local = c_root * (1. - s) + c_tipn * s
+            c_side = c_tipn
+            shift_side = shift_tipn
         else:
-            c_local = c_root * (1. - s) + c_tipp * s
+            c_side = c_tipp
+            shift_side = shift_tipp
+
+        c_local = c_root * (1. - s) + c_side * s
+        shift_local = (shift_root * (1. - s) + shift_side * s) * c_root
 
         basic_shell = get_naca_shell(c_local, naca)
 
         basic_leading_ege = basic_shell[np.argmin(basic_shell[:, 0]), :]
         basic_trailing_ege = basic_shell[np.argmax(basic_shell[:, 0]), :]
 
-        new_leading_edge = q + yloc + np.array(cas.mtimes(r_dcm, basic_leading_ege.T))
-        new_trailing_edge = q + yloc + np.array(cas.mtimes(r_dcm, basic_trailing_ege.T))
+        base_position = q + yloc + np.array(cas.mtimes(r_dcm, shift_local * vect_op.xhat_dm()))
+
+        new_leading_edge = base_position + np.array(cas.mtimes(r_dcm, basic_leading_ege.T))
+        new_trailing_edge = base_position + np.array(cas.mtimes(r_dcm, basic_trailing_ege.T))
 
         leading_edges = cas.vertcat(leading_edges, new_leading_edge.T)
         trailing_edges = cas.vertcat(trailing_edges, new_trailing_edge.T)
@@ -156,15 +137,15 @@ def draw_lifting_surface(ax, q, r, b_ref, c_tipn, c_root, c_tipp, kite_color, si
         horizontal_shell = []
         for idx in range(basic_shell[:, 0].shape[0]):
 
-            new_point = q + yloc + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
+            new_point = base_position + np.array(cas.mtimes(r_dcm, basic_shell[idx, :].T))
 
             horizontal_shell = cas.vertcat(horizontal_shell, new_point.T)
         horizontal_shell = np.array(horizontal_shell)
 
-        make_side_plot(ax, horizontal_shell, side, kite_color)
+        basic_draw(ax, side, data=horizontal_shell, color=kite_color)
 
-    make_side_plot(ax, leading_edges, side, kite_color)
-    make_side_plot(ax, trailing_edges, side, kite_color)
+    basic_draw(ax, side, data=leading_edges, color=kite_color)
+    basic_draw(ax, side, data=trailing_edges, color=kite_color)
 
     return None
 
@@ -172,7 +153,7 @@ def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_p
 
     r_dcm = np.array(cas.reshape(r, (3, 3)))
 
-    total_width = np.float64(naca[2:]) / 100. * length
+    total_width = float(naca[2:]) / 100. * length
 
     num_spanwise = np.ceil(total_width * body_cross_sections_per_meter / 2.)
 
@@ -196,11 +177,10 @@ def draw_kite_fuselage(ax, q, r, length, kite_color, side, body_cross_sections_p
             up_direction_shell = cas.vertcat(up_direction_shell, new_point_upwise.T)
 
         span_direction_shell = np.array(span_direction_shell)
-        make_side_plot(ax, span_direction_shell, side, kite_color)
+        basic_draw(ax, side, data=span_direction_shell, color=kite_color)
 
         up_direction_shell = np.array(up_direction_shell)
-        make_side_plot(ax, up_direction_shell, side, kite_color)
-
+        basic_draw(ax, side, data=up_direction_shell, color=kite_color)
 
     return None
 
@@ -219,21 +199,34 @@ def draw_kite_horizontal(ax, q, r, length, height, b_ref, c_ref, kite_color, sid
 
     draw_lifting_surface(ax, pos, r_dcm, b_ref / 3., c_ref / 3., c_ref / 2., c_ref / 3., kite_color, side, body_cross_sections_per_meter, naca)
 
-def draw_kite_vertical(ax, q, r, length, height, b_ref, c_ref, kite_color, side, body_cross_sections_per_meter, naca="0012"):
 
-    r_dcm = np.array(cas.reshape(r, (3, 3)))
-    ehat_1 = np.reshape(r_dcm[:, 0], (3, 1))
-    ehat_3 = np.reshape(r_dcm[:, 2], (3, 1))
+def draw_kite_vertical(ax, q, r, length, height, c_ref, kite_color, side):
+
+    r_dcm = cas.reshape(r, (3, 3))
+    ehat_1 = vect_op.columnize(r_dcm[:, 0])
+    ehat_2 = vect_op.columnize(r_dcm[:, 1])
+    ehat_3 = vect_op.columnize(r_dcm[:, 2])
 
     new_ehat1 = ehat_1
-    new_ehat2 = ehat_3
-    new_ehat3 = np.array(vect_op.normed_cross(new_ehat1, new_ehat2))
+    new_ehat2 = -1. * ehat_3
+    new_ehat3 = ehat_2
     r_new = np.array(cas.horzcat(new_ehat1, new_ehat2, new_ehat3))
 
     horizontal_space = (3. * length / 4. - c_ref / 3.) * ehat_1
     pos = q + horizontal_space + ehat_3 * height / 2.
 
-    draw_lifting_surface(ax, pos, r_new, height, c_ref, c_ref / 2., c_ref / 4., kite_color, side, body_cross_sections_per_meter, naca)
+    c_fuselage = c_ref
+    c_top = c_ref / 4.
+    c_root = (c_fuselage + c_top) / 2.
+
+    shift_fuselage = 0.
+    shift_top = (c_top - c_fuselage) / c_root
+    shift_root = (shift_fuselage+ shift_top) / 2.
+
+    draw_lifting_surface(ax, pos, r_new, height, c_top, c_root, c_fuselage, kite_color, side, 3./height,
+                         shift_tipn=shift_fuselage, shift_root=shift_root, shift_tipp=shift_top)
+    return None
+
 
 def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per_meter):
     # read in inputs
@@ -245,329 +238,262 @@ def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per
 
     if geometry['wing']:
 
-        if not geometry['wing_profile'] == None:
+       if geometry['wing_profile'] is None:
+            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, body_cross_sections_per_meter)
+       else:
             draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side,
                            body_cross_sections_per_meter, geometry['wing_profile'])
-        else:
-            draw_kite_wing(ax, q, r, geometry_params['b_ref'], geometry['c_root'], geometry['c_tip'], kite_color, side, body_cross_sections_per_meter)
 
     if geometry['tail']:
         draw_kite_horizontal(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
-        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['b_ref'], geometry_params['c_ref'], kite_color, side, body_cross_sections_per_meter)
+        draw_kite_vertical(ax, q, r, geometry['length'], geometry['height'], geometry_params['c_ref'], kite_color, side)
+
+    return None
 
 
+def draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index):
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    dcm_colors = cosmetics['trajectory']['dcm_colors']
+    visibility_scaling = b_ref
 
-def plot_output_block(plot_table_r, plot_table_c, params, output, plt, fig, idx, output_type, output_name, cosmetics, reload_dict, dim=0):
+    variables_si = assemble_variable_slice_from_interpolated_data(plot_dict, index)
 
-    # kite nodes
-    kite_nodes = params['model']['architecture'].kite_nodes
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
 
-    plt.subplot(plot_table_r, plot_table_c, idx)
-    for n in kite_nodes:
+        ehat_chord = []
+        ehat_span = []
+        ehat_up = []
+        for dim in range(3):
+            local_chord = plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][dim][index]
+            local_span = plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][dim][index]
+            local_up = plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][dim][index]
 
-        kk = 0
-        can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
-        while not (can_index[0] == output_type and can_index[1] == output_name):
-            kk += 1
-            can_index = reload_dict['outputs_struct'].getCanonicalIndex(kk)
-        output_values, tgrid, ndim = merge_output_values(output, kk, reload_dict, cosmetics)
+            ehat_chord = cas.vertcat(ehat_chord, local_chord)
+            ehat_span = cas.vertcat(ehat_span, local_span)
+            ehat_up = cas.vertcat(ehat_up, local_up)
 
-        idx = kite_nodes.index(n)
-        plt.plot(tgrid, output_values, color=cosmetics['diagnostics']['colors'][idx])
-        plt.grid('on')
+        ehat_dict = {'x': ehat_chord,
+                     'y': ehat_span,
+                     'z': ehat_up}
 
-    if ndim > 1:
-        if dim == 0:
-            dimname = 'x'
-        elif dim == 1:
-            dimname = 'y'
+        x_start = variables_si['x', 'q' + str(kite) + str(parent)]
+
+        for vec_name, vec_ehat in ehat_dict.items():
+            x_end = x_start + visibility_scaling * vec_ehat
+
+            color = dcm_colors[vec_name]
+            basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='-')
+    return None
+
+
+def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None):
+
+    no_start = x_start is None
+    no_end = x_end is None
+    no_segment = no_start or no_end
+    no_data = data is None
+
+    if no_segment and no_data:
+        message = 'insufficient data provided to basic_draw'
+        print_op.log_and_raise_error(message)
+
+    elif (not no_segment) and (not no_data):
+        message = 'too much data provided to basic_draw'
+        print_op.log_and_raise_error(message)
+
+    elif not no_segment:
+        x = [float(x_start[0]), float(x_end[0])]
+        y = [float(x_start[1]), float(x_end[1])]
+        z = [float(x_start[2]), float(x_end[2])]
+
+    elif not no_data:
+        if (not hasattr(data, 'shape')) or (not len(data.shape) == 2):
+            message = 'data provided to basic_draw has wrong format or wrong shape'
+            print_op.log_and_raise_error(message)
+
+        if isinstance(data, cas.DM):
+            data = np.array(data)
+
+        if data.shape[0] == 3:
+            pass
+        elif data.shape[1] == 3:
+            data = data.T
         else:
-            dimname = 'z'
-        plt.title(output_name + ' (' + dimname + ' hat)')
+            message = 'data provided to basic_draw is not 3d-cartesian'
+            print_op.log_and_raise_error(message)
+
+        x = data[0, :]
+        y = data[1, :]
+        z = data[2, :]
+
     else:
-        plt.title(output_name)
+        message = 'set of choices intended to be complete, appears not to be.'
+        print_op.log_and_raise_error(message)
 
-def merge_output_values(output_vals, kk, plot_dict, cosmetics, ref = False):
+    if side == 'xy':
+        ax.plot(x, y, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'xz':
+        ax.plot(x, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'yz':
+        ax.plot(y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+    elif side == 'isometric':
+        ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
 
-    # read in inputs
-    discretization = plot_dict['discretization']
-    if  discretization == 'direct_collocation':
+    return None
 
-        scheme = plot_dict['options']['nlp']['collocation']['scheme']
 
-        if not ref:
-            tgrid_coll = plot_dict['time_grids']['coll']
+def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False)):
 
-            # total time points
-            tgrid_u_coll = plot_dict['time_grids']['x_coll'][:-1]
+    options = plot_dict['options']
+    architecture = plot_dict['architecture']
+    kite_nodes = architecture.kite_nodes
+    parent_map = architecture.parent_map
+    body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
+
+    search_name = 'interpolation' + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
+
+    for kite in kite_nodes:
+
+        # kite colors
+        if init_colors:
+            local_color = 'k'
         else:
-            tgrid_coll = plot_dict['time_grids']['ref']['coll']
+            local_color = cosmetics['trajectory']['colors'][kite_nodes.index(kite)]
 
-            # total time points
-            tgrid_u_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]  
+        parent = parent_map[kite]
 
-    # interval time points
-    if not ref:
-        tgrid_u = plot_dict['time_grids']['u']
+        # kite position information
+        q_kite = []
+        for j in range(3):
+            q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][index])
+
+        # dcm information
+        r_dcm = []
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][index])
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][index])
+        for j in range(3):
+            r_dcm = cas.vertcat(r_dcm, plot_dict[search_name]['outputs']['aerodynamics']['ehat_up' + str(kite)][j][index])
+
+        # draw kite body
+        draw_kite(ax, q_kite, r_dcm, options['model'], local_color, side, body_cross_sections_per_meter)
+
+    return None
+
+
+def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
+
+    parent = plot_dict['architecture'].parent_map[node]
+
+    if ref:
+        search_name = 'ref'
     else:
-        tgrid_u = plot_dict['time_grids']['ref']['u']
+        search_name = 'interpolation'
+    search_name = search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
 
-    if discretization == 'direct_collocation':
-        if scheme != 'radau':
-            output_values = output_vals[kk,:]
-            tgrid = tgrid_u_coll
-        else:
-            output_values = []
-            for k in range(plot_dict['n_k']):
-                output_values.append(output_vals[kk, k*(plot_dict['d']+1) + 1: k*(plot_dict['d']+1) + plot_dict['d']+1])
-            output_values = cas.horzcat(*output_values)
-            tgrid = tgrid_coll
-        ndim = 1
+    data = []
+    for dim in range(3):
+        local_dim = x_vals['q' + str(node) + str(parent)][dim]
+        data = cas.horzcat(data, local_dim)
 
-    # make list of time grid and values
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    output_values = output_values.full().squeeze()
+    basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+    return None
 
-    return output_values, tgrid, ndim
 
-def merge_x_values(V ,name, dim, plot_dict, cosmetics, ref = False):
+def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=0.2, label=None, index=-1):
+    architecture = plot_dict['architecture']
 
-    # read in inputs
-
-    discretization = plot_dict['discretization']
-    if discretization == 'direct_collocation':
-        scheme = plot_dict['options']['nlp']['collocation']['scheme']
-
-        if not ref:
-            tgrid_coll = plot_dict['time_grids']['coll']
-            # total time points
-            tgrid_x_coll = plot_dict['time_grids']['x_coll']
-        else:
-            tgrid_coll = plot_dict['time_grids']['ref']['coll']
-            # total time points
-            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll'] 
-
-    # interval time points
-    if not ref:
-        tgrid_x = plot_dict['time_grids']['x']
+    if ref:
+        search_name = 'ref'
     else:
-        tgrid_x = plot_dict['time_grids']['ref']['x']
+        search_name = 'interpolation'
+    search_name += '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
 
-    if discretization == 'multiple_shooting':
-        # take interval values
-        x_values = np.array(cas.vertcat(*V['x',:,name,dim]).full())
-        tgrid = tgrid_x
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
 
-    elif discretization == 'direct_collocation':
-        if scheme != 'radau':
-            x_values = []
-            # merge interval and node values
-            for k in range(plot_dict['n_k']+1):
-                # add interval values
-                x_values = cas.vertcat(x_values, V['x',k, name,dim])
-                if (cosmetics['plot_coll'] and k < plot_dict['n_k']):
-                    # add node values
-                    x_values = cas.vertcat(x_values, cas.vertcat(*V['coll_var',k, :, 'x', name,dim]).full())
-            x_values = np.array(x_values)
-            if cosmetics['plot_coll']:
-                tgrid = tgrid_x_coll
-            else:
-                tgrid = tgrid_x
-
-        elif scheme == 'radau':
-            if cosmetics['plot_coll']:
-                # add node values
-                x_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, 'x', name,dim]))
-                tgrid = tgrid_coll
-            else:
-                x_values = []
-                tgrid = []
-
-    # make list of time grid
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    x_values = list(chain.from_iterable(x_values))
-
-    return x_values, tgrid
-
-def merge_z_values(V, var_type, name, dim, plot_dict, cosmetics, ref = False):
-
-    # read in inputs
-    discretization = plot_dict['discretization']
-    if discretization == 'direct_collocation':
-        scheme = plot_dict['options']['nlp']['collocation']['scheme']
-
-        if not ref:
-            tgrid_coll = plot_dict['time_grids']['coll']
-            # total time points
-            tgrid_z_coll = plot_dict['time_grids']['x_coll'][:-1]
+        if parent == 0:
+            x_start = cas.DM.zeros((3, 1))
         else:
-            tgrid_coll = plot_dict['time_grids']['ref']['coll']
-            # total time points
-            tgrid_z_coll = plot_dict['time_grids']['ref']['x_coll'][:-1]   
+            grandparent = architecture.parent_map[parent]
+            x_start = []
+            for dim in range(3):
+                local_val = x_vals['q' + str(parent) + str(grandparent)][dim][index]
+                x_start = cas.vertcat(x_start, local_val)
 
-    # interval time points
-    if not ref:
-        tgrid_z = plot_dict['time_grids']['u']
-    else:
-        tgrid_z = plot_dict['time_grids']['ref']['u']
+        x_end = []
+        for dim in range(3):
+            local_val = x_vals['q' + str(node) + str(parent)][dim][index]
+            x_end = cas.vertcat(x_end, local_val)
 
-    if discretization == 'multiple_shooting':
-        # take interval values
-        z_values = np.array(cas.vertcat(*V[var_type,:,name,dim]).full())
-        tgrid = tgrid_z
+        basic_draw(ax, side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
 
-    elif discretization == 'direct_collocation':
-        if scheme != 'radau':
-            z_values = []
-            # merge interval and node values
-            for k in range(plot_dict['n_k']):
-                # add interval values
-                z_values = cas.vertcat(z_values, V[var_type,k, name,dim])
-                if cosmetics['plot_coll']:
-                    # add node values
-                    z_values = cas.vertcat(z_values, cas.vertcat(*V['coll_var',k, :, var_type, name,dim]))
-            z_values = np.array(z_values)
-            if cosmetics['plot_coll']:
-                tgrid = tgrid_z_coll
-            else:
-                tgrid = tgrid_z
+    return None
 
-        elif scheme == 'radau':
-            if cosmetics['plot_coll']:
-                # add node values
-                z_values = np.array(struct_op.coll_slice_to_vec(V['coll_var',:, :, var_type, name,dim]))
-                tgrid = tgrid_coll
-            else:
-                z_values = []
-                tgrid = []
-
-    # make list of time grid and values
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-    z_values = list(chain.from_iterable(z_values))
-
-    return z_values, tgrid
-
-def merge_integral_output_values(int_out, name, plot_dict, cosmetics, ref = False):
-
-    # read in inputs
-    discretization = plot_dict['discretization']
-    if discretization == 'direct_collocation':
-        # total time points
-        if not ref:
-            tgrid_x_coll = plot_dict['time_grids']['x_coll']
-        else:
-            tgrid_x_coll = plot_dict['time_grids']['ref']['x_coll']
-
-    # interval time points
-    if not ref:
-        tgrid_x = plot_dict['time_grids']['x']
-    else:
-        tgrid_x = plot_dict['time_grids']['ref']['x']
-
-    if discretization == 'multiple_shooting':
-        # take interval values
-        output_values = np.array(cas.vertcat(*int_out['int_out',:,name]).full())
-        tgrid = tgrid_x
-
-    elif discretization == 'direct_collocation':
-        output_values = []
-        # merge interval and node values
-        for k in range(plot_dict['n_k']+1):
-            # add interval values
-            output_values = cas.vertcat(output_values, int_out['int_out',k, name])
-            if (cosmetics['plot_coll'] and k < plot_dict['n_k']):
-                # add node values
-                output_values = cas.vertcat(output_values, cas.vertcat(*int_out['coll_int_out',k, :, name]))
-
-        if cosmetics['plot_coll']:
-            tgrid = tgrid_x_coll
-        else:
-            tgrid = tgrid_x
-
-    # make list of time grid and values
-    tgrid = list(chain.from_iterable(tgrid.full().tolist()))
-
-    return output_values, tgrid
 
 def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None):
 
     # read in inputs
     model_options = plot_dict['options']['model']
-    kite_nodes = plot_dict['architecture'].kite_nodes
-    parent_map = plot_dict['architecture'].parent_map
+    architecture = plot_dict['architecture']
+    kite_nodes = architecture.kite_nodes
+
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
 
     body_cross_sections_per_meter = cosmetics['trajectory']['body_cross_sections_per_meter']
 
-    # get kite locations
-    kite_locations = []
-    kite_ref_locations = []
-    kite_rotations = []
-
-
-    for kite in kite_nodes:
-
-        traj = []
-        traj_ref = []
-        rot = []
-
-        parent = parent_map[kite]
-
-        for dim in range(3):
-            traj.append(
-                cas.vertcat(plot_dict['x']['q' + str(kite) + str(parent)][dim])#,
-            )
-            if cosmetics['plot_ref']:
-                traj_ref.append(cas.vertcat(plot_dict['ref']['x']['q' + str(kite) + str(parent)][dim]))
-
-            for dim in range(9):
-                rot.append(plot_dict['outputs']['aerodynamics']['r' + str(kite)][dim])
-
-        kite_locations.append(traj)
-        kite_ref_locations.append(traj_ref)
-        kite_rotations.append(rot)
-
     old_label = None
-    plot_tether = (len(kite_nodes) == 1)
-    for kdx in range(len(kite_nodes)):
-
+    for kite in kite_nodes:
+        parent = architecture.parent_map[kite]
+        kite_index = architecture.kite_nodes.index(kite)
 
         if init_colors == True:
             local_color = 'k'
         elif init_colors == False:
-            local_color = cosmetics['trajectory']['colors'][kdx]
+            local_color = cosmetics['trajectory']['colors'][kite_index]
         else:
             local_color = init_colors
 
-        vertically_stacked_kite_locations = cas.horzcat(kite_locations[kdx][0],
-                                                    kite_locations[kdx][1],
-                                                    kite_locations[kdx][2])
-
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
-
-            pdx = 0
+            local_index = 0
 
             q_local = []
             for dim in range(3):
-                q_local = cas.vertcat(q_local, kite_locations[kdx][dim][pdx])
+                local_val = plot_dict[search_name]['x']['q' + str(kite) + str(parent)][dim][local_index]
+                q_local = cas.vertcat(q_local, local_val)
 
             r_local = []
             for dim in range(9):
-                r_local = cas.vertcat(r_local, kite_rotations[kdx][dim][pdx])
+                local_val = plot_dict[search_name]['outputs']['aerodynamics']['r' + str(kite)][dim][local_index]
+                r_local = cas.vertcat(r_local, local_val)
 
             draw_kite(ax, q_local, r_local, model_options, local_color, side, body_cross_sections_per_meter)
 
-
         if old_label == label:
             label = None
-        make_side_plot(ax, vertically_stacked_kite_locations, side, local_color, label=label, plot_tether = plot_tether)
 
+        plot_path_of_node(ax, side, plot_dict, kite, ref=False, color=local_color, label=label)
         if cosmetics['plot_ref']:
-            vertically_stacked_kite_ref_locations = cas.horzcat(kite_ref_locations[kdx][0],
-                                                        kite_ref_locations[kdx][1],
-                                                        kite_ref_locations[kdx][2])
-            make_side_plot(ax, vertically_stacked_kite_ref_locations, side, local_color, label=label,linestyle='--', plot_tether = plot_tether)
+            plot_path_of_node(ax, side, plot_dict, kite, ref=True, color=local_color, label=label, linestyle='--', alpha=0.5)
 
         old_label = label
+
+    plot_tether = (len(kite_nodes) == 1)
+    if plot_tether:
+        time_entries = plot_dict[search_name]['x']['q10'][0].shape[0]
+        for index in range(time_entries):
+            plot_all_tethers(ax, side, plot_dict, ref=False, index=index)
+            if cosmetics['plot_ref']:
+                plot_all_tethers(ax, side, plot_dict, ref=True, index=index, alpha=0.5)
+
+    return None
+
 
 def get_q_limits(plot_dict, cosmetics):
     dims = ['x', 'y', 'z']
@@ -588,6 +514,7 @@ def get_q_limits(plot_dict, cosmetics):
         limits[dim] = [centers[dim] + sign * 0.5 * max_dim for sign in signs]
 
     return limits
+
 
 def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
 
@@ -610,13 +537,15 @@ def get_q_extrema_in_dimension(dim, plot_dict, cosmetics):
         message = 'selected dimension for q_limits not supported. setting dimension to x'
         awelogger.logger.warning(message)
 
-    for name in list(plot_dict['x'].keys()):
+    search_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
+    for name in list(plot_dict[search_name]['x'].keys()):
         if name[0] == 'q':
-            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict['x'][name][jdx])))
-            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict['x'][name][jdx])))
+            temp_min = np.min(cas.vertcat(temp_min, np.min(plot_dict[search_name]['x'][name][jdx])))
+            temp_max = np.max(cas.vertcat(temp_max, np.max(plot_dict[search_name]['x'][name][jdx])))
 
         if name[0] == 'w' and name[1] == dim and cosmetics['trajectory']['wake_nodes']:
-            vals = np.array(cas.vertcat(*plot_dict['x'][name]))
+            vals = np.array(cas.vertcat(*plot_dict[search_name]['x'][name]))
             temp_min = np.min(cas.vertcat(temp_min, np.min(vals)))
             temp_max = np.max(cas.vertcat(temp_max, np.max(vals)))
 
@@ -657,26 +586,29 @@ def plot_control_block(cosmetics, V_opt, plt, fig, plot_table_r, plot_table_c, i
     tgrid_u = plot_dict['time_grids']['u']
     tgrid_ip = plot_dict['time_grids']['ip']
 
+    interp_name = 'interpolation_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    ref_name = 'ref_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+
     plt.subplot(plot_table_r, plot_table_c, idx)
     for jdx in range(number_dim):
-        if plot_dict['u_param'] == 'poly':
-            p = plt.plot(tgrid_ip, plot_dict['u'][name][jdx])
-            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
-                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
-            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.plot(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],
-                    linestyle= '--', color = p[-1].get_color() )
+        color=cosmetics['controls']['colors'][jdx]
 
-        else:
-            p = plt.step(tgrid_ip, plot_dict['u'][name][jdx],where='post')
+        if plot_dict['u_param'] == 'poly':
+            plt.plot(np.array(tgrid_ip), np.array(plot_dict[interp_name]['u'][name][jdx]), color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
-                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, p)
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
             if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
-                plt.step(plot_dict['time_grids']['ref']['ip'], plot_dict['ref']['u'][name][jdx],where='post',
-                    linestyle =  '--', color = p[-1].get_color())
+                plt.plot(np.array(plot_dict['time_grids']['ref']['ip']), np.array(plot_dict[ref_name]['u'][name][jdx]), linestyle='--', color=color)
+        else:
+            p = plt.step(tgrid_ip, plot_dict[interp_name]['u'][name][jdx], where='post', color=color)
+            if plot_dict['options']['visualization']['cosmetics']['plot_bounds']:
+                plot_bounds(plot_dict, 'u', name, jdx, tgrid_ip, color=color)
+            if plot_dict['options']['visualization']['cosmetics']['plot_ref']:
+                plt.step(np.array(plot_dict['time_grids']['ref']['ip']), np.array(plot_dict[ref_name]['u'][name][jdx]), where='post', linestyle='--', color=color)
     plt.grid(True)
     plt.title(name)
     plt.autoscale(enable=True, axis= 'x', tight = True)
+
 
 def get_sweep_colors(number_of_trials):
 
@@ -686,26 +618,10 @@ def get_sweep_colors(number_of_trials):
 
     color_list = []
     for trial in range(number_of_trials):
-        color_list += [scalar_map.to_rgba(np.float64(trial))]
+        color_list += [scalar_map.to_rgba(float(trial))]
 
     return color_list
 
-def spline_interpolation(time_grid, values, time_grid_ip, n_points, name):
-    """ Interpolate solution values with b-splines
-    """
-
-    # create interpolating function
-    if all(v == 0 for v in values):
-        # can't use splines if all entries zero
-        values_ip = np.zeros(len(time_grid_ip))
-    else:
-        spline = cas.interpolant(name, 'bspline', [time_grid], values, {})
-        # function map to new discretization
-        spline = spline.map(n_points)
-        # interpolate
-        values_ip = spline(time_grid_ip).full()[0]
-
-    return values_ip
 
 def calibrate_visualization(model, nlp, name, options):
     """
@@ -723,23 +639,31 @@ def calibrate_visualization(model, nlp, name, options):
     # nlp information
     plot_dict['n_k'] = nlp.n_k
     plot_dict['discretization'] = nlp.discretization
+
     if nlp.discretization == 'direct_collocation':
         plot_dict['d'] = nlp.d
         plot_dict['u_param'] = options['nlp']['collocation']['u_param']
     else:
         plot_dict['u_param'] = 'zoh'
-    plot_dict['Collocation'] = nlp.Collocation
 
     # model information
-    plot_dict['integral_variables'] = list(model.integral_outputs.keys())
     plot_dict['outputs_dict'] = struct_op.strip_of_contents(model.outputs_dict)
-    plot_dict['outputs_struct'] = model.outputs
-    plot_dict['architecture'] = model.architecture
-    plot_dict['variables'] = struct_op.strip_of_contents(model.variables)
-    plot_dict['parameters'] = struct_op.strip_of_contents(model.parameters)
+    plot_dict['model_outputs'] = struct_op.strip_of_contents(model.outputs)
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
-    plot_dict['scaling'] = model.scaling
+    plot_dict['model_scaling'] = model.scaling.cat
+    plot_dict['model_parameters'] = struct_op.strip_of_contents(model.parameters)
+    plot_dict['model_variables'] = struct_op.strip_of_contents(model.variables)
+    plot_dict['outputs_fun'] = model.outputs_fun
+    plot_dict['integral_output_names'] = model.integral_outputs.keys()
+    plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
+    plot_dict['global_output_names'] = nlp.global_outputs.keys()
+
+    plot_dict['Collocation'] = nlp.Collocation
+
+    if model.wake is not None:
+        model.wake.define_model_variables_to_info_functions(model.variables, model.parameters)
+    plot_dict['wake'] = model.wake
 
     # wind information
     u_ref = model.options['params']['wind']['u_ref']
@@ -747,7 +671,8 @@ def calibrate_visualization(model, nlp, name, options):
 
     return plot_dict
 
-def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_final, options, time_grids, cost, name, V_ref, global_outputs, iterations=None, return_status_numeric=None, timings=None, N=None, ): 
+
+def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -756,23 +681,31 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
 
     # extract information
     cosmetics = options['visualization']['cosmetics']
-    if N is not None:
-        cosmetics['interpolation']['N'] = int(N)
+    if n_points is not None:
+        cosmetics['interpolation']['n_points'] = int(n_points)
 
     plot_dict['cost'] = cost
 
     # add V_plot to dict
-    scaling = plot_dict['scaling']
-    plot_dict['V_plot'] = struct_op.scaled_to_si(V_plot, scaling)
-    plot_dict['V_ref'] = struct_op.scaled_to_si(V_ref, scaling)
+    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+    plot_dict['V_plot_scaled'] = V_plot_scaled
+    plot_dict['V_ref_scaled'] = V_ref_scaled
+    plot_dict['V_plot_si'] = struct_op.scaled_to_si(V_plot_scaled, scaling)
+    plot_dict['V_ref_si'] = struct_op.scaled_to_si(V_ref_scaled, scaling)
+
+    V_plot_si = plot_dict['V_plot_si']
+
+    # add parameters to dict
+    plot_dict['P'] = P_fix_num
 
     # get new name
     plot_dict['name'] = name
 
     # get new outputs
     plot_dict['output_vals'] = output_vals
-    plot_dict['integral_outputs_final'] = integral_outputs_final
-    plot_dict['global_outputs'] = global_outputs
+    plot_dict['integral_output_vals'] = integral_output_vals
+    plot_dict['global_output_vals'] = global_output_vals
+
     # get new time grids
     plot_dict['time_grids'] = time_grids
     if plot_dict['discretization'] == 'direct_collocation':
@@ -782,9 +715,16 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['options'] = options
 
     # interpolate data
-    plot_dict = interpolate_data(plot_dict, cosmetics)
+    plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt')
+    # backwards-compatibility with previous plot_dict's variable access
+    for keys, values in plot_dict['interpolation_si'].items():
+        plot_dict[keys] = values
+
+    si_or_scaled = cosmetics['variables']['si_or_scaled']
+    if si_or_scaled == 'scaled':
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
     if cosmetics['plot_ref']:
-        plot_dict = interpolate_ref_data(plot_dict, cosmetics)
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='ref')
 
     # interations
     if iterations is not None:
@@ -802,21 +742,25 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     plot_dict['power_and_performance'] = diagnostics.compute_power_and_performance(plot_dict)
 
     # plot scaling
-    plot_dict['max_x'] = np.max(np.array(V_plot['x', :, 'q10', 0])) * 1.2
-    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot['x', :, 'q10', 1]))) * 1.2
-    plot_dict['max_z'] = np.max(np.array(V_plot['x', :, 'q10', 2])) * 1.2
+    plot_dict['max_x'] = np.max(np.array(V_plot_si['x', :, 'q10', 0])) * 1.2
+    plot_dict['max_y'] = np.max(np.abs(np.array(V_plot_si['x', :, 'q10', 1]))) * 1.2
+    plot_dict['max_z'] = np.max(np.array(V_plot_si['x', :, 'q10', 2])) * 1.2
     plot_dict['mazim'] = np.max([plot_dict['max_x'], plot_dict['max_y'], plot_dict['max_z']])
     plot_dict['scale_power'] = 1.  # e-3
-    try:
-        plot_dict['scale_axes'] = np.float64(V_plot['x', 0, 'l_t'])
-    except:
-        plot_dict['scale_axes'] = np.float64(V_plot['theta', 'l_t'])
+
+    if '[x,0,l_t,0]' in V_plot_si.labels():
+        plot_dict['scale_axes'] = float(V_plot_si['x', 0, 'l_t'])
+    elif '[theta,l_t,0]' in V_plot_si.labels():
+        plot_dict['scale_axes'] = float(V_plot_si['theta', 'l_t'])
+    else:
+        message = '(main) tether length could not be found in V_plot_si'
+        print_op.log_and_raise_error(message)
 
     dashes = []
     for ldx in range(20):
         new_dash = []
         for jdx in range(4):
-            new_dash += [int(np.random.randint(1,6))]
+            new_dash += [int(np.random.randint(1, 6))]
         new_dash += [1, 1]
 
         dashes += [new_dash]
@@ -825,7 +769,7 @@ def recalibrate_visualization(V_plot, plot_dict, output_vals, integral_outputs_f
     return plot_dict
 
 
-def interpolate_data(plot_dict, cosmetics):
+def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     '''
     Postprocess data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -835,206 +779,56 @@ def interpolate_data(plot_dict, cosmetics):
     '''
 
     # extract information
-    variables_dict = plot_dict['variables']
+    time_grids = plot_dict['time_grids']
+    variables_dict = plot_dict['variables_dict']
+    model_outputs = plot_dict['model_outputs']
+    model_scaling = plot_dict['model_scaling']
     outputs_dict = plot_dict['outputs_dict']
-    output_vals = plot_dict['output_vals'][1]
-    integral_outputs = plot_dict['integral_outputs_final']
-    nlp_options = plot_dict['options']['nlp']
-    V_plot = plot_dict['V_plot']
-    if plot_dict['Collocation'] is not None:
-        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot)
-        int_interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_plot, integral_outputs)
-        u_param = plot_dict['u_param']
+    outputs_fun = plot_dict['outputs_fun']
+    integral_output_names = plot_dict['integral_output_names']
+    Collocation = plot_dict['Collocation']
+    P_fix_num = plot_dict['P']
+    model_parameters = plot_dict['model_parameters']
+
+    if opt_or_ref == 'opt':
+        store_name = 'interpolation'
+        time_grids_plot = plot_dict['time_grids']
+        V_plot = plot_dict['V_plot_' + si_or_scaled]
+        outputs_plot = plot_dict['output_vals']['opt']
+        integral_outputs_plot = plot_dict['integral_output_vals']['opt']
+
+    elif opt_or_ref == 'ref':
+        store_name = 'ref'
+        time_grids_plot = plot_dict['time_grids']['ref']
+        V_plot = plot_dict['V_ref_' + si_or_scaled]
+        outputs_plot = plot_dict['output_vals']['ref']
+        integral_outputs_plot = plot_dict['integral_output_vals']['ref']
+
     else:
-        u_param = 'zoh'
+        message = 'unexpected option in plotting: si_or_scaled = ' + si_or_scaled + ', opt_or_ref = ' + opt_or_ref
+        print_op.log_and_raise_error(message)
 
-    # add states and outputs to plotting dict
-    plot_dict['x'] = {}
-    plot_dict['z'] = {}
-    plot_dict['u'] = {}
-    plot_dict['theta'] = {}
-    plot_dict['outputs'] = {}
-    plot_dict['integral_outputs'] = {}
+    # make the interpolation
+    # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
+    interpolation = struct_op.interpolate_solution(cosmetics, time_grids_plot, variables_dict, V_plot,
+        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names,
+        integral_outputs_plot, Collocation=Collocation)
 
-    # interpolating time grid
-    n_points = cosmetics['interpolation']['N']
-
-    # x-values
-    for name in list(struct_op.subkeys(variables_dict, 'x')):
-        plot_dict['x'][name] = []
-        for j in range(variables_dict['x',name].shape[0]):
-            # merge values
-            values, time_grid = merge_x_values(V_plot, name, j, plot_dict, cosmetics)
-            plot_dict['time_grids']['ip'] = np.linspace(time_grid[0], time_grid[-1], n_points)
-
-            # interpolate
-            if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-            elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'x')
-            plot_dict['x'][name] += [values_ip.full().squeeze()]
-
-    # z-values
-    for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
-        for name in list(struct_op.subkeys(variables_dict,var_type)):
-            plot_dict[var_type][name] = []
-            for j in range(variables_dict[var_type,name].shape[0]):
-                if plot_dict['discretization'] == 'direct_collocation':
-                    values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, var_type)
-                else:
-                    values, time_grid = merge_z_values(V_plot, var_type, name, j, plot_dict, cosmetics)
-                    # interpolate
-                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-                plot_dict[var_type][name] += [values_ip]
-
-    # u-values
-    for name in list(struct_op.subkeys(variables_dict,'u')):
-        plot_dict['u'][name] = []
-        for j in range(variables_dict['u',name].shape[0]):
-
-            if u_param == 'zoh':
-                control = plot_dict['V_plot']['u',:,name,j]
-                time_grids = plot_dict['time_grids']
-                values_ip = sample_and_hold_controls(time_grids, control)
-            elif u_param == 'poly':
-                values_ip = interpolator(plot_dict['time_grids']['ip'], name, j, 'u')
-            plot_dict['u'][name] += [values_ip]
-
-    # output values
-    for kk in range(output_vals.shape[0]):
-        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
-        output_type = can_index[0]
-        name = can_index[1]
-        j = can_index[2]
-        if output_type not in list(plot_dict['outputs'].keys()):
-            plot_dict['outputs'][output_type] = {}
-        if name not in list(plot_dict['outputs'][output_type].keys()):
-            plot_dict['outputs'][output_type][name] = []
-
-        # merge values
-        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
-        # inteprolate
-        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-        plot_dict['outputs'][output_type][name] += [values_ip]
-
-    # integral outptus
-    if plot_dict['discretization'] == 'direct_collocation':
-        for name in plot_dict['integral_variables']:
-            values_ip = int_interpolator(plot_dict['time_grids']['ip'], name, 0, 'int_out')
-            plot_dict['integral_outputs'][name] = [values_ip]
-
-    for name in list(struct_op.subkeys(variables_dict,'theta')):
-        plot_dict['theta'][name] = plot_dict['V_plot']['theta', name].full()[0][0]
+    # store the interpolation
+    dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
+    for interpolation_type, interpolation_output in dict_transfer.items():
+        plot_dict[interpolation_type] = interpolation_output
 
     return plot_dict
-
-def interpolate_ref_data(plot_dict, cosmetics):
-    '''
-    Postprocess tracking reference data from V-structure to (interpolated) data vectors
-        with associated time grid
-    :param plot_dict: dictionary of all relevant plot information
-    :param cosmetics: dictionary of cosmetic plot choices
-    :return: plot dictionary with added entries corresponding to interpolation
-    '''
-
-    # extract information
-    variables_dict = plot_dict['variables']
-    nlp_options = plot_dict['options']['nlp']
-    outputs_dict = plot_dict['outputs_dict']
-    output_vals = plot_dict['output_vals'][2]
-    V_ref = plot_dict['V_ref']
-
-    if plot_dict['Collocation'] is not None:
-        interpolator = plot_dict['Collocation'].build_interpolator(nlp_options, V_ref)
-        u_param = plot_dict['u_param']
-    else:
-        u_param = 'zoh'
-
-    # add states and outputs to plotting dict
-    plot_dict['ref'] = {'x': {},'u':{},'z':{},'time_grids':{},'outputs':{}}
-
-    # interpolating time grid
-    n_points = plot_dict['time_grids']['ip'].shape[0]
-
-    # x-values
-    for name in list(struct_op.subkeys(variables_dict, 'x')):
-        plot_dict['ref']['x'][name] = []
-        for j in range(variables_dict['x',name].shape[0]):
-            # merge values
-            values, time_grid = merge_x_values(V_ref, name, j, plot_dict, cosmetics, ref = True)
-            plot_dict['time_grids']['ref']['ip'] =  np.linspace(time_grid[0], time_grid[-1], n_points)
-
-            # interpolate
-            if cosmetics['interpolation']['type'] == 'spline' or plot_dict['discretization'] == 'multiple_shooting':
-                values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
-            elif cosmetics['interpolation']['type'] == 'poly' and plot_dict['discretization'] == 'direct_collocation':
-                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'x')
-            plot_dict['ref']['x'][name] += [values_ip.full()]
-
-    # z-values
-    for var_type in set(variables_dict.keys()) - set(['x', 'u', 'xdot', 'theta']):
-        for name in list(struct_op.subkeys(variables_dict,var_type)):
-            plot_dict['ref'][var_type][name] = []
-            for j in range(variables_dict[var_type,name].shape[0]):
-                if plot_dict['discretization'] == 'direct_collocation':
-                    values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, var_type)
-                else:
-                    values, time_grid = merge_z_values(V_ref, var_type, name, j, plot_dict, cosmetics, ref = True)
-                    # interpolate
-                    values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ref']['ip'], n_points, name)
-                plot_dict['ref'][var_type][name] += [values_ip]
-
-    # u-values
-    for name in list(struct_op.subkeys(variables_dict,'u')):
-        plot_dict['ref']['u'][name] = []
-        for j in range(variables_dict['u',name].shape[0]):
-
-            if u_param == 'zoh':
-                control = plot_dict['V_ref']['u',:,name,j]
-                time_grids = plot_dict['time_grids']['ref']
-                values_ip = sample_and_hold_controls(time_grids, control)
-            elif u_param == 'poly':
-                values_ip = interpolator(plot_dict['time_grids']['ref']['ip'], name, j, 'u')
-            plot_dict['ref']['u'][name] += [values_ip]
-
-    # output values
-    for kk in range(output_vals.shape[0]):
-        can_index = plot_dict['outputs_struct'].getCanonicalIndex(kk)
-        output_type = can_index[0]
-        name = can_index[1]
-        j = can_index[2]
-        if output_type not in list(plot_dict['ref']['outputs'].keys()):
-            plot_dict['ref']['outputs'][output_type] = {}
-        if name not in list(plot_dict['ref']['outputs'][output_type].keys()):
-            plot_dict['ref']['outputs'][output_type][name] = []
-
-        # merge values
-        values, time_grid, ndim = merge_output_values(output_vals, kk, plot_dict, cosmetics)
-        # inteprolate
-        values_ip = spline_interpolation(time_grid, values, plot_dict['time_grids']['ip'], n_points, name)
-        plot_dict['ref']['outputs'][output_type][name] += [values_ip]
-
-    return plot_dict
-
-
-def sample_and_hold_controls(time_grids, control):
-
-    tgrid_u = time_grids['u']
-    tgrid_ip = time_grids['ip']
-    values_ip = np.zeros(len(tgrid_ip),)
-    for index in range(len(tgrid_ip)):
-        for j in range(tgrid_u.shape[0] - 1):
-            if tgrid_u[j] < tgrid_ip[index] and tgrid_ip[index] < tgrid_u[j + 1]:
-                values_ip[index] = control[j]
-                break
-        if tgrid_u[-1] < tgrid_ip[index]:
-            values_ip[index] = control[-1]
-
-    return values_ip
 
 def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
 
     standard_args = (plot_dict, cosmetics, fig_name)
+    if flag not in plot_logic_dict.keys():
+        message = 'cannot process plot with flag (' + flag +'). skipping it, instead.'
+        print_op.base_print(message, level='warning')
+        return None
+
     additional_args = plot_logic_dict[flag][1]
 
     # execute function from dict
@@ -1085,12 +879,14 @@ def make_layer_plot_in_fig(layers, fig_num):
     fig, axes = plt.subplots(nrows=nrows, ncols=1, sharex='all', num=fig_num)
     return fig, axes, nrows
 
+
 def set_layer_plot_titles(axes, nrows, title):
     if nrows == 1:
         axes.set_title(title)
     else:
         axes[0].set_title(title)
     return axes
+
 
 def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
     if nrows == 1:
@@ -1101,12 +897,14 @@ def set_layer_plot_axes(axes, nrows, xlabel, ylabel, ldx = 0):
         axes[ldx].set_xlabel(xlabel)
     return axes
 
+
 def set_layer_plot_legend(axes, nrows, ldx = 0):
     if nrows == 1:
         axes.legend()
     else:
         axes[ldx].legend()
     return axes
+
 
 def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
     if nrows == 1:
@@ -1118,6 +916,7 @@ def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
             axes[idx].axis([x_min, x_max, y_min, y_max])
     return axes
 
+
 def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
     if nrows == 1:
         axes.plot([tau, tau], [y_min, y_max], 'k--')
@@ -1125,7 +924,6 @@ def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
         for idx in range(nrows):
             axes[idx].plot([tau, tau], [y_min, y_max], 'k--')
     return axes
-
 
 
 def get_nondim_time_and_switch(plot_dict):
@@ -1141,45 +939,203 @@ def get_nondim_time_and_switch(plot_dict):
 
     return time_nondim, tau
 
-def assemble_variable_slice_from_interpolated_data(plot_dict, index, var_type):
 
-    variables_dict = plot_dict['variables_dict']
+def assemble_variable_slice_from_interpolated_data(plot_dict, index, si_or_scaled=None):
 
-    if not var_type in variables_dict.keys():
-        awelogger.logger.error('requested variable type does not exist.')
-        return None
+    collected_vals = []
 
-    else:
-        local_dict = variables_dict[var_type]
-        collected_vals = []
+    if si_or_scaled is None:
+        si_or_scaled = plot_dict['cosmetics']['variables']['si_or_scaled']
 
-        for name in local_dict.keys():
-            column_vals = plot_dict[var_type][name]
-            # assume that all variables are saved in column format!!
-            n_entries = len(column_vals)
+    interpolation_data = plot_dict['interpolation_' + si_or_scaled]
 
-            for edx in range(n_entries):
-                entry_val = column_vals[edx][index]
-                collected_vals = cas.vertcat(collected_vals, entry_val)
+    model_variables = plot_dict['model_variables']
+    for jdx in range(model_variables.shape[0]):
+        canonical = model_variables.getCanonicalIndex(jdx)
+        var_type = canonical[0]
+        var_name = canonical[1]
+        dim = canonical[2]
 
-        var_slice = local_dict(collected_vals)
-        return var_slice
+        if (var_type == 'theta'):
+            category = interpolation_data['theta'][var_name]
+            if category.shape == ():
+                local_val = category
+            else:
+                local_val = category[dim]
+            collected_vals = cas.vertcat(collected_vals, local_val)
 
-def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p):
+        elif (var_type == 'xdot'):
+            if (var_name in interpolation_data['x'].keys()):
+                local_val = interpolation_data['x'][var_name][dim][index]
+            else:
+                # be advised: this function does not compute dynamics
+                local_val = cas.DM.zeros((1,1))
+            collected_vals = cas.vertcat(collected_vals, local_val)
+
+        elif (var_type in interpolation_data.keys()) and (var_name in interpolation_data[var_type].keys()):
+            local_val = interpolation_data[var_type][var_name][dim][index]
+            collected_vals = cas.vertcat(collected_vals, local_val)
+
+        else:
+            message = 'unrecognized variable type or name when re-assembling a (model) variable from interpolated data.'
+            print_op.log_and_raise_error(message)
+
+    try:
+        vars_si = model_variables(collected_vals)
+    except:
+        message = 'interpolated data does not have the recognizable structure of a (model) variable'
+        print_op.log_and_raise_error(message)
+
+    return vars_si
+
+
+def assemble_model_parameters(plot_dict):
+
+    collected_vals = []
+
+    options_model = plot_dict['options']['model']
+    options_params = plot_dict['options']['params']
+
+    model_parameters = plot_dict['model_parameters']
+    for jdx in range(model_parameters.shape[0]):
+        canonical = model_parameters.getCanonicalIndex(jdx)
+        var_type = canonical[0]
+        kdx = canonical[-1]
+
+        if (var_type == 'phi'):
+            var_name = canonical[1]
+            kdx = canonical[2]
+            local_val = plot_dict['V_plot_si'][var_type, var_name, kdx]
+            collected_vals = cas.vertcat(collected_vals, local_val)
+
+        elif (var_type == 'theta0') and (kdx == 0):
+
+            if canonical[1] in options_params.keys():
+                local_val = options_params
+            elif canonical[1] in options_model.keys():
+                local_val = options_model
+            else:
+                message = 'something went wrong when assembling theta0 model parameters.'
+                print_op.log_and_raise_error(message)
+
+            # remember that the first entry of canonical is (already) 'theta0' and the last entry of canonical will be the dimension (kdx)
+            for sdx in range(len(canonical)-2):
+                local_val = local_val[canonical[sdx+1]]
+
+            if hasattr(local_val, 'shape'):
+                local_shape = cas.DM(local_val).shape
+                local_val = cas.reshape(local_val, (local_shape[0] * local_shape[1], 1))
+            collected_vals = cas.vertcat(collected_vals, local_val)
+
+        elif (kdx == 0):
+            message = 'unrecognized parameter type or name when re-assembling a (model) parameter from solution data'
+            print_op.log_and_raise_error(message)
+
+    try:
+        params = model_parameters(collected_vals)
+    except:
+        message = 'unable to assign re-assembled interpolated data into a (model) parameters structure'
+        print_op.log_and_raise_error(message)
+
+    return params
+
+
+def plot_bounds(plot_dict, var_type, name, jdx, tgrid_ip, p=None, color=None):
+
+    if (p is None) and (color is None):
+        message = 'not enough information to draw the bounds'
+        print_op.log_and_raise_error(message)
+    elif (p is not None):
+        color = p[-1].get_color()
+
+    if (color is None):
+        message = 'something went wrong when defining the color in which to plot bounds'
+        print_op.log_and_raise_error(message)
 
     bounds = plot_dict['variable_bounds'][var_type][name]
-    scaling = plot_dict['scaling'][var_type][name]
-    if type(bounds['lb']) == np.ndarray:
-        lb = bounds['lb'][jdx]
-    else:
-        lb = bounds['lb']
-    if type(bounds['ub']) == np.ndarray:
-        ub = bounds['ub'][jdx]
-    else:
-        ub = bounds['ub']
-    if lb > -np.inf:
-        plt.plot(tgrid_ip, [lb*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
-    if ub < np.inf:
-        plt.plot(tgrid_ip, [ub*scaling]*len(tgrid_ip), linestyle='dotted', color = p[-1].get_color())
+    scaling = plot_dict['model_variables'](plot_dict['model_scaling'])[var_type, name]
 
+    bound_types = ['lb', 'ub']
+    for type in bound_types:
+
+        potential_bound = bounds[type]
+
+        if isinstance(potential_bound, np.ndarray):
+            local_bound = potential_bound[jdx]
+        elif (isinstance(potential_bound, cas.DM)) and potential_bound.shape == (1, 1):
+            local_bound = float(potential_bound)
+        elif isinstance(potential_bound, cas.DM):
+            local_bound = float(potential_bound[jdx])
+        else:
+            local_bound = potential_bound
+
+        if scaling.shape == (1, 1):
+            local_scaling = float(scaling)
+        else:
+            local_scaling = float(scaling[jdx])
+
+        if np.isfinite(local_bound):
+            bound_grid_ip = local_bound * local_scaling * np.ones(tgrid_ip.shape)
+            plt.plot(tgrid_ip, bound_grid_ip, linestyle='dotted', color=color)
+
+    return None
+
+
+def setup_axes_for_side(cosmetics, side):
+    fig = plt.figure()
+
+    if side == 'xy':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('y [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'xz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'yz':
+        ax = plt.subplot(1, 1, 1)
+        plt.axis('equal')
+        ax.set_xlabel('y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('z [m]', **cosmetics['trajectory']['axisfont'])
+
+    elif side == 'isometric':
+        ax = plt.subplot(111, projection='3d')
+        ax.set_xlabel('\n x [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_ylabel('\n y [m]', **cosmetics['trajectory']['axisfont'])
+        ax.set_zlabel('z [m]', **cosmetics['trajectory']['axisfont'])
+        ax.xaxis._axinfo['label']['space_factor'] = 2.8
+        ax.yaxis._axinfo['label']['space_factor'] = 2.8
+        ax.zaxis._axinfo['label']['space_factor'] = 2.8
+
+    return fig, ax
+
+
+def test_naca_coordinates():
+
+    naca = "0012"
+    m = float(naca[0]) / 100.
+    p = float(naca[1]) / 10.
+    t = float(naca[2:]) / 100.
+
+    s_le = 0.
+    s_te = 1.0
+
+    xu_le, xl_le, yu_le, yl_le = get_naca_airfoil_coordinates(s_le, m, p, t)
+    xu_te, xl_te, yu_te, yl_te = get_naca_airfoil_coordinates(s_te, m, p, t)
+
+    epsilon_small = 1.e-8
+    epsilon_large = 1.e-2
+    x_vals_equal = ((xu_le - xl_le)**2. < epsilon_small**2.) and ((xu_te - xl_te)**2. < epsilon_small**2.)
+    le_at_origin = (xu_le**2. < epsilon_small**2.) and (xl_le**2. < epsilon_small**2.) and (yu_le**2. < epsilon_small**2.) and (yu_le**2. < epsilon_small**2.)
+    chord_length_correct = ((yu_te - 1.) < epsilon_small**2.) and ((yl_te - 1.) < epsilon_small**2.)
+    te_joins = ((yu_te - yl_te)**2. < epsilon_large**2.) and ((xu_te - xl_te)**2. < epsilon_small**2.)
+
+    works_correctly = x_vals_equal and le_at_origin and chord_length_correct and te_joins
+    if not works_correctly:
+        message = 'something went wrong with the naca 0012 coordinate generation.'
+        print_op.log_and_raise_error(message)
     return None

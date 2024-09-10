@@ -46,13 +46,13 @@ def rk4root(name, dae, rootfinder, options):
     h = options['tf']/N
 
     # dae functions
-    odef  = cas.Function('odef',[dae['x'],dae['p'],dae['z']], [dae['ode']])
-    quadf = cas.Function('quadf',[dae['x'],dae['p'],dae['z']], [dae['quad']])
+    odef = cas.Function('odef', [dae['x'], dae['p'], dae['z']], [dae['ode']])
+    quadf = cas.Function('quadf', [dae['x'], dae['p'], dae['z']], [dae['quad']])
 
     # initialize
-    x0 = dae['x'](cas.MX.sym('x',dae['x'].shape))
-    z0  = dae['z'](cas.MX.sym('z',dae['z'].shape))
-    p   = dae['p'](cas.MX.sym('p',dae['p'].shape))
+    x0 = dae['x'](cas.MX.sym('x', dae['x'].shape))
+    z0 = dae['z'](cas.MX.sym('z', dae['z'].shape))
+    p = dae['p'](cas.MX.sym('p', dae['p'].shape))
     qf = 0.0
 
     for i in range(N):
@@ -64,7 +64,7 @@ def rk4root(name, dae, rootfinder, options):
         #rk4 with rootfinder step
         [xf, zf, qf] = rk4root_step(odef, rootfinder, quadf, h, xf, z0, p, qf)
 
-    I = cas.Function(name, [x0, z0, p], [xf, zf, qf], ['x0','z0','p'],['xf','zf','qf'])
+    I = cas.Function(name, [x0, z0, p], [xf, zf, qf], ['x0', 'z0', 'p'], ['xf', 'zf', 'qf'])
 
     return I
 

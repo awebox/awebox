@@ -25,7 +25,6 @@
 """
 Simulation class for open-loop and closed-loop simulations based on awebox reference trajectories
 and related models.
-
 :author: Jochem De Schutter - ALU Freiburg 2019
 """
 
@@ -39,6 +38,8 @@ import awebox.opts.options
 import awebox.mdl.architecture as archi
 import copy
 import numpy as np
+import awebox.tools.print_operations as print_op
+
 
 class Simulation:
     def __init__(self, trial, sim_type, ts, options_seed):
@@ -72,7 +73,7 @@ class Simulation:
             'F',
             model['dae'],
             model['rootfinder'],
-            {'tf': self.__ts/model['t_f'],
+            {'tf': self.__ts / model['t_f'],
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
         self.__dae = self.__trial.model.get_dae()
@@ -106,7 +107,7 @@ class Simulation:
         for name in self.__visualization.plot_dict['integral_variables']:
             self.__visualization.plot_dict['integral_outputs'][name] = [[]]
 
-        self.__visualization.plot_dict['V_plot'] = None
+        self.__visualization.plot_dict['V_plot_scaled'] = None
 
         return None
 
@@ -125,10 +126,10 @@ class Simulation:
                 u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
 
             elif self.__sim_type == 'open_loop':
-                u0 = self.__u_sim[:,i]
+                u0 = self.__u_sim[:, i]
 
             # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
+            var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
             self.__store_results(x0, u0, var_next['qf'])
 
             # shift initial state
@@ -180,11 +181,18 @@ class Simulation:
 
         # create reference
         T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-        trial_plot_dict = copy.deepcopy(self.__trial.visualization.plot_dict)
+
+        # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
+        original_plot_dict = self.__trial.visualization.plot_dict
+        trial_plot_dict = {}
+        for name, val in original_plot_dict.items():
+            trial_plot_dict[name] = copy.deepcopy(val)
+
         tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
+       
         trial_plot_dict['time_grids']['ip'] = ct.vertcat(*list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
-        trial_plot_dict['V_ref'] = self.__trial.visualization.plot_dict['V_plot']
-        trial_plot_dict['output_vals'][2] =  self.__trial.visualization.plot_dict['output_vals'][1]
+        trial_plot_dict['V_ref_scaled'] = self.__trial.visualization.plot_dict['V_plot_scaled']
+        trial_plot_dict['output_vals']['ref'] =  self.__trial.visualization.plot_dict['output_vals']['opt']
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
         self.__visualization.plot_dict['ref'] = trial_plot_dict['ref']
         self.__visualization.plot_dict['time_grids']['ref'] = trial_plot_dict['time_grids']['ref']
@@ -259,7 +267,7 @@ class Simulation:
 
     @trial.setter
     def trial(self, value):
-        print('Cannot set trial object.')
+        print_op.log_and_raise_error('Cannot set trial object.')
 
     @property
     def mpc(self):
@@ -269,7 +277,7 @@ class Simulation:
 
     @mpc.setter
     def mpc(self, value):
-        print('Cannot set mpc object.')
+        print_op.log_and_raise_error('Cannot set mpc object.')
 
     @property
     def F(self):
@@ -279,7 +287,7 @@ class Simulation:
 
     @F.setter
     def F(self, value):
-        print('Cannot set F object.')
+        print_op.log_and_raise_error('Cannot set F object.')
 
     @property
     def visualization(self):
@@ -289,4 +297,4 @@ class Simulation:
 
     @visualization.setter
     def visualization(self, value):
-        print('Cannot set visualization object.')
+        print_op.log_and_raise_error('Cannot set visualization object.')

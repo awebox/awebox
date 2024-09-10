@@ -34,20 +34,22 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
+import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
 
 
 def get_actuator_force(outputs, parent, architecture):
 
     children = architecture.kites_map[parent]
 
-    total_force_aero = np.zeros((3, 1))
+    total_force_aero = cas.DM.zeros((3, 1))
     for kite in children:
         aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-
         total_force_aero = total_force_aero + aero_force
 
     return total_force_aero
@@ -59,14 +61,15 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
     total_moment_aero = np.zeros((3, 1))
     for kite in children:
         aero_force = outputs['aerodynamics']['f_aero_earth' + str(kite)]
-        kite_radius = actuator_geom.get_kite_radius_vector(model_options, kite, variables, architecture)
+        kite_radius = geom.geom.get_vector_from_center_to_kite(model_options, variables, architecture, kite)
         aero_moment = vect_op.cross(kite_radius, aero_force)
 
         total_moment_aero = total_moment_aero + aero_moment
 
     return total_moment_aero
 
-def get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture):
+
+def get_actuator_thrust_val(variables, outputs, parent, architecture):
 
     total_force_aero = get_actuator_force(outputs, parent, architecture)
     nhat = actuator_geom.get_n_hat_var(variables, parent)
@@ -74,3 +77,26 @@ def get_actuator_thrust(model_options, variables, parameters, outputs, parent, a
 
     return thrust
 
+
+def get_thrust_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'thrust' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
+
+def get_thrust_constraint(variables, outputs, parent, architecture, scaling):
+    thrust_var = get_thrust_var(variables, parent)
+    thrust_val = get_actuator_thrust_val(variables, outputs, parent, architecture)
+
+    resi_si = thrust_val - thrust_var
+
+    var_type = 'z'
+    var_name = 'thrust' + str(parent)
+    resi_scaled = struct_op.var_si_to_scaled(var_type, var_name, resi_si, scaling)
+
+    name = 'actuator_thrust_' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi_scaled,
+                              name=name,
+                              cstr_type='eq')
+    return cstr
