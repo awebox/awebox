@@ -462,11 +462,11 @@ if __name__ == "__main__":
     test_dual_kite_6_dof_basic_health()
     test_dual_kite_6_dof()
 
-    # # test_small_dual_kite()
-    # # test_small_dual_kite_basic_health()
-    # # test_large_dual_kite()
-    # # test_large_dual_kite_basic_health()
-
+    # # # test_small_dual_kite()
+    # # # test_small_dual_kite_basic_health()
+    # # # test_large_dual_kite()
+    # # # test_large_dual_kite_basic_health()
+    #
     test_dual_kite_tracking()
     test_dual_kite_tracking_winch()
 
