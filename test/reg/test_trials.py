@@ -262,7 +262,7 @@ def generate_options_dict():
 
     single_kite_6_dof_options = copy.deepcopy(single_kite_options)
     single_kite_6_dof_options['user_options.system_model.kite_dof'] = 6
-    single_kite_6_dof_options['solver.weights.r'] = 1e0
+    # single_kite_6_dof_options['solver.weights.r'] = 1e0
 
     single_kite_6_dof_basic_health_options = make_basic_health_variant(single_kite_6_dof_options)
 
