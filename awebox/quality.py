@@ -54,15 +54,20 @@ class Quality(object):
         quality_options = trial.options['quality']
         variables_dict = trial.model.variables_dict
         V_opt = trial.optimization.V_opt
+        P_fix_num = trial.optimization.p_fix_num
+        model_scaling = trial.model.scaling.cat
+        model_parameters = struct_op.strip_of_contents(trial.model.parameters)
+        outputs_fun = trial.model.outputs_fun
         outputs_dict = struct_op.strip_of_contents(trial.model.outputs_dict)
         outputs_opt = trial.optimization.outputs_opt
         integral_output_names = trial.model.integral_outputs.keys()
         integral_outputs_opt = trial.optimization.integral_outputs_opt
         Collocation = trial.nlp.Collocation
-
-        quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, outputs_dict, outputs_opt,
-                                                              trial.model.outputs, integral_output_names, integral_outputs_opt,
-                                                              Collocation=Collocation) #, timegrid_label='quality')
+        if 'interpolation_si' in trial.visualization.plot_dict.keys():
+            quality_input_values = trial.visualization.plot_dict['interpolation_si']
+        else:
+            quality_input_values = struct_op.interpolate_solution(quality_options, time_grids, variables_dict, V_opt, P_fix_num,
+                model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=Collocation) #, timegrid_label='quality')
         time_grids['quality'] = quality_input_values['time_grids']['ip']
 
         self.__input_values = quality_input_values

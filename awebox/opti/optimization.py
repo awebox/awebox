@@ -42,7 +42,7 @@ import awebox.tools.callback as callback
 
 from numpy import linspace
 
-import resource
+from sys import platform
 import copy
 
 from awebox.logger.logger import Logger as awelogger
@@ -88,7 +88,9 @@ class Optimization(object):
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
-            self.__cumulative_max_memory['setup'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            if platform == 'linux':
+                import resource
+                self.__cumulative_max_memory['setup'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
             self.__status = 'I am an optimization.'
             awelogger.logger.info('')
@@ -191,7 +193,7 @@ class Optimization(object):
         cost_fun = nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, V_plot_scaled, self.__p_fix_num)
         V_ref_scaled = self.__V_ref
-        visualization.plot(V_plot_scaled, visualization.options, self.output_vals,
+        visualization.plot(V_plot_scaled, self.__p_fix_num, visualization.options, self.output_vals,
                            self.integral_output_vals, self.__debug_flags, self.__time_grids, cost,
                            self.__name, sweep_toggle, V_ref_scaled, self.__global_outputs_opt, fig_name=fig_name)
 
@@ -201,7 +203,9 @@ class Optimization(object):
     def update_runtime_info(self, timer, step_name):
 
         self.__timings[step_name] = time.time() - timer
-        self.__cumulative_max_memory[step_name] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if platform == 'linux':
+            import resource
+            self.__cumulative_max_memory[step_name] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
         self.__return_status_numeric[step_name] = struct_op.convert_return_status_string_to_number(
             self.stats['return_status'])
@@ -213,7 +217,8 @@ class Optimization(object):
         self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
-        self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if platform == 'linux':
+            self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     def initialize_callback(self, name, nlp, model, options):
 

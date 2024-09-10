@@ -54,7 +54,7 @@ def build_options_dict(options, help_options, architecture):
     options_tree = build_solver_options(options, help_options, user_options, options_tree, architecture, fixed_params, phase_fix)
     options_tree = build_formulation_options(options, help_options, user_options, options_tree, architecture)
     options_tree = build_quality_options(options, options_tree)
-    options_tree = build_visualization_options(options, options_tree)
+    options_tree = build_visualization_options(options, options_tree, phase_fix)
     options_tree = build_mpc_options(options, options_tree)
 
     # assemble all of the options into a complete options tree
@@ -166,7 +166,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     else:
         if user_options['trajectory']['system_type'] == 'lift_mode':
             phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
-        else:
+        elif user_options['trajectory']['system_type'] == 'drag_mode':
             phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
     options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
@@ -311,8 +311,10 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
 
     return options_tree
 
-def build_visualization_options(options, options_tree):
+def build_visualization_options(options, options_tree, phase_fix):
     options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'visualization', 'cosmetics')
+    options_tree.append(('visualization', 'cosmetics',  None, 'phase_fix', phase_fix, ('phase fixing type', None),'x'))
+
     return options_tree
 
 
@@ -386,7 +388,6 @@ def add_discretization_options_necessary_for_interpolation(options, options_tree
 
     options_tree = model_funcs.share(options, options_tree, ('nlp', 'n_k'), (heading_1, heading_2, 'n_k'))
     options_tree = model_funcs.share(options, options_tree, ('nlp', 'discretization'), (heading_1, heading_2, 'discretization'))
-    options_tree = model_funcs.share(options, options_tree, ('user_options', 'trajectory', 'lift_mode', 'phase_fix'), (heading_1, heading_2, 'phase_fix'))
     options_tree = model_funcs.share(options, options_tree, ('nlp', 'phase_fix_reelout'), (heading_1, heading_2, 'phase_fix_reelout'))
 
     return options_tree
