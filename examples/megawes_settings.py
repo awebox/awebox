@@ -18,7 +18,6 @@ def set_megawes_path_generation_settings(aero_model, options):
     diam_t = 0.0297
     options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
-    options['model.tether.use_wound_tether'] = False # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
@@ -34,7 +33,7 @@ def set_megawes_path_generation_settings(aero_model, options):
 
     # control variable bounds
     options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[25])*np.pi/180 # Deflection rates [deg/s]
-    options['model.ground_station.ddl_t_max'] = 2.5 # Tether acceleration [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-2.5, 2.5] # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #
     # validitiy of aerodynamic model
@@ -62,9 +61,6 @@ def set_megawes_path_generation_settings(aero_model, options):
     options['model.model_bounds.acceleration.include'] = True 
     options['model.model_bounds.acceleration.acc_max'] = 3. #[g]
 
-    # generator is not modelled
-    options['model.model_bounds.wound_tether_length.include'] = False # default: True
-
     # --------------------------- Initialization --------------------------- #
     # initialization
     options['solver.initialization.groundspeed'] = 80. 
@@ -86,7 +82,6 @@ def set_megawes_path_tracking_settings(aero_model, options):
     diam_t = 0.0297
     options['params.tether.rho'] = 0.6729*4/(np.pi*diam_t**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t}
-    options['model.tether.use_wound_tether'] = False # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
     options['user_options.tether_drag_model'] = 'multi' 
     options['model.tether.aero_elements'] = 5
@@ -102,7 +97,7 @@ def set_megawes_path_tracking_settings(aero_model, options):
 
     # control variable bounds
     options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
-    options['model.ground_station.ddl_t_max'] = 5. # Tether acceleration [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-5, 5] # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #
     # validitiy of aerodynamic model
@@ -129,9 +124,6 @@ def set_megawes_path_tracking_settings(aero_model, options):
     # acceleration constraint
     options['model.model_bounds.acceleration.include'] = True 
     options['model.model_bounds.acceleration.acc_max'] = 4. #[g]
-
-    # generator is not modelled
-    options['model.model_bounds.wound_tether_length.include'] = False # default: True
 
     # --------------------------- Initialization --------------------------- #
     # initialization
