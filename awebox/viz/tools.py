@@ -821,6 +821,38 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
 
     return plot_dict
 
+
+
+def interpolate_ref_data(plot_dict, cosmetics):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param plot_dict: dictionary of all relevant plot information
+    :param cosmetics: dictionary of cosmetic plot choices
+    :return: plot dictionary with added entries corresponding to interpolation
+    '''
+
+    # extract information
+    time_grids = plot_dict['time_grids']['ref']
+    variables_dict = plot_dict['variables_dict']
+    V_ref_si = plot_dict['V_ref_si']
+    P_fix_num = plot_dict['P']
+    model_parameters = plot_dict['model_parameters']
+    model_scaling = plot_dict['model_scaling']
+    outputs_dict = plot_dict['outputs_dict']
+    outputs_fun = plot_dict['outputs_fun']
+    integral_output_names = plot_dict['integral_output_names']
+    integral_outputs_ref = plot_dict['integral_output_vals']['ref']
+    Collocation = plot_dict['Collocation']
+
+    # make the interpolation
+    plot_dict['ref'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
+                                                   P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
+                                                   integral_output_names, integral_outputs_ref,
+                                                   Collocation=Collocation)
+
+    return plot_dict
+
 def map_flag_to_function(flag, plot_dict, cosmetics, fig_name, plot_logic_dict):
 
     standard_args = (plot_dict, cosmetics, fig_name)
