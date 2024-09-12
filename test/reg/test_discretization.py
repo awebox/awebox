@@ -183,19 +183,11 @@ def perform_check(test_dict, test_name, tolerance):
 def error(found_dm, expected_dm):
     return np.divide((found_dm - expected_dm), expected_dm).full()
 
-
-def test_collocation_integrator(tolerance=1e-7):
+def test_integrators(tolerance_collocation=1e-7, tolerance_rk4=2e-2):
     base_options, x0, z0, p, trial = get_integration_test_inputs()
-    perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance)
+    perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance_collocation)
+    perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance_rk4)
     return None
-
-
-def test_rk_4_integrator(tolerance=2e-2):
-    base_options, x0, z0, p, trial = get_integration_test_inputs()
-    perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance)
-    return None
-
 
 if __name__ == "__main__":
-    test_collocation_integrator()
-    test_rk_4_integrator()
+    test_integrators()
