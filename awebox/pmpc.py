@@ -550,17 +550,23 @@ class Pmpc(object):
         V_ref = self.__trial.nlp.V(self.__p0['ref'])
 
         # generate system outputs
-        [nlp_outputs, nlp_output_fun] = self.__trial.nlp.output_components
-        outputs_init = nlp_outputs(nlp_output_fun(self.__w0, self.__p_fix_num))
-        outputs_opt = nlp_outputs(nlp_output_fun(V_opt, self.__p_fix_num))
-        outputs_ref = nlp_outputs(nlp_output_fun(V_ref, self.__p_fix_num))
+        [_, nlp_output_fun] = self.__trial.nlp.output_components
+        outputs_init = nlp_output_fun(self.__w0, self.__p_fix_num)
+        outputs_opt = nlp_output_fun(V_opt, self.__p_fix_num)
+        outputs_ref = nlp_output_fun(V_ref, self.__p_fix_num)
         output_vals = {'init':outputs_init,
                        'opt':outputs_opt,
                        'ref':outputs_ref}
+        
+        # generate global_outputs
+        global_outputs = self.__trial.nlp.global_outputs(self.__trial.nlp.global_outputs_fun(V_opt, self.__p_fix_num))
 
         # generate integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = self.__trial.nlp.integral_output_components
-        integral_outputs_final = nlp_integral_outputs(nlp_integral_outputs_fun(V_opt, self.__p_fix_num))
+        integral_outputs_final = {
+            'opt': nlp_integral_outputs(nlp_integral_outputs_fun(V_opt, self.__p_fix_num)),
+            'ref': nlp_integral_outputs(nlp_integral_outputs_fun(V_ref, self.__p_fix_num))
+        }
 
         # time grids
         time_grids = {}
@@ -576,6 +582,7 @@ class Pmpc(object):
         # reference trajectory
         self.__trial.visualization.plot(
             V_opt,
+            self.__trial.nlp.P(self.__p_fix_num),
             self.__trial.options,
             output_vals,
             integral_outputs_final,
@@ -584,7 +591,8 @@ class Pmpc(object):
             cost,
             'MPC solution',
             False,
-            V_ref)
+            V_ref,
+            global_outputs)
 
         plt.show()
 
