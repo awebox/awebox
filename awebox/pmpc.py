@@ -77,7 +77,7 @@ class Pmpc(object):
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
             if name != 't_f':
-                fixed_params[name] = self.__pocp_trial.optimization.V_opt['theta', name].full()
+                fixed_params[name] = self.__pocp_trial.optimization.V_final_si['theta', name].full()
         fixed_params['t_f'] = self.__N * self.__ts
         options['user_options.trajectory.fixed_params'] = fixed_params
 
