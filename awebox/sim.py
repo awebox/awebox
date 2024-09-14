@@ -104,7 +104,7 @@ class Simulation:
                     self.__visualization.plot_dict['outputs'][output_type][name].append([])
 
         self.__visualization.plot_dict['integral_outputs'] = {}
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name] = [[]]
 
         self.__visualization.plot_dict['V_plot_scaled'] = None
@@ -189,14 +189,10 @@ class Simulation:
             trial_plot_dict[name] = copy.deepcopy(val)
 
         tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
-       
-        trial_plot_dict['time_grids']['ip'] = ct.vertcat(*list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
-        trial_plot_dict['V_ref_scaled'] = self.__trial.visualization.plot_dict['V_plot_scaled']
-        trial_plot_dict['output_vals']['ref'] =  self.__trial.visualization.plot_dict['output_vals']['opt']
+        trial_plot_dict['time_grids']['ip'] = ct.vertcat(list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
-        self.__visualization.plot_dict['ref'] = trial_plot_dict['ref']
-        self.__visualization.plot_dict['time_grids']['ref'] = trial_plot_dict['time_grids']['ref']
-
+        self.__visualization.plot_dict['ref_si'] = trial_plot_dict['ref_si']
+        self.__visualization.plot_dict['time_grids']['ref'] = {'ip': tgrid_ip}
         return x0
 
     def __store_results(self, x0, u0, qf):
@@ -220,14 +216,14 @@ class Simulation:
         for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type][name])
+                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type, name, dim].full()[0][0])
 
         for output_type in list(self.__trial.model.outputs.keys()):
             for name in list(self.__trial.model.outputs_dict[output_type].keys()):
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim].full()[0][0])
 
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name].full()[0][0])
 
         return None
@@ -237,7 +233,9 @@ class Simulation:
         """
 
         self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
-        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
+        self.__visualization.plot_dict['interpolation_si'] = self.__visualization.plot_dict
+        plot_dict = self.__visualization.plot_dict
+        self.__visualization.plot(None, None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None
 
@@ -256,7 +254,7 @@ class Simulation:
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict['outputs'][output_type][name][dim]).full()
 
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name][0] = ct.vertcat(*self.__visualization.plot_dict['integral_outputs'][name][0])
 
     @property
@@ -298,3 +296,9 @@ class Simulation:
     @visualization.setter
     def visualization(self, value):
         print_op.log_and_raise_error('Cannot set visualization object.')
+
+    @property
+    def trial(self):
+        """ awebox.Trial attribute containing reference trial info.
+        """
+        return self.__trial
