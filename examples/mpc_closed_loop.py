@@ -32,7 +32,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options['user_options.wind.u_ref'] = 5.
 
     # NLP discretization
-    options['nlp.n_k'] = 40
+    options['nlp.n_k'] = 10
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple'
     options['solver.linear_solver'] = 'ma57' # if HSL
@@ -45,7 +45,7 @@ def run(plot_show_block=True, overwrite_options={}):
     trial = awe.Trial(options, 'single_kite_lift_mode')
     trial.build()
     trial.optimize()
-    trial.plot(['isometric'])
+    trial.plot(['isometric', 'states', 'constraints'])
     plt.show(block=plot_show_block)
 
     # set-up closed-loop simulation
@@ -63,8 +63,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options['mpc.max_iter'] = 1000
     options['mpc.max_cpu_time'] = 2000
     options['mpc.N'] = N_mpc
-    options['mpc.plot_flag'] = False
-    options['mpc.ref_interpolator'] = 'spline'
+    options['mpc.plot_flag'] = False # plot MPC solution at every iteration
     options['mpc.u_param'] = 'zoh'
     options['mpc.homotopy_warmstart'] = True
     options['mpc.terminal_point_constr'] = False
