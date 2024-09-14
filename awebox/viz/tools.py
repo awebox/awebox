@@ -843,9 +843,9 @@ def interpolate_ref_data(plot_dict, cosmetics):
     '''
 
     # extract information
-    time_grids = plot_dict['time_grids']['ref']
+    time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
-    V_ref_si = plot_dict['V_ref_si']
+    V_ref_si = plot_dict['V_plot_si']
     P_fix_num = plot_dict['P']
     model_parameters = plot_dict['model_parameters']
     model_scaling = plot_dict['model_scaling']
@@ -856,10 +856,10 @@ def interpolate_ref_data(plot_dict, cosmetics):
     Collocation = plot_dict['Collocation']
 
     # make the interpolation
-    plot_dict['ref'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
+    plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
                                                    P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
                                                    integral_output_names, integral_outputs_ref,
-                                                   Collocation=Collocation)
+                                                   Collocation=Collocation, interpolate_time_grid = False)
 
     return plot_dict
 
