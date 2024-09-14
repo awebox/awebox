@@ -155,7 +155,7 @@ options['solver.health_check.raise_exception'] = True
 options['solver.health_check.spy_matrices'] = False
 ```
 
-3. Finally, if you suspect that an LICQ, SOSC or other conditioning problem exists, the debugger attached to the health checker can help you find the problem. This identification will give more detailed information about potentially problematic constraints if you use the following option. Please be aware, that this will slow down the problem discretization, and should generally be turned off. 
+3. Finally, if you suspect that an LICQ, SOSC or other conditioning problem exists, the debugger attached to the health checker can help you find the problem. This identification will give more detailed information about potentially problematic constraints if you use the following option. Please be aware, that naming the constraints will slow down the problem discretization, and should generally be turned off. 
 ```
 options['solver.health_check.help_with_debugging'] = True
 options['nlp.collocation.name_constraints'] = True

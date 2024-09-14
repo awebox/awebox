@@ -722,9 +722,11 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
 
     si_or_scaled = cosmetics['variables']['si_or_scaled']
     if si_or_scaled == 'scaled':
-        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='opt')
+        plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')
     if cosmetics['plot_ref']:
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='ref')
+
+    plot_dict = attach_wake_plotting_info_to_plot_dict(plot_dict, cosmetics)
 
     # interations
     if iterations is not None:
@@ -769,6 +771,15 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
     return plot_dict
 
 
+def attach_wake_plotting_info_to_plot_dict(plot_dict, cosmetics):
+    if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
+        plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict, si_or_scaled='scaled')
+
+        if 'interpolation_scaled' not in plot_dict.keys():
+            plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')
+
+    return plot_dict
+
 def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     '''
     Postprocess data from V-structure to (interpolated) data vectors
@@ -779,7 +790,6 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     '''
 
     # extract information
-    time_grids = plot_dict['time_grids']
     variables_dict = plot_dict['variables_dict']
     model_outputs = plot_dict['model_outputs']
     model_scaling = plot_dict['model_scaling']
@@ -818,6 +828,38 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
     for interpolation_type, interpolation_output in dict_transfer.items():
         plot_dict[interpolation_type] = interpolation_output
+
+    return plot_dict
+
+
+
+def interpolate_ref_data(plot_dict, cosmetics):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param plot_dict: dictionary of all relevant plot information
+    :param cosmetics: dictionary of cosmetic plot choices
+    :return: plot dictionary with added entries corresponding to interpolation
+    '''
+
+    # extract information
+    time_grids = plot_dict['time_grids']
+    variables_dict = plot_dict['variables_dict']
+    V_ref_si = plot_dict['V_plot_si']
+    P_fix_num = plot_dict['P']
+    model_parameters = plot_dict['model_parameters']
+    model_scaling = plot_dict['model_scaling']
+    outputs_dict = plot_dict['outputs_dict']
+    outputs_fun = plot_dict['outputs_fun']
+    integral_output_names = plot_dict['integral_output_names']
+    integral_outputs_ref = plot_dict['integral_output_vals']['ref']
+    Collocation = plot_dict['Collocation']
+
+    # make the interpolation
+    plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
+                                                   P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
+                                                   integral_output_names, integral_outputs_ref,
+                                                   Collocation=Collocation, interpolate_time_grid = False)
 
     return plot_dict
 
@@ -989,7 +1031,7 @@ def assemble_variable_slice_from_interpolated_data(plot_dict, index, si_or_scale
     return vars_si
 
 
-def assemble_model_parameters(plot_dict):
+def assemble_model_parameters(plot_dict, si_or_scaled='si'):
 
     collected_vals = []
 
@@ -1005,7 +1047,7 @@ def assemble_model_parameters(plot_dict):
         if (var_type == 'phi'):
             var_name = canonical[1]
             kdx = canonical[2]
-            local_val = plot_dict['V_plot_si'][var_type, var_name, kdx]
+            local_val = plot_dict['V_plot_' + si_or_scaled][var_type, var_name, kdx]
             collected_vals = cas.vertcat(collected_vals, local_val)
 
         elif (var_type == 'theta0') and (kdx == 0):

@@ -1184,7 +1184,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
     print_op.log_and_raise_error(message)
     return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1204,7 +1204,10 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     if Collocation is not None:
         collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
         integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
-        time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+        if interpolate_time_grid:
+            time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+        else:
+            time_grid_interpolated = time_grids['ip']
     else:
         control_parametrization = 'zoh'
         collocation_interpolator = None

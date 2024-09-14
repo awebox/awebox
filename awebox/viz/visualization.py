@@ -99,13 +99,18 @@ class Visualization(object):
         interpolation_length_is_inconsistent = (not interpolation_in_plot_dict) or (ip_time_length != ip_vars_length)
 
         threshold = 1e-2
-        V_plot_scaled_in_plot_dict = 'V_plot_scaled' in self.__plot_dict.keys()
+        V_plot_scaled_in_plot_dict = ('V_plot_scaled' in self.__plot_dict.keys()) and (self.__plot_dict['V_plot_scaled'] is not None)
+        V_plot_scaled_is_same = False
         if V_plot_scaled_in_plot_dict:
             V_plot_scaled_is_same = vect_op.norm(self.__plot_dict['V_plot_scaled'].cat - V_plot_scaled.cat) / V_plot_scaled.cat.shape[0] < threshold
-        using_new_V_plot = (not V_plot_scaled_in_plot_dict) or (not V_plot_scaled_is_same)
+        if V_plot_scaled is None:
+            using_new_V_plot = False
+        else:
+            using_new_V_plot = (not V_plot_scaled_in_plot_dict) or (not V_plot_scaled_is_same)
 
-        if recalibrate or has_not_been_recalibrated or interpolation_length_is_inconsistent or using_new_V_plot:
-            self.recalibrate(V_plot_scaled, P_fix_num, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
+        if has_not_been_recalibrated or interpolation_length_is_inconsistent or using_new_V_plot:
+            if recalibrate:
+                self.recalibrate(V_plot_scaled, P_fix_num, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
 
         if type(flags) is not list:
             flags = [flags]
