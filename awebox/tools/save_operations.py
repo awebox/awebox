@@ -145,7 +145,7 @@ def load_saved_data_from_dict(filename):
     return data
 
 
-def write_csv_data(data_dict, filename, rotation_representation='euler'):
+def write_csv_data(data_dict, filename, rotation_representation='dcm'):
     write_csv_dict = init_write_csv_dict(data_dict)
 
     # write into .csv

@@ -188,7 +188,7 @@ class Trial(object):
             if recalibrate_viz:
                 cost_fun = self.nlp.cost_components[0]
                 cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
-                self.visualization.recalibrate(self.__optimization.V_opt, self.visualization.plot_dict,
+                self.visualization.recalibrate(self.__optimization.V_opt, self.__optimization.p_fix_num , self.visualization.plot_dict,
                                           self.__optimization.output_vals, self.__optimization.integral_output_vals,
                                           self.options, self.__optimization.time_grids, cost, self.name,
                                           self.__optimization.V_ref, self.__optimization.global_outputs_opt)
@@ -227,8 +227,9 @@ class Trial(object):
         V_ref_scaled = self.__solution_dict['V_ref']
         trial_name = self.__solution_dict['name']
         global_outputs_opt = self.__solution_dict['global_outputs_opt']
+        P_fix_num = self.__solution_dict['p_fix_num']
 
-        self.__visualization.plot(V_plot_scaled, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
+        self.__visualization.plot(V_plot_scaled, P_fix_num, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, trial_name, sweep_toggle, V_ref_scaled, global_outputs_opt, 'plot', fig_num, recalibrate=recalibrate)
 
         return None
 
@@ -324,10 +325,14 @@ class Trial(object):
         # pickle data
         save_op.save(data_to_save, filename, file_extension)
 
-    def write_to_csv(self, filename=None, frequency=30., rotation_representation='euler'):
+    def write_to_csv(self, filename=None, frequency=None, rotation_representation='euler'):
         if filename is None:
             filename = self.name
-        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation)
+        if frequency is None:
+            interpolate = False
+        else:
+            interpolate = True
+        trial_funcs.generate_trial_data_and_write_to_csv(self, filename, frequency, rotation_representation, interpolate)
 
         return None
 
@@ -343,6 +348,7 @@ class Trial(object):
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
+        solution_dict['p_fix_num'] = self.__optimization.p_fix_num
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
         solution_dict['integral_output_vals'] = self.__optimization.integral_output_vals

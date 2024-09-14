@@ -826,6 +826,9 @@ def generate_scaling(scaling_options, variables):
 
     scaling = variables(1.)
 
+    # set of variable labels for which no scaling is provided
+    unset_set = []
+
     # set the non-derivative variable scalings
     for var_type in set(scaling.keys()) - set(['xdot']):
         for var_name in struct_op.subkeys(scaling, var_type):
@@ -876,6 +879,7 @@ def generate_scaling(scaling_options, variables):
 
             else:
                 scaling_value = cas.DM(1.)
+                unset_set += [var_type + var_name]
 
             checked_and_rearranged_value = struct_op.check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scaling_value, scaling)
             scaling[var_type, var_name] = checked_and_rearranged_value
@@ -900,10 +904,7 @@ def generate_scaling(scaling_options, variables):
             print_op.log_and_raise_error(message)
 
     # warn about potentially missing scaling information
-    unset_set = []
-    for idx in range(scaling.shape[0]):
-
-        local_label = scaling.labels()[idx]
+    for local_label in unset_set:
 
         is_tf = 't_f' in local_label
         is_dcm = ('[x,r' in local_label) or ('dcm' in local_label)
@@ -911,8 +912,8 @@ def generate_scaling(scaling_options, variables):
         is_a_cosine_or_a_sine = ('[z,cos' in local_label) or ('[z,sin' in local_label)
         leave_unscaled = is_tf or is_dcm or is_deriv_dcm or is_a_cosine_or_a_sine
 
-        if (scaling.cat[idx] == cas.DM(1.)) and not leave_unscaled:
-            unset_set += [local_label]
+        if leave_unscaled:
+            unset_set.pop(local_label)
 
     if len(unset_set) > 0:
         message = 'only unit-scaling information found for the following variables: \n' + repr(unset_set) + '.\n' + 'Proceeding with unit scaling.'

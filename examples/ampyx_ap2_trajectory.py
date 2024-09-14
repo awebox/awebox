@@ -16,11 +16,9 @@ import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 import awebox.tools.print_operations as print_op
-import logging
-
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.DEBUG)
 
 def run(plot_show_block=True, overwrite_options={}):
+
     # indicate desired system architecture
     # here: single kite with 6DOF Ampyx AP2 model
     options = {}
@@ -46,7 +44,7 @@ def run(plot_show_block=True, overwrite_options={}):
     # within ipopt.
     options['nlp.n_k'] = 40
     options['nlp.collocation.u_param'] = 'zoh'
-    options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' #'simple'
+    options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
 
     for option_name, option_val in overwrite_options.items():
@@ -55,16 +53,18 @@ def run(plot_show_block=True, overwrite_options={}):
     # build and optimize the NLP (trial)
     trial = awe.Trial(options, 'Ampyx_AP2')
     trial.build()
-
     trial.optimize()
 
+    # write the solution to CSV file, interpolating the collocation solution with given frequency.
+    # trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
+
     # draw some of the pre-coded plots for analysis
-    trial.plot(['states', 'controls', 'constraints', 'quad', 'outputs:local_performance'])
+    trial.plot(['states', 'controls', 'constraints', 'quad'])
 
     # extract information from the solution for independent plotting or post-processing
     # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
     plot_dict = trial.visualization.plot_dict
-    outputs = plot_dict['interpolation_si']['outputs']
+    outputs = plot_dict['outputs']
     time = plot_dict['time_grids']['ip']
     avg_power = plot_dict['power_and_performance']['avg_power']/1e3
 
@@ -74,9 +74,6 @@ def run(plot_show_block=True, overwrite_options={}):
 
     plt.subplots(5, 1, sharex=True)
     plt.subplot(511)
-    # just for reference: if options['visualization.cosmetics.variables.si_or_scaled'] = 'si', as in the default options,
-    # then plot_dict['x']['l_t'] is the same as plot_dict['interpolation_si']['x']['l_t']
-    # that is: it's the interpolation of the solution, in si units.
     plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
     plt.ylabel('[m]')
     plt.legend()
@@ -106,8 +103,8 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.grid(True)
 
     plt.subplot(515)
-    plt.plot(time, 1e-3 * outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
-    plt.ylabel('[kN]')
+    plt.plot(time, outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
+    plt.ylabel('[N]')
     plt.xlabel('t [s]')
     plt.legend()
     plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
@@ -119,16 +116,17 @@ def run(plot_show_block=True, overwrite_options={}):
     return trial
 
 def make_comparison(trial):
+
     plot_dict = trial.visualization.plot_dict
 
     criteria = {'winding_period_s': {},
                 'avg_power_kw': {}}
 
     criteria['avg_power_kw']['found'] = plot_dict['power_and_performance']['avg_power']/1e3
-    criteria['avg_power_kw']['expected'] = 4.4
+    criteria['avg_power_kw']['expected'] = 4.7
 
     criteria['winding_period_s']['found'] = plot_dict['time_grids']['ip'][-1]
-    criteria['winding_period_s']['expected'] = 39.6
+    criteria['winding_period_s']['expected'] = 35.0
 
     return criteria
 
