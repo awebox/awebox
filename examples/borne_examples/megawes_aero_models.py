@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 # indicate desired system architecture
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options = set_megawes_path_generation_settings(options)
+options = set_megawes_path_generation_settings('VLM', options)
 
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
@@ -50,33 +50,38 @@ options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is '
 # set aero model (options are 'VLM', 'ALM', and 'CFD')
 options['user_options.kite_standard'] = awe.megawes_data.data_dict(aero_model='VLM')
 
-# build and optimize the NLP (trial1)
-trial1 = awe.Trial(options, 'MegAWES')
-trial1.build()
-trial1.optimize()
-avg_power = [trial1.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+# build and optimize the NLP
+trial = awe.Trial(options, 'MegAWES')
+trial.build()
+trial.optimize()
+avg_power = [trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+q_vlm = np.array(trial.visualization.plot_dict['x']['q10']).T
+time_vlm = trial.visualization.plot_dict['time_grids']['ip']
+p_current_vlm = trial.visualization.plot_dict['outputs']['performance']['p_current'][0]
 
 # ----------------- 2. generate path with ALM aero model ----------------- #
 
 # set aero model (options are 'VLM', 'ALM', and 'CFD')
 options['user_options.kite_standard'] = awe.megawes_data.data_dict(aero_model='ALM')
 
-# build and optimize the NLP (trial2)
-trial2 = awe.Trial(options, 'MegAWES')
-trial2.build()
-trial2.optimize()
-avg_power += [trial2.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+# optimize the NLP
+trial.optimize(options)
+avg_power += [trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+q_alm = np.array(trial.visualization.plot_dict['x']['q10']).T
+time_alm = trial.visualization.plot_dict['time_grids']['ip']
+p_current_alm = trial.visualization.plot_dict['outputs']['performance']['p_current'][0]
 
 # ----------------- 3. generate path with CFD aero model ----------------- #
 
 # set aero model (options are 'VLM', 'ALM', and 'CFD')
 options['user_options.kite_standard'] = awe.megawes_data.data_dict(aero_model='CFD')
 
-# build and optimize the NLP (trial3)
-trial3 = awe.Trial(options, 'MegAWES')
-trial3.build()
-trial3.optimize()
-avg_power += [trial3.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+# build and optimize the NLP
+trial.optimize(options)
+avg_power += [trial.visualization.plot_dict['power_and_performance']['avg_power'].full()[0][0]/1e6]
+q_cfd = np.array(trial.visualization.plot_dict['x']['q10']).T
+time_cfd = trial.visualization.plot_dict['time_grids']['ip']
+p_current_cfd = trial.visualization.plot_dict['outputs']['performance']['p_current'][0]
 
 # ----------------- specific plots ----------------- #
 
@@ -86,14 +91,12 @@ for k, (model, power) in enumerate(zip(['VLM', 'ALM', 'CFD'], avg_power)):
     legend_labs += ["model: "+model+", P="+"{:.2f}".format(power)+"MW"]
 
 # plot 3D flight path
-trial1.plot(['isometric'])
-fig = plt.gcf()
+fig = plt.figure()
+ax = fig.add_subplot(projection = '3d')
 fig.set_size_inches(8,8)
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
-ax = fig.get_axes()[0]
-q_alm = np.array(trial2.visualization.plot_dict['x']['q10']).T
+ax.plot(q_vlm[:,0], q_vlm[:,1], q_vlm[:,2])
 ax.plot(q_alm[:,0], q_alm[:,1], q_alm[:,2])
-q_cfd = np.array(trial3.visualization.plot_dict['x']['q10']).T
 ax.plot(q_cfd[:,0], q_cfd[:,1], q_cfd[:,2])
 ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
@@ -107,7 +110,6 @@ l = ax.get_lines()
 l[0].set_color('b')
 l[-2].set_color('g')
 l[-1].set_color('r')
-ax.get_legend().remove()
 ax.legend([l[0],l[-2],l[-1]], legend_labs, fontsize=12)
 fig.suptitle("")
 fig.savefig('outputs_megawes_aero_models_plot_3dpath.png')
@@ -115,9 +117,9 @@ fig.savefig('outputs_megawes_aero_models_plot_3dpath.png')
 # plot power profile
 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
-ax.plot(trial1.visualization.plot_dict['time_grids']['ip'], 1e-6*trial1.visualization.plot_dict['outputs']['performance']['p_current'][0], 'b')
-ax.plot(trial2.visualization.plot_dict['time_grids']['ip'], 1e-6*trial2.visualization.plot_dict['outputs']['performance']['p_current'][0], 'g')
-ax.plot(trial3.visualization.plot_dict['time_grids']['ip'], 1e-6*trial3.visualization.plot_dict['outputs']['performance']['p_current'][0], 'r')
+ax.plot(time_vlm, 1e-6*p_current_vlm, 'b')
+ax.plot(time_alm, 1e-6*p_current_alm, 'g')
+ax.plot(time_cfd, 1e-6*p_current_cfd, 'r')
 ax.legend(legend_labs, fontsize=12)
 ax.tick_params(axis='both', labelsize=12)
 ax.set_xlabel('t [s]', fontsize=12)

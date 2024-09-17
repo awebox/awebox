@@ -33,7 +33,7 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 40.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
@@ -77,9 +77,9 @@ ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
 ax.set_zlabel(ax.get_zlabel(), fontsize=12)
-ax.set_xlim([0,400])
+ax.set_xlim([0,600])
 ax.set_ylim([-200,200])
-ax.set_zlim([0,400])
+ax.set_zlim([0,600])
 ax.view_init(azim=-70, elev=20)
 l = ax.get_lines()
 l[0].set_color('b')

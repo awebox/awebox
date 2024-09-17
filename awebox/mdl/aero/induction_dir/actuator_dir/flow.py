@@ -37,12 +37,15 @@ from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
 import awebox.mdl.aero.induction_dir.actuator_dir.force as actuator_force
-import awebox.mdl.aero.induction_dir.tools_dir.flow as general_flow
-import awebox.mdl.aero.induction_dir.tools_dir.geom as general_geom
+import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
+import awebox.mdl.aero.geometry_dir.geometry as geom
+import awebox.viz.tools as viz_tools
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.struct_operations as struct_op
 
 ## variables
 
@@ -56,28 +59,36 @@ def get_a_var_type(label):
     elif label[0] == 'u':
         var_type = 'x'
     else:
-        raise Exception('Invalid steadyness option for actuator disk model chosen')
+        message = "Invalid steadyness option (" + str(label[0]) + ") for actuator disk model chosen"
+        print_op.log_and_raise_error(message)
 
     return var_type
+
 
 def get_local_a_var(variables, kite, parent):
     local_a = variables['z']['local_a' + str(kite) + str(parent)]
     return local_a
 
-def get_a_var(variables, parent, label):
+def get_a_var(variables_si, parent, label):
     var_type = get_a_var_type(label)
-    a_var = variables[var_type]['a_' + label + str(parent)]
-    return a_var
+    var_name = 'a_' + label + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
 
-def get_acos_var(variables, parent, label):
-    var_type = get_a_var_type(label)
-    acos_var = variables[var_type]['acos_' + label + str(parent)]
-    return acos_var
 
-def get_asin_var(variables, parent, label):
+def get_acos_var(variables_si, parent, label):
     var_type = get_a_var_type(label)
-    asin_var = variables[var_type]['asin_' + label + str(parent)]
-    return asin_var
+    var_name = 'acos_' + label + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
+
+def get_asin_var(variables_si, parent, label):
+    var_type = get_a_var_type(label)
+    var_name = 'asin_' + label + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var
+
 
 def get_a_all_var(variables, parent, label):
 
@@ -112,50 +123,75 @@ def get_da_all_var(variables, parent, label):
         da_all = get_da_var(variables, parent, label)
     return da_all
 
-def get_wind_dcm_var(variables, parent):
-    rot_cols = variables['z']['wind_dcm' + str(parent)]
-    wind_dcm = cas.reshape(rot_cols, (3, 3))
+def get_wind_dcm_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'wind_dcm' + str(parent)
+    var_cols = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    wind_dcm = cas.reshape(var_cols, (3, 3))
     return wind_dcm
 
-def get_uzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+
+def get_uzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     u_hat = wind_dcm[:, 0]
     return u_hat
 
-def get_vzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+
+def get_vzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     v_hat = wind_dcm[:, 1]
     return v_hat
 
-def get_wzero_hat_var(variables, parent):
-    wind_dcm = get_wind_dcm_var(variables, parent)
+def get_wzero_hat_var(variables_si, parent):
+    wind_dcm = get_wind_dcm_var(variables_si, parent)
     w_hat = wind_dcm[:, 2]
     return w_hat
 
 def get_gamma_var(variables, parent):
-    gamma_var = variables['z']['gamma' + str(parent)]
-    return gamma_var
+    var_type = 'z'
+    var_name = 'gamma' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
+
 
 def get_cosgamma_var(variables, parent):
-    cosgamma_var = variables['z']['cosgamma' + str(parent)]
-    return cosgamma_var
+    var_type = 'z'
+    var_name = 'cosgamma' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
+
 
 def get_singamma_var(variables, parent):
-    singamma_var = variables['z']['singamma' + str(parent)]
-    return singamma_var
+    var_type = 'z'
+    var_name = 'singamma' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
+
 
 def get_uzero_vec_length_var(variables, parent):
-    len_var = variables['z']['u_vec_length' + str(parent)]
-    return len_var
+    var_type = 'z'
+    var_name = 'u_vec_length' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
+
+
+def get_z_vec_length_var(variables, parent):
+    var_type = 'z'
+    var_name = 'z_vec_length' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
+
 
 def get_g_vec_length_var(variables, parent):
-    len_var = variables['z']['g_vec_length' + str(parent)]
-    return len_var
+    var_type = 'z'
+    var_name = 'g_vec_length' + str(parent)
+    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
+    return var
 
 
 ## residuals
 
-def get_gamma_cstr(parent, variables):
+def get_gamma_cstr(parent, variables, scaling):
 
     # notice that the correction values are even functions of gamma
 
@@ -175,10 +211,14 @@ def get_gamma_cstr(parent, variables):
     f_cosproj = g_vec_length_var * cosgamma_var - u_comp
     f_sinproj = g_vec_length_var * singamma_var - v_comp
 
-    f_cos = np.cos(gamma_var) - cosgamma_var
-    f_sin = np.sin(gamma_var) - singamma_var
+    var_name = 'g_vec_length' + str(parent)
+    f_cosproj_scaled = struct_op.var_si_to_scaled('z', var_name, f_cosproj, scaling)
+    f_sinproj_scaled = struct_op.var_si_to_scaled('z', var_name, f_sinproj, scaling)
 
-    resi = cas.vertcat(f_cos, f_sin, f_cosproj, f_sinproj)
+    f_cos = cas.cos(gamma_var) - cosgamma_var
+    f_sin = cas.sin(gamma_var) - singamma_var
+
+    resi = cas.vertcat(f_cos, f_sin, f_cosproj_scaled, f_sinproj_scaled)
 
     name = 'actuator_gamma_' + str(parent)
     cstr = cstr_op.Constraint(expr=resi,
@@ -186,6 +226,25 @@ def get_gamma_cstr(parent, variables):
                               cstr_type='eq')
 
     return cstr
+
+
+def check_that_gamma_is_consistent(variables_si, parent, epsilon=1.e-4):
+    gamma_var = get_gamma_var(variables_si, parent)
+    cosgamma_var = get_cosgamma_var(variables_si, parent)
+    singamma_var = get_singamma_var(variables_si, parent)
+
+    cos_check = (cosgamma_var - cas.cos(gamma_var))**2. < epsilon**2.
+    sin_check = (singamma_var - cas.sin(gamma_var))**2. < epsilon**2.
+
+    n_hat_var = actuator_geom.get_n_hat_var(variables_si, parent)
+    uzero_hat_var = get_uzero_hat_var(variables_si, parent)
+    angle_check = (gamma_var - vect_op.angle_between(n_hat_var, uzero_hat_var))**2. < epsilon**2.
+
+    if not (cos_check and sin_check and angle_check):
+        message = 'something went wrong with the actuator gamma angle (between u_zero and n_hat)'
+        print_op.log_and_raise_error(message)
+
+    return None
 
 
 def get_wind_dcm_ortho_cstr(parent, variables):
@@ -202,82 +261,102 @@ def get_wind_dcm_ortho_cstr(parent, variables):
 
     return cstr
 
-def get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, parameters, architecture):
+def get_wind_dcm_u_along_uzero_cstr(model_options, wind, parent, variables, architecture, scaling):
 
     # 3 constraints
 
-    u_vec_val = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
+    u_vec_val = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
     u_hat_var = get_uzero_hat_var(variables, parent)
 
     u_vec_length_var = get_uzero_vec_length_var(variables, parent)
 
     u_diff = u_vec_val - u_hat_var * u_vec_length_var
 
-    u_vec_length_ref = get_uzero_vec_length_ref(wind)
-    f_u_vec = u_diff / u_vec_length_ref
+    scale = scaling['z', 'u_vec_length' + str(parent)]
+    resi = u_diff / scale
 
     name = 'actuator_uhat_' + str(parent)
-    cstr = cstr_op.Constraint(expr=f_u_vec,
+    cstr = cstr_op.Constraint(expr=resi,
                               name=name,
                               cstr_type='eq')
-
     return cstr
 
-def get_orientation_z_along_wzero_cstr(variables, parent):
+
+def check_that_uzero_has_positive_component_in_dominant_wind_direction(wind, variables_si, parent, epsilon=1e-5):
+    u_hat_var = get_uzero_hat_var(variables_si, parent)
+    wind_dir = wind.get_wind_direction()
+
+    if cas.mtimes(u_hat_var.T, wind_dir) < epsilon:
+        message = 'something went wrong when setting the actuator u_zero. u_zero is expected to be at-least-vaguely downstream'
+        print_op.log_and_raise_error(message)
+
+    return None
+
+
+
+def get_act_dcm_z_along_wind_dcm_w_cstr(variables, parent, scaling):
 
     # 3 constraints
 
     w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rot_length = actuator_geom.get_z_vec_length_var(variables, parent)
-    z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables, parent)
-    f_full = w_hat_var - z_rotor_hat * z_rot_length
+    z_rotor_hat_var = actuator_geom.get_z_rotor_hat_var(variables, parent)
 
-    name = 'actuator_zhat_' + str(parent)
-    cstr = cstr_op.Constraint(expr=f_full,
+    z_vec_length_var = get_z_vec_length_var(variables, parent)
+
+    resi_unscaled = w_hat_var - z_rotor_hat_var * z_vec_length_var
+    scale = scaling['z', 'z_vec_length' + str(parent)]  #should be 1, but just-in-case
+    resi = resi_unscaled / scale
+
+    name = 'actuator_zhat_and_wind_what' + str(parent)
+    cstr = cstr_op.Constraint(expr=resi,
                               name=name,
                               cstr_type='eq')
-
     return cstr
 
 
-    return f_full
 
-def get_wzero_parallel_z_rotor_check(variables, parent):
-    w_hat_var = get_wzero_hat_var(variables, parent)
-    z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables, parent)
+def get_wzero_parallel_z_rotor_check(variables_si, parent):
+    w_hat_var = get_wzero_hat_var(variables_si, parent)
+    z_rotor_hat = actuator_geom.get_z_rotor_hat_var(variables_si, parent)
     check = cas.mtimes(w_hat_var.T, z_rotor_hat) - 1.
     return check
 
+def check_that_wzero_is_parallel_to_z_rotor(variables_si, parent, epsilon=1e-5):
+    if get_wzero_parallel_z_rotor_check(variables_si, parent) ** 2. > epsilon ** 2.:
+        message = 'something went wrong when setting the actuator and wind dcms. wzero is not parallel to rotor zhat'
+        print_op.log_and_raise_error(message)
+    return None
 
 
-
-def get_induction_factor_assignment_cstr(model_options, variables, kite, parent):
+def get_induction_factor_assignment_cstr(model_options, variables, kite, parent, scaling):
     a_var = get_local_a_var(variables, kite, parent)
 
     label = get_label(model_options)
     a_val = get_local_induction_factor(model_options, variables, kite, parent, label)
 
-    a_ref = model_options['aero']['actuator']['a_ref']
-    resi = (a_var - a_val) / a_ref
+    resi_si = a_var - a_val
+
+    var_type = get_a_var_type(label)
+    var_name = 'a_' + label + str(parent)
+    resi_scaled = struct_op.var_si_to_scaled(var_type, var_name, resi_si, scaling)
 
     name = 'actuator_a_assignment_' + str(kite)
-    cstr = cstr_op.Constraint(expr=resi,
+    cstr = cstr_op.Constraint(expr=resi_scaled,
                               name=name,
                               cstr_type='eq')
-
     return cstr
+
 
 ## values
 
-def get_gamma_val(model_options, wind, parent, variables, parameters, architecture):
-
-    uzero = general_flow.get_uzero_vec(model_options, wind, parent, variables, architecture)
-    n_vec = actuator_geom.get_n_vec_val(model_options, parent, variables, parameters, architecture)
-    gamma = vect_op.angle_between(n_vec, uzero)
+def get_gamma_val(model_options, wind, parent, variables, architecture, scaling):
+    vec_u_zero = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
+    n_vec = actuator_geom.get_n_vec_val(model_options, parent, variables, architecture, scaling)
+    gamma = vect_op.angle_between(n_vec, vec_u_zero)
     return gamma
 
-def get_gamma_check(model_options, wind, parent, variables, parameters, architecture):
-    gamma_val = vect_op.abs(get_gamma_val(model_options, wind, parent, variables, parameters, architecture))
+def get_gamma_check(model_options, wind, parent, variables, architecture, scaling):
+    gamma_val = vect_op.abs(get_gamma_val(model_options, wind, parent, variables, architecture, scaling))
     gamma_var = vect_op.abs(get_gamma_var(variables, parent))
     check = gamma_val - gamma_var
     norm = cas.mtimes(check.T, check)
@@ -289,7 +368,7 @@ def get_gamma_check(model_options, wind, parent, variables, parameters, architec
 def get_qzero_ref(atmos, wind):
     scale = 5.
     rho_ref = atmos.get_density_ref()
-    uinfty_ref = wind.get_velocity_ref()
+    uinfty_ref = wind.get_speed_ref()
     qzero_ref = .5 * rho_ref * uinfty_ref**2. * scale
     return qzero_ref
 
@@ -298,7 +377,7 @@ def get_a_ref(model_options):
     return a_ref
 
 def get_uzero_vec_length_ref(wind):
-    return wind.get_velocity_ref()
+    return wind.get_speed_ref()
 
 
 def get_local_induction_factor(model_options, variables, kite, parent, label):
@@ -327,8 +406,7 @@ def get_local_induction_factor(model_options, variables, kite, parent, label):
 
     else:
         message = 'an unfamiliar actuator model label was entered when computing the local induction factor'
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return a_local
 
@@ -343,12 +421,14 @@ def get_local_induced_velocity(model_options, variables, parameters, architectur
 
     return u_ind
 
+
 def get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
     label = get_label(model_options)
     u_ind_kite = get_local_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent, label)
     return u_ind_kite
 
 def get_kite_effective_velocity(model_options, variables, parameters, architecture, wind, kite, parent):
+    print_op.warn_about_temporary_functionality_alteration(reason='check if this is defined twice')
 
     u_app_kite = general_flow.get_kite_apparent_velocity(variables, wind, kite, parent)
     u_ind_kite = get_kite_induced_velocity(model_options, variables, parameters, architecture, wind, kite, parent)
@@ -359,7 +439,7 @@ def get_kite_effective_velocity(model_options, variables, parameters, architectu
 
 def get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture):
 
-    center = general_geom.get_center_point(model_options, parent, variables, architecture)
+    center = geom.get_center_position(model_options, parent, variables, architecture)
     rho_infty = atmos.get_density(center[2])
 
     uzero_mag = get_uzero_vec_length_var(variables, parent)
@@ -387,8 +467,8 @@ def get_wake_angle_chi_jimenez(model_options, atmos, wind, variables, outputs, p
     cosgamma = get_cosgamma_var(variables, parent)
     singamma = get_singamma_var(variables, parent)
 
-    thrust = actuator_force.get_actuator_thrust(model_options, variables, parameters, outputs, parent, architecture)
-    area = actuator_geom.get_actuator_area(model_options, parent, variables, parameters)
+    thrust = actuator_force.get_actuator_thrust_var(variables, parent)
+    area = actuator_geom.get_actuator_area(parent, variables, parameters)
     qzero = get_actuator_dynamic_pressure(model_options, atmos, wind, variables, parent, architecture)
 
     ct_val = thrust / area / qzero
@@ -410,9 +490,9 @@ def get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameter
     elif wake_skew == 'not_in_use':
         chi_val = 0.
     else:
-        chi_val = 0.
         message = 'unknown wake skew angle (chi) model selected'
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
+
     return chi_val
 
 
@@ -439,8 +519,7 @@ def get_label(model_options):
     else:
         message = 'unrecognized actuator option (' + steadyness + ', ' + symmetry + ') indicated. available ' \
                 'options are: ' + repr(accepted_steadyness_dict.keys()) + ' and ' + repr(accepted_symmetry_dict.keys())
-        awelogger.logger.error(message)
-        raise Exception(message)
+        print_op.log_and_raise_error(message)
 
     return label
 
@@ -463,13 +542,13 @@ def get_corr_val_coleman(model_options, atmos, wind, variables, outputs, paramet
     cosgamma = get_cosgamma_var(variables, parent)
     chi = get_wake_angle_chi(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label)
 
-    corr_val = cosgamma + np.tan(chi / 2.) * singamma - a / (np.cos(chi / 2.)**2.)
+    corr_val = cosgamma + cas.tan(chi / 2.) * singamma - a / (cas.cos(chi / 2.)**2.)
     return corr_val
 
 def get_corr_val_simple(model_options, variables, parent, label):
     a_var = get_a_var(variables, parent, label)
-    cosgamma_var = get_cosgamma_var(variables, parent)
-    corr_val = (cosgamma_var - a_var)
+    cosgamma = get_cosgamma_var(variables, parent)
+    corr_val = (cosgamma - a_var)
     return corr_val
 
 def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, parent, architecture, label):
@@ -489,9 +568,46 @@ def get_corr_val(model_options, atmos, wind, variables, outputs, parameters, par
         corr_val = get_corr_val_simple(model_options, variables, parent, label)
 
     else:
-        message = 'unknown actuator angle correction model selected'
-        raise Exception(message)
-        corr_val = get_corr_val_simple(model_options, variables, parent, label)
+        message = 'unknown actuator angle correction model selected: ' + actuator_skew
+        print_op.log_and_raise_error(message)
 
     return corr_val
 
+
+def draw_actuator_flow(ax, side, plot_dict, cosmetics, index):
+    draw_wind_dcm(ax, side, plot_dict, cosmetics, index)
+    return ax
+
+
+def draw_wind_dcm(ax, side, plot_dict, cosmetics, index):
+    dcm_colors = cosmetics['trajectory']['dcm_colors']
+
+    variables_si = viz_tools.assemble_variable_slice_from_interpolated_data(plot_dict, index)
+
+    architecture = plot_dict['architecture']
+    for parent in architecture.layer_nodes:
+
+        avg_radius = plot_dict['outputs']['actuator']['avg_radius' + str(parent)][0][index]
+        visibility_scaling = avg_radius
+
+        uzero_hat = get_uzero_hat_var(variables_si, parent)
+        vzero_hat = get_vzero_hat_var(variables_si, parent)
+        wzero_hat = get_wzero_hat_var(variables_si, parent)
+
+        ehat_dict = {'x': uzero_hat,
+                     'y': vzero_hat,
+                     'z': wzero_hat}
+
+
+        x_start = []
+        for dim in range(3):
+            local = plot_dict['outputs']['actuator']['center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local)
+
+        for vec_name, vec_ehat in ehat_dict.items():
+            x_end = x_start + visibility_scaling * vec_ehat
+
+            color = dcm_colors[vec_name]
+            viz_tools.basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='--')
+
+    return None

@@ -12,6 +12,7 @@ figures/
 *.jpg
 *.png
 *.eps
+*.mp4
 
 # Savefiles
 *.csv
@@ -23,6 +24,9 @@ figures/
 *.dict
 *.ipynb
 *.pckl
+
+# Profiler
+*.prof
 
 # Code-generated files
 *.c
