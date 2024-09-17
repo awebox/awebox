@@ -559,7 +559,7 @@ fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
 for k in range(3):
     ax[k].plot(trial.visualization.plot_dict['time_grids']['ip'], (180./np.pi)*trial.visualization.plot_dict['x']['delta10'][k])
-    ax[k].plot(tsim, (180. / np.pi) * np.array([x[18 + k] for x in xsim]))
+    ax[k].plot(tsim, (180. / np.pi) * scaling['x','delta10', k].full()[0][0]*np.array([x[18 + k] for x in xsim]))
 ax[-1].plot(trial.visualization.plot_dict['time_grids']['ip'], trial.visualization.plot_dict['x']['dl_t'][0], 'b')
 ax[-1].plot(tsim, [x[-1]*scaling['x', 'dl_t'].full()[0][0] for x in xsim])
 for k in range(4):
