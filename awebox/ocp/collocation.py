@@ -446,7 +446,7 @@ class Collocation(object):
 
             if k < n_k - 1:
                 if nlp_params['collocation']['u_param'] == 'poly':
-                    poly_vars = cas.horzcat(*V['coll_var', kdx, :, 'u'])
+                    poly_vars = cas.horzcat(*V['coll_var', k, :, 'u'])
                     u = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
                 else:
                     u = V['u', k]
