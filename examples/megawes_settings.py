@@ -97,7 +97,7 @@ def set_megawes_path_tracking_settings(aero_model, options):
 
     # control variable bounds
     options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
-    options['model.system_bounds.x.ddl_t'] = [-5, 5] # Tether acceleration [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-5., 5.] # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #
     # validitiy of aerodynamic model
