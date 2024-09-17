@@ -422,7 +422,9 @@ class Pmpc(object):
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
         V_opt = self.__pocp_trial.optimization.V_opt
-        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
+    
+        tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
+        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
 
         return None
 
@@ -450,16 +452,11 @@ class Pmpc(object):
         for var_type in self.__var_list:
             if var_type == 'x':
                 ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
-            elif var_type == 'u' and self.__pocp_trial.options['nlp']['collocation']['u_param'] == 'poly':
+            elif var_type == 'u':
                 ip_dict[var_type] = self.__interpolator(t_grid_u, var_type)
-            elif var_type == 'u' and self.__pocp_trial.options['nlp']['collocation']['u_param'] == 'zoh':
-                time_grids = {}
-                time_grids['u'] = self.__pocp_trial.visualization.plot_dict['time_grids']['u']
-                time_grids['u_mpc'] = t_grid_u
-                ip_dict[var_type] = struct_op.sample_and_hold_controls(time_grids, self.__pocp_trial.optimization.V_opt['u', :], timegrid_label='u_mpc')
+            elif var_type == 'z':
+                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
 
-            else:
-                ip_dict[var_type] = self.__interpolator(t_grid, var_type)
         counter = 0
         counter_x = 0
         counter_u = 0
