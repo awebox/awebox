@@ -225,8 +225,6 @@ class Pmpc(object):
         """ Compute periodic MPC feedback control for given initial condition.
         """
 
-        awelogger.logger.info("Compute MPC feedback...")
-
         # update nlp parameters
         self.__p0 = self.__p(0.0)
         self.__p0['x0'] = x0
