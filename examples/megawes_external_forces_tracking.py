@@ -42,7 +42,7 @@ compilation_flag = False
 aero_model='VLM'
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options = set_megawes_path_generation_settings(options, aero_model)
+options = set_megawes_path_generation_settings(aero_model, options)
 
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
@@ -83,7 +83,7 @@ t_end = 1*trial.visualization.plot_dict['theta']['t_f']
 
 # adjust options for path tracking (incl. aero model)
 tracking_options = copy.deepcopy(optimization_options)
-tracking_options = set_megawes_path_tracking_settings(tracking_options, aero_model='ALM')
+tracking_options = set_megawes_path_tracking_settings(aero_model='ALM', options = tracking_options)
 
 # set MPC options
 ts = 0.1 # sampling time (length of one MPC window)
@@ -180,7 +180,7 @@ integrator = awe_integrators.ee1root('F', dae.dae, dae.rootfinder, {'tf': dt, 'n
 # ----------------- create CasADI function of integrator ----------------- #
 
 # create symbolic structures for integrators and aerodynamics model
-nparam = 151
+nparam = 150
 x0_init = ca.MX.sym('x', nx)
 u0_init = ca.MX.sym('u', nu)
 z0_init = dae.z(0.0)
@@ -289,7 +289,7 @@ u0_shifted = mpc.trial.model.variables_dict['u'](u0_shifted)
 # controls
 u_si = []
 for name in list(mpc.trial.model.variables_dict['u'].keys()):
-   u_si.append(u0_shifted[name]*scaling['u'][name])
+   u_si.append(u0_shifted[name]*scaling['u', name])
 u_si = ca.vertcat(*u_si)
 
 # helper function
@@ -385,20 +385,20 @@ vars0['theta'] = system_model.variables_dict['theta'](0.0)
 bounds = mpc.solver_bounds
 
 # load trial parameters
-t_f = trial.optimization.V_final['theta','t_f'].full().squeeze()
+t_f = trial.optimization.V_final_si['theta','t_f'].full().squeeze()
 
 # Scaled initial states
 plot_dict = trial.visualization.plot_dict
-x0['q10'] = np.array(plot_dict['x']['q10'])[:, -1] / scaling['x']['q10']
-x0['dq10'] = np.array(plot_dict['x']['dq10'])[:, -1] / scaling['x']['dq10']
-x0['omega10'] = np.array(plot_dict['x']['omega10'])[:, -1] / scaling['x']['omega10']
-x0['r10'] = np.array(plot_dict['x']['r10'])[:, -1] / scaling['x']['r10']
-x0['delta10'] = np.array(plot_dict['x']['delta10'])[:, -1] / scaling['x']['delta10']
-x0['l_t'] = np.array(plot_dict['x']['l_t'])[0, -1] / scaling['x']['l_t']
-x0['dl_t'] = np.array(plot_dict['x']['dl_t'])[0, -1] / scaling['x']['dl_t']
+x0['q10'] = np.array(plot_dict['x']['q10'])[:, -1] / scaling['x','q10']
+x0['dq10'] = np.array(plot_dict['x']['dq10'])[:, -1] / scaling['x','dq10']
+x0['omega10'] = np.array(plot_dict['x']['omega10'])[:, -1] / scaling['x','omega10']
+x0['r10'] = np.array(plot_dict['x']['r10'])[:, -1] / scaling['x','r10']
+x0['delta10'] = np.array(plot_dict['x']['delta10'])[:, -1] / scaling['x','delta10']
+x0['l_t'] = np.array(plot_dict['x']['l_t'])[0, -1] / scaling['x','l_t']
+x0['dl_t'] = np.array(plot_dict['x']['dl_t'])[0, -1] / scaling['x','dl_t']
 
 # Scaled algebraic vars
-z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z']['lambda10']
+z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z','lambda10']
 
 # ----------------- run simulation ----------------- #
 
@@ -459,8 +459,8 @@ for k in range(N_steps):
         u0_call = out['u0']
 
         # fill in controls
-        u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
-        u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
+        u0['ddelta10'] = u0_call[6:9] / scaling['u', 'ddelta10'] # scaled!
+        u0['ddl_t'] = u0_call[-1] / scaling['u', 'ddl_t'] # scaled!
 
         # message
         print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC step")
@@ -475,8 +475,8 @@ for k in range(N_steps):
     aero_out = F_aero(x0=x0, u0=u0)
 
     # fill in forces and moments
-    u0['f_fict10'] = aero_out['F_ext'] / scaling['u']['f_fict10']  # external force in inertial frame
-    u0['m_fict10'] = aero_out['M_ext'] / scaling['u']['m_fict10']  # external moment in body-fixed frame
+    u0['f_fict10'] = aero_out['F_ext'] / scaling['u', 'f_fict10']  # external force in inertial frame
+    u0['m_fict10'] = aero_out['M_ext'] / scaling['u', 'm_fict10']  # external moment in body-fixed frame
 
     # fill controls and aerodynamics into dae parameters
     p0['u'] = u0
@@ -502,9 +502,9 @@ for k in range(N_steps):
         break
 
 # generated power
-lam = np.array([z[-1] for z in zsim]) * scaling['z']['lambda10'].full()[0][0]
-l_t = np.array([x[-2] for x in xsim]) * scaling['x']['l_t'].full()[0][0]
-dl_t = np.array([x[-1] for x in xsim]) * scaling['x']['dl_t'].full()[0][0]
+lam = np.array([z[-1] for z in zsim]) * scaling['z', 'lambda10'].full()[0][0]
+l_t = np.array([x[-2] for x in xsim]) * scaling['x', 'l_t'].full()[0][0]
+dl_t = np.array([x[-1] for x in xsim]) * scaling['x', 'dl_t'].full()[0][0]
 P_inst = lam * l_t * dl_t
 P_ave_ext = np.sum(P_inst[1:] * np.array([tsim[i+1]-tsim[i] for i in range(0,len(tsim)-1)]))/tsim[-1]
 
@@ -561,7 +561,7 @@ for k in range(3):
     ax[k].plot(trial.visualization.plot_dict['time_grids']['ip'], (180./np.pi)*trial.visualization.plot_dict['x']['delta10'][k])
     ax[k].plot(tsim, (180. / np.pi) * np.array([x[18 + k] for x in xsim]))
 ax[-1].plot(trial.visualization.plot_dict['time_grids']['ip'], trial.visualization.plot_dict['x']['dl_t'][0], 'b')
-ax[-1].plot(tsim, [x[-1]*scaling['x']['dl_t'].full()[0][0] for x in xsim])
+ax[-1].plot(tsim, [x[-1]*scaling['x', 'dl_t'].full()[0][0] for x in xsim])
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')
@@ -588,7 +588,7 @@ for k in range(3):
     ax[k].step(trial.visualization.plot_dict['time_grids']['ip'], (180./np.pi)*trial.visualization.plot_dict['u']['ddelta10'][k], where='post')
     ax[k].step(tsim[:-1], (180./np.pi)*np.array([u[6+k] for u in usim]), where='post')
 ax[-1].step(trial.visualization.plot_dict['time_grids']['ip'], trial.visualization.plot_dict['u']['ddl_t'][0], where='post')
-ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u']['ddl_t'].full()[0][0] for u in usim]), where='post')
+ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u', 'ddl_t'].full()[0][0] for u in usim]), where='post')
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')
