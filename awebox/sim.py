@@ -147,7 +147,7 @@ class Simulation:
 
         self.__postprocess_sim()
 
-        awelogger.logger.info('Finished {} simulation'.format(self.__sim_type))
+        awelogger.logger.info('Finished {} simulation.'.format(self.__sim_type))
 
         return None
 
