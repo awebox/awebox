@@ -436,7 +436,7 @@ for k in range(N_steps):
             tgrids[grid] = ca.vertcat(*list(map(lambda x: x % t_f, tgrids[grid].full()))).full().squeeze()
 
         # get reference
-        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'])['ref']
+        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'], tgrid_u = tgrids['tgrid_u'])['ref']
 
         # solve MPC problem
         u_ref = tracking_options['user_options.wind.u_ref']
