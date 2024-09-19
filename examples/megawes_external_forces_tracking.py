@@ -385,7 +385,7 @@ vars0['theta'] = system_model.variables_dict['theta'](0.0)
 bounds = mpc.solver_bounds
 
 # load trial parameters
-t_f = trial.optimization.V_final_si['theta','t_f'].full().squeeze()
+t_f = trial.visualization.plot_dict['time_grids']['x'][-1].full().squeeze()
 
 # Scaled initial states
 plot_dict = trial.visualization.plot_dict
