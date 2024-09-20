@@ -475,10 +475,10 @@ class Collocation(object):
             F_find_interval_2 = cas.Function('F_find_interval1', [t], [kdx, tau])
 
             # conditional function
-            F_find_interval_cond = cas.Function('F_find_interval_cond', [F_find_interval_1, F_find_interval_2], F_find_interval_1)
+            F_find_interval_cond = cas.Function.conditional('F_find_interval_cond', [F_find_interval_1, F_find_interval_2], F_find_interval_1)
             in_reel_out_phase = cas.le(t, t_switch)
-            F_find_interval = cas.Function.conditional('F_find_interval', [t], [F_find_interval_cond(in_reel_out_phase, t)])
-        
+            [kdx, tau] = F_find_interval_cond(in_reel_out_phase, t)
+            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
         else: # simple phase fix
             kdx = cas.floor(t/t_f*n_k)
             tau = t/t_f*n_k - kdx
