@@ -79,7 +79,7 @@ P_ave_ref = trial.visualization.plot_dict['power_and_performance']['avg_power'].
 # ----------------- set tracking options for MPC and integrator ----------------- #
 
 # simulation horizon
-t_end = 1*trial.visualization.plot_dict['theta']['t_f']
+t_end = 1*trial.visualization.plot_dict['time_grids']['x'][-1].full().squeeze()
 
 # adjust options for path tracking (incl. aero model)
 tracking_options = copy.deepcopy(optimization_options)
