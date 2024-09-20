@@ -116,9 +116,11 @@ mpc_opts['mpc']['terminal_point_constr'] = False
 # MPC weights
 nx = 23
 nu = 10
-Q = np.ones((nx, 1))
-R = np.ones((nu, 1))
-P = np.ones((nx, 1))
+weights_x = trial.model.variables_dict['x'](1.)
+weights_x['delta10'] = 1e-2
+Q = weights_x.cat
+R = 1e-2*np.ones((nu, 1))
+P = weights_x.cat
 
 # create PMPC object (requires feed-in of tracking options to trial)
 mpc = pmpc.Pmpc(mpc_opts['mpc'], ts, trial)
