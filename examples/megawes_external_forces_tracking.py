@@ -46,7 +46,7 @@ options = set_megawes_path_generation_settings(aero_model, options)
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation - Not available in MPC)
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation)
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
 
