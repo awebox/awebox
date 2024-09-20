@@ -12,7 +12,6 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 :author: Thomas Haas, Ghent University, 2024 (adapted from Jochem De Schutter)
 
 Current issues:
-- option 'single_reelout' doesn't work with MPC, use 'simple' instead.
 - option 'collocation_nodes' doesn't work with MPC, use 'shooting_nodes' instead.
 """
 
