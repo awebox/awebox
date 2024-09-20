@@ -426,7 +426,7 @@ class Collocation(object):
 
         # NLP data
         n_k = nlp_params['n_k']
-        t_f = V['theta', 't_f', 0]
+        t_f = V['theta', 't_f']
 
         # create conditional interpolation functions
         function_list_x = []
@@ -456,28 +456,50 @@ class Collocation(object):
         F_cond_u = cas.Function.conditional('F_cond_u', function_list_u, function_list_u[0])
         F_cond_z = cas.Function.conditional('F_cond_z', function_list_z, function_list_z[0])
 
+        # find time interval function
+        t = cas.SX.sym('t')
+        if t_f.shape[0] == 2: # single_reelout phase fix
+
+            n_k_reelout = round(n_k * nlp_params['phase_fix_reelout'])
+            t_switch = t_f[0] * n_k_reelout / n_k
+
+            # if in reel-out
+            kdx = cas.floor(t/t_f[0]*n_k)
+            tau = t/t_f[0]*n_k - kdx
+            F_find_interval_1 = cas.Function('F_find_interval1', [t], [kdx, tau])
+            
+            # if in reel-in
+            kdx_ri = cas.floor((t - t_switch)/t_f[1]*n_k)
+            kdx = n_k_reelout + kdx_ri
+            tau = (t - t_switch)/t_f[1]*n_k - kdx_ri
+            F_find_interval_2 = cas.Function('F_find_interval1', [t], [kdx, tau])
+
+            # conditional function
+            F_find_interval_cond = cas.Function('F_find_interval_cond', [F_find_interval_1, F_find_interval_2], F_find_interval_1)
+            in_reel_out_phase = cas.le(t, t_switch)
+            F_find_interval = cas.Function.conditional('F_find_interval', [t], [F_find_interval_cond(in_reel_out_phase, t)])
+        
+        else: # simple phase fix
+            kdx = cas.floor(t/t_f*n_k)
+            tau = t/t_f*n_k - kdx
+            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+
         # evaluate interpolation on symbolic time grid
         vector_series_x = []
         for k in range(t_grid_x.shape[0]):
-            t = t_grid_x[k]
-            kdx = cas.floor(t/t_f*n_k)
-            tau = tau = t/t_f*n_k - kdx
+            [kdx, tau] = F_find_interval(t_grid_x[k])
             vector_series_x.append(F_cond_x(kdx, tau))
         vector_series_x = cas.horzcat(*vector_series_x)
 
         vector_series_z = []
         for k in range(t_grid_z.shape[0]):
-            t = t_grid_z[k]
-            kdx = cas.floor(t/t_f*n_k)
-            tau = tau = t/t_f*n_k - kdx
+            [kdx, tau] = F_find_interval(t_grid_z[k])
             vector_series_z.append(F_cond_z(kdx, tau))
         vector_series_z = cas.horzcat(*vector_series_z)
 
         vector_series_u = []
         for k in range(t_grid_u.shape[0]):
-            t = t_grid_u[k]
-            kdx = cas.floor(t/t_f*n_k)
-            tau = tau = t/t_f*n_k - kdx
+            [kdx, tau] = F_find_interval(t_grid_u[k])
             vector_series_u.append(F_cond_u(kdx, tau))
         vector_series_u = cas.horzcat(*vector_series_u)
 
