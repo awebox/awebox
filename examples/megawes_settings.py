@@ -65,8 +65,8 @@ def set_megawes_path_generation_settings(aero_model, options):
     # initialization
     options['solver.initialization.groundspeed'] = 80. 
     options['solver.initialization.inclination_deg'] = 45. #45. 
-    options['solver.initialization.cone_deg'] = 35. #25. 
-    options['solver.initialization.l_t'] = 400. #600.
+    options['solver.initialization.cone_deg'] = 25. #25. 
+    options['solver.initialization.l_t'] = 600. #600.
 
     return options
 
