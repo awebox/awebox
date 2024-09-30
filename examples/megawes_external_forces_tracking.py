@@ -319,7 +319,7 @@ if compilation_flag:
     lib_filename = output_folder + 'mpc_solver.so'
     mpc.solver.generate_dependencies('mpc_solver.c')
     os.system("mv ./mpc_solver.c" + " " + src_filename)
-    os.system("gcc -fPIC -shared -O3 " + src_filename + " -o " + lib_filename)
+    os.system("gcc -fPIC -shared " + src_filename + " -o " + lib_filename)
     print("mpc solver compilation done...")
 
     # compile dependencies F_int
@@ -348,7 +348,7 @@ if compilation_flag:
     lib_filename = output_folder + 'F_ref.so'
     F_ref.generate('F_ref.c')
     os.system("mv F_ref.c"+" "+src_filename)
-    os.system("gcc -fPIC -shared -O3 "+src_filename+" -o "+lib_filename)
+    os.system("gcc -fPIC -shared "+src_filename+" -o "+lib_filename)
 
     # compile dependencies helper_functions
     src_filename = output_folder + 'helper_functions.c'
@@ -367,7 +367,7 @@ if compilation_flag:
     
     # gather into dict
     simulation_variables = {'x0':x0, 'u0':u0, 'z0':z0, 'p0':p0, 'w0':w0,
-                            'vars0':vars0, 'scaling':scaling}
+                            'vars0':vars0, 'scaling':scaling.cat.full()}
     
     # save simulation variables
     filename = output_folder + 'simulation_variables.pckl'
@@ -438,7 +438,7 @@ for k in range(N_steps):
 
         # get reference
         ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'], tgrid_u = tgrids['tgrid_u'])['ref']
-
+ 
         # solve MPC problem
         u_ref = tracking_options['user_options.wind.u_ref']
         sol = mpc.solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],

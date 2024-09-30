@@ -77,7 +77,7 @@ z0 = struct['z0']
 p0 = struct['p0']
 w0 = struct['w0']
 vars0 = struct['vars0']
-scaling = struct['scaling']
+scaling = vars0(struct['scaling'])
 
 # load solver bounds
 bounds = {}
@@ -111,16 +111,16 @@ solver = ca.nlpsol('solver', 'ipopt', output_folder + 'mpc_solver.so', mpc_opts)
 # ----------------- initialize states and algebraic variabless ----------------- #
 
 # Scaled initial states
-x0['q10'] = np.array([awes['x_q10_'+str(i)][-1] for i in range(3)]) / scaling['x']['q10']
-x0['dq10'] = np.array([awes['x_dq10_'+str(i)][-1] for i in range(3)]) / scaling['x']['dq10']
-x0['omega10'] = np.array([awes['x_omega10_'+str(i)][-1] for i in range(3)]) / scaling['x']['omega10']
-x0['r10'] = np.array([awes['x_r10_'+str(i)][-1] for i in range(9)]) / scaling['x']['r10']
-x0['delta10'] = np.array([awes['x_delta10_'+str(i)][-1] for i in range(3)]) / scaling['x']['delta10']
-x0['l_t'] = np.array(awes['x_l_t_0'][-1]) / scaling['x']['l_t']
-x0['dl_t'] = np.array(awes['x_dl_t_0'][-1]) / scaling['x']['dl_t']
+x0['q10'] = np.array([awes['x_q10_'+str(i)][0] for i in range(3)]) / scaling['x', 'q10',0]
+x0['dq10'] = np.array([awes['x_dq10_'+str(i)][0] for i in range(3)]) / scaling['x', 'dq10',0]
+x0['omega10'] = np.array([awes['x_omega10_'+str(i)][0]/ scaling['x', 'omega10', i].full().squeeze() for i in range(3)]) 
+x0['r10'] = np.array([awes['x_r10_'+str(i)][0] for i in range(9)]) / scaling['x', 'r10']
+x0['delta10'] = np.array([awes['x_delta10_'+str(i)][0]/scaling['x', 'delta10',i].full().squeeze() for i in range(3)])
+x0['l_t'] = np.array(awes['x_l_t_0'][0]) / scaling['x', 'l_t']
+x0['dl_t'] = np.array(awes['x_dl_t_0'][0]) / scaling['x', 'dl_t']
 
 # Scaled algebraic vars
-z0['z'] = np.array(awes['z_lambda10_0'][-1]) / scaling['z']['lambda10']
+z0['z'] = np.array(awes['z_lambda10_0'][0]) / scaling['z', 'lambda10']
 
 # ----------------- run simulation ----------------- #
 
@@ -165,13 +165,13 @@ for k in range(N_steps):
            tgrids[grid] = ca.vertcat(*list(map(lambda x: x % t_f, tgrids[grid].full()))).full().squeeze()
 
         # get reference
-        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'])['ref']
+        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'], tgrid_u = tgrids['tgrid_u'])['ref']
 
         # solve MPC problem
         nx = 23
         nu = 10
         Q = np.ones((nx, 1))
-        R = np.ones((nu, 1))
+        R = 1e-2*np.ones((nu, 1))
         P = np.ones((nx, 1))
         u_ref = 12.
         sol = solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
@@ -193,8 +193,8 @@ for k in range(N_steps):
         u0_call = out['u0']
 
         # fill in controls
-        u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
-        u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
+        u0['ddelta10'] = u0_call[6:9] / scaling['u', 'ddelta10'] # scaled!
+        u0['ddl_t'] = u0_call[-1] / scaling['u', 'ddl_t'] # scaled!
 
         # message
         print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC step")
@@ -209,8 +209,8 @@ for k in range(N_steps):
     aero_out = F_aero(x0=x0, u0=u0)
 
     # fill in forces and moments
-    u0['f_fict10'] = aero_out['F_ext'] / scaling['u']['f_fict10']  # external force in inertial frame
-    u0['m_fict10'] = aero_out['M_ext'] / scaling['u']['m_fict10']  # external moment in body-fixed frame
+    u0['f_fict10'] = aero_out['F_ext'] / scaling['u', 'f_fict10']  # external force in inertial frame
+    u0['m_fict10'] = aero_out['M_ext'] / scaling['u', 'm_fict10']  # external moment in body-fixed frame
 
     # fill controls and aerodynamics into dae parameters
     p0['u'] = u0
@@ -236,9 +236,9 @@ for k in range(N_steps):
        break
 
 # power outputs
-lam = np.array([z[-1] for z in zsim]) * scaling['z']['lambda10'].full()[0][0]
-l_t = np.array([x[-2] for x in xsim]) * scaling['x']['l_t'].full()[0][0]
-dl_t = np.array([x[-1] for x in xsim]) * scaling['x']['dl_t'].full()[0][0]
+lam = np.array([z[-1] for z in zsim]) * scaling['z', 'lambda10'].full()[0][0]
+l_t = np.array([x[-2] for x in xsim]) * scaling['x', 'l_t'].full()[0][0]
+dl_t = np.array([x[-1] for x in xsim]) * scaling['x', 'dl_t'].full()[0][0]
 P_inst = lam * l_t * dl_t
 P_ave_ext = np.sum(P_inst[1:] * np.array([tsim[i+1]-tsim[i] for i in range(0,len(tsim)-1)]))/t_end
 
@@ -265,7 +265,8 @@ fig = plt.figure(figsize=(8,8))
 ax = fig.add_subplot(1, 1, 1, projection='3d')
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
 ax.plot(awes['x_q10_0'], awes['x_q10_1'], awes['x_q10_2'])
-ax.plot([x[0] for x in xsim], [x[1] for x in xsim], [x[2] for x in xsim])
+scaling_q = scaling['x', 'q10',0].full().squeeze()
+ax.plot([x[0]*scaling_q for x in xsim], [x[1]*scaling_q for x in xsim], [x[2]*scaling_q for x in xsim])
 ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
@@ -300,9 +301,9 @@ fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
 for k in range(3):
     ax[k].plot(reference_time, np.tile((180./np.pi)*np.array(awes['x_delta10_'+str(k)]), N_cycles))
-    ax[k].plot(tsim, (180./np.pi)*np.array([x[18+k] for x in xsim]))
+    ax[k].plot(tsim, (180./np.pi)*np.array([x[18+k]*scaling['x', 'delta10', k] for x in xsim]).squeeze())
 ax[-1].plot(reference_time, np.tile(awes['x_dl_t_0'], N_cycles))
-ax[-1].plot(tsim, [x[-1]*scaling['x']['dl_t'].full()[0][0] for x in xsim])
+ax[-1].plot(tsim, [x[-1]*scaling['x','dl_t'].full()[0][0] for x in xsim])
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')
@@ -327,9 +328,9 @@ fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
 for k in range(3):
    ax[k].step(reference_time, np.tile((180. / np.pi) * np.array(awes['u_ddelta10_' + str(k)]), N_cycles), where='post')
-   ax[k].step(tsim[:-1], (180./np.pi)*np.array([u[6+k] for u in usim]), where='post')
+   ax[k].step(tsim[:-1], (180./np.pi)*np.array([u[6+k]*scaling['u', 'ddelta10', k] for u in usim]).squeeze(), where='post')
 ax[-1].step(reference_time, np.tile(awes['u_ddl_t_0'], N_cycles), where='post')
-ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u']['ddl_t'].full()[0][0] for u in usim]), where='post')
+ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u', 'ddl_t'].full()[0][0] for u in usim]), where='post')
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')
