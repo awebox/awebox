@@ -105,21 +105,8 @@ def get_coll_params(nlp_options, V, P, model):
     N_coll = n_k * d # collocation points
 
     parameters = model.parameters
-<<<<<<< HEAD
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
-=======
 
-    use_vortex_linearization = 'lin' in parameters.keys()
-    if use_vortex_linearization:
-        Xdot = construct_Xdot_struct(nlp_options, model.variables_dict)(0.)
-
-        coll_params = []
-        for kdx in range(n_k):
-            for ddx in range(d):
-                loc_params = get_parameters_at_time(nlp_options, P, V, Xdot, model.variables, model.parameters, kdx, ddx)
-                coll_params = cas.horzcat(coll_params, loc_params)
-
-    elif nlp_options['phase_fix'] == 'single_reelout':
+    if nlp_options['phase_fix'] == 'single_reelout':
         eta_DT = P['theta0', 'ground_station', 'eta_DT']
         k_reelout = round(n_k * nlp_options['phase_fix_reelout'])
 
@@ -137,7 +124,6 @@ def get_coll_params(nlp_options, V, P, model):
     else:
         coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
 
->>>>>>> 7e19149... add drive train efficiency
     return coll_params
 
 
