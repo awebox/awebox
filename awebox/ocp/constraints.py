@@ -232,8 +232,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     # collect collocation variables
     coll_nodes = n_k*d
-    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
-    coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+    coll_vars, coll_params = Collocation.get_coll_vars_and_params(nlp_options, V, P, Xdot, model)
 
     # create maps of relevant functions
     u_poly = (nlp_options['collocation']['u_param'] == 'poly')
