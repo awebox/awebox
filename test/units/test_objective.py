@@ -99,7 +99,7 @@ def run_generalized_regularization_mechanism_test(with_additional_exceptions=Fal
 
     include_shooting_nodes = we_expect_shooting_nodes_to_also_be_weighted(trial)
 
-    component_costs = objective.find_general_regularisation(nlp_options, V, P, Xdot, model)
+    component_costs = objective.find_general_regularisation(nlp_options, V, P, Xdot, model, trial.nlp.Collocation)
 
     var_to_find, var_type, usual_cost_type = get_relevant_variable_info()
     relevant_indices = get_the_indices_of_the_relevant_variable_instances(V, var_type, var_to_find, include_shooting_nodes=include_shooting_nodes)
