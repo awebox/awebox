@@ -151,12 +151,12 @@ class NLP(object):
 
     def get_nlp(self):
 
-        # # construct constraints
-        # g = self.__g_fun(self.__V, self.__P)
-        # f = self.__f_fun(self.__V, self.__P)
+        # construct constraints
+        g = self.__g_fun(self.__V, self.__P)
+        f = self.__f_fun(self.__V, self.__P)
 
         # fill in nlp dict
-        nlp = {'x': self.__V, 'p': self.__P, 'f': self.__f_fun, 'g': self.__g_fun}
+        nlp = {'x': self.__V, 'p': self.__P, 'f': f, 'g': g}
 
         return nlp
 
