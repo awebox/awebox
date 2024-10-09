@@ -356,7 +356,7 @@ def find_general_problem_cost(component_costs):
     u_regularisation_cost = component_costs['u_regularisation_cost']
     xdot_regularisation_cost = component_costs['xdot_regularisation_cost']
     theta_regularisation_cost = component_costs['theta_regularisation_cost']
-    beta_cost = component_costs['beta_cost']
+    beta_cost = 0.0 #component_costs['beta_cost']
     time_cost = component_costs['time_cost']
     fictitious_cost = component_costs['fictitious_cost']
 
