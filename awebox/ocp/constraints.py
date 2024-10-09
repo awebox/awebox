@@ -235,17 +235,25 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
+    out_dir = '/home/jochem/git/awebox/examples/temp'
+    recompile = False
     # create maps of relevant functions
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    mdl_ineq_fun = struct_op.generate_and_compile(mdl_ineq_fun, mdl_ineq_fun.name(), 'mdl_ineq_fun', out_dir, recompile)
+
     if nlp_options['collocation']['u_param'] == 'poly':
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
     elif nlp_options['collocation']['u_param'] == 'zoh':
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_eq_fun = struct_op.generate_and_compile(mdl_eq_fun, 'cstr_fun', 'mdl_eq_fun', out_dir, recompile)
+
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
 
     mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    mdl_shooting_eq_fun = struct_op.generate_and_compile(mdl_shooting_eq_fun, mdl_shooting_eq_fun.name(), 'mdl_shooting_eq_fun', out_dir, recompile)
+
     mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
 
     # evaluate constraint functions
