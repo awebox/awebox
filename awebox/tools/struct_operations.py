@@ -30,7 +30,7 @@ _python-3.5 / casadi-3.4.5
 
 import casadi.tools as cas
 import numpy as np
-
+import os
 import operator
 
 import copy
@@ -1411,6 +1411,25 @@ def sample_and_hold_controls(time_grids, controls, timegrid_label='ip'):
     values = values_ip
 
     return values
+
+def generate_and_compile(fun, fun_name, c_file_name, out_dir, recompile):
+
+    if recompile:
+        awelogger.logger.info('Code-generating "{}"...'.format(c_file_name))
+        cg = cas.CodeGenerator(fun_name)
+        cg.add(fun)
+        cg.add(fun.jacobian())
+        cg.add(fun.jacobian().jacobian())
+        cg.generate()
+        awelogger.logger.info('Code-generated "{}".'.format(c_file_name))
+
+        awelogger.logger.info('Compiling "{}.so"...'.format(c_file_name))
+        os.system("gcc -fPIC -O1 -march=native -shared {}.c -o {}.so".format(fun_name, c_file_name))
+        awelogger.logger.info('Compiled "{}.so".'.format(c_file_name))
+
+    fun = cas.external(fun_name, '{}.so'.format(c_file_name))
+
+    return fun
 
 def test():
     # todo
