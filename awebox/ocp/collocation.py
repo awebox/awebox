@@ -366,6 +366,12 @@ class Collocation(object):
         integral_constraints['inequality'] = []
         integral_constraints['equality'] = []
 
+        # evaluate integral_outputs_deriv
+        integral_outputs_fun = model.integral_outputs_fun
+        integral_outputs_fun = struct_op.generate_and_compile(integral_outputs_fun, integral_outputs_fun.name(), 'integral_outputs_fun', options['temp_dir'], options['compile_subfunctions'], options['load_subfunctions'])
+        integral_outputs_fun_map = integral_outputs_fun.map(coll_vars.shape[1])
+        integral_outputs_deriv = integral_outputs_fun_map(coll_vars, coll_params)
+
         # evaluate functions in for loop
         for kdx in range(self.__n_k):
 
@@ -376,7 +382,6 @@ class Collocation(object):
                 idx = ddx + kdx * self.__d
 
                 coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
-                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
                 integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
                 integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 
