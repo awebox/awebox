@@ -50,23 +50,23 @@ def get_n_vec(options, parent, variables, architecture, scaling):
         message = 'normal vector model could not be found'
         print_op.log_and_raise_error(message)
 
-    children = architecture.kites_map[parent]
-    number_children = float(len(children))
+    kite_children = architecture.kites_map[parent]
+    number_kite_children = len(kite_children)
 
-    if model == 'least_squares' and number_children == 3:
+    if model == 'least_squares' and number_kite_children == 3:
         n_vec = get_plane_fit_n_vec(parent, variables, architecture)
 
-    elif model == 'least_squares' and number_children > 3:
+    elif model == 'least_squares' and number_kite_children > 3:
         n_vec = get_least_squares_n_vec(parent, variables, architecture)
 
     elif model == 'binormal':
         n_vec = get_binormal_n_vec(parent, variables, architecture)
 
-    elif model == 'tether_parallel' and number_children > 1:
+    elif model == 'tether_parallel' and number_kite_children > 1:
         n_vec = get_tether_parallel_multi_n_vec(parent, variables, architecture, scaling)
 
-    elif model == 'tether_parallel' and number_children == 1:
-        n_vec = get_tether_parallel_single_n_vec(parent, variables, architecture, scaling)
+    elif model == 'tether_parallel':
+        n_vec = get_tether_parallel_single_n_vec(variables, architecture, scaling)
 
     elif model == 'xhat':
         n_vec = vect_op.xhat()
@@ -166,21 +166,8 @@ def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling)
     return n_vec_scaled
 
 
-def get_tether_parallel_single_n_vec(parent, variables_si, architecture, scaling):
-
-    kite = architecture.children_map[parent][0]
-    n_vec = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
-                                                                'q' + str(kite) + str(parent))
-
-    if '[x,l_t,0]' in scaling.labels():
-        scale = scaling['x', 'l_t']
-    elif '[theta,l_t,0]' in scaling.labels():
-        scale = scaling['theta', 'l_t']
-    else:
-        scale = 1.e3
-
-    n_vec_scaled = n_vec / scale
-    return n_vec_scaled
+def get_tether_parallel_single_n_vec(variables_si, architecture, scaling):
+    return get_tether_parallel_multi_n_vec(1, variables_si, architecture, scaling)
 
 
 def get_binormal_n_vec(parent, variables, architecture):
@@ -193,3 +180,21 @@ def get_binormal_n_vec(parent, variables, architecture):
         n_vec += local_binormal
 
     return n_vec
+
+def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, scaling):
+
+    rot_outputs = {}
+    for parent in architecture.layer_nodes:
+        rot_outputs['ehat_normal' + str(parent)] = get_n_hat(model_options, parent, variables_si, architecture, scaling)
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+        dq = variables_si['x']['dq' + str(kite) + str(parent)]
+        ehat_normal = rot_outputs['ehat_normal' + str(parent)]
+        ehat_radial = vect_op.normed_cross(dq, ehat_normal)
+        ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
+        rot_outputs['ehat_radial' + str(kite)] = ehat_radial
+        rot_outputs['ehat_tangential' + str(kite)] = ehat_tangential
+
+    outputs['rotation'] = rot_outputs
+    return outputs

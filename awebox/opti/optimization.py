@@ -707,7 +707,9 @@ class Optimization(object):
             'Final max. iterations': self.__options['max_iter'],
             'Homotopy max. iterations': self.__options['max_iter_hippo'],
             'Homotopy barrier param': self.__options['mu_hippo'],
-            'Homotopy method': self.__options['homotopy_method']
+            'Homotopy method': self.__options['homotopy_method'],
+            'Generation method': self.__options['generation_method'],
+            'Expand': self.__options['expand']
         }
 
         if self.__options['homotopy_method'] == 'classic':

@@ -251,7 +251,40 @@ def draw_kite(ax, q, r, model_options, kite_color, side, body_cross_sections_per
     return None
 
 
+def draw_trajectory_rotation_dcm(ax, side, plot_dict, cosmetics, index):
+
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+
+        parent = architecture.parent_map[kite]
+
+        heading_name = 'rotation'
+        xhat_name = 'ehat_radial' + str(kite)
+        yhat_name = 'ehat_tangential' + str(kite)
+        zhat_name = 'ehat_normal' + str(parent)
+
+        draw_dcm_axes_for_kite(ax, side, plot_dict, cosmetics, index, kite, heading_name, xhat_name, yhat_name,
+                               zhat_name, origin_location='zero')
+        print_op.warn_about_temporary_functionality_alteration()
+    return None
+
+
 def draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index):
+
+    architecture = plot_dict['architecture']
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+        heading_name = 'aerodynamics'
+        xhat_name = 'ehat_chord' + str(kite)
+        yhat_name = 'ehat_span' + str(kite)
+        zhat_name = 'ehat_up' + str(kite)
+
+        draw_dcm_axes_for_kite(ax, side, plot_dict, cosmetics, index, kite, heading_name, xhat_name, yhat_name,
+                               zhat_name, origin_location='kite')
+    return None
+
+
+def draw_dcm_axes_for_kite(ax, side, plot_dict, cosmetics, index, kite, heading_name, xhat_name, yhat_name, zhat_name, origin_location='kite'):
     b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
     dcm_colors = cosmetics['trajectory']['dcm_colors']
     visibility_scaling = b_ref
@@ -259,33 +292,44 @@ def draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index):
     variables_si = assemble_variable_slice_from_interpolated_data(plot_dict, index)
 
     architecture = plot_dict['architecture']
-    for kite in architecture.kite_nodes:
-        parent = architecture.parent_map[kite]
+    parent = architecture.parent_map[kite]
 
-        ehat_chord = []
-        ehat_span = []
-        ehat_up = []
-        for dim in range(3):
-            local_chord = plot_dict['outputs']['aerodynamics']['ehat_chord' + str(kite)][dim][index]
-            local_span = plot_dict['outputs']['aerodynamics']['ehat_span' + str(kite)][dim][index]
-            local_up = plot_dict['outputs']['aerodynamics']['ehat_up' + str(kite)][dim][index]
+    ehat_xhat = []
+    ehat_yhat = []
+    ehat_zhat = []
+    for dim in range(3):
+        local_xhat = plot_dict['outputs'][heading_name][xhat_name][dim][index]
+        local_yhat = plot_dict['outputs'][heading_name][yhat_name][dim][index]
+        local_zhat = plot_dict['outputs'][heading_name][zhat_name][dim][index]
 
-            ehat_chord = cas.vertcat(ehat_chord, local_chord)
-            ehat_span = cas.vertcat(ehat_span, local_span)
-            ehat_up = cas.vertcat(ehat_up, local_up)
+        ehat_xhat = cas.vertcat(ehat_xhat, local_xhat)
+        ehat_yhat = cas.vertcat(ehat_yhat, local_yhat)
+        ehat_zhat = cas.vertcat(ehat_zhat, local_zhat)
 
-        ehat_dict = {'x': ehat_chord,
-                     'y': ehat_span,
-                     'z': ehat_up}
+    ehat_dict = {'x': ehat_xhat,
+                 'y': ehat_yhat,
+                 'z': ehat_zhat}
 
+    if origin_location == 'kite':
         x_start = variables_si['x', 'q' + str(kite) + str(parent)]
+    elif origin_location == 'center':
+        x_start = []
+        for dim in range(3):
+            local_xstart = plot_dict['outputs']['geometry']['x_center' + str(parent)][dim][index]
+            x_start = cas.vertcat(x_start, local_xstart)
+    elif origin_location == 'zero':
+        x_start = cas.DM.zeros((3, 1))
+    else:
+        message = 'unexpected origin location in draw_dcm_axes (' + str(origin_location) + ').'
+        print_op.log_and_raise_error(message)
 
-        for vec_name, vec_ehat in ehat_dict.items():
-            x_end = x_start + visibility_scaling * vec_ehat
+    for vec_name, vec_ehat in ehat_dict.items():
+        x_end = x_start + visibility_scaling * vec_ehat
 
-            color = dcm_colors[vec_name]
-            basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='-')
+        color = dcm_colors[vec_name]
+        basic_draw(ax, side, color=color, x_start=x_start, x_end=x_end, linestyle='-')
     return None
+
 
 
 def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None):

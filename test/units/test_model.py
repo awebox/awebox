@@ -6,7 +6,6 @@ edit: rachel leuthold, alu-fr 2020
 """
 import copy
 
-
 import casadi
 
 import awebox as awe

@@ -151,6 +151,12 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
     return None
 
 
+def test_segmented_tether(final_homotopy_step='final', overwrite_options={}):
+    trial_name = 'segmented_tether_trial'
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+    return None
+
+
 # def test_small_dual_kite(final_homotopy_step='final', overwrite_options={}):
 #     trial_name = 'small_dual_kite_trial'
 #     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
@@ -265,6 +271,9 @@ def generate_options_dict():
     # single_kite_6_dof_options['solver.weights.r'] = 1e0
 
     single_kite_6_dof_basic_health_options = make_basic_health_variant(single_kite_6_dof_options)
+
+    segmented_tether_options = copy.deepcopy(single_kite_options)
+    segmented_tether_options['user_options.system_model.architecture'] = {1: 0, 2:1, 3:2, 4:3}
 
     poly_options = copy.deepcopy(single_kite_options)
     poly_options['nlp.collocation.u_param'] = 'poly'
@@ -393,6 +402,7 @@ def generate_options_dict():
     options_dict['single_kite_basic_health_trial'] = single_kite_basic_health_options
     options_dict['single_kite_6_dof_trial'] = single_kite_6_dof_options
     options_dict['single_kite_6_dof_basic_health_trial'] = single_kite_6_dof_basic_health_options
+    options_dict['segmented_tether_trial'] = segmented_tether_options
     options_dict['poly_trial'] = poly_options
     options_dict['drag_mode_trial'] = drag_mode_options
     options_dict['save_trial'] = save_trial_options
@@ -450,10 +460,12 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
 
 
 if __name__ == "__main__":
+
     test_single_kite_basic_health()
     test_single_kite()
     test_single_kite_6_dof_basic_health()
     test_single_kite_6_dof()
+    test_segmented_tether()
     test_poly()
     test_drag_mode()
     test_save_trial()
