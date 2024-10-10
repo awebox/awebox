@@ -24,6 +24,7 @@ figures/
 *.dict
 *.ipynb
 cache/
+tracking_files/
 
 # Profiler
 *.prof
