@@ -58,7 +58,7 @@ def set_default_user_options():
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
-        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator']),'x'),
+        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator', 'vortex']),'x'),
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
@@ -299,8 +299,6 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'cost',             None, 'adjustments_to_general_regularization_distribution', [], ('list of reassignments of generalized regularization, entries must be tuples (model var type, var name, reassigment))', None), 's'),
         ('nlp',  None,               None, 'generate_constraints', True,                   ('DO NOT TURN THIS OFF. trial.nlp should generate the constraints', [True, False]), 'x'),
         ('nlp',  None,               None, 'compile_subfunctions', False,                  ('Compile NLP subfunctions (objective, constraints)', [True, False]), 'x'),
-        ('nlp',  None,               None, 'load_subfunctions',    False,                  ('Load compiled NLP subfunctions (objective, constraints)', [True, False]), 'x'),
-        ('nlp',  None,               None, 'temp_dir',             './temp/',               ('Temp folder for generated C-code', [True, False]), 'x'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
