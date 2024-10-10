@@ -42,6 +42,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.performance_operations as perf_op
 
+import awebox.tools.cached_functions as cf
+
 from awebox.logger.logger import Logger as awelogger
 
 
@@ -224,7 +226,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     # create maps of relevant functions
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_fun = struct_op.generate_and_compile(mdl_ineq_fun, mdl_ineq_fun.name(), 'mdl_ineq_fun', nlp_options['temp_dir'], nlp_options['compile_subfunctions'], nlp_options['load_subfunctions'])
+    mdl_ineq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_ineq', mdl_ineq_fun, do_compile=nlp_options['compile_subfunctions'])
 
     if nlp_options['collocation']['u_param'] == 'poly':
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
@@ -232,7 +234,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_eq_fun = struct_op.generate_and_compile(mdl_eq_fun, mdl_eq_fun.name(), 'mdl_eq_fun', nlp_options['temp_dir'], nlp_options['compile_subfunctions'], nlp_options['load_subfunctions'])
+    mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
 
     mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
 

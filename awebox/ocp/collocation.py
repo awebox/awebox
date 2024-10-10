@@ -40,7 +40,7 @@ from collections import OrderedDict
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
-
+import awebox.tools.cached_functions as cf
 class Collocation(object):
     """Collocation class with methods for optimal control
     """
@@ -368,7 +368,8 @@ class Collocation(object):
 
         # evaluate integral_outputs_deriv
         integral_outputs_fun = model.integral_outputs_fun
-        integral_outputs_fun = struct_op.generate_and_compile(integral_outputs_fun, integral_outputs_fun.name(), 'integral_outputs_fun', options['temp_dir'], options['compile_subfunctions'], options['load_subfunctions'])
+        integral_outputs_fun = cf.CachedFunction(options['compilation_file_name'], integral_outputs_fun, do_compile=options['compile_subfunctions'])
+        # integral_outputs_fun = struct_op.generate_and_compile(integral_outputs_fun, integral_outputs_fun.name(), 'integral_outputs_fun', options['temp_dir'], options['compile_subfunctions'], options['load_subfunctions'])
         integral_outputs_fun_map = integral_outputs_fun.map(coll_vars.shape[1])
         integral_outputs_deriv = integral_outputs_fun_map(coll_vars, coll_params)
 
