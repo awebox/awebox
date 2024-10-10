@@ -298,6 +298,9 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
         ('nlp',  'cost',             None, 'adjustments_to_general_regularization_distribution', [], ('list of reassignments of generalized regularization, entries must be tuples (model var type, var name, reassigment))', None), 's'),
         ('nlp',  None,               None, 'generate_constraints', True,                   ('DO NOT TURN THIS OFF. trial.nlp should generate the constraints', [True, False]), 'x'),
+        ('nlp',  None,               None, 'compile_subfunctions', False,                  ('Compile NLP subfunctions (objective, constraints)', [True, False]), 'x'),
+        ('nlp',  None,               None, 'load_subfunctions',    False,                  ('Load compiled NLP subfunctions (objective, constraints)', [True, False]), 'x'),
+        ('nlp',  None,               None, 'temp_dir',             './temp/',               ('Temp folder for generated C-code', [True, False]), 'x'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),

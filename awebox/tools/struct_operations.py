@@ -1412,22 +1412,25 @@ def sample_and_hold_controls(time_grids, controls, timegrid_label='ip'):
 
     return values
 
-def generate_and_compile(fun, fun_name, c_file_name, out_dir, recompile):
+def generate_and_compile(fun, fun_name, c_file_name, temp_dir, compile_function, load_function):
 
-    if recompile:
-        awelogger.logger.info('Code-generating "{}"...'.format(c_file_name))
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+
+    if compile_function:
+        awelogger.logger.info('Generate and compile "{}"...'.format(c_file_name))
         cg = cas.CodeGenerator(fun_name)
         cg.add(fun)
         cg.add(fun.jacobian())
         cg.add(fun.jacobian().jacobian())
         cg.generate()
-        awelogger.logger.info('Code-generated "{}".'.format(c_file_name))
+        os.system('mv {}.c {}.c'.format(fun_name, temp_dir + fun_name))
 
-        awelogger.logger.info('Compiling "{}.so"...'.format(c_file_name))
-        os.system("gcc -fPIC -O1 -march=native -shared {}.c -o {}.so".format(fun_name, c_file_name))
+        os.system("gcc -fPIC -O1 -march=native -shared {}.c -o {}.so".format(temp_dir+fun_name, temp_dir+c_file_name))
         awelogger.logger.info('Compiled "{}.so".'.format(c_file_name))
 
-    fun = cas.external(fun_name, '{}.so'.format(c_file_name))
+    if compile_function or load_function:
+        fun = cas.external(fun_name, '{}.so'.format(temp_dir+c_file_name))
 
     return fun
 
