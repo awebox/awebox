@@ -68,7 +68,7 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
     V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
     check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
-    print_op.warn_about_temporary_functionality_alteration()
+    # todo: reconstruct this check @rachel
     # check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
 
     return V_init_si

@@ -251,8 +251,6 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     length = options['solver']['initialization']['l_t']
     length_scaling = length
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
-
-    print_op.warn_about_temporary_functionality_alteration()
     options_tree.append(('model', 'scaling', 'theta', 'l_t', length_scaling, ('???', None), 'x'))
 
     q_scaling = get_position_scaling(options, architecture)

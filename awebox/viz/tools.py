@@ -265,7 +265,6 @@ def draw_trajectory_rotation_dcm(ax, side, plot_dict, cosmetics, index):
 
         draw_dcm_axes_for_kite(ax, side, plot_dict, cosmetics, index, kite, heading_name, xhat_name, yhat_name,
                                zhat_name, origin_location='zero')
-        print_op.warn_about_temporary_functionality_alteration()
     return None
 
 

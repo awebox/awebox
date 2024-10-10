@@ -27,7 +27,6 @@
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
-import pdb
 
 from . initialization_dir import modular as initialization_modular, initialization
 
