@@ -150,7 +150,7 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
     return None
 
-
+# 18
 def test_segmented_tether(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'segmented_tether_trial'
     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
@@ -263,6 +263,7 @@ def generate_options_dict():
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
+    single_kite_options['solver.generation_method'] = 'multiprocessing_pool'
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 

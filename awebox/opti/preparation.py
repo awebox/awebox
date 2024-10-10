@@ -387,9 +387,9 @@ def construct_single_solver_from_bundle(bundled_nlp_and_options):
     local_g = local_g_fun(local_V, local_P)
 
     # fill in nlp dict
-    local_got_nlp = {'x': local_V, 'p': local_P, 'f': local_f, 'g': local_g}
+    local_nlp = {'x': local_V, 'p': local_P, 'f': local_f, 'g': local_g}
     local_opts = bundled_nlp_and_options['opts']
-    local_solver = cas.nlpsol('solver', 'ipopt', local_got_nlp, local_opts)
+    local_solver = cas.nlpsol('solver', 'ipopt', local_nlp, local_opts)
     return local_solver
 
 

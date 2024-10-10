@@ -24,14 +24,16 @@ def test_parallel_solver_generation():
     trial_options['nlp.collocation.u_param'] = 'zoh'
     trial_options['nlp.n_k'] = 5
     trial_options['solver.max_iter'] = 2
-    trial_options['solver.generation_method'] = 'multiprocessing_pool'
 
-    trial_name = 'multiprocessing_pool'
+    for solver_generation_method in ['serial', 'multiprocessing_pool']:
+        trial_options['solver.generation_method'] = solver_generation_method
 
-    # compute trajectory solution
-    trial = awe_trial.Trial(trial_options, trial_name)
-    trial.build()
-    trial.optimize(final_homotopy_step='initial')
+        trial_name = solver_generation_method
+
+        # compute trajectory solution
+        trial = awe_trial.Trial(trial_options, trial_name)
+        trial.build()
+        trial.optimize(final_homotopy_step='initial')
 
 if __name__ == "__main__":
     test_parallelization()
