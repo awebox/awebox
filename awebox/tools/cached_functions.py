@@ -16,7 +16,9 @@ if not path.exists(CACHE_FOLDER):
     makedirs(CACHE_FOLDER)
 
 logger = logging.getLogger(__name__)
-_COMPILERS = ["gcc"]
+_COMPILERS = ["gcc"] # Linux 
+# _COMPILERS = ["clang"]  # OSX
+# _COMPILERS = ["cl.exe"] # Windows
 _COMPILER = None
 
 # Data utils
