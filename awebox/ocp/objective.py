@@ -216,6 +216,7 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     parallellization = nlp_options['parallelization']['type']
 
     reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(nlp_options, variables, V)
+    reg_costs_fun = struct_op.generate_and_compile(reg_costs_fun, reg_costs_fun.name(), 'reg_costs_fun', nlp_options['temp_dir'], nlp_options['compile_subfunctions'], nlp_options['load_subfunctions'])
     reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
 
     summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
