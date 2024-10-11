@@ -58,7 +58,7 @@ def set_default_user_options():
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
-        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator']),'x'),
+        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator', 'vortex']),'x'),
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
@@ -303,8 +303,10 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
         ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
+        ('nlp',  'cost',             None, 'beta',                 False,                  ('side-slip angle regularization', None), 's'),
         ('nlp',  'cost',             None, 'adjustments_to_general_regularization_distribution', [], ('list of reassignments of generalized regularization, entries must be tuples (model var type, var name, reassigment))', None), 's'),
         ('nlp',  None,               None, 'generate_constraints', True,                   ('DO NOT TURN THIS OFF. trial.nlp should generate the constraints', [True, False]), 'x'),
+        ('nlp',  None,               None, 'compile_subfunctions', False,                  ('Compile NLP subfunctions (objective, constraints)', [True, False]), 'x'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
@@ -428,7 +430,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
-        ('solver',  'cost',             'beta',             0,      1e3,        ('starting cost for beta', None),'s'),
+        ('solver',  'cost',             'beta',             0,      1e4,        ('starting cost for beta', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
         ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),

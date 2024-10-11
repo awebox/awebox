@@ -13,6 +13,7 @@ figures/
 *.png
 *.eps
 *.mp4
+*.png
 
 # Savefiles
 *.csv
@@ -24,6 +25,8 @@ figures/
 *.dict
 *.ipynb
 *.pckl
+cache/
+tracking_files/
 
 # Profiler
 *.prof

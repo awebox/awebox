@@ -177,8 +177,6 @@ class Pmpc(object):
 
         # store nlp bounds
         self.__trial.nlp.V_bounds['ub']['phi'] = 0.0
-        self.__trial.nlp.V_bounds['lb']['xi'] = 0.0
-        self.__trial.nlp.V_bounds['ub']['xi'] = 0.0
 
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
@@ -320,7 +318,7 @@ class Pmpc(object):
                     weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
-        weights['Z'] = np.ones((self.__nz,1))
+        weights['Z'] = 100*np.ones((self.__nz,1))
         self.__weights = weights
 
         # create tracking function
@@ -468,7 +466,6 @@ class Pmpc(object):
             else:
                 V_list.append(self.__N * self.__ts)
         V_list.append(np.zeros(V_ref['phi'].shape))
-        V_list.append(np.zeros(V_ref['xi'].shape))
 
         for k in range(self.__N):
             for j in range(self.__trial.nlp.d+1):

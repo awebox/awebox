@@ -62,6 +62,9 @@ options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
 
+# compile subfunctions to speed up construction time
+options['nlp.compile_subfunctions'] = False # True
+
 # ----------------- create reference trajectory ----------------- #
 
 # options for path optimization
@@ -99,6 +102,9 @@ N_sim = int(round(t_end/ts)) # number of MPC evaluations
 tracking_options['sim.number_of_finite_elements'] = N_dt
 tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
 
+if compilation_flag:
+    tracking_options['nlp.compile_subfunctions'] = False # incompatibility
+
 # feed-in tracking options to trial
 trial.options_seed = tracking_options
 
@@ -111,6 +117,8 @@ mpc_opts['mpc']['max_iter'] = 1000
 mpc_opts['mpc']['max_cpu_time'] = 10.
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
+if tracking_options['nlp.compile_subfunctions']:
+    mpc_opts['mpc']['expand'] = False # incompatible
 
 # MPC weights
 nx = 23
@@ -251,7 +259,7 @@ F_ref = ca.Function('F_ref', [t_grid, t_grid_x, t_grid_u], [ref], ['tgrid', 'tgr
 
 # shift solution
 V = mpc.trial.nlp.V
-V_init = [V['theta'], V['phi'], V['xi']]
+V_init = [V['theta'], V['phi']]
 for k in range(N_mpc-1):
    V_init.append(V['x',k+1])
    if mpc_opts['mpc']['u_param'] == 'zoh':

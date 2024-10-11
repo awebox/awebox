@@ -47,6 +47,10 @@ options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is 'shooting_nodes'
 
+# (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+# note: this may result in slightly slower solution timings
+options['nlp.compile_subfunctions'] = False
+
 # ----------------- solve OCP ----------------- #
 
 # build and optimize the NLP (trial)

@@ -41,6 +41,7 @@ import collections
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.cached_functions as cf
 
 def get_general_regularization_function(variables):
 
@@ -216,9 +217,22 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model, Collocation):
     parallellization = nlp_options['parallelization']['type']
 
     reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(nlp_options, variables, V)
-    reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+    if nlp_options['compile_subfunctions']:
+        reg_costs_fun = cf.CachedFunction(nlp_options['compilation_file_name'], reg_costs_fun, do_compile=nlp_options['compile_subfunctions'])
 
-    summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
+    if nlp_options['parallelization']['map_type'] == 'for-loop':
+
+        reg_costs_list = []
+        for k in range(vars.shape[1]):
+            reg_costs_list.append(reg_costs_fun(vars[:,k], refs[:,k], weights[:,k]))
+        reg_costs = cas.horzcat(*reg_costs_list)
+
+    elif nlp_options['parallelization']['map_type'] == 'map':
+
+        reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+        reg_costs = reg_costs_map(vars, refs, weights)
+
+    summed_reg_costs = cas.sum2(reg_costs)
 
     idx = 0
     for cost in reg_costs_dict.keys():
@@ -379,34 +393,13 @@ def find_homotopy_cost(component_costs):
     return homotopy_cost
 
 
-def find_beta_cost(nlp_options, model, Outputs, P):
+def find_beta_cost(nlp_options, model, Integral_outputs, P):
 
-    struct_op.sanity_check_find_output_idx(model.outputs)
-
-    int_weights = find_int_weights(nlp_options)
-    d = nlp_options['collocation']['d']
-
-    if model.kite_dof == 6:
-        beta_cost = cas.DM(0.)
-        for kite in model.architecture.kite_nodes:
-
-            idx = struct_op.find_output_idx(model.outputs, 'aerodynamics', 'beta{}'.format(kite))
-            for kdx in range(nlp_options['n_k']):
-                if nlp_options['discretization'] == 'direct_collocation':
-                    for ddx in range(d):
-                        local_beta = Outputs[idx, kdx * (d + 1) + ddx + 1]
-                        beta_cost += int_weights[ddx] * local_beta**2.
-
-                else:
-                    local_beta = Outputs[idx, kdx]
-                    beta_cost += local_beta**2.
-
+    if nlp_options['cost']['beta'] and model.kite_dof == 6:
+        beta_cost = Integral_outputs['int_out', -1, 'beta_cost']
         beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']
     else:
         beta_cost = 0
-
-    # todo: put this into quadrature integration, so that it doesn't have to be done manually and uncontrolled here.
-    # todo: maybe also, divide by number of kites
 
     return beta_cost
 
@@ -459,7 +452,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, Collocation, xdo
     component_costs['power_cost'] = find_power_cost(nlp_options, model, V, P, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
-    component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Outputs, P)
+    component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Integral_outputs, P)
     component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs, P)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
