@@ -319,6 +319,7 @@ class Pmpc(object):
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
         weights['Z'] = 100*np.ones((self.__nz,1))
+
         self.__weights = weights
 
         # create tracking function
