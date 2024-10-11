@@ -228,29 +228,16 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
-    # if ddx == d - 1:
-    #     kdx = kdx + 1
-    #     ddx = None
     at_control_node = (ddx is None)
 
-    passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
+    passed_Xdot_is_meaningful = (Xdot is not None)
 
     derivs_lifted_in_V = ('xdot' in list(V.keys()))
-
-    sample_deriv = 'd' + subkeys(model_variables, 'x')[0]
-    sample_deriv_label = '[' + coll_var_name + ',0,0,xdot,' + sample_deriv + ',0]'
-    derivs_lifted_in_coll_vars = sample_deriv_label in V.labels()
-
-    sample_control = subkeys(model_variables, 'u')[0]
-    sample_control_label = '[' + coll_var_name + ',0,0,u,' + sample_control + ',0]'
-    controls_lifted_in_coll_vars = sample_control_label in V.labels()
 
     if at_control_node and derivs_lifted_in_V and kdx < n_k:
         return V[var_type, kdx]
     elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
-    elif derivs_lifted_in_coll_vars and kdx < n_k:
-        return V[coll_var_name, kdx, ddx, 'xdot']
     elif passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['coll_x', kdx, ddx]
     else:
@@ -280,13 +267,13 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                     local_val = V['x', kdx, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx < n_k:
                     local_val = V['u', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls and controls_lifted_in_coll_vars:
+                elif at_control_node and deriv_name_in_controls and not u_is_zoh:
                     kdx_local = kdx - 1
                     ddx_local = -1
                     local_val = V[coll_var_name, kdx_local, ddx_local, 'u', deriv_name, dim]
                 elif deriv_name_in_states and V_has_collocation_vars and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
-                elif deriv_name_in_controls and V_has_collocation_vars and controls_lifted_in_coll_vars and kdx < n_k:
+                elif deriv_name_in_controls and V_has_collocation_vars and not u_is_zoh and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'u', deriv_name, dim]
                 else:
                     local_val = cas.DM.zeros((1, 1))
