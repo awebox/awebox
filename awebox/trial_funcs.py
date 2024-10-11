@@ -112,8 +112,7 @@ def interpolate_data(trial, freq):
         integral_output_names, integral_outputs_opt, Collocation=Collocation)
     return interpolation
 
-
-def generate_optimal_model(trial, param_options=None):
+def generate_optimal_model(trial, param_options = None, external_forces = False):
 
     """
     Generate optimal model dict based on both optimized parameter values
@@ -155,6 +154,10 @@ def generate_optimal_model(trial, param_options=None):
                     parameters['theta0',param_type,param] = param_options[param_type][param]
         else:
             parameters['theta0', param_type] = param_options[param_type]
+
+    # switch on fictitious forces and moments    
+    if external_forces:
+        parameters['phi', 'gamma'] = 1
 
     # create stage cost function
     import awebox.ocp.objective as obj
