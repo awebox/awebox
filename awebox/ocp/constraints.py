@@ -226,27 +226,53 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     # create maps of relevant functions
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_ineq', mdl_ineq_fun, do_compile=nlp_options['compile_subfunctions'])
-
-    if nlp_options['collocation']['u_param'] == 'poly':
-        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
-    elif nlp_options['collocation']['u_param'] == 'zoh':
-        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+    if nlp_options['compile_subfunctions']:
+        mdl_ineq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_ineq', mdl_ineq_fun, do_compile=nlp_options['compile_subfunctions'])
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
-
-    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
-
-    mdl_shooting_eq_map = mdl_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+    if nlp_options['compile_subfunctions']:
+        mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
 
     # evaluate constraint functions
-    if nlp_options['collocation']['u_param'] == 'poly':
-        ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
-    elif nlp_options['collocation']['u_param'] == 'zoh':
-        ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
-    ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
+    if nlp_options['parallelization']['map_type'] == 'for-loop':
+
+        if nlp_options['collocation']['u_param'] == 'poly':
+            # ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
+            ocp_ineqs_list = []
+            for k in range(coll_vars.shape[1]):
+                ocp_ineqs_list.append(mdl_ineq_fun(coll_vars[:,k], coll_params[:,k]))
+            ocp_ineqs_expr = cas.horzcat(*ocp_ineqs_list)
+
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            ocp_ineqs_list = []
+            for k in range(shooting_vars.shape[1]):
+                ocp_ineqs_list.append(mdl_ineq_fun(shooting_vars[:,k], shooting_params[:,k]))
+            ocp_ineqs_expr = cas.horzcat(*ocp_ineqs_list)
+
+        ocp_eqs_list = []
+        for k in range(coll_vars.shape[1]):
+            ocp_eqs_list.append(mdl_eq_fun(coll_vars[:,k], coll_params[:,k]))
+        ocp_eqs_expr = cas.horzcat(*ocp_eqs_list)
+
+        ocp_eqs_list = []
+        for k in range(shooting_vars.shape[1]):
+            ocp_eqs_list.append(mdl_eq_fun(shooting_vars[:,k], shooting_params[:,k]))
+        ocp_eqs_shooting_expr = cas.horzcat(*ocp_eqs_list)
+
+    elif nlp_options['parallelization']['map_type'] == 'map':
+
+        if nlp_options['collocation']['u_param'] == 'zoh':
+            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+            ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
+        elif nlp_options['collocation']['u_param'] == 'poly':
+            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
+            ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
+
+        mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
+        mdl_shooting_eq_map = mdl_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+
+        ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
+        ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
 
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):

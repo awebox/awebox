@@ -217,10 +217,22 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     parallellization = nlp_options['parallelization']['type']
 
     reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(nlp_options, variables, V)
-    reg_costs_fun = cf.CachedFunction(nlp_options['compilation_file_name'], reg_costs_fun, do_compile=nlp_options['compile_subfunctions'])
-    reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+    if nlp_options['compile_subfunctions']:
+        reg_costs_fun = cf.CachedFunction(nlp_options['compilation_file_name'], reg_costs_fun, do_compile=nlp_options['compile_subfunctions'])
 
-    summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
+    if nlp_options['parallelization']['map_type'] == 'for-loop':
+
+        reg_costs_list = []
+        for k in range(vars.shape[1]):
+            reg_costs_list.append(reg_costs_fun(vars[:,k], refs[:,k], weights[:,k]))
+        reg_costs = cas.horzcat(*reg_costs_list)
+
+    elif nlp_options['parallelization']['map_type'] == 'map':
+
+        reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+        reg_costs = reg_costs_map(vars, refs, weights)
+
+    summed_reg_costs = cas.sum2(reg_costs)
 
     idx = 0
     for cost in reg_costs_dict.keys():
