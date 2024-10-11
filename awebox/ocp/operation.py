@@ -102,13 +102,6 @@ def get_initial_constraints(options, initial_variables, ref_variables, model):
 
     _, initial_conditions, param_initial_conditions, _, _, _, _ = get_operation_conditions(options)
 
-    if param_initial_conditions:
-        init_param_eq = make_param_initial_conditions(initial_variables, ref_variables, model, options)
-        init_param_cstr = cstr_op.Constraint(expr=init_param_eq,
-                                    name='param_initial_conditions',
-                                    cstr_type='eq')
-        cstr_list.append(init_param_cstr)
-
     if initial_conditions:
         init_eq = make_initial_conditions(initial_variables, ref_variables, model, options)
         init_cstr = cstr_op.Constraint(expr=init_eq,
@@ -164,13 +157,6 @@ def get_terminal_constraints(options, terminal_variables, ref_variables, model):
     cstr_list = cstr_op.OcpConstraintList()
 
     _, _, _, param_terminal_conditions, terminal_inequalities, integral_constraints, terminal_conditions = get_operation_conditions(options)
-
-    if param_terminal_conditions:
-        terminal_param_eq = make_param_terminal_conditions(terminal_variables, ref_variables, model, options)
-        terminal_param_cstr = cstr_op.Constraint(expr=terminal_param_eq,
-                                    name='param_terminal_conditions',
-                                    cstr_type='eq')
-        cstr_list.append(terminal_param_cstr)
 
     if terminal_inequalities:
         terminal_ineq = make_terminal_position_inequality(terminal_variables, model, options)
