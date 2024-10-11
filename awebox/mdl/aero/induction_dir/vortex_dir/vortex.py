@@ -325,6 +325,15 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
 
         outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
 
+        if 'rotation' in outputs.keys():
+            ehat_normal = outputs['rotation']['ehat_normal' + str(parent_obs)]
+            ehat_tangential = outputs['rotation']['ehat_tangential' + str(kite_obs)]
+            ehat_radial = outputs['rotation']['ehat_radial' + str(kite_obs)]
+
+            outputs['vortex']['u_ind_normal' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_normal)
+            outputs['vortex']['u_ind_tangential' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_tangential)
+            outputs['vortex']['u_ind_radial' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_radial)
+
     return outputs
 
 
