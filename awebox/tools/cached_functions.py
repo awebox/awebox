@@ -8,6 +8,7 @@ import os
 from os import path, makedirs, listdir, rename
 from typing import Callable
 from subprocess import call
+import platform
 
 SOURCE_FOLDER = os.getcwd()# path.dirname(path.abspath(__file__))
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "cache")
@@ -16,9 +17,12 @@ if not path.exists(CACHE_FOLDER):
     makedirs(CACHE_FOLDER)
 
 logger = logging.getLogger(__name__)
-_COMPILERS = ["gcc"] # Linux 
-# _COMPILERS = ["clang"]  # OSX
-# _COMPILERS = ["cl.exe"] # Windows
+if platform == 'Linux':
+    _COMPILERS = ["gcc"] # Linux
+elif platform == 'Darwin':
+    _COMPILERS = ["clang"]  # OSX
+elif platform == 'Windows':
+    _COMPILERS = ["cl.exe"] # Windows
 _COMPILER = None
 
 # Data utils
