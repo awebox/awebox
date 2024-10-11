@@ -313,6 +313,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
+        ('solver',  None,   None,   'generation_method',    'serial',   ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures', 'pathos', 'joblib', 'gevent']), 'x'),
         ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
         ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
