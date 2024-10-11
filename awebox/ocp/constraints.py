@@ -362,7 +362,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     
     elif u_zoh_ineq_coll:
         entry_tuple += (
-            cas.entry('shooting',       repeat = [n_k],     shape = mdl_shooting_cstr_sublist.get_expression_list('eq').shape),
+            cas.entry('shooting',       repeat = [n_k],       struct = mdl_dyn_constraints),
             cas.entry('path',           repeat = [n_k,d],     struct = mdl_path_constraints),
         )
 
