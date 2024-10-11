@@ -85,7 +85,6 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     entry_list = [
         cas.entry('theta', struct = theta),
         cas.entry('phi',   struct = model.parameters_dict['phi']),
-        cas.entry('xi',    struct = get_xi_struct()),
         entry_tuple
     ]
 
@@ -109,7 +108,3 @@ def get_phase_fix_theta(variables_dict):
 
     return theta
 
-def get_xi_struct():
-    xi = cas.struct_symMX([(cas.entry('xi_0'), cas.entry('xi_f'))])
-
-    return xi
