@@ -17,11 +17,11 @@ if not path.exists(CACHE_FOLDER):
     makedirs(CACHE_FOLDER)
 
 logger = logging.getLogger(__name__)
-if platform == 'Linux':
+if platform.system() == 'Linux':
     _COMPILERS = ["gcc"] # Linux
-elif platform == 'Darwin':
+elif platform.system() == 'Darwin':
     _COMPILERS = ["clang"]  # OSX
-elif platform == 'Windows':
+elif platform.system() == 'Windows':
     _COMPILERS = ["cl.exe"] # Windows
 _COMPILER = None
 
