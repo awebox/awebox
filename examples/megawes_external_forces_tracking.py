@@ -63,7 +63,7 @@ options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
 
 # compile subfunctions to speed up construction time
-options['nlp.compile_subfunctions'] = True # True
+options['nlp.compile_subfunctions'] = False # True
 
 # ----------------- create reference trajectory ----------------- #
 
