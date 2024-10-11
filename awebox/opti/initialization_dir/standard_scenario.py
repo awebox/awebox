@@ -49,15 +49,6 @@ def get_normalized_time_param_dict(ntp_dict, formulation):
 
     return ntp_dict
 
-def set_normalized_time_params(formulation, V_init):
-    xi_0_init = 0.0
-    xi_f_init = 0.0
-
-    V_init['xi', 'xi_0'] = xi_0_init
-    V_init['xi', 'xi_f'] = xi_f_init
-
-    return V_init
-
 def guess_radius(init_options, model):
     radius = init_options['precompute']['radius']
     return radius

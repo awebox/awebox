@@ -589,10 +589,14 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
     return scaling_value
 
 
-def var_si_to_scaled(var_type, var_name, var_si, scaling):
-    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
-    if message is not None:
-        print_op.base_print(message, level='warning')
+def var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply = True):
+    
+    if check_should_multiply:
+        should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
+        if message is not None:
+            print_op.base_print(message, level='warning')
+    else:
+        should_multiply = True
 
     if should_multiply:
         scale = scaling[var_type, var_name]
@@ -601,11 +605,14 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling):
     else:
         return var_si
 
-def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
+def var_scaled_to_si(var_type, var_name, var_scaled, scaling, check_should_multiply = True):
 
-    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
-    if message is not None:
-        print_op.base_print(message, level='warning')
+    if check_should_multiply:
+        should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
+        if message is not None:
+            print_op.base_print(message, level='warning')
+    else:
+        should_multiply = True
 
     if should_multiply:
         scale = scaling[var_type, var_name]
@@ -633,30 +640,31 @@ def si_to_scaled(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
+        if local_canonical[0] != 'phi':
 
-        if len(local_canonical) == 2:
-            var_type = local_canonical[0]
-            var_name = local_canonical[1]
-            var_si = V[var_type, var_name]
-            V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+            if len(local_canonical) == 2:
+                var_type = local_canonical[0]
+                var_name = local_canonical[1]
+                var_si = V[var_type, var_name]
+                V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
-        elif len(local_canonical) == 3:
-            var_type = local_canonical[0]
-            kdx = local_canonical[1]
-            var_name = local_canonical[2]
-            var_si = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+            elif len(local_canonical) == 3:
+                var_type = local_canonical[0]
+                kdx = local_canonical[1]
+                var_name = local_canonical[2]
+                var_si = V[var_type, kdx, var_name]
+                V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
-        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
-            kdx = local_canonical[1]
-            ddx = local_canonical[2]
-            var_type = local_canonical[3]
-            var_name = local_canonical[4]
-            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
-            V[coll_var_name, kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
-        else:
-            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
-            print_op.log_and_raise_error(message)
+            elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
+                kdx = local_canonical[1]
+                ddx = local_canonical[2]
+                var_type = local_canonical[3]
+                var_name = local_canonical[4]
+                var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+                V[coll_var_name, kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
+            else:
+                message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
+                print_op.log_and_raise_error(message)
 
     return V
 
@@ -667,30 +675,30 @@ def scaled_to_si(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
+        if local_canonical[0] != 'phi':
+            if len(local_canonical) == 2:
+                var_type = local_canonical[0]
+                var_name = local_canonical[1]
+                var_si = V[var_type, var_name]
+                V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
-        if len(local_canonical) == 2:
-            var_type = local_canonical[0]
-            var_name = local_canonical[1]
-            var_si = V[var_type, var_name]
-            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
+            elif len(local_canonical) == 3:
+                var_type = local_canonical[0]
+                kdx = local_canonical[1]
+                var_name = local_canonical[2]
+                var_si = V[var_type, kdx, var_name]
+                V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
-        elif len(local_canonical) == 3:
-            var_type = local_canonical[0]
-            kdx = local_canonical[1]
-            var_name = local_canonical[2]
-            var_si = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
-
-        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
-            kdx = local_canonical[1]
-            ddx = local_canonical[2]
-            var_type = local_canonical[3]
-            var_name = local_canonical[4]
-            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
-            V[coll_var_name, kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
-        else:
-            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
-            print_op.log_and_raise_error(message)
+            elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
+                kdx = local_canonical[1]
+                ddx = local_canonical[2]
+                var_type = local_canonical[3]
+                var_name = local_canonical[4]
+                var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+                V[coll_var_name, kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
+            else:
+                message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
+                print_op.log_and_raise_error(message)
 
     return V
 

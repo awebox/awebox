@@ -35,6 +35,8 @@ from . import reference
 
 import awebox.tools.struct_operations as struct_op
 
+import os
+
 import copy
 
 import casadi as cas
@@ -168,11 +170,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
         V_bounds['lb']['phi', name] = 1.
         V_bounds['ub']['phi', name] = 1.
 
-    for name in list(formulation.xi_dict['xi_bounds'].keys()):
-        xi_bounds = formulation.xi_dict['xi_bounds']
-        V_bounds['lb']['xi', name] = xi_bounds[name][0]
-        V_bounds['ub']['xi', name] = xi_bounds[name][1]
-
     for name in struct_op.subkeys(model.variables, 'theta'):
         if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
             initial_si_value = cas.DM(options['initialization']['theta'][name])
@@ -283,6 +280,22 @@ def generate_default_solver_options(options):
     return opts
 
 
+def fix_code(path):
+    import re
+    # Define the pattern to find and the replacement pattern
+    pattern = re.compile(r'if \((mid = (.*?))flag\) return 1;', re.MULTILINE | re.DOTALL)
+    # pattern = re.compile(r'if \((mid(.*?))flag\) return 1;', re.MULTILINE | re.DOTALL)
+    replacement = r'\1if (flag) return 1;'
+
+    # Read the file
+    with open(path, 'r') as file:
+        file_contents = file.read()
+    
+    # Apply the correction
+    corrected_contents = re.sub(pattern, replacement, file_contents)
+    with open(path, 'w') as file:
+        file.write(corrected_contents)
+
 def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     initial_opts = generate_default_solver_options(options)
     middle_opts = generate_default_solver_options(options)
@@ -314,9 +327,33 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
         final_opts['iteration_callback'] = awebox_callback
         final_opts['iteration_callback_step'] = options['callback_step']
 
+    awelogger.logger.info('Generate initial solver...')
+    test = nlp.get_nlp()
     initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    # awelogger.logger.info('Generated initial solver.')
+    recompile = False
+    if recompile:
+        awelogger.logger.info('Generate dependencies...')
+        initial_solver.generate_dependencies('nlp.c')
+        fix_code('nlp.c')
+        os.system('mv nlp.c cache/nlp.c')
+
+        awelogger.logger.info('Generated dependencies.')
+
+        awelogger.logger.info('Compiling nlp.o...')
+        os.system("g++ -fPIC -march=native -c cache/nlp.c -o cache/nlp.o")
+
+        awelogger.logger.info('Compiling nlp.so...')
+        os.system("g++ -fPIC -shared -o cache/nlp.so cache/nlp.o cache/mdl_eq_fun.so cache/mdl_ineq_fun.so cache/integral_outputs_fun.so cache/reg_costs_fun.so".format(temp_dir = nlp.options['temp_dir']))
+
+        awelogger.logger.info('Generate middle solver...')
+        middle_solver = cas.nlpsol('solver', 'ipopt', '{}nlp.so'.format(nlp.options['temp_dir']), middle_opts)
+
+        awelogger.logger.info('Generate final solver...')
+        final_solver = cas.nlpsol('solver', 'ipopt', '{}nlp.so'.format(nlp.options['temp_dir']), final_opts)
+    else:
+        middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
+        final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
 
     solvers = {}
     solvers['initial'] = initial_solver
