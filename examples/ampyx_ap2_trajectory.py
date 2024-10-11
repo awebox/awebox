@@ -48,7 +48,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
 
-    # (experimental) set to "True" to significantly increase construction time
+    # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
     # note: this may result in slightly slower solution timings
     options['nlp.compile_subfunctions'] = False
 
