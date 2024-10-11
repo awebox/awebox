@@ -296,6 +296,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
         ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
+        ('nlp',  'cost',             None, 'beta',                 False,                  ('side-slip angle regularization', None), 's'),
         ('nlp',  'cost',             None, 'adjustments_to_general_regularization_distribution', [], ('list of reassignments of generalized regularization, entries must be tuples (model var type, var name, reassigment))', None), 's'),
         ('nlp',  None,               None, 'generate_constraints', True,                   ('DO NOT TURN THIS OFF. trial.nlp should generate the constraints', [True, False]), 'x'),
         ('nlp',  None,               None, 'compile_subfunctions', False,                  ('Compile NLP subfunctions (objective, constraints)', [True, False]), 'x'),
@@ -422,7 +423,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'cost',             'nominal_landing',  0,      0,          ('starting cost for nominal_landing', None),'s'),
         ('solver',  'cost',             'compromised_battery',  0,  0,          ('starting cost for compromised_battery', None),'s'),
         ('solver',  'cost',             'transition',       0,      0,          ('starting cost for transition', None),'s'),
-        ('solver',  'cost',             'beta',             0,      1e3,        ('starting cost for beta', None),'s'),
+        ('solver',  'cost',             'beta',             0,      1e4,        ('starting cost for beta', None),'s'),
         ('solver',  'cost',             'P_max',            0,      1,          ('starting cost for P_max', None),'s'),
 
         ('solver',  'cost',             'gamma',            1,      1e2,        ('update cost for gamma', None),'s'),

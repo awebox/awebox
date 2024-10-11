@@ -213,6 +213,13 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
     energy_scaling = model_options['scaling']['x']['e']
     derivative_dict = {'e': (power_si, energy_scaling)}
 
+    if model_options['kite_dof'] == 6 and model_options['beta_cost']:
+        beta_scaling = 1.
+        beta_si = 0.
+        for kite in architecture.kite_nodes:
+            beta_si += outputs['aerodynamics']['beta{}'.format(kite)]**2
+        beta_si = beta_si / len(architecture.kite_nodes)
+        derivative_dict['beta_cost'] =  (beta_si, beta_scaling)
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.
         power_derivative_sq = outputs['performance']['power_derivative']**2
