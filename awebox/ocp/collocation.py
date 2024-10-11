@@ -40,7 +40,7 @@ from collections import OrderedDict
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
-
+import awebox.tools.cached_functions as cf
 class Collocation(object):
     """Collocation class with methods for optimal control
     """
@@ -391,6 +391,21 @@ class Collocation(object):
         integral_constraints['inequality'] = []
         integral_constraints['equality'] = []
 
+        # evaluate integral_outputs_deriv
+        integral_outputs_fun = model.integral_outputs_fun
+        if options['compile_subfunctions']:
+            integral_outputs_fun = cf.CachedFunction(options['compilation_file_name'], integral_outputs_fun, do_compile=options['compile_subfunctions'])
+
+        if options['parallelization']['map_type'] == 'for-loop':
+            int_out_list = []
+            for k in range(coll_vars.shape[1]):
+                int_out_list.append(integral_outputs_fun(coll_vars[:,k], coll_params[:,k]))
+            integral_outputs_deriv = cas.horzcat(*int_out_list)
+
+        elif options['parallelization']['map_type'] == 'map':
+            integral_outputs_fun_map = integral_outputs_fun.map('integral_outputs_fun_map', options['parallelization']['type'], coll_vars.shape[1], [], [])
+            integral_outputs_deriv = integral_outputs_fun_map(coll_vars, coll_params)
+
         # evaluate functions in for loop
         for kdx in range(self.__n_k):
 
@@ -401,7 +416,6 @@ class Collocation(object):
                 idx = ddx + kdx * self.__d
 
                 coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
-                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
                 integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
                 integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 

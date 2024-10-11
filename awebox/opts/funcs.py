@@ -227,10 +227,32 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
-    # else:
-    #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
-    #     options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
-    #     options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [power, power], ('????', None), 'x'))
+    if options['nlp']['compile_subfunctions']:
+
+        # general name for compilation files that takes into account (most) identifying options for model and constraints
+        compilation_file_name = 'awebox_{}_k{}_{}_{}_{}dof_{}_wind_profile_{}{}_{}'.format(
+            user_options['trajectory']['type'],
+            len(architecture.kite_nodes),
+            user_options['kite_standard']['name'],
+            user_options['trajectory']['system_type'],
+            user_options['system_model']['kite_dof'],
+            user_options['wind']['model'],
+            user_options['tether_drag_model'],
+            options['model']['tether']['aero_elements'],
+            options['model']['tether']['control_var']
+        )
+
+        if options['nlp']['cost']['P_max']:
+            compilation_file_name += '_P_max'
+        
+        if user_options['induction_model'] != 'not_in_use':
+            compilation_file_name += '_' + user_options['induction_model']
+
+        options_tree.append(('nlp', None, None, 'compilation_file_name', compilation_file_name, ('compilation', None), 'x'))
+        options_tree.append(('nlp', 'parallelization', None, 'map_type', 'for-loop', ('parallellization map type', ['for-loop', 'map']), 't'))
+
+    else:
+        options_tree.append(('nlp', 'parallelization', None, 'map_type', 'map', ('parallellization map type', ['for-loop', 'map']), 't'))
 
     return options_tree, phase_fix
 
@@ -272,10 +294,10 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     if options['solver']['expand_overwrite'] is not None:
         expand = options['solver']['expand_overwrite']
     else:
+        if options['nlp']['compile_subfunctions']:
+            expand = False
         if options['nlp']['discretization'] == 'multiple_shooting':
             # integrators / rootfinder do not support eval_sx
-            expand = False
-        if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
     if user_options['trajectory']['system_type'] == 'lift_mode':
