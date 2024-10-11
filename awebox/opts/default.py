@@ -494,6 +494,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'kite_bodies', False,          ('choose whether kite bodies should be plotted or not', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'body_cross_sections_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_aero_dcm',     False,    ('draw the kite aerodynamic-orientation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'trajectory_rotation_dcm', False,('draw the trajectory-rotation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'wake_nodes',  False,          ('draw wake nodes into instantaneous plots', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_theta',  100,      ('number of cylinder (tangential) slices to be drawn', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_s',      10,       ('number of cylinder (longitudinal) slices to be drawn', None), 'x'),

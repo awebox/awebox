@@ -283,6 +283,8 @@ def plot_trajectory_instant(ax, plot_dict, index, cosmetics, side, init_colors=b
 
     if cosmetics['trajectory']['kite_aero_dcm']:
         tools.draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index)
+    if cosmetics['trajectory']['trajectory_rotation_dcm']:
+        tools.draw_trajectory_rotation_dcm(ax, side, plot_dict, cosmetics, index)
 
     if cosmetics['trajectory']['wake_nodes']:
         wake.draw_wake_nodes(ax, side, plot_dict, cosmetics, index)

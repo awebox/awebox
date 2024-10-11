@@ -49,7 +49,7 @@ def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, pa
 
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
-    outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture)
+    outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture, scaling)
     outputs = indicators.get_circulation_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
@@ -210,7 +210,6 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables_si, parameters,
                                                                base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_power_balance_outputs(options, architecture, variables_si, base_aerodynamic_quantities, outputs)
-
 
     return outputs
 
