@@ -395,7 +395,7 @@ def find_homotopy_cost(component_costs):
 
 def find_beta_cost(nlp_options, model, Integral_outputs, P):
 
-    if nlp_options['cost']['beta_cost'] and model.kite_dof == 6:
+    if nlp_options['cost']['beta'] and model.kite_dof == 6:
         beta_cost = Integral_outputs['int_out', -1, 'beta_cost']
         beta_cost = P['cost', 'beta'] * beta_cost / nlp_options['cost']['normalization']['beta']
     else:
