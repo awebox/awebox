@@ -46,12 +46,12 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def cross(a, b):
-    vi = xhat() * (a[1] * b[2] - a[2] * b[1])
-    vj = yhat() * (a[0] * b[2] - a[2] * b[0])
-    vk = zhat() * (a[0] * b[1] - a[1] * b[0])
+    # vi = xhat() * (a[1] * b[2] - a[2] * b[1])
+    # vj = yhat() * (a[0] * b[2] - a[2] * b[0])
+    # vk = zhat() * (a[0] * b[1] - a[1] * b[0])
 
-    v = vi - vj + vk
-
+    # v = vi - vj + vk
+    v = cas.cross(a,b)
     return v
 
 def norm(a):

@@ -81,8 +81,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
         init_options = standard.precompute_path_parameters(init_options, model)
 
     ntp_dict = get_normalized_time_param_dict(nlp, formulation, init_options, V_init_si)
-    V_init_si = set_normalized_time_params(init_options, formulation, V_init_si)
-
+    
     V_init_si = set_final_time(init_options, V_init_si, model, formulation, ntp_dict)
 
     V_init_si = extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict)
@@ -120,23 +119,6 @@ def get_normalized_time_param_dict(nlp, formulation, init_options, V_init):
         ntp_dict = standard.get_normalized_time_param_dict(ntp_dict, formulation)
 
     return ntp_dict
-
-
-def set_normalized_time_params(init_options, formulation, V_init):
-    if init_options['type'] in ['nominal_landing']:
-        V_init = landing.set_nominal_landing_normalized_time_params(formulation, V_init)
-
-    elif init_options['type'] in ['compromised_landing']:
-        V_init = landing.set_compromised_landing_normalized_time_params(formulation, V_init)
-
-    elif init_options['type'] in ['transition']:
-        V_init = transition.set_normalized_time_params(formulation, V_init)
-
-    else:
-        V_init = standard.set_normalized_time_params(formulation, V_init)
-
-    return V_init
-
 
 def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     if init_options['type'] in ['nominal_landing']:

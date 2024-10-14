@@ -24,6 +24,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options = {}
     options['user_options.system_model.architecture'] = {1: 0}
     options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+    # options['model.system_bounds.theta.t_f'] = [5., 30.]  # [s]
 
     # indicate desired operation mode
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -46,6 +47,10 @@ def run(plot_show_block=True, overwrite_options={}):
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
+
+    # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+    # note: this may result in slightly slower solution timings
+    options['nlp.compile_subfunctions'] = False
 
     for option_name, option_val in overwrite_options.items():
         options[option_name] = option_val
@@ -111,7 +116,7 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.grid(True)
 
     # a block=False argument will automatically close the figures after they've been created
-    plt.show(block=plot_show_block)
+    # plt.show(block=plot_show_block)
 
     return trial
 

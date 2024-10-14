@@ -441,6 +441,7 @@ def build_integral_options(options, options_tree, fixed_params):
 
     check_energy_summation = options['quality']['test_param']['check_energy_summation']
     options_tree.append(('model', 'test', None, 'check_energy_summation', check_energy_summation, ('check that no kinetic or potential energy source has gotten lost', None), 'x'))
+    options_tree.append(('model', None, None, 'beta_cost', options['nlp']['cost']['beta'], ('add beta_cost to integral outputs',[True,False]),'x'))
 
     return options_tree, fixed_params
 
