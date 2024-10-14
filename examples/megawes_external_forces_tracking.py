@@ -63,7 +63,7 @@ options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
 
 # compile subfunctions to speed up construction time
-options['nlp.compile_subfunctions'] = False # True
+options['nlp.compile_subfunctions'] = True # False
 
 # ----------------- create reference trajectory ----------------- #
 
@@ -87,28 +87,23 @@ t_end = 1*trial.visualization.plot_dict['time_grids']['x'][-1].full().squeeze()
 tracking_options = copy.deepcopy(optimization_options)
 tracking_options = set_megawes_path_tracking_settings(aero_model='ALM', options = tracking_options)
 
-# set MPC options
-ts = 0.1 # sampling time (length of one MPC window)
-N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
-tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 1000
-tracking_options['mpc.max_cpu_time'] = 10.
-tracking_options['mpc.homotopy_warmstart'] = True
-tracking_options['mpc.terminal_point_constr'] = False
-
-# simulation options
-N_dt = 20 # integrator steps within one sampling time
-N_sim = int(round(t_end/ts)) # number of MPC evaluations
-tracking_options['sim.number_of_finite_elements'] = N_dt
-tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
-
+# don't use subfunction compilation as it slows down MPC evaluation time
+tracking_options['nlp.compile_subfunctions'] = False
 if compilation_flag:
-    tracking_options['nlp.compile_subfunctions'] = False # incompatibility
+    tracking_options['nlp.compile_subfunctions'] = False # incompatibility, to be sure
 
 # feed-in tracking options to trial
 trial.options_seed = tracking_options
 
 # ----------------- create MPC controller with tracking-specific options ----------------- #
+
+# set MPC options
+ts = 0.1 # sampling time (length of one MPC window)
+N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
+
+# simulation options
+N_dt = 20 # integrator steps within one sampling time
+N_sim = int(round(t_end/ts)) # number of MPC evaluations
 
 # create MPC options
 mpc_opts = awe.Options()
@@ -123,11 +118,15 @@ if tracking_options['nlp.compile_subfunctions']:
 # MPC weights
 nx = 23
 nu = 10
+nz = 1
 weights_x = trial.model.variables_dict['x'](1.)
 weights_x['delta10'] = 1e-2
+weights_x['l_t'] = 100
+weights_x['dl_t'] = 100
 Q = weights_x.cat
 R = 1e-2*np.ones((nu, 1))
 P = weights_x.cat
+Z = 1000*np.ones((nz, 1))
 
 # create PMPC object (requires feed-in of tracking options to trial)
 mpc = pmpc.Pmpc(mpc_opts['mpc'], ts, trial)
@@ -450,7 +449,7 @@ for k in range(N_steps):
         # solve MPC problem
         u_ref = tracking_options['user_options.wind.u_ref']
         sol = mpc.solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
-                        p=ca.vertcat(x0, ref, u_ref, Q, R, P))
+                        p=ca.vertcat(x0, ref, u_ref, Q, R, P, Z))
 
         # MPC stats
         stats.append(mpc.solver.stats())
