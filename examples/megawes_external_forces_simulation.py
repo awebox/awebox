@@ -170,12 +170,17 @@ for k in range(N_steps):
         # solve MPC problem
         nx = 23
         nu = 10
-        Q = np.ones((nx, 1))
+        weights_x = x0(1.)
+        weights_x['delta10'] = 1e-2
+        weights_x['l_t'] = 100
+        weights_x['dl_t'] = 100
+        Q = weights_x.cat
         R = 1e-2*np.ones((nu, 1))
-        P = np.ones((nx, 1))
+        P = weights_x.cat
+        Z = 1000*np.ones((1, 1))
         u_ref = 12.
         sol = solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
-                       p=ca.vertcat(x0, ref, u_ref, Q, R, P))
+                       p=ca.vertcat(x0, ref, u_ref, Q, R, P, Z))
 
         # MPC stats
         stats.append(solver.stats())
