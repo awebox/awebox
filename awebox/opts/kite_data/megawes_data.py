@@ -28,7 +28,7 @@ from casadi.tools import vertcat
 def data_dict(aero_model):
 
     data_dict = {}
-    data_dict['name'] = 'megawes'
+    data_dict['name'] = 'megawes' + '_' + aero_model
 
     data_dict['geometry'] = geometry() # kite geometry
 

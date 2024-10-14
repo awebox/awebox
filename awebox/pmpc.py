@@ -148,7 +148,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         if self.__cost_type == 'tracking':
@@ -160,7 +161,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         # create P evaluator for use in NLP arguments
@@ -218,7 +220,7 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None):
+    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None, Z = None):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
@@ -241,10 +243,20 @@ class Pmpc(object):
         # update tracking weights
         if Q == None:
             self.__p0['Q'] = self.__weights['Q']
+        else:
+            self.__p0['Q'] = Q
         if R == None:
             self.__p0['R'] = self.__weights['R']
+        else:
+            self.__p0['R'] = R
         if P == None:
             self.__p0['P'] = self.__weights['P']
+        else:
+            self.__p0['P'] = P
+        if Z == None:
+            self.__p0['Z'] = self.__weights['Z']
+        else:
+            self.__p0['Z'] = Z
 
         if self.__mpc_options['homotopy_warmstart']:
             sol = self.__homotopy_solver(
@@ -310,7 +322,7 @@ class Pmpc(object):
 
         # weighting matrices
         weights = {}
-        for weight in ['Q', 'R', 'P']:
+        for weight in ['Q', 'R', 'P', 'Z']:
             if weight in self.__mpc_options.keys():
                 weights[weight] = self.__mpc_options[weight]
             else:
@@ -318,7 +330,9 @@ class Pmpc(object):
                     weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
-        weights['Z'] = 100*np.ones((self.__nz,1))
+                elif weight == 'Z':
+                    weights['Z'] = 1000*np.ones((self.__nz,1))
+
         self.__weights = weights
 
         # create tracking function
