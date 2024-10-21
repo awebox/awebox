@@ -139,7 +139,7 @@ class NLP(object):
             Outputs = self.__Outputs
         else:
             Outputs = self.__Outputs_fun(self.__V, self.__P)
-        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Collocation, self.__Xdot(self.__Xdot_fun(self.__V)), Outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), Outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 
@@ -151,12 +151,12 @@ class NLP(object):
 
     def get_nlp(self):
 
-        # # construct constraints
-        # g = self.__g_fun(self.__V, self.__P)
-        # f = self.__f_fun(self.__V, self.__P)
+        # construct constraints
+        g = self.__g_fun(self.__V, self.__P)
+        f = self.__f_fun(self.__V, self.__P)
 
         # fill in nlp dict
-        nlp = {'x': self.__V, 'p': self.__P, 'f': self.__f_fun, 'g': self.__g_fun}
+        nlp = {'x': self.__V, 'p': self.__P, 'f': f, 'g': g}
 
         return nlp
 
