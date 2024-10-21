@@ -25,7 +25,7 @@
 '''
 geometry values needed for general induction modelling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-21
+- author: rachel leuthold, alu-fr 2017-24
 - edit: jochem de schutter, alu-fr 2019
 '''
 
@@ -38,6 +38,7 @@ import awebox.mdl.wind as wind_module
 import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
 import awebox.mdl.aero.geometry_dir.averaged_geometry as averaged_geom
 import awebox.mdl.aero.geometry_dir.parent_geometry as parent_geom
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -156,7 +157,7 @@ def kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options,
     return kite_motion_is_right_hand_rule_positive_around_wind_direction
 
 
-def collect_geometry_outputs(model_options, wind, variables_si, outputs, parameters, architecture):
+def collect_geometry_outputs(model_options, wind, variables_si, outputs, parameters, architecture, scaling):
     if 'geometry' not in outputs.keys():
         outputs['geometry'] = {}
 
@@ -195,6 +196,8 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['average_relative_radius' + str(parent)] = average_radius / b_ref
         outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius
         outputs['geometry']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
+
+    outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, scaling)
 
     return outputs
 

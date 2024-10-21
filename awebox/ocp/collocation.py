@@ -62,6 +62,10 @@ class Collocation(object):
         self.__poly_coeffs()
         self.__quadrature_weights()
 
+        # model variables and parameters
+        self.__coll_vars = None
+        self.__coll_params = None
+
         return None
 
     def __poly_coeffs(self):
@@ -260,6 +264,21 @@ class Collocation(object):
 
         return Xdot
 
+    def get_coll_vars_and_params(self, nlp_options, V, P, Xdot, model, recompute = False):
+
+        if self.__coll_vars is None:
+            self.__coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+            self.__coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+            coll_vars = self.__coll_vars
+            coll_params = self.__coll_params
+        elif recompute:
+            coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+            coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
+        else:
+            coll_vars = self.__coll_vars
+            coll_params = self.__coll_params
+
+        return coll_vars, coll_params
 
     def __calculate_collocation_deriv(self, V, k, j):
         """ Compute derivative of polynomial at specific node
@@ -381,8 +400,7 @@ class Collocation(object):
             shooting_params = struct_op.get_shooting_params(options, V, P, model)
 
         # construct list of all collocation node variables and parameters
-        coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
-        coll_params = struct_op.get_coll_params(options, V, P, model)
+        coll_vars, coll_params = self.get_coll_vars_and_params(options, V, P, Xdot, model)
 
         # initialize function evaluations
         coll_outputs = []
