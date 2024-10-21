@@ -171,7 +171,7 @@ def get_regularization_weights(variables, P, nlp_options):
     return weights
 
 
-def get_coll_parallel_info(nlp_options, V, P, Xdot, model, Collocation):
+def get_coll_parallel_info(nlp_options, V, P, Xdot, model):
 
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
@@ -184,8 +184,8 @@ def get_coll_parallel_info(nlp_options, V, P, Xdot, model, Collocation):
         for ddx in range(d):
             coll_weights = cas.horzcat(coll_weights, int_weights[ddx] * p_weights)
 
-    coll_vars, _ = Collocation.get_coll_vars_and_params(nlp_options, V, P, Xdot, model)
-    coll_refs, _ = Collocation.get_coll_vars_and_params(nlp_options, V(P['p', 'ref']), P, Xdot(0.0), model, recompute = True)
+    coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
+    coll_refs = struct_op.get_coll_vars(nlp_options, V(P['p', 'ref']), P, Xdot(0.0), model)
 
     return coll_vars, coll_refs, coll_weights, N_coll
 
@@ -205,13 +205,13 @@ def get_ms_parallel_info(nlp_options, V, P, Xdot, model):
     return ms_vars, ms_refs, ms_weights, N_ms
 
 
-def find_general_regularisation(nlp_options, V, P, Xdot, model, Collocation):
+def find_general_regularisation(nlp_options, V, P, Xdot, model):
 
     variables = model.variables
 
     direct_collocation, multiple_shooting, _, _, _ = extract_discretization_info(nlp_options)
     if direct_collocation:
-        vars, refs, weights, N_steps = get_coll_parallel_info(nlp_options, V, P, Xdot, model, Collocation)
+        vars, refs, weights, N_steps = get_coll_parallel_info(nlp_options, V, P, Xdot, model)
     elif multiple_shooting:
         vars, refs, weights, N_steps = get_ms_parallel_info(nlp_options, V, P, Xdot, model)
     parallellization = nlp_options['parallelization']['type']
@@ -442,9 +442,9 @@ def find_objective(component_costs, V, V_ref, nlp_options):
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_options, V, P, variables, Collocation, xdot, Outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
 
-    component_costs = find_general_regularisation(nlp_options, V, P, xdot, model, Collocation)
+    component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
@@ -482,9 +482,9 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, Collocation, xdot, Outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, Collocation, xdot, Outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)
