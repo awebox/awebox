@@ -322,6 +322,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
+        ('solver',  None,   None,   'generation_method',    'serial',   ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures', 'pathos', 'joblib', 'gevent']), 'x'),
         ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
         ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
@@ -503,6 +504,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'kite_bodies', False,          ('choose whether kite bodies should be plotted or not', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'body_cross_sections_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_aero_dcm',     False,    ('draw the kite aerodynamic-orientation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'trajectory_rotation_dcm', False,('draw the trajectory-rotation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'wake_nodes',  False,          ('draw wake nodes into instantaneous plots', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_theta',  100,      ('number of cylinder (tangential) slices to be drawn', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'cylinder_n_s',      10,       ('number of cylinder (longitudinal) slices to be drawn', None), 'x'),
