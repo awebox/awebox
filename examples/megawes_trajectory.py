@@ -56,8 +56,7 @@ options['nlp.compile_subfunctions'] = True
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'MegAWES')
 trial.build()
-trial.optimize(final_homotopy_step = 'fictitious')
-trial.plot(['states', 'isometric'])
+trial.optimize()
 plt.show()
 trial.write_to_csv('outputs_megawes_trajectory_'+aero_model.lower()+'_results', rotation_representation='dcm')
 
