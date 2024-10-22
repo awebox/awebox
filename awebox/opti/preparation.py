@@ -312,7 +312,9 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     dict_of_bundled_nlp_and_options = {}
     ordered_names = ['initial', 'middle', 'final']
     for name in ordered_names:
-        dict_of_bundled_nlp_and_options[name] = copy.deepcopy(bundled_nlp)
+        dict_of_bundled_nlp_and_options[name] = {}
+        for nlp_key in bundled_nlp.keys():
+            dict_of_bundled_nlp_and_options[name][nlp_key] = bundled_nlp[nlp_key]
 
     dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
     dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
