@@ -31,7 +31,7 @@ options = set_megawes_path_generation_settings(aero_model, options)
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
 
@@ -51,12 +51,14 @@ options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # set to 'colloca
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = True
 
-# ----------------- solve OCP ----------------- #
+# ----------------- solve OCP -----------------0 #
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'MegAWES')
 trial.build()
-trial.optimize()
+trial.optimize(final_homotopy_step = 'fictitious')
+trial.plot(['states', 'isometric'])
+plt.show()
 trial.write_to_csv('outputs_megawes_trajectory_'+aero_model.lower()+'_results', rotation_representation='dcm')
 
 # extract information from the solution for independent plotting or post-processing
