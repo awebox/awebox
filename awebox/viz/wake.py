@@ -57,6 +57,8 @@ def plot_actuator(plot_dict, cosmetics, fig_name, side):
 
     if cosmetics['trajectory']['kite_aero_dcm']:
         tools.draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index)
+    if cosmetics['trajectory']['trajectory_rotation_dcm']:
+        tools.draw_trajectory_rotation_dcm(ax, side, plot_dict, cosmetics, index)
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     plt.suptitle(fig_name)

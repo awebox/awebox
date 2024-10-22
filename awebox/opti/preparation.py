@@ -28,7 +28,6 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
 
-
 from . initialization_dir import modular as initialization_modular, initialization
 
 from . import reference
@@ -299,7 +298,6 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
         final_opts['ipopt.mu_init'] = options['mu_hippo']
         final_opts['ipopt.warm_start_init_point'] = 'yes'
 
-
     if options['callback']:
         initial_opts['iteration_callback'] = awebox_callback
         initial_opts['iteration_callback_step'] = options['callback_step']
@@ -310,16 +308,86 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
         final_opts['iteration_callback'] = awebox_callback
         final_opts['iteration_callback_step'] = options['callback_step']
 
-    initial_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), initial_opts)
-    middle_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), middle_opts)
-    final_solver = cas.nlpsol('solver', 'ipopt', nlp.get_nlp(), final_opts)
+    bundled_nlp = {'V': nlp.V, 'P': nlp.P, 'f_fun': nlp.f_fun, 'g_fun': nlp.g_fun}
+    dict_of_bundled_nlp_and_options = {}
+    ordered_names = ['initial', 'middle', 'final']
+    for name in ordered_names:
+        dict_of_bundled_nlp_and_options[name] = {}
+        for nlp_key in bundled_nlp.keys():
+            dict_of_bundled_nlp_and_options[name][nlp_key] = bundled_nlp[nlp_key]
+
+    dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
+    dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
+    dict_of_bundled_nlp_and_options['final']['opts'] = final_opts
 
     solvers = {}
-    solvers['initial'] = initial_solver
-    solvers['middle'] = middle_solver
-    solvers['final'] = final_solver
 
+    generation_method = options['generation_method']
+
+    if generation_method == 'serial':
+        for name in ordered_names:
+            solvers[name] = construct_single_solver_from_bundle(dict_of_bundled_nlp_and_options[name])
+        results = None
+
+    elif generation_method == 'multiprocessing_pool':
+        from multiprocessing import Pool, Lock
+        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
+        pool = Pool(processes=len(list_of_bundles))
+        results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
+
+    elif generation_method == 'concurrent_futures':
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor() as executor:
+            # Submit tasks for each argument
+            futures = [executor.submit(construct_single_solver_from_bundle, dict_of_bundled_nlp_and_options[name]) for name in ordered_names]
+
+            # Optionally: Collect results (if the function returns anything)
+            results = [future.result() for future in futures]
+
+    elif generation_method == 'pathos':
+        from pathos.multiprocessing import ProcessingPool as Pool
+        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
+        with Pool() as pool:
+            results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
+
+    elif generation_method == 'joblib':
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=len(ordered_names))(delayed(construct_single_solver_from_bundle)(dict_of_bundled_nlp_and_options[name]) for name in ordered_names)
+
+    elif generation_method == 'gevent':
+        import gevent
+        from gevent.pool import Pool
+
+        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
+        pool = Pool(len(list_of_bundles))
+        results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
+
+    else:
+        message = 'unfamiliar solver generation method (' + generation_method + ')'
+        print_op.log_and_raise_error(message)
+
+
+    if (generation_method != 'serial') and (results is not None):
+        for idx in range(len(ordered_names)):
+            solvers[ordered_names[idx]] = results[idx]
     return solvers
+
+
+def construct_single_solver_from_bundle(bundled_nlp_and_options):
+
+    local_V = bundled_nlp_and_options['V']
+    local_P = bundled_nlp_and_options['P']
+    local_f_fun = bundled_nlp_and_options['f_fun']
+    local_g_fun = bundled_nlp_and_options['g_fun']
+
+    local_f = local_f_fun(local_V, local_P)
+    local_g = local_g_fun(local_V, local_P)
+
+    # fill in nlp dict
+    local_nlp = {'x': local_V, 'p': local_P, 'f': local_f, 'g': local_g}
+    local_opts = bundled_nlp_and_options['opts']
+    local_solver = cas.nlpsol('solver', 'ipopt', local_nlp, local_opts)
+    return local_solver
 
 
 def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
