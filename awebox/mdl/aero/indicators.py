@@ -85,15 +85,16 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
         outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
 
     for parent in layer_nodes:
-        total_circulation = 0.
-        for kite in architecture.get_kite_children(parent):
-            local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
-            total_circulation += local_circulation
-        outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation
+        if len(architecture.get_kite_children(parent)) > 0:
+            total_circulation = cas.DM(0.)
+            for kite in architecture.get_kite_children(parent):
+                local_circulation = outputs['aerodynamics']['circulation' + str(kite)]
+                total_circulation += local_circulation
+            outputs['aerodynamics']['total_circulation' + str(parent)] = total_circulation
 
-        vec_u_zero = outputs['geometry']['vec_u_zero' + str(parent)]
-        average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
-        outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
+            vec_u_zero = outputs['geometry']['vec_u_zero' + str(parent)]
+            average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
+            outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
 
     return outputs
 
