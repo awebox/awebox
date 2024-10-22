@@ -67,6 +67,7 @@ def set_megawes_path_generation_settings(aero_model, options):
     options['solver.initialization.inclination_deg'] = 45. #45. 
     options['solver.initialization.cone_deg'] = 25. #25. 
     options['solver.initialization.l_t'] = 600. #600.
+    options['solver.initialization.psi0_rad'] = - np.pi/2 # initialize down-stroke in reel-out phase
 
     return options
 
