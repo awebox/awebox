@@ -33,7 +33,7 @@ options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
 options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
-options['model.system_bounds.theta.t_f'] = [1., 40.] # cycle period [s]
+options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
 
 # indicate desired wind environment
 options['user_options.wind.model'] = 'log_wind'
@@ -45,11 +45,11 @@ options['params.wind.log_wind.z0_air'] = 0.0002
 options['nlp.n_k'] = 40 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
-options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is 'shooting_nodes'
+options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # set to 'collocation_nodes' for finer imposition of inequalities
 
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
-options['nlp.compile_subfunctions'] = False
+options['nlp.compile_subfunctions'] = True
 
 # ----------------- solve OCP ----------------- #
 
