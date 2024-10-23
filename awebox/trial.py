@@ -258,7 +258,7 @@ class Trial(object):
         dict_parameters = {
             'Average power output': {optimal_label: str(avg_power/1.e3),
                                      dimension_label: 'kW'},
-            'Time period': {optimal_label: str(time_period),
+            'Time period': {optimal_label: str(round(time_period, 2)),
                             dimension_label: 's'}
             }
         theta_info = {
