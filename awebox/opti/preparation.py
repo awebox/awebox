@@ -34,6 +34,8 @@ from . import reference
 
 import awebox.tools.struct_operations as struct_op
 
+import os
+
 import copy
 
 import casadi as cas
@@ -167,11 +169,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
         V_bounds['lb']['phi', name] = 1.
         V_bounds['ub']['phi', name] = 1.
 
-    for name in list(formulation.xi_dict['xi_bounds'].keys()):
-        xi_bounds = formulation.xi_dict['xi_bounds']
-        V_bounds['lb']['xi', name] = xi_bounds[name][0]
-        V_bounds['ub']['xi', name] = xi_bounds[name][1]
-
     for name in struct_op.subkeys(model.variables, 'theta'):
         if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
             initial_si_value = cas.DM(options['initialization']['theta'][name])
@@ -281,7 +278,6 @@ def generate_default_solver_options(options):
 
     return opts
 
-
 def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     initial_opts = generate_default_solver_options(options)
     middle_opts = generate_default_solver_options(options)
@@ -316,7 +312,9 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     dict_of_bundled_nlp_and_options = {}
     ordered_names = ['initial', 'middle', 'final']
     for name in ordered_names:
-        dict_of_bundled_nlp_and_options[name] = copy.deepcopy(bundled_nlp)
+        dict_of_bundled_nlp_and_options[name] = {}
+        for nlp_key in bundled_nlp.keys():
+            dict_of_bundled_nlp_and_options[name][nlp_key] = bundled_nlp[nlp_key]
 
     dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
     dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
