@@ -101,6 +101,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
         ('params','aero', None,         'moment_factor',   1.0,              ('enhance aerodynamic moment generator by control surfaces', None), 's'),
+        ('model','aero', None,         'fictitious_embedding',   'additive', ('type of fictitious embedding', None), 's'),
 
         ('model', 'aero', 'induction', 'comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
         ('model', 'aero', 'induction', 'force_zero', False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures.', [True, False]), 'x'),
