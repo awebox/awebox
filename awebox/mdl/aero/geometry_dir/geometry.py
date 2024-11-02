@@ -28,6 +28,7 @@ _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-21
 - edit: jochem de schutter, alu-fr 2019
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -96,7 +97,7 @@ def get_center_velocity(model_options, parent, variables, architecture):
     return None
 
 
-def get_local_period_of_rotation(model_options, variables, kite, architecture):
+def get_local_period_of_rotation(model_options, variables_si, kite, architecture, scaling):
 
     # the velocity we care about, is the one associated with rotation. so:
     # vec_v = vec_omega x vec_r
@@ -104,23 +105,24 @@ def get_local_period_of_rotation(model_options, variables, kite, architecture):
     # v_comp_perp_to_r = omega r sin(90deg)
     # omega = v_comp_perp_to_r / r
 
+    # notice that if you use anti-clockwise initialization, this routine will give a radius pointing away from the kite.
+
     parent = architecture.parent_map[kite]
 
-    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(kite) + str(parent))
-    dx_center = get_center_velocity(model_options, parent, variables, architecture)
+    dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'dq' + str(kite) + str(parent))
+    dx_center = get_center_velocity(model_options, parent, variables_si, architecture)
     vec_v = dq_kite - dx_center
 
-    vec_r = get_vector_from_center_to_kite(model_options, variables, architecture, kite)
-    n_hat = vect_op.normed_cross(vec_v, vec_r)
-    vec_v_in_plane = vec_v - cas.mtimes(vec_v.T, n_hat) * n_hat
+    vec_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
+    rotation_outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, {}, architecture)['rotation']
+    ehat_radial = rotation_outputs['ehat_radial' + str(kite)]
+    radius = vect_op.abs(cas.mtimes(ehat_radial.T, vec_to_kite))
 
-    r_hat = vect_op.normalize(vec_r)
-    vec_v_comp_perp_to_r = vec_v_in_plane - cas.mtimes(vec_v_in_plane.T, r_hat) * r_hat
-    v_comp_perp_to_r = vect_op.norm(vec_v_comp_perp_to_r)
+    vec_v_perpendicular_to_r = vec_v - cas.mtimes(ehat_radial.T, vec_v) * ehat_radial
+    v_component_perpendicular_to_r = vect_op.norm(vec_v_perpendicular_to_r)
 
-    r = vect_op.norm(vec_r)
+    omega = v_component_perpendicular_to_r / radius
 
-    omega = v_comp_perp_to_r / r
     period = 2. * np.pi / omega
 
     return period
@@ -162,7 +164,7 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry'] = {}
 
     for kite in architecture.kite_nodes:
-        local_period_of_rotation = get_local_period_of_rotation(model_options, variables_si, kite, architecture)
+        local_period_of_rotation = get_local_period_of_rotation(model_options, variables_si, kite, architecture, scaling)
         vector_from_center_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
         clockwise_rotation = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, kite, architecture, wind)
         radius_of_curvature = frenet_geom.get_radius_of_curvature(variables_si, kite, architecture.parent_map[kite])
@@ -197,7 +199,7 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius
         outputs['geometry']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
 
-    outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, scaling)
+    outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture)
 
     return outputs
 
@@ -213,6 +215,8 @@ def construct_geometry_test_object(geometry_type='averaged'):
     model_options['wind']['z_ref'] = -999.
     model_options['wind']['log_wind'] = {'z0_air': -999}
     model_options['wind']['power_wind'] = {'exp_ref': -999}
+
+    model_options['induction'] = {'normal_vector_model': 'xhat'}
 
     wind_struct = cas.struct([
         cas.entry('u_ref', shape=(1, 1)),
@@ -294,12 +298,13 @@ def construct_geometry_test_object(geometry_type='averaged'):
 
 def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
     model_options, variables_si, architecture, wind, expected_position, expected_velocity, expected_period, expected_clockwise = construct_geometry_test_object(geometry_type=geometry_type)
+    scaling = cas.DM.ones(variables_si.shape)
     parent = architecture.layer_nodes[0]
 
     found_position = get_center_position(model_options, parent, variables_si, architecture)
     found_velocity = get_center_velocity(model_options, parent, variables_si, architecture)
-    found_period2 = get_local_period_of_rotation(model_options, variables_si, 2, architecture)
-    found_period3 = get_local_period_of_rotation(model_options, variables_si, 3, architecture)
+    found_period2 = get_local_period_of_rotation(model_options, variables_si, 2, architecture, scaling)
+    found_period3 = get_local_period_of_rotation(model_options, variables_si, 3, architecture, scaling)
     found_clockwise2 = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, 2, architecture, wind)
     found_clockwise3 = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, 3, architecture, wind)
 
@@ -331,4 +336,5 @@ def test(epsilon=1.e-6):
         test_specific_geometry_type(geometry_type=geometry_type, epsilon=epsilon)
     return None
 
-# test()
+if __name__ == "__main__":
+    test()

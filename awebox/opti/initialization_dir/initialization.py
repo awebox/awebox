@@ -193,6 +193,12 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                         if name in ret.keys():
                             V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
 
+    test_rotational_axes = init_options['check_rotational_axes']['perform_check']
+    if init_options['type'] not in ['nominal_landing', 'compromised_landing', 'transition'] and test_rotational_axes:
+        variables_si = struct_op.get_variables_at_time(nlp.options, V_init_si, None, model.variables, 0, 0)
+        t = tgrid_coll[0, 0]
+        standard.test_that_rotational_axes_are_consistent_at_snapshot(t, init_options, model, variables_si)
+
     return V_init_si
 
 

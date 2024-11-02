@@ -27,6 +27,7 @@ options_tree extension functions for options initially related to heading 'model
 _python-3.5 / casadi-3.4.5
 - author: jochem de scutter, rachel leuthold, thilo bronnenmeyer, alu-fr/kiteswarms 2017-20
 '''
+import pdb
 
 import numpy as np
 import awebox as awe
@@ -50,7 +51,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # kite
     options_tree, fixed_params = build_geometry_options(options, help_options, options_tree, fixed_params)
-    options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params, architecture)
 
     options_tree, fixed_params = build_scaling_options(options, options_tree, fixed_params, architecture)
 
@@ -237,6 +238,8 @@ def get_position_scaling(options, architecture):
         q_scaling = position[2] * cas.DM.ones((3, 1))
     elif position_scaling_method == 'b_ref':
         q_scaling = b_ref * cas.DM.ones((3, 1))
+    elif position_scaling_method == 'radius_and_tether':
+        q_scaling = cas.vertcat(position[0], flight_radius, flight_radius)
     elif ('radius' in position_scaling_method) and ('altitude' in position_scaling_method):
         q_scaling = cas.vertcat(position[0], flight_radius, position[2])
     else:
@@ -275,7 +278,7 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
 ##### kite dof
 
-def build_kite_dof_options(options, options_tree, fixed_params):
+def build_kite_dof_options(options, options_tree, fixed_params, architecture):
 
     user_options = options['user_options']
 
@@ -291,7 +294,10 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         geometry = get_geometry(options)
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
-        omega_max = options['model']['system_bounds']['x']['omega'][1]
+
+        t_f_guess = estimate_time_period(options, architecture)
+        windings = options['user_options']['trajectory']['lift_mode']['windings']
+        omega_guess = 2. * np.pi / (t_f_guess / float(windings))
 
         options_tree.append(('model', 'system_bounds', 'x', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
@@ -299,7 +305,7 @@ def build_kite_dof_options(options, options_tree, fixed_params):
 
         options_tree.append(('model', 'scaling', 'x', 'delta', cas.DM(delta_max)/2., ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'u', 'ddelta', cas.DM(ddelta_max)/2., ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'x', 'omega', cas.DM(omega_max)/2., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'omega', omega_guess, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'r', cas.DM.ones((9, 1)), ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -1429,6 +1435,9 @@ def estimate_energy(options, architecture):
     return energy
 
 def estimate_time_period(options, architecture):
+
+    if 't_f' in options['user_options']['trajectory']['fixed_params']:
+        return options['user_options']['trajectory']['fixed_params']['t_f']
 
     windings = options['user_options']['trajectory']['lift_mode']['windings']
     groundspeed = options['solver']['initialization']['groundspeed']

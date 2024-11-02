@@ -177,6 +177,7 @@ class Visualization(object):
         plot_logic_dict['actuator_yz'] = (wake.plot_actuator, {'side':'yz'})
         plot_logic_dict['actuator_xz'] = (wake.plot_actuator, {'side':'xz'})
         plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
+        plot_logic_dict['velocity_distribution'] = (wake.plot_velocity_distribution, None)
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})

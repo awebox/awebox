@@ -148,7 +148,7 @@ def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameter
         outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture, scaling)
 
     if vortex.model_is_included_in_comparison(options):
-        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, architecture, scaling)
+        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, architecture)
 
     return outputs
 

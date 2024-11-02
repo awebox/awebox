@@ -27,10 +27,12 @@ repeated tools to make initialization smoother
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
 '''
-
+import pdb
 
 import numpy as np
 import casadi.tools as cas
+from sympy.physics.units import velocity, acceleration
+
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
@@ -73,8 +75,19 @@ def get_ehat_radial(t, init_options, model, kite, ret={}):
     omega_norm = init_options['precompute']['angular_speed']
     psi = get_azimuthal_angle(t, init_options, level_siblings, kite, parent, omega_norm)
 
-    ehat_radial = get_ehat_radial_from_azimuth(init_options, psi)
+    unit_vector_pointing_radially_outward = get_unit_vector_pointing_radially_outwards_by_azimuth(init_options, psi)
+    ehat_radial = get_ehat_radial_from_unit_vector_pointing_outwards_radially(init_options, unit_vector_pointing_radially_outward)
 
+    return ehat_radial
+
+def get_unit_vector_pointing_outwards_radially_from_ehat_radial(init_options, ehat_radial):
+    ehat_radial_points_inwards_during_counter_clockwise_motion = get_rotation_direction_sign(init_options)
+    unit_vector_pointing_radially_outward = ehat_radial_points_inwards_during_counter_clockwise_motion * ehat_radial
+    return unit_vector_pointing_radially_outward
+
+def get_ehat_radial_from_unit_vector_pointing_outwards_radially(init_options, unit_vector_pointing_radially_outward):
+    ehat_radial_points_inwards_during_counter_clockwise_motion = get_rotation_direction_sign(init_options)
+    ehat_radial = ehat_radial_points_inwards_during_counter_clockwise_motion * unit_vector_pointing_radially_outward
     return ehat_radial
 
 def get_rotation_direction_sign(init_options):
@@ -87,7 +100,7 @@ def get_rotation_direction_sign(init_options):
 
     return sign
 
-def get_ehat_radial_from_azimuth(init_options, psi):
+def get_unit_vector_pointing_radially_outwards_by_azimuth(init_options, psi):
     _, y_rot_hat, z_rot_hat = get_rotor_reference_frame(init_options)
 
     cospsi_var = np.cos(psi)
@@ -101,23 +114,12 @@ def get_ehat_radial_from_azimuth(init_options, psi):
 
     return ehat_radial
 
-def get_dependent_rotation_direction_sign(t, init_options, model, node, ret):
-    velocity = get_velocity_vector(t, init_options, model, node, ret)
-    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
-    forwards_speed = cas.mtimes(velocity.T, ehat_tangential)
-    forwards_sign = forwards_speed / vect_op.norm(forwards_speed)
-
-    return forwards_sign
-
 
 def get_omega_vector(t, init_options, model, node, ret):
-
-    forwards_sign = get_dependent_rotation_direction_sign(t, init_options, model, node, ret)
+    rotation_direction_sign = get_rotation_direction_sign(init_options)
     omega_norm = init_options['precompute']['angular_speed']
     ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
-
-    omega_vector = forwards_sign * ehat_normal * omega_norm
-
+    omega_vector = rotation_direction_sign * ehat_normal * omega_norm
     return omega_vector
 
 def get_dpsi(init_options):
@@ -145,23 +147,23 @@ def get_azimuthal_angle(t, init_options, level_siblings, node, parent, omega_nor
     return psi
 
 def get_velocity_vector(t, init_options, model, node, ret):
-
     groundspeed = init_options['precompute']['groundspeed']
-    sign = get_rotation_direction_sign(init_options)
-
     ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
-    velocity = sign * groundspeed * ehat_tangential
+    velocity = groundspeed * ehat_tangential
+
     return velocity
 
 def get_acceleration_vector(t, init_options, model, node, ret):
 
     radius = init_options['precompute']['radius']
     groundspeed = init_options['precompute']['groundspeed']
-    sign = get_rotation_direction_sign(init_options)
 
     ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
     acceleration_magnitude = groundspeed**2 / radius
-    acceleration = acceleration_magnitude * sign * ehat_radial
+
+    unit_vector_pointing_radially_outward = get_unit_vector_pointing_outwards_radially_from_ehat_radial(init_options, ehat_radial)
+    unit_vector_pointing_radially_inwards = -1. * unit_vector_pointing_radially_outward
+    acceleration = acceleration_magnitude * unit_vector_pointing_radially_inwards
     return acceleration
 
 
@@ -169,10 +171,10 @@ def get_velocity_vector_from_psi(init_options, groundspeed, psi):
 
     n_rot_hat, _, _ = get_rotor_reference_frame(init_options)
     ehat_normal = n_rot_hat
-    ehat_radial = get_ehat_radial_from_azimuth(init_options, psi)
+    unit_vector_pointing_radially_outward = get_unit_vector_pointing_radially_outwards_by_azimuth(init_options, psi)
+    ehat_radial = get_ehat_radial_from_unit_vector_pointing_outwards_radially(init_options, unit_vector_pointing_radially_outward)
     ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
-    sign = get_rotation_direction_sign(init_options)
-    velocity = sign * groundspeed * ehat_tangential
+    velocity = groundspeed * ehat_tangential
     return velocity
 
 def get_air_velocity(init_options, model, node, ret):
@@ -187,8 +189,15 @@ def get_air_velocity(init_options, model, node, ret):
 
 def get_kite_dcm(init_options, model, node, ret):
 
-    normal_vector = ret['q10']
-    ehat_normal = vect_op.normalize(normal_vector)
+    normal_vector_model = model.options['aero']['actuator']['normal_vector_model']
+    if normal_vector_model == 'xhat':
+        ehat_normal = vect_op.xhat_dm()
+    elif normal_vector_model == 'tether_parallel':
+        normal_vector = ret['q10']
+        ehat_normal = vect_op.normalize(normal_vector)
+    else:
+        n_rot_hat, _, _ = get_rotor_reference_frame(init_options)
+        ehat_normal = n_rot_hat
 
     kite_dcm_setting_method = init_options['kite_dcm']
     if kite_dcm_setting_method == 'aero_validity':

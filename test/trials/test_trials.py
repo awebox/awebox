@@ -263,7 +263,6 @@ def generate_options_dict():
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
-    single_kite_options['solver.generation_method'] = 'multiprocessing_pool'
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 

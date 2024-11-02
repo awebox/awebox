@@ -287,7 +287,7 @@ def model_is_included_in_comparison(options):
     return vortex_tools.model_is_included_in_comparison(options)
 
 
-def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, architecture, scaling):
+def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, architecture):
 
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
@@ -302,7 +302,7 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
         parent_obs = architecture.parent_map[kite_obs]
 
         vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
-        n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture, scaling)
+        n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture)
         u_normalizing = vortex_tools.get_induction_factor_normalizing_speed(model_options, wind, kite_obs, parent_obs, variables_si, architecture)
         u_ind = vect_op.norm(vec_u_ind)
 

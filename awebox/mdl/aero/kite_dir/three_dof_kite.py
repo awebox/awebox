@@ -46,6 +46,12 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
+
+    f_aero_rot_overwrite = options['aero']['overwrite']['f_aero_rot']
+    if f_aero_rot_overwrite is not None:
+        message = 'three-degree-of-freedom-kites do not yet support overwriting aerodynamic forces with overwrite.f_aero_rot'
+        print_op.log_and_raise_error(message)
+
     kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
 
     vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
@@ -57,7 +63,13 @@ def get_force_vector(options, variables, atmos, wind, architecture, parameters, 
 
     return force_found_vector, force_found_frame, vec_u, kite_dcm
 
+
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
+
+    f_aero_rot_overwrite = options['aero']['overwrite']['f_aero_rot']
+    if f_aero_rot_overwrite is not None:
+        message = 'three-degree-of-freedom-kites do not yet support overwriting aerodynamic forces with overwrite.f_aero_rot'
+        print_op.log_and_raise_error(message)
 
     cstr_list = cstr_op.MdlConstraintList()
 

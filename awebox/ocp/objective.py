@@ -216,9 +216,18 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     parallellization = nlp_options['parallelization']['type']
 
     reg_costs_fun, reg_costs_dict = get_general_reg_costs_function(nlp_options, variables, V)
-    reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+    if parallellization in ['openmp', 'thread', 'serial']:
+        reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+        reg_costs_out = reg_costs_map(vars, refs, weights)
+    elif parallellization == 'concurrent_futures':
+        print_op.warn_about_temporary_functionality_alteration()
+        list_of_horzcatted_inputs = [vars, refs, weights]
+        reg_costs_out = struct_op.concurrent_future_map(reg_costs_fun, list_of_horzcatted_inputs)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
+        print_op.log_and_raise_error(message)
 
-    summed_reg_costs = cas.sum2(reg_costs_map(vars, refs, weights))
+    summed_reg_costs = cas.sum2(reg_costs_out)
 
     idx = 0
     for cost in reg_costs_dict.keys():

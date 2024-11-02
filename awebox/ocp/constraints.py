@@ -235,26 +235,51 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
-    # create maps of relevant functions
-    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    if nlp_options['collocation']['u_param'] == 'poly':
-        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
-    elif nlp_options['collocation']['u_param'] == 'zoh':
-        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
-
+    # create maps of relevant functions, then evaluate
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
+    if parallellization in ['openmp', 'thread', 'serial']:
+        mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
+        ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
+    elif parallellization == 'concurrent_futures':
+        print_op.warn_about_temporary_functionality_alteration()
+        list_of_horzcatted_inputs = [coll_vars, coll_params]
+        ocp_eqs_expr = struct_op.concurrent_future_map(mdl_eq_fun, list_of_horzcatted_inputs)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+    if parallellization in ['openmp', 'thread', 'serial']:
+        mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+        ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
+    elif parallellization == 'concurrent_futures':
+        print_op.warn_about_temporary_functionality_alteration()
+        list_of_horzcatted_inputs = [shooting_vars, shooting_params]
+        ocp_eqs_shooting_expr = struct_op.concurrent_future_map(mdl_shooting_eq_fun, list_of_horzcatted_inputs)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
+        print_op.log_and_raise_error(message)
 
-    # evaluate constraint functions
-    if nlp_options['collocation']['u_param'] == 'poly':
-        ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
-    elif nlp_options['collocation']['u_param'] == 'zoh':
-        ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
-    ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
+    mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
+    if parallellization in ['openmp', 'thread', 'serial']:
+        if nlp_options['collocation']['u_param'] == 'poly':
+            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
+            ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
+            ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
+    elif parallellization == 'concurrent_futures':
+        print_op.warn_about_temporary_functionality_alteration()
+        if nlp_options['collocation']['u_param'] == 'poly':
+            list_of_horzcatted_inputs = [coll_vars, coll_params]
+            ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, list_of_horzcatted_inputs)
+        elif nlp_options['collocation']['u_param'] == 'zoh':
+            list_of_horzcatted_inputs = [shooting_vars, shooting_params]
+            ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, list_of_horzcatted_inputs)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
+        print_op.log_and_raise_error(message)
+
 
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
@@ -369,7 +394,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
 
-    parallellization = nlp_options['parallelization']['type']
+    parallelization_type = nlp_options['parallelization']['type']
 
     # algebraic constraints
     z_from_V = []
@@ -379,16 +404,28 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
 
     z_at_time_sym = cas.MX.sym('z_at_time_sym',dae.z.shape)
     z_from_V_sym =  cas.MX.sym('z_from_V_sym',dae.z.shape)
+
+    # evaluate mapped constraint functions
     alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
-    alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
+    if parallelization_type in ['serial', 'openmp', 'thread']:
+        alg_map = alg_fun.map('alg_map', parallelization_type, n_k, [], [])
+        alg_expr = alg_map(ms_z0, z_from_V)
+    elif parallelization_type == 'concurrent_futures':
+        alg_expr = struct_op.concurrent_future_map(alg_fun, [ms_z0, z_from_V])
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     # inequality constraints
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, n_k, [], [])
-
-    # evaluate mapped constraint functions
-    alg_expr = alg_map(ms_z0, z_from_V)
-    ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    if parallelization_type in ['serial', 'openmp', 'thread']:
+        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallelization_type, n_k, [], [])
+        ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    elif parallelization_type == 'concurrent_futures':
+        ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, [ms_vars, ms_params])
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     for kdx in range(n_k):
 

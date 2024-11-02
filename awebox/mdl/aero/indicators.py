@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
 - edited: rachel leuthold, jochem de schutter alu-fr 2017-21
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -63,19 +64,46 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
     c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     for kite in kite_nodes:
-        f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
-        f_lift_norm = f_aero_wind[2]
-        f_lift_earth_overwrite = model_options['aero']['overwrite']['f_lift_earth']
-        if f_lift_earth_overwrite is not None:
-            f_lift_earth = f_lift_earth_overwrite
-            f_lift_norm = vect_op.smooth_norm(f_lift_earth)
+        parent = architecture.parent_map[kite]
 
         rho = outputs['aerodynamics']['air_density' + str(kite)]
-
         air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
         airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
         CL = outputs['aerodynamics']['CL' + str(kite)]
+
+        f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
+        f_lift_norm = f_aero_wind[2]
+        print_op.warn_about_temporary_functionality_alteration()
+        # f_aero_rot_overwrite = model_options['aero']['overwrite']['f_aero_rot']
+        # if f_lift_rot_overwrite is not None:
+        #
+        #     f_lift_norm = vect_op.smooth_norm(f_lift_rot_overwrite)
+        #
+        #     ehat_radial = outputs['rotation']['ehat_radial' + str(kite)]
+        #     ehat_tangential = outputs['rotation']['ehat_tangential' + str(kite)]
+        #     ehat_normal = outputs['rotation']['ehat_normal' + str(parent)]
+        #     ehat_cylindrical = {0: ehat_radial, 1: ehat_tangential, 2: ehat_normal}
+        #
+        #     f_lift_earth = cas.DM.zeros((1, 1))
+        #     for dim in ehat_cylindrical.keys():
+        #         f_lift_earth += f_lift_rot_overwrite[dim] * ehat_cylindrical[dim]
+        #
+        #     ehat_drag = vect_op.normalize(air_velocity)
+        #     ehat_lift = vect_op.normed_cross(ehat_drag, ehat_span)
+        #     ehat_side = vect_op.normed_cross(ehat_lift, ehat_drag)
+        #
+        #     lift_force = cas.mtimes(f_lift_earth.T, ehat_lift)
+        #     drag_force = cas.mtimes(f_lift_earth.T, ehat_drag)
+        #     side_force = cas.mtimes(f_lift_earth.T, ehat_side)
+        #
+        #     dynamic_pressure = get_dynamic_pressure(atmos, wind, variables_si['x']['q' + str(kite) + str(parent)][2])
+        #     CL = lift_force / dynamic_pressure / (b_ref * c_ref)
+        #     CD = drag_force / dynamic_pressure / (b_ref * c_ref)
+        #     CS = side_force / dynamic_pressure / (b_ref * c_ref)
+        #     outputs['aerodynamics']['CL' + str(kite)] = CL
+        #     outputs['aerodynamics']['CD' + str(kite)] = CD
+        #     outputs['aerodynamics']['CS' + str(kite)] = CS
 
         circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
         circulation_cl = 0.5 * airspeed**2. * CL * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))

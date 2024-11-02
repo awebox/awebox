@@ -27,6 +27,7 @@ specific aerodynamics for a 6dof kite
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2017-20
 '''
+import pdb
 
 import casadi.tools as cas
 
@@ -42,35 +43,37 @@ import awebox.mdl.aero.kite_dir.tools as tools
 from awebox.logger.logger import Logger as awelogger
 
 
-
-
-
 def get_kite_dcm(kite, variables, architecture):
     parent = architecture.parent_map[kite]
     kite_dcm = cas.reshape(variables['x']['r' + str(kite) + str(parent)], (3, 3))
     return kite_dcm
 
 
-def get_force_and_moment_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
+def get_force_and_moment_vector(options, variables_si, atmos, wind, architecture, parameters, kite, outputs):
 
     surface_control = options['surface_control']
 
     parent = architecture.parent_map[kite]
 
-    kite_dcm = cas.reshape(variables['x']['r' + str(kite) + str(parent)], (3, 3))
+    kite_dcm = cas.reshape(variables_si['x']['r' + str(kite) + str(parent)], (3, 3))
 
-    vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
+    vec_u_earth = tools.get_local_air_velocity_in_earth_frame(options, variables_si, wind, kite, kite_dcm, architecture,
                                                               parameters, outputs)
 
     if int(surface_control) == 0:
-        delta = variables['u']['delta' + str(kite) + str(parent)]
+        delta = variables_si['u']['delta' + str(kite) + str(parent)]
     elif int(surface_control) == 1:
-        delta = variables['x']['delta' + str(kite) + str(parent)]
+        delta = variables_si['x']['delta' + str(kite) + str(parent)]
 
-    omega = variables['x']['omega' + str(kite) + str(parent)]
-    q = variables['x']['q' + str(kite) + str(parent)]
+    omega = variables_si['x']['omega' + str(kite) + str(parent)]
+    q = variables_si['x']['q' + str(kite) + str(parent)]
     rho = atmos.get_density(q[2])
-    force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
+
+    f_aero_rot_overwrite = options['aero']['overwrite']['f_aero_rot']
+    if f_aero_rot_overwrite is not None:
+        force_info, moment_info = get_overwrite_force_and_moment(options, outputs, architecture, kite)
+    else:
+        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
 
     f_found_frame = force_info['frame']
     f_found_vector = force_info['vector']
@@ -82,6 +85,11 @@ def get_force_and_moment_vector(options, variables, atmos, wind, architecture, p
 
 
 def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
+
+    f_aero_rot_overwrite = options['aero']['overwrite']['f_aero_rot']
+    if f_aero_rot_overwrite is not None:
+        message = 'aerodynamic force lifting does not yet support overwriting aerodynamic forces with overwrite.f_aero_rot'
+        print_op.log_and_raise_error(message)
 
     f_scale = tools.get_f_scale(parameters, options)
     m_scale = tools.get_m_scale(parameters, options)
@@ -127,6 +135,31 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
         cstr_list.append(m_kite_cstr)
 
     return cstr_list
+
+
+def get_overwrite_force_and_moment(model_options, outputs, architecture, kite):
+
+    f_aero_rot_overwrite = model_options['aero']['overwrite']['f_aero_rot']
+    rot_outputs = outputs['rotation']
+    parent = architecture.parent_map[kite]
+
+    force_info = {}
+    moment_info = {}
+
+    force_info['frame'] = 'earth'
+
+    ehat_radial = rot_outputs['ehat_radial' + str(kite)]
+    ehat_tangential = rot_outputs['ehat_tangential' + str(kite)]
+    ehat_normal = rot_outputs['ehat_normal' + str(parent)]
+    force_info['vector'] = (f_aero_rot_overwrite[0] * ehat_radial
+                            + f_aero_rot_overwrite[1] * ehat_tangential
+                            + f_aero_rot_overwrite[2] * ehat_normal)
+
+    if model_options['kite_dof'] == 6:
+        moment_info['frame'] = 'earth'
+        moment_info['vector'] = cas.DM.zeros((3, 1))
+
+    return force_info, moment_info
 
 
 def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho):

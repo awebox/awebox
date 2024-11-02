@@ -40,7 +40,7 @@ import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
 
-def get_n_vec(options, parent, variables, architecture, scaling):
+def get_n_vec(options, parent, variables, architecture):
 
     if 'aero' in options.keys() and 'actuator' in options['aero'].keys() and 'normal_vector_model' in options['aero']['actuator'].keys():
         model = options['aero']['actuator']['normal_vector_model']
@@ -63,10 +63,10 @@ def get_n_vec(options, parent, variables, architecture, scaling):
         n_vec = get_binormal_n_vec(parent, variables, architecture)
 
     elif model == 'tether_parallel' and number_kite_children > 1:
-        n_vec = get_tether_parallel_multi_n_vec(parent, variables, architecture, scaling)
+        n_vec = get_tether_parallel_multi_n_vec(parent, variables, architecture)
 
     elif model == 'tether_parallel':
-        n_vec = get_tether_parallel_single_n_vec(variables, architecture, scaling)
+        n_vec = get_tether_parallel_single_n_vec(variables, architecture)
 
     elif model == 'xhat':
         n_vec = vect_op.xhat()
@@ -79,8 +79,8 @@ def get_n_vec(options, parent, variables, architecture, scaling):
     return n_vec
 
 
-def get_n_hat(model_options, parent, variables, architecture, scaling):
-    n_vec = get_n_vec(model_options, parent, variables, architecture, scaling)
+def get_n_hat(model_options, parent, variables, architecture):
+    n_vec = get_n_vec(model_options, parent, variables, architecture)
     n_hat = vect_op.normalize(n_vec)
     return n_hat
 
@@ -136,7 +136,7 @@ def get_plane_fit_n_vec(parent, variables, architecture):
     return n_vec
 
 
-def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling):
+def get_tether_parallel_multi_n_vec(parent, variables_si, architecture):
 
     grandparent = architecture.parent_map[parent]
     q_parent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(parent) + str(grandparent))
@@ -144,30 +144,17 @@ def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling)
     if grandparent == 0:
         q_grandparent = cas.DM.zeros((3, 1))
 
-        if '[x,l_t,0]' in scaling.labels():
-            scale = scaling['x', 'l_t']
-        elif '[theta,l_t,0]' in scaling.labels():
-            scale = scaling['theta', 'l_t']
-        else:
-            scale = 1.e3
-
     else:
         great_grandparent = architecture.parent_map[grandparent]
         q_grandparent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
                                                                        'q' + str(grandparent) + str(great_grandparent))
 
-        if '[theta,l_s,0]' in scaling.labels():
-            scale = scaling['theta', 'l_s']
-        else:
-            scale = 1.e2
 
     n_vec = q_parent - q_grandparent
-    n_vec_scaled = n_vec / scale
-    return n_vec_scaled
+    return n_vec
 
-
-def get_tether_parallel_single_n_vec(variables_si, architecture, scaling):
-    return get_tether_parallel_multi_n_vec(1, variables_si, architecture, scaling)
+def get_tether_parallel_single_n_vec(variables_si, architecture):
+    return get_tether_parallel_multi_n_vec(1, variables_si, architecture)
 
 
 def get_binormal_n_vec(parent, variables, architecture):
@@ -181,15 +168,15 @@ def get_binormal_n_vec(parent, variables, architecture):
 
     return n_vec
 
-def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, scaling):
+def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture):
 
     rot_outputs = {}
     for parent in architecture.layer_nodes:
-        rot_outputs['ehat_normal' + str(parent)] = get_n_hat(model_options, parent, variables_si, architecture, scaling)
+        rot_outputs['ehat_normal' + str(parent)] = get_n_hat(model_options, parent, variables_si, architecture)
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
-        dq = variables_si['x']['dq' + str(kite) + str(parent)]
+        dq = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'dq' + str(kite) + str(parent))
         ehat_normal = rot_outputs['ehat_normal' + str(parent)]
         ehat_radial = vect_op.normed_cross(dq, ehat_normal)
         ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)

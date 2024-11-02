@@ -708,7 +708,7 @@ class Optimization(object):
             'Homotopy max. iterations': self.__options['max_iter_hippo'],
             'Homotopy barrier param': self.__options['mu_hippo'],
             'Homotopy method': self.__options['homotopy_method'],
-            'Generation method': self.__options['generation_method'],
+            'Construction parallelization': self.__options['construction']['parallelization']['type'],
             'Expand': self.__options['expand']
         }
 

@@ -219,12 +219,20 @@ def make_induced_velocities_functions(model, nlp):
                         concat_fun = cas.Function(separate_type + '_fun', [inputs_sym], [local_concat])
 
                     parallelization_type = model.options['construction']['parallelization']['type']
-                    map_on_control_nodes = concat_fun.map(count_z_length_on_controls(model, nlp), parallelization_type)
-                    map_on_collocation_nodes = concat_fun.map(nlp.n_k * nlp.d, parallelization_type)
-                    function_dict[substructure_type][element_type][elem][
-                        separate_type + '_map_on_control_nodes'] = map_on_control_nodes
-                    function_dict[substructure_type][element_type][elem][
-                        separate_type + '_map_on_collocation_nodes'] = map_on_collocation_nodes
+                    if parallelization_type in ['serial', 'openmp', 'thread']:
+                        map_on_control_nodes = concat_fun.map(count_z_length_on_controls(model, nlp),
+                                                              parallelization_type)
+                        map_on_collocation_nodes = concat_fun.map(nlp.n_k * nlp.d, parallelization_type)
+                        function_dict[substructure_type][element_type][elem][
+                            separate_type + '_map_on_control_nodes'] = map_on_control_nodes
+                        function_dict[substructure_type][element_type][elem][
+                            separate_type + '_map_on_collocation_nodes'] = map_on_collocation_nodes
+                    elif parallelization_type == 'concurrent_futures':
+                        function_dict[substructure_type][element_type][elem][
+                            separate_type + '_concat_fun'] = concat_fun
+                    else:
+                        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+                        print_op.log_and_raise_error(message)
 
                 element_number += 1
 
@@ -405,12 +413,18 @@ def append_induced_velocities_using_parallelization(init_options, function_dict,
 
 
 def sanity_check_biot_savart_at_initialization(function_dict, nlp, substructure_type, element_type, elem, test_kite_stacked_inputs_on_control_nodes, test_kite_stacked_inputs_on_collocation_nodes, threshold=1.e-4):
-    resi_map_on_control_nodes = function_dict[substructure_type][element_type][elem]['resi_map_on_control_nodes']
-    resi_map_on_collocation_nodes = function_dict[substructure_type][element_type][elem][
-        'resi_map_on_collocation_nodes']
 
-    resi_on_control = resi_map_on_control_nodes(test_kite_stacked_inputs_on_control_nodes)
-    resi_on_collocation = resi_map_on_collocation_nodes(test_kite_stacked_inputs_on_collocation_nodes)
+    if 'resi_map_on_control_nodes' in function_dict[substructure_type][element_type][elem].keys():
+        resi_map_on_control_nodes = function_dict[substructure_type][element_type][elem]['resi_map_on_control_nodes']
+        resi_map_on_collocation_nodes = function_dict[substructure_type][element_type][elem][
+            'resi_map_on_collocation_nodes']
+        resi_on_control = resi_map_on_control_nodes(test_kite_stacked_inputs_on_control_nodes)
+        resi_on_collocation = resi_map_on_collocation_nodes(test_kite_stacked_inputs_on_collocation_nodes)
+    elif 'resi_concat_fun' in function_dict[substructure_type][element_type][elem].keys():
+        resi_concat_fun = function_dict[substructure_type][element_type][elem]['resi_concat_fun']
+        resi_on_control = struct_op.concurrent_future_map(resi_concat_fun, test_kite_stacked_inputs_on_control_nodes)
+        resi_on_collocation = struct_op.concurrent_future_map(resi_concat_fun, test_kite_stacked_inputs_on_collocation_nodes)
+
     norm_sq_resi_on_control = cas.mtimes(vect_op.columnize(resi_on_control).T, vect_op.columnize(resi_on_control)) / float(nlp.n_k)
     norm_sq_resi_on_collocation = cas.mtimes(vect_op.columnize(resi_on_collocation).T,
                                              vect_op.columnize(resi_on_collocation)) / float(nlp.n_k * nlp.d)

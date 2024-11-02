@@ -130,16 +130,17 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.05,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_m',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, dimensionless, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
+        ('model', 'aero', 'vortex',     'filament_strength_from_circulation',   'averaged',     ('whether the shed filament strength reflects the instantaneous or averaged circulation on the shedding kite at the time of shedding', ['averaged', 'instantaneous']), 'x'),
+        ('model', 'aero', 'vortex',     'use_circulation_equality_pattern',     True,           ('take advantage of the fact that the strength of an already shed vortex must have been computed in the OCP equalities when the vorticity was being shed', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',        0.01,           ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),
         ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance', ['b_ref', 'c_ref', 'radius', 'q10', 'convection']), 'x'),
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor when plotting', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'degree_of_induced_velocity_lifting',   1,              ('how best to embed the biot-savart induced velocity variables where 1: only the induced velocity at each kite is lifted; 2: the induced velocities from all of the elements at each kite are lifted; 3: the numerator and denominator components of the induced velocity, from all elements on all kites, are lifted', [1, 2, 3]), 'x'),
-        ('model', 'aero', 'vortex',     'run_haas_verification_test',           False,          ('compare vortex model to Haas2017 LES in outputs', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',                  50,             ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 
-        ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
+        ('model', 'aero', 'overwrite',  'f_aero_rot',           None,       ('3-component [radial, tangential, normal] lift force in the rotating frame, to over-write stability-derivative forces in case of vortex verification/validation tests', None), 'x'),
 
         # geometry (to be loaded!)
         ('model',  'geometry', 'overwrite', 'm_k',         None,     ('geometrical parameter', None),'s'),
@@ -230,7 +231,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
 
         #### scaling
-        ('model',  'scaling', 'other', 'position_scaling_method',  'radius',                 ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
+        ('model',  'scaling', 'other', 'position_scaling_method',  'radius',                 ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius', 'radius_and_tether']),'x'),
         ('model',  'scaling', 'other', 'force_scaling_method',     'synthesized',           ('the method of estimating the force in the dynamics for problem scaling', ['max_acceleration', 'tension', 'gravity', 'centripetal', 'aero', 'synthesized']), 'x'),
         ('model',  'scaling', 'other', 'flight_radius_estimate',   'centripetal',           ('the method of estimating the trajectory radius for problem scaling', ['anticollision', 'centripetal', 'cone', 'synthesized']), 'x'),
         ('model',  'scaling', 'other', 'tension_estimate',         'average_force',           ('the method of estimating the main tether tension for problem scaling', ['power', 'max_stress', 'average_force', 'force_summation', 'synthesized']), 'x'),
@@ -245,7 +246,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model',   'construction', 'jit_code_gen',     'include',      False,                  ('generate code with jit for model functions'),'t'),
         ('model',   'construction', 'jit_code_gen',     'compiler',     'clang',                ('compiler for generated code'),'t'),
-        ('model',   'construction', 'parallelization',  'type',         'thread',               ('parallellization type', ['serial', 'openmp', 'thread']), 't'),
+        ('model',   'construction', 'parallelization',  'type',         'thread',               ('parallellization type', ['serial', 'openmp', 'thread', 'concurrent_futures']), 't'),
 
         ('params',   None,          None, 'kappa_r',                    1.,                     ('baumgarte stabilization constant for dcm dynamics', None),'x'),
 
@@ -291,7 +292,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_stop',       0.9,                    ('stop of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
-        ('nlp',  'parallelization',  None, 'type',                 'thread',               ('parallellization type', ['serial', 'openmp', 'thread']),'t'),
+        ('nlp',  'parallelization',  None, 'type',                 'thread',               ('parallellization type', ['serial', 'openmp', 'thread', 'concurrent_futures']),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
@@ -313,7 +314,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
-        ('solver',  None,   None,   'generation_method',    'serial',   ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures', 'pathos', 'joblib', 'gevent']), 'x'),
+        ('solver', 'construction', 'parallelization', 'type', 'serial',  ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures']), 'x'),
         ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
         ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
@@ -364,7 +365,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'check_scaling',      'orders_of_magnitude',  2,      ('the number of orders of magnitude the scaled reference values are maximally away from unity', None), 'x'),
         ('solver',  'initialization', 'check_scaling',      'zero_value_threshold', 1.e-8,  ('threshold for determining if a reference value is effectively zero', None), 'x'),
         ('solver',  'initialization', 'check_feasibility',  'path_constraint_threshold',    -1.e-2, ('the threshold for path constraint dissatisfaction', None), 'x'),
-        ('solver', 'initialization',  'check_feasibility',  'raise_exception',      False,  ('raise an exception when the initial guess violates the path constraints', [True, False]), 'x'),
+        ('solver',  'initialization', 'check_feasibility',  'raise_exception',      False,  ('raise an exception when the initial guess violates the path constraints', [True, False]), 'x'),
+        ('solver',  'initialization', 'check_rotational_axes', 'perform_check',     False,  ('check that standard initial guess rotational axes are consistent with ones used in aerodynamics and outputs', [True, False]), 'x'),
+        ('solver',  'initialization', 'check_rotational_axes', 'norm_squared_threshold',    1.e-7,  ('the threshold for rotational axes inconsistency', None), 'x'),
 
         ('solver',  'initialization', 'theta',  'l_i',      100.,     ('intermediate tether initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'l_s',      50.,      ('secondary tether initialization [m]', None),'x'),
@@ -530,6 +533,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'diagnostics', 'colors',     dim_colors,     ('list of colors for algebraic variables', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'ylabelsize', 15,             ('???', None), 'x'),
+        ('visualization', 'cosmetics', 'induction',   'comparison_data_for_velocity_distribution', 'not_in_use', ('whether to add comparison data from Rancourt2018 or Trevisi2023 to plot of spanwise velocity distribution', ['not_in_use', 'rancourt', 'trevisi']), 'x'),
         ('visualization', 'cosmetics', 'animation',   'snapshot_index', 0,          ('???', None), 'x'),
         ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
 

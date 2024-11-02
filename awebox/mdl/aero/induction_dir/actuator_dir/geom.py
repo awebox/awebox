@@ -411,7 +411,7 @@ def get_act_dcm_ortho_cstr(parent, variables):
 def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, architecture, scaling):
 
     # n_hat * length equals normal direction = 3 constraints
-    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture, scaling)
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture)
     n_hat_var = get_n_hat_var(variables, parent)
     n_vec_length_var = get_n_vec_length_var(variables, parent)
 
@@ -429,7 +429,7 @@ def get_act_dcm_n_along_normal_cstr(model_options, parent, variables, architectu
 
 
 def get_n_vec_val(model_options, parent, variables, architecture, scaling):
-    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture, scaling)
+    n_vec_val = unit_normal.get_n_vec(model_options, parent, variables, architecture)
     return n_vec_val
 
 def draw_actuator_geometry(ax, side, plot_dict, cosmetics, index):

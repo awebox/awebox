@@ -190,7 +190,7 @@ def initial_guess_actuator_support(init_options, model, V_init):
 
         Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
         variables = struct_op.get_variables_at_time(init_options, V_init, Xdot, model.variables, 0)
-        n_hat_act = unit_normal.get_n_vec(init_options, parent, variables, model.architecture, model.scaling)
+        n_hat_act = unit_normal.get_n_vec(init_options, parent, variables, model.architecture)
         z_hat_act = w_hat
         y_hat_act = vect_op.normed_cross(z_hat_act, n_hat_act)
         act_dcm = cas.horzcat(n_hat_act, y_hat_act, z_hat_act)

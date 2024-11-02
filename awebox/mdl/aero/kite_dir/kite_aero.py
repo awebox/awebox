@@ -39,6 +39,7 @@ import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.geometry_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
@@ -115,6 +116,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 
 def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
+    outputs = unit_normal.get_rotation_axes_outputs(options, variables_si, outputs, architecture)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']

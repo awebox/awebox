@@ -324,20 +324,19 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
 
     solvers = {}
 
-    generation_method = options['generation_method']
-
-    if generation_method == 'serial':
+    parallelization_type = options['construction']['parallelization']['type']
+    if parallelization_type == 'serial':
         for name in ordered_names:
             solvers[name] = construct_single_solver_from_bundle(dict_of_bundled_nlp_and_options[name])
         results = None
 
-    elif generation_method == 'multiprocessing_pool':
+    elif parallelization_type == 'multiprocessing_pool':
         from multiprocessing import Pool, Lock
         list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
         pool = Pool(processes=len(list_of_bundles))
         results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
 
-    elif generation_method == 'concurrent_futures':
+    elif parallelization_type == 'concurrent_futures':
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor() as executor:
             # Submit tasks for each argument
@@ -346,30 +345,12 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
             # Optionally: Collect results (if the function returns anything)
             results = [future.result() for future in futures]
 
-    elif generation_method == 'pathos':
-        from pathos.multiprocessing import ProcessingPool as Pool
-        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
-        with Pool() as pool:
-            results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
-
-    elif generation_method == 'joblib':
-        from joblib import Parallel, delayed
-        results = Parallel(n_jobs=len(ordered_names))(delayed(construct_single_solver_from_bundle)(dict_of_bundled_nlp_and_options[name]) for name in ordered_names)
-
-    elif generation_method == 'gevent':
-        import gevent
-        from gevent.pool import Pool
-
-        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
-        pool = Pool(len(list_of_bundles))
-        results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
-
     else:
-        message = 'unfamiliar solver generation method (' + generation_method + ')'
+        message = 'unfamiliar solver generation method (' + parallelization_type + ')'
         print_op.log_and_raise_error(message)
 
 
-    if (generation_method != 'serial') and (results is not None):
+    if (parallelization_type != 'serial') and (results is not None):
         for idx in range(len(ordered_names)):
             solvers[ordered_names[idx]] = results[idx]
     return solvers

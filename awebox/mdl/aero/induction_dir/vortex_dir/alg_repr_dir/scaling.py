@@ -58,13 +58,13 @@ def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
     axial_speed = u_ref * (1. - a_ref)
     airspeed_ref = axial_speed
 
-    if not (options['model']['aero']['overwrite']['f_lift_earth'] is None):
+    if not (options['model']['aero']['overwrite']['f_aero_rot'] is None):
         # L/b = rho v gamma
         # gamma = L / (b rho v)
         flight_radius = varrho_ref * b_ref
         rotational_speed = 2. * np.pi * flight_radius / winding_period
         rho_ref = options['params']['atmosphere']['rho_ref']
-        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_lift_earth']) / (b_ref * rho_ref * rotational_speed)
+        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_aero_rot']) / (b_ref * rho_ref * rotational_speed)
         filament_strength = gamma
     else:
         filament_strength = 0.5 * CL * airspeed_ref * c_ref

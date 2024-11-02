@@ -28,6 +28,8 @@ to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2020-21
 '''
+import pdb
+
 import numpy as np
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
@@ -107,7 +109,7 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
             var_value_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
             resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         elif abbreviated_var_name == 'wg':
-            var_value_si = get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
+            var_value_si = get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
             resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
         elif abbreviated_var_name == 'wh':
             resi_scaled = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
@@ -215,6 +217,40 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 
 
 ############## ring strength
+
+def get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
+    filament_strength_from_circulation = model.options['aero']['vortex']['filament_strength_from_circulation']
+    use_circulation_equality_pattern = model.options['aero']['vortex']['use_circulation_equality_pattern']
+
+    if use_circulation_equality_pattern and ring > 0:
+        arbitrary_tip = 'ext'
+        pattern_var_name = vortex_tools.get_var_name('wg', kite_shed_or_parent_shed=kite_shed,
+                                             tip=arbitrary_tip, wake_node_or_ring=0)
+        ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, ring,
+                                                                                                ndx, ddx)
+        pattern_var_symbolic_scaled = V['coll_var', ndx_shed, ddx_shed, 'z', pattern_var_name]
+        var_symbolic_si = struct_op.var_scaled_to_si('z', pattern_var_name, pattern_var_symbolic_scaled, model.scaling)
+        return var_symbolic_si
+
+
+    if filament_strength_from_circulation == 'averaged':
+        return get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx)
+    elif filament_strength_from_circulation == 'instantaneous':
+        return get_local_instantaneous_circulation_value(nlp_options, Outputs, kite_shed, ring, ndx, ddx)
+    else:
+        message = 'unfamiliar option for how to determine the vortex ring strength (' + filament_strength_from_circulation + ')'
+        print_op.log_and_raise_error(message)
+    return None
+
+def get_local_instantaneous_circulation_value(nlp_options, Outputs, kite_shed, ring, ndx, ddx):
+
+    out_name = 'circulation' + str(kite_shed)
+    ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, ring, ndx,
+                                                                                            ddx)
+    instantaneous_circulation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', out_name]
+
+    return instantaneous_circulation
+
 
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
 

@@ -35,11 +35,18 @@ import operator
 
 import copy
 from functools import reduce
+
+from reportlab.platypus.para import lengthSequence
+
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 from itertools import chain
 import matplotlib.pyplot as plt
+from multiprocessing import Pool, Lock
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
+import pdb
 
 def subkeys(casadi_struct, key):
 
@@ -747,7 +754,55 @@ def get_variable_type(container, name):
 
     return None
 
+def concurrent_future_map(casadi_fun, list_of_horzcatted_inputs):
 
+    if (not hasattr(list_of_horzcatted_inputs, 'len')) and (isinstance(list_of_horzcatted_inputs, cas.DM) or isinstance(list_of_horzcatted_inputs, cas.SX) or isinstance(list_of_horzcatted_inputs, cas.MX)):
+        list_of_horzcatted_inputs = [list_of_horzcatted_inputs]
+
+    number_of_inputs = len(list_of_horzcatted_inputs)
+
+    lengths_of_inputs = [horzcat_input.shape[0] for horzcat_input in list_of_horzcatted_inputs]
+    new_horzcatted_inputs = []
+    for ndx in range(number_of_inputs):
+        new_horzcatted_inputs = cas.vertcat(new_horzcatted_inputs, list_of_horzcatted_inputs[ndx])
+
+    def function_in_parallel(new_vertical_input):
+        old_input_list = []
+        for ndx in range(number_of_inputs):
+            start_idx = int(np.sum(np.array(lengths_of_inputs[:ndx])))
+            end_idx = int(np.sum(np.array(lengths_of_inputs[:ndx + 1])))
+            old_input_list += [new_vertical_input[start_idx:end_idx]]
+
+        if number_of_inputs == 1:
+            return casadi_fun(old_input_list[0])
+        elif number_of_inputs == 2:
+            return casadi_fun(old_input_list[0], old_input_list[1])
+        elif number_of_inputs == 3:
+            return casadi_fun(old_input_list[0], old_input_list[1], old_input_list[2])
+        else:
+            message = 'sorry: multiprocessing_map is not available yet for casadi functions with more than 3 inputs'
+            print_op.log_and_raise_error(message)
+        return None
+
+    allowed_cpus = 5
+
+    # results = []
+    # listed_new_inputs = [new_horzcatted_inputs[:, ndx] for ndx in range(new_horzcatted_inputs.shape[1])]
+    # chunk_size = int(np.ceil(float(number_of_inputs) / float(allowed_cpus)))
+    # with ProcessPoolExecutor() as executor:
+    #     for result in executor.map(function_in_parallel, listed_new_inputs, chunksize=chunk_size):
+    #         results.append(result)
+
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(function_in_parallel, new_horzcatted_inputs[:, ndx]) for ndx in
+                   range(new_horzcatted_inputs.shape[1])]
+        results = [future.result() for future in futures]
+
+    horzcatted_outputs = []
+    for local_result in results:
+        horzcatted_outputs = cas.horzcat(horzcatted_outputs, local_result)
+
+    return horzcatted_outputs
 
 def convert_return_status_string_to_number(return_string):
 

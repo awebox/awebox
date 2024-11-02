@@ -11,8 +11,7 @@ def test_parallelization():
     F = func.map(N, 'thread')
     F(x0=0, z0=0, p=0)
 
-
-def test_parallel_solver_generation():
+def get_basic_trial_options():
     trial_options = {}
     trial_options['user_options.system_model.architecture'] = {1: 0}
     trial_options['user_options.system_model.kite_dof'] = 3
@@ -24,17 +23,38 @@ def test_parallel_solver_generation():
     trial_options['nlp.collocation.u_param'] = 'zoh'
     trial_options['nlp.n_k'] = 5
     trial_options['solver.max_iter'] = 2
+    return trial_options
 
-    for solver_generation_method in ['serial', 'multiprocessing_pool']:
-        trial_options['solver.generation_method'] = solver_generation_method
+def test_parallel_model_generation():
+    trial_options = get_basic_trial_options()
+    for parallelization_type in ['serial', 'concurrent_futures']:
+        trial_options['model.construction.parallelization.type'] = parallelization_type
+        trial_name = parallelization_type
+        trial = awe_trial.Trial(trial_options, trial_name)
+        trial.build()
+        trial.optimize(final_homotopy_step='initial')
 
-        trial_name = solver_generation_method
+def test_parallel_nlp_generation():
+    trial_options = get_basic_trial_options()
+    for parallelization_type in ['serial', 'concurrent_futures']:
+        trial_options['nlp.parallelization.type'] = parallelization_type
+        trial_name = parallelization_type
+        trial = awe_trial.Trial(trial_options, trial_name)
+        trial.build()
+        trial.optimize(final_homotopy_step='initial')
 
-        # compute trajectory solution
+
+def test_parallel_solver_generation():
+    trial_options = get_basic_trial_options()
+    for parallelization_type in ['serial', 'multiprocessing_pool']:
+        trial_options['solver.construction.parallelization.type'] = parallelization_type
+        trial_name = parallelization_type
         trial = awe_trial.Trial(trial_options, trial_name)
         trial.build()
         trial.optimize(final_homotopy_step='initial')
 
 if __name__ == "__main__":
     test_parallelization()
+    test_parallel_model_generation()
+    test_parallel_nlp_generation()
     test_parallel_solver_generation()

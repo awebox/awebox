@@ -23,12 +23,16 @@
 #
 #
 import copy
+import pdb
+from platform import architecture
 
 import matplotlib
+from pandas.core.ops import unpack_zerodim_and_defer
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -37,6 +41,7 @@ from awebox.logger.logger import Logger as awelogger
 import awebox.mdl.wind as wind
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.indicators as aero_indicators
 
 import awebox.viz.tools as tools
 
@@ -204,6 +209,486 @@ def get_coordinate_axes_for_haas_verification():
     b_hat = vect_op.yhat_dm()
     return n_hat, a_hat, b_hat
 
+def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
+    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
+    parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
+    architecture = plot_dict['architecture']
+
+    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction']['comparison_data_for_velocity_distribution']
+    add_rancourt_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'rancourt')
+    add_trevisi_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'trevisi')
+
+    all_xi = np.linspace(-0.5, 0.5, 500)
+    xi_cas = cas.DM(all_xi).reshape((1, len(all_xi)))
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        rancourt_dict = get_rancourt_velocity_distribution(all_xi)
+
+    if add_trevisi_comparison_to_velocity_distribution:
+        trevisi_a_normal_dict = get_trevisi_induction_factor_distributions(all_xi)
+
+    adx = {}
+    adx['radius'] = 0
+    adx['app'] = adx['radius'] + 1
+    adx['eff'] = adx['app']
+    if add_rancourt_comparison_to_velocity_distribution:
+        adx['norm_minus'] = adx['eff'] + 1
+        adx['a_n'] = adx['norm_minus'] + 1
+    else:
+        adx['a_n'] = adx['eff'] + 1
+    adx['a_r'] = adx['a_n'] + 1
+    adx['a_t'] = adx['a_r'] + 1
+    # adx['d_alpha'] = adx['a_t'] + 1
+    # adx['d_beta'] = adx['d_alpha']
+
+
+    rows = 1 + int(np.max(np.array([val for val in adx.values()])))
+    cols = 1
+    plot_height = 2
+    plot_width = 4 * plot_height
+    fig, ax = plt.subplots(rows, cols, squeeze=False, sharex=True, figsize=(plot_width, rows * plot_height))
+    fig.suptitle('spanwise velocity distribution')
+
+    for kdx in range(len(architecture.kite_nodes)):
+        kite = architecture.kite_nodes[kdx]
+
+        fun_dict = get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval=idx_at_eval)
+
+        parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
+        all_dict = {}
+        for name, local_fun in fun_dict.items():
+            if parallelization_type in ['serial', 'openmp', 'thread']:
+                local_map = local_fun.map(all_xi.shape[0], parallelization_type)
+                local_all = local_map(all_xi)
+            elif parallelization_type == 'concurrent_futures':
+                local_all = np.array(struct_op.concurrent_future_map(local_fun, xi_cas)).reshape(all_xi.shape)
+            else:
+                message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+                print_op.log_and_raise_error(message)
+            all_dict[name] = np.array(local_all).reshape(all_xi.shape)
+
+        if kite > 1:
+            kite_label = ', on kite ' + str(kite)
+        else:
+            kite_label = ''
+
+        for name in adx.keys():
+            extra_label = name
+            if name in ['app', 'eff']:
+                extra_label = '||' + name + '||'
+            elif name == 'norm_minus':
+                extra_label = '||u_eff|| - ||u_app||'
+
+            ax[adx[name]][0].plot(all_xi, all_dict[name], label=extra_label + kite_label)
+
+        if add_trevisi_comparison_to_velocity_distribution and (kite in [1, 2]):
+            for label, values in trevisi_a_normal_dict.items():
+                ax[adx['a_n']][0].plot(values['short_xi'], values['short_vals'], linestyle='--', label=label)
+
+    ax[adx['radius']][0].set_ylabel('radial distance\n from center of\n rotation [m]')
+    ax[adx['eff']][0].set_ylabel('inflow [m/s]')
+    ax[adx['a_r']][0].set_ylabel('radial\n induction factor [-]')
+    ax[adx['a_t']][0].set_ylabel('tangential\n induction factor [-]')
+    ax[adx['a_n']][0].set_ylabel('normal\n induction factor [-]')
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        ax[adx['norm_minus']][0].set_ylabel('change in inflow [m/s]')
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        for type in ['app', 'eff', 'norm_minus', 'radius']:
+            extra_label = ''
+            if type in ['app', 'eff']:
+                extra_label = 'u_' + type + ' '
+            elif type == 'norm_minus':
+                extra_label = '||u_eff|| - ||u_app|| '
+            ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], linestyle='--', label= extra_label + 'Rancourt 2018')
+
+    ax[-1][0].set_xlabel('non-dimensional spanwise position [-]')
+    ax[-1][0].set_xticks(np.linspace(-0.5, 0.5, 5))
+
+    for adx_val in range(rows):
+        ax[adx_val][0].grid(True)  # Add a grid for better readability
+        # Shrink current axis by 20%
+        shrink_factor = 0.3
+        box = ax[adx_val][0].get_position()
+        ax[adx_val][0].set_position([box.x0, box.y0, box.width * (1. - shrink_factor), box.height])
+        # Put a legend to the right of the current axis
+        ax[adx_val][0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    plt.tight_layout()
+
+    return None
+
+
+def get_rancourt_velocity_distribution(all_xi):
+
+    # Efficient Aerodynamic Method for Interacting Lifting Surfaces over Long Distances
+    # David Rancourt and Dimitri N. Mavris
+    # Journal of Aircraft 2018 55:6, 2466-2475
+
+    rancourt_b_ref = 8. #m
+    rancourt_c_ref = 1. #m
+    rancourt_rho_air = 1.225 #kg/m^3
+    rancourt_radius = 24. #m
+    rancourt_groundspeed = 30. #m/s
+    rancourt_uinfty = 5. #m/s
+    rancourt_omega = 2. * np.pi / (2. * np.pi * rancourt_radius / rancourt_groundspeed)
+
+    xi_data_lift = [-0.49595875, -0.49450375, -0.49304875, -0.491595, -0.49014, -0.488685, -0.48723, -0.485545,
+                    -0.483735, -0.481925, -0.4801275, -0.47834375, -0.47656125, -0.47461125, -0.4720675, -0.46952375,
+                    -0.46695375, -0.46378125, -0.46060875, -0.45743625, -0.45406375, -0.45063, -0.447195, -0.44323625,
+                    -0.438885, -0.434535, -0.4300075, -0.4252025, -0.4203975, -0.41542875, -0.4094875, -0.40354625,
+                    -0.39760625, -0.3907675, -0.3838675, -0.37696875, -0.36946, -0.361755, -0.35405, -0.34582375,
+                    -0.337145, -0.32846625, -0.319645, -0.31045125, -0.3012575, -0.29202, -0.28249375, -0.2729675,
+                    -0.2634425, -0.254355, -0.2453375, -0.23632125, -0.226415, -0.21605, -0.20568625, -0.19492,
+                    -0.18372875, -0.17253625, -0.16129375, -0.14988375, -0.138475, -0.12706625, -0.1155325, -0.10399875,
+                    -0.09246375, -0.08091875, -0.06937125, -0.05782375, -0.04629125, -0.034765, -0.02324, -0.0117325,
+                    -0.00025375, 0.011225, 0.0227, 0.03415625, 0.04561125, 0.05706625, 0.06836875, 0.07967125,
+                    0.0909725, 0.10225, 0.1135225, 0.124795, 0.1360125, 0.14719375, 0.158375, 0.16951875, 0.18060875,
+                    0.19169875, 0.20277625, 0.21380125, 0.22482625, 0.23585125, 0.24702875, 0.25821, 0.26939,
+                    0.27958375, 0.28948625, 0.2993875, 0.30879, 0.31780625, 0.32682375, 0.3354975, 0.34357, 0.35164375,
+                    0.35951125, 0.3666375, 0.37376375, 0.38089, 0.386895, 0.39287125, 0.39884875, 0.404825, 0.4106575,
+                    0.416035, 0.42141375, 0.42676125, 0.43073625, 0.43471125, 0.43868625, 0.44244, 0.4461475, 0.449855,
+                    0.45333125, 0.456715, 0.46009875, 0.4632075, 0.46600875, 0.46881]
+    lift_data_lift = [73.522, 78.039, 82.556, 87.073, 91.589, 96.106, 100.623, 105.127, 109.624, 114.12, 118.618,
+                      123.117, 127.615, 132.101, 136.543, 140.985, 145.424, 149.802, 154.181, 158.56, 162.915, 167.263,
+                      171.611, 175.885, 180.103, 184.322, 188.511, 192.653, 196.795, 200.902, 204.809, 208.715, 212.621,
+                      216.291, 219.945, 223.598, 227.056, 230.45, 233.844, 237.031, 240.038, 243.045, 245.983, 248.742,
+                      251.501, 254.235, 256.812, 259.39, 261.967, 264.778, 267.626, 270.474, 272.77, 274.782, 276.793,
+                      278.376, 279.501, 280.627, 281.655, 282.363, 283.071, 283.778, 284.002, 284.224, 284.446, 284.485,
+                      284.49, 284.496, 284.321, 284.047, 283.773, 283.415, 282.925, 282.436, 281.933, 281.364, 280.796,
+                      280.228, 279.302, 278.373, 277.444, 276.471, 275.488, 274.506, 273.434, 272.301, 271.169, 269.984,
+                      268.72, 267.456, 266.177, 264.829, 263.48, 262.131, 260.993, 259.86, 258.728, 256.665, 254.327,
+                      251.99, 249.368, 246.529, 243.689, 240.7, 237.448, 234.197, 230.875, 227.296, 223.717, 220.139,
+                      216.254, 212.361, 208.469, 204.577, 200.652, 196.626, 192.6, 188.568, 184.296, 180.024, 175.752,
+                      171.448, 167.139, 162.829, 158.49, 154.139, 149.788, 145.407, 140.992, 136.576]
+
+    lift_per_unit_span_interpolated = vect_op.spline_interpolation(xi_data_lift, lift_data_lift, all_xi)
+
+    xi_data_CL = [-0.49411625, -0.49272625, -0.49133625, -0.48969375, -0.4877825, -0.48583125, -0.48312375, -0.48041625,
+                  -0.47718375, -0.47338, -0.46954125, -0.4649275, -0.46031375, -0.4554975, -0.45050625, -0.44551625,
+                  -0.4394475, -0.4333625, -0.42684, -0.41990625, -0.412965, -0.40552375, -0.39808125, -0.390255,
+                  -0.3820875, -0.37392, -0.365295, -0.35666375, -0.3476825, -0.33844625, -0.32920875, -0.3199725,
+                  -0.310735, -0.30137, -0.2919125, -0.28243375, -0.2728275, -0.26322125, -0.25408875, -0.24525625,
+                  -0.2362975, -0.22648125, -0.21666625, -0.20651625, -0.1961925, -0.18585125, -0.17543875, -0.1650275,
+                  -0.15450375, -0.14391875, -0.1333125, -0.122565, -0.11181875, -0.10097, -0.09007, -0.07916,
+                  -0.0682125, -0.057265, -0.04622625, -0.03514875, -0.02408, -0.01304125, -0.00200125, 0.0090675,
+                  0.020145, 0.0312575, 0.04245125, 0.053645, 0.0648375, 0.07603125, 0.08725375, 0.0985275, 0.1098025,
+                  0.1210975, 0.1323925, 0.14373375, 0.15511375, 0.1664925, 0.1778725, 0.1892525, 0.2006325, 0.21201125,
+                  0.22339125, 0.23477125, 0.24615125, 0.25753125, 0.26891, 0.28033375, 0.29182625, 0.30331875, 0.31436,
+                  0.32539, 0.33595125, 0.34616, 0.35617125, 0.36538875, 0.37460625, 0.382855, 0.39069125, 0.39852875,
+                  0.406365, 0.41255375, 0.4185175, 0.4244825, 0.43041375, 0.434835, 0.43925625, 0.4436775, 0.44809875,
+                  0.45252, 0.45564875, 0.458495, 0.4613425, 0.46418875, 0.46703625, 0.4698825, 0.47232125, 0.47446,
+                  0.4765975, 0.478735, 0.48087375, 0.48301125, 0.4848925, 0.486415, 0.4879375, 0.48946125, 0.49098375,
+                  0.49237625, 0.49314125, 0.493905]
+    CL_data_CL = [0.08078, 0.09192, 0.10306, 0.11416, 0.12522, 0.13628, 0.14719, 0.1581, 0.16885, 0.17945, 0.19003,
+                  0.20031, 0.2106, 0.22079, 0.23091, 0.24102, 0.25057, 0.2601, 0.26934, 0.27831, 0.28727, 0.29585,
+                  0.30442, 0.31265, 0.32057, 0.3285, 0.33595, 0.34339, 0.35042, 0.35714, 0.36387, 0.37059, 0.37731,
+                  0.38386, 0.39028, 0.39668, 0.40289, 0.4091, 0.41593, 0.42315, 0.4302, 0.43609, 0.44199, 0.4473,
+                  0.4523, 0.45727, 0.4621, 0.46693, 0.47152, 0.47598, 0.48039, 0.48447, 0.48854, 0.49235, 0.49602,
+                  0.49967, 0.5032, 0.50674, 0.50999, 0.51312, 0.51627, 0.51952, 0.52278, 0.52593, 0.52906, 0.53206,
+                  0.53477, 0.53748, 0.54019, 0.5429, 0.54549, 0.54786, 0.55023, 0.55251, 0.55478, 0.55681, 0.55865,
+                  0.56048, 0.56231, 0.56414, 0.56597, 0.5678, 0.56964, 0.57147, 0.5733, 0.57513, 0.57696, 0.57773,
+                  0.57678, 0.57584, 0.57262, 0.56934, 0.56495, 0.55973, 0.55421, 0.54747, 0.54072, 0.53294, 0.52471,
+                  0.51648, 0.50825, 0.49881, 0.48921, 0.4796, 0.46999, 0.45962, 0.44926, 0.4389, 0.42854, 0.41817,
+                  0.40739, 0.39652, 0.38565, 0.37478, 0.3639, 0.35303, 0.34207, 0.33105, 0.32002, 0.309, 0.29797,
+                  0.28695, 0.27588, 0.26476, 0.25364, 0.24252, 0.23139, 0.22026, 0.20906, 0.19787]
+    cl_interpolated = vect_op.spline_interpolation(xi_data_CL, CL_data_CL, all_xi)
+
+    # lift_per_unit_span = cl (1/2 rho norm(u_eff)^2) chord
+    # 2 lpus / (chord cl rho) = norm(u_eff)^2
+    # norm(u_eff) = ( 2 lpus / chord cl rho)**0.5
+
+    radius_list = []
+    norm_u_app_list = []
+    norm_u_eff_list = []
+    norm_dq_kite_list = []
+    for idx in range(len(all_xi)):
+
+        xi  = all_xi[idx]
+        local_radius = rancourt_radius - xi * rancourt_b_ref
+        radius_list = cas.vertcat(radius_list, local_radius)
+
+        norm_dq_kite = local_radius * rancourt_omega
+        norm_dq_kite_list = cas.vertcat(norm_dq_kite_list, norm_dq_kite)
+
+        u_eff_squared = (2. * lift_per_unit_span_interpolated[idx]) / (rancourt_c_ref * cl_interpolated[idx] * rancourt_rho_air)
+        norm_u_eff = u_eff_squared**0.5
+        norm_u_eff_list = cas.vertcat(norm_u_eff_list, norm_u_eff)
+
+        norm_u_app = (norm_dq_kite**2. + rancourt_uinfty**2.)**0.5
+        norm_u_app_list = cas.vertcat(norm_u_app_list, norm_u_app)
+
+    rancourt_dict = {}
+    rancourt_dict['radius'] = {'vals': np.array(radius_list)}
+    rancourt_dict['app'] = {'vals': np.array(norm_u_app_list)}
+    rancourt_dict['eff'] = {'vals': np.array(norm_u_eff_list)}
+    rancourt_dict['dq'] = {'vals': np.array(norm_dq_kite_list)}
+
+    rancourt_dict = add_shortened_distributions(rancourt_dict, all_xi)
+
+    norm_minus = []
+    sdx = 0
+    for ldx in range(all_xi.shape[0]):
+        xi_val = all_xi[ldx]
+        if xi_val in rancourt_dict['eff']['short_xi']:
+            local_eff = rancourt_dict['eff']['short_vals'][sdx]
+            local_app = rancourt_dict['app']['vals'][ldx]
+            local_dq = rancourt_dict['dq']['vals'][ldx]
+
+            local_norm_minus = local_eff - local_app
+            norm_minus = cas.vertcat(norm_minus, local_norm_minus)
+            sdx += 1
+
+    rancourt_dict['norm_minus'] = {'short_xi': rancourt_dict['eff']['short_xi'],
+                                   'short_vals': np.array(norm_minus)
+                                   }
+    return rancourt_dict
+
+def add_shortened_distributions(rancourt_dict, all_xi):
+    for label, values in rancourt_dict.items():
+        short_xi = []
+        short_ax = []
+        for idx in range(all_xi.shape[0]):
+            if np.isfinite(values['vals'][idx]) and (values['vals'][idx] != 0.):
+                short_xi += [all_xi[idx]]
+                short_ax += [values['vals'][idx]]
+        rancourt_dict[label]['short_xi'] = np.array(short_xi)
+        rancourt_dict[label]['short_vals'] = np.array(short_ax)
+    return rancourt_dict
+
+
+def get_trevisi_induction_factor_distributions(all_xi):
+
+    #  Vortex model of the aerodynamic wake of airborne wind energy systems
+    #     Filippo Trevisi Carlo E. D. Riboldi Alessandro Croce
+    #     Wind Energy Science vol. 8 issue 6 (2023) pp: 999-1016
+
+    # note: spline interpolation might be bad here. segments are linear in plot.
+
+    ax_interpolations = {}
+
+    trevisi_blank_name = 'T. + _'
+    trevisi_trevisi_name = 'T. + T.'
+    trevisi_gaunaa_name = 'T. + G.'
+    trevisi_kheiri_name = 'T. + K.'
+    qblade_name = 'QBlade'
+
+    trevisi_blank_xi = [-0.459632497636364, -0.450145848218182, -0.422512565127273, -0.395952613418181, -0.333559393527273, -0.283076151981818, -0.199572970472728, -0.0756831957272723, 0.0518732390181821, 0.154653052145455, 0.283129485218182, 0.321656081836364, 0.362956006745454, 0.394159283345454, 0.425419226509091, 0.447339186654546, 0.465142487618182]
+    trevisi_blank_ax = [0, 0.20339, 0.27702, 0.24587, 0.25218, 0.26846, 0.27855, 0.3024, 0.32501, 0.34385, 0.36771, 0.36402, 0.37405, 0.38033, 0.42402, 0.36043, 0.0037]
+    trevisi_blank_ax_interpolated = np.interp(all_xi, trevisi_blank_xi, trevisi_blank_ax, left=np.nan, right=np.nan)
+    ax_interpolations[trevisi_blank_name] = {'vals': trevisi_blank_ax_interpolated}
+
+    trevisi_trevisi_xi = [-0.460552495963637, -0.448135851872727, -0.447179186945455, -0.421395900490909, -0.395755947109091, -0.333359393890909, -0.283792817345455, -0.171839687563636, -0.0975064893818182, 0.0227099587090907, 0.270479508218182, 0.29892945649091, 0.331032731454546, 0.375082651363637, 0.396195946309091, 0.424699227818182, 0.447535852963636, 0.466085819236364]
+    trevisi_trevisi_ax = [0, 0.31815, 0.34435, 0.40675, 0.3756, 0.38191, 0.39819, 0.41704, 0.42961, 0.45221, 0.49493, 0.49996, 0.49625, 0.50379, 0.51255, 0.55375, 0.48892, 0.01992]
+    trevisi_trevisi_ax_interpolated = np.interp(all_xi, trevisi_trevisi_xi, trevisi_trevisi_ax, left=np.nan, right=np.nan)
+    ax_interpolations[trevisi_trevisi_name] = {'vals': trevisi_trevisi_ax_interpolated}
+
+    trevisi_gaunaa_xi = [-0.462372492654545, -0.449989181836364, -0.424202562054546, -0.392139287018182, -0.312302765509091, -0.256316200636364, -0.1718930208, 0.0171499688181817, 0.21719960509091, 0.273179503309091, 0.2924528016, 0.32272607989091, 0.355759353163636, 0.382375971436364, 0.405332596363636, 0.426489224563636, 0.4520625114, 0.464282489181819]
+    trevisi_gaunaa_ax = [0.00878, 0.30568, 0.37182, 0.33943, 0.3545, 0.36829, 0.38211, 0.41603, 0.44871, 0.46001, 0.46377, 0.46381, 0.46635, 0.47387, 0.48762, 0.52506, 0.449, 0.04112]
+    trevisi_gaunaa_ax_interpolated = np.interp(all_xi, trevisi_gaunaa_xi, trevisi_gaunaa_ax, left=np.nan, right=np.nan)
+    ax_interpolations[trevisi_gaunaa_name] = {'vals': trevisi_gaunaa_ax_interpolated}
+
+    trevisi_kheiri_xi = [-0.469709145981818, -0.4498625154, -0.422225898981818, -0.391999287272727, -0.333276060709091, -0.271776172527273, -0.157073047745455, 0.0925364984181814, 0.285249481363636, 0.323779411309091, 0.390769289509091, 0.423862562672727, 0.448549184454545, 0.469762479218182]
+    trevisi_kheiri_ax = [0.00877, 0.38925, 0.46288, 0.43298, 0.43805, 0.45808, 0.47319, 0.51841, 0.55358, 0.55238, 0.56369, 0.60614, 0.55129, 0.02491]
+    trevisi_kheiri_ax_interpolated = np.interp(all_xi, trevisi_kheiri_xi, trevisi_kheiri_ax, left=np.nan, right=np.nan)
+    ax_interpolations[trevisi_kheiri_name] = {'vals': trevisi_kheiri_ax_interpolated}
+
+    qblade_xi = [-0.4976390952, -0.496015764818182, -0.495519099054546, -0.495172433018182, -0.494805767018182, -0.494415767727273,
+         -0.494025768436364, -0.493632435818182, -0.493242436527273, -0.492849103909091, -0.492459104618182, \
+         -0.492069105327273, -0.491675772709091, -0.491285773418182, -0.490895774127273, -0.490502441509091, \
+         -0.490112442218182, -0.4897191096, -0.489019110872727, -0.488305778836364, -0.486892448072727, -0.484649118818182, \
+         -0.483319121236364, -0.482209123254545, -0.481082458636364, -0.479925794072728, -0.478769129509091, \
+         -0.477339132109091, -0.475872468109091, -0.474259137709091, -0.472369141145455, -0.470479144581819, \
+         -0.468349148454545, -0.466192485709091, -0.464115822818182, -0.462229159581819, -0.460339163018182, \
+         -0.454292507345454, -0.447609186163636, -0.440245866218182, -0.431825881527273, -0.423405896836363, \
+         -0.414762579218182, -0.406092594981819, -0.397252611054545, -0.388229294127273, -0.3792793104, -0.370325993345454, \
+         -0.3612760098, -0.352226026254545, -0.343139376109091, -0.334029392672727, -0.324919409236364, -0.315866092363636, \
+         -0.306812775490909, -0.297802791872727, -0.288816141545455, -0.279822824563636, -0.270769507690909, \
+         -0.261716190818182, -0.252662873945454, -0.243609557072727, -0.234559573527273, -0.225506256654546, \
+         -0.216452939781818, -0.207356289654546, -0.198249639545454, -0.189166322727272, -0.180113005854546, \
+         -0.171059688981818, -0.162009705436364, -0.152956388563637, -0.143873071745455, -0.134766421636363, \
+         -0.125666438181818, -0.116606454654546, -0.1075431378, -0.0984864876000002, -0.089433170727273, \
+         -0.0803731872000003, -0.071266537090909, -0.0621598869818185, -0.0530565701999996, -0.0439499200909091, \
+         -0.0348632699454547, -0.0258099530727275, -0.0167566362000002, -0.00765665274545442, 0.00144999736363616, \
+         0.0105599808000004, 0.0196699642363634, 0.0287799476727276, 0.0378865977818182, 0.0469932478909088, \
+         0.0560998979999994, 0.0652032147818182, 0.0743098648909088, 0.0834231816545454, 0.092533165090909, 0.1016398152, \
+         0.110746465309091, 0.119853115418182, 0.128959765527273, 0.138063082309091, 0.147203065690908, 0.156349715727273, \
+         0.165483032454545, 0.174589682563636, 0.183696332672728, 0.192802982781818, 0.201906299563636, 0.211016283, \
+         0.220126266436364, 0.2292395832, 0.238346233309091, 0.247449550090909, 0.2565562002, 0.265662850309091, \
+         0.274769500418181, 0.283916150454546, 0.293059467163636, 0.302179450581818, 0.311282767363637, 0.320376084163636, \
+         0.329429401036364, 0.338482717909091, 0.3475260348, 0.356569351690909, 0.365582668636363, 0.374569318963636, \
+         0.383545969309091, 0.39217262029091, 0.4008026046, 0.409409255618182, 0.418005906654546, 0.427052556872727, \
+         0.436102540418182, 0.444965857636364, 0.453829174854546, 0.456929169218182, 0.458639166109091, 0.463822490018182, \
+         0.466689151472727, 0.468895814127273, 0.471102476781819, 0.473309139436364, 0.475515802090909, 0.477079132581818, \
+         0.478509129981818, 0.479835794236363, 0.480909125618182, 0.481982457, 0.483055788381818, 0.484129119763636, \
+         0.485215784454545, 0.486335782418182, 0.487455780381818, 0.488535778418181, 0.489609109800001, 0.490682441181818, \
+         0.491759105890909, 0.492832437272727, 0.493905768654545, 0.494979100036364]
+    qblade_ax = [0.34304, 0.33077, 0.31833, 0.30586, 0.2934, 0.28094, 0.26848, 0.25602, 0.24356, 0.2311, 0.21863, 0.20617, 0.19371, \
+         0.18125, 0.16879, 0.15633, 0.14387, 0.13141, 0.11897, 0.10654, 0.10536, 0.11746, 0.12979, 0.14218, 0.15457, \
+         0.16694, 0.17932, 0.19165, 0.20397, 0.21625, 0.22847, 0.24068, 0.25282, 0.26496, 0.27711, 0.28933, 0.30154, 0.3106, \
+         0.31917, 0.32634, 0.33133, 0.33631, 0.34052, 0.34463, 0.34599, 0.34506, 0.34784, 0.35061, 0.35269, 0.35475, \
+         0.35651, 0.35801, 0.35952, 0.36158, 0.36364, 0.366, 0.36855, 0.37104, 0.3731, 0.37516, 0.37722, 0.37929, 0.38135, \
+         0.38341, 0.38547, 0.38711, 0.38867, 0.39044, 0.3925, 0.39457, 0.39663, 0.39869, 0.40047, 0.40203, 0.40365, 0.40563, \
+         0.40761, 0.40964, 0.4117, 0.41368, 0.41524, 0.4168, 0.41835, 0.41991, 0.42164, 0.4237, 0.42576, 0.42737, 0.42893, \
+         0.43046, 0.43196, 0.43346, 0.43501, 0.43657, 0.43813, 0.43969, 0.44124, 0.44274, 0.44423, 0.44577, 0.44733, \
+         0.44889, 0.45044, 0.452, 0.45313, 0.45414, 0.45529, 0.45685, 0.45841, 0.45997, 0.46153, 0.46306, 0.46456, 0.46605, \
+         0.46761, 0.46917, 0.47072, 0.47228, 0.47381, 0.47485, 0.4759, 0.47729, 0.47884, 0.48053, 0.48259, 0.48465, 0.48678, \
+         0.48893, 0.49127, 0.49383, 0.49643, 0.5007, 0.50498, 0.50933, 0.51372, 0.51194, 0.51028, 0.51353, 0.51678, 0.51607, \
+         0.50649, 0.49621, 0.48452, 0.47242, 0.46032, 0.44823, 0.43613, 0.42385, 0.41153, 0.3992, 0.38681, 0.37443, 0.36205, \
+         0.34966, 0.33728, 0.3249, 0.31253, 0.30014, 0.28776, 0.27538, 0.26299, 0.25061, 0.23823, 0.22584]
+    qblade_ax_interpolated = np.interp(all_xi, qblade_xi, qblade_ax, left=np.nan, right=np.nan)
+    ax_interpolations[qblade_name] = {'vals': qblade_ax_interpolated}
+
+    ax_interpolations = add_shortened_distributions(ax_interpolations, all_xi)
+
+    return ax_interpolations
+
+
+
+def get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval):
+
+    search_name = 'interpolation_si'
+    parent = plot_dict['architecture'].parent_map[kite]
+    x_vals = plot_dict[search_name]['x']
+
+    # kite position information
+    q_kite = []
+    ehat_2 = []
+    for j in range(3):
+        q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][idx_at_eval])
+        ehat_2 = cas.vertcat(ehat_2, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][idx_at_eval])
+
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    vec_offset = xi_sym * b_ref * ehat_2
+    x_obs = q_kite + vec_offset
+    return x_obs, vec_offset
+
+def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval=0):
+
+    xi_sym = cas.SX.sym('xi_sym', (1, 1))
+
+    search_name = 'interpolation_si'
+    x_vals = plot_dict[search_name]['x']
+
+    parent_map = plot_dict['architecture'].parent_map
+    parent = parent_map[kite]
+
+    # kite position information
+    q_kite = []
+    dq_kite = []
+    ehat_1 = []
+    ehat_2 = []
+    ehat_3 = []
+    x_center = []
+    ehat_radial = []
+    ehat_tangential = []
+    ehat_normal = []
+    vec_u_zero = []
+    for j in range(3):
+        q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][idx_at_eval])
+        dq_kite = cas.vertcat(dq_kite, x_vals['dq' + str(kite) + str(parent)][j][idx_at_eval])
+        ehat_1 = cas.vertcat(ehat_1,
+                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][idx_at_eval])
+        ehat_2 = cas.vertcat(ehat_2,
+                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][idx_at_eval])
+        ehat_3 = cas.vertcat(ehat_3,
+                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_up' + str(kite)][j][idx_at_eval])
+        x_center = cas.vertcat(x_center, plot_dict[search_name]['outputs']['geometry']['x_center' + str(parent)][j][idx_at_eval])
+        ehat_radial = cas.vertcat(ehat_radial,
+                               plot_dict[search_name]['outputs']['rotation']['ehat_radial' + str(kite)][j][idx_at_eval])
+        ehat_tangential = cas.vertcat(ehat_tangential,
+                               plot_dict[search_name]['outputs']['rotation']['ehat_tangential' + str(kite)][j][idx_at_eval])
+        ehat_normal = cas.vertcat(ehat_normal,
+                               plot_dict[search_name]['outputs']['rotation']['ehat_normal' + str(parent)][j][idx_at_eval])
+        vec_u_zero = cas.vertcat(vec_u_zero, plot_dict[search_name]['outputs']['geometry']['vec_u_zero' + str(parent)][j][idx_at_eval])
+
+    x_obs, vec_offset = get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval)
+    vec_to_center = x_obs - x_center
+    radius_to_center = vect_op.abs(cas.mtimes(vec_to_center.T, ehat_radial))
+
+    wind_model = plot_dict['options']['model']['wind']['model']
+    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
+    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
+    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
+    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
+    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs[2])
+    vec_u_infty = u_infty * vect_op.xhat_dm()
+
+    omega_name = 'omega' + str(kite) + str(parent)
+    if omega_name in x_vals.keys():
+        omega_kite = []
+        for j in range(3):
+            omega_kite = cas.vertcat(omega_kite, x_vals[omega_name][j][idx_at_eval])
+        dq_rotational = vect_op.cross(omega_kite, vec_offset)
+    else:
+        dq_rotational = cas.DM.zeros((3, 1))
+
+    dq_local = dq_kite + dq_rotational
+    vec_u_app = vec_u_infty - dq_local
+
+    if ('wake' in plot_dict.keys()) and ('interpolation_scaled' in plot_dict.keys()):
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+        parameters = plot_dict['parameters_plot']
+        wake = plot_dict['wake']
+        vec_u_ind = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs)
+
+        u_zero = vect_op.norm(vec_u_zero)
+        a_normal = -1. * cas.mtimes(vec_u_ind.T, ehat_normal) / u_zero
+        a_tangential = cas.mtimes(vec_u_ind.T, ehat_tangential) / u_zero
+        a_radial = cas.mtimes(vec_u_ind.T, ehat_radial) / u_zero
+
+        kite_dcm = cas.horzcat(ehat_1, ehat_2, ehat_3)
+
+        vec_u_eff = vec_u_app + vec_u_ind
+
+        alpha_app = aero_indicators.get_alpha(vec_u_app, kite_dcm)
+        alpha_eff = aero_indicators.get_alpha(vec_u_eff, kite_dcm)
+        beta_app = aero_indicators.get_beta(vec_u_app, kite_dcm)
+        beta_eff = aero_indicators.get_beta(vec_u_eff, kite_dcm)
+        delta_alpha = (alpha_eff - alpha_app) * 180. / np.pi
+        delta_beta = (beta_eff - beta_app) * 180. / np.pi
+
+    else:
+        vec_u_eff = vec_u_app
+        a_normal = cas.DM.zeros((1, 1))
+        a_tangential = cas.DM.zeros((1, 1))
+        a_radial = cas.DM.zeros((1, 1))
+        delta_alpha = cas.DM.zeros((1, 1))
+        delta_beta = cas.DM.zeros((1, 1))
+
+    outputs = {
+        'radius': radius_to_center,
+        'app': vect_op.norm(vec_u_app),
+        'eff': vect_op.norm(vec_u_eff),
+        'dq': vect_op.norm(dq_local),
+        'a_n': a_normal,
+        'a_r': a_radial,
+        'a_t': a_tangential,
+        'd_alpha': delta_alpha,
+        'd_beta': delta_beta
+        }
+    outputs['norm_minus'] = outputs['eff'] - outputs['app']
+
+    fun_dict = {}
+    for name, val in outputs.items():
+        local_fun = cas.Function(name + '_fun', [xi_sym], [val])
+        fun_dict[name] = local_fun
+
+    return fun_dict
+
+def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
+
+    variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+    parameters = plot_dict['parameters_plot']
+    wake = plot_dict['wake']
+
+    x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+    u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
+
+    u_ind_fun = cas.Function('a_fun', [x_obs_sym], [u_ind_sym])
+
+    return u_ind_fun
 
 def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
 
@@ -248,8 +733,15 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
             x_obs_dimensioned_stacked = cas.horzcat(x_obs_dimensioned_stacked, local_x_obs_dimensioned)
 
     parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
-    a_map = a_fun.map(x_obs_dimensioned_stacked.shape[1], parallelization_type)
-    all_a = a_map(x_obs_dimensioned_stacked)
+    if parallelization_type in ['serial', 'openmp', 'thread']:
+        a_map = a_fun.map(x_obs_dimensioned_stacked.shape[1], parallelization_type)
+        all_a = a_map(x_obs_dimensioned_stacked)
+    elif parallelization_type == 'concurrent_futures':
+        all_a = struct_op.concurrent_future_map(a_fun, x_obs_dimensioned_stacked)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+        print_op.log_and_raise_error(message)
+
     a_matr = cas.reshape(all_a, dimensioned_coordinates['y'].shape)
 
     y_matr = dimensionless_coordinates['y']
