@@ -25,7 +25,6 @@
 """
 Simulation class for open-loop and closed-loop simulations based on awebox reference trajectories
 and related models.
-
 :author: Jochem De Schutter - ALU Freiburg 2019
 """
 
@@ -39,6 +38,10 @@ import awebox.opts.options
 import awebox.mdl.architecture as archi
 import copy
 import numpy as np
+import awebox.tools.print_operations as print_op
+from progress.bar import ChargingBar
+from awebox.logger.logger import Logger as awelogger
+
 
 class Simulation:
     def __init__(self, trial, sim_type, ts, options_seed):
@@ -72,7 +75,7 @@ class Simulation:
             'F',
             model['dae'],
             model['rootfinder'],
-            {'tf': self.__ts/model['t_f'],
+            {'tf': self.__ts / model['t_f'],
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
         self.__dae = self.__trial.model.get_dae()
@@ -103,10 +106,10 @@ class Simulation:
                     self.__visualization.plot_dict['outputs'][output_type][name].append([])
 
         self.__visualization.plot_dict['integral_outputs'] = {}
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name] = [[]]
 
-        self.__visualization.plot_dict['V_plot'] = None
+        self.__visualization.plot_dict['V_plot_scaled'] = None
 
         return None
 
@@ -114,27 +117,37 @@ class Simulation:
         """ Run simulation
         """
 
+        awelogger.logger.info('Start {} simulation...'.format(self.__sim_type))
+
         # TODO: check consistency of initial conditions and give warning
 
         x0 = self.__initialize_sim(n_sim, x0, u_sim)
 
-        for i in range(n_sim):
+        with ChargingBar('Simulating...', max = n_sim, fill='#') as bar:
+            for i in range(n_sim):
 
-            # get (open/closed-loop) controls
-            if self.__sim_type == 'closed_loop':
-                u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
+                # get (open/closed-loop) controls
+                if self.__sim_type == 'closed_loop':
+                    u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
 
-            elif self.__sim_type == 'open_loop':
-                u0 = self.__u_sim[:,i]
+                elif self.__sim_type == 'open_loop':
+                    u0 = self.__u_sim[:, i]
 
-            # simulate
-            var_next = self.__F(x0 = x0, p = u0, z0 = self.__mpc.z0)
-            self.__store_results(x0, u0, var_next['qf'])
+                # simulate
+                var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
+                self.__store_results(x0, u0, var_next['qf'])
 
-            # shift initial state
-            x0 = var_next['xf']
+                # shift initial state
+                x0 = var_next['xf']
+
+                # update progress bar
+                bar.next()
+
+        bar.finish()
 
         self.__postprocess_sim()
+
+        awelogger.logger.info('Finished {} simulation.'.format(self.__sim_type))
 
         return None
 
@@ -180,15 +193,18 @@ class Simulation:
 
         # create reference
         T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-        trial_plot_dict = copy.deepcopy(self.__trial.visualization.plot_dict)
-        tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
-        trial_plot_dict['time_grids']['ip'] = ct.vertcat(*list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
-        trial_plot_dict['V_ref'] = self.__trial.visualization.plot_dict['V_plot']
-        trial_plot_dict['output_vals'][2] =  self.__trial.visualization.plot_dict['output_vals'][1]
-        trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
-        self.__visualization.plot_dict['ref'] = trial_plot_dict['ref']
-        self.__visualization.plot_dict['time_grids']['ref'] = trial_plot_dict['time_grids']['ref']
 
+        # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
+        original_plot_dict = self.__trial.visualization.plot_dict
+        trial_plot_dict = {}
+        for name, val in original_plot_dict.items():
+            trial_plot_dict[name] = copy.deepcopy(val)
+
+        tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
+        trial_plot_dict['time_grids']['ip'] = ct.vertcat(list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
+        trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
+        self.__visualization.plot_dict['ref_si'] = trial_plot_dict['ref_si']
+        self.__visualization.plot_dict['time_grids']['ref'] = {'ip': tgrid_ip}
         return x0
 
     def __store_results(self, x0, u0, qf):
@@ -212,14 +228,14 @@ class Simulation:
         for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
             for name in list(self.__trial.model.variables_dict[var_type].keys()):
                 for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type][name])
+                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type, name, dim].full()[0][0])
 
         for output_type in list(self.__trial.model.outputs.keys()):
             for name in list(self.__trial.model.outputs_dict[output_type].keys()):
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim].full()[0][0])
 
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name].full()[0][0])
 
         return None
@@ -229,7 +245,9 @@ class Simulation:
         """
 
         self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
-        self.__visualization.plot(None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
+        self.__visualization.plot_dict['interpolation_si'] = self.__visualization.plot_dict
+        plot_dict = self.__visualization.plot_dict
+        self.__visualization.plot(None, None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
 
         return None
 
@@ -248,7 +266,7 @@ class Simulation:
                 for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
                     self.__visualization.plot_dict['outputs'][output_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict['outputs'][output_type][name][dim]).full()
 
-        for name in self.__visualization.plot_dict['integral_variables']:
+        for name in self.__trial.model.integral_outputs.keys():
             self.__visualization.plot_dict['integral_outputs'][name][0] = ct.vertcat(*self.__visualization.plot_dict['integral_outputs'][name][0])
 
     @property
@@ -259,7 +277,7 @@ class Simulation:
 
     @trial.setter
     def trial(self, value):
-        print('Cannot set trial object.')
+        print_op.log_and_raise_error('Cannot set trial object.')
 
     @property
     def mpc(self):
@@ -269,7 +287,7 @@ class Simulation:
 
     @mpc.setter
     def mpc(self, value):
-        print('Cannot set mpc object.')
+        print_op.log_and_raise_error('Cannot set mpc object.')
 
     @property
     def F(self):
@@ -279,7 +297,7 @@ class Simulation:
 
     @F.setter
     def F(self, value):
-        print('Cannot set F object.')
+        print_op.log_and_raise_error('Cannot set F object.')
 
     @property
     def visualization(self):
@@ -289,4 +307,10 @@ class Simulation:
 
     @visualization.setter
     def visualization(self, value):
-        print('Cannot set visualization object.')
+        print_op.log_and_raise_error('Cannot set visualization object.')
+
+    @property
+    def trial(self):
+        """ awebox.Trial attribute containing reference trial info.
+        """
+        return self.__trial

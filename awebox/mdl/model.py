@@ -26,6 +26,7 @@
 # Class Model contains physics description necessary to model the tree-structure multi-kite system
 ###################################
 
+
 from . import atmosphere
 from . import wind
 from . import system
@@ -36,6 +37,7 @@ import time
 from . import dae
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
+import casadi.tools as cas
 
 class Model(object):
     def __init__(self):
@@ -61,6 +63,7 @@ class Model(object):
             self.generate_scaled_variable_bounds(options)
             self.__generate_parameter_bounds(options)
             self.__options = options
+            self.__model_dae = None
 
             self.__timings['overall'] = time.time()-timer
 
@@ -99,10 +102,12 @@ class Model(object):
         outputs_dict,
         integral_outputs,
         integral_outputs_fun,
-        integral_scaling] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
+        integral_scaling,
+        wake] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
 
         self.__kite_dof = options['kite_dof']
         self.__kite_geometry = {} #options['geometry']
+        self.__wake = wake
 
         self.__variables = variables
         self.__variables_dict = variables_dict
@@ -122,14 +127,20 @@ class Model(object):
         return None
 
 
-    def get_dae(self):
+    def __build_dae(self):
         """Generate DAE object for casadi integrators, rootfinder,...
         """
 
         model_dae = dae.Dae(self.__variables, self.__parameters, self.__dynamics, self.__integral_outputs_fun)
         model_dae.build_rootfinder()
+        self.__model_dae = model_dae
 
-        return model_dae
+        return None
+
+    def get_dae(self):
+        if self.__model_dae is None:
+            self.__build_dae()
+        return self.__model_dae
 
     def generate_scaled_variable_bounds(self, options):
 
@@ -141,7 +152,7 @@ class Model(object):
                                                      self.__scaling)
         return None
 
-    def __generate_parameter_bounds(self,options):
+    def __generate_parameter_bounds(self, options):
 
         # define bounds for variable optimization parameters
         param_bounds = {}
@@ -158,37 +169,39 @@ class Model(object):
 
         awelogger.logger.info('')
         awelogger.logger.info('Model options:')
-        awelogger.logger.info('')
-        awelogger.logger.info('Atmosphere model'+7*'.'+': {}'.format(self.__options['atmosphere']['model']))
-        awelogger.logger.info('Wind model'+13*'.'+': {}'.format(self.__options['wind']['model']))
-        awelogger.logger.info('Induction model'+8*'.'+': {}'.format(self.__options['induction_model']))
-        awelogger.logger.info('System type'+12*'.'+': {}'.format(self.__options['trajectory']['system_type']))
-        awelogger.logger.info('Aircraft DOF'+11*'.'+': {}'.format(self.__options['kite_dof']))
-        awelogger.logger.info('Number of aircraft'+5*'.'+': {}'.format(self.__architecture.number_of_kites))
-        awelogger.logger.info('Number of layers'+7*'.'+': {}'.format(self.__architecture.layers))
-        awelogger.logger.info('Tether attachment'+6*'.'+': {}'.format(self.__options['tether']['attachment']))
-        awelogger.logger.info('Tether control var'+5*'.'+': {}'.format(self.__options['tether']['control_var']))
-        awelogger.logger.info('Tether drag model'+6*'.'+': {}'.format(self.__options['tether']['tether_drag']['model_type']))
+        options_dict = {
+            'Atmosphere model': self.__options['atmosphere']['model'],
+            'Wind model': self.__options['wind']['model'],
+            'System type': self.__options['trajectory']['system_type'],
+            'Aircraft DOF': self.__options['kite_dof'],
+            'Number of aircraft': self.__architecture.number_of_kites,
+            'Number of layers': self.__architecture.layers,
+            'Tether attachment': self.__options['tether']['attachment'],
+            'Tether control var': self.__options['tether']['control_var'],
+            'Tether drag model': self.__options['tether']['tether_drag']['model_type']
+        }
+
         if self.__options['tether']['tether_drag']['model_type'] == 'multi':
-            awelogger.logger.info('Tether drag elements'+3*'.'+': {}'.format(self.__options['tether']['aero_elements']))
+            options_dict['Tether drag elements'] = self.__options['tether']['aero_elements']
         if self.__architecture.number_of_kites > 1:
-            awelogger.logger.info('Cross-tether'+11*'.'+': {}'.format(self.__options['cross_tether']))
+            options_dict['Cross-tether'] = self.__options['cross_tether']
         if self.__options['cross_tether']:
-            awelogger.logger.info('Cross-tether attachment'+': {}'.format(self.__options['tether']['cross_tether']['attachment']))
-        awelogger.logger.info('Ground station model'+3*'.'+': {}'.format(self.__options['tether']['use_wound_tether']))
+            options_dict['Cross-tether attachment'] = self.__options['tether']['cross_tether']['attachment']
 
-        awelogger.logger.info('')
+        print_op.print_dict_as_table(options_dict)
+
         awelogger.logger.info('Model dimensions:')
-        awelogger.logger.info('')
-        awelogger.logger.info('nx........: {}'.format(self.variables_dict['x'].shape[0]))
-        awelogger.logger.info('nu........: {}'.format(self.variables_dict['u'].shape[0]))
-        awelogger.logger.info('nz........: {}'.format(self.variables_dict['z'].shape[0]))
-        awelogger.logger.info('np_var....: {}'.format(self.variables_dict['theta'].shape[0]))
-        awelogger.logger.info('np_fix....: {}'.format(self.parameters_dict['theta0'].shape[0]))
+        dimensions_dict = {
+            'nx': self.variables_dict['x'].shape[0],
+            'nu': self.variables_dict['u'].shape[0],
+            'nz': self.variables_dict['z'].shape[0],
+            'np_var': self.variables_dict['theta'].shape[0],
+            'np_fix': self.parameters_dict['theta0'].shape[0]
+        }
+        self.__dimensions_dict = dimensions_dict
+        print_op.print_dict_as_table(dimensions_dict)
 
-        awelogger.logger.info('')
         awelogger.logger.info('Model constraints:')
-        awelogger.logger.info('')
 
         cstr_list = []
         for cstr in self.constraints_dict['inequality'].keys():
@@ -246,6 +259,17 @@ class Model(object):
     @property
     def variable_bounds(self):
         return self.__variable_bounds
+
+    def number_noninf_variable_bounds(self, var_type):
+        local_nninf = 0
+        for var_name in self.__variable_bounds[var_type]:
+            for dim in range(self.__variable_bounds[var_type][var_name]['lb'].shape[0]):
+                upper_bound_is_finite = (self.__variable_bounds[var_type][var_name]['ub'][dim]).is_regular()
+                lower_bound_is_finite = (self.__variable_bounds[var_type][var_name]['lb'][dim]).is_regular()
+                bound_is_finite = upper_bound_is_finite or lower_bound_is_finite
+                local_nninf += int(bound_is_finite)
+        return local_nninf
+
 
     @property
     def parameters(self):
@@ -358,6 +382,23 @@ class Model(object):
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+    @property
+    def dimensions_dict(self):
+        return self.__dimensions_dict
+
+    @dimensions_dict.setter
+    def dimensions_dict(self, value):
+        awelogger.logger.warning('Cannot set dimensions_dict object.')
+
+    @property
+    def wake(self):
+        return self.__wake
+
+    @wake.setter
+    def wake(self, value):
+        awelogger.logger.warning('Cannot set wake object.')
+
 
     @property
     def dynamics(self):

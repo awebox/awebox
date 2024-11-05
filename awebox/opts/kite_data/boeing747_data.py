@@ -158,4 +158,15 @@ def aero():
     aero_validity['beta_max_deg'] = 15.
     aero_validity['beta_min_deg'] = -15.0
 
+    # we recommend, to adjust the groundspeed initialzation and airspeed limits to reflect
+    # V_2 = V_approach ~ 150 knots = 77 m/s
+    # https://aerosavvy.com/airspeed-indicator/
+    # and
+    # Mach 0.92 (at 'cruise altitude') ~ 982 km/h = 273 m/s
+    # https://www.quora.com/What-is-the-top-speed-of-a-Boeing-747-400-Can-it-exceed-its-Mach-number-Why-or-why-not
+    # in the style of
+    # options['solver.initialization.groundspeed'] = 100.
+    # options['params.model_bounds.airspeed_limits'] = np.array([77., 273.])
+    # notice that finding a valid initial guess will likely require adjusting the trajectory to satisfy the tether_force/stress constraint
+
     return stab_derivs, aero_validity

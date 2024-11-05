@@ -1,4 +1,6 @@
 #!usr/bin/python3
+
+import awebox.tools.print_operations as print_op
 import awebox as awe
 import numpy as np
 import casadi as ca
@@ -8,21 +10,18 @@ def set_ampyx_ap2_settings(options):
     # 6DOF Ampyx Ap2 model
     options['user_options.system_model.kite_dof'] = 6
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
+    options['user_options.trajectory.system_type'] = 'lift_mode'
+    options['user_options.trajectory.lift_mode.windings'] = 1
 
     # tether parameters
     options['params.tether.cd'] = 1.2
     options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
     options['user_options.trajectory.fixed_params'] = {'diam_t': 2e-3}
-    options['model.tether.use_wound_tether'] = False # don't model generator inertia
-    options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
+    options['model.tether.control_var'] = 'ddl_t'  # tether acceleration control
 
     # tether drag model (more accurate than the Argatov model in Licitra2019)
-    options['user_options.tether_drag_model'] = 'multi' 
+    options['user_options.tether_drag_model'] = 'multi'
     options['model.tether.aero_elements'] = 5
-
-
-    # don't model generator
-    options['model.model_bounds.wound_tether_length.include'] = False
 
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = False
@@ -41,18 +40,19 @@ def set_ampyx_ap2_settings(options):
     # acceleration constraint
     options['model.model_bounds.acceleration.include'] = False
 
-    # aircraft-tether anticollision
+    # aircraft-tether anti-collision
     options['model.model_bounds.rotation.include'] = True
     options['model.model_bounds.rotation.type'] = 'yaw'
     options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 40.0*np.pi/180.0])
 
     # variable bounds
-    options['model.system_bounds.x.l_t'] =  [10.0, 700.0] # [m]
-    options['model.system_bounds.x.dl_t'] =  [-15.0, 20.0] # [m/s]
-    options['model.ground_station.ddl_t_max'] = 2.4 # [m/s^2]
-    options['model.system_bounds.x.q'] =  [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
-    options['model.system_bounds.theta.t_f'] =  [20.0, 70.0] # [s]
-    options['model.system_bounds.z.lambda'] =  [0., ca.inf] # [N/m]
+    options['model.system_bounds.x.l_t'] = [10.0, 700.0]  # [m]
+    options['model.system_bounds.x.dl_t'] = [-15.0, 20.0]  # [m/s]
+
+    options['model.system_bounds.x.ddl_t'] = [-2.4, 2.4]  # [m/s^2]
+    options['model.system_bounds.x.q'] = [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
+    options['model.system_bounds.theta.t_f'] = [20., 70.]  # [s]
+    options['model.system_bounds.z.lambda'] = [0., ca.inf]  # [N/m]
     omega_bound = 50.0*np.pi/180.0
     options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])]
     options['user_options.kite_standard.geometry.delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.

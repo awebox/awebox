@@ -5,60 +5,70 @@ against direct collocation solution of NLP
 @author: Jochem De Schutter
 """
 
+
+from awebox.logger.logger import Logger as awelogger
+import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
+
 import awebox as awe
 import logging
 import awebox.tools.struct_operations as struct_op
 from casadi.tools import *
 import numpy as np
-logging.basicConfig(filemode='w',format='%(levelname)s:    %(message)s', level=logging.WARNING)
-
-from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 awelogger.logger.setLevel(10)
 
-def test_integrators():
 
+def get_integration_test_inputs():
     # ===========================================
     # SET-UP DIRECT COLLOCATION PROBLEM AND SOLVE
     # ===========================================
 
-    # choose simplest model
+    # choose a problem that we know solves reliably
     base_options = {}
-    base_options['user_options.system_model.architecture'] = {1:0}
-    base_options['user_options.system_model.kite_dof'] = 3
-    base_options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
-    base_options['user_options.tether_drag_model'] = 'split'
-    base_options['user_options.induction_model'] = 'not_in_use'
-    base_options['user_options.trajectory.lift_mode.windings'] = 1
+    base_options['user_options.system_model.architecture'] = {1: 0}
+    base_options = ampyx_ap2_settings.set_ampyx_ap2_settings(base_options)
 
-    # specify direct collocation options
+    # # specify direct collocation options
+    # # because we need them for struct_op.get_variables_at_time, later on.
     base_options['nlp.n_k'] = 40
     base_options['nlp.discretization'] = 'direct_collocation'
     base_options['nlp.collocation.u_param'] = 'zoh'
     base_options['nlp.collocation.scheme'] = 'radau'
     base_options['nlp.collocation.d'] = 4
 
-    base_options['model.tether.control_var'] = 'dddl_t'
-
-     # homotopy tuning
-    base_options['solver.mu_hippo'] = 1e-4
-    base_options['solver.tol_hippo'] = 1e-4
+    # homotopy tuning
+    base_options['solver.linear_solver'] = 'ma57'
 
     # make trial, build and run
-    trial = awe.Trial(name = 'test', seed = base_options)
+    trial = awe.Trial(name='test', seed=base_options)
     trial.build()
     trial.optimize()
 
+    if not trial.optimization.solve_succeeded:
+        message = 'original optimization failed. integrator check cannot possibly be expected to work.'
+        raise Exception(message)
+
     # extract solution data
-    V_final = trial.optimization.V_opt
-    P       = trial.optimization.p_fix_num
-    Int_outputs = trial.optimization.integral_output_vals[1]
-    model   = trial.model
-    dae     = model.get_dae()
+    V_opt = trial.optimization.V_opt
+    P = trial.optimization.p_fix_num
+    model_variables = trial.model.variables
+    model_parameters = trial.model.parameters
+    dae = trial.model.get_dae()
 
     # build dae variables for t = 0 within first shooting interval
-    variables0 = struct_op.get_variables_at_time(trial.options['nlp'], V_final, None, model.variables, 0)
-    parameters = model.parameters(vertcat(P['theta0'], V_final['phi']))
-    x0, z0, p  = dae.fill_in_dae_variables(variables0, parameters)
+    variables0 = struct_op.get_variables_at_time(trial.options['nlp'], V_opt, None, model_variables, 0)
+    parameters = model_parameters(vertcat(P['theta0'], V_opt['phi']))
+    x0, z0, p = dae.fill_in_dae_variables(variables0, parameters)
+
+    return base_options, x0, z0, p, trial
+
+
+def perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance):
+
+    dae = trial.model.get_dae()
+    Int_outputs = trial.optimization.integral_output_vals['opt']
+    V_opt = trial.optimization.V_opt
 
     # ===================================
     # TEST COLLOCATION INTEGRATOR
@@ -74,60 +84,110 @@ def test_integrators():
     # switch off expand to allow for use of integrator in NLP
     base_options['solver.expand_overwrite'] = False
 
-    # build MS trial
-    trialColl = awe.Trial(name = 'testColl', seed = base_options)
-    trialColl.build()
+    test_name = base_options['nlp.integrator.type']
+
+    # build collocation trial
+    trial_coll = awe.Trial(name='test_' + test_name, seed=base_options)
+    trial_coll.build()
 
     # multiple shooting dae integrator
-    F = trialColl.nlp.Multiple_shooting.F
+    F = trial_coll.nlp.Multiple_shooting.F
 
     # integrate over one interval
-    Ff = F(x0 = x0, z0 = z0, p = p)
+    Ff = F(x0=x0, z0=z0, p=p)
     xf = Ff['xf']
     zf = Ff['zf']
     qf = Ff['qf']
 
-    # evaluate integration error
-    err_coll_x = np.max(np.abs(np.divide((xf - V_final['x',1]), V_final['x',1]).full()))
-    z = dae.z(zf)['z']
-    err_coll_z = np.max(np.abs(np.divide(dae.z(zf)['z'] - V_final['coll_var',0, -1, 'z'], V_final['coll_var',0, -1, 'z']).full()))
-    err_coll_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
-
-    tolerance = 1e-8
-
     # values should match up to nlp solver accuracy
-    assert(err_coll_x < tolerance), 'err_coll_x: ' + str(err_coll_x)
-    assert(err_coll_z < tolerance), 'err_coll_z: ' + str(err_coll_z)
-    assert(err_coll_q < tolerance), 'err_coll_q: ' + str(err_coll_q)
+    test_dict = {'x': {'found': xf, 'expected': V_opt['x', 1]},
+                 'z': {'found': dae.z(zf)['z'], 'expected': V_opt['coll_var', 0, -1, 'z']},
+                 'q': {'found': qf, 'expected': Int_outputs['int_out', 1]}
+                 }
+    test_dict = add_max_abs_error_to_dict(test_dict)
+
+    # evaluate integration error
+    perform_check(test_dict, test_name, tolerance)
+
+
+def perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance):
+
+    dae = trial.model.get_dae()
+    Int_outputs = trial.optimization.integral_outputs_opt
+    V_opt = trial.optimization.V_opt
 
     # ===================================
     # TEST RK4-ROOT INTEGRATOR
     # ===================================
 
+    # switch off expand to allow for use of integrator in NLP
+    base_options['solver.expand_overwrite'] = False
+
+    # set discretization to multiple shooting
+    base_options['nlp.discretization'] = 'multiple_shooting'
+    base_options['nlp.integrator.collocation_scheme'] = base_options['nlp.collocation.scheme']
+    base_options['nlp.integrator.interpolation_order'] = base_options['nlp.collocation.d']
+
     # set discretization to multiple shooting
     base_options['nlp.integrator.type'] = 'rk4root'
-    base_options['nlp.integrator.num_steps_overwrite'] = 20
+    base_options['nlp.integrator.num_steps_overwrite'] = 30
+
+    test_name = base_options['nlp.integrator.type']
 
     # build MS trial
-    trialRK = awe.Trial(name = 'testRK', seed = base_options)
-    trialRK.build()
+    trial_rk = awe.Trial(name='test_' + test_name, seed=base_options)
+    trial_rk.build()
 
     # multiple shooting dae integrator
-    F = trialRK.nlp.Multiple_shooting.F
+    F = trial_rk.nlp.Multiple_shooting.F
 
     # integrate over one interval
-    Ff = F(x0 = x0, z0 = z0, p = p)
+    Ff = F(x0=x0, z0=z0, p=p)
     xf = Ff['xf']
     zf = Ff['zf']
     qf = Ff['qf']
 
-    # evaluate 
-    err_rk_x = np.max(np.abs(np.divide((xf - V_final['x',1]), V_final['x',1]).full()))
-    z = dae.z(zf)['z']
-    err_rk_z = np.max(np.abs(np.divide(dae.z(zf)['z'] - V_final['coll_var',0, -1, 'z'], V_final['coll_var',0, -1, 'z']).full()))
-    err_rk_q = np.max(np.abs(np.divide((qf - Int_outputs['int_out',1]), Int_outputs['int_out',1]).full()))
+    # values should match up to nlp solver accuracy
+    test_dict = {'x': {'found': xf, 'expected': V_opt['x', 1]},
+                 'z': {'found': dae.z(zf)['z'], 'expected': V_opt['coll_var', 0, -1, 'z']},
+                 'q': {'found': qf, 'expected': Int_outputs['int_out', 1]}
+                 }
+    test_dict = add_max_abs_error_to_dict(test_dict)
 
-    # error should be below 1%
-    assert(err_rk_x < 1e-2)
-    assert(err_rk_z < 1e-2)
-    assert(err_rk_q < 2e-2)
+    # evaluate integration error
+    perform_check(test_dict, test_name, tolerance)
+
+    return None
+
+
+def add_max_abs_error_to_dict(test_dict):
+    for test_variable, values in test_dict.items():
+        found = values['found']
+        expected = values['expected']
+        max_abs_error = np.max(np.abs(error(found, expected)))
+        test_dict[test_variable]['max_abs_error'] = max_abs_error
+    return test_dict
+
+
+def perform_check(test_dict, test_name, tolerance):
+    for test_variable, values in test_dict.items():
+        max_abs_error = values['max_abs_error']
+
+        condition = max_abs_error < tolerance
+        message = test_name + ' max_abs_error in ' + test_variable + ' exceeds tolerance: ' + str(max_abs_error)
+
+        assert condition, message
+    return None
+
+
+def error(found_dm, expected_dm):
+    return np.divide((found_dm - expected_dm), expected_dm).full()
+
+def test_integrators(tolerance_collocation=1e-7, tolerance_rk4=2e-2):
+    base_options, x0, z0, p, trial = get_integration_test_inputs()
+    perform_collocation_integrator_test(base_options, x0, z0, p, trial, tolerance_collocation)
+    perform_rk_4_root_integrator_test(base_options, x0, z0, p, trial, tolerance_rk4)
+    return None
+
+if __name__ == "__main__":
+    test_integrators()

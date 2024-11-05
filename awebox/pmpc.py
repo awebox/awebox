@@ -27,14 +27,18 @@ Periodic MPC routines for awebox models
 
 :author: Jochem De Schutter (ALU Freiburg 2019)
 """
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 import awebox as awe
 import awebox.viz.tools as viz_tools
 import casadi.tools as ct
 from awebox.logger.logger import Logger as awelogger
-import matplotlib.pyplot as plt
+import awebox.tools.struct_operations as struct_op
 import numpy as np
 import copy
+import casadi as ca
 
 class Pmpc(object):
 
@@ -75,11 +79,11 @@ class Pmpc(object):
         fixed_params = {}
         for name in list(self.__pocp_trial.model.variables_dict['theta'].keys()):
             if name != 't_f':
-                fixed_params[name] = self.__pocp_trial.optimization.V_final['theta',name].full()
-        fixed_params['t_f'] = self.__N*self.__ts
+                fixed_params[name] = self.__pocp_trial.optimization.V_final_si['theta', name].full()
+        fixed_params['t_f'] = self.__N * self.__ts
         options['user_options.trajectory.fixed_params'] = fixed_params
 
-        self.__trial = awe.Trial(seed = options)
+        self.__trial = awe.Trial(seed=options)
         self.__build_trial()
 
         # construct mpc solver
@@ -144,7 +148,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         if self.__cost_type == 'tracking':
@@ -156,7 +161,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         # create P evaluator for use in NLP arguments
@@ -173,17 +179,15 @@ class Pmpc(object):
 
         # store nlp bounds
         self.__trial.nlp.V_bounds['ub']['phi'] = 0.0
-        self.__trial.nlp.V_bounds['lb']['xi'] = 0.0
-        self.__trial.nlp.V_bounds['ub']['xi'] = 0.0
 
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
                 if self.__mpc_options['u_param'] == 'poly':
-                    self.__trial.nlp.V_bounds['lb']['coll_var',:,:,'u',name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['coll_var',:,:,'u',name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['coll_var', :, :, 'u', name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['coll_var', :, :, 'u', name] = 0.0
                 elif self.__mpc_options['u_param'] == 'zoh':
-                    self.__trial.nlp.V_bounds['lb']['u',:,name] = 0.0
-                    self.__trial.nlp.V_bounds['ub']['u',:,name] = 0.0
+                    self.__trial.nlp.V_bounds['lb']['u', :, name] = 0.0
+                    self.__trial.nlp.V_bounds['ub']['u', :, name] = 0.0
 
         self.__lbw = self.__trial.nlp.V_bounds['lb']
         self.__ubw = self.__trial.nlp.V_bounds['ub']
@@ -216,12 +220,10 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None):
+    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None, Z = None):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
-
-        awelogger.logger.info("Compute MPC feedback...")
 
         # update nlp parameters
         self.__p0 = self.__p(0.0)
@@ -241,10 +243,20 @@ class Pmpc(object):
         # update tracking weights
         if Q == None:
             self.__p0['Q'] = self.__weights['Q']
+        else:
+            self.__p0['Q'] = Q
         if R == None:
             self.__p0['R'] = self.__weights['R']
+        else:
+            self.__p0['R'] = R
         if P == None:
             self.__p0['P'] = self.__weights['P']
+        else:
+            self.__p0['P'] = P
+        if Z == None:
+            self.__p0['Z'] = self.__weights['Z']
+        else:
+            self.__p0['Z'] = Z
 
         if self.__mpc_options['homotopy_warmstart']:
             sol = self.__homotopy_solver(
@@ -310,7 +322,7 @@ class Pmpc(object):
 
         # weighting matrices
         weights = {}
-        for weight in ['Q', 'R', 'P']:
+        for weight in ['Q', 'R', 'P', 'Z']:
             if weight in self.__mpc_options.keys():
                 weights[weight] = self.__mpc_options[weight]
             else:
@@ -318,7 +330,9 @@ class Pmpc(object):
                     weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
-        weights['Z'] = np.ones((self.__nz,1))
+                elif weight == 'Z':
+                    weights['Z'] = 1000*np.ones((self.__nz,1))
+
         self.__weights = weights
 
         # create tracking function
@@ -420,56 +434,11 @@ class Pmpc(object):
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
         V_opt = self.__pocp_trial.optimization.V_opt
-        if self.__mpc_options['ref_interpolator'] == 'poly':
-            self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
-        elif self.__mpc_options['ref_interpolator'] == 'spline':
-            self.__interpolator = self.__build_spline_interpolator(nlp_options, V_opt)
+    
+        tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
+        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
 
         return None
-
-    def __build_spline_interpolator(self, nlp_options, V_opt):
-        """ Build spline-based reference interpolating method.
-        """
-
-        variables_dict = self.__pocp_trial.model.variables_dict
-        plot_dict = self.__pocp_trial.visualization.plot_dict
-        cosmetics = self.__pocp_trial.options['visualization']['cosmetics']
-        n_points = self.__t_grid_coll.shape[0]
-        n_points_x = self.__t_grid_x_coll.shape[0]
-        self.__spline_dict = {}
-
-        for var_type in self.__var_list:
-            self.__spline_dict[var_type] = {}
-            for name in list(variables_dict[var_type].keys()):
-                self.__spline_dict[var_type][name] = {}
-                for j in range(variables_dict[var_type][name].shape[0]):
-                    if var_type == 'x':
-                        values, time_grid = viz_tools.merge_x_values(V_opt, name, j, plot_dict, cosmetics)
-                        self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points_x)
-                    elif var_type == 'z' or (var_type == 'u' and self.__mpc_options['u_param'] == 'poly'):
-                        values, time_grid = viz_tools.merge_z_values(V_opt, var_type, name, j, plot_dict, cosmetics)
-                        if all(v == 0 for v in values) or 'fict' in name:
-                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',n_points)], [np.zeros((1,n_points))])
-                        else:
-                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(n_points)
-                    elif var_type == 'u' and self.__mpc_options['u_param'] == 'zoh':
-                        control = V_opt['u',:,name,j]
-                        values = viz_tools.sample_and_hold_controls(plot_dict['time_grids'], control)
-                        time_grid = plot_dict['time_grids']['ip']
-                        if all(v == 0 for v in values) or 'fict' in name:
-                            self.__spline_dict[var_type][name][j] = ct.Function(name+str(j), [ct.SX.sym('t',self.__N)], [np.zeros((1,self.__N))])
-                        else:
-                            self.__spline_dict[var_type][name][j] = ct.interpolant(name+str(j), 'bspline', [[0]+time_grid], [values[-1]]+values, {}).map(self.__N)
-
-        def spline_interpolator(t_grid, name, j, var_type):
-            """ Interpolate reference on specific time grid for specific variable.
-            """
-
-            values_ip = self.__spline_dict[var_type][name][j](t_grid)
-
-            return values_ip
-
-        return spline_interpolator
 
     def __compute_time_grids(self, index):
         """ Compute NLP time grids based in periodic index
@@ -490,23 +459,15 @@ class Pmpc(object):
     def get_reference(self, t_grid, t_grid_x, t_grid_u):
         """ Interpolate reference on NLP time grids.
         """
-
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
         for var_type in self.__var_list:
-            ip_dict[var_type] = []
-            for name in list(self.__trial.model.variables_dict[var_type].keys()):
-                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
-                    if var_type == 'x':
-                        ip_dict[var_type].append(self.__interpolator(t_grid_x, name, dim,var_type))
-                    elif (var_type == 'u') and self.__mpc_options['u_param']:
-                        ip_dict[var_type].append(self.__interpolator(t_grid_u, name, dim,var_type))
-                    else:
-                        ip_dict[var_type].append(self.__interpolator(t_grid, name, dim,var_type))
-            if self.__mpc_options['ref_interpolator'] == 'poly':
-                ip_dict[var_type] = ct.horzcat(*ip_dict[var_type]).T
-            elif self.__mpc_options['ref_interpolator'] == 'spline':
-                ip_dict[var_type] = ct.vertcat(*ip_dict[var_type])
+            if var_type == 'x':
+                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
+            elif var_type == 'u':
+                ip_dict[var_type] = self.__interpolator(t_grid_u, var_type)
+            elif var_type == 'z':
+                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
 
         counter = 0
         counter_x = 0
@@ -515,11 +476,10 @@ class Pmpc(object):
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                V_list.append(self.__pocp_trial.optimization.V_opt['theta',name])
+                V_list.append(self.__pocp_trial.optimization.V_opt['theta', name])
             else:
-                V_list.append(self.__N*self.__ts)
+                V_list.append(self.__N * self.__ts)
         V_list.append(np.zeros(V_ref['phi'].shape))
-        V_list.append(np.zeros(V_ref['xi'].shape))
 
         for k in range(self.__N):
             for j in range(self.__trial.nlp.d+1):
@@ -556,8 +516,8 @@ class Pmpc(object):
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                self.__w0['theta',name] = self.__pocp_trial.optimization.V_opt['theta',name]
-        self.__w0['theta','t_f'] = self.__N*self.__ts
+                self.__w0['theta', name] = self.__pocp_trial.optimization.V_opt['theta', name]
+        self.__w0['theta', 't_f'] = self.__N * self.__ts
 
         # intialize log
         self.__log = {
@@ -596,20 +556,28 @@ class Pmpc(object):
         V_ref = self.__trial.nlp.V(self.__p0['ref'])
 
         # generate system outputs
-        [nlp_outputs, nlp_output_fun] = self.__trial.nlp.output_components
-        outputs_init = nlp_outputs(nlp_output_fun(self.__w0, self.__p_fix_num))
-        outputs_opt = nlp_outputs(nlp_output_fun(V_opt, self.__p_fix_num))
-        outputs_ref = nlp_outputs(nlp_output_fun(V_ref, self.__p_fix_num))
-        output_vals = [outputs_init, outputs_opt, outputs_ref]
+        [_, nlp_output_fun] = self.__trial.nlp.output_components
+        outputs_init = nlp_output_fun(self.__w0, self.__p_fix_num)
+        outputs_opt = nlp_output_fun(V_opt, self.__p_fix_num)
+        outputs_ref = nlp_output_fun(V_ref, self.__p_fix_num)
+        output_vals = {'init':outputs_init,
+                       'opt':outputs_opt,
+                       'ref':outputs_ref}
+        
+        # generate global_outputs
+        global_outputs = self.__trial.nlp.global_outputs(self.__trial.nlp.global_outputs_fun(V_opt, self.__p_fix_num))
 
         # generate integral outputs
         [nlp_integral_outputs, nlp_integral_outputs_fun] = self.__trial.nlp.integral_output_components
-        integral_outputs_final = nlp_integral_outputs(nlp_integral_outputs_fun(V_opt, self.__p_fix_num))
+        integral_outputs_final = {
+            'opt': nlp_integral_outputs(nlp_integral_outputs_fun(V_opt, self.__p_fix_num)),
+            'ref': nlp_integral_outputs(nlp_integral_outputs_fun(V_ref, self.__p_fix_num))
+        }
 
         # time grids
         time_grids = {}
         for grid in self.__trial.nlp.time_grids:
-            time_grids[grid] = self.__trial.nlp.time_grids[grid](V_opt['theta','t_f'])
+            time_grids[grid] = self.__trial.nlp.time_grids[grid](V_opt['theta', 't_f'])
         time_grids['ref'] = time_grids
 
         # cost function
@@ -620,6 +588,7 @@ class Pmpc(object):
         # reference trajectory
         self.__trial.visualization.plot(
             V_opt,
+            self.__trial.nlp.P(self.__p_fix_num),
             self.__trial.options,
             output_vals,
             integral_outputs_final,
@@ -628,7 +597,8 @@ class Pmpc(object):
             cost,
             'MPC solution',
             False,
-            V_ref)
+            V_ref,
+            global_outputs)
 
         plt.show()
 
@@ -640,8 +610,11 @@ class Pmpc(object):
 
         # initialize
         import awebox.opti.preparation as prep
+        import awebox.tools.print_operations as print_op
         V_dummy = self.__trial.nlp.V(0.0)
-        p_fix_num = prep.set_p_fix_num(V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
+
+        p_fix_num = prep.initialize_opti_parameters_with_model_parameters(self.__trial.nlp, self.__trial.options['solver'])
+        p_fix_num = prep.add_weights_and_refs_to_opti_parameters(p_fix_num, V_dummy, self.__trial.nlp, self.__trial.model, V_dummy, self.__trial.options['solver'])
         x0 = self.__trial.model.variables_dict['x'](self.__p['x0'])
         xN = self.__trial.model.variables_dict['x'](self.__trial.nlp.V(self.__p['ref'])['x',-1])
 

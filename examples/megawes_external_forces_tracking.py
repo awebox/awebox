@@ -12,7 +12,6 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 :author: Thomas Haas, Ghent University, 2024 (adapted from Jochem De Schutter)
 
 Current issues:
-- option 'single_reelout' doesn't work with MPC, use 'simple' instead.
 - option 'collocation_nodes' doesn't work with MPC, use 'shooting_nodes' instead.
 """
 
@@ -42,12 +41,12 @@ compilation_flag = False
 aero_model='VLM'
 options = {}
 options['user_options.system_model.architecture'] = {1:0}
-options = set_megawes_path_generation_settings(options, aero_model)
+options = set_megawes_path_generation_settings(aero_model, options)
 
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation - Not available in MPC)
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # ('single_reelout': positive/null reel-out during generation)
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
 
@@ -62,6 +61,9 @@ options['nlp.n_k'] = 40 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
 options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # ('collocation_nodes': constraints on Radau collocation nodes - Not available in MPC)
+
+# compile subfunctions to speed up construction time
+options['nlp.compile_subfunctions'] = True # False
 
 # ----------------- create reference trajectory ----------------- #
 
@@ -79,31 +81,29 @@ P_ave_ref = trial.visualization.plot_dict['power_and_performance']['avg_power'].
 # ----------------- set tracking options for MPC and integrator ----------------- #
 
 # simulation horizon
-t_end = 1*trial.visualization.plot_dict['theta']['t_f']
+t_end = 1*trial.visualization.plot_dict['time_grids']['x'][-1].full().squeeze()
 
 # adjust options for path tracking (incl. aero model)
 tracking_options = copy.deepcopy(optimization_options)
-tracking_options = set_megawes_path_tracking_settings(tracking_options, aero_model='ALM')
+tracking_options = set_megawes_path_tracking_settings(aero_model='ALM', options = tracking_options)
 
-# set MPC options
-ts = 0.1 # sampling time (length of one MPC window)
-N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
-tracking_options['mpc.N'] = N_mpc
-tracking_options['mpc.max_iter'] = 1000
-tracking_options['mpc.max_cpu_time'] = 10.
-tracking_options['mpc.homotopy_warmstart'] = True
-tracking_options['mpc.terminal_point_constr'] = False
-
-# simulation options
-N_dt = 20 # integrator steps within one sampling time
-N_sim = int(round(t_end/ts)) # number of MPC evaluations
-tracking_options['sim.number_of_finite_elements'] = N_dt
-tracking_options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
+# don't use subfunction compilation as it slows down MPC evaluation time
+tracking_options['nlp.compile_subfunctions'] = False
+if compilation_flag:
+    tracking_options['nlp.compile_subfunctions'] = False # incompatibility, to be sure
 
 # feed-in tracking options to trial
 trial.options_seed = tracking_options
 
 # ----------------- create MPC controller with tracking-specific options ----------------- #
+
+# set MPC options
+ts = 0.1 # sampling time (length of one MPC window)
+N_mpc = 20 # MPC horizon (number of MPC windows in prediction horizon)
+
+# simulation options
+N_dt = 20 # integrator steps within one sampling time
+N_sim = int(round(t_end/ts)) # number of MPC evaluations
 
 # create MPC options
 mpc_opts = awe.Options()
@@ -112,13 +112,21 @@ mpc_opts['mpc']['max_iter'] = 1000
 mpc_opts['mpc']['max_cpu_time'] = 10.
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
+if tracking_options['nlp.compile_subfunctions']:
+    mpc_opts['mpc']['expand'] = False # incompatible
 
 # MPC weights
 nx = 23
 nu = 10
-Q = np.ones((nx, 1))
-R = np.ones((nu, 1))
-P = np.ones((nx, 1))
+nz = 1
+weights_x = trial.model.variables_dict['x'](1.)
+weights_x['delta10'] = 1e-2
+weights_x['l_t'] = 100
+weights_x['dl_t'] = 100
+Q = weights_x.cat
+R = 1e-2*np.ones((nu, 1))
+P = weights_x.cat
+Z = 1000*np.ones((nz, 1))
 
 # create PMPC object (requires feed-in of tracking options to trial)
 mpc = pmpc.Pmpc(mpc_opts['mpc'], ts, trial)
@@ -180,7 +188,7 @@ integrator = awe_integrators.ee1root('F', dae.dae, dae.rootfinder, {'tf': dt, 'n
 # ----------------- create CasADI function of integrator ----------------- #
 
 # create symbolic structures for integrators and aerodynamics model
-nparam = 151
+nparam = 150
 x0_init = ca.MX.sym('x', nx)
 u0_init = ca.MX.sym('u', nu)
 z0_init = dae.z(0.0)
@@ -250,7 +258,7 @@ F_ref = ca.Function('F_ref', [t_grid, t_grid_x, t_grid_u], [ref], ['tgrid', 'tgr
 
 # shift solution
 V = mpc.trial.nlp.V
-V_init = [V['theta'], V['phi'], V['xi']]
+V_init = [V['theta'], V['phi']]
 for k in range(N_mpc-1):
    V_init.append(V['x',k+1])
    if mpc_opts['mpc']['u_param'] == 'zoh':
@@ -289,7 +297,7 @@ u0_shifted = mpc.trial.model.variables_dict['u'](u0_shifted)
 # controls
 u_si = []
 for name in list(mpc.trial.model.variables_dict['u'].keys()):
-   u_si.append(u0_shifted[name]*scaling['u'][name])
+   u_si.append(u0_shifted[name]*scaling['u', name])
 u_si = ca.vertcat(*u_si)
 
 # helper function
@@ -318,7 +326,7 @@ if compilation_flag:
     lib_filename = output_folder + 'mpc_solver.so'
     mpc.solver.generate_dependencies('mpc_solver.c')
     os.system("mv ./mpc_solver.c" + " " + src_filename)
-    os.system("gcc -fPIC -shared -O3 " + src_filename + " -o " + lib_filename)
+    os.system("gcc -fPIC -shared " + src_filename + " -o " + lib_filename)
     print("mpc solver compilation done...")
 
     # compile dependencies F_int
@@ -347,7 +355,7 @@ if compilation_flag:
     lib_filename = output_folder + 'F_ref.so'
     F_ref.generate('F_ref.c')
     os.system("mv F_ref.c"+" "+src_filename)
-    os.system("gcc -fPIC -shared -O3 "+src_filename+" -o "+lib_filename)
+    os.system("gcc -fPIC -shared "+src_filename+" -o "+lib_filename)
 
     # compile dependencies helper_functions
     src_filename = output_folder + 'helper_functions.c'
@@ -366,7 +374,7 @@ if compilation_flag:
     
     # gather into dict
     simulation_variables = {'x0':x0, 'u0':u0, 'z0':z0, 'p0':p0, 'w0':w0,
-                            'vars0':vars0, 'scaling':scaling}
+                            'vars0':vars0, 'scaling':scaling.cat.full()}
     
     # save simulation variables
     filename = output_folder + 'simulation_variables.pckl'
@@ -385,20 +393,20 @@ vars0['theta'] = system_model.variables_dict['theta'](0.0)
 bounds = mpc.solver_bounds
 
 # load trial parameters
-t_f = trial.optimization.V_final['theta','t_f'].full().squeeze()
+t_f = trial.visualization.plot_dict['time_grids']['x'][-1].full().squeeze()
 
 # Scaled initial states
 plot_dict = trial.visualization.plot_dict
-x0['q10'] = np.array(plot_dict['x']['q10'])[:, -1] / scaling['x']['q10']
-x0['dq10'] = np.array(plot_dict['x']['dq10'])[:, -1] / scaling['x']['dq10']
-x0['omega10'] = np.array(plot_dict['x']['omega10'])[:, -1] / scaling['x']['omega10']
-x0['r10'] = np.array(plot_dict['x']['r10'])[:, -1] / scaling['x']['r10']
-x0['delta10'] = np.array(plot_dict['x']['delta10'])[:, -1] / scaling['x']['delta10']
-x0['l_t'] = np.array(plot_dict['x']['l_t'])[0, -1] / scaling['x']['l_t']
-x0['dl_t'] = np.array(plot_dict['x']['dl_t'])[0, -1] / scaling['x']['dl_t']
+x0['q10'] = np.array(plot_dict['x']['q10'])[:, -1] / scaling['x','q10']
+x0['dq10'] = np.array(plot_dict['x']['dq10'])[:, -1] / scaling['x','dq10']
+x0['omega10'] = np.array(plot_dict['x']['omega10'])[:, -1] / scaling['x','omega10']
+x0['r10'] = np.array(plot_dict['x']['r10'])[:, -1] / scaling['x','r10']
+x0['delta10'] = np.array(plot_dict['x']['delta10'])[:, -1] / scaling['x','delta10']
+x0['l_t'] = np.array(plot_dict['x']['l_t'])[0, -1] / scaling['x','l_t']
+x0['dl_t'] = np.array(plot_dict['x']['dl_t'])[0, -1] / scaling['x','dl_t']
 
 # Scaled algebraic vars
-z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z']['lambda10']
+z0['z'] = np.array(plot_dict['z']['lambda10'])[:, -1] / scaling['z','lambda10']
 
 # ----------------- run simulation ----------------- #
 
@@ -436,12 +444,12 @@ for k in range(N_steps):
             tgrids[grid] = ca.vertcat(*list(map(lambda x: x % t_f, tgrids[grid].full()))).full().squeeze()
 
         # get reference
-        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'])['ref']
-
+        ref = F_ref(tgrid = tgrids['tgrid'], tgrid_x = tgrids['tgrid_x'], tgrid_u = tgrids['tgrid_u'])['ref']
+ 
         # solve MPC problem
         u_ref = tracking_options['user_options.wind.u_ref']
         sol = mpc.solver(x0=w0, lbx=bounds['lbw'], ubx=bounds['ubw'], lbg=bounds['lbg'], ubg=bounds['ubg'],
-                        p=ca.vertcat(x0, ref, u_ref, Q, R, P))
+                        p=ca.vertcat(x0, ref, u_ref, Q, R, P, Z))
 
         # MPC stats
         stats.append(mpc.solver.stats())
@@ -459,8 +467,8 @@ for k in range(N_steps):
         u0_call = out['u0']
 
         # fill in controls
-        u0['ddelta10'] = u0_call[6:9] / scaling['u']['ddelta10'] # scaled!
-        u0['ddl_t'] = u0_call[-1] / scaling['u']['ddl_t'] # scaled!
+        u0['ddelta10'] = u0_call[6:9] / scaling['u', 'ddelta10'] # scaled!
+        u0['ddl_t'] = u0_call[-1] / scaling['u', 'ddl_t'] # scaled!
 
         # message
         print("iteration=" + "{:3d}".format(k + 1) + "/" + str(N_steps) + ", t=" + "{:.4f}".format(current_time) + " > compute MPC step")
@@ -475,8 +483,8 @@ for k in range(N_steps):
     aero_out = F_aero(x0=x0, u0=u0)
 
     # fill in forces and moments
-    u0['f_fict10'] = aero_out['F_ext'] / scaling['u']['f_fict10']  # external force in inertial frame
-    u0['m_fict10'] = aero_out['M_ext'] / scaling['u']['m_fict10']  # external moment in body-fixed frame
+    u0['f_fict10'] = aero_out['F_ext'] / scaling['u', 'f_fict10']  # external force in inertial frame
+    u0['m_fict10'] = aero_out['M_ext'] / scaling['u', 'm_fict10']  # external moment in body-fixed frame
 
     # fill controls and aerodynamics into dae parameters
     p0['u'] = u0
@@ -502,9 +510,9 @@ for k in range(N_steps):
         break
 
 # generated power
-lam = np.array([z[-1] for z in zsim]) * scaling['z']['lambda10'].full()[0][0]
-l_t = np.array([x[-2] for x in xsim]) * scaling['x']['l_t'].full()[0][0]
-dl_t = np.array([x[-1] for x in xsim]) * scaling['x']['dl_t'].full()[0][0]
+lam = np.array([z[-1] for z in zsim]) * scaling['z', 'lambda10'].full()[0][0]
+l_t = np.array([x[-2] for x in xsim]) * scaling['x', 'l_t'].full()[0][0]
+dl_t = np.array([x[-1] for x in xsim]) * scaling['x', 'dl_t'].full()[0][0]
 P_inst = lam * l_t * dl_t
 P_ave_ext = np.sum(P_inst[1:] * np.array([tsim[i+1]-tsim[i] for i in range(0,len(tsim)-1)]))/tsim[-1]
 
@@ -522,7 +530,8 @@ fig = plt.gcf()
 fig.set_size_inches(8,8)
 fig.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
 ax = fig.get_axes()[0]
-ax.plot([x[0] for x in xsim], [x[1] for x in xsim], [x[2] for x in xsim])
+scaling_q = scaling['x', 'q10',0].full().squeeze()
+ax.plot([x[0]*scaling_q for x in xsim], [x[1]*scaling_q for x in xsim], [x[2]*scaling_q for x in xsim])
 ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
@@ -559,9 +568,9 @@ fig, ax = plt.subplots(nrows=4, ncols=1, figsize=(8, 8), sharex=True)
 fig.subplots_adjust(top=0.95, bottom=0.1, left=0.15, right=0.95)
 for k in range(3):
     ax[k].plot(trial.visualization.plot_dict['time_grids']['ip'], (180./np.pi)*trial.visualization.plot_dict['x']['delta10'][k])
-    ax[k].plot(tsim, (180. / np.pi) * np.array([x[18 + k] for x in xsim]))
+    ax[k].plot(tsim, (180. / np.pi) * scaling['x','delta10', k].full()[0][0]*np.array([x[18 + k] for x in xsim]))
 ax[-1].plot(trial.visualization.plot_dict['time_grids']['ip'], trial.visualization.plot_dict['x']['dl_t'][0], 'b')
-ax[-1].plot(tsim, [x[-1]*scaling['x']['dl_t'].full()[0][0] for x in xsim])
+ax[-1].plot(tsim, [x[-1]*scaling['x', 'dl_t'].full()[0][0] for x in xsim])
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')
@@ -588,7 +597,7 @@ for k in range(3):
     ax[k].step(trial.visualization.plot_dict['time_grids']['ip'], (180./np.pi)*trial.visualization.plot_dict['u']['ddelta10'][k], where='post')
     ax[k].step(tsim[:-1], (180./np.pi)*np.array([u[6+k] for u in usim]), where='post')
 ax[-1].step(trial.visualization.plot_dict['time_grids']['ip'], trial.visualization.plot_dict['u']['ddl_t'][0], where='post')
-ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u']['ddl_t'].full()[0][0] for u in usim]), where='post')
+ax[-1].step(tsim[:-1], np.array([u[-1]*scaling['u', 'ddl_t'].full()[0][0] for u in usim]), where='post')
 for k in range(4):
     l = ax[k].get_lines()
     l[0].set_color('b')

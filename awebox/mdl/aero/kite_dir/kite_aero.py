@@ -38,19 +38,23 @@ import awebox.mdl.aero.kite_dir.three_dof_kite as three_dof_kite
 import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
+import awebox.mdl.aero.geometry_dir.geometry as geom
 from awebox.logger.logger import Logger as awelogger
-import awebox.tools.vector_operations as vect_op
-import casadi.tools as cas
-import numpy as np
-import awebox.mdl.mdl_constraint as mdl_constraint
 
-def get_forces_and_moments(options, atmos, wind, variables_si, outputs, parameters, architecture):
+import awebox.tools.vector_operations as vect_op
+import awebox.tools.print_operations as print_op
+import casadi.tools as cas
+
+def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
+    outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture, scaling)
+    outputs = indicators.get_circulation_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
+        outputs = induction.collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
 
     return outputs
 
@@ -71,7 +75,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        awelogger.logger.error(message)
+        print_op.log_and_raise_error(message)
 
     if int(options['kite_dof']) == 3:
 
@@ -106,7 +110,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
 
     else:
         message = 'unsupported kite_dof chosen in options: ' + str(options['kite_dof'])
-        awelogger.logger.error(message)
+        print_op.log_and_raise_error(message)
 
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 
@@ -136,7 +140,10 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
 
         f_drag_wind = f_aero_wind[0] * vect_op.xhat()
         f_side_wind = f_aero_wind[1] * vect_op.yhat()
-        f_lift_wind = f_aero_wind[2] * vect_op.zhat()
+
+        f_lift_norm = f_aero_wind[2]
+
+        f_lift_wind = f_lift_norm * vect_op.zhat()
 
         f_drag_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_drag_wind)
         f_side_earth = frames.from_wind_to_earth(vec_u_eff, kite_dcm, f_side_wind)
@@ -179,7 +186,6 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         aero_coefficients['Cn'] = Cn
         aero_coefficients['LoverD'] = CL/CD
 
-
         base_aerodynamic_quantities = {}
         base_aerodynamic_quantities['kite'] = kite
         base_aerodynamic_quantities['air_velocity'] = vec_u_eff
@@ -192,6 +198,7 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         base_aerodynamic_quantities['f_lift_earth'] = f_lift_earth
         base_aerodynamic_quantities['f_drag_earth'] = f_drag_earth
         base_aerodynamic_quantities['f_side_earth'] = f_side_earth
+        base_aerodynamic_quantities['f_lift_norm'] = f_lift_norm
         base_aerodynamic_quantities['m_aero_body'] = m_aero_body
         base_aerodynamic_quantities['kite_dcm'] = kite_dcm
         base_aerodynamic_quantities['q'] = q
@@ -203,7 +210,6 @@ def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, paramet
         outputs = indicators.collect_local_performance_outputs(architecture, atmos, wind, variables_si, parameters,
                                                                base_aerodynamic_quantities, outputs)
         outputs = indicators.collect_power_balance_outputs(options, architecture, variables_si, base_aerodynamic_quantities, outputs)
-
 
     return outputs
 
@@ -231,13 +237,15 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
 
     return cstr_list
 
+def get_wingtip_position(options, kite, architecture, variables_si, parameters, tip):
 
-def get_wingtip_position(kite, options, model, variables, parameters, ext_int):
     if int(options['kite_dof']) == 3:
-        wingtip_pos = three_dof_kite.get_wingtip_position(kite, options, model, variables, parameters, ext_int)
+        x_wingtip =three_dof_kite.get_wingtip_position(kite, architecture, variables_si, parameters, tip)
+
     elif int(options['kite_dof']) == 6:
-        wingtip_pos = six_dof_kite.get_wingtip_position(kite, model, variables, parameters, ext_int)
+        x_wingtip = six_dof_kite.get_wingtip_position(kite, architecture, variables_si, parameters, tip)
     else:
         raise ValueError('failure: unsupported kite_dof chosen in options: %i',options['kite_dof'])
 
-    return wingtip_pos
+    return x_wingtip
+

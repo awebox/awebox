@@ -31,7 +31,7 @@ options = set_megawes_path_generation_settings(aero_model, options)
 # indicate desired operation mode
 options['user_options.trajectory.type'] = 'power_cycle'
 options['user_options.trajectory.system_type'] = 'lift_mode'
-options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout' # positive (or null) reel-out speed during power generation
+options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # positive (or null) reel-out speed during power generation
 options['user_options.trajectory.lift_mode.windings'] = 1 # number of loops
 options['model.system_bounds.theta.t_f'] = [1., 20.] # cycle period [s]
 
@@ -45,14 +45,19 @@ options['params.wind.log_wind.z0_air'] = 0.0002
 options['nlp.n_k'] = 40 # approximately 40 per loop
 options['nlp.collocation.u_param'] = 'zoh' # constant control inputs
 options['solver.linear_solver'] = 'ma57' # if HSL is installed, otherwise 'mumps'
-options['nlp.collocation.ineq_constraints'] = 'collocation_nodes' # default is 'shooting_nodes'
+options['nlp.collocation.ineq_constraints'] = 'shooting_nodes' # set to 'collocation_nodes' for finer imposition of inequalities
 
-# ----------------- solve OCP ----------------- #
+# (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+# note: this may result in slightly slower solution timings
+options['nlp.compile_subfunctions'] = True
+
+# ----------------- solve OCP -----------------0 #
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'MegAWES')
 trial.build()
 trial.optimize()
+plt.show()
 trial.write_to_csv('outputs_megawes_trajectory_'+aero_model.lower()+'_results', rotation_representation='dcm')
 
 # extract information from the solution for independent plotting or post-processing
@@ -77,9 +82,9 @@ ax.tick_params(labelsize=12)
 ax.set_xlabel(ax.get_xlabel(), fontsize=12)
 ax.set_ylabel(ax.get_ylabel(), fontsize=12)
 ax.set_zlabel(ax.get_zlabel(), fontsize=12)
-ax.set_xlim([0,400])
+ax.set_xlim([0,600])
 ax.set_ylim([-200,200])
-ax.set_zlim([0,400])
+ax.set_zlim([0,600])
 ax.view_init(azim=-70, elev=20)
 l = ax.get_lines()
 l[0].set_color('b')

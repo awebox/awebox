@@ -32,7 +32,7 @@ if sys.version_info < (3,8):
     sys.exit('Python version 3.8 or later required. Exiting.')
 
 setup(name='awebox',
-   version='0.1.0',
+   version='0.2.0',
    python_requires='>=3.8',
    description='Modeling and optimal control of sinlge- and multi-kite systems',
    url='https://github.com/awebox/awebox',
@@ -50,17 +50,19 @@ setup(name='awebox',
    install_requires=[
         'casadi==3.6.4',
         'cycler==0.11.0',
-        'fonttools==4.43.0',
         'kiwisolver==1.4.4',
         'matplotlib==3.7.5',
         'numpy==1.24.4',
         'packaging==21.3',
-        'Pillow==10.2.0',
         'pyparsing==3.0.9',
         'python-dateutil==2.8.2',
         'scipy==1.10.1',
         'six==1.16.0',
         'tk==0.1.0',
-	'tabulate==0.8.10'
+	    'tabulate==0.8.10',
+        'pandas==2.0.3',
+        'progress==1.5',
+        'python-resources',
+        'jinja2'
    ],
 )
