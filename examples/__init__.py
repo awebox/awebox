@@ -22,21 +22,11 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-'''
-ocp constraint handling
-_python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020
-'''
+# Import main interface classes
+from .sweep import Sweep
+from .trial import Trial
+from .opts.options import Options
+from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data
 
-import casadi.tools as cas
-from awebox.logger.logger import Logger as awelogger
-import awebox.tools.constraint_operations as cstr_op
-import awebox.tools.struct_operations as struct_op
-import awebox.tools.performance_operations as perf_op
-import awebox.tools.print_operations as print_op
-
-
-class OcpConstraintList(cstr_op.ConstraintList):
-
-    def __init__(self):
-        super().__init__(list_name='ocp_constraints_list')
+# Visualization classes
+from .viz.visualization import Visualization

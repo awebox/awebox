@@ -30,7 +30,7 @@ trial.optimize(warmstart_file = warmstart_file)
 ### How do I access a part of the solved optimization variables, such as the system parameters theta?
 
 ```
-theta = trial.optimization.V_final['theta']
+theta = trial.optimization.V_final_si['theta']
 ```
 
 ### How do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
@@ -100,8 +100,8 @@ This likely means that the memory useage was too high. maybe try breaking your s
 ### How do I get to a specific collocation variable in the solution? (Eg, one of the lifted aerodynamic variables, like 'f_aero21'...)
 
 ```
- V_final = trial.optimization.V_final
- V_final['coll_var', :, :, 'xl', 'f_aero21']
+ V_final_si = trial.optimization.V_final_si
+ V_final_si['coll_var', :, :, 'xl', 'f_aero21']
 ```
 
 ### How do I find out what parameters were used for a given trial, after the fact? (for example, the kite span?)
@@ -134,25 +134,31 @@ The awebox has a built-in health-checker!
 0. Please be aware that the health-checker is slow, and requires a lot of memory. For this reason, we recommend that you only run the health-checker on a minimal version of your problem - even if the solution of that minimal version would not normally satisfy the quality control checks.
 For example, we should drastically reduce the number of control intervals and/or reduce the winding number to 1:
 ```
-options['nlp']['n_k'] = 5
-options['user_options']['trajectory']['lift_mode']['windings'] = 1
+options['user_options.trajectory.lift_mode.windings'] = 1
+options['nlp.n_k'] = 10
 ```
 
-1. Now, we need to turn the health-checker on. You can specify when the health-checker should run: after every sub-problem along the homotopy, after a sub-problem that fails, and/or at the end of the final homotopy step, by enabling any combination of the following:
+1. Now, we need to turn the health-checker on. You can specify when the health-checker should run: after every sub-problem along the homotopy, after a sub-problem that fails, and/or at the end of the final homotopy step, by using the following:
 ```
-options['solver']['health_check']['when']['autorun'] = True
-options['solver']['health_check']['when']['failure'] = True
-options['solver']['health_check']['when']['final'] = True
-```
-
-2. If we want to manually look over the KKT matrix, and the jacobian of the active and equality constraints, and the reduced hessian, we should use the following option. Be awere that these plots need to be closed manally, and so will interrupt a batch-run. 
-```
-options['solver']['health_check']['when']['spy_matrices'] = True
+options['solver.health_check.when'] = 'always'
+options['solver.health_check.when'] = 'failure'
+options['solver.health_check.when'] = 'final'
 ```
 
-3. Finally, if you suspect that an LICQ, SOSC or other conditioning problem exists, the debugger attached to the health checker can help you find the problem. This identification will give more detailed information about potentially problematic constraints if you use the following option. Please be aware, that this will slow down the problem discretization, and should generally be turned off. 
+(If you'd like that health_check to raise an exception when it finds an unhealthy problem, use:
 ```
-options['nlp']['collocation']['name_constraints'] = True
+options['solver.health_check.raise_exception'] = True
+```
+
+2. If we want to manually look over the KKT matrix, and the jacobian of the active and equality constraints, and the reduced hessian, we should use the following option. Be aware that these plots need to be closed manally, and so will interrupt a batch-run. 
+```
+options['solver.health_check.spy_matrices'] = False
+```
+
+3. Finally, if you suspect that an LICQ, SOSC or other conditioning problem exists, the debugger attached to the health checker can help you find the problem. This identification will give more detailed information about potentially problematic constraints if you use the following option. Please be aware, that naming the constraints will slow down the problem discretization, and should generally be turned off. 
+```
+options['solver.health_check.help_with_debugging'] = True
+options['nlp.collocation.name_constraints'] = True
 ```
 (This option is currently only available for direct-collocation problems. Stay tuned for its introduction into multiple-shooting problems as well!)
 
@@ -207,6 +213,33 @@ Use pip3 to install casadi!
 ```
 user@computer:~$ pip3 install casadi
 ```
+
+
+### How do I test if I've installed the COIN/HSL linear solvers correctly?
+
+We suggest running the following tests:
+
+1. Does the casadi example NLP rocket solve in its given form ('mumps' linear solver)?
+https://github.com/casadi/casadi/blob/master/docs/examples/python/rocket.py
+
+(If this fails, the problem is with your casadi installation.)
+
+2. Does the casadi example NLP rocket solve with the linear solver "ma57"?
+modify the line
+```
+opts = {"ipopt.tol":1e-10, "expand":True}
+```
+to read:
+```
+opts = {"ipopt.tol":1e-10, "expand":True, "ipopt.linear_solver":"ma57"}
+```
+
+(If this fails, the problem is with the COIN/HSL solver installation.)
+
+3. Does the awebox example file single_kite_lift_mode_simple.py run?
+
+(If this fails, the problem is with the awebox. Please report the bug, so that we can fix it! Thanks in advance!)
+
 
 ### When I try to run a script that uses the awebox (like one of the included examples), I get an Invalid Option error after 1 iteration. What should I do? 
 
@@ -301,14 +334,11 @@ options['nlp']['n_k'] = n_k
 ```
 
 
-### Does trial.optimization.V_final give values that are 'scaled' or 'SI'?
-
-the 'SI' version!
-
-However, if you want the scaled version, you can instead query:
+### I can't find trial.optimization.V_final anymore?!
+It's been renamed to make it clear whether the values are in si units or scaled! Please instead use:
 ```
-sol = trial.optimization.solution
-V_solution_scaled = trial.nlp.V(sol['x'])
+V_final_si = trial.optimization.V_final_si
+V_final_scaled = struct_op.si_to_scaled(V_final_si, model.scaling)
 ```
 
 ### What are the units of the power output? (aka. the given 'SI' unit of power...)
@@ -380,36 +410,13 @@ It's also helpful to initialize according to the axi-symmetry that you're expect
 options['solver']['initialization']['inclination_deg'] = 0.
 ```
 
-Please note that at least one of the solution quality control tests will automatically fail, because there will be node locations "below-ground".
+Please note that at least one of the solution quality control tests will automatically fail, because there will be node locations "below-ground". If you want to turn off the quality tests, you can do that with:
+```
+options['quality']['when'] = 'never'
+```
 
-
-### How do I find out how much the various terms within the objective acutally add to the objective, after my trial has been optimized?
+### How do I find out how much the various terms within the objective actually add to the objective, after my trial has been optimized?
 
 ```
 trial.print_cost_information()
 ```
-
-### How do I test if I've installed the COIN/HSL linear solvers correctly?
-
-We suggest running the following tests:
-
-1. Does the casadi example NLP rocket solve in its given form ('mumps' linear solver)?
-https://github.com/casadi/casadi/blob/master/docs/examples/python/rocket.py
-
-(If this fails, the problem is with your casadi installation.)
-
-2. Does the casadi example NLP rocket solve with the linear solver "ma57"?
-modify the line
-```
-opts = {"ipopt.tol":1e-10, "expand":True}
-```
-to read:
-```
-opts = {"ipopt.tol":1e-10, "expand":True, "ipopt.linear_solver":"ma57"}
-```
-
-(If this fails, the problem is with the COIN/HSL solver installation.)
-
-3. Does the awebox example file single_kite_lift_mode_simple.py run?
-
-(If this fails, the problem is with the awebox. Please report the bug, so that we can fix it! Thanks in advance!)

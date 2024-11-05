@@ -1,14 +1,15 @@
 casadi==3.6.4
 cycler==0.11.0
-fonttools==4.43.0
 kiwisolver==1.4.4
 matplotlib==3.7.5
 numpy==1.24.4
 packaging==21.3
-Pillow==10.2.0
 pyparsing==3.0.9
 python-dateutil==2.8.2
 scipy==1.10.1
 six==1.16.0
 tk==0.1.0
 tabulate==0.8.10
+pandas==2.0.3
+python-resources
+jinja2

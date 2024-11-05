@@ -12,6 +12,8 @@ figures/
 *.jpg
 *.png
 *.eps
+*.mp4
+*.png
 
 # Savefiles
 *.csv
@@ -22,6 +24,11 @@ figures/
 *.awe
 *.dict
 *.ipynb
+cache/
+tracking_files/
+
+# Profiler
+*.prof
 
 # Code-generated files
 *.c

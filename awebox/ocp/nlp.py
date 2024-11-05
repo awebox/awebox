@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 - edited: rachel leuthold, alu-fr 2018-2021
 '''
 
+
 import casadi.tools as cas
 
 from awebox.logger.logger import Logger as awelogger
@@ -58,8 +59,8 @@ class NLP(object):
 
             timer = time.time()
             self.__options = nlp_options
-            self.print_nlp_info()
-            self.__generate_discretization(nlp_options, model,formulation)
+            self.print_nlp_options()
+            self.__generate_discretization(nlp_options, model, formulation)
             self.generate_variable_bounds(nlp_options, model)
             self.__generate_objective(nlp_options, model)
 
@@ -82,15 +83,15 @@ class NLP(object):
         Xdot_fun,
         ocp_cstr_list,
         ocp_cstr_struct,
-        Outputs,
         Outputs_fun,
+        Outputs_struct, Outputs_structured, Outputs_structured_fun,
         Integral_outputs,
         Integral_outputs_fun,
         time_grids,
         Collocation,
         Multiple_shooting,
         global_outputs,
-        global_outputs_fun] = discretization.discretize(nlp_options,model,formulation)
+        global_outputs_fun] = discretization.discretize(nlp_options, model, formulation)
         self.__timings['discretization'] = time.time()-timer
 
         ocp_cstr_list.scale(nlp_options['constraint_scale'])
@@ -100,8 +101,10 @@ class NLP(object):
         self.__Xdot = Xdot
         self.__Xdot_fun = Xdot_fun
         self.__ocp_cstr_list = ocp_cstr_list
-        self.__Outputs = Outputs
         self.__Outputs_fun = Outputs_fun
+        self.__Outputs_struct = Outputs_struct
+        self.__Outputs_structured = Outputs_structured
+        self.__Outputs_structured_fun = Outputs_structured_fun
         self.__Integral_outputs = Integral_outputs
         self.__Integral_outputs_fun = Integral_outputs_fun
         self.__n_k = nlp_options['n_k']
@@ -131,7 +134,12 @@ class NLP(object):
     def __generate_objective(self, nlp_options, model):
 
         timer = time.time()
-        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), self.__Outputs_fun(self.__V, self.__P), model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+
+        if hasattr(self.__Outputs, 'keys'):
+            Outputs = self.__Outputs
+        else:
+            Outputs = self.__Outputs_fun(self.__V, self.__P)
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), Outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 
@@ -152,22 +160,27 @@ class NLP(object):
 
         return nlp
 
-    def get_f_jacobian_fun(self):
+    def get_f_jacobian_and_hessian_functions(self):
         return objective.get_cost_derivatives(self.__V, self.__P, self.__f_fun)
 
-    def print_nlp_info(self):
+    def print_nlp_options(self):
 
         awelogger.logger.info('')
         awelogger.logger.info('NLP options:')
-        awelogger.logger.info('')
-        awelogger.logger.info('Number of intervals'+7*'.'+': {}'.format(self.__options['n_k']))
-        awelogger.logger.info('Discretization method'+5*'.'+': {}'.format(self.__options['discretization']))
+        options_dict = {
+            'Number of intervals':self.__options['n_k'],
+            'Discretization method':self.__options['discretization']
+        }
+
         if self.__options['discretization'] == 'direct_collocation':
-            awelogger.logger.info('Collocation scheme'+8*'.'+': {}'.format(self.__options['collocation']['scheme']))
-            awelogger.logger.info('Collocation order'+9*'.'+': {}'.format(self.__options['collocation']['d']))
-            awelogger.logger.info('Control parameterization'+2*'.'+': {}'.format(self.__options['collocation']['u_param']))
+            options_dict['Collocation scheme'] = self.__options['collocation']['scheme']
+            options_dict['Collocation order'] = self.__options['collocation']['d']
+            options_dict['Control parameterization'] = self.__options['collocation']['u_param']
+
         if self.__options['system_type'] == 'lift_mode':
-            awelogger.logger.info('Phase-fix strategy'+8*'.'+': {}'.format(self.__options['phase_fix']))
+            options_dict['Phase-fix strategy'] = self.__options['phase_fix']
+
+        print_op.print_dict_as_table(options_dict)
 
         return None
 
@@ -175,15 +188,28 @@ class NLP(object):
 
         awelogger.logger.info('')
         awelogger.logger.info('NLP dimensions:')
-        awelogger.logger.info('')
+        dimension_dict = {
+            'n_var': self.__V.shape[0],
+            'n_param': self.__P.shape[0]}
 
-        awelogger.logger.info('n_var....: {}'.format(self.__V.shape[0]))
-        awelogger.logger.info('n_param..: {}'.format(self.__P.shape[0]))
-        awelogger.logger.info('n_eq.....: {}'.format(self.ocp_cstr_list.get_expression_list('eq').shape[0]))
-        awelogger.logger.info('n_ineq...: {}'.format(self.ocp_cstr_list.get_expression_list('ineq').shape[0]))
-        awelogger.logger.info('')
+        for cstr_type in ['eq', 'ineq']:
+            if hasattr(self.ocp_cstr_list.get_expression_list(cstr_type), 'shape'):
+                dimension_dict['n_' + cstr_type] = self.ocp_cstr_list.get_expression_list(cstr_type).shape[0]
+            else:
+                dimension_dict['n_' + cstr_type] = 0
+
+        self.__dimensions_dict = dimension_dict
+        print_op.print_dict_as_table(dimension_dict)
 
         return None
+
+    @property
+    def dimensions_dict(self):
+        return self.__dimensions_dict
+
+    @dimensions_dict.setter
+    def dimensions_dict(self, value):
+        awelogger.logger.warning('Cannot set dimensions_dict object.')
 
     @property
     def status(self):
@@ -320,6 +346,22 @@ class NLP(object):
     @Outputs.setter
     def Outputs(self, value):
         awelogger.logger.warning('Cannot set Outputs object.')
+
+    @property
+    def Outputs_struct(self):
+        return self.__Outputs_struct
+
+    @Outputs_struct.setter
+    def Outputs_struct(self, value):
+        awelogger.logger.warning('Cannot set Outputs_struct object.')
+
+    @property
+    def Outputs_structured_fun(self):
+        return self.__Outputs_structured_fun
+
+    @Outputs_structured_fun.setter
+    def Outputs_structured_fun(self, value):
+        awelogger.logger.warning('Cannot set Outputs_structured_fun object.')
 
     @property
     def global_outputs(self):

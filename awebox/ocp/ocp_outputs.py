@@ -29,23 +29,30 @@ _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter alu-fr 2017-18
 '''
 
+
 import casadi.tools as cas
 import numpy as np
 
 import awebox.tools.vector_operations as vect_op
-
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 
-def collect_global_outputs(nlp_options, model, V):
+def collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P):
 
-    outputs = {}
-    outputs = get_time_period(nlp_options, V, outputs)
-    [outputs_struct, outputs_dict] = make_output_structure(outputs)
+    global_outputs = {}
+    global_outputs = include_time_period(nlp_options, V, global_outputs)
+
+    if 'Outputs_structured' != None and ('vortex' in model.outputs.keys()):
+        global_outputs = vortex.compute_global_performance(global_outputs, Outputs_structured, model.architecture)
+
+    [outputs_struct, outputs_dict] = make_output_structure(global_outputs)
 
     return outputs_struct, outputs_dict
 
-def get_time_period(nlp_options, V, outputs):
+
+def include_time_period(nlp_options, V, outputs):
 
     if 'time_period' not in list(outputs.keys()):
         outputs['time_period'] = {}
@@ -85,27 +92,27 @@ def make_output_structure(outputs):
 
     return [outputs_struct, outputs_dict]
 
-def find_phase_fix_time_period_zeroth(nlp_numerics_options, V):
 
+def find_time_spent_in_reelout(nlp_numerics_options, V):
     nk = nlp_numerics_options['n_k']
     phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
     time_period_zeroth = V['theta', 't_f', 0] * round(nk * phase_fix_reel_out) / nk
     return time_period_zeroth
 
-def find_phase_fix_time_period_first(nlp_numerics_options, V):
+def find_time_spent_in_reelin(nlp_numerics_options, V):
     nk = nlp_numerics_options['n_k']
     phase_fix_reel_out = nlp_numerics_options['phase_fix_reelout']
     time_period_first = V['theta', 't_f', 1] * (nk - round(nk * phase_fix_reel_out)) / nk
     return time_period_first
 
+
 def find_time_period(nlp_numerics_options, V):
-
-    if nlp_numerics_options['phase_fix'] == 'single_reelout':
-        time_period_zeroth = find_phase_fix_time_period_zeroth(nlp_numerics_options, V)
-        time_period_first = find_phase_fix_time_period_first(nlp_numerics_options, V)
-
-        # average over collocation nodes
-        time_period = (time_period_zeroth + time_period_first)
+    lift_mode = nlp_numerics_options['system_type'] == 'lift_mode'
+    single_reelout = nlp_numerics_options['phase_fix'] == 'single_reelout'
+    if lift_mode and single_reelout:
+        reelout_time = find_time_spent_in_reelout(nlp_numerics_options, V)
+        reelin_time = find_time_spent_in_reelin(nlp_numerics_options, V)
+        time_period = (reelout_time + reelin_time)
     else:
         time_period = V['theta', 't_f']
 

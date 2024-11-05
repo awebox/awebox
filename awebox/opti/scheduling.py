@@ -30,19 +30,21 @@ python-3.5 / casadi-3.4.5
 - edited: jochem de schutter, alu-fr 2018-2020
 '''
 
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options, homotopy_method_type):
+def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
 
     schedule = {}
-    schedule['cost'] = define_cost_update_schedule(cost_solver_options)
+    schedule['cost'] = define_cost_update_schedule(solver_options['cost'])
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
     schedule['homotopy'] = define_homotopy_schedule(formulation)
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
-    
+
+    homotopy_method_type = solver_options['homotopy_method']['type']
     if homotopy_method_type == 'single':
         schedule = compress_homotopy_schedule(schedule)
     
@@ -50,7 +52,7 @@ def define_homotopy_update_schedule(model, formulation, nlp, cost_solver_options
 
 def define_homotopy_schedule(formulation):
 
-    initial_schedule = ('initial','fictitious',)
+    initial_schedule = ('initial', 'fictitious',)
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
@@ -88,12 +90,13 @@ def define_homotopy_schedule(formulation):
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
         homotopy_schedule = homotopy_schedule + compromised_landing_schedule
 
-    # if tether_drag_model in set([multi']):
+    # if tether_drag_model in set(['multi']):
     #     homotopy_schedule = homotopy_schedule + tether_schedule
 
     homotopy_schedule = homotopy_schedule + final_schedule
 
     return homotopy_schedule
+
 
 def define_costs_to_update(P, formulation):
 
@@ -104,22 +107,22 @@ def define_costs_to_update(P, formulation):
 
     fictitious_updates = {}
     fictitious_updates[0] = ['gamma', 'fictitious']
-    fictitious_updates[1] = []
+    fictitious_updates[1] = ['gamma']
 
     tether_updates = {}
     tether_updates[0] = ['tau']
-    tether_updates[1] = []
+    tether_updates[1] = ['tau']
 
     induction_updates = {}
     induction_updates[0] = ['iota']
-    induction_updates[1] = []
+    induction_updates[1] = ['iota']
 
     tether_release_updates = {}
     tether_release_updates[0] = []
 
     power_updates = {}
-    power_updates[0] = ['power', 'psi', 'power_derivative']
-    power_updates[1] = []
+    power_updates[0] = ['power', 'psi', 'power_derivative', 'fictitious']
+    power_updates[1] = ['tracking', 'psi']
 
     nominal_landing_updates = {}
     nominal_landing_updates[0] = ['nominal_landing', 'eta']
@@ -151,6 +154,7 @@ def define_costs_to_update(P, formulation):
 
 def define_bounds_to_update(model, bounds_schedule, formulation):
 
+    # it takes one update per bound, therefore two updates to reset both the lower and upper bounds.
     updates = {}
 
     initial_updates = {}
@@ -301,6 +305,7 @@ def define_step_labels(formulation):
 def update_cost(schedule, step_name, counter, cost_update_counter, p_fix_num):
 
     costs_to_update = schedule['costs_to_update'][step_name][counter]
+
     for cost_name in costs_to_update:
         count_of_this_update = cost_update_counter[cost_name] + 1
 
@@ -400,7 +405,7 @@ def create_empty_bound_update_schedule(model, nlp, formulation):
     elif 'dddl_t' in list(model.variables_dict['u'].keys()):
         bound_schedule['dddl_t'] = {}
     # check if single_reelout phase fix
-    if nlp.V['theta','t_f'].shape[0] > 1:
+    if nlp.V['theta', 't_f'].shape[0] > 1:
         bound_schedule['dl_t'] = {}
         bound_schedule['l_t'] = {}
 
@@ -427,24 +432,30 @@ def define_bound_update_schedule(model, nlp, formulation):
             bound_schedule[name][1] = ['lb', 'u', 'final']
             bound_schedule[name][2] = ['ub', 'u', 'final']
 
-    if 'ddl_t' in list(model.variables_dict['u'].keys()):
-        bound_schedule['ddl_t'][1] = ['lb', 'u', 'final']
-        bound_schedule['ddl_t'][2] = ['ub', 'u', 'final']
-    elif 'dddl_t' in list(model.variables_dict['u'].keys()):
-        bound_schedule['dddl_t'][1] = ['lb', 'u', 'final']
-        bound_schedule['dddl_t'][2] = ['ub', 'u', 'final']
+    traj_type = formulation.traj_type
+    fix_tether_length = formulation.fix_tether_length
+
+    for tether_control in ['ddl_t', 'dddl_t']:
+        if tether_control in list(model.variables_dict['u'].keys()):
+            bound_schedule[tether_control][1] = ['lb', 'u', 'final']
+            bound_schedule[tether_control][2] = ['ub', 'u', 'final']
+
+            # todo: @jochem, this cannot possibly be what's intended by the tracking trajectory_type, but the tests run, so... what needs to be here instead?
+            if traj_type == 'tracking' and fix_tether_length == False:
+                bound_schedule[tether_control][3] = ['lb', 'u', 'final']
+                bound_schedule[tether_control][4] = ['ub', 'u', 'final']
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):
-            bound_schedule['dl_t'][1] = ['lb','x','final']
-            bound_schedule['dl_t'][2] = ['ub','x','final']
+            bound_schedule['dl_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','x','final']
-            bound_schedule['l_t'][2] = ['ub','x','final']
+            bound_schedule['l_t'][1] = ['lb', 'x', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'x', 'final']
     else:
         if 'l_t' in list(bound_schedule.keys()):
-            bound_schedule['l_t'][1] = ['lb','theta','final']
-            bound_schedule['l_t'][2] = ['ub','theta','final']
+            bound_schedule['l_t'][1] = ['lb', 'theta', 'final']
+            bound_schedule['l_t'][2] = ['ub', 'theta', 'final']
 
     return bound_schedule
 
@@ -460,6 +471,7 @@ def initialize_cost_update_counter(P):
         cost_update_counter[name] = -1
 
     return cost_update_counter
+
 
 def initialize_bound_update_counter(model, schedule, formulation):
     bound_update_counter = {}
@@ -494,8 +506,8 @@ def find_current_homotopy_parameter(parameters, V_bounds):
 
     phi_name = None
     for phi in list(parameters.keys()):
-        ub = V_bounds['ub']['phi',phi]
-        lb = V_bounds['lb']['phi',phi]
+        ub = V_bounds['ub']['phi', phi]
+        lb = V_bounds['lb']['phi', phi]
         if ub != lb:
             phi_name = phi
     
@@ -514,8 +526,8 @@ def compress_homotopy_schedule(schedule):
     schedule['costs_to_update']['middle'] = {0: [], 1: []}
     schedule['bounds_to_update']['middle'] = {0: [], 1: []}
     for step in middle_steps:
-        schedule['costs_to_update']['middle'][0]  += schedule['costs_to_update'][step][0]
-        schedule['costs_to_update']['middle'][1]  += schedule['costs_to_update'][step][1]
+        schedule['costs_to_update']['middle'][0] += schedule['costs_to_update'][step][0]
+        schedule['costs_to_update']['middle'][1] += schedule['costs_to_update'][step][1]
         schedule['bounds_to_update']['middle'][0] += schedule['bounds_to_update'][step][0]
         schedule['bounds_to_update']['middle'][1] += schedule['bounds_to_update'][step][1]
 
