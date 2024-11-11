@@ -204,10 +204,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
         V_bounds['lb']['x', :, 'dl_t'] = -1. * cas.inf
         V_bounds['ub']['x', :, 'dl_t'] = 1. * cas.inf
 
-        # make sure that pumping range fixing bounds are not imposed initially
-        V_bounds['lb']['x', :, 'l_t'] = -1. * cas.inf
-        V_bounds['ub']['x', :, 'l_t'] = 1. * cas.inf
-
         if 'coll_var' in list(nlp.V.keys()):
             V_bounds['lb']['coll_var', :, :, 'x', 'dl_t'] = -1. * cas.inf
             V_bounds['ub']['coll_var', :, :, 'x', 'dl_t'] = 1. * cas.inf

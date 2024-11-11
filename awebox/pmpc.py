@@ -148,7 +148,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         if self.__cost_type == 'tracking':
@@ -160,7 +161,8 @@ class Pmpc(object):
                 ct.entry('u_ref', shape = (1,1)),
                 ct.entry('Q', shape = (self.__nx, 1)),
                 ct.entry('R', shape = (self.__nu, 1)),
-                ct.entry('P', shape = (self.__nx, 1))
+                ct.entry('P', shape = (self.__nx, 1)),
+                ct.entry('Z', shape = (self.__nz, 1)),
             ])
 
         # create P evaluator for use in NLP arguments
@@ -177,8 +179,6 @@ class Pmpc(object):
 
         # store nlp bounds
         self.__trial.nlp.V_bounds['ub']['phi'] = 0.0
-        self.__trial.nlp.V_bounds['lb']['xi'] = 0.0
-        self.__trial.nlp.V_bounds['ub']['xi'] = 0.0
 
         for name in list(self.__trial.model.variables_dict['u'].keys()):
             if 'fict' in name:
@@ -212,7 +212,7 @@ class Pmpc(object):
             homotopy_opts = copy.deepcopy(opts)
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
-            homotopy_opts['ipopt.max_iter'] = 2
+            homotopy_opts['ipopt.max_iter'] = 200
 
             self.__homotopy_solver = ct.nlpsol('solver', 'ipopt', nlp, homotopy_opts)
 
@@ -220,7 +220,7 @@ class Pmpc(object):
 
         return None
 
-    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None):
+    def step(self, x0, plot_flag = False, u_ref = None, Q = None, R = None, P = None, Z = None):
 
         """ Compute periodic MPC feedback control for given initial condition.
         """
@@ -243,10 +243,20 @@ class Pmpc(object):
         # update tracking weights
         if Q == None:
             self.__p0['Q'] = self.__weights['Q']
+        else:
+            self.__p0['Q'] = Q
         if R == None:
             self.__p0['R'] = self.__weights['R']
+        else:
+            self.__p0['R'] = R
         if P == None:
             self.__p0['P'] = self.__weights['P']
+        else:
+            self.__p0['P'] = P
+        if Z == None:
+            self.__p0['Z'] = self.__weights['Z']
+        else:
+            self.__p0['Z'] = Z
 
         if self.__mpc_options['homotopy_warmstart']:
             sol = self.__homotopy_solver(
@@ -312,7 +322,7 @@ class Pmpc(object):
 
         # weighting matrices
         weights = {}
-        for weight in ['Q', 'R', 'P']:
+        for weight in ['Q', 'R', 'P', 'Z']:
             if weight in self.__mpc_options.keys():
                 weights[weight] = self.__mpc_options[weight]
             else:
@@ -320,7 +330,9 @@ class Pmpc(object):
                     weights[weight] = np.ones((self.__nx,1))
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
-        weights['Z'] = np.zeros((self.__nz,1))
+                elif weight == 'Z':
+                    weights['Z'] = 1000*np.ones((self.__nz,1))
+
         self.__weights = weights
 
         # create tracking function
@@ -422,7 +434,9 @@ class Pmpc(object):
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
         V_opt = self.__pocp_trial.optimization.V_opt
-        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt)
+    
+        tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
+        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
 
         return None
 
@@ -450,16 +464,11 @@ class Pmpc(object):
         for var_type in self.__var_list:
             if var_type == 'x':
                 ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
-            elif var_type == 'u' and self.__pocp_trial.options['nlp']['collocation']['u_param'] == 'poly':
+            elif var_type == 'u':
                 ip_dict[var_type] = self.__interpolator(t_grid_u, var_type)
-            elif var_type == 'u' and self.__pocp_trial.options['nlp']['collocation']['u_param'] == 'zoh':
-                time_grids = {}
-                time_grids['u'] = self.__pocp_trial.visualization.plot_dict['time_grids']['u']
-                time_grids['u_mpc'] = t_grid_u
-                ip_dict[var_type] = struct_op.sample_and_hold_controls(time_grids, self.__pocp_trial.optimization.V_opt['u', :], timegrid_label='u_mpc')
+            elif var_type == 'z':
+                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
 
-            else:
-                ip_dict[var_type] = self.__interpolator(t_grid, var_type)
         counter = 0
         counter_x = 0
         counter_u = 0
@@ -471,7 +480,6 @@ class Pmpc(object):
             else:
                 V_list.append(self.__N * self.__ts)
         V_list.append(np.zeros(V_ref['phi'].shape))
-        V_list.append(np.zeros(V_ref['xi'].shape))
 
         for k in range(self.__N):
             for j in range(self.__trial.nlp.d+1):

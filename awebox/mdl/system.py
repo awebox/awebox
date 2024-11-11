@@ -401,8 +401,7 @@ def scale_bounds(variable_bounds, scaling):
         for name in list(variable_bounds[variable_type].keys()):
             for bound_type in ['lb', 'ub']:
                 local_si = variable_bounds[variable_type][name][bound_type]
-
-                if isinstance(local_si, float) or not (local_si.shape == scaling[variable_type, name].shape):
+                if isinstance(local_si, float) or isinstance(local_si, int) or not (local_si.shape == scaling[variable_type, name].shape):
                     local_si = local_si * cas.DM.ones(scaling[variable_type, name].shape)
 
                 variable_bounds[variable_type][name][bound_type] = struct_op.var_si_to_scaled(variable_type, name, cas.DM(local_si), scaling)

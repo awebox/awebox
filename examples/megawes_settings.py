@@ -65,8 +65,9 @@ def set_megawes_path_generation_settings(aero_model, options):
     # initialization
     options['solver.initialization.groundspeed'] = 80. 
     options['solver.initialization.inclination_deg'] = 45. #45. 
-    options['solver.initialization.cone_deg'] = 35. #25. 
-    options['solver.initialization.l_t'] = 400. #600.
+    options['solver.initialization.cone_deg'] = 25. #25. 
+    options['solver.initialization.l_t'] = 600. #600.
+    options['solver.initialization.psi0_rad'] = - np.pi/2 # initialize down-stroke in reel-out phase
 
     return options
 
@@ -97,7 +98,7 @@ def set_megawes_path_tracking_settings(aero_model, options):
 
     # control variable bounds
     options['user_options.kite_standard.geometry.ddelta_max'] = np.array(3*[50])*np.pi/180 # Deflection rates [deg/s]
-    options['model.system_bounds.x.ddl_t'] = [-5, 5] # Tether acceleration [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-5., 5.] # Tether acceleration [m/s^2]
 
     # --------------------------- Operational constraints --------------------------- #
     # validitiy of aerodynamic model

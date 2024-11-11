@@ -24,6 +24,7 @@ figures/
 *.awe
 *.dict
 *.ipynb
+*.pckl
 cache/
 tracking_files/
 
@@ -32,6 +33,8 @@ tracking_files/
 
 # Code-generated files
 *.c
+*.o
+*.so
 
 # Documentation
 docs/build/
