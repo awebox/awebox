@@ -131,12 +131,8 @@ def generate_optimal_model(trial, param_options = None, external_forces = False)
                 if var != 't_f':
                     variables.append(cas.SX(trial.optimization.V_opt['theta',var]))
                 else:
-                    if trial.optimization.V_opt['theta','t_f'].shape[0] == 1:
-                        t_f = trial.optimization.V_opt['theta','t_f']
-                        variables.append(cas.SX(t_f))
-                    else:
-                        t_f = trial.visualization.plot_dict['output_vals'][1]['final', 'time_period', 'val']
-                        variables.append(cas.SX(t_f))
+                    t_f = trial.visualization.plot_dict['time_grids']['x'][-1]
+                    variables.append(cas.SX(t_f))
     variables = trial.model.variables(cas.vertcat(*variables))
 
     # fill in parameters structure

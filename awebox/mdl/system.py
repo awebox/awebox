@@ -201,8 +201,8 @@ def generate_structure(options, architecture):
     if len(architecture.layer_nodes) > 1:
         system_parameters += [('l_i', (1, 1)), ('diam_i', (1, 1))]
 
-    if 'P_max' in options['system_bounds']['theta'].keys():
-        system_parameters += [('P_max', (1, 1))]  # max power
+    if options['include_P_max']:
+        system_parameters += [('P_max', (1, 1))] # max power
 
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
         system_parameters += [('ell_radius', (1, 1))]

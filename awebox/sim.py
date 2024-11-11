@@ -39,6 +39,8 @@ import awebox.mdl.architecture as archi
 import copy
 import numpy as np
 import awebox.tools.print_operations as print_op
+from progress.bar import ChargingBar
+from awebox.logger.logger import Logger as awelogger
 
 
 class Simulation:
@@ -115,27 +117,37 @@ class Simulation:
         """ Run simulation
         """
 
+        awelogger.logger.info('Start {} simulation...'.format(self.__sim_type))
+
         # TODO: check consistency of initial conditions and give warning
 
         x0 = self.__initialize_sim(n_sim, x0, u_sim)
 
-        for i in range(n_sim):
+        with ChargingBar('Simulating...', max = n_sim, fill='#') as bar:
+            for i in range(n_sim):
 
-            # get (open/closed-loop) controls
-            if self.__sim_type == 'closed_loop':
-                u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
+                # get (open/closed-loop) controls
+                if self.__sim_type == 'closed_loop':
+                    u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
 
-            elif self.__sim_type == 'open_loop':
-                u0 = self.__u_sim[:, i]
+                elif self.__sim_type == 'open_loop':
+                    u0 = self.__u_sim[:, i]
 
-            # simulate
-            var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
-            self.__store_results(x0, u0, var_next['qf'])
+                # simulate
+                var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
+                self.__store_results(x0, u0, var_next['qf'])
 
-            # shift initial state
-            x0 = var_next['xf']
+                # shift initial state
+                x0 = var_next['xf']
+
+                # update progress bar
+                bar.next()
+
+        bar.finish()
 
         self.__postprocess_sim()
+
+        awelogger.logger.info('Finished {} simulation.'.format(self.__sim_type))
 
         return None
 
