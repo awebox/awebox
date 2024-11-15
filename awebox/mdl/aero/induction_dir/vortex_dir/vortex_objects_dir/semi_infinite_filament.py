@@ -27,6 +27,7 @@ object-oriented-vortex-filament-and-cylinder operations
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021-2022
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -41,6 +42,7 @@ from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
+from awebox.tools.vector_operations import xhat_dm
 
 matplotlib.use('TkAgg')
 
@@ -92,10 +94,29 @@ class SemiInfiniteFilament(obj_element.Element):
 
         unpacked, cosmetics = self.prepare_to_draw(variables_scaled, parameters, cosmetics)
 
+        ax_x_min, ax_x_max = ax.get_xlim()
+        ax_y_min, ax_y_max = ax.get_ylim()
+
         x_start = unpacked['x_start']
         l_hat = unpacked['l_hat']
 
-        if parameters is None:
+        s_length_from_axis = None
+        diff_lhat_xhat = l_hat - vect_op.xhat_dm()
+        l_hat_is_xhat = cas.mtimes(diff_lhat_xhat.T, diff_lhat_xhat) < 1e-4
+        if l_hat_is_xhat and ('x' in side):
+            if side[0] == 'x':
+                x_max = ax_x_max
+            elif side[1] == 'x':
+                x_max = ax_y_max
+            else:
+                message = 'something went wrong when trying to decide which axis of plot is xhat side'
+                print_op.log_and_raise_error(message)
+            if x_max > x_start[0]:
+                s_length_from_axis = float(x_max - x_start[0])
+
+        if s_length_from_axis is not None:
+            s_length = s_length_from_axis
+        elif parameters is None:
             s_length = cosmetics['trajectory']['filament_s_length']
         else:
             vortex_far_convection_time = cosmetics['trajectory']['vortex_far_wake_convection_time']
@@ -105,6 +126,8 @@ class SemiInfiniteFilament(obj_element.Element):
         x_end = x_start + l_hat * s_length
 
         super().basic_draw(ax, side, unpacked['strength'], x_start, x_end, cosmetics)
+        ax.set_xlim(ax_x_min, ax_x_max)
+        ax.set_ylim(ax_y_min, ax_y_max)
 
         return None
 

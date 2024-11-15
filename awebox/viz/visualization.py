@@ -158,6 +158,7 @@ class Visualization(object):
         integral_variables = self.plot_dict['integral_output_names']
 
         plot_logic_dict = {}
+        plot_logic_dict['power'] = (output.plot_power, None)
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})
         plot_logic_dict['projected_xy'] = (trajectory.plot_trajectory, {'side':'xy'})
         plot_logic_dict['projected_yz'] = (trajectory.plot_trajectory, {'side':'yz'})
@@ -168,7 +169,8 @@ class Visualization(object):
         plot_logic_dict['vortex_haas_verification'] = (wake.plot_haas_verification_test, None)
         plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
         plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
-        plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
+        plot_logic_dict['relative_radius'] = (output.plot_relative_distance_from_center_to_kite, None)
+        plot_logic_dict['relative_radius_of_curvature'] = (output.plot_relative_radius_of_curvature, None)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
         plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
@@ -176,11 +178,13 @@ class Visualization(object):
         plot_logic_dict['actuator_xy'] = (wake.plot_actuator, {'side':'xy'})
         plot_logic_dict['actuator_yz'] = (wake.plot_actuator, {'side':'yz'})
         plot_logic_dict['actuator_xz'] = (wake.plot_actuator, {'side':'xz'})
-        plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
         plot_logic_dict['velocity_distribution'] = (wake.plot_velocity_distribution, None)
+        plot_logic_dict['velocity_distribution_comparison'] = (wake.plot_velocity_distribution_comparison_only, None)
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})
+        plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
+        plot_logic_dict['wake_legend'] = (wake.plot_wake_legend, None)
         plot_logic_dict['circulation'] = (output.plot_circulation, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
@@ -233,8 +237,8 @@ class Visualization(object):
                 os.mkdir(directory)
 
             save_name = directory + '/' + name_rep + '_' + flag
-            plt.savefig(save_name + '.eps', bbox_inches='tight', format='eps', dpi=1000)
-            plt.savefig(save_name + '.pdf', bbox_inches='tight', format='pdf', dpi=1000)
+            for format in cosmetics['save']['format_list']:
+                plt.savefig(save_name + '.' + format, bbox_inches='tight', format=format, dpi=1000)
 
         return None
 

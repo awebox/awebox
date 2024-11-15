@@ -287,24 +287,16 @@ def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, g
 
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        for kite in trial.model.architecture.kite_nodes:
-            wake_norm = np.array(
-                trial.visualization.plot_dict['interpolation_si']['outputs']['vortex']['u_ind_norm' + str(kite)])
-            far_norm = np.array(
-                trial.visualization.plot_dict['interpolation_si']['outputs']['vortex']['u_ind_from_far_wake' + str(kite)])
+        est_truncation_error = trial.visualization.plot_dict['interpolation_si']['outputs']['vortex']['est_truncation_error']
+        est_truncation_error = np.array(est_truncation_error)
 
-            est_trunc_error = []
-            for idx in range(wake_norm.shape[0]):
-                est_trunc_error += [far_norm[idx] / wake_norm[idx]]
-            est_trunc_error = np.array(est_trunc_error)
-
-            max_trunc_error = np.max(est_trunc_error)
-            if max_trunc_error > vortex_truncation_error_thresh:
-                message = 'Vortex model estimates a large truncation error' \
-                          + str(max_trunc_error) + ' > ' + str(vortex_truncation_error_thresh) \
-                          + '. on kite ' + str(kite) + '. We recommend increasing the number of wake nodes.'
-                awelogger.logger.warning(message)
-                results['vortex_truncation_error'] = False
+        max_trunc_error = np.max(est_truncation_error)
+        if max_trunc_error > vortex_truncation_error_thresh:
+            message = 'Vortex model estimates a large truncation error' \
+                      + str(max_trunc_error) + ' > ' + str(vortex_truncation_error_thresh) \
+                      + '. We recommend increasing the number of wake nodes.'
+            awelogger.logger.warning(message)
+            results['vortex_truncation_error'] = False
 
     return results
 

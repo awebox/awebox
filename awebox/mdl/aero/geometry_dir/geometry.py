@@ -171,6 +171,7 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
 
         outputs['geometry']['local_period_of_rotation' + str(kite)] = local_period_of_rotation
         outputs['geometry']['vector_from_center_to_kite' + str(kite)] = vector_from_center_to_kite
+        outputs['geometry']['distance_from_center_to_kite' + str(kite)] = vect_op.norm(vector_from_center_to_kite)
         outputs['geometry']['kite_motion_is_right_hand_rule_positive_around_wind_direction' + str(kite)] = clockwise_rotation
         outputs['geometry']['radius_of_curvature' + str(kite)] = radius_of_curvature
 
@@ -184,20 +185,25 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['dx_center' + str(parent)] = dx_center
         outputs['geometry']['wind_velocity_at_center' + str(parent)] = wind_velocity_at_center
         outputs['geometry']['vec_u_zero' + str(parent)] = vec_u_zero
+        outputs['geometry']['u_zero' + str(parent)] = vect_op.norm(vec_u_zero)
 
-        average_radius = cas.DM.zeros((1, 1))
+        average_radius_of_curvature = cas.DM.zeros((1, 1))
+        average_distance_from_center_to_kite = cas.DM.zeros((1, 1))
         average_period_of_rotation = cas.DM.zeros((1, 1))
         for kite in architecture.kites_map[parent]:
-            average_radius += outputs['geometry']['radius_of_curvature' + str(kite)] / float(architecture.get_number_siblings(kite))
+            average_radius_of_curvature += outputs['geometry']['radius_of_curvature' + str(kite)] / float(architecture.get_number_siblings(kite))
+            average_distance_from_center_to_kite += outputs['geometry']['distance_from_center_to_kite' + str(kite)] / float(architecture.get_number_siblings(kite))
             average_period_of_rotation += outputs['geometry']['local_period_of_rotation' + str(kite)] / float(
                 architecture.get_number_siblings(kite))
 
         b_ref = parameters['theta0', 'geometry', 'b_ref']
 
-        outputs['geometry']['average_radius' + str(parent)] = average_radius
-        outputs['geometry']['average_relative_radius' + str(parent)] = average_radius / b_ref
-        outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius
+        outputs['geometry']['average_radius_of_curvature' + str(parent)] = average_radius_of_curvature
+        outputs['geometry']['average_relative_radius_of_curvature' + str(parent)] = average_radius_of_curvature / b_ref
+        outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius_of_curvature
         outputs['geometry']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
+        outputs['geometry']['average_distance_from_center_to_kite' + str(parent)] = average_distance_from_center_to_kite
+        outputs['geometry']['average_relative_distance_from_center_to_kite' + str(parent)] = average_distance_from_center_to_kite / b_ref
 
     outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture)
 

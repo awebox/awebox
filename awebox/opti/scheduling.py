@@ -39,7 +39,7 @@ def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
     schedule = {}
     schedule['cost'] = define_cost_update_schedule(solver_options['cost'])
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
-    schedule['homotopy'] = define_homotopy_schedule(formulation)
+    schedule['homotopy'] = define_homotopy_schedule(formulation, solver_options['homotopy_method']['put_fictitious_before_induction'])
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
@@ -50,9 +50,10 @@ def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
     
     return schedule
 
-def define_homotopy_schedule(formulation):
+def define_homotopy_schedule(formulation, put_fictitious_before_induction=True):
 
-    initial_schedule = ('initial', 'fictitious',)
+    initial_schedule = ('initial',)
+    fictitious_schedule = ('fictitious',)
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
@@ -66,16 +67,21 @@ def define_homotopy_schedule(formulation):
     traj_type = formulation.traj_type
     tether_drag_model = formulation.tether_drag_model
     fix_tether_length = formulation.fix_tether_length
+    make_induction_step = not (induction_model in ['not_in_use', 'averaged'])
 
     homotopy_schedule = ()
     homotopy_schedule = homotopy_schedule + initial_schedule
 
+    if make_induction_step and not put_fictitious_before_induction:
+        homotopy_schedule = homotopy_schedule + induction_schedule
+
+    homotopy_schedule = homotopy_schedule + fictitious_schedule
+
+    if make_induction_step and put_fictitious_before_induction:
+        homotopy_schedule = homotopy_schedule + induction_schedule
+
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
-
-    make_induction_step = not (induction_model in ['not_in_use', 'averaged'])
-    if make_induction_step:
-        homotopy_schedule = homotopy_schedule + induction_schedule
 
     if traj_type == 'power_cycle':
         homotopy_schedule = homotopy_schedule + power_schedule

@@ -304,95 +304,55 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
         vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
         n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture)
         u_normalizing = vortex_tools.get_induction_factor_normalizing_speed(model_options, wind, kite_obs, parent_obs, variables_si, architecture)
-        u_ind = vect_op.norm(vec_u_ind)
+        u_ind_norm = vect_op.norm(vec_u_ind)
 
         local_a = general_flow.compute_induction_factor(vec_u_ind, n_hat, u_normalizing)
 
-        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
-        vec_u_ind_from_far_wake = wake.get_substructure('far').evaluate_total_biot_savart_induction(x_obs=x_obs)
-
-        u_ind_norm_from_far_wake = vect_op.norm(vec_u_ind_from_far_wake)
-        u_ind_norm_from_far_wake_over_u_ref = u_ind_norm_from_far_wake / wind.get_speed_ref()
-
-        est_truncation_error = u_ind_norm_from_far_wake / u_ind
-
-        outputs['vortex']['u_ind' + str(kite_obs)] = u_ind
-        outputs['vortex']['u_ind_norm' + str(kite_obs)] = vect_op.norm(u_ind)
+        outputs['vortex']['vec_u_ind' + str(kite_obs)] = vec_u_ind
+        outputs['vortex']['u_ind_norm' + str(kite_obs)] = u_ind_norm
         outputs['vortex']['local_a' + str(kite_obs)] = local_a
 
-        outputs['vortex']['u_ind_from_far_wake' + str(kite_obs)] = u_ind_norm_from_far_wake
-        outputs['vortex']['u_ind_from_far_wake_over_u_ref' + str(kite_obs)] = u_ind_norm_from_far_wake_over_u_ref
+        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
 
-        outputs['vortex']['est_truncation_error' + str(kite_obs)] = est_truncation_error
+        u_ref = wind.get_speed_ref()
+
+        substructure_types = wake.get_initialized_substructure_types()
+        for substructure in substructure_types:
+            vec_u_ind_from_substructure = wake.get_substructure(substructure).evaluate_total_biot_savart_induction(x_obs=x_obs)
+            u_ind_norm_from_substructure = vect_op.norm(vec_u_ind_from_substructure)
+            u_ind_norm_from_substructure_over_total = u_ind_norm_from_substructure / u_ind_norm
+            u_ind_norm_from_substructure_over_ref = u_ind_norm_from_substructure / u_ref
+
+            base_name = 'u_ind_norm_from_' + substructure + '_wake'
+            outputs['vortex'][base_name + str(kite_obs)] = u_ind_norm_from_substructure
+            outputs['vortex'][base_name + '_over_total' + str(kite_obs)] = u_ind_norm_from_substructure_over_total
+            outputs['vortex'][base_name + '_over_ref' + str(kite_obs)] = u_ind_norm_from_substructure_over_ref
 
         if 'rotation' in outputs.keys():
             ehat_normal = outputs['rotation']['ehat_normal' + str(parent_obs)]
             ehat_tangential = outputs['rotation']['ehat_tangential' + str(kite_obs)]
             ehat_radial = outputs['rotation']['ehat_radial' + str(kite_obs)]
 
-            outputs['vortex']['u_ind_normal' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_normal)
-            outputs['vortex']['u_ind_tangential' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_tangential)
-            outputs['vortex']['u_ind_radial' + str(kite_obs)] = cas.mtimes(vec_u_ind.T, ehat_radial)
+            ehat_chord = outputs['aerodynamics']['ehat_chord' + str(kite_obs)]
+            ehat_span = outputs['aerodynamics']['ehat_span' + str(kite_obs)]
+            ehat_up = outputs['aerodynamics']['ehat_up' + str(kite_obs)]
+
+            xhat = vect_op.xhat_dm()
+            yhat = vect_op.yhat_dm()
+            zhat = vect_op.zhat_dm()
+
+            rot_dir_dict = {'radial': ehat_radial, 'tangential': ehat_tangential, 'normal': ehat_normal, 'chord': ehat_chord, 'span': ehat_span, 'up': ehat_up, 'x': xhat, 'y': yhat, 'z': zhat}
+            for rot_name, rot_ehat in rot_dir_dict.items():
+                outputs['vortex']['u_ind_' + rot_name + str(kite_obs)] = cas.mtimes(vec_u_ind.T, rot_ehat)
+
+    total_truncation_error_at_kite = cas.DM(0.)
+    base_name = 'u_ind_norm_from_far_wake'
+    for kite_obs in kite_nodes:
+        total_truncation_error_at_kite += outputs['vortex'][base_name + '_over_ref' + str(kite_obs)]
+    est_truncation_error = total_truncation_error_at_kite / float(len(kite_nodes))
+    outputs['vortex']['est_truncation_error'] = est_truncation_error
 
     return outputs
-
-
-
-def compute_global_performance(global_outputs, Outputs_structured, architecture):
-
-    if 'vortex' not in global_outputs.keys():
-        global_outputs['vortex'] = {}
-
-    kite_nodes = architecture.kite_nodes
-
-    max_est_discr_list = []
-    max_u_ind_from_far_wake_over_u_ref_list = []
-
-    all_local_a = None
-
-    for kite in kite_nodes:
-
-        trunc_name = 'est_truncation_error' + str(kite)
-        local_a_name = 'local_a' + str(kite)
-        local_normalized_far_u_ind_name = 'u_ind_from_far_wake_over_u_ref' + str(kite)
-
-        local_est_trunc = []
-        kite_local_a = []
-        local_normalized_far_u_ind = []
-
-        for ndx in range(len(Outputs_structured['coll_outputs'])):
-            for ddx in range(len(Outputs_structured['coll_outputs', 0])):
-                local_est_trunc = cas.vertcat(local_est_trunc, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', trunc_name])
-                kite_local_a = cas.vertcat(kite_local_a, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', local_a_name])
-                local_normalized_far_u_ind = cas.vertcat(local_normalized_far_u_ind, Outputs_structured['coll_outputs', ndx, ddx, 'vortex', local_normalized_far_u_ind_name])
-
-        if all_local_a is None:
-            all_local_a = kite_local_a
-        else:
-            all_local_a = cas.vertcat(all_local_a, kite_local_a)
-
-        # todo: there might be something wrong with the way the global-performance-metrics compute. check.
-
-        max_kite_local_a = vect_op.smooth_max(kite_local_a)
-        min_kite_local_a = vect_op.smooth_min(kite_local_a)
-        local_max_est_discr = (max_kite_local_a - min_kite_local_a) / max_kite_local_a
-        max_est_discr_list = cas.vertcat(max_est_discr_list, local_max_est_discr)
-
-        local_max_normalized_far_u_ind = vect_op.smooth_max(local_normalized_far_u_ind)
-        max_u_ind_from_far_wake_over_u_ref_list = cas.vertcat(max_u_ind_from_far_wake_over_u_ref_list, local_max_normalized_far_u_ind)
-
-    average_local_a = vect_op.average(all_local_a)
-    stdev_local_a = vect_op.stdev(all_local_a)
-    global_outputs['vortex']['average_local_a'] = average_local_a
-    global_outputs['vortex']['stdev_local_a'] = stdev_local_a
-
-    max_u_ind_from_far_wake_over_u_ref = vect_op.smooth_max(max_u_ind_from_far_wake_over_u_ref_list)
-    global_outputs['vortex']['max_u_ind_from_far_wake_over_u_ref'] = max_u_ind_from_far_wake_over_u_ref
-
-    max_est_discr = vect_op.smooth_max(max_est_discr_list)
-    global_outputs['vortex']['max_est_discretization_error'] = max_est_discr
-
-    return global_outputs
 
 
 def get_dictionary_of_derivatives(outputs, architecture):

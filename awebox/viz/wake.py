@@ -74,21 +74,91 @@ def draw_actuator(ax, side, plot_dict, cosmetics, index):
     actuator.draw_actuator(ax, side, plot_dict, cosmetics, index)
     return None
 
-def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
-    fig, ax = tools.setup_axes_for_side(cosmetics, side)
-
-    index = -1
-    draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
+def plot_wake_legend(plot_dict, cosmetics, fig_name):
+    fig, ax = plt.subplots(figsize=(6, 1), layout='constrained')
 
     strength_max = cosmetics['trajectory']['circulation_max_estimate']
     strength_min = -1. * strength_max
 
     norm = plt.Normalize(strength_min, strength_max)
     cmap = plt.get_cmap('seismic')
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = ax.figure.colorbar(sm, ax=plt.gca())
-    cbar.set_label('vortex filament strength [m$^2$/s]', rotation=270)
+    label = 'vortex filament strength [m$^2$/s]'
+
+    fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap),
+                 cax=ax, orientation='horizontal', label=label)
+
+    return None
+
+
+def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
+
+    fig, ax = tools.setup_axes_for_side(cosmetics, side)
+
+    all_points = {0: [], 1: [], 2: []}
+    list_of_x_position_variable_names = []
+    list_of_z_position_variable_names = []
+    for kite in plot_dict['architecture'].kite_nodes:
+        parent = plot_dict['architecture'].parent_map[kite]
+        list_of_x_position_variable_names += ['q' + str(kite) + str(parent)]
+    for var_name in plot_dict['variables_dict']['z'].keys():
+        if var_name[0:2] == 'wx':
+            list_of_z_position_variable_names += [var_name]
+
+    for position_var_name in list_of_x_position_variable_names:
+        for dim in range(3):
+            all_points[dim] = cas.vertcat(all_points[dim], plot_dict['interpolation_si']['x'][position_var_name][dim])
+    for position_var_name in list_of_z_position_variable_names:
+        for dim in range(3):
+            all_points[dim] = cas.vertcat(all_points[dim], plot_dict['interpolation_si']['z'][position_var_name][dim])
+
+    for dim in range(3):
+        all_points[dim] = vect_op.columnize(all_points[dim])
+
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    range_extension = 1. * b_ref
+    max_vals = {}
+    min_vals = {}
+    range_vals = {}
+    center_vals = {}
+    for dim in range(3):
+        max_vals[dim] = np.max(np.array(all_points[dim]))
+        min_vals[dim] = np.min(np.array(all_points[dim]))
+        range_vals[dim] = max_vals[dim] - min_vals[dim]
+        center_vals[dim] = 0.5 * (max_vals[dim] + min_vals[dim])
+
+    if len(side) == 2:
+        if side == 'xy':
+            adx = 0
+            bdx = 1
+        elif side == 'xz':
+            adx = 0
+            bdx = 2
+        elif side == 'yz':
+            adx = 1
+            bdx = 2
+        range_extension = 2. * b_ref
+        larger_range = np.max(np.array([range_vals[adx], range_vals[bdx]])) + range_extension
+        ax.set_xlim(center_vals[adx] - larger_range / 2., center_vals[adx] + larger_range / 2.)
+        ax.set_ylim(center_vals[bdx] - larger_range / 2., center_vals[bdx] + larger_range / 2.)
+        ax.set_aspect('equal', adjustable='box')
+
+        strength_max = cosmetics['trajectory']['circulation_max_estimate']
+        strength_min = -1. * strength_max
+        norm = plt.Normalize(strength_min, strength_max)
+        cmap = plt.get_cmap('seismic')
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = ax.figure.colorbar(sm, ax=plt.gca())
+        cbar.set_label('vortex filament strength [m$^2$/s]', rotation=270)
+
+    elif side == 'isometric':
+        larger_range = np.max(np.array([val for val in range_vals.values()])) + range_extension
+        ax.set_xlim(center_vals[0] - larger_range / 2., center_vals[0] + larger_range / 2.)
+        ax.set_ylim(center_vals[1] - larger_range / 2., center_vals[1] + larger_range / 2.)
+        ax.set_zlim(center_vals[2] - larger_range / 2., center_vals[2] + larger_range / 2.)
+
+    index = -1
+    draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
 
     if cosmetics['trajectory']['kite_bodies']:
         init_colors = False
@@ -96,6 +166,8 @@ def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
 
     ax.tick_params(labelsize=cosmetics['trajectory']['ylabelsize'])
     plt.suptitle(fig_name)
+    ax.margins(0.)
+    plt.tight_layout()
 
     return None
 
@@ -209,6 +281,97 @@ def get_coordinate_axes_for_haas_verification():
     b_hat = vect_op.yhat_dm()
     return n_hat, a_hat, b_hat
 
+def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
+
+    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction']['comparison_data_for_velocity_distribution']
+
+    if comparison_data_for_velocity_distribution == 'not_in_use':
+        message = 'request to produce a velocity-distribution-comparison plot is being ignored because no comparison velocity distribution was input'
+        print_op.base_print(message, level='info')
+        return None
+
+    add_rancourt_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'rancourt')
+    add_trevisi_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'trevisi')
+
+    all_xi = np.linspace(-0.5, 0.5, 500)
+    xi_cas = cas.DM(all_xi).reshape((1, len(all_xi)))
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        rancourt_dict = get_rancourt_velocity_distribution(all_xi)
+
+    if add_trevisi_comparison_to_velocity_distribution:
+        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(all_xi)
+
+    adx = {}
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        adx['radius'] = 0
+        adx['cl'] = adx['radius'] + 1
+        adx['lift_per_unit_span'] = adx['cl'] + 1
+        adx['app'] = adx['lift_per_unit_span'] + 1
+        adx['eff'] = adx['app']
+        adx['norm_minus'] = adx['eff'] + 1
+
+    if add_trevisi_comparison_to_velocity_distribution:
+        adx['a_n'] = 0
+        adx['a_r'] = adx['a_n'] + 1
+
+    rows = 1 + int(np.max(np.array([val for val in adx.values()])))
+    cols = 1
+    plot_height = 3
+    plot_width = 2 * plot_height
+    fig, ax = plt.subplots(rows, cols, squeeze=False, sharex=True, figsize=(plot_width, rows * plot_height))
+    fig.suptitle('spanwise velocity distribution')
+
+    if add_trevisi_comparison_to_velocity_distribution:
+        # for label, values in other_trevisi_dict.items():
+        #     ax[adx[label]][0].plot(values['xi'], values['vals'], linestyle='--', label=label + ' Trevisi 2023')
+
+        for label, values in trevisi_a_normal_dict.items():
+            ax[adx['a_n']][0].plot(values['short_xi'], values['short_vals'], label=label)
+        for label, values in trevisi_a_radial_dict.items():
+            ax[adx['a_r']][0].plot(values['short_xi'], values['short_vals'], label=label)
+
+        ax[adx['a_r']][0].set_ylabel('radial\n induction factor [-]')
+        ax[adx['a_n']][0].set_ylabel('normal\n induction factor [-]')
+
+
+    if add_rancourt_comparison_to_velocity_distribution:
+        ax[adx['cl']][0].set_ylabel('2D lift\n coefficient \n [-]')
+        ax[adx['lift_per_unit_span']][0].set_ylabel('lift per unit\nspan [N/m]')
+        ax[adx['radius']][0].set_ylabel('radial distance\n from center of\n rotation [m]')
+        ax[adx['radius']][0].set_ylabel('radial distance\n from center of\n rotation [m]')
+        ax[adx['eff']][0].set_ylabel('inflow [m/s]')
+        ax[adx['norm_minus']][0].set_ylabel('difference in inflow [m/s]')
+
+        ax[adx['norm_minus']][0].set_ylim(-1, 1)
+
+        for type in ['app', 'eff', 'norm_minus', 'radius', 'cl', 'lift_per_unit_span']:
+            extra_label = ''
+            if type in ['app', 'eff']:
+                extra_label = '||u_' + type + '||'
+            elif type == 'norm_minus':
+                extra_label = '||u_eff|| - ||u_app||'
+            if extra_label == '':
+                ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'])
+            else:
+                ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], label= extra_label)
+
+    ax[-1][0].set_xlabel('non-dimensional spanwise position [-]')
+    ax[-1][0].set_xticks(np.linspace(-0.5, 0.5, 5))
+
+    shrink_factor = 0.3
+    for adx_val in range(rows):
+        ax[adx_val][0].grid(True)  # Add a grid for better readability
+        # Put a legend to the right of the current axis
+        ax[adx_val][0].legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+    plt.tight_layout()
+    # Adjust the subplots with the new bottom values, leaving space for the legend
+    plt.subplots_adjust(right=1.-shrink_factor)
+
+    return None
+
+
 def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
     idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
     parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
@@ -225,7 +388,7 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
         rancourt_dict = get_rancourt_velocity_distribution(all_xi)
 
     if add_trevisi_comparison_to_velocity_distribution:
-        trevisi_a_normal_dict = get_trevisi_induction_factor_distributions(all_xi)
+        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(all_xi)
 
     adx = {}
     adx['radius'] = 0
@@ -240,7 +403,6 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
     adx['a_t'] = adx['a_r'] + 1
     # adx['d_alpha'] = adx['a_t'] + 1
     # adx['d_beta'] = adx['d_alpha']
-
 
     rows = 1 + int(np.max(np.array([val for val in adx.values()])))
     cols = 1
@@ -275,15 +437,25 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
         for name in adx.keys():
             extra_label = name
             if name in ['app', 'eff']:
-                extra_label = '||' + name + '||'
+                extra_label = '||u_' + name + '||'
             elif name == 'norm_minus':
                 extra_label = '||u_eff|| - ||u_app||'
 
             ax[adx[name]][0].plot(all_xi, all_dict[name], label=extra_label + kite_label)
 
-        if add_trevisi_comparison_to_velocity_distribution and (kite in [1, 2]):
-            for label, values in trevisi_a_normal_dict.items():
-                ax[adx['a_n']][0].plot(values['short_xi'], values['short_vals'], linestyle='--', label=label)
+    if add_trevisi_comparison_to_velocity_distribution:
+
+        for label, values in other_trevisi_dict.items():
+            if label in ['app', 'eff']:
+                extra_label = '||u_' + label + '||'
+            else:
+                extra_label = label
+            ax[adx[label]][0].plot(values['xi'], values['vals'], linestyle='--', label=extra_label + ' Trevisi 2023')
+
+        for label, values in trevisi_a_normal_dict.items():
+            ax[adx['a_n']][0].plot(values['short_xi'], values['short_vals'], linestyle='--', label=label)
+        for label, values in trevisi_a_radial_dict.items():
+            ax[adx['a_r']][0].plot(values['short_xi'], values['short_vals'], linestyle='--', label=label)
 
     ax[adx['radius']][0].set_ylabel('radial distance\n from center of\n rotation [m]')
     ax[adx['eff']][0].set_ylabel('inflow [m/s]')
@@ -293,12 +465,13 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
 
     if add_rancourt_comparison_to_velocity_distribution:
         ax[adx['norm_minus']][0].set_ylabel('change in inflow [m/s]')
+        ax[adx['norm_minus']][0].set_ylim(-1, 1)
 
     if add_rancourt_comparison_to_velocity_distribution:
         for type in ['app', 'eff', 'norm_minus', 'radius']:
             extra_label = ''
             if type in ['app', 'eff']:
-                extra_label = 'u_' + type + ' '
+                extra_label = '||u_' + type + '|| '
             elif type == 'norm_minus':
                 extra_label = '||u_eff|| - ||u_app|| '
             ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], linestyle='--', label= extra_label + 'Rancourt 2018')
@@ -306,16 +479,14 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
     ax[-1][0].set_xlabel('non-dimensional spanwise position [-]')
     ax[-1][0].set_xticks(np.linspace(-0.5, 0.5, 5))
 
+    shrink_factor = 0.3
     for adx_val in range(rows):
         ax[adx_val][0].grid(True)  # Add a grid for better readability
-        # Shrink current axis by 20%
-        shrink_factor = 0.3
-        box = ax[adx_val][0].get_position()
-        ax[adx_val][0].set_position([box.x0, box.y0, box.width * (1. - shrink_factor), box.height])
         # Put a legend to the right of the current axis
         ax[adx_val][0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
     plt.tight_layout()
+    # Adjust the subplots with the new bottom values, leaving space for the legend
+    plt.subplots_adjust(right=1.-shrink_factor)
 
     return None
 
@@ -420,6 +591,8 @@ def get_rancourt_velocity_distribution(all_xi):
         norm_u_app_list = cas.vertcat(norm_u_app_list, norm_u_app)
 
     rancourt_dict = {}
+    rancourt_dict['lift_per_unit_span'] = {'vals': np.array(lift_per_unit_span_interpolated)}
+    rancourt_dict['cl'] = {'vals': np.array(cl_interpolated)}
     rancourt_dict['radius'] = {'vals': np.array(radius_list)}
     rancourt_dict['app'] = {'vals': np.array(norm_u_app_list)}
     rancourt_dict['eff'] = {'vals': np.array(norm_u_eff_list)}
@@ -434,7 +607,6 @@ def get_rancourt_velocity_distribution(all_xi):
         if xi_val in rancourt_dict['eff']['short_xi']:
             local_eff = rancourt_dict['eff']['short_vals'][sdx]
             local_app = rancourt_dict['app']['vals'][ldx]
-            local_dq = rancourt_dict['dq']['vals'][ldx]
 
             local_norm_minus = local_eff - local_app
             norm_minus = cas.vertcat(norm_minus, local_norm_minus)
@@ -464,15 +636,33 @@ def get_trevisi_induction_factor_distributions(all_xi):
     #     Filippo Trevisi Carlo E. D. Riboldi Alessandro Croce
     #     Wind Energy Science vol. 8 issue 6 (2023) pp: 999-1016
 
-    # note: spline interpolation might be bad here. segments are linear in plot.
-
     ax_interpolations = {}
 
-    trevisi_blank_name = 'T. + _'
-    trevisi_trevisi_name = 'T. + T.'
-    trevisi_gaunaa_name = 'T. + G.'
-    trevisi_kheiri_name = 'T. + K.'
-    qblade_name = 'QBlade'
+    trevisi_blank_name = 'T0'
+    trevisi_trevisi_name = 'TT'
+    trevisi_gaunaa_name = 'TG'
+    gaunaa_gaunaa_name = 'GG'
+    trevisi_kheiri_name = 'TK'
+    trevisi_kheiri_minus_trevisi_blank_name = 'KT'
+    kheiri_full_name = 'KK'
+    qblade_name = 'QB'
+
+
+    wingspan = 5.5
+    u_infty = 5.
+    omega = 3.88221
+    trevisi_radius = []
+    trevisi_app = []
+    for xi in all_xi:
+        local_radius = (wingspan / 0.3) + xi * wingspan
+        trevisi_radius += [local_radius]
+        local_u_tan = omega * local_radius
+        local_u_app = (local_u_tan**2. + u_infty**2.)**0.5
+        trevisi_app += [local_u_app]
+    trevisi_radius = np.array(trevisi_radius).reshape(all_xi.shape)
+    trevisi_app = np.array(trevisi_app).reshape(all_xi.shape)
+    other_trevisi_dict = {'radius': {'xi': all_xi, 'vals': trevisi_radius},
+                          'app': {'xi': all_xi, 'vals': trevisi_app}}
 
     trevisi_blank_xi = [-0.459632497636364, -0.450145848218182, -0.422512565127273, -0.395952613418181, -0.333559393527273, -0.283076151981818, -0.199572970472728, -0.0756831957272723, 0.0518732390181821, 0.154653052145455, 0.283129485218182, 0.321656081836364, 0.362956006745454, 0.394159283345454, 0.425419226509091, 0.447339186654546, 0.465142487618182]
     trevisi_blank_ax = [0, 0.20339, 0.27702, 0.24587, 0.25218, 0.26846, 0.27855, 0.3024, 0.32501, 0.34385, 0.36771, 0.36402, 0.37405, 0.38033, 0.42402, 0.36043, 0.0037]
@@ -489,12 +679,21 @@ def get_trevisi_induction_factor_distributions(all_xi):
     trevisi_gaunaa_ax_interpolated = np.interp(all_xi, trevisi_gaunaa_xi, trevisi_gaunaa_ax, left=np.nan, right=np.nan)
     ax_interpolations[trevisi_gaunaa_name] = {'vals': trevisi_gaunaa_ax_interpolated}
 
+    gaunaa_gaunaa_ax = np.array(cas.DM.ones(all_xi.shape[0], 1) * 0.900289)
+    ax_interpolations[gaunaa_gaunaa_name] = {'vals': gaunaa_gaunaa_ax}
+
     trevisi_kheiri_xi = [-0.469709145981818, -0.4498625154, -0.422225898981818, -0.391999287272727, -0.333276060709091, -0.271776172527273, -0.157073047745455, 0.0925364984181814, 0.285249481363636, 0.323779411309091, 0.390769289509091, 0.423862562672727, 0.448549184454545, 0.469762479218182]
     trevisi_kheiri_ax = [0.00877, 0.38925, 0.46288, 0.43298, 0.43805, 0.45808, 0.47319, 0.51841, 0.55358, 0.55238, 0.56369, 0.60614, 0.55129, 0.02491]
     trevisi_kheiri_ax_interpolated = np.interp(all_xi, trevisi_kheiri_xi, trevisi_kheiri_ax, left=np.nan, right=np.nan)
     ax_interpolations[trevisi_kheiri_name] = {'vals': trevisi_kheiri_ax_interpolated}
 
-    qblade_xi = [-0.4976390952, -0.496015764818182, -0.495519099054546, -0.495172433018182, -0.494805767018182, -0.494415767727273,
+    trevisi_kheiri_minus_trevisi_blank_ax = trevisi_kheiri_ax_interpolated - trevisi_blank_ax_interpolated
+    ax_interpolations[trevisi_kheiri_minus_trevisi_blank_name] = {'vals': trevisi_kheiri_minus_trevisi_blank_ax}
+
+    kheiri_full_ax = np.array(cas.DM.ones(all_xi.shape[0], 1) * 0.136719)
+    ax_interpolations[kheiri_full_name] = {'vals': kheiri_full_ax}
+
+    qblade_xi_ax = [-0.4976390952, -0.496015764818182, -0.495519099054546, -0.495172433018182, -0.494805767018182, -0.494415767727273,
          -0.494025768436364, -0.493632435818182, -0.493242436527273, -0.492849103909091, -0.492459104618182, \
          -0.492069105327273, -0.491675772709091, -0.491285773418182, -0.490895774127273, -0.490502441509091, \
          -0.490112442218182, -0.4897191096, -0.489019110872727, -0.488305778836364, -0.486892448072727, -0.484649118818182, \
@@ -537,12 +736,44 @@ def get_trevisi_induction_factor_distributions(all_xi):
          0.48893, 0.49127, 0.49383, 0.49643, 0.5007, 0.50498, 0.50933, 0.51372, 0.51194, 0.51028, 0.51353, 0.51678, 0.51607, \
          0.50649, 0.49621, 0.48452, 0.47242, 0.46032, 0.44823, 0.43613, 0.42385, 0.41153, 0.3992, 0.38681, 0.37443, 0.36205, \
          0.34966, 0.33728, 0.3249, 0.31253, 0.30014, 0.28776, 0.27538, 0.26299, 0.25061, 0.23823, 0.22584]
-    qblade_ax_interpolated = np.interp(all_xi, qblade_xi, qblade_ax, left=np.nan, right=np.nan)
+    qblade_ax_interpolated = np.interp(all_xi, qblade_xi_ax, qblade_ax, left=np.nan, right=np.nan)
     ax_interpolations[qblade_name] = {'vals': qblade_ax_interpolated}
 
-    ax_interpolations = add_shortened_distributions(ax_interpolations, all_xi)
+    ar_interpolations = {}
 
-    return ax_interpolations
+    trevisi_trevisi_ar = np.array(cas.DM.ones(all_xi.shape[0], 1) * 0.03383)
+    ar_interpolations[trevisi_trevisi_name] = {'vals': trevisi_trevisi_ar}
+
+    gaunaa_gaunaa_ar = np.array(cas.DM.ones(all_xi.shape[0], 1) * 1e-8)
+    ar_interpolations[gaunaa_gaunaa_name] = {'vals': gaunaa_gaunaa_ar}
+
+    kheiri_full_ar = np.array(cas.DM.ones(all_xi.shape[0], 1) * 1e-8)
+    ar_interpolations[kheiri_full_name] = {'vals': kheiri_full_ar}
+
+    qblade_xi_ar = [-0.497175762709091, -0.488699111454545, -0.481165791818182, -0.4745758038, -0.467042484163637,
+                    -0.460452496145455, -0.451975844890909, -0.442559195345454, -0.429379219309091, -0.411485918509091,
+                    -0.389829291218182, -0.367229332309091, -0.344632706727273, -0.322032747818182, -0.298492790618182,
+                    -0.274952833418182, -0.251412876218182, -0.228812917309091, -0.205272960109091, -0.1826730012,
+                    -0.159133044, -0.136533085090909, -0.113936459509091, -0.0913365006, -0.068736541690909,
+                    0.00564998972727244, 0.0282499486363635, 0.0508465742181821, 0.0734465331272732, 0.0960464920363635,
+                    0.119586449236363, 0.142183074818182, 0.164783033727273, 0.188322990927273, 0.210922949836363,
+                    0.234462907036363, 0.257062865945454, 0.280602823145455, 0.304142780345454, 0.327682737545455,
+                    0.350282696454546, 0.371939323745455, 0.393595951036364, 0.413369248418182, 0.426552557781818,
+                    0.440675865436364, 0.450092514981818, 0.458569166236364, 0.466102485872728, 0.472692473890909,
+                    0.478342463618182, 0.485875783254546]
+    qblade_ar = [0.116809, 0.107021, 0.096809, 0.086596, 0.076383, 0.06617, 0.056383, 0.046596, 0.038085, 0.031277,
+                 0.027447, 0.024468, 0.022766, 0.021915, 0.021489, 0.021489, 0.021489, 0.021915, 0.022766, 0.023617,
+                 0.024894, 0.02617, 0.027447, 0.029149, 0.030426, 0.035957, 0.03766, 0.039362, 0.041064, 0.042766,
+                 0.044043, 0.045319, 0.047021, 0.047872, 0.048723, 0.049149, 0.05, 0.049574, 0.049574, 0.048723,
+                 0.047447, 0.045319, 0.041915, 0.03766, 0.031702, 0.023617, 0.01383, 0.004043, -0.00617, -0.016383,
+                 -0.026596, -0.036809]
+    qblade_ar_interpolated = np.interp(all_xi, qblade_xi_ar, qblade_ar, left=np.nan, right=np.nan)
+    ar_interpolations[qblade_name] = {'vals': qblade_ar_interpolated}
+
+    ax_interpolations = add_shortened_distributions(ax_interpolations, all_xi)
+    ar_interpolations = add_shortened_distributions(ar_interpolations, all_xi)
+
+    return ax_interpolations, ar_interpolations, other_trevisi_dict
 
 
 
@@ -564,7 +795,7 @@ def get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval):
     x_obs = q_kite + vec_offset
     return x_obs, vec_offset
 
-def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval=0):
+def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval):
 
     xi_sym = cas.SX.sym('xi_sym', (1, 1))
 
@@ -584,7 +815,6 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
     ehat_radial = []
     ehat_tangential = []
     ehat_normal = []
-    vec_u_zero = []
     for j in range(3):
         q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][idx_at_eval])
         dq_kite = cas.vertcat(dq_kite, x_vals['dq' + str(kite) + str(parent)][j][idx_at_eval])
@@ -601,7 +831,6 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
                                plot_dict[search_name]['outputs']['rotation']['ehat_tangential' + str(kite)][j][idx_at_eval])
         ehat_normal = cas.vertcat(ehat_normal,
                                plot_dict[search_name]['outputs']['rotation']['ehat_normal' + str(parent)][j][idx_at_eval])
-        vec_u_zero = cas.vertcat(vec_u_zero, plot_dict[search_name]['outputs']['geometry']['vec_u_zero' + str(parent)][j][idx_at_eval])
 
     x_obs, vec_offset = get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval)
     vec_to_center = x_obs - x_center
@@ -617,26 +846,29 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
 
     omega_name = 'omega' + str(kite) + str(parent)
     if omega_name in x_vals.keys():
-        omega_kite = []
+        omega_body_axes = []
         for j in range(3):
-            omega_kite = cas.vertcat(omega_kite, x_vals[omega_name][j][idx_at_eval])
-        dq_rotational = vect_op.cross(omega_kite, vec_offset)
+            omega_body_axes = cas.vertcat(omega_body_axes, x_vals[omega_name][j][idx_at_eval])
+        omega_earth_axes = omega_body_axes[0] * ehat_1 + omega_body_axes[1] * ehat_2 + omega_body_axes[2] * ehat_3
+        dq_rotational = vect_op.cross(omega_earth_axes, vec_offset)
+        # because, remember, omega is defined wrt the *body-fixed* axes.
     else:
         dq_rotational = cas.DM.zeros((3, 1))
 
     dq_local = dq_kite + dq_rotational
     vec_u_app = vec_u_infty - dq_local
 
-    if ('wake' in plot_dict.keys()) and ('interpolation_scaled' in plot_dict.keys()):
+
+    u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
+    if ('wake' in plot_dict.keys()) and ('interpolation_scaled' in plot_dict.keys()) and ('parameters_plot' in plot_dict.keys()):
         variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
         parameters = plot_dict['parameters_plot']
         wake = plot_dict['wake']
         vec_u_ind = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs)
 
-        u_zero = vect_op.norm(vec_u_zero)
-        a_normal = -1. * cas.mtimes(vec_u_ind.T, ehat_normal) / u_zero
-        a_tangential = cas.mtimes(vec_u_ind.T, ehat_tangential) / u_zero
-        a_radial = cas.mtimes(vec_u_ind.T, ehat_radial) / u_zero
+        a_normal = -1. * cas.mtimes(vec_u_ind.T, ehat_normal) / u_normalizing
+        a_tangential = -1. * cas.mtimes(vec_u_ind.T, ehat_tangential) / u_normalizing
+        a_radial = cas.mtimes(vec_u_ind.T, ehat_radial) / u_normalizing
 
         kite_dcm = cas.horzcat(ehat_1, ehat_2, ehat_3)
 
@@ -695,26 +927,37 @@ def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_e
     variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
     parameters = plot_dict['parameters_plot']
     wake = plot_dict['wake']
-
-    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
     u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
     n_hat, _, _ = get_coordinate_axes_for_haas_verification()
 
-    model_options = plot_dict['options']['model']
-    induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
-    if induction_factor_normalizing_speed == 'u_zero':
-        u_normalizing = kite_plane_induction_params['u_zero']
-    else:
-        message = 'computing induction factor at specific points is not yet defined for normalizing speed ' + induction_factor_normalizing_speed
-        print_op.log_and_raise_error(message)
+    u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
 
     a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
     a_fun = cas.Function('a_fun', [x_obs_sym], [a_sym])
 
     return a_fun
+
+def get_induction_factor_normalizing_speed(plot_dict, idx_at_eval):
+    induction_factor_normalizing_speed = plot_dict['options']['model']['aero']['vortex']['induction_factor_normalizing_speed']
+    if induction_factor_normalizing_speed == 'u_zero':
+        kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+        u_normalizing = kite_plane_induction_params['u_zero']
+
+        if plot_dict['architecture'].number_of_kites == 1:
+            message = 'please be advised that the computation of the rotor apparent velocity vec_u_zero does not yet work well for single-kite systems'
+            print_op.base_print(message, level='warning')
+
+    elif induction_factor_normalizing_speed == 'u_ref':
+        u_ref = plot_dict['options']['user_options']['wind']['u_ref']
+        u_normalizing = u_ref
+
+    else:
+        message = 'computing induction factor at specific points is not yet defined for normalizing speed ' + induction_factor_normalizing_speed
+        print_op.log_and_raise_error(message)
+
+    return u_normalizing
 
 
 def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial', plane='yz', idx_at_eval=0):
@@ -786,7 +1029,6 @@ def compute_the_scaled_haas_error(plot_dict, cosmetics):
 
     scaled_squared_error = total_squared_error / baseline_squared_error
     return scaled_squared_error
-
 
 def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 

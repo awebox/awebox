@@ -168,20 +168,20 @@ def test_that_rotational_axes_are_consistent_at_snapshot(t, init_options, model,
             message = 'the rotational unit vectors are not the same in initialization and model (outputs). '
             message += 'for unit vector ' + dir + ', initialization ehat is ' + str(init_ehat) + ', '
             message += 'while model ehat is ' + str(model_ehat)
-
             print_op.log_and_raise_error(message)
 
     if model.kite_dof == 6:
         vec_omega = variables_si['x', 'omega' + str(kite) + str(parent)]
-        clockwise_criteria = (init_options['clockwise_rotation_about_xhat']) and (vec_omega[0] > 0)
-        anticlockwise_criteria = (not init_options['clockwise_rotation_about_xhat']) and (vec_omega[0] < 0)
+        omega_about_kite_ehat2 = vec_omega[2]
+        clockwise_criteria = (init_options['clockwise_rotation_about_xhat']) and (omega_about_kite_ehat2 > 0)
+        anticlockwise_criteria = (not init_options['clockwise_rotation_about_xhat']) and (omega_about_kite_ehat2 < 0)
         if not (clockwise_criteria or anticlockwise_criteria):
             message = 'something went wrong when initializing the angular velocity. rotation is supposed to be initialized '
             if init_options['clockwise_rotation_about_xhat']:
                 message += ' clockwise'
             else:
                 message += ' anti-clockwise'
-            message += ', but the omega found was: ' + str(ehat_normal)
+            message += ', but the omega found around ehat_2 was: ' + str(omega_about_kite_ehat2)
             print_op.log_and_raise_error(message)
 
     return None

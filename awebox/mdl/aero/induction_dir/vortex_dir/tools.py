@@ -726,6 +726,11 @@ def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, va
     induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
     if induction_factor_normalizing_speed == 'u_zero':
         u_vec = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
+
+        if architecture.number_of_kites == 1:
+            message = 'please be advised that the computation of the rotor apparent velocity vec_u_zero does not yet work well for single-kite systems'
+            print_op.base_print(message, level='warning')
+
     elif induction_factor_normalizing_speed == 'u_inf':
         u_vec = general_flow.get_kite_vec_u_infty(variables, wind, kite, parent)
     elif induction_factor_normalizing_speed == 'u_ref':

@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 
 import casadi.tools as cas
 import numpy as np
+# import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.tools.struct_operations as struct_op
 from itertools import chain
 import matplotlib.colors as colors
@@ -813,13 +814,15 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
 
     return plot_dict
 
-
 def attach_wake_plotting_info_to_plot_dict(plot_dict, cosmetics):
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
         plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict, si_or_scaled='scaled')
 
         if 'interpolation_scaled' not in plot_dict.keys():
             plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')
+
+        print_op.warn_about_temporary_functionality_alteration()
+        # plot_dict['vortex_global'] = vortex.collect_vortex_global_outputs(plot_dict)
 
     return plot_dict
 

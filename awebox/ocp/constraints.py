@@ -241,7 +241,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
         ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
     elif parallellization == 'concurrent_futures':
-        print_op.warn_about_temporary_functionality_alteration()
         list_of_horzcatted_inputs = [coll_vars, coll_params]
         ocp_eqs_expr = struct_op.concurrent_future_map(mdl_eq_fun, list_of_horzcatted_inputs)
     else:
@@ -253,7 +252,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
         ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
     elif parallellization == 'concurrent_futures':
-        print_op.warn_about_temporary_functionality_alteration()
         list_of_horzcatted_inputs = [shooting_vars, shooting_params]
         ocp_eqs_shooting_expr = struct_op.concurrent_future_map(mdl_shooting_eq_fun, list_of_horzcatted_inputs)
     else:
@@ -269,7 +267,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
             mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
             ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
     elif parallellization == 'concurrent_futures':
-        print_op.warn_about_temporary_functionality_alteration()
         if nlp_options['collocation']['u_param'] == 'poly':
             list_of_horzcatted_inputs = [coll_vars, coll_params]
             ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, list_of_horzcatted_inputs)

@@ -55,19 +55,20 @@ def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
 
-    axial_speed = u_ref * (1. - a_ref)
-    airspeed_ref = axial_speed
+    flight_radius = varrho_ref * b_ref
+    rotational_speed = 2. * np.pi * flight_radius / winding_period
+    axial_speed = u_ref * (1 - a_ref)
+    airspeed = (rotational_speed**2. + axial_speed**2.)**0.5
 
     if not (options['model']['aero']['overwrite']['f_aero_rot'] is None):
         # L/b = rho v gamma
         # gamma = L / (b rho v)
-        flight_radius = varrho_ref * b_ref
-        rotational_speed = 2. * np.pi * flight_radius / winding_period
         rho_ref = options['params']['atmosphere']['rho_ref']
-        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_aero_rot']) / (b_ref * rho_ref * rotational_speed)
+        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_aero_rot']) / (b_ref * rho_ref * airspeed)
         filament_strength = gamma
     else:
-        filament_strength = 0.5 * CL * airspeed_ref * c_ref
+        # gamma = L / (b rho v) = (CL/2) (rho v^2 b c) / (b rho v) = (CL/2) (v c)
+        filament_strength = 0.5 * CL * airspeed * c_ref
 
     return filament_strength
 
@@ -122,10 +123,9 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
             options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', wg_scale, ('????', None), 'x')),
 
-    circulation_max_estimate = 10. * wg_scale
+    circulation_max_estimate = 2.5 * wg_scale
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', wg_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
-
 
     far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
     if 'cylinder' in far_wake_element_type:

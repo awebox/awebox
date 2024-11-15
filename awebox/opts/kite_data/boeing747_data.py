@@ -158,7 +158,7 @@ def aero():
     aero_validity['beta_max_deg'] = 15.
     aero_validity['beta_min_deg'] = -15.0
 
-    # we recommend, to adjust the groundspeed initialzation and airspeed limits to reflect
+    # we recommend, to adjust the groundspeed initialization and airspeed limits to reflect
     # V_2 = V_approach ~ 150 knots = 77 m/s
     # https://aerosavvy.com/airspeed-indicator/
     # and

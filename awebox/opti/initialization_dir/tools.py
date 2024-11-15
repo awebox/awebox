@@ -114,12 +114,11 @@ def get_unit_vector_pointing_radially_outwards_by_azimuth(init_options, psi):
 
     return ehat_radial
 
-
 def get_omega_vector(t, init_options, model, node, ret):
     rotation_direction_sign = get_rotation_direction_sign(init_options)
     omega_norm = init_options['precompute']['angular_speed']
-    ehat_normal, ehat_radial, ehat_tangential = get_rotating_reference_frame(t, init_options, model, node, ret)
-    omega_vector = rotation_direction_sign * ehat_normal * omega_norm
+    ehat2_in_body_frame = vect_op.zhat_dm()
+    omega_vector = rotation_direction_sign * omega_norm * ehat2_in_body_frame
     return omega_vector
 
 def get_dpsi(init_options):

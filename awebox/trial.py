@@ -28,6 +28,7 @@
 ###################################
 
 import awebox.tools.print_operations as print_op
+import awebox.tools.performance_operations as perf_op
 import awebox.trial_funcs as trial_funcs
 import awebox.ocp.nlp as nlp
 import awebox.opti.optimization as optimization
@@ -242,25 +243,20 @@ class Trial(object):
 
     def print_solution(self):
 
-        # the actual power indicators
-        if 'e' in self.__model.integral_outputs.keys():
-            e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
-        else:
-            e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
-
         time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
-        avg_power = e_final / time_period
+        avg_power_watts = self.__optimization.global_outputs_opt['avg_power_watts'].full()[0][0]
+        avg_power_kw = avg_power_watts * 1.e-3
 
-        parameter_label = 'Parameter or Output'
         optimal_label = 'Value at Optimal Solution'
         dimension_label = 'Dimension'
 
         dict_parameters = {
-            'Average power output': {optimal_label: str(avg_power/1.e3),
+            'Average power output': {optimal_label: str(avg_power_kw),
                                      dimension_label: 'kW'},
             'Time period': {optimal_label: str(time_period),
                             dimension_label: 's'}
             }
+
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),

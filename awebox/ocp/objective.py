@@ -220,7 +220,6 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
         reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
         reg_costs_out = reg_costs_map(vars, refs, weights)
     elif parallellization == 'concurrent_futures':
-        print_op.warn_about_temporary_functionality_alteration()
         list_of_horzcatted_inputs = [vars, refs, weights]
         reg_costs_out = struct_op.concurrent_future_map(reg_costs_fun, list_of_horzcatted_inputs)
     else:

@@ -260,10 +260,16 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))
-    dq_scaling = u_altitude
-    options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
+    groundspeed = options['solver']['initialization']['groundspeed']
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        dq_name = 'dq' + str(node) + str(parent)
+        if node in architecture.kite_nodes:
+            options_tree.append(('model', 'scaling', 'x', dq_name, groundspeed, ('???', None), 'x'))
+        else:
+            options_tree.append(('model', 'scaling', 'x', dq_name, u_altitude, ('???', None), 'x'))
 
-    dl_t_scaling = u_altitude
+    dl_t_scaling = u_altitude / 3. #loyd result
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
@@ -995,7 +1001,7 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
     max_acceleration_force = float(mass_kite * acc_max * gravity)
 
-    aero_force = float(estimate_aero_force(options, architecture))
+    aero_force = float(estimate_aero_force(options))
 
     total_mass = estimate_total_mass(options, architecture)
     gravity_force = total_mass * gravity / float(architecture.number_of_kites)
@@ -1207,14 +1213,25 @@ def estimate_flight_radius(options, architecture):
     return None
 
 
-def estimate_aero_force(options, architecture):
-    geometry = get_geometry(options)
+def estimate_aero_force(options):
 
-    CL = estimate_CL(options)
-    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
+    overwrite_f_aero = options['model']['aero']['overwrite']['f_aero_rot']
+    if overwrite_f_aero is not None:
+        return vect_op.norm(overwrite_f_aero)
+
+    geometry = get_geometry(options)
     s_ref = geometry['s_ref']
 
-    aero_force = CL * q_altitude * s_ref
+    CL = estimate_CL(options)
+
+    zz = estimate_altitude(options)
+    u_wind = get_u_at_altitude(options, zz)
+    groundspeed = options['solver']['initialization']['groundspeed']
+    u_app = (u_wind**2 + groundspeed**2.)**0.5
+
+    q_app = 0.5 * options['params']['atmosphere']['rho_ref'] * u_app ** 2
+
+    aero_force = CL * q_app * s_ref
     return aero_force
 
 def estimate_centripetal_force(options, architecture):
@@ -1353,7 +1370,7 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     reelout_speed = estimate_reelout_speed(options)
     tension_estimate_via_power = float(power/reelout_speed)
 
-    aero_force_per_kite = estimate_aero_force(options, architecture)
+    aero_force_per_kite = estimate_aero_force(options)
     cone_angle_rad = options['solver']['initialization']['cone_deg'] * np.pi / 180.
     aero_force_per_kite_in_main_tether_direction = aero_force_per_kite * np.cos(cone_angle_rad)
     aero_force_projected_and_summed = aero_force_per_kite_in_main_tether_direction * architecture.number_of_kites

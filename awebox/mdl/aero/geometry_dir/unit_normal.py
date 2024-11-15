@@ -176,6 +176,7 @@ def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture
 
     for kite in architecture.kite_nodes:
         parent = architecture.parent_map[kite]
+        # it has to be dq that determines the rotation axes, because the 'radial distance' metrics are unreliable for single kites
         dq = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'dq' + str(kite) + str(parent))
         ehat_normal = rot_outputs['ehat_normal' + str(parent)]
         ehat_radial = vect_op.normed_cross(dq, ehat_normal)

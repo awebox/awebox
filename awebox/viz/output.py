@@ -244,6 +244,11 @@ def plot_aero_validity(plot_dict, cosmetics, fig_name, fig_num = None):
                            ('aerodynamics', 'mach')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+def plot_power(plot_dict, cosmetics, fig_name, fig_num = None):
+    interesting_outputs = [('performance', 'p_current')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+
 def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
 
     interesting_outputs = [('aerodynamics', 'CL'),
@@ -279,6 +284,9 @@ def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for kite in plot_dict['architecture'].kite_nodes:
         interesting_outputs += [('aerodynamics', 'circulation' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_dot' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_cross' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_cl' + str(kite))]
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
@@ -314,9 +322,17 @@ def plot_local_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
 
-def plot_relative_radius(plot_dict, cosmetics, fig_name, fig_num=None):
+def plot_relative_radius_of_curvature(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for parent in plot_dict['architecture'].layer_nodes:
-        interesting_outputs += [('geometry', 'average_relative_radius' + str(parent))]
+        interesting_outputs += [('geometry', 'average_relative_radius_of_curvature' + str(parent))]
+
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
+
+
+def plot_relative_distance_from_center_to_kite(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for parent in plot_dict['architecture'].layer_nodes:
+        interesting_outputs += [('geometry', 'average_relative_distance_from_center_to_kite' + str(parent))]
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)

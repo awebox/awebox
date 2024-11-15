@@ -40,6 +40,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.kite_dir.frames as frames
 
 
 def get_mach(options, atmos, ua, q):
@@ -69,48 +70,29 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
         rho = outputs['aerodynamics']['air_density' + str(kite)]
         air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
         airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
+        ehat_chord = outputs['aerodynamics']['ehat_chord' + str(kite)]
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
+        ehat_up = outputs['aerodynamics']['ehat_up' + str(kite)]
+        kite_dcm = cas.horzcat(ehat_chord, ehat_span, ehat_up)
         CL = outputs['aerodynamics']['CL' + str(kite)]
 
         f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
         f_lift_norm = f_aero_wind[2]
-        print_op.warn_about_temporary_functionality_alteration()
-        # f_aero_rot_overwrite = model_options['aero']['overwrite']['f_aero_rot']
-        # if f_lift_rot_overwrite is not None:
-        #
-        #     f_lift_norm = vect_op.smooth_norm(f_lift_rot_overwrite)
-        #
-        #     ehat_radial = outputs['rotation']['ehat_radial' + str(kite)]
-        #     ehat_tangential = outputs['rotation']['ehat_tangential' + str(kite)]
-        #     ehat_normal = outputs['rotation']['ehat_normal' + str(parent)]
-        #     ehat_cylindrical = {0: ehat_radial, 1: ehat_tangential, 2: ehat_normal}
-        #
-        #     f_lift_earth = cas.DM.zeros((1, 1))
-        #     for dim in ehat_cylindrical.keys():
-        #         f_lift_earth += f_lift_rot_overwrite[dim] * ehat_cylindrical[dim]
-        #
-        #     ehat_drag = vect_op.normalize(air_velocity)
-        #     ehat_lift = vect_op.normed_cross(ehat_drag, ehat_span)
-        #     ehat_side = vect_op.normed_cross(ehat_lift, ehat_drag)
-        #
-        #     lift_force = cas.mtimes(f_lift_earth.T, ehat_lift)
-        #     drag_force = cas.mtimes(f_lift_earth.T, ehat_drag)
-        #     side_force = cas.mtimes(f_lift_earth.T, ehat_side)
-        #
-        #     dynamic_pressure = get_dynamic_pressure(atmos, wind, variables_si['x']['q' + str(kite) + str(parent)][2])
-        #     CL = lift_force / dynamic_pressure / (b_ref * c_ref)
-        #     CD = drag_force / dynamic_pressure / (b_ref * c_ref)
-        #     CS = side_force / dynamic_pressure / (b_ref * c_ref)
-        #     outputs['aerodynamics']['CL' + str(kite)] = CL
-        #     outputs['aerodynamics']['CD' + str(kite)] = CD
-        #     outputs['aerodynamics']['CS' + str(kite)] = CS
 
+        lift_hat_wind = vect_op.zhat_dm()
+        lift_hat_earth = frames.from_wind_to_earth(air_velocity, kite_dcm, lift_hat_wind)
+
+        # Kutta-Joukowski
+        # vec_lift / span = rho circulation (vec_u_eff \cross \ehat2)
+        # lift / span = rho circulation
+        # circulation = lift / (rho span) / ((vec_u_eff \cross \ehat2) \dot \lhat)
+        circulation_dot = f_lift_norm / (rho * b_ref) / (cas.mtimes(lift_hat_earth.T, vect_op.cross(air_velocity, ehat_span)))
         circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
         circulation_cl = 0.5 * airspeed**2. * CL * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
-
+        outputs['aerodynamics']['circulation_dot' + str(kite)] = circulation_dot
         outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
         outputs['aerodynamics']['circulation_cl' + str(kite)] = circulation_cl
-        outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
+        outputs['aerodynamics']['circulation' + str(kite)] = circulation_dot
 
     for parent in layer_nodes:
         if len(architecture.get_kite_children(parent)) > 0:
