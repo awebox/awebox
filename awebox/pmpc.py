@@ -209,14 +209,18 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
             opts['ipopt.mu_init'] = 1e-3
-            homotopy_opts = copy.deepcopy(opts)
+
+        self.__solver = ct.nlpsol('solver', 'ipopt', nlp, opts)
+
+        if self.__mpc_options['homotopy_warmstart']:
+
+            homotopy_opts = opts
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
             homotopy_opts['ipopt.max_iter'] = 200
 
             self.__homotopy_solver = ct.nlpsol('solver', 'ipopt', nlp, homotopy_opts)
 
-        self.__solver = ct.nlpsol('solver', 'ipopt', nlp, opts)
 
         return None
 
@@ -331,7 +335,7 @@ class Pmpc(object):
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
                 elif weight == 'Z':
-                    weights['Z'] = 1000*np.ones((self.__nz,1))
+                    weights['Z'] = np.ones((self.__nz,1))
 
         self.__weights = weights
 
@@ -433,8 +437,8 @@ class Pmpc(object):
         # interpolate steady state solution
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
-        V_opt = self.__pocp_trial.optimization.V_opt
-    
+        V_pocp_si = self.__pocp_trial.optimization.V_final_si
+        V_opt = awe.tools.struct_operations.si_to_scaled(V_pocp_si, self.__trial.model.scaling)
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
         self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
 
