@@ -209,14 +209,18 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
             opts['ipopt.mu_init'] = 1e-3
-            homotopy_opts = copy.deepcopy(opts)
+
+        self.__solver = ct.nlpsol('solver', 'ipopt', nlp, opts)
+
+        if self.__mpc_options['homotopy_warmstart']:
+
+            homotopy_opts = opts
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
             homotopy_opts['ipopt.max_iter'] = 200
 
             self.__homotopy_solver = ct.nlpsol('solver', 'ipopt', nlp, homotopy_opts)
 
-        self.__solver = ct.nlpsol('solver', 'ipopt', nlp, opts)
 
         return None
 
