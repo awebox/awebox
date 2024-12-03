@@ -335,7 +335,7 @@ class Pmpc(object):
                 elif weight == 'R':
                     weights[weight] = np.ones((self.__nu,1))
                 elif weight == 'Z':
-                    weights['Z'] = 1000*np.ones((self.__nz,1))
+                    weights['Z'] = np.ones((self.__nz,1))
 
         self.__weights = weights
 
