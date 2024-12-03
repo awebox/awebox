@@ -437,8 +437,8 @@ class Pmpc(object):
         # interpolate steady state solution
         self.__ref_dict = self.__pocp_trial.visualization.plot_dict
         nlp_options = self.__pocp_trial.options['nlp']
-        V_opt = self.__pocp_trial.optimization.V_opt
-    
+        V_pocp_si = self.__pocp_trial.optimization.V_final_si
+        V_opt = awe.tools.struct_operations.si_to_scaled(V_pocp_si, self.__trial.model.scaling)
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
         self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
 
