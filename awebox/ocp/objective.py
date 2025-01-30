@@ -287,20 +287,25 @@ def find_power_cost(nlp_options, model, V, P, Integral_outputs):
     # maximization term for average power
     time_period = ocp_outputs.find_time_period(nlp_options, V)
 
-    if not nlp_options['cost']['output_quadrature']:
-        total_energy_scaled = V['x', -1, 'e']
-    else:
-        total_energy_scaled = Integral_outputs['int_out', -1, 'e']
+    if nlp_options['type'] == 'power_cycle':
+        if not nlp_options['cost']['output_quadrature']:
+            total_energy_scaled = V['x', -1, 'e']
+        else:
+            total_energy_scaled = Integral_outputs['int_out', -1, 'e']
 
-    average_scaled_power = total_energy_scaled / time_period
+        average_scaled_power = total_energy_scaled / time_period
 
-    if nlp_options['cost']['P_max']:
-        max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
-        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power + max_power_cost
-    elif nlp_options['cost']['PDGA']:
-        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power / (V['theta', 'ell_radius']**2)
-    else:
-        power_cost = P['cost', 'power'] * (-1.) * average_scaled_power
+        if nlp_options['cost']['P_max']:
+            max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
+            power_cost = P['cost', 'power'] * (-1.) * average_scaled_power + max_power_cost
+        elif nlp_options['cost']['PDGA']:
+            power_cost = P['cost', 'power'] * (-1.) * average_scaled_power / (V['theta', 'ell_radius']**2)
+        else:
+            power_cost = P['cost', 'power'] * (-1.) * average_scaled_power
+    
+    elif nlp_options['type'] == 'aaa':
+        total_force_scaled = Integral_outputs['int_out', -1, 'f10']
+        power_cost = - total_force_scaled / time_period
 
     return power_cost
 
@@ -420,7 +425,7 @@ def find_objective(component_costs, V, V_ref, nlp_options):
 
     trajectory_type = nlp_options['trajectory']['type']
 
-    if trajectory_type == 'power_cycle':
+    if trajectory_type == 'power_cycle' or trajectory_type == 'aaa':
         objective = V['phi', 'psi'] * tracking_problem_cost + \
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \
