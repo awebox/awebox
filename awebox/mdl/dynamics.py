@@ -209,9 +209,15 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
     # ensure that energy matches power integration
-    power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
-    energy_scaling = model_options['scaling']['x']['e']
-    derivative_dict = {'e': (power_si, energy_scaling)}
+    if model_options['trajectory']['type'] == 'power_cycle':
+        power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+        energy_scaling = model_options['scaling']['x']['e']
+        derivative_dict = {'e': (power_si, energy_scaling)}
+
+    elif model_options['trajectory']['type'] == 'aaa':
+        tether_force_si = system_variables['SI']['z']['lambda10'] * system_variables['SI']['theta']['l_t']
+        force_scaling = model_options['scaling']['z']['lambda10']
+        derivative_dict = {'f10': (tether_force_si, force_scaling)}
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
@@ -332,7 +338,10 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     else:
-        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        if 'l_t' in variables_si['x'].keys():
+            power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        else:
+            power = cas.SX(0.0)
         outputs['performance']['p_current'] = power
 
     return power, outputs
