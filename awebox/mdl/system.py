@@ -161,7 +161,7 @@ def generate_structure(options, architecture):
                     )
 
     # _add global states and controls
-    if options['trajectory']['system_type'] == 'lift_mode':
+    if options['trajectory']['system_type'] == 'lift_mode' and options['trajectory']['type'] != 'aaa':
         system_states.extend([('l_t', (1, 1))])
         system_states.extend([('dl_t', (1, 1))])
 
@@ -193,7 +193,7 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
-    if options['trajectory']['system_type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode' or options['trajectory']['type'] == 'aaa':
         system_parameters.extend([('l_t', (1, 1))])
 
     if (architecture.number_of_nodes - architecture.number_of_kites) > 1:
