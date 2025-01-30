@@ -86,6 +86,9 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     V_init_si = extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict)
 
+    if init_options['type'] == 'aaa':
+        V_init_si['theta', 't_f'] = V_init_si['theta', 't_f'] / 2
+
     V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
     V_init_si = set_xdot(V_init_si, nlp)
@@ -187,6 +190,9 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
 
     elif init_options['type'] in ['transition']:
         ret = transition.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
+
+    elif init_options['type'] in ['aaa']:
+        ret = standard.guess_values_at_time(t/2, init_options, model)
 
     else:
         ret = standard.guess_values_at_time(t, init_options, model)
