@@ -77,7 +77,7 @@ def define_homotopy_schedule(formulation):
     if make_induction_step:
         homotopy_schedule = homotopy_schedule + induction_schedule
 
-    if traj_type == 'power_cycle':
+    if traj_type in ['power_cycle', 'aaa']:
         homotopy_schedule = homotopy_schedule + power_schedule
 
     if traj_type == 'nominal_landing':
