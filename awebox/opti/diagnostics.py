@@ -115,17 +115,22 @@ def compute_power_indicators(power_and_performance, plot_dict):
     # geometric stuff
     kite_geometry = plot_dict['options']['solver']['initialization']['sys_params_num']['geometry']
     s_ref = kite_geometry['s_ref']
+    time_period = plot_dict['global_output_vals']['time_period'].full()[0][0]
 
     # the actual power indicators
     if 'e' in plot_dict['integral_output_names']:
         e_final_scaled = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
         e_final = e_final_scaled * plot_dict['options']['nlp']['scaling']['x']['e']
+        avg_power =  e_final / time_period
+    elif 'f10' in plot_dict['integral_output_names']:
+        e_final_scaled = plot_dict['integral_output_vals']['opt']['int_out', -1, 'f10']
+        e_final = e_final_scaled * plot_dict['options']['model']['scaling']['z']['lambda10'] * 500.0
+        avg_power = e_final / time_period
 
     else:
         e_final = plot_dict['interpolation_si']['x']['e'][0][-1]
+        avg_power = e_final / time_period
 
-    time_period = plot_dict['global_output_vals']['time_period'].full()[0][0]
-    avg_power = e_final / time_period
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
     power_per_surface_area = avg_power / surface_area
 
