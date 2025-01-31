@@ -148,6 +148,10 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(ellips_cstr)
 
+
+    outputs, elev_azim_cstr = elevation_azimuth_constraint(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(elev_azim_cstr)
+
     # ----------------------------------------
     #  sanity checking
     # ----------------------------------------
@@ -640,6 +644,35 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
     return outputs, cstr_list
 
+def elevation_azimuth_constraint(options, variables, parameters, architecture, outputs):
+
+
+    cstr_list = cstr_op.MdlConstraintList()
+
+    bounds = parameters['theta0', 'model_bounds', 'azimuth_elevation', 'bounds']
+    el_min = bounds[0]
+    el_max = bounds[1]
+    az_min = bounds[2]
+    if options['model_bounds']['azimuth_elevation']['include']:
+        l_t = variables['theta']['l_t']
+        q10 = variables['x']['q10']
+
+        xx = q10[0]
+        yy = q10[1]
+        zz = q10[2]
+
+        el_az_eq = cas.vertcat(
+            l_t * np.sin(el_min) - zz,
+            zz - l_t * np.sin(el_max),
+            xx * np.tan(az_min) - yy
+        )
+
+        elev_azim_cstr = cstr_op.Constraint(expr=el_az_eq,
+                                    name='elevation_azimuth_bounds',
+                                    cstr_type='ineq')
+        cstr_list.append(elev_azim_cstr)
+
+    return outputs, cstr_list
 
 def acceleration_inequality(options, variables):
 

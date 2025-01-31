@@ -230,6 +230,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'ellipsoidal_flight_region', 'include',  False,   ('include ellipsoidal flight hull', None), 't'),
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'radius',  500.0,   ('ellipsoidal flight hull ground radius', None), 's'),
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
+        ('model',   'model_bounds', 'azimuth_elevation', 'include',  False,   ('include minimum and maximum elevation and azimuth angles', None), 't'),
+        ('params',  'model_bounds', 'azimuth_elevation', 'bounds',  np.array([0, np.pi/2, 0]),   ('min/max elevation and min azimuth angle', None), 's'),
 
         #### scaling
         ('model',  'scaling', 'other', 'position_scaling_method',  'radius',                 ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
