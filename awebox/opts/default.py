@@ -140,6 +140,8 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 
+        ('model', 'aero', 'vortex_rings', 'N_rings',          0,          ('Number of vortex rings', None), 'x'),
+
         ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 
         # geometry (to be loaded!)
