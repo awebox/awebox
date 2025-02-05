@@ -148,7 +148,6 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(ellips_cstr)
 
-
     outputs, elev_azim_cstr = elevation_azimuth_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(elev_azim_cstr)
 
@@ -222,6 +221,18 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
         tether_force_si = system_variables['SI']['z']['lambda10'] * system_variables['SI']['theta']['l_t']
         force_scaling = model_options['scaling']['z']['lambda10']
         derivative_dict = {'f10': (tether_force_si, force_scaling)}
+
+        if model_options['aero']['vortex_rings']['N_rings'] != 0:
+            bref = parameters['theta0', 'geometry', 'b_ref']
+            ar = parameters['theta0', 'geometry', 'ar']
+            for j in [2,3]:
+                va = outputs['aerodynamics']['airspeed{}'.format(j)]
+                CL = system_variables['SI']['x']['coeff{}1'.format(j)][0]
+                gamma = 2 * bref / (np.pi * ar * va * CL)
+                derivative_dict['gamma_{}'.format(j)] = (gamma, 1)
+
+                lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
+                derivative_dict['normal_vec_{}'.format(j)] = (lift_vec, 1)
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
