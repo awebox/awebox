@@ -143,30 +143,64 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
         name_in_x = name in system_variables['SI']['x'].keys()
         name_in_u = name in system_variables['SI']['u'].keys()
 
-        if name_in_x or name_in_u:
-            if name_in_x:
-                undiff_type = 'x'
-            elif name_in_u:
-                undiff_type = 'u'
-            else:
-                message = 'something went wrong when defining trivial constraints'
-                print_op.log_and_raise_error(message)
+        if name[:7] != 'dp_ring':
 
-            si_diff = system_variables['SI']['xdot'][name] - system_variables['SI'][undiff_type][name]
 
-            undiff_scaling = scaling[undiff_type, name]
-            xdot_scaling = scaling['xdot', name]
-            mean_scaling = []
-            for idx in range(undiff_scaling.shape[0]):
-                local_mean = (undiff_scaling[idx] * xdot_scaling[idx]) ** 0.5
-                mean_scaling = cas.vertcat(mean_scaling, local_mean)
-            scaled_diff = cas.mtimes(cas.inv(cas.diag(mean_scaling)), si_diff)
+            if name_in_x or name_in_u:
+                if name_in_x:
+                    undiff_type = 'x'
+                elif name_in_u:
+                    undiff_type = 'u'
+                else:
+                    message = 'something went wrong when defining trivial constraints'
+                    print_op.log_and_raise_error(message)
 
-            trivial_dyn = cas.vertcat(*[scaled_diff])
-            trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
-                                                  cstr_type='eq',
-                                                  name='trivial_' + name)
-            cstr_list.append(trivial_dyn_cstr)
+                si_diff = system_variables['SI']['xdot'][name] - system_variables['SI'][undiff_type][name]
+
+                undiff_scaling = scaling[undiff_type, name]
+                xdot_scaling = scaling['xdot', name]
+                mean_scaling = []
+                for idx in range(undiff_scaling.shape[0]):
+                    local_mean = (undiff_scaling[idx] * xdot_scaling[idx]) ** 0.5
+                    mean_scaling = cas.vertcat(mean_scaling, local_mean)
+                scaled_diff = cas.mtimes(cas.inv(cas.diag(mean_scaling)), si_diff)
+
+                trivial_dyn = cas.vertcat(*[scaled_diff])
+                trivial_dyn_cstr = cstr_op.Constraint(expr=trivial_dyn,
+                                                    cstr_type='eq',
+                                                    name='trivial_' + name)
+                cstr_list.append(trivial_dyn_cstr)
+
+    # -----------------------------------
+    # vortex ring kinematics
+    # -----------------------------------
+    if options['trajectory']['type'] == 'aaa':
+        
+        for k in range(options['aero']['vortex_rings']['N_rings']):
+            for j in [1, 2]:
+                
+                name = 'dp_ring_{}_{}'.format(j, k)
+                cstr = system_variables['SI']['xdot'][name] - cas.vertcat(
+                    system_variables['SI']['x'][name], 0, 0, 
+                )
+                vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,
+                                            cstr_type='eq',
+                                            name='vortex_ring_' + name)
+
+                cstr_list.append(vortex_rings_dyn_cstr)
+
+                names = [
+                    'ddp_ring_{}_{}'.format(j, k),
+                    'dgamma_ring_{}_{}'.format(j, k),
+                    'dn_ring_{}_{}'.format(j, k)
+                ]
+                for name in names:
+                    cstr = system_variables['scaled']['xdot', name]
+                    vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,
+                                                cstr_type='eq',
+                                                name='vortex_ring_' + name)
+
+                    cstr_list.append(vortex_rings_dyn_cstr)
 
     return cstr_list, outputs
 
@@ -186,8 +220,8 @@ def momentum_correction(options, generalized_coordinates, system_variables, para
     # momentum transfer rate
     segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, system_variables['SI'], parameters, 1)
     mass = segment_properties['seg_mass']
-    mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
 
+    mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
     # # this is equivalent to:
     # cross_section_area = segment_properties['cross_section_area']
     # density = segment_properties['density']

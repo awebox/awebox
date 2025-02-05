@@ -30,28 +30,30 @@ def time_derivative(expr, vars_scaled, architecture, scaling):
     deriv_vars_without_rdot = set(deriv_vars) - set(rdot_deriv_vars)
 
     for deriv_name in deriv_vars_without_rdot:
-        deriv_type = struct_op.get_variable_type(vars_scaled, deriv_name)
 
-        var_name = deriv_name[1:]
-        var_type = struct_op.get_variable_type(vars_scaled, var_name)
+        if deriv_name[:7] != 'dp_ring':
+            deriv_type = struct_op.get_variable_type(vars_scaled, deriv_name)
 
-        q_sym = vars_scaled[var_type, var_name]
-        dq_sym = vars_scaled[deriv_type, deriv_name]
+            var_name = deriv_name[1:]
+            var_type = struct_op.get_variable_type(vars_scaled, var_name)
 
-        partial_f_partial_xi = cas.jacobian(expr, q_sym)
-        partial_xi_partial_t = dq_sym
+            q_sym = vars_scaled[var_type, var_name]
+            dq_sym = vars_scaled[deriv_type, deriv_name]
 
-        scaling_factor_q = scaling[var_type, var_name]
-        scaling_factor_dq = scaling[deriv_type, deriv_name]
+            partial_f_partial_xi = cas.jacobian(expr, q_sym)
+            partial_xi_partial_t = dq_sym
 
-        if not (scaling_factor_q - scaling_factor_dq).is_zero():
-            # [delta force / delta distance_in_km] = (1/1000) [delta force / delta distance_in_m]
-            partial_f_partial_xi = cas.mtimes(partial_f_partial_xi, cas.inv(cas.diag(scaling_factor_q)))
-            # [delta distance_in_km / delta t] = 1000 * (delta distance_in_m / delta t)
-            partial_xi_partial_t = cas.mtimes(cas.diag(scaling_factor_dq), partial_xi_partial_t)
+            scaling_factor_q = scaling[var_type, var_name]
+            scaling_factor_dq = scaling[deriv_type, deriv_name]
 
-        local_component = cas.mtimes(partial_f_partial_xi, partial_xi_partial_t)
-        deriv += local_component
+            if not (scaling_factor_q - scaling_factor_dq).is_zero():
+                # [delta force / delta distance_in_km] = (1/1000) [delta force / delta distance_in_m]
+                partial_f_partial_xi = cas.mtimes(partial_f_partial_xi, cas.inv(cas.diag(scaling_factor_q)))
+                # [delta distance_in_km / delta t] = 1000 * (delta distance_in_m / delta t)
+                partial_xi_partial_t = cas.mtimes(cas.diag(scaling_factor_dq), partial_xi_partial_t)
+
+            local_component = cas.mtimes(partial_f_partial_xi, partial_xi_partial_t)
+            deriv += local_component
 
     # (partial f/partial xi) for kite rotation matrices
     kite_nodes = architecture.kite_nodes
