@@ -143,6 +143,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex_rings', 'N_rings',          0,          ('Number of vortex rings', None), 'x'),
         ('model', 'aero', 'vortex_rings', 'ring_duplicates',  0,          ('Vortex ring duplicates', None), 'x'),
         ('model', 'aero', 'vortex_rings', 'p_near',  5,                   ('Number of near-wake rings to be ignored', None), 'x'),
+        ('params', 'aero', 'vortex_rings', 'R_ring',  5,                   ('Vortex ring radius', None), 's'),
 
         ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 
