@@ -341,7 +341,7 @@ class Collocation(object):
         return Integral_outputs_list
 
 
-    def get_continuity_constraint(self, V, kdx):
+    def get_continuity_constraint(self, nlp_options, V, P, kdx, model):
 
         # get an expression for the state at the end of the finite element
         xf_k = 0
@@ -351,8 +351,30 @@ class Collocation(object):
             else:
                 xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
 
+        xnext = model.variables_dict['x'](xf_k)
+
         # pin the end of the control interval to the start of the new control interval
-        g_continuity = V['x', kdx + 1] - xf_k
+        if nlp_options['type'] == 'aaa':
+            time_transformation = []
+            for jdx in [2,3]:
+                v_conv = 10.0
+                q_convected = V['x', kdx, 'q{}1'.format(jdx)] + V['T_ring',kdx] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
+                q_next = xnext['q{}1'.format(jdx)]
+                delta_q = q_next - q_convected
+                gamma_avg = 1.0
+                n_ring_avg = cas.vertcat(1, 0, 0)
+                xnext['p_ring_{}_{}'.format(jdx, kdx)] = 0.5 * (q_convected + q_next)
+                xnext['dp_ring_{}_{}'.format(jdx, kdx)] = v_conv
+                xnext['gamma_ring_{}_{}'.format(jdx, kdx)] = gamma_avg
+                xnext['n_ring_{}_{}'.format(jdx, kdx)] = n_ring_avg
+
+                dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_{}'.format(jdx), kdx]
+                time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
+
+        g_continuity = V['x', kdx + 1] - xnext
+
+        if nlp_options['type'] == 'aaa':
+            g_continuity = cas.vertcat(g_continuity, *time_transformation)
 
         cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity_{}'.format(kdx),
