@@ -232,7 +232,8 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
                 derivative_dict['gamma_{}'.format(j)] = (gamma, 1)
 
                 lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
-                derivative_dict['normal_vec_{}'.format(j)] = (lift_vec, 1)
+                for i in range(3):
+                    derivative_dict['normal_vec_{}_{}'.format(j, i)] = (lift_vec[i], 1)
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
