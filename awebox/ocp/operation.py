@@ -234,16 +234,20 @@ def make_periodicity_equality(model, initial_model_variables, terminal_model_var
 
     if options['trajectory']['type'] == 'aaa' and model.architecture.number_of_kites == 2:
 
-            periodicity_cstr = cas.vertcat(
-                initial_model_variables['x','q10'] - terminal_model_variables['x','q10'],
-                initial_model_variables['x','dq10'] - terminal_model_variables['x', 'dq10'],
-                initial_model_variables['x','q21'] - terminal_model_variables['x','q31'],
-                initial_model_variables['x','dq21'] - terminal_model_variables['x', 'dq31'],
-                initial_model_variables['x','coeff21'] - terminal_model_variables['x', 'coeff31'],
-                initial_model_variables['x','q31'] - terminal_model_variables['x','q21'],
-                initial_model_variables['x','dq31'] - terminal_model_variables['x', 'dq21'],
-                initial_model_variables['x','coeff31'] - terminal_model_variables['x', 'coeff21']
-            )
+        periodicity = []
+        for name in struct_op.subkeys(initial_model_variables, 'x'):
+
+            if name in ['q21', 'dq21', 'coeff21', 'q31', 'dq31', 'coeff31']:
+                if name[-2:] == '21':
+                    counter_name = name[:-2] + '31'
+                else:
+                    counter_name = name[:-2] + '21'
+            else:
+                counter_name = name
+
+            periodicity.append(initial_model_variables['x', name] - terminal_model_variables['x', counter_name])
+
+        periodicity_cstr = cas.vertcat(*periodicity)
 
     else:
 
