@@ -84,9 +84,17 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
     # when the global variables are before the discretized variables, it leads to prettier kkt matrix spy plots
     entry_list = [
         cas.entry('theta', struct = theta),
-        cas.entry('phi',   struct = model.parameters_dict['phi']),
-        entry_tuple
+        cas.entry('phi',   struct = model.parameters_dict['phi'])
     ]
+
+    if nlp_options['type'] == 'aaa':
+        entry_list += [
+            cas.entry('T_ring', shape = (nk,1)),
+            cas.entry('d_ring_2', shape = (nk,1)),
+            cas.entry('d_ring_3', shape = (nk,1)),
+        ]
+
+    entry_list += [entry_tuple]
 
     # generate structure
     V = cas.struct_symMX(entry_list)
