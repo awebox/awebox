@@ -88,6 +88,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     if init_options['type'] == 'aaa':
         V_init_si['theta', 't_f'] = V_init_si['theta', 't_f'] / 2
+        V_init_si['T_ring'] = V_init_si['theta', 't_f']
 
     V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
