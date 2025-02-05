@@ -263,7 +263,12 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                 deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
                 deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
 
-                if at_control_node and deriv_name_in_states:
+                if at_control_node and deriv_name[:7] == 'dp_ring':
+                    if dim == 0:
+                        local_val = V['x', kdx, deriv_name]
+                    else:
+                        local_val = 0
+                elif at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx < n_k:
                     local_val = V['u', kdx, deriv_name, dim]
@@ -272,6 +277,11 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                     ddx_local = -1
                     local_val = V[coll_var_name, kdx_local, ddx_local, 'u', deriv_name, dim]
                 elif deriv_name_in_states and V_has_collocation_vars and kdx < n_k:
+                    if deriv_name == 'dp_ring':
+                        if dim == 0:
+                            local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
+                        else:
+                            local_val = 0
                     local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
                 elif deriv_name_in_controls and V_has_collocation_vars and not u_is_zoh and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'u', deriv_name, dim]
@@ -631,7 +641,7 @@ def si_to_scaled(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi':
+        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['T_ring', 'd_ring']:
 
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
@@ -666,7 +676,7 @@ def scaled_to_si(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi':
+        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['T_ring', 'd_ring']:
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
                 var_name = local_canonical[1]
@@ -827,8 +837,10 @@ def get_V_index(canonical):
             name = canonical[1]
 
         else:
-            message = 'unexpected (distinct) canonical_index handing'
-            print_op.log_and_raise_error(message)
+            name = None
+        # else:
+        #     message = 'unexpected (distinct) canonical_index handing'
+        #     print_op.log_and_raise_error(message)
 
     return [var_is_coll_var, var_type, kdx, ddx, name, dim]
 
