@@ -188,7 +188,7 @@ def generate_structure(options, architecture):
 
     if options['trajectory']['type'] == 'aaa':
         for k in range(options['aero']['vortex_rings']['N_rings']):
-            for j in [1,2]:
+            for j in [2,3]:
                 system_states.extend([('p_ring_{}_{}'.format(j, k), (3, 1))])
                 system_states.extend([('dp_ring_{}_{}'.format(j, k), (1, 1))])
                 system_states.extend([('gamma_ring_{}_{}'.format(j, k), (1, 1))])

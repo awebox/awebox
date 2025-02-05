@@ -177,7 +177,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     if options['trajectory']['type'] == 'aaa':
         
         for k in range(options['aero']['vortex_rings']['N_rings']):
-            for j in [1, 2]:
+            for j in [2, 3]:
                 
                 name = 'dp_ring_{}_{}'.format(j, k)
                 cstr = system_variables['SI']['xdot'][name] - cas.vertcat(
