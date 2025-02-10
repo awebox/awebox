@@ -387,12 +387,13 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     radau_collocation = (direct_collocation and scheme == 'radau')
     other_collocation = (direct_collocation and (not scheme == 'radau'))
-
+    
     terminal_constraint = nlp_options['mpc']['terminal_point_constr']
 
-    if radau_collocation and not terminal_constraint:
-        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
-    elif direct_collocation or multiple_shooting:
+    # if radau_collocation and not terminal_constraint:
+    #     import pdb; pdb.set_trace()
+    #     var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
+    if direct_collocation or multiple_shooting:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
@@ -641,7 +642,7 @@ def si_to_scaled(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['T_ring', 'd_ring']:
+        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['d_ring']:
 
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
@@ -676,7 +677,7 @@ def scaled_to_si(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['T_ring', 'd_ring']:
+        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['d_ring']:
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
                 var_name = local_canonical[1]
