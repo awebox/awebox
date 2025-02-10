@@ -131,24 +131,11 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         shape = t_f_cstr_list.get_expression_list('ineq').shape
         ocp_cstr_list.append(t_f_cstr_list)
         ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
-    elif nlp_options['type'] == 'aaa':
-
-        cstr_list = cstr_op.OcpConstraintList()
-        t_f = ocp_outputs.find_time_period(nlp_options, V)
-        t_f_tot = cas.sum1(V['T_ring']) / nlp_options['n_k']
-
-        t_f_tot_cstr = cstr_op.Constraint(expr=t_f - t_f_tot,
-                                        name='t_f_tot',
-                                        cstr_type='eq')
-        cstr_list.append(t_f_tot_cstr)
-        shape = (1,1)
-        ocp_cstr_list.append(cstr_list)
-        ocp_cstr_entry_list.append(cas.entry('t_f_constraint', shape=shape))
-
-        t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
-        shape = t_f_cstr_list.get_expression_list('ineq').shape
-        ocp_cstr_list.append(t_f_cstr_list)
-        ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
+    # elif nlp_options['type'] == 'aaa':
+    #     t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
+    #     shape = t_f_cstr_list.get_expression_list('ineq').shape
+    #     ocp_cstr_list.append(t_f_cstr_list)
+    #     ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
 
     else:
         # period-length t_f constraint is set in ocp.var_bounds
@@ -395,9 +382,9 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         cas.entry('continuity',     repeat = [n_k],     struct = model.variables_dict['x']),
     )
 
-    if nlp_options['type'] == 'aaa':
+    if nlp_options['type'] == 'aaa' and 'p_ring_2_0' in model.variables_dict['x'].keys():
         entry_tuple += (
-            cas.entry('time_transformation', repeat = [n_k], shape = 2),
+            cas.entry('time_transformation', repeat = [n_k], shape = 2), # one for each kite
         )
 
     return cstr_list, entry_tuple
