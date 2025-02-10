@@ -245,7 +245,12 @@ def make_periodicity_equality(model, initial_model_variables, terminal_model_var
             else:
                 counter_name = name
 
-            periodicity.append(initial_model_variables['x', name] - terminal_model_variables['x', counter_name])
+            initial_value = vect_op.columnize(initial_model_variables['x', name])
+            final_value = vect_op.columnize(terminal_model_variables['x', counter_name])
+
+            difference = initial_value - final_value
+
+            periodicity.append(difference)
 
         periodicity_cstr = cas.vertcat(*periodicity)
 
