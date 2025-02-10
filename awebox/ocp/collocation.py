@@ -355,23 +355,57 @@ class Collocation(object):
 
         # pin the end of the control interval to the start of the new control interval
         if nlp_options['type'] == 'aaa':
+            g_continuity = []
             time_transformation = []
-            for jdx in [2,3]:
+            t_f = model.scaling['theta', 't_f'] * V['theta', 't_f']
+            for state in model.variables_dict['x'].keys():
+
                 v_conv = 10.0
-                q_convected = V['x', kdx, 'q{}1'.format(jdx)] + V['T_ring',kdx] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
-                q_next = xnext['q{}1'.format(jdx)]
-                delta_q = q_next - q_convected
                 gamma_avg = 1.0
                 n_ring_avg = cas.vertcat(1, 0, 0)
-                xnext['p_ring_{}_{}'.format(jdx, kdx)] = 0.5 * (q_convected + q_next)
-                xnext['dp_ring_{}_{}'.format(jdx, kdx)] = v_conv
-                xnext['gamma_ring_{}_{}'.format(jdx, kdx)] = gamma_avg
-                xnext['n_ring_{}_{}'.format(jdx, kdx)] = n_ring_avg
+                print(state)
+                if state == 'p_ring_2_{}'.format(kdx):
+                    q_convected = model.scaling['x', 'q21'] * V['x', kdx, 'q21'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
+                    q_next = model.scaling['x', 'q21'] * xnext['q21']
+                    delta_q = q_next - q_convected
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  0.5 * (q_convected + q_next)
+                    )
+                    dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_2', kdx]
+                    time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
 
-                dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_{}'.format(jdx), kdx]
-                time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
+                elif state == 'p_ring_3_{}'.format(kdx):
+                    q_convected = model.scaling['x', 'q31'] * V['x', kdx, 'q31'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
+                    q_next = model.scaling['x', 'q31'] * xnext['q31']
+                    delta_q = q_next - q_convected
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  0.5 * (q_convected + q_next)
+                    )
+                    dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_3', kdx]
+                    time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
 
-        g_continuity = V['x', kdx + 1] - xnext
+                elif state in ['dp_ring_2_{}'.format(kdx), 'dp_ring_3_{}'.format(kdx)]:
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  v_conv
+                    )
+                elif state in ['gamma_ring_2_{}'.format(kdx), 'gamma_ring_3_{}'.format(kdx)]:
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  gamma_avg
+                    )
+                elif state in ['n_ring_2_{}'.format(kdx), 'n_ring_3_{}'.format(kdx)]:
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  n_ring_avg
+                    )
+                else:
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  xnext[state]
+                    )
+
+            g_continuity = cas.vertcat(*g_continuity)
+
+        else:
+
+            g_continuity = V['x', kdx + 1] - xnext
 
         if nlp_options['type'] == 'aaa':
             g_continuity = cas.vertcat(g_continuity, *time_transformation)
