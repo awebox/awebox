@@ -106,12 +106,14 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         
     
     if nlp_options['type'] == 'aaa':
-        vars_lb['T_ring'] = 1e-5
-        vars_ub['T_ring'] = cas.inf
-        vars_lb['d_ring_2'] = 0.5
-        vars_lb['d_ring_3'] = 0.5
-        vars_ub['d_ring_2'] = 1.5
-        vars_ub['d_ring_3'] = 1.5
+        vars_lb['d_ring_2'] = 0.01
+        vars_lb['d_ring_3'] = 0.01
+        vars_ub['d_ring_2'] = 5
+        vars_ub['d_ring_3'] = 5
+        # vars_lb['d_ring_2'] = 1.
+        # vars_lb['d_ring_3'] = 1.
+        # vars_ub['d_ring_2'] = 1.
+        # vars_ub['d_ring_3'] = 1.
 
     return [vars_lb, vars_ub]
 

@@ -89,7 +89,6 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
 
     if nlp_options['type'] == 'aaa':
         entry_list += [
-            cas.entry('T_ring', shape = (nk,1)),
             cas.entry('d_ring_2', shape = (nk,1)),
             cas.entry('d_ring_3', shape = (nk,1)),
         ]
