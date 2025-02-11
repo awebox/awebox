@@ -341,7 +341,7 @@ class Collocation(object):
         return Integral_outputs_list
 
 
-    def get_continuity_constraint(self, nlp_options, V, P, kdx, model):
+    def get_continuity_constraint(self, nlp_options, V, P, kdx, model, integral_outputs_deriv):
 
         # get an expression for the state at the end of the finite element
         xf_k = 0
@@ -353,17 +353,41 @@ class Collocation(object):
 
         xnext = model.variables_dict['x'](xf_k)
 
-        # pin the end of the control interval to the start of the new control interval
         if nlp_options['type'] == 'aaa':
+
+            t_f = model.scaling['theta', 't_f'] * V['theta', 't_f']
+
+            # evaluate derivative functions
+            derivative_list = []
+            for i in range(self.__d):
+                derivative_list += [model.integral_outputs(integral_outputs_deriv[:,i])]
+
+            integral_output = OrderedDict()
+            # integrate using collocation
+            for name in list(model.integral_outputs.keys()):
+
+                # get derivatives
+                derivatives = []
+                for i in range(len(derivative_list)):
+                    derivatives.append(derivative_list[i][name])
+
+                # compute state values at collocation nodes
+                integral_output_coll = cas.mtimes(self.__Lambda.T, cas.vertcat(*derivatives))
+
+                # compute state value at end of collocation interval
+                integral_output_continuity = 0.0
+
+                for j in range(self.__d):
+                    integral_output_continuity += self.__coeff_continuity[j+1] * integral_output_coll[j]
+
+                integral_output[name] = integral_output_continuity
+
+            # pin the end of the control interval to the start of the new control interval
             g_continuity = []
             time_transformation = []
-            t_f = model.scaling['theta', 't_f'] * V['theta', 't_f']
             for state in model.variables_dict['x'].keys():
 
                 v_conv = 10.0
-                gamma_avg = 1.0
-                n_ring_avg = cas.vertcat(1, 0, 0)
-                print(state)
                 if state == 'p_ring_2_{}'.format(kdx):
                     q_convected = model.scaling['x', 'q21'] * V['x', kdx, 'q21'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
                     q_next = model.scaling['x', 'q21'] * xnext['q21']
@@ -389,13 +413,17 @@ class Collocation(object):
                         V['x', kdx + 1, state] -  v_conv
                     )
                 elif state in ['gamma_ring_2_{}'.format(kdx), 'gamma_ring_3_{}'.format(kdx)]:
+                    gamma_avg = integral_output[state[:12]]
                     g_continuity.append(
                         V['x', kdx + 1, state] -  gamma_avg
                     )
+
                 elif state in ['n_ring_2_{}'.format(kdx), 'n_ring_3_{}'.format(kdx)]:
-                    g_continuity.append(
-                        V['x', kdx + 1, state] -  n_ring_avg
-                    )
+                    n_ring_avg = cas.vertcat(*[integral_output[state[:8] + '_{}'.format(i)] for i in [0,1,2]])
+                    n_ring_avg = n_ring_avg / cas.norm_2(n_ring_avg)
+                    for i in [0,1,2]:
+                        g_continuity.append(V['x', kdx + 1, state, i] -  n_ring_avg[i])
+
                 else:
                     g_continuity.append(
                         V['x', kdx + 1, state] -  xnext[state]
@@ -485,7 +513,7 @@ class Collocation(object):
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
 
 
-        return coll_outputs, Integral_outputs_list, Integral_constraints_list
+        return coll_outputs, Integral_outputs_list, Integral_constraints_list, integral_outputs_deriv
 
     def __construct_symbolic_integrator_funs(self, nlp_params, V, time_grids):
 
