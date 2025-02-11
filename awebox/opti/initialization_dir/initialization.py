@@ -88,6 +88,10 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     if init_options['type'] == 'aaa':
         V_init_si['theta', 't_f'] = V_init_si['theta', 't_f'] / 2
+        V_init_si['x', :, 'coeff21', 0] = 1
+        V_init_si['x', :, 'coeff31', 0] = 1
+        V_init_si['coll_var', :, :, 'x', 'coeff21', 0] = 1
+        V_init_si['coll_var', :, :, 'x', 'coeff31', 0] = 1
 
     V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
@@ -187,8 +191,8 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                 v_init = 10
                 V_init_si['x', :, 'gamma_ring_{}_{}'.format(j, k)] = 20
                 V_init_si['coll_var', :, :, 'x', 'gamma_ring_{}_{}'.format(j, k)] = 20
-                V_init_si['x', :, 'n_ring_{}_{}'.format(j, k)] = np.array([1,0,0])
-                V_init_si['coll_var', :, :, 'x', 'n_ring_{}_{}'.format(j, k)] = np.array([1,0,0])
+                V_init_si['x', :, 'n_ring_{}_{}'.format(j, k)] = np.array([-1,0,0])
+                V_init_si['coll_var', :, :, 'x', 'n_ring_{}_{}'.format(j, k)] = np.array([-1,0,0])
                 V_init_si['x', :, 'dp_ring_{}_{}'.format(j, k)] = v_init
                 V_init_si['coll_var', :, :, 'x', 'dp_ring_{}_{}'.format(j, k)] = v_init
                 q0 = V_init_si['x', k, 'q{}1'.format(j)]
