@@ -228,12 +228,12 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
             for j in [2,3]:
                 va = outputs['aerodynamics']['airspeed{}'.format(j)]
                 CL = system_variables['SI']['x']['coeff{}1'.format(j)][0]
-                gamma = 2 * bref / (np.pi * ar * va * CL)
-                derivative_dict['gamma_{}'.format(j)] = (gamma, 1)
+                gamma = 2 * bref / (np.pi * ar) * va * CL
+                derivative_dict['gamma_ring_{}'.format(j)] = (gamma, 1)
 
                 lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
                 for i in range(3):
-                    derivative_dict['normal_vec_{}_{}'.format(j, i)] = (lift_vec[i], 1)
+                    derivative_dict['n_ring_{}_{}'.format(j, i)] = (- lift_vec[i], 1)
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
