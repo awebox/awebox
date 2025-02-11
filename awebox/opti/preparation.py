@@ -124,12 +124,13 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
                 # then, this is a vortex wake variable
                 var_name = 'vortex'
 
-
             if var_name in list(options['weights'].keys()):  # global variable
                 p_fix_num['p', 'weights', variable_type, name] = options['weights'][var_name]
             else:
-                if not var_name[:6] in ['p_ring', 'dp_rin', 'gamma_', 'n_ring']:
+                if not var_name[:6] in ['p_ring', 'dp_rin', 'ddp_ri', 'gamma_', 'dgamma', 'n_ring', 'dn_rin']:
                     p_fix_num['p', 'weights', variable_type, name] = 1.0
+                else:
+                    p_fix_num['p', 'weights', variable_type, name] = 0.0
 
             # set references
             if variable_type == 'u':
