@@ -65,12 +65,12 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     q = x['q' + str(kite) + str(parent)]
     dq = x['dq' + str(kite) + str(parent)]
 
-    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables_si, wind, kite, architecture)
+    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables_si, parameters, wind, kite, architecture)
     rho = atmos.get_density(q[2])
     q_eff = 0.5 * rho * cas.mtimes(vec_u_eff.T, vec_u_eff)
 
     if int(options['kite_dof']) == 3:
-        kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, wind, kite, architecture)
+        kite_dcm = three_dof_kite.get_kite_dcm(options, variables_si, parameters, wind, kite, architecture)
     elif int(options['kite_dof']) == 6:
         kite_dcm = six_dof_kite.get_kite_dcm(kite, variables_si, architecture)
     else:

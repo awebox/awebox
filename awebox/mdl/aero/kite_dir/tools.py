@@ -36,6 +36,7 @@ import awebox.tools.vector_operations as vect_op
 import numpy as np
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.kite_dir.vortex_rings as vortex_rings
 
 def construct_wingtip_position(q_kite, dcm_kite, parameters, tip):
 
@@ -148,28 +149,27 @@ def get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_d
         vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
 
     elif aero_coeff_ref_velocity == 'eff':
-        vec_u_eff = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+        vec_u_eff = get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture)
         vec_u_earth = vec_u_eff
 
     return vec_u_earth
 
 
-def get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture):
-    u_eff_in_earth_frame = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+def get_u_eff_in_body_frame(options, variables, parameters, wind, kite, kite_dcm, architecture):
+    u_eff_in_earth_frame = get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture)
     u_eff_in_body_frame = frames.from_earth_to_body(kite_dcm, u_eff_in_earth_frame)
     return u_eff_in_body_frame
 
-def get_u_eff_in_earth_frame(options, variables, wind, kite, architecture):
+def get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture):
     if (options['induction_model'] == 'not_in_use'):
-        u_eff = get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architecture)
-
+        u_eff = get_u_eff_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options)
     else:
         u_eff = get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, architecture)
 
     return u_eff
 
-def get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+def get_u_eff_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options):
+    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, parameters,  wind, kite, architecture, options)
 
     # approximation!
     vec_u_eff_in_earth_frame = vec_u_app_alone_in_earth_frame
@@ -203,7 +203,7 @@ def get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, arch
 
     return u_app
 
-def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture):
+def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options):
 
     parent = architecture.parent_map[kite]
 
@@ -212,12 +212,29 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, arch
 
     uw_infty = wind.get_velocity(q[2])
 
-    vec_u_app_alone_in_earth_frame = uw_infty - dq
+    if 'dp_ring_2_0' in variables['x'].keys() and kite in [2,3]:
+        w_ind_f = 0
+        u_induced = np.array([0,0,0])
+        initial_guess =  np.array([-1,0,0])
+        params = 'p_near_{}'.format(kite)
+        for k in range(options['aero']['vortex_rings']['N_rings']):
+            for j in [2, 3]:
+                p_r = variables['x']['p_ring_{}_{}'.format(j, k)]
+                gamma_r = variables['x']['gamma_ring_{}_{}'.format(j, k)]
+                n_r = variables['x']['n_ring_{}_{}'.format(j, k)]
+                R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
+                param = parameters[params, 'p_near_{}_{}'.format(j, k)]
+                w_ind_f += param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+                u_induced = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * w_ind_f * n_r
+    else:
+        u_induced = np.array([0,0,0])
+
+    vec_u_app_alone_in_earth_frame = uw_infty - dq + u_induced
 
     return vec_u_app_alone_in_earth_frame
 
-def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture, options):
+    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture, options)
     vec_u_app_alone_in_body_frame = frames.from_earth_to_body(kite_dcm, vec_u_app_alone_in_earth_frame)
 
     return vec_u_app_alone_in_body_frame

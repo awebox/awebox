@@ -46,7 +46,7 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
-    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+    kite_dcm = get_kite_dcm(options, variables, parameters, wind, kite, architecture)
 
     vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
                                                         parameters, outputs)
@@ -94,7 +94,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
     # wind parameters
     rho_infty = atmos.get_density(q[2])
 
-    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+    kite_dcm = get_kite_dcm(options, variables, parameters, wind, kite, architecture)
     Lhat = kite_dcm[:,2]
 
     # lift and drag coefficients
@@ -162,11 +162,11 @@ def get_planar_dcm(vec_u_eff, variables, kite, architecture):
     return planar_dcm
 
 
-def get_kite_dcm(options, variables, wind, kite, architecture):
+def get_kite_dcm(options, variables, parameters, wind, kite, architecture):
 
     parent = architecture.parent_map[kite]
 
-    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture)
 
     # roll angle
     coeff = variables['x']['coeff' + str(kite) + str(parent)]

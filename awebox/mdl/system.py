@@ -431,13 +431,30 @@ def generate_system_parameters(options, architecture):
 
     # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
-    parameters = cas.struct_symSX([
+    entry_list = [
         cas.entry('theta0', struct=parameters_dict['theta0']),
         cas.entry('phi', struct=parameters_dict['phi'])
-    ])
+    ]
+
+    if options['trajectory']['type'] == 'aaa':
+        p_near_entries = []
+        for j in [2, 3]:
+            for k in range(options['aero']['vortex_rings']['N_rings']):
+                p_near_entries.append(
+                    cas.entry('p_near_{}_{}'.format(j, k))
+                )
+
+        parameters_dict['p_near_2'] = cas.struct_symSX(p_near_entries)
+        parameters_dict['p_near_3'] = cas.struct_symSX(p_near_entries)
+
+        entry_list += [
+            cas.entry('p_near_2', struct = parameters_dict['p_near_2']),
+            cas.entry('p_near_3', struct = parameters_dict['p_near_3'])
+        ]
+
+    parameters = cas.struct_symSX(entry_list)
 
     return parameters, parameters_dict
-
 
 def generate_optimization_parameters():
 
