@@ -78,8 +78,10 @@ def get_p_near(kite, kdx, N_rings, p_near_struct):
     p_near = p_near_struct(0.)
     for k in range(N_rings):
         for j in [2, 3]:
-            # TODO: add logic
-            p_near['p_near_{}_{}'.format(j, k)] = 0.
+            if j == kite and k >= kdx:
+                p_near['p_near_{}_{}'.format(j, k)] = 1.
+            elif j != kite and k < kdx:
+                p_near['p_near_{}_{}'.format(j, k)] = 1.
 
     return p_near.cat
 
