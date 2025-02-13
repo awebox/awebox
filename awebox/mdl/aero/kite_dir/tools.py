@@ -213,25 +213,34 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind
     uw_infty = wind.get_velocity(q[2])
 
     if 'dp_ring_2_0' in variables['x'].keys() and kite in [2,3]:
-        w_ind_f = 0
-        u_induced = np.array([0,0,0])
-        initial_guess =  np.array([-1,0,0])
-        params = 'p_near_{}'.format(kite)
-        for k in range(options['aero']['vortex_rings']['N_rings']):
-            for j in [2, 3]:
-                p_r = variables['x']['p_ring_{}_{}'.format(j, k)]
-                gamma_r = variables['x']['gamma_ring_{}_{}'.format(j, k)]
-                n_r = variables['x']['n_ring_{}_{}'.format(j, k)]
-                R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
-                param = parameters[params, 'p_near_{}_{}'.format(j, k)]
-                w_ind_f += param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
-                u_induced = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * w_ind_f * n_r
+        u_induced = u_induced_vortex_rings(variables, parameters, kite, architecture, options)
     else:
         u_induced = np.array([0,0,0])
 
     vec_u_app_alone_in_earth_frame = uw_infty - dq + u_induced
 
     return vec_u_app_alone_in_earth_frame
+
+def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
+        
+    parent = architecture.parent_map[kite]
+    q = variables['x']['q' + str(kite) + str(parent)]
+
+    w_ind_f = 0
+    u_induced = np.array([0,0,0])
+    initial_guess =  np.array([-1,0,0])
+    params = 'p_near_{}'.format(kite)
+    for k in range(options['aero']['vortex_rings']['N_rings']):
+        for j in [2, 3]:
+            p_r = variables['x']['p_ring_{}_{}'.format(j, k)]
+            gamma_r = variables['x']['gamma_ring_{}_{}'.format(j, k)]
+            n_r = variables['x']['n_ring_{}_{}'.format(j, k)]
+            R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
+            param = parameters[params, 'p_near_{}_{}'.format(j, k)]
+            w_ind_f += - param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+            u_induced = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * w_ind_f * n_r
+
+    return u_induced
 
 def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture, options):
     vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture, options)

@@ -29,15 +29,37 @@ vortex rings code
 
 import casadi as ca
 from awebox.mdl.aero.kite_dir.elliptic_integrals_functions import *
+import awebox.tools.cached_functions as cf
 
 def far_wake_ring_induction(p_k, p_r, n_ring, gamma_ring, R_ring, data):
 
     """ Model for the induced axial speed due to a vortex ring in the far wake.
     """
 
+    induction_fun = far_wake_ring_induction_function(data)
+    w_f = induction_fun(p_k, p_r, n_ring, gamma_ring, R_ring)
+
+    return w_f
+
+def far_wake_ring_induction_function(data):
+
+    p_k = ca.SX.sym('p_k', 3, 1)
+    p_r = ca.SX.sym('p_r', 3, 1)
+    n_ring = ca.SX.sym('n_ring', 3, 1)
+    gamma_ring = ca.SX.sym('gamma_ring', 3, 1)
+    R_ring = ca.SX.sym('n_ring', 1, 1)
+
     h = ca.mtimes((p_r - p_k).T, n_ring)
     vec = (p_r - p_k) - h * n_ring
     R_j = ca.sqrt(ca.mtimes(vec.T, vec))
     w_f = - gamma_ring / (4 * np.pi) * (elliptic_integrand_series_axial(R_j, R_ring, h, data['N_elliptic_int'], method = data['elliptic_method']))
 
-    return w_f
+    far_wake_axial_induction_fun = ca.Function('far_wake_axial_induction_fun', [p_k, p_r, n_ring, gamma_ring, R_ring], [w_f])
+    # compilation_file_name = 'far_wake_axial_induction_fun_'
+    # compilation_file_name += 'N_ell_int{}_ell_method_{}'.format(
+    #             data['N_elliptic_int'],
+    #             data['elliptic_method'],
+    #         )
+    # far_wake_axial_induction_fun_cf = cf.CachedFunction(compilation_file_name, far_wake_axial_induction_fun, do_compile=True)
+
+    return far_wake_axial_induction_fun
