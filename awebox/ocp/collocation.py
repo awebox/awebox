@@ -413,7 +413,8 @@ class Collocation(object):
                         V['x', kdx + 1, state] -  v_conv
                     )
                 elif state in ['gamma_ring_2_{}'.format(kdx), 'gamma_ring_3_{}'.format(kdx)]:
-                    gamma_avg = integral_output[state[:12]]
+                    kite = state[11]
+                    gamma_avg = V['d_ring_{}'.format(kite), kdx] * integral_output[state[:12]]
                     g_continuity.append(
                         V['x', kdx + 1, state] -  gamma_avg
                     )
