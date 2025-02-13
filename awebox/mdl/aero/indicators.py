@@ -35,6 +35,7 @@ import numpy as np
 
 import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.kite_dir.tools as tools
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
@@ -222,8 +223,10 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['mach' + str(kite)] = get_mach(options, atmos, air_velocity, q)
     outputs['aerodynamics']['reynolds' + str(kite)] = get_reynolds(options, atmos, air_velocity, q, parameters)
 
-    return outputs
+    if 'dp_ring_2_0' in variables['x'].keys():
+        outputs['aerodynamics']['u_induced_far_wake' + str(kite)] = tools.u_induced_vortex_rings(variables, parameters, kite, architecture, options)
 
+    return outputs
 
 def collect_power_balance_outputs(options, architecture, variables, base_aerodynamic_quantities, outputs):
 
