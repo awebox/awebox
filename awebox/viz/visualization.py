@@ -38,7 +38,8 @@ import os
 
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
