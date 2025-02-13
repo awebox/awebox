@@ -241,6 +241,12 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             options['model']['tether']['aero_elements'],
             options['model']['tether']['control_var']
         )
+        if user_options['trajectory']['type'] == 'aaa':
+            compilation_file_name += '_Nrings{}_N_ell_int{}_ell_method_{}'.format(
+                options['model']['aero']['vortex_rings']['N_rings'],
+                options['model']['aero']['vortex_rings']['N_elliptic_int'],
+                options['model']['aero']['vortex_rings']['elliptic_method'],
+            )
 
         if options['nlp']['cost']['P_max']:
             compilation_file_name += '_P_max'
