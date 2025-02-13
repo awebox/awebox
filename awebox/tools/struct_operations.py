@@ -73,13 +73,38 @@ def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
     return shooting_vars
 
+def get_p_near(kite, kdx, N_rings, p_near_struct):
+
+    p_near = p_near_struct(0.)
+    for k in range(N_rings):
+        for j in [2, 3]:
+            # TODO: add logic
+            p_near['p_near_{}_{}'.format(j, k)] = 0.
+
+    return p_near.cat
+
+
 def get_shooting_params(nlp_options, V, P, model):
 
     shooting_nodes = count_shooting_nodes(nlp_options)
 
     parameters = model.parameters
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
-    return coll_params
+    shooting_params = cas.repmat(cas.vertcat(P['theta0'], V['phi']), 1, (shooting_nodes))
+
+    if model.options['trajectory']['type'] == 'aaa':
+        p_near_list = []
+        N_rings = model.options['aero']['vortex_rings']['N_rings']
+        p_near_struct = model.parameters_dict['p_near_2']
+        for kdx in range(shooting_nodes):
+            p_near_list.append(cas.vertcat(
+                get_p_near(2, kdx, N_rings, p_near_struct),
+                get_p_near(3, kdx, N_rings, p_near_struct)
+            ))
+
+        p_near_repeated = cas.horzcat(*p_near_list)
+        shooting_params = cas.vertcat(shooting_params, p_near_repeated)
+
+    return shooting_params
 
 
 
@@ -105,7 +130,24 @@ def get_coll_params(nlp_options, V, P, model):
     N_coll = n_k * d # collocation points
 
     parameters = model.parameters
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+    coll_params = cas.repmat(cas.vertcat(P['theta0'], V['phi']), 1, N_coll)
+
+    if model.options['trajectory']['type'] == 'aaa':
+            p_near_list = []
+            shooting_nodes = count_shooting_nodes(nlp_options)
+            N_rings = model.options['aero']['vortex_rings']['N_rings']
+            p_near_struct = model.parameters_dict['p_near_2']
+            for kdx in range(shooting_nodes):
+                p_near_list.append(cas.repmat(
+                    cas.vertcat(
+                        get_p_near(2, kdx, N_rings, p_near_struct),
+                        get_p_near(3, kdx, N_rings, p_near_struct)
+                    ), 1, d)
+                )
+
+            p_near_repeated = cas.horzcat(*p_near_list)
+            coll_params = cas.vertcat(coll_params, p_near_repeated)
+
     return coll_params
 
 
@@ -401,7 +443,7 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, P, model_parameters):
+def get_parameters_at_time(V, P, model_parameters, model_parameters_dict, kdx):
     param_list = []
 
     for var_type in list(model_parameters.keys()):
@@ -409,6 +451,12 @@ def get_parameters_at_time(V, P, model_parameters):
             param_list.append(V[var_type])
         if var_type == 'theta0':
             param_list.append(P[var_type])
+
+    if 'p_near_2' in model_parameters.keys():
+        N_rings = int(model_parameters['p_near_2'].shape[0]/2)
+        p_near_struct = model_parameters_dict['p_near_2']
+        param_list.append(get_p_near(2, kdx, N_rings, p_near_struct))
+        param_list.append(get_p_near(3, kdx, N_rings, p_near_struct))
 
     param_at_time = model_parameters(cas.vertcat(*param_list))
 
@@ -1196,7 +1244,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
     print_op.log_and_raise_error(message)
     return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_parameters_dict,  model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1249,7 +1297,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
         interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
 
     # output values
-    interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict)
+    interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, time_grids)
 
     # integral-output values
     if integral_outputs_opt.shape[0] != 0:
@@ -1266,7 +1314,7 @@ def build_time_grid_for_interpolation(time_grids, n_points):
     time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
     return time_grid_interpolated
 
-def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict):
+def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_dict, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, time_grids):
 
     # extra variables time series (SI units)
     x = V_vector_series_interpolated['x']
@@ -1289,7 +1337,16 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
 
     # scale variables time series to evaluate output function
     variables = cas.mtimes(cas.diag(1./model_scaling), variables)
-    parameters = cas.repmat(get_parameters_at_time(V_sol, P_num, model_parameters).cat, 1, N_ip)
+    parameter_list = []
+    for idx in range(N_ip):
+        t = time_grids['ip'][idx]%time_grids['ip'][-1]
+        for j in range(time_grids['x'].shape[0]-1):
+            if t >= time_grids['x'][j] and t < time_grids['x'][j+1]:
+                kdx = j
+        parameter_list.append(
+            get_parameters_at_time(V_sol, P_num, model_parameters, model_parameters_dict, kdx)
+        )
+    parameters = cas.horzcat(*parameter_list)
 
     # compute outputs on interpolation grid
     outputs_fun_map = outputs_fun.map(N_ip)

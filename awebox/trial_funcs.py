@@ -97,6 +97,7 @@ def interpolate_data(trial, freq):
     V_opt = trial.optimization.V_final_si
     model_scaling = trial.model.scaling.cat
     model_parameters = struct_op.strip_of_contents(trial.model.parameters)
+    model_parameters_dict = struct_op.strip_of_contents(trial.model.parameters_dict)
     outputs_dict = trial.model.outputs_dict
     outputs_opt = trial.optimization.outputs_opt
     integral_output_names = trial.model.integral_scaling.keys()
@@ -108,7 +109,7 @@ def interpolate_data(trial, freq):
         Collocation = None
 
     interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt,
-        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, 
+        P_fix_num, model_parameters, model_parameters_dict,  model_scaling, outputs_fun, outputs_dict, 
         integral_output_names, integral_outputs_opt, Collocation=Collocation)
     return interpolation
 
