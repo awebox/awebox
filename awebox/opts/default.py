@@ -141,8 +141,8 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 
         ('model', 'aero', 'vortex_rings', 'N_rings',          0,          ('Number of vortex rings', None), 'x'),
-        ('model', 'aero', 'vortex_rings', 'ring_duplicates',  0,          ('Vortex ring duplicates', None), 'x'),
-        ('model', 'aero', 'vortex_rings', 'p_near',  5,                   ('Number of near-wake rings to be ignored', None), 'x'),
+        ('model', 'aero', 'vortex_rings', 'N_duplicates',  0,            ('Vortex ring duplicates', None), 'x'),
+        ('model', 'aero', 'vortex_rings', 'N_far',   0,                   ('Number of far-wake rings to be taken into account before and after', None), 'x'),
         ('params', 'aero', 'vortex_rings', 'R_ring',  5,                   ('Vortex ring radius', None), 's'),
         ('model', 'aero', 'vortex_rings', 'N_elliptic_int',  5,           ('Number of summands in elliptic integral summation', None), 'x'),
         ('model', 'aero', 'vortex_rings', 'elliptic_method',  'power',     ('Computation of elliptic integrands', ['power', 'AGM']), 'x'),
