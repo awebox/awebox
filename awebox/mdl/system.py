@@ -438,18 +438,25 @@ def generate_system_parameters(options, architecture):
 
     if options['trajectory']['type'] == 'aaa':
         p_near_entries = []
+        p_far_entries = []
         for j in [2, 3]:
             for k in range(options['aero']['vortex_rings']['N_rings']):
                 p_near_entries.append(
                     cas.entry('p_near_{}_{}'.format(j, k))
                 )
-
+                p_far_entries.append(
+                    cas.entry('p_far_{}_{}'.format(j, k))
+                )
         parameters_dict['p_near_2'] = cas.struct_symSX(p_near_entries)
         parameters_dict['p_near_3'] = cas.struct_symSX(p_near_entries)
+        parameters_dict['p_far_2'] = cas.struct_symSX(p_far_entries)
+        parameters_dict['p_far_3'] = cas.struct_symSX(p_far_entries)
 
         entry_list += [
             cas.entry('p_near_2', struct = parameters_dict['p_near_2']),
-            cas.entry('p_near_3', struct = parameters_dict['p_near_3'])
+            cas.entry('p_near_3', struct = parameters_dict['p_near_3']),
+            cas.entry('p_far_2', struct = parameters_dict['p_far_2']),
+            cas.entry('p_far_3', struct = parameters_dict['p_far_3'])
         ]
 
     parameters = cas.struct_symSX(entry_list)
