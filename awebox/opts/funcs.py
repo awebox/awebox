@@ -227,6 +227,9 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
+    if user_options['trajectory']['type'] == 'aaa':
+        options_tree.append(('nlp', None, None, 'N_far', options['model']['aero']['vortex_rings']['N_far'],  ('number of far-wake vortex rings to be taken into account before and after', None),'x'))
+
     if options['nlp']['compile_subfunctions']:
 
         # general name for compilation files that takes into account (most) identifying options for model and constraints
@@ -242,10 +245,12 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             options['model']['tether']['control_var']
         )
         if user_options['trajectory']['type'] == 'aaa':
-            compilation_file_name += '_Nrings{}_N_ell_int{}_ell_method_{}'.format(
+            compilation_file_name += '_Nrings{}_N_ell_int{}_ell_method_{}_Ndup{}_Nfar{}'.format(
                 options['model']['aero']['vortex_rings']['N_rings'],
                 options['model']['aero']['vortex_rings']['N_elliptic_int'],
                 options['model']['aero']['vortex_rings']['elliptic_method'],
+                options['model']['aero']['vortex_rings']['N_duplicates'],
+                options['model']['aero']['vortex_rings']['N_far'],
             )
 
         if options['nlp']['cost']['P_max']:

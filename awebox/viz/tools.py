@@ -867,7 +867,7 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
     interpolation = struct_op.interpolate_solution(cosmetics, time_grids_plot, variables_dict, V_plot,
         P_fix_num, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, integral_output_names,
-        integral_outputs_plot, Collocation=Collocation)
+        integral_outputs_plot, Collocation=Collocation, N_far = plot_dict['options']['model']['aero']['vortex_rings']['N_far'])
 
     # store the interpolation
     dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
