@@ -140,6 +140,7 @@ class Collocation(object):
         self.__dcoeff_fun = tfcns
         self.__coeff_fun = lfcns
         self.__coeff_fun_u = lfcns_u
+        self.__tau_root = tau_root
 
         return None
 
@@ -389,21 +390,31 @@ class Collocation(object):
 
                 v_conv = 10.0
                 if state == 'p_ring_2_{}'.format(kdx):
+                    q_avg = np.zeros((3,1))
+                    for ddx in range(self.__d):
+                        convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1])
+                        q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q21'] * model.scaling['x', 'q21'] + convection_time * cas.vertcat(v_conv, 0, 0)
+                        q_avg += self.__quad_weights[ddx] * q_convected_ddx 
                     q_convected = model.scaling['x', 'q21'] * V['x', kdx, 'q21'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
                     q_next = model.scaling['x', 'q21'] * xnext['q21']
                     delta_q = q_next - q_convected
                     g_continuity.append(
-                        V['x', kdx + 1, state] -  0.5 * (q_convected + q_next)
+                        V['x', kdx + 1, state] -  q_avg
                     )
                     dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_2', kdx]
                     time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
 
                 elif state == 'p_ring_3_{}'.format(kdx):
+                    q_avg = np.zeros((3,1))
+                    for ddx in range(self.__d):
+                        convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1]) 
+                        q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q31'] * model.scaling['x', 'q31'] + convection_time * cas.vertcat(v_conv,0, 0)
+                        q_avg += self.__quad_weights[ddx] * q_convected_ddx
                     q_convected = model.scaling['x', 'q31'] * V['x', kdx, 'q31'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
                     q_next = model.scaling['x', 'q31'] * xnext['q31']
                     delta_q = q_next - q_convected
                     g_continuity.append(
-                        V['x', kdx + 1, state] -  0.5 * (q_convected + q_next)
+                        V['x', kdx + 1, state] -  q_avg
                     )
                     dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_3', kdx]
                     time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
