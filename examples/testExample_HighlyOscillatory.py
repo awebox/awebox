@@ -10,8 +10,8 @@ Energy, Vol.173, pp. 569-585, 2019.
 :author: Jochem De Schutter
 :edited: Rachel Leuthold
 """
-from typing import List, Dict
 
+from typing import List, Dict
 import awebox as awe
 from awebox.opts.kite_data.ampyx_ap2_settings import set_ampyx_ap2_settings
 import matplotlib.pyplot as plt
@@ -21,6 +21,7 @@ from awebox.ocp.collocation import Collocation
 from awebox.ocp.discretization_averageModel import eval_time_grids_SAM, construct_time_grids_SAM_reconstruction, \
     reconstruct_full_from_SAM, originalTimeToSAMTime
 from awebox.viz.visualization import build_interpolate_functions_full_solution, dict_from_repeated_struct
+
 
 # set the logger level to 'DEBUG' to see IPOPT output
 from awebox.logger.logger import Logger as awelogger
@@ -58,13 +59,16 @@ options['user_options.wind.u_ref'] = 10.
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
 options['model.system_bounds.x.l_t'] = [10.0, 3000.0]  # [m]
 
+# (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+# note: this may result in slightly slower solution timings
+options['nlp.compile_subfunctions'] = True
 
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.cost.output_quadrature'] = False  # use enery as a state, works better with SAM
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 20 # the number of full cycles approximated
-options['nlp.SAM.d'] = 5 # the number of cycles actually computed
+options['nlp.SAM.N'] = 2 # the number of full cycles approximated
+options['nlp.SAM.d'] = 1 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 
 # SAM Regularization
@@ -91,7 +95,7 @@ else:
 
 options['solver.linear_solver'] = 'ma27'
 
-options['visualization.cosmetics.interpolation.N'] = 1000  # high plotting resolution
+options['visualization.cosmetics.interpolation.n_points'] = 1000  # high plotting resolution
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')

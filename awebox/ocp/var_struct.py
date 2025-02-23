@@ -105,7 +105,7 @@ def setup_nlp_v(nlp_options: dict, model: Model, coll_instance: collocation.Coll
                        ]
 
     # generate structure
-    V = cas.struct_symMX(entry_list)
+    return cas.struct_symMX(entry_list)
 
     # print_op.print_variable_info('NLP', V)
 

@@ -796,16 +796,31 @@ def si_to_scaled(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
+
+        # with SAM we have some additional variables that might need special treatment
+        if local_canonical[0] in ['v_macro_coll']:
+            continue
+
         if local_canonical[0] != 'phi':
 
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
+
+                # with SAM we have some additional variables that might need special treatment
+                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type = 'x'
+
                 var_name = local_canonical[1]
                 var_si = V[var_type, var_name]
                 V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
             elif len(local_canonical) == 3:
                 var_type = local_canonical[0]
+
+                # with SAM we have some additional variables that might need special treatment
+                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type = 'x'
+
                 kdx = local_canonical[1]
                 var_name = local_canonical[2]
                 var_si = V[var_type, kdx, var_name]
@@ -831,15 +846,30 @@ def scaled_to_si(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
+
+        # with SAM we have some additional variables that might need special treatment
+        if local_canonical[0] in ['v_macro_coll']:
+            continue
+
         if local_canonical[0] != 'phi':
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
+
+                # with SAM we have some additional variables that might need special treatment
+                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type = 'x'
+
                 var_name = local_canonical[1]
                 var_si = V[var_type, var_name]
                 V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
             elif len(local_canonical) == 3:
                 var_type = local_canonical[0]
+
+                # with SAM we have some additional variables that might need special treatment
+                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type = 'x'
+
                 kdx = local_canonical[1]
                 var_name = local_canonical[2]
                 var_si = V[var_type, kdx, var_name]

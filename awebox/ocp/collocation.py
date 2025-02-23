@@ -224,7 +224,7 @@ class Collocation(object):
 
         return None
 
-    def get_xdot(self, nlp_numerics_options, V, model):
+    def get_xdot(self, nlp_numerics_options, V, model, timeScaling = None):
         """ Get state derivates on all collocation nodes based on polynomials
         """
 
@@ -240,7 +240,12 @@ class Collocation(object):
         # collect the derivatives
         for k in range(self.__n_k):
 
-            tf = struct_op.calculate_tf(nlp_numerics_options, V, k)
+            # if the time scaling is provided, use it
+            # else look up the timescaling parameters from the variables struct
+            if timeScaling is None:
+                tf = struct_op.calculate_tf(nlp_numerics_options, V, k)
+            else:
+                tf = timeScaling
 
             # For all collocation points
             for j in range(self.__d+1):
@@ -340,6 +345,19 @@ class Collocation(object):
 
         return Integral_outputs_list
 
+    def get_continuity_expression(self, V, kdx) -> cas.MX:
+        """ Returns the expression for the state at the end of the finite element """
+
+        # get an expression for the state at the end of the finite element
+        xf_k = 0
+        for ddx in range(self.__d + 1):
+            if ddx == 0:
+                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
+            else:
+                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx - 1, 'x']
+
+        # pin the end of the control interval to the start of the new control interval
+        return xf_k
 
     def get_continuity_constraint(self, V, kdx):
 

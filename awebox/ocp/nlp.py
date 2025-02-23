@@ -35,6 +35,7 @@ import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 from . import discretization
+from awebox.ocp import discretization_averageModel
 from . import objective
 from . import var_bounds
 import time
@@ -76,6 +77,13 @@ class NLP(object):
 
     def __generate_discretization(self, nlp_options, model, formulation):
 
+        # decide which discretization to use
+        if nlp_options['SAM']['use']:
+            discretize_function = discretization_averageModel.discretize
+        else:
+            discretize_function = discretization.discretize
+
+        # discretize the ocp
         timer = time.time()
         [V,
         P,
@@ -91,7 +99,7 @@ class NLP(object):
         Collocation,
         Multiple_shooting,
         global_outputs,
-        global_outputs_fun] = discretization.discretize(nlp_options, model, formulation)
+        global_outputs_fun] = discretize_function(nlp_options,model,formulation)
         self.__timings['discretization'] = time.time()-timer
 
         ocp_cstr_list.scale(nlp_options['constraint_scale'])

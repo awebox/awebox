@@ -559,8 +559,8 @@ def discretize(nlp_options, model, formulation):
     # ---------------------------------------
     mdl_outputs = model.outputs
 
-    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
-    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
+    # global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
+    # global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
     # -------------------------------------------
     # COLLOCATE OUTPUTS
@@ -584,23 +584,33 @@ def discretize(nlp_options, model, formulation):
             elif nlp_options['collocation']['u_param'] == 'poly':
                 Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
 
+
+    # Create Outputs struct and function
     Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
+    Outputs = Outputs_fun(V, P)
+
     Outputs_struct = None
+    Outputs_structured_fun = None
+    Outputs_structured = None
 
     # Create Integral outputs struct and function
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
 
+    # Global outputs
+    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P)
+    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
+
     Xdot_struct = Xdot
-    Xdot_fun = cas.Function('Xdot_fun',[V],[Xdot])
+    Xdot_fun = cas.Function('Xdot_fun', [V], [Xdot])
 
     # -------------------------------------------
     # GET CONSTRAINTS
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
-        Integral_constraint_list, Integral_outputs, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs_struct, time_grids)
+        Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
+            ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids)
 
     # ---------------------------------------------
     # modify the constraints for SAM
@@ -719,7 +729,7 @@ def discretize(nlp_options, model, formulation):
     ocp_cstr_entry_list = ocp_cstr_struct.entries + SAM_cstrs_entry_list
     ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_struct, Outputs_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
+    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_fun, Outputs_struct, Outputs_structured, Outputs_structured_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 
 
 def constructPiecewiseCasadiExpression(decisionVariable: ca.SX, edges: List, expressions: List[ca.SX]) -> ca.SX:

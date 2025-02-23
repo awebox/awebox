@@ -97,6 +97,20 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     for name in list(model.parameters_dict['phi'].keys()):
         V_init_si['phi', name] = 1.
 
+    if 'x_macro' in V_init_si.keys():
+        # initial values for SAM parameters
+        V_init_si['x_macro',:] = V_init_si['x',0]
+
+        regions_indices_SAM = struct_op.calculate_SAM_regions(nlp.options)
+
+        for index in range(nlp.options['SAM']['d']):
+            multipliers_ADA = {'FD':[1,0],'BD':[0,1],'CD':[0.5,0.5],}[nlp.options['SAM']['ADAtype']]
+            V_init_si['x_macro_coll',index] = (multipliers_ADA[0]*V_init_si['x',regions_indices_SAM[index+1][0]]
+                                            + multipliers_ADA[1]*V_init_si['x',regions_indices_SAM[index+1][1]])
+
+            V_init_si['x_micro_minus',index] = V_init_si['x',regions_indices_SAM[index+1][0]]
+            V_init_si['x_micro_plus',index] = V_init_si['x',regions_indices_SAM[index+1][-1]]
+
     struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model)
 
     return V_init_si
@@ -133,9 +147,33 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     else:
         tf_guess = standard.guess_final_time(init_options, model)
 
+    # because there this is not an instance method, there are no global settings that we can access to find out that:
+    # Do we use PhaseFixing?
     use_phase_fixing = V_init['theta', 't_f'].shape[0] > 1
-    if use_phase_fixing:
+
+
+    # because there this is not an instance method, there are no global settings that we can access to find out that:
+    # Do we use the SAM discretization?
+    use_average_model = V_init['theta', 't_f'].shape[0] >= 2
+
+    # special options?
+    if use_average_model:
+        Nwindings = V_init['theta', 't_f'].shape[0]
+        dSAM = Nwindings - 1
+        Tsingle = tf_guess/Nwindings
+        tf_guess_vector = cas.DM.zeros(V_init['theta', 't_f'].shape)
+
+        tf_cycle = Tsingle*dSAM/(0.7)
+        tf_RI = Tsingle/(0.3)
+
+        tf_guess_vector[0:-1] = tf_cycle
+        tf_guess_vector[-1] = tf_RI
+
+        tf_guess = tf_guess_vector  # this is stupid
+
+    elif use_phase_fixing:
         tf_guess = cas.vertcat(tf_guess, tf_guess)
+
 
     V_init['theta', 't_f'] = tf_guess
 
