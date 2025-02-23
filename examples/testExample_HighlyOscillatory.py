@@ -13,7 +13,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 
 from typing import List, Dict
 import awebox as awe
-from awebox.opts.kite_data.ampyx_ap2_settings import set_ampyx_ap2_settings
+import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -41,7 +41,7 @@ if DUAL_KITES:
     options = ref.set_dual_kite_options(options)
 else:
     options['user_options.system_model.architecture'] = {1: 0}
-    options = set_ampyx_ap2_settings(options)
+    options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
 
 # indicate desired operation mode
 # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -62,12 +62,13 @@ options['model.system_bounds.x.l_t'] = [10.0, 3000.0]  # [m]
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = True
+options['nlp.cost.output_quadrature'] = False  # use enery as a state, works better with SAM
+options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
-options['nlp.cost.output_quadrature'] = False  # use enery as a state, works better with SAM
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 2 # the number of full cycles approximated
+options['nlp.SAM.N'] = 1 # the number of full cycles approximated
 options['nlp.SAM.d'] = 1 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 
@@ -81,8 +82,10 @@ options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-1*single_
 
 
 # smooth the reel in phase (this increases convergence speed x10)
-options['solver.cost.beta.0'] = 8e0
-options['solver.cost.u_regularisation.0'] = 1e0
+# options['solver.cost.beta.0'] = 8e0
+# options['solver.cost.u_regularisation.0'] = 1e0
+options['solver.max_iter'] = 0
+options['solver.max_iter_hippo'] = 0
 
 # Number of discretization points
 n_k = 20 * (options['nlp.SAM.d'] + 1)
@@ -100,7 +103,6 @@ options['visualization.cosmetics.interpolation.n_points'] = 1000  # high plottin
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
-# print(asdf)
 trial.optimize()
 # draw some of the pre-coded plots for analysis
 

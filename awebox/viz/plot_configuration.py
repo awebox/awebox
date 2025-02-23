@@ -24,4 +24,4 @@
 #
 
 # Set the default matplot backend, for more details see: https://matplotlib.org/stable/users/explain/figure/backends.htm
-DEFAULT_MPL_BACKEND = 'TkAgg'
+DEFAULT_MPL_BACKEND = 'macosx'

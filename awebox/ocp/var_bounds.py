@@ -88,7 +88,10 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
-                if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
+                if nlp_options['SAM']['use']:
+                    vars_lb['theta', 't_f', -1] = model.variable_bounds['theta']['t_f']['lb']
+                    vars_ub['theta', 't_f', -1] = model.variable_bounds['theta']['t_f']['ub'] * 3
+                elif (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
                     # the period constraint is applied within ocp.constraints,
                     # but we don't want the component times to go negative.
                     vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
@@ -105,6 +108,13 @@ def get_scaled_variable_bounds(nlp_options, V, model):
             vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
 
     return [vars_lb, vars_ub]
+
+
+# enum for phase options
+class PhaseOptions:
+    REELOUT = 'reelout'
+    REELIN = 'reelin'
+    TRANSITION = 'transition'
 
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
@@ -139,7 +149,35 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
             at_initial_control_node = (kdx == 0) and (not coll_flag)
 
-            if nlp_options['phase_fix'] == 'single_reelout':
+            if nlp_options['SAM']['use']:
+                assert not nlp_options['collocation'][
+                               'u_param'] == 'poly', 'poly control param not suppoert yet for average model'
+
+                # get the region indices
+                SAM_regions = struct_op.calculate_SAM_regions(nlp_options)
+                # in reelin phase?
+                offset = 1
+                phase = PhaseOptions.REELOUT  # default
+                if kdx in SAM_regions[-1][offset:-offset]:  # in TRANSITION
+                    phase = PhaseOptions.REELIN
+                elif kdx in SAM_regions[-1]:  # in REELIN
+                    phase = PhaseOptions.TRANSITION
+
+                # print(f'Index {kdx} is in phase {phase}', flush=True)
+
+                if phase == PhaseOptions.TRANSITION:
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                elif phase == PhaseOptions.REELOUT:
+                    vars_lb[var_type, kdx, name] = 0.0
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                elif phase == PhaseOptions.REELIN:
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = 0.0
+                else:
+                    awelogger.logger.error('phase not defined')
+
+            elif nlp_options['phase_fix'] == 'single_reelout':
 
                 switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
                 in_reelout_phase = (kdx < switch_kdx)
