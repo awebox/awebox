@@ -40,6 +40,9 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 from itertools import chain
 import matplotlib.pyplot as plt
+import awebox.tools.performance_operations as perf_op
+from awebox.ocp.discretization_averageModel import construct_time_grids_SAM_reconstruction
+from awebox.ocp.var_struct import get_number_of_tf
 
 def subkeys(casadi_struct, key):
 
@@ -436,11 +439,81 @@ def get_V_theta(V, nlp_numerics_options, k):
     return theta
 
 
+def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
+    """ Calculate the SAM region index of the interval index k.
+    The integration horizon [0,nk] is divided into `n_tf` regions.
+        The first ~70% are reserved for the individual micro-integrations of the SAM scheme,
+        The last ~30% is reserved for the the reel-in phase.
+    Note that this 70/30 relation is also hardcoded in the initialization of the t_fs
+
+    : param nlp_options: dictionary with the nlp options e.g option['nlp']
+    : param k: the integration interval index on the awebox grid
+
+    """
+
+    n_regions = get_number_of_tf(nlp_options)  # the number of time-scaling regions
+    n_k = nlp_options['n_k']  # the total number of integration intervals
+    n_micros = nlp_options['SAM']['d']  # the number of micro-integrations
+
+    # 1. reserve ~30% of the ingeration intervals for reelin & pre-reelout
+    n_single_micro = round(n_k*0.7/n_micros)
+    n_RO_intervals = n_single_micro*n_micros
+    n_RI_intervals = n_k - n_RO_intervals
+
+    # the number integrations intervals per regions
+    delta_ns = np.array([n_single_micro]*n_micros + [n_RI_intervals])
+    assert np.sum(delta_ns) == n_k, 'sum of the rounded delta_ns must be equal to n_k'
+
+    # 2. calculate the region index
+    region_indx = np.sum(k >= np.cumsum(delta_ns))
+    if region_indx > n_regions - 1:
+        # last interval? -> return last region
+        region_indx = n_regions - 1
+
+    return int(region_indx)
+
+
+def calculate_SAM_regions(nlp_options: dict) -> list:
+    """ Returs a list of lists, where each list contains the indices of the k's that belong to the same SAM region.
+        For example, nk= 10, d_SAM=1, and thus 3 regions, the output will be
+        [[0,1,2],[4,5,6],[7,8,9,10]]
+
+        :param nlp_options: dictionary with the nlp options e.g option['nlp']
+        :return: list of lists with of indices
+    """
+    n_k = nlp_options['n_k']
+    n_tf = get_number_of_tf(nlp_options)
+    return_list = [[] for _ in range(n_tf)]  # generate a list with n_tf empty lists
+    for k in range(n_k):
+        return_list[calculate_SAM_regionIndex(nlp_options, k)].append(k)
+    return return_list
+
+
+def calculate_tf_index(nlp_options, k):
+    """ Calculates the index of the discretization region (with a constant tf) that the index `k` belongs to """
+    nk = nlp_options['n_k']
+    if nlp_options['SAM']['use']:
+        assert nlp_options['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        return calculate_SAM_regionIndex(nlp_options, k)
+
+    elif nlp_options['phase_fix'] == 'single_reelout':
+        k_reelout = round(nk * nlp_options['phase_fix_reelout'])
+        if k < k_reelout:
+            return 0
+        else:
+            return 1
+    else:
+        raise Exception('Case not covered!')
+
 def calculate_tf(params, V, k):
 
     nk = params['n_k']
 
-    if params['phase_fix'] == 'single_reelout':
+    if params['SAM']['use']:
+        assert params['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        tf =  V['theta', 't_f', calculate_SAM_regionIndex(params, k)]
+
+    elif params['phase_fix'] == 'single_reelout':
         if k < round(nk * params['phase_fix_reelout']):
             tf = V['theta', 't_f', 0]
         else:
@@ -450,13 +523,105 @@ def calculate_tf(params, V, k):
 
     return tf
 
+
+def calculate_SAM_regionIndexArray(nlpoptions, Vopt, t: np.ndarray) -> np.ndarray:
+    """
+    For a given time vector t IN THE ORIGINAL AWEBOX TIME, calculate the region index for each time point.
+
+    :param nlpoptions: dictionary with the nlp options e.g option['nlp']
+    :param Vopt: the solution struct
+    :param t: numpy array with the time points
+
+    """
+
+    assert type(t) is np.ndarray, f't must be a numpy array, but is {type(t)}'
+
+    n_k = nlpoptions['n_k']
+    indeces_regions = calculate_SAM_regions(nlpoptions)
+    delta_ns = np.array([len(region) for region in indeces_regions]) # number integration intervals in each region
+    tfs = Vopt['theta', 't_f',:].full().flatten()
+    delta_ts = tfs/n_k * delta_ns # duration of each phase in physical time
+    ts_cumsum = np.cumsum(np.append(0,delta_ts)) # cumulative sum of the phase durations
+
+    # evaluate the region index for a numpy array of times t
+    region_index = np.array([np.sum(s >= ts_cumsum) - 1 for s in t])
+    return region_index
+
+
+
+
+def calculate_kdx_SAM(params, V, t) -> tuple:
+    """ """
+    n_k = params['n_k']
+    indeces_regions = calculate_SAM_regions(params)
+    delta_ns = np.array([len(region) for region in indeces_regions]) # number integration intervals in each region
+    tfs = V['theta', 't_f',:].full().flatten()
+    delta_ts = tfs/n_k * delta_ns # duration of each phase in physical time
+    ts_cumsum = np.cumsum(np.append(0,delta_ts)) # cumulative sum of the phase durations
+    region_index = np.sum(t >= ts_cumsum) - 1 # index of the region where t is located
+
+    if region_index > tfs.shape[0] - 1:
+        region_index = tfs.shape[0] - 1
+
+    # calculate the (continuous) integration index of the given time
+    n_t = np.cumsum(np.append(0,delta_ns))[region_index] + (t - ts_cumsum[region_index])*n_k/tfs[region_index]
+
+    kdx = int(np.floor(n_t))
+    tau = n_t - kdx
+
+    # special case: last integration interval
+    if kdx == n_k:
+        kdx = n_k - 1
+        tau = 1.0
+
+    assert kdx < n_k, 'kdx must be smaller than n_k'
+    assert kdx >= 0, 'kdx must be positive'
+    assert tau <= 1.0, 'tau must be smaller than 1.0'
+    assert tau >= 0.0, 'tau must be positive'
+
+    return kdx, tau
+
+_timegrid_reconstruct_save = None # THIS IS BAAAAAD, but so much faster
+
+def calculate_kdx_SAM_reconstruction(params, V, t) -> tuple:
+    """ Calculate the interval index kdx and the remaining relative interval tau duration of the interval in which the time t is located.
+    This is valid only IF THE VARIABLES V are reconstructed versions of the SAM variables.
+    """
+    assert params['SAM']['flag_SAM_reconstruction'], 'This function is only valid for SAM reconstruction'
+
+    # 1. build timegrid from t_f_opt
+    global _timegrid_reconstruct_save
+    if _timegrid_reconstruct_save is None:
+        print('constructing timegrid for SAM reconstruction')
+        _timegrid_reconstruct_save = construct_time_grids_SAM_reconstruction(params)
+    else:
+        # print('using saved timegrid for SAM reconstruction')
+        pass
+    timegrid_f = _timegrid_reconstruct_save
+    timegrid_intervals = timegrid_f['x'](V['theta', 't_f']).full().flatten()
+
+    # 2. find the region index using numpy.argmax(timegrid > t) - 1
+    index = np.argmax(timegrid_intervals > t) - 1
+    delta_t = timegrid_intervals[index + 1] - timegrid_intervals[index] # todo: this approximation could be better
+
+    # 3. find the kdx and tau using the region index and the timegrid
+    kdx = index
+    tau = (t - timegrid_intervals[index]) / delta_t
+
+    return kdx, tau
+
 def calculate_kdx(params, V, t):
 
     n_k = params['n_k']
 
     lift_mode_with_single_reelout_phase_fixing = (V['theta', 't_f'].shape[0] == 2)
 
-    if lift_mode_with_single_reelout_phase_fixing:
+    if params['SAM']['use']:
+        assert params['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        kdx, tau = calculate_kdx_SAM(params, V, t)
+    elif params['SAM']['flag_SAM_reconstruction']:
+        kdx, tau = calculate_kdx_SAM_reconstruction(params, V, t)
+    elif lift_mode_with_single_reelout_phase_fixing:
         k_reelout = round(n_k * params['phase_fix_reelout'])
         t_reelout = k_reelout * V['theta', 't_f', 0] / n_k
         if t <= t_reelout:
