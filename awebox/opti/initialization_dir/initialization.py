@@ -97,6 +97,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
     for name in list(model.parameters_dict['phi'].keys()):
         V_init_si['phi', name] = 1.
 
+    # extra options for SAM
     if 'x_macro' in V_init_si.keys():
         # initial values for SAM parameters
         V_init_si['x_macro',:] = V_init_si['x',0]

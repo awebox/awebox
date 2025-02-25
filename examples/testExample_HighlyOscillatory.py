@@ -62,19 +62,21 @@ options['model.system_bounds.x.l_t'] = [10.0, 3000.0]  # [m]
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = True
-options['nlp.cost.output_quadrature'] = False  # use enery as a state, works better with SAM
+options['model.integration.method'] = 'constraints'  # use enery as a state, works better with SAM
 options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 1 # the number of full cycles approximated
+options['nlp.SAM.N'] = 10 # the number of full cycles approximated
 options['nlp.SAM.d'] = 1 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
+options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
+
 
 # SAM Regularization
-single_regularization_param = 1E-4
-options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 0*single_regularization_param
+single_regularization_param = 1E5
+options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1*single_regularization_param
 options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1*single_regularization_param
 options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regularization_param
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-1*single_regularization_param
@@ -94,11 +96,11 @@ options['nlp.n_k'] = n_k
 if DUAL_KITES:
     options['model.system_bounds.theta.t_f'] = [5, 10 * options['nlp.SAM.N']]  # [s]
 else:
-    options['model.system_bounds.theta.t_f'] = [40, 40*options['nlp.SAM.N']] # [s]
+    options['model.system_bounds.theta.t_f'] = [30, 40*options['nlp.SAM.N']] # [s]
 
 options['solver.linear_solver'] = 'ma27'
 
-options['visualization.cosmetics.interpolation.n_points'] = 1000  # high plotting resolution
+options['visualization.cosmetics.interpolation.n_points'] = 100  # high plotting resolution
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
@@ -106,100 +108,37 @@ trial.build()
 trial.optimize()
 # draw some of the pre-coded plots for analysis
 
-# extract information from the solution for independent plotting or post-processing
-# here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
-# %% Post-Processing
-
-plot_dict_REC = trial.visualization.plot_dict
-plot_dict_SAM = trial.visualization.plot_dict_SAM
-outputs = plot_dict_REC['outputs']
-time = plot_dict_REC['time_grids']['ip']
-avg_power_REC = plot_dict_SAM['power_and_performance']['avg_power'] / 1e3
-avg_power_SAM = plot_dict_REC['power_and_performance']['avg_power'] / 1e3
-
-print('======================================')
-print('Average power SAM: {} kW'.format(avg_power_SAM))
-print('Average power REC: {} kW'.format(avg_power_REC))
-print('======================================')
-
-# # %%
-# trial.plot(['states'])
-# plt.gcf().tight_layout()
-
-
-
-# %% Plot outputs
-# tether_drag = plot_dict['outputs']['tether_aero']['multi_upper1']
-# power = plot_dict_REC['outputs']['performance']['p_current'][0]
-invariants_REC = plot_dict_REC['outputs']['tether_length']['c10'][0]
-time_plot_REC = plot_dict_REC['time_grids']['ip']
-airspeed_REC = plot_dict_REC['outputs']['aerodynamics']['airspeed1'][0]
-
-airspeed_SAM = plot_dict_SAM['outputs']['aerodynamics']['airspeed1'][0]
-invariants_SAM = plot_dict_SAM['outputs']['tether_length']['c10'][0]
-time_plot_SAM = plot_dict_SAM['time_grids']['ip']
-ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
-
-outputs_SAM_nlp = dict_from_repeated_struct(plot_dict_SAM['outputs_struct'], plot_dict_SAM['output_vals'][1].full())
-invariants_SAM_nlp = outputs_SAM_nlp['tether_length']['c10'][0]
-time_plot_SAM_nlp = plot_dict_SAM['time_grids']['x_coll']
-
-# %%
-plt.figure()
-# plt.plot(time_plot, power, '-')
-
-for region_index in np.arange(0, trial.options['nlp']['SAM']['d']):
-    indices = np.where(ip_regions_SAM == region_index)
-    plt.plot(time_plot_SAM[indices], airspeed_SAM[indices], 'C0-')
-
-plt.plot(time_plot_REC, airspeed_REC, 'k-',alpha=0.3)
-# plt.plot(time_plot_SAM_nlp[:-1], invariants_SAM_nlp, 'C0.',alpha=1)
-
-plt.xlabel('Time [s]')
-plt.show()
-
-
-# %% Latexify the plots
-# def latexify():
-#     import matplotlib
-#     params_MPL_Tex = {
-#         'text.usetex': True,
-#         'font.family': 'serif',
-#         # Use 10pt font in plots, to match 10pt font in document
-#         "axes.labelsize": 10,
-#         "font.size": 10,
-#         # Make the legend/label fonts a little smaller
-#         "legend.fontsize": 8,
-#         "xtick.labelsize": 8,
-#         "ytick.labelsize": 8
-#     }
-#     matplotlib.rcParams.update(params_MPL_Tex)
-#
-#
-# latexify()
-
 # %% Plot state trajectories
 
 from awebox.tools.struct_operations import calculate_SAM_regions
+from awebox.tools.struct_operations import calculate_kdx_SAM
+
+
+plot_dict_SAM = trial.visualization.plot_dict_SAM
+time_plot_SAM = plot_dict_SAM['time_grids']['ip']
+ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
 
 time_grid_SAM = plot_dict_SAM['time_grids']
-time_grid_SAM_x = time_grid_SAM['x']
+time_grid_SAM_x = time_grid_SAM['x'].full().flatten()
 regions_indeces = calculate_SAM_regions(trial.nlp.options)
-t_ip = plot_dict_REC['time_grids']['ip']
+delta_ns = [region_indeces.__len__() for region_indeces in regions_indeces]
+Ts_opt = [delta_ns[i] / trial.nlp.options['n_k'] * trial.solution_dict['V_opt']['theta', 't_f', i] for i in range(trial.nlp.options['SAM']['d']+1)]
+# t_ip = plot_dict_REC['time_grids']['ip']
 
 
 plt.figure(figsize=(10, 10))
 if DUAL_KITES:
-    plot_states = ['q21', 'dq21', 'l_t',  'e']
+    plot_states = ['q21', 'dq21', 'l_t']
 else:
-    plot_states = ['q10', 'dq10', 'l_t', 'dl_t', 'e']
+    plot_states = ['q10', 'dq10', 'l_t', 'dl_t','e']
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)
     state_traj = np.vstack([plot_dict_SAM['x'][state_name][i] for i in range(plot_dict_SAM['x'][state_name].__len__())]).T
 
-    for region_index in range(trial.options['nlp']['SAM']['d']):
+    d = trial.options['nlp']['SAM']['d']
+    for region_index in range(d+1):
         plt.plot(time_grid_SAM['ip'][np.where(ip_regions_SAM == region_index)],
-                    state_traj[np.where(ip_regions_SAM == region_index)], '-')
+                    state_traj[np.where(ip_regions_SAM == region_index)], '-.' if region_index == d else '-')
         plt.gca().set_prop_cycle(None)  # reset color cycle
 
     plt.plot([], [], label=state_name)
@@ -207,11 +146,13 @@ for index, state_name in enumerate(plot_states):
     plt.gca().set_prop_cycle(None)  # reset color cycle
 
     state_recon = np.vstack([plot_dict_REC['x'][state_name][i] for i in range(plot_dict_REC['x'][state_name].__len__())]).T
-    plt.plot(t_ip, state_recon, label=state_name + '_recon', linestyle='--')
+    # plt.plot(t_ip, state_recon, label=state_name + '_recon', linestyle='--')
 
     # add phase switches
-    # plt.axvline(x=time_grid_SAM_x[regions_indeces[1][0]],color='k',linestyle='--')
-    # plt.axvline(x=time_grid_SAM_x[regions_indeces[-1][0]],color='k',linestyle='--')
+    for region in regions_indeces:
+        plt.axvline(x=time_grid_SAM_x[region[0]],color='k',linestyle='--')
+    plt.axvline(x=time_grid_SAM_x[regions_indeces[-1][-1]],color='k',linestyle='--')
+
     #
     # for region_indeces in regions_indeces[1:-1]:
     #     plt.axvline(x=time_grid_SAM_x[region_indeces[0]],color='b',linestyle='--')
@@ -223,9 +164,9 @@ plt.tight_layout()
 plt.show()
 
 # %% Initialization and Reference
-
+from casadi.tools import structure3
 Vopt = trial.optimization.V_opt
-Vref = trial.optimization.V_ref
+Vref: structure3 = trial.optimization.V_ref
 Vinit = trial.optimization.V_init
 
 if True:
@@ -234,9 +175,9 @@ if True:
     time_grid_init = trial.nlp.time_grids['x'](Vinit['theta', 't_f']).full().flatten()
 
     if DUAL_KITES:
-        plot_states = ['q21', 'dq21', 'l_t', 'e']
+        plot_states = ['q21', 'dq21', 'l_t','e']
     else:
-        plot_states = ['q10', 'dq10', 'l_t', 'e']
+        plot_states = ['q10', 'dq10', 'l_t','e']
 
     for index, state_name in enumerate(plot_states):
         plt.subplot(2, 2, index + 1)

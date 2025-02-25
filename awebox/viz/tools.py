@@ -728,6 +728,9 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
     if n_points is not None:
         cosmetics['interpolation']['n_points'] = int(n_points)
 
+    # extend the cosmetics dict with the SAM options
+    cosmetics['SAM'] = options['nlp']['SAM']
+
     plot_dict['cost'] = cost
 
     # add V_plot to dict

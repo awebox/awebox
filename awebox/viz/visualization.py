@@ -298,6 +298,11 @@ class VisualizationSAM(Visualization):
         self.__plot_dict_SAM: dict = None
         self.__options: dict = None
 
+    @property
+    def plot_dict_SAM(self):
+        """ The plot dictionary from the AWEbox SAM formulation, as used in the optimization"""
+        return self.__plot_dict_SAM
+
     def build(self, model, nlp, name, options):
         """
         Generate plot dictionary with all relevant plot information.
@@ -312,52 +317,55 @@ class VisualizationSAM(Visualization):
         # self.create_plot_logic_dict()
         self.__options = options
 
-    def recalibrate(self, V_plot, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs):
+    def recalibrate(self, V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
         """ Recalibrate both the SAM and the RECONSTRUCTED plot dictionaries. """
 
         # in the original (SAM) dictionary, only the timegrid is different
-        self.plot_dict_SAM = tools.recalibrate_visualization(V_plot, self.plot_dict_SAM, output_vals, integral_outputs_final, parametric_options, time_grids, cost, name, V_ref, global_outputs)
+        self.plot_dict_SAM = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
+                                                           parametric_options, time_grids, cost, name, V_ref_scaled,
+                                                           global_outputs)
 
         # replace the interpolating grid with the SAM grid
         time_grid_ip_original: np.ndarray = self.plot_dict_SAM['time_grids']['ip']
         time_grid_xcoll_original: ca.DM = self.plot_dict_SAM['time_grids']['x_coll']
-        originalTimeToSAMTime_f = originalTimeToSAMTime(self.options['nlp'],V_plot['theta', 't_f'])
-        time_grid_SAM_eval = eval_time_grids_SAM(self.options['nlp'],V_plot['theta', 't_f'])
+        originalTimeToSAMTime_f = originalTimeToSAMTime(self.options['nlp'], V_plot_scaled['theta', 't_f'])
+        time_grid_SAM_eval = eval_time_grids_SAM(self.options['nlp'], V_plot_scaled['theta', 't_f'])
         time_grid_SAM_eval['ip'] = originalTimeToSAMTime_f.map(time_grid_ip_original.size)(time_grid_ip_original).full().flatten()
 
         # add the region indices to the SAM plot dictionary
         self.plot_dict_SAM['SAM_regions_x_coll'] = calculate_SAM_regionIndexArray(self.options['nlp'],
-                                                                              V_plot,
-                                                                              time_grid_xcoll_original.full().flatten())
+                                                                                  V_plot_scaled,
+                                                                                  time_grid_xcoll_original.full().flatten())
         self.plot_dict_SAM['SAM_regions_ip'] = calculate_SAM_regionIndexArray(self.options['nlp'],
-                                                                              V_plot,
+                                                                              V_plot_scaled,
                                                                               time_grid_ip_original)
         self.plot_dict_SAM['time_grids'] = time_grid_SAM_eval  # we do this AFTER we calculate the region indices
 
         # the plot dict is now the RECONSTRUCTED one
-        self.plot_dict = self.create_reconstructed_plot_dict(V_plot, output_vals[1], global_outputs,integral_outputs_final)
+        self.plot_dict = self.create_reconstructed_plot_dict(V_plot_scaled, output_vals['opt'], global_outputs, integral_output_vals)
 
-    def create_reconstructed_plot_dict(self, V_plot, output_vals, global_outputs,integral_outputs_final) -> dict:
+    def create_reconstructed_plot_dict(self, V_plot_scaled, output_vals, global_outputs,integral_outputs_final) -> dict:
         """ Create the plot dictionary for the RECONSTRUCTED variables and outputs. """
 
         # extract information
         plot_dict = self.plot_dict  # get the existing plot dict, it already contains some information
         nlp_options = self.options['nlp']
-        scaling = plot_dict['scaling']
-        V_plot = struct_op.scaled_to_si(V_plot, scaling) # convert V_plot to SI units
+        # scaling = plot_dict['scaling']
+        # V_plot_scaled = struct_op.scaled_to_si(V_plot_scaled, scaling) # convert V_plot to SI units
 
         # reconstruct the full trajectory
         awelogger.logger.info('Reconstructing the full trajectory from the SAM solution..')
         V_reconstructed, time_grid_reconstructed, output_vals_reconstructed = reconstruct_full_from_SAM(
-            nlpoptions=nlp_options, Vopt=V_plot, output_vals_opt=output_vals)
+            nlpoptions=nlp_options, Vopt=V_plot_scaled, output_vals_opt=output_vals)
 
         # interpolate the reconstructed trajectory
-        n_ip = self.options['visualization']['cosmetics']['interpolation']['N']
+        n_ip = self.options['visualization']['cosmetics']['interpolation']['n_points']
         awelogger.logger.info(f'Interpolating reconstruted trajectory with {n_ip} points  ..')
         funcs_ip = build_interpolate_functions_full_solution(V_reconstructed, time_grid_reconstructed, nlp_options,
                                                              output_vals_reconstructed)
 
         # evaluate states, controls, algebraic variables, outputs at the interpolated points
+        # todo: use the existing awebox interpolation, or replace
         t_ip = np.linspace(0, float(time_grid_reconstructed['x'][-1]), n_ip)
         x_ip = funcs_ip['x'].map(t_ip.size)(t_ip)
         x_ip_dict = dict_from_repeated_struct(plot_dict['variables_dict']['x'], x_ip)
@@ -366,7 +374,7 @@ class VisualizationSAM(Visualization):
         z_ip = funcs_ip['z'].map(t_ip.size)(t_ip)
         z_ip_dict = dict_from_repeated_struct(plot_dict['variables_dict']['z'], z_ip)
         y_ip = funcs_ip['y'].map(t_ip.size)(t_ip)
-        y_ip_dict = dict_from_repeated_struct(plot_dict['outputs_struct'], y_ip)
+        y_ip_dict = dict_from_repeated_struct(plot_dict['model_outputs'], y_ip)
 
         # build the output dict
         awelogger.logger.info('Building plot ditionary for the reconstructed trajectory..')
@@ -384,8 +392,8 @@ class VisualizationSAM(Visualization):
 
         # fill theta
         plot_dict['theta'] = {}
-        variables_dict = plot_dict['variables']
-        for name in list(struct_op.subkeys(variables_dict, 'theta')):
+        variables_dict = plot_dict['variables_dict']
+        for name in variables_dict['theta'].keys():
             plot_dict['theta'][name] = plot_dict['V_plot']['theta', name].full()[0][0]
 
 

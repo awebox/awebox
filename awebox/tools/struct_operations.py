@@ -610,10 +610,13 @@ def calculate_kdx_SAM_reconstruction(params, V, t) -> tuple:
 
     return kdx, tau
 
-def calculate_kdx(params, V, t):
+def calculate_kdx(params:dict, V, t):
+
+    # do some checks on the params dictionary, since sometimes they are not passed correctly
+    for needed_key in ['n_k', 'phase_fix','SAM']:
+        assert needed_key in params, f'There should be a "{needed_key}" key in the params dictionary, but it is not. {params.keys()}'
 
     n_k = params['n_k']
-
     lift_mode_with_single_reelout_phase_fixing = (V['theta', 't_f'].shape[0] == 2)
 
     if params['SAM']['use']:

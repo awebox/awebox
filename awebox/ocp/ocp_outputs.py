@@ -110,7 +110,7 @@ def find_time_period(nlp_numerics_options, V):
     lift_mode = nlp_numerics_options['system_type'] == 'lift_mode'
     single_reelout = nlp_numerics_options['phase_fix'] == 'single_reelout'
 
-    if nlp_numerics_options['SAM']['use'] == True:
+    if nlp_numerics_options['SAM']['use']:
         regions_indeces = struct_op.calculate_SAM_regions(nlp_numerics_options)
         delta_ns = [region_indeces.__len__() for region_indeces in regions_indeces]
         assert sum(delta_ns) == nlp_numerics_options['n_k']
