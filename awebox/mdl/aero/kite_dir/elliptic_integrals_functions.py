@@ -10,14 +10,14 @@ import casadi as ca
 def K(m,n_max): #series representation of complete elliptic Integral of the first kind
     kk = 0
     for n in range(0,n_max):
-        kk += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(2*n)
+        kk += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)
     return(kk)
 
 
 def E(m,n_max): #series representation of complete elliptic Integral of the second kind
     ee = 0
     for n in range(0,n_max):
-        ee += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(2*n)/(1-2*n)
+        ee += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)/(1-2*n)
     return(ee)
 
 
