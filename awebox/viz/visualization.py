@@ -321,9 +321,10 @@ class VisualizationSAM(Visualization):
         """ Recalibrate both the SAM and the RECONSTRUCTED plot dictionaries. """
 
         # in the original (SAM) dictionary, only the timegrid is different
-        self.plot_dict_SAM = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
+        plot_dict_Awebox = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
                                                            parametric_options, time_grids, cost, name, V_ref_scaled,
                                                            global_outputs)
+        self.plot_dict_SAM = plot_dict_Awebox.copy()
 
         # replace the interpolating grid with the SAM grid
         time_grid_ip_original: np.ndarray = self.plot_dict_SAM['time_grids']['ip']
@@ -350,13 +351,13 @@ class VisualizationSAM(Visualization):
         # extract information
         plot_dict = self.plot_dict  # get the existing plot dict, it already contains some information
         nlp_options = self.options['nlp']
-        # scaling = plot_dict['scaling']
-        # V_plot_scaled = struct_op.scaled_to_si(V_plot_scaled, scaling) # convert V_plot to SI units
+        scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+        V_plot_si = struct_op.scaled_to_si(V_plot_scaled, scaling) # convert V_plot to SI units
 
         # reconstruct the full trajectory
         awelogger.logger.info('Reconstructing the full trajectory from the SAM solution..')
         V_reconstructed, time_grid_reconstructed, output_vals_reconstructed = reconstruct_full_from_SAM(
-            nlpoptions=nlp_options, Vopt=V_plot_scaled, output_vals_opt=output_vals)
+            nlpoptions=nlp_options, Vopt=V_plot_si, output_vals_opt=output_vals)
 
         # interpolate the reconstructed trajectory
         n_ip = self.options['visualization']['cosmetics']['interpolation']['n_points']

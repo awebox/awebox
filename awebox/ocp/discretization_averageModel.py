@@ -187,7 +187,7 @@ class OthorgonalCollocation:
 def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_vals_opt: ca.DM) -> tuple:
     """
     Reconstruct the full trajectory from the SAM discretization with micro- and macro-integrations.
-    This works by interpolating the polynomials for of the algebraic variables (that are the micro-integrations)
+    This works by interpolating the polynomials of the algebraic variables (that are the micro-integrations)
     of the DAE for the average dynamics. The time grid is reconstructed by interpolating the time-scaling parameters.
 
     This functions returns a structure `V` (that has the same structure as the regular variables if no averaging is used)
@@ -526,7 +526,7 @@ def discretize(nlp_options, model, formulation):
     # discretization setup
     # -----------------------------------------------------------------------------
     nk = nlp_options['n_k']
-    assert nlp_options['discretization'] == 'direct_collocation', 'for SAM, we only support direct collocation as'
+    assert nlp_options['discretization'] == 'direct_collocation', 'for SAM, we only support direct collocation as of yet'
     d = nlp_options['collocation']['d']
     scheme = nlp_options['collocation']['scheme']
     Collocation = coll_module.Collocation(nk, d, scheme)
@@ -663,6 +663,16 @@ def discretize(nlp_options, model, formulation):
         SAM_cstrs_list.append(ada_vcoll_cstr)
         SAM_cstrs_entry_list.append(cas.entry(f'ada_vcoll_cstr_{i}', shape=xminus.shape))
 
+        # enforce consistency at start of reelout LEADS TO LICQ VIOLATION I GUESS\
+        # index_reelin_start = tf_regions_indices[-1][0]
+        # vars_reelin_start = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, n_first)
+        # params_reelin_start = struct_op.get_shooting_params(nlp_options, V, P, model)[:,n_first]
+        # invariants_start_reelin = model.outputs(model.outputs_fun(vars_reelin_start,params_reelin_start))['invariants']
+        # invariants_start_reelin_cstr = cstr_op.Constraint(expr=invariants_start_reelin,
+        #                                           name=f'invariants_start_{i}',
+        #                                           cstr_type='eq')
+        # SAM_cstrs_list.append(invariants_start_reelin_cstr)
+        # SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_{i}', shape=invariants_start_reelin.shape))
 
         # 5. Connect to Macro integraiton point
         ada_type = nlp_options['SAM']['ADAtype']
@@ -717,7 +727,9 @@ def discretize(nlp_options, model, formulation):
     SAM_cstrs_entry_list.append(cas.entry('macro_end_cstr', shape=xminus.shape))
 
     # connect endpoint of the macro-integration with start of the reelin phase
-    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - V['x', tf_regions_indices[-2][-1] + 1],
+    index_reelin_start = tf_regions_indices[-1][0]
+    x_reelin_start = V['x', index_reelin_start]
+    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start,
                                   name='macro_connect_reelin',
                                   cstr_type='eq')
     SAM_cstrs_list.append(macro_connect_reelin)

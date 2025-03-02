@@ -164,8 +164,8 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
         Tsingle = tf_guess/Nwindings
         tf_guess_vector = cas.DM.zeros(V_init['theta', 't_f'].shape)
 
-        tf_cycle = Tsingle*dSAM/(0.7)
-        tf_RI = Tsingle/(0.3)
+        tf_cycle = Tsingle*dSAM/(0.6)
+        tf_RI = Tsingle/(0.4)
 
         tf_guess_vector[0:-1] = tf_cycle
         tf_guess_vector[-1] = tf_RI

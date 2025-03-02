@@ -510,7 +510,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, model: Model) -> U
     macro_int = OthorgonalCollocation(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
 
     # third derivative of the average state
-    DERIVATIVE_T0_REGULARIZE = 2
+    DERIVATIVE_T0_REGULARIZE = 3
     V_matrix = cas.horzcat(*V['v_macro_coll'])
     sam_regularizaion_third_deriv_x_average = 0
     for i, c_i in enumerate(macro_int.c):
@@ -541,9 +541,13 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, model: Model) -> U
 
     # similar durations, TODO: also do this using the polynomials
     sam_regularization_similar_durations = 0
-    if V['theta', 't_f'].shape[0] >= 3:  # (more than 1 micro-integration)
-        res_T = V['theta', 't_f', 0:-2] - V['theta', 't_f', 1:-1]
-        sam_regularization_similar_durations += res_T.T @ res_T
+    tfs_cycles = V['theta', 't_f', 0:-1]
+    for i, c_i in enumerate(macro_int.c):
+        # compute the 3rd derivative of the polynomial for the algebraic variables
+        l_i_dot = ca.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
+        T_i_dot = tfs_cycles.T @ l_i_dot  # value of the first derivative of the cycle duration variables at the collocation point
+
+        sam_regularization_similar_durations += macro_int.b[i] * T_i_dot**2
 
     return (regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average
             + regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average

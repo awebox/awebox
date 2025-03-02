@@ -156,7 +156,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 # get the region indices
                 SAM_regions = struct_op.calculate_SAM_regions(nlp_options)
                 # in reelin phase?
-                offset = 3
+                offset = 1
                 phase = PhaseOptions.REELOUT  # default
                 if kdx in SAM_regions[-1][offset:-offset]:  # in TRANSITION
                     phase = PhaseOptions.REELIN

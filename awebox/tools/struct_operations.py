@@ -442,9 +442,9 @@ def get_V_theta(V, nlp_numerics_options, k):
 def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
     """ Calculate the SAM region index of the interval index k.
     The integration horizon [0,nk] is divided into `n_tf` regions.
-        The first ~70% are reserved for the individual micro-integrations of the SAM scheme,
-        The last ~30% is reserved for the the reel-in phase.
-    Note that this 70/30 relation is also hardcoded in the initialization of the t_fs
+        The first ~60% are reserved for the individual micro-integrations of the SAM scheme,
+        The last ~40% is reserved for the the reel-in phase.
+    Note that this 60/40 relation is also hardcoded in the initialization of the t_fs
 
     : param nlp_options: dictionary with the nlp options e.g option['nlp']
     : param k: the integration interval index on the awebox grid
@@ -455,8 +455,8 @@ def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
     n_k = nlp_options['n_k']  # the total number of integration intervals
     n_micros = nlp_options['SAM']['d']  # the number of micro-integrations
 
-    # 1. reserve ~30% of the ingeration intervals for reelin & pre-reelout
-    n_single_micro = round(n_k*0.7/n_micros)
+    # 1. reserve ~40% of the ingeration intervals for reelinn phase
+    n_single_micro = round(n_k*0.6/n_micros)
     n_RO_intervals = n_single_micro*n_micros
     n_RI_intervals = n_k - n_RO_intervals
 
@@ -808,11 +808,6 @@ def si_to_scaled(V_ori, scaling):
 
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
-
-                # with SAM we have some additional variables that might need special treatment
-                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
-                    var_type = 'x'
-
                 var_name = local_canonical[1]
                 var_si = V[var_type, var_name]
                 V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
@@ -821,13 +816,15 @@ def si_to_scaled(V_ori, scaling):
                 var_type = local_canonical[0]
 
                 # with SAM we have some additional variables that might need special treatment
-                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
-                    var_type = 'x'
+                var_type_to_store = var_type # the type(name) of the variable in the dictionary
+                var_type_scaling = var_type # the name that is used to look up the scaling
+                if var_type_to_store in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type_scaling = 'x' # for SAM: the scaling is stored under 'x'
 
                 kdx = local_canonical[1]
                 var_name = local_canonical[2]
-                var_si = V[var_type, kdx, var_name]
-                V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
+                var_si = V[var_type_to_store, kdx, var_name]
+                V[var_type_to_store, kdx, var_name] = var_si_to_scaled(var_type_scaling, var_name, var_si, scaling, check_should_multiply=False)
 
             elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
                 kdx = local_canonical[1]
@@ -857,11 +854,6 @@ def scaled_to_si(V_ori, scaling):
         if local_canonical[0] != 'phi':
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
-
-                # with SAM we have some additional variables that might need special treatment
-                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
-                    var_type = 'x'
-
                 var_name = local_canonical[1]
                 var_si = V[var_type, var_name]
                 V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
@@ -870,13 +862,15 @@ def scaled_to_si(V_ori, scaling):
                 var_type = local_canonical[0]
 
                 # with SAM we have some additional variables that might need special treatment
-                if var_type in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
-                    var_type = 'x'
+                var_type_to_store = var_type # the type(name) of the variable in the dictionary
+                var_type_scaling = var_type # the name that is used to look up the scaling
+                if var_type_to_store in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type_scaling = 'x' # for SAM: the scaling is stored under 'x'
 
                 kdx = local_canonical[1]
                 var_name = local_canonical[2]
-                var_si = V[var_type, kdx, var_name]
-                V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
+                var_si = V[var_type_to_store, kdx, var_name]
+                V[var_type_to_store, kdx, var_name] = var_scaled_to_si(var_type_scaling, var_name, var_si, scaling, check_should_multiply=False)
 
             elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
                 kdx = local_canonical[1]
