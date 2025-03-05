@@ -8,18 +8,37 @@ import casadi as ca
 
 
 def K(m,n_max): #series representation of complete elliptic Integral of the first kind
-    kk = 0
-    for n in range(0,n_max):
-        kk += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)
-    return(kk)
+    # kk = 0
+    # for n in range(0,n_max):
+    #     kk += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)
+    # return(kk)
 
+    a0 = 1.38638
+    a1 = 0.11197
+    a2 = 0.07252
+    b0 = 0.5 
+    b1 = 0.1213478
+    b2 = 0.02887
+    m1 = 1-m
+
+    k = (a0 + a1*m1 + a2*m1**2) + (b0 + b1*m1 + b2*m1**2)*np.log(1/m1)
+
+    return k
 
 def E(m,n_max): #series representation of complete elliptic Integral of the second kind
-    ee = 0
-    for n in range(0,n_max):
-        ee += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)/(1-2*n)
-    return(ee)
+    # ee = 0
+    # for n in range(0,n_max):
+    #     ee += np.pi/2 * (factorial(2*n)/(2**(2*n)*factorial(n)**2))**2 *m**(n)/(1-2*n)
+    # return(ee)
+    a1 = 0.4630151
+    a2 = 0.10778
+    b1 = 0.24527
+    b2 = 0.04124
+    m1 = 1-m 
 
+    e = (1 + a1*m1 + a2*m1**2) + (b1*m1 + b2*m1**2)*np.log(1/m1)
+
+    return e
 
 def AGM(m, n_max):
 
