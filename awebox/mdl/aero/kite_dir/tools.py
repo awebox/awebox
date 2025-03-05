@@ -226,12 +226,12 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
     parent = architecture.parent_map[kite]
     q = variables['x']['q' + str(kite) + str(parent)]
     t_f = variables['theta']['t_f']
-    w_ind_f = 0
     u_induced = np.array([0,0,0])
-    initial_guess =  np.array([-1,0,0])
+    initial_guess =  np.array([[-1],[0],[0]])
     params = 'p_near_{}'.format(kite)
     for k in range(options['aero']['vortex_rings']['N_rings']):
         for j in [2, 3]:
+            w_ind_f = 0
             p_r = variables['x']['p_ring_{}_{}'.format(j, k)]
             dp_r = variables['x']['dp_ring_{}_{}'.format(j, k)]
             gamma_r = variables['x']['gamma_ring_{}_{}'.format(j, k)]
@@ -245,9 +245,11 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
                 p_r_dup = p_r + np.array([[dp_r*(d+1)*t_f], [0], [0]])
                 w_ind_f += - param * vortex_rings.far_wake_ring_induction(q, p_r_dup, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
 
-            u_induced = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * w_ind_f * n_r
+            u_induced = u_induced  + w_ind_f * n_r
 
-    return u_induced
+    u_induced_homotopy = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * u_induced
+
+    return u_induced_homotopy
 
 def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture, options):
     vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture, options)
