@@ -222,11 +222,11 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind
     return vec_u_app_alone_in_earth_frame
 
 def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
-        
+
     parent = architecture.parent_map[kite]
     q = variables['x']['q' + str(kite) + str(parent)]
     t_f = variables['theta']['t_f']
-    u_induced = np.array([0,0,0])
+    u_induced = np.zeros((3,1))
     initial_guess =  np.array([[-1],[0],[0]])
     params = 'p_near_{}'.format(kite)
     for k in range(options['aero']['vortex_rings']['N_rings']):
@@ -239,7 +239,6 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
             R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
             param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)] * parameters[params, 'p_near_{}_{}'.format(j, k)]
             w_ind_f += - param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
-
             for d in range(options['aero']['vortex_rings']['N_duplicates']):
                 param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)]
                 p_r_dup = p_r + np.array([[dp_r*(d+1)*t_f], [0], [0]])

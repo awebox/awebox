@@ -1356,8 +1356,7 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
     # model parameters
     theta = variables_dict['theta'](1.0)
     for theta_var in variables_dict['theta'].keys():
-        if theta_var != 't_f':
-            theta[theta_var] = V_sol['theta', theta_var]
+        theta[theta_var] = V_sol['theta', theta_var]
     theta = cas.repmat(theta.cat, 1, N_ip)
 
     # construct variables input time series

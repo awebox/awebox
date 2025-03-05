@@ -102,7 +102,7 @@ def interpolate_data(trial, freq):
     outputs_opt = trial.optimization.outputs_opt
     integral_output_names = trial.model.integral_scaling.keys()
     integral_outputs_opt = trial.optimization.integral_outputs_opt
-
+    N_far = trial.options['nlp']['N_far']
     if trial.options['nlp']['discretization'] == 'direct_collocation':
         Collocation = trial.nlp.Collocation
     else:
@@ -110,7 +110,7 @@ def interpolate_data(trial, freq):
 
     interpolation = struct_op.interpolate_solution(parametric_options, time_grids, variables_dict, V_opt,
         P_fix_num, model_parameters, model_parameters_dict,  model_scaling, outputs_fun, outputs_dict, 
-        integral_output_names, integral_outputs_opt, Collocation=Collocation)
+        integral_output_names, integral_outputs_opt, Collocation=Collocation, N_far = N_far)
     return interpolation
 
 def generate_optimal_model(trial, param_options = None, external_forces = False):
