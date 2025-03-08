@@ -184,7 +184,7 @@ class OthorgonalCollocation:
         else:
             return cas.Function('polyEval', [t], [result])
 
-def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_vals_opt: ca.DM) -> tuple:
+def reconstruct_full_from_SAM(nlpoptions: dict, V_opt_scaled: ca.tools.struct, output_vals_opt: ca.DM) -> tuple:
     """
     Reconstruct the full trajectory from the SAM discretization with micro- and macro-integrations.
     This works by interpolating the polynomials of the algebraic variables (that are the micro-integrations)
@@ -194,11 +194,11 @@ def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_va
     that contains the full trajectory, the time grid and the output values. It has `nk_total` integration intervals, with `d_micro` collocation nodes each.
 
     :param nlpoptions: the nlp options, e.g. trial.options['nlp']
-    :param Vopt: the optimal variables from the SAM discretization
+    :param V_opt_scaled: the optimal variables from the SAM discretization
     :param output_vals_opt: the optimal output values from the SAM discretization
-    :return: (V_recon, time_grid_recon, output_recon)
+    :return: (V_recon_scaled, time_grid_recon, output_recon)
     """
-    assert {'x', 'u', 'z', 'coll_var', 'theta'}.issubset(Vopt.keys())
+    assert {'x', 'u', 'z', 'coll_var', 'theta'}.issubset(V_opt_scaled.keys())
     d_micro = nlpoptions['collocation']['d']
 
 
@@ -210,7 +210,7 @@ def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_va
     macroIntegrator = OthorgonalCollocation(np.array(ca.collocation_points(d_SAM, nlpoptions['SAM']['MaInt_type'])))
     regions_indeces = struct_op.calculate_SAM_regions(nlpoptions)
 
-    t_f_opt = Vopt['theta', 't_f']
+    t_f_opt = V_opt_scaled['theta', 't_f']
     assert t_f_opt.shape[0] == d_SAM + 1
 
     from casadi.tools import struct_symMX, entry
@@ -220,11 +220,13 @@ def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_va
     n_k_total = regions_deltans[-1] + N_SAM * regions_deltans[0]
 
     # create structure and initialize all values to zero
-    V_reconstruct = struct_symMX([entry('x', struct=Vopt.getStruct('x'), repeat=[n_k_total + 1]),
-                                  entry('u', struct=Vopt.getStruct('u'), repeat=[n_k_total]),
-                                  entry('z', struct=Vopt.getStruct('z'), repeat=[n_k_total]),
-                                  entry('coll_var', struct=Vopt.getStruct('coll_var'), repeat=[n_k_total, d_micro]),
-                                  entry('theta', struct=Vopt.getStruct('theta'))])(0)
+    V_reconstruct = struct_symMX([entry('x', struct=V_opt_scaled.getStruct('x'), repeat=[n_k_total + 1]),
+                                  entry('u', struct=V_opt_scaled.getStruct('u'), repeat=[n_k_total]),
+                                  entry('z', struct=V_opt_scaled.getStruct('z'), repeat=[n_k_total]),
+                                  entry('coll_var', struct=V_opt_scaled.getStruct('coll_var'), repeat=[n_k_total, d_micro]),
+                                  entry('theta', struct=V_opt_scaled.getStruct('theta')),
+                                  entry('phi', struct=V_opt_scaled.getStruct('phi'))
+                                  ])(0)
 
     # sort the micro-integration variables, controls and outputs into the regions for easier access
     zs_micro = []
@@ -238,9 +240,9 @@ def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_va
         z_micro_coll = []
         output_micro = []
         for j in regions_indeces[i]:
-            z_micro.append(Vopt['x', j])  # start point of the collocation interval
-            z_micro_coll.append(Vopt['coll_var', j, :])  # the collocation points]]
-            u_micro.append(Vopt['u', j])  # the control
+            z_micro.append(V_opt_scaled['x', j])  # start point of the collocation interval
+            z_micro_coll.append(V_opt_scaled['coll_var', j, :])  # the collocation points]]
+            u_micro.append(V_opt_scaled['u', j])  # the control
             output_micro.append(output_vals_opt[:, j * (d_micro + 1): (j+1) * (d_micro + 1)])  # the output values
         zs_micro.append(z_micro)
         zs_micro_coll.append(z_micro_coll)
@@ -280,19 +282,20 @@ def reconstruct_full_from_SAM(nlpoptions: dict, Vopt: ca.tools.struct, output_va
 
     # 2. fill reelin values
     for j_local in regions_indeces[-1]:
-        V_reconstruct['x', j] = Vopt['x', j_local]
-        V_reconstruct['u', j] = Vopt['u', j_local]
-        V_reconstruct['z', j] = Vopt['z', j_local]
-        V_reconstruct['coll_var', j] = Vopt['coll_var', j_local]
+        V_reconstruct['x', j] = V_opt_scaled['x', j_local]
+        V_reconstruct['u', j] = V_opt_scaled['u', j_local]
+        V_reconstruct['z', j] = V_opt_scaled['z', j_local]
+        V_reconstruct['coll_var', j] = V_opt_scaled['coll_var', j_local]
         outputs_reconstructed.append(output_vals_opt[:, j_local * (d_micro + 1): (j_local + 1) * (d_micro + 1)])
         j = j + 1
 
     # last value
     assert j == n_k_total
-    V_reconstruct['x', -1] = Vopt['x', -1]
+    V_reconstruct['x', -1] = V_opt_scaled['x', -1]
 
     # other variables
-    V_reconstruct['theta'] = Vopt['theta']
+    V_reconstruct['theta'] = V_opt_scaled['theta']
+    V_reconstruct['phi'] = V_opt_scaled['phi']
 
     # reconstruct the time grid
     time_grid_reconstruction = construct_time_grids_SAM_reconstruction(nlpoptions)
@@ -514,6 +517,17 @@ def eval_time_grids_SAM(nlp_options: dict, tf_opt: ca.DM) -> Dict[str, np.ndarra
     # function to go from AWEbox time to SAM time
     f_scale = originalTimeToSAMTime(nlp_options, tf_opt)
 
+    # modify a bit for better post-processing: for x_coll timegrid
+    # check if any values of t are close to any values in ts_cumsum,
+    # this happens if the time points are equal, but are supposed to be in different SAM regions,
+    # for example when radau collocation is used
+
+    # find  paris of indices in time_grid_ip_original that are close to each other
+    close_indices = np.where(np.isclose(np.diff(timegrid_AWEbox_eval['x_coll']), 0.0))[0]
+    for first_index in close_indices:
+        timegrid_AWEbox_eval['x_coll'][first_index] -= 1E-6
+        timegrid_AWEbox_eval['x_coll'][first_index + 1] += 1E-6
+
     for key in timegrid_AWEbox_f:
         timegrid_SAM[key] = f_scale.map(timegrid_AWEbox_eval[key].size)(timegrid_AWEbox_eval[key]).full().flatten()
 
@@ -631,6 +645,15 @@ def discretize(nlp_options, model, formulation):
     tf_regions_indices = struct_op.calculate_SAM_regions(nlp_options)
     SAM_regions_indeces = tf_regions_indices[:-1]  # we are not intersted the last region (reelin)
 
+    # evaluation functions for the invariants
+    W_scaling_variables = ca.diag(model.scaling.cat)
+    g_inv_SX_SCALED = (
+        ca.vertcat(*model.outputs(model.outputs_fun(model.variables, model.parameters))['invariants', ['c10', 'dc10', 'orthonormality10']])
+                  ) # TODO: REMOVE HARDCODING FOR SINGLE KITES
+    g_fun = ca.Function('g', [model.variables['x']], [g_inv_SX_SCALED])
+    g_jac_x_SCALED_fun = ca.Function('inv_jac_x', [model.variables['x']],
+                                     [ca.jacobian(g_inv_SX_SCALED, model.variables['x'])])
+
     # iterate the SAM micro-integrations
     for i in range(d_SAM):
         n_first = SAM_regions_indeces[i][0]  # first interval index of the region
@@ -663,18 +686,17 @@ def discretize(nlp_options, model, formulation):
         SAM_cstrs_list.append(ada_vcoll_cstr)
         SAM_cstrs_entry_list.append(cas.entry(f'ada_vcoll_cstr_{i}', shape=xminus.shape))
 
-        # enforce consistency at start of reelout LEADS TO LICQ VIOLATION I GUESS\
-        # index_reelin_start = tf_regions_indices[-1][0]
-        # vars_reelin_start = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, n_first)
-        # params_reelin_start = struct_op.get_shooting_params(nlp_options, V, P, model)[:,n_first]
-        # invariants_start_reelin = model.outputs(model.outputs_fun(vars_reelin_start,params_reelin_start))['invariants']
-        # invariants_start_reelin_cstr = cstr_op.Constraint(expr=invariants_start_reelin,
-        #                                           name=f'invariants_start_{i}',
-        #                                           cstr_type='eq')
-        # SAM_cstrs_list.append(invariants_start_reelin_cstr)
-        # SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_{i}', shape=invariants_start_reelin.shape))
+        # 5. enforce invartiants for startpoint
+        expr_inv = g_fun(xminus.cat)
+        invariants_start_cycle_cstr_i = cstr_op.Constraint(expr=expr_inv,
+                                                  name=f'invariants_start_cycle_cstr_{i}',
+                                                  cstr_type='eq')
+        SAM_cstrs_list.append(invariants_start_cycle_cstr_i)
+        SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_cycle_cstr_{i}', shape=expr_inv.shape))
 
-        # 5. Connect to Macro integraiton point
+
+
+        # 5. Connect to Macro integration point
         ada_type = nlp_options['SAM']['ADAtype']
         assert ada_type in ['FD','BD','CD'], 'only FD, BD, CD are supported'
         ada_coeffs = {'FD': [1,-1, 0], 'BD':[0,-1,1], 'CD':[1,-2,1]}[ada_type]
@@ -684,15 +706,20 @@ def discretize(nlp_options, model, formulation):
         #     expr_connect = V['x_micro_plus', i] - V['x_macro_coll', i]
         # else: # somewhere in the middle
         #     expr_connect = V['x_micro_minus', i] +V['x_micro_plus', i] - 2* V['x_macro_coll', i]
+        lam_SAM_i = V['lam_SAM', i]
 
         expr_connect = (ada_coeffs[0]*V['x_micro_minus', i]
                         + ada_coeffs[1]*V['x_macro_coll', i]
-                        + ada_coeffs[2]*V['x_micro_plus', i])
+                        + ada_coeffs[2]*V['x_micro_plus', i]
+                        + g_jac_x_SCALED_fun(V['x_micro_minus', i]).T@lam_SAM_i)
         micro_connect_macro = cstr_op.Constraint(expr= expr_connect,
                                       name=f'micro_connect_macro_{i}',
                                       cstr_type='eq')
         SAM_cstrs_list.append(micro_connect_macro)
         SAM_cstrs_entry_list.append(cas.entry(f'micro_connect_macro_{i}', shape=xminus.shape))
+
+
+
 
     # MACRO INTEGRATION
     X_macro_start = model.variables_dict['x'](V['x_macro', 0])
@@ -709,6 +736,10 @@ def discretize(nlp_options, model, formulation):
 
     ocp_cstr_list.get_constraint_by_name(f'state_periodicity').expr = ca.vertcat(*periodicty_expr)
 
+    # for macro: Baumgarte as function
+    # baumgarte_cst_SX = model.constraints_dict['equality']['dynamics_constraint']
+    # baumgarte_cst_fun = cas.Function('baumgarte_cst_fun', [model.variables], [baumgarte_cst_SX])
+
     # Macro RK scheme
     for i in range(d_SAM):
         macro_rk_cstr = cstr_op.Constraint(expr=V['x_macro_coll',i] - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll'])@A_macro[i,:].T),
@@ -717,8 +748,6 @@ def discretize(nlp_options, model, formulation):
         SAM_cstrs_list.append(macro_rk_cstr)
         SAM_cstrs_entry_list.append(cas.entry(f'macro_rk_cstr_{i}', shape=xminus.shape))
 
-
-
     # END: connect x_plus with end of the reelout
     macro_end_cstr = cstr_op.Constraint(expr= X_macro_end.cat  - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll'])@b_macro),
                                   name='macro_end_cstr',
@@ -726,15 +755,33 @@ def discretize(nlp_options, model, formulation):
     SAM_cstrs_list.append(macro_end_cstr)
     SAM_cstrs_entry_list.append(cas.entry('macro_end_cstr', shape=xminus.shape))
 
+
+
     # connect endpoint of the macro-integration with start of the reelin phase
     index_reelin_start = tf_regions_indices[-1][0]
     x_reelin_start = V['x', index_reelin_start]
-    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start,
+    # macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start,
+    #                               name='macro_connect_reelin',
+    #                               cstr_type='eq')
+
+
+    # PROJECTION?
+    lam_SAM_reelin = V['lam_SAM',-1]
+    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start -  g_jac_x_SCALED_fun(x_reelin_start).T@lam_SAM_reelin,
                                   name='macro_connect_reelin',
                                   cstr_type='eq')
     SAM_cstrs_list.append(macro_connect_reelin)
     SAM_cstrs_entry_list.append(cas.entry('macro_connect_reelin', shape=xminus.shape))
 
+    ## PROJECTION CONSTRAINT
+
+    # # enforce consistency at start of reelout LEADS TO LICQ VIOLATION I GUESS\
+    expr_inv = g_fun(x_reelin_start)
+    invariants_start_reelin_cstr = cstr_op.Constraint(expr=expr_inv,
+                                                     name=f'invariants_start_reelin_cstr',
+                                                     cstr_type='eq')
+    SAM_cstrs_list.append(invariants_start_reelin_cstr)
+    SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_reelin_cstr', shape=expr_inv.shape))
 
     # overwrite the ocp_cstr_struct with new entries
     ocp_cstr_list.append(SAM_cstrs_list)
@@ -811,8 +858,8 @@ def originalTimeToSAMTime(nlpoptions,t_f_opt) -> ca.Function:
 
     t = ca.SX.sym('t')
     edges = np.cumsum(np.concatenate([[0],T_regions]))
-    edges = edges - 1E-6 # shift all edged by a small amount to avoid numerical issues
-    edges[-1] = edges[-1] + 2E-6
+    edges = edges - 1E-9 # shift all edged by a small amount to avoid numerical issues
+    edges[-1] = edges[-1] + 2E-9 # shift the last edge by a larger amount to avoid numerical issues
 
     expressions = []
 

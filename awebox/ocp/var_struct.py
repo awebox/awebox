@@ -102,6 +102,7 @@ def setup_nlp_v(nlp_options: dict, model: Model, coll_instance: collocation.Coll
                        cas.entry('v_macro_coll', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
                        cas.entry('x_micro_minus', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
                        cas.entry('x_micro_plus', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
+                       cas.entry('lam_SAM', shape=cas.vertcat(*model.outputs['invariants',['c10', 'dc10', 'orthonormality10']]).shape, repeat = [nlp_options['SAM']['d']+1]),
                        ]
 
     # generate structure
@@ -140,5 +141,3 @@ def get_number_of_tf(nlp_options) -> int:
     else:
         n_tf = 1  # no seperation of reel-out and reel-in phases
     return n_tf
-
-

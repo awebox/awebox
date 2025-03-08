@@ -17,31 +17,15 @@ import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 import matplotlib.pyplot as plt
 import numpy as np
 
-from awebox.ocp.collocation import Collocation
-from awebox.ocp.discretization_averageModel import eval_time_grids_SAM, construct_time_grids_SAM_reconstruction, \
-    reconstruct_full_from_SAM, originalTimeToSAMTime
-from awebox.viz.visualization import build_interpolate_functions_full_solution, dict_from_repeated_struct
-
-
 # set the logger level to 'DEBUG' to see IPOPT output
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
 
-
-DUAL_KITES = False
-
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
 options = {}
-
-if DUAL_KITES:
-    from examples.paper_benchmarks import reference_options as ref
-
-    options = ref.set_reference_options(user='A')
-    options = ref.set_dual_kite_options(options)
-else:
-    options['user_options.system_model.architecture'] = {1: 0}
-    options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+options['user_options.system_model.architecture'] = {1: 0}
+options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
 
 # indicate desired operation mode
 # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -57,7 +41,7 @@ options['user_options.wind.u_ref'] = 10.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['model.system_bounds.x.l_t'] = [10.0, 1500.0]  # [m]
+options['model.system_bounds.x.l_t'] = [200.0, 1500.0]  # [m]
 
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
@@ -67,8 +51,8 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 10 # the number of full cycles approximated
-options['nlp.SAM.d'] = 4 # the number of cycles actually computed
+options['nlp.SAM.N'] = 5 # the number of full cycles approximated
+options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
@@ -88,23 +72,24 @@ options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 # options['solver.max_iter_hippo'] = 0
 
 # Number of discretization points
-n_k = 10 * (options['nlp.SAM.d'] + 1)
+n_k = 40 * (options['nlp.SAM.d'] + 1)
 options['nlp.n_k'] = n_k
-
-if DUAL_KITES:
-    options['model.system_bounds.theta.t_f'] = [10, 10 * options['nlp.SAM.N']]  # [s]
-else:
-    options['model.system_bounds.theta.t_f'] = [20, 40*options['nlp.SAM.N']] # [s]
+# options['nlp.collocation.d'] = 4
+options['model.system_bounds.theta.t_f'] = [40, 40*options['nlp.SAM.N']] # [s]
 
 options['solver.linear_solver'] = 'ma27'
 
-options['visualization.cosmetics.interpolation.n_points'] = 40* options['nlp.SAM.N'] # high plotting resolution
+options['visualization.cosmetics.interpolation.n_points'] = 300* options['nlp.SAM.N'] # high plotting resolution
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
 trial.optimize()
 # draw some of the pre-coded plots for analysis
+
+# %% default plotting of invariants
+# trial.plot(['invariants'])
+
 
 # %% Plot state trajectories
 
@@ -145,28 +130,37 @@ print('======================================')
 
 
 # %% Plot outputs
+import casadi as ca
 time_plot_REC = plot_dict_REC['time_grids']['ip']
 invariants_REC = plot_dict_REC['outputs']['invariants']
 
-time_plot_SAM_nlp = plot_dict_SAM['time_grids']['x_coll']
-invariants_SAM = plot_dict_SAM['outputs']['invariants']
+time_plot_SAM_xcoll = plot_dict_SAM['time_grids']['x_coll']
+
+x_coll_output_vals = plot_dict_SAM['output_vals']['opt']
+x_coll_invariants = trial.model.outputs.repeated(x_coll_output_vals.full())
+# invariants_SAM = plot_dict_SAM['outputs']['invariants']
 
 
 plt.figure()
-plt.title("Invariants:")
-
 
 # plt.plot(time_plot, power, '-')
-invariants_to_plot = ['c10']
+invariants_to_plot = ['c10','dc10','ddc10','orthonormality10']
 for region_index in np.arange(0, trial.options['nlp']['SAM']['d']+1):
-    indices = np.where(ip_regions_SAM == region_index)
-    # plt.plot(time_plot_SAM[indices], airspeed_SAM[indices], 'C0-')
-    for key in invariants_to_plot:
-        plt.plot(time_plot_SAM[indices], np.abs(invariants_SAM[key][0][indices]), 'C0-')
-plt.plot([],[],'C0-',label='SAM')
+    indices = np.where(plot_dict_SAM['SAM_regions_x_coll'][0:-1] == region_index)[0]
+    for index,key in enumerate(invariants_to_plot):
+        # plt.plot(time_plot_SAM[indices], invariants_SAM[key][0][indices], f'C{index}.-')
+        # plt.plot(time_plot_SAM[indices], np.abs(invariants_SAM[key][0][indices]), f'C{index}.-')
+        _invariants = ca.vertcat(*x_coll_invariants[:,'invariants',key]).full()
+        plt.plot(time_plot_SAM_xcoll[indices], np.abs(_invariants[indices]), f'C{index}.-')
+        # plt.plot(time_plot_SAM_xcoll[indices], _invariants[indices], f'C{index}.-')
 
-for key in invariants_to_plot:
-    plt.plot(time_plot_REC, np.abs(invariants_REC[key][0]), 'k-',alpha=0.3)
+
+for index,key in enumerate(invariants_to_plot):
+    plt.plot([],[],f'C{index}.-',label=key)
+
+# for key in invariants_to_plot:
+#     plt.plot(time_plot_REC, invariants_REC[key][0], 'k-',alpha=0.3)
+#     plt.plot(time_plot_REC, np.abs(invariants_REC[key][0]), 'k-',alpha=0.3)
 plt.plot([],[],'k-',alpha=0.3,label='REC')
 
 # add phase switches
@@ -177,6 +171,9 @@ for region in regions_indeces:
     # instead: use fill_between to mark regions:
     plt.gca().axvspan(time_grid_SAM_x[region[0]], time_grid_SAM_x[region[-1]]+(time_grid_SAM_x[region[-1]]-time_grid_SAM_x[region[-2]]), color='k', alpha=0.1)
 
+
+plt.xlim([0,time_plot_REC[-1]])
+plt.title(f"Invariants: {invariants_to_plot}")
 plt.legend()
 plt.yscale('log')
 plt.xlabel('Time [s]')
@@ -185,10 +182,7 @@ plt.show()
 
 # %% Plot the states
 plt.figure(figsize=(10, 10))
-if DUAL_KITES:
-    plot_states = ['q21', 'dq21', 'l_t']
-else:
-    plot_states = ['q10', 'dq10', 'l_t', 'dl_t','e']
+plot_states = ['q10', 'dq10', 'l_t', 'dl_t','e']
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)
     state_traj = np.vstack([plot_dict_SAM['x'][state_name][i] for i in range(plot_dict_SAM['x'][state_name].__len__())]).T
@@ -232,10 +226,7 @@ if True:
     plt.figure('Initialization and Reference')
     time_grid_init = trial.nlp.time_grids['x'](Vinit['theta', 't_f']).full().flatten()
 
-    if DUAL_KITES:
-        plot_states = ['q21', 'dq21', 'l_t','e']
-    else:
-        plot_states = ['q10', 'dq10', 'l_t','e']
+    plot_states = ['q10', 'dq10', 'l_t','e']
 
     for index, state_name in enumerate(plot_states):
         plt.subplot(2, 2, index + 1)
@@ -299,33 +290,6 @@ for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']), [
               , '-', color=color,
                   alpha=1, markersize=3)
 
-# ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == trial.options['nlp']['SAM']['d'])],
-#           q10_opt[1][np.where(ip_regions_SAM == trial.options['nlp']['SAM']['d'])],
-#           q10_opt[2][np.where(ip_regions_SAM == trial.options['nlp']['SAM']['d'])], 'C0.',
-#           alpha=0.3, markersize=6)
-# # ax.plot3D(q10_opt_average[0], q10_opt_average[1], q10_opt_average[2], 'b-', alpha=1)
-# ax.plot3D(q10_opt_average_strobo[0], q10_opt_average_strobo[1], q10_opt_average_strobo[2], 'bs', alpha=1)
-#
-# # reconstructed trajectory
-# ax.plot3D(q10_reconstruct[0], q10_reconstruct[1], q10_reconstruct[2], 'C1-', alpha=0.2)
-
-# average trajectory
-# ax.plot3D(X_macro_coll[0,:], X_macro_coll[1,:], X_macro_coll[2,:], 'b.-', alpha=1, markersize=6)
-
-
-# plot important points
-# ax.plot3D(q1_opt[0,0], q1_opt[1,0], q1_opt[2,0], 'C1o', alpha=1)
-# ax.plot3D(q1_opt[0,strobo_indeces[-1]], q1_opt[1,strobo_indeces[-1]], q1_opt[2,strobo_indeces[-1]], 'C1o', alpha=1)
-
-
-# tether10 = np.hstack([q21_opt_plot[:, [-1]], np.zeros((3, 1))])
-# tether21 = np.hstack([q2_opt[:, [-1]], q1_opt[:, [-1]]])
-# tether31 = np.hstack([q3_opt[:, [-1]], q1_opt[:, [-1]]])
-# ax.plot3D(tether21[0], tether21[1], tether21[2], '-',color='black')
-# ax.plot3D(tether31[0], tether31[1], tether31[2], '-',color='black')
-# ax.plot3D(tether10[0], tether10[1], tether10[2], '-',color='black')
-
-
 # set bounds for nice view
 q10_REC_all = np.vstack([q10_REC[0],q10_REC[1],q10_REC[2]])
 meanpos = np.mean(q10_REC_all, axis=1)
@@ -349,5 +313,22 @@ ax.view_init(elev=23., azim=-45)
 
 # plt.legend()
 plt.tight_layout()
-plt.savefig('3DReelout.pdf')
+# plt.savefig('3DReelout.pdf')
 plt.show()
+
+# %% Debugging: with custom time-grid
+
+test_slice = slice(10,15)
+l_t_ref_custom = plot_dict_REC['x']['q10'][0][test_slice]
+dl_t_ref_custom = plot_dict_REC['x']['dq10'][0][test_slice]
+h = np.diff(plot_dict_REC['time_grids']['ip'][test_slice])
+finite_diff_custom = np.diff(l_t_ref_custom)/h
+
+print(f"Reference Value:\t \t {l_t_ref_custom}")
+print('----')
+print(f"Reference Deriv Value: \t {dl_t_ref_custom}")
+print(f"Finite Difference: \t\t {finite_diff_custom}")
+
+print('----')
+print(f'Max Diff: {np.max(np.abs(dl_t_ref_custom[1:] - finite_diff_custom))}')
+

@@ -463,7 +463,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
-    component_costs['SAM_Regularization'] = find_SAM_regularization(nlp_options, V, model)
+    component_costs['SAM_Regularization'] = find_SAM_regularization(nlp_options, V, xdot, model)
 
 
     component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
@@ -471,7 +471,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     return component_costs
 
 
-def find_SAM_regularization(nlp_options: dict, V: cas.struct, model: Model) -> Union[cas.SX, float]:
+def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Union[cas.SX, float]:
     """
     Compute the regularization cost to enforce the geometric assumptions of the Stroboscopy Average Method (SAM).
     This consists of penalizing:
@@ -549,10 +549,33 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, model: Model) -> U
 
         sam_regularization_similar_durations += macro_int.b[i] * T_i_dot**2
 
+    # sam_regularization_lam_SAM = V['lam_SAM'].T@V['lam_SAM']*1E-4
+
+    # regularizae invariants at start of cycles
+    # compute the jacobian of the invariants for projection of SAM endpoint
+    # W_scaling_variables = ca.diag(model.scaling.cat)
+    # g_inv_SX_SCALED = model.outputs(
+    #     model.outputs_fun(ca.inv(W_scaling_variables) @ model.variables, model.parameters))[
+    #     'invariants', 'c10']
+    # g_fun = ca.Function('g', [model.variables], [g_inv_SX_SCALED])
+    #
+    # tf_regions_indices = struct_op.calculate_SAM_regions(nlp_options)
+    sam_regularization_invariants = 0
+    for i in range(d_SAM +1):
+        sam_regularization_invariants += V['lam_SAM', i].T @ V['lam_SAM', i] * 1E-8
+
+    # for i in range(d_SAM):
+    #     index_cycle_start = tf_regions_indices[i][0]
+    #     vars_cycle_start = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, index_cycle_start)
+    #     g_cycle_start = g_fun(vars_cycle_start)
+    #     sam_regularization_invariants += g_cycle_start.T @ g_cycle_start*1E-6
+
+
     return (regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average
             + regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average
             + regularization_dict['AverageAlgebraicsThirdDeriv'] * sam_regularizaion_third_deriv_z
-            + regularization_dict['SimilarMicroIntegrationDuration'] * sam_regularization_similar_durations)
+            + regularization_dict['SimilarMicroIntegrationDuration'] * sam_regularization_similar_durations
+            + sam_regularization_invariants)
 
 
 def get_component_cost_function(component_costs, V, P):

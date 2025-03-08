@@ -60,6 +60,9 @@ class Pmpc(object):
         self.__pocp_trial = trial
         self.__ts = ts
         self.__mpc_options = mpc_options
+        self._isInitialized: bool = False
+        self._time = 0.0
+        ''' Current time in the MPC simulation, is incremented with ts after every step() call'''
 
         # store model data
         self.__var_list = ['x', 'z', 'u']
@@ -94,13 +97,7 @@ class Pmpc(object):
         if self.__cost_type == 'tracking':
             self.__create_reference_interpolator()
 
-        # periodic indexing
-        self.__index = 0
-
-        # initialize
-        self.__initialize_solver()
-
-        awelogger.logger.info("Periodic MPC controller built.")
+        awelogger.logger.info("Periodic MPC controller built, not yet initialized.")
 
         return None
 
@@ -119,9 +116,9 @@ class Pmpc(object):
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
-        # remove state constraints at k = 0
-        self.__trial.nlp.V_bounds['lb']['x',0] = - np.inf
-        self.__trial.nlp.V_bounds['ub']['x',0] = np.inf
+        # remove state constraints at k = 0 (TODO SAM: NO, REMOVE FOR ALL)
+        self.__trial.nlp.V_bounds['lb']['x',:] = - np.inf
+        self.__trial.nlp.V_bounds['ub']['x',:] = np.inf
         if self.__mpc_options['terminal_point_constr']:
             self.__trial.nlp.V_bounds['lb']['x',-1] = - np.inf
             self.__trial.nlp.V_bounds['ub']['x',-1] = np.inf
@@ -215,7 +212,7 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
 
-            homotopy_opts = opts
+            homotopy_opts = copy.deepcopy(opts)
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
             homotopy_opts['ipopt.max_iter'] = 200
@@ -230,13 +227,16 @@ class Pmpc(object):
         """ Compute periodic MPC feedback control for given initial condition.
         """
 
+        if not self._isInitialized:
+            raise Exception("MPC controller not initialized. Call initialize(startTime) first.")
+
         # update nlp parameters
         self.__p0 = self.__p(0.0)
         self.__p0['x0'] = x0
 
         # update reference
         if self.__cost_type == 'tracking':
-            ref = self.get_reference(*self.__compute_time_grids(self.__index))
+            ref = self.get_reference(*self.__compute_time_grids(self._time))
             self.__p0['ref'] = ref
 
         # update model wind speed
@@ -265,7 +265,7 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
             sol = self.__homotopy_solver(
-                x0  = self.__w0,
+                x0  = self._w0,
                 lbx = self.__lbw,
                 ubx = self.__ubw,
                 lbg = self.__lbg,
@@ -273,11 +273,11 @@ class Pmpc(object):
                 p   = self.__p0
                 )
 
-            self.__w0 = self.__trial.nlp.V(sol['x'])
+            self._w0 = self.__trial.nlp.V(sol['x'])
 
         # MPC problem
         sol = self.__solver(
-            x0  = self.__w0,
+            x0  = self._w0,
             lbx = self.__lbw,
             ubx = self.__ubw,
             lbg = self.__lbg,
@@ -286,9 +286,10 @@ class Pmpc(object):
             )
 
         if not self.__mpc_options['homotopy_warmstart']:
-            self.__w0 = self.__trial.nlp.V(sol['x'])
+            self._w0 = self.__trial.nlp.V(sol['x'])
 
-        self.__index += 1
+        # increment time
+        self._time += self.__ts
 
         if plot_flag == True:
             self.__p_fix_num = self.__P_fun(self.__p0)
@@ -327,15 +328,28 @@ class Pmpc(object):
 
         # weighting matrices
         weights = {}
-        for weight in ['Q', 'R', 'P', 'Z']:
-            if weight in self.__mpc_options.keys():
-                weights[weight] = self.__mpc_options[weight]
+        for weight_type in ['Q', 'R', 'P', 'Z']:
+            if weight_type in self.__mpc_options.keys():
+                weights[weight_type] = self.__mpc_options[weight_type]
             else:
-                if weight in ['Q', 'P']:
-                    weights[weight] = np.ones((self.__nx,1))
-                elif weight == 'R':
-                    weights[weight] = np.ones((self.__nu,1))
-                elif weight == 'Z':
+                if weight_type in ['Q', 'P']:
+                    weights[weight_type] = np.ones((self.__nx, 1))
+
+                    # custom weighting for the states
+                    # weigths_states = self.trial.model.variables_dict['x'](1)
+                    # for key in self.trial.model.variables_dict['x'].keys():
+                    #     if key in ['e', 'l', 'dl']:
+                    #         weigths_states[key] = 1E-6
+                    #     elif key.startswith('dq') or key.startswith('q'):
+                    #         weigths_states[key] = 1.0
+                    #     else:
+                    #         weigths_states[key] = 1.0
+                    #
+                    # weights[weight_type] = weigths_states
+
+                elif weight_type == 'R':
+                    weights[weight_type] = np.ones((self.__nu,1))
+                elif weight_type == 'Z':
                     weights['Z'] = np.ones((self.__nz,1))
 
         self.__weights = weights
@@ -382,20 +396,20 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
             info_homotopy = self.__homotopy_solver.stats()
-            self.__log['cpu'].append(info['t_wall_total']+info_homotopy['t_wall_total'])
-            self.__log['iter'].append(info['iter_count']+info_homotopy['iter_count'])
+            self._log['cpu'].append(info['t_wall_total'] + info_homotopy['t_wall_total'])
+            self._log['iter'].append(info['iter_count'] + info_homotopy['iter_count'])
         else:
-            self.__log['cpu'].append(info['t_wall_total'])
-            self.__log['iter'].append(info['iter_count'])
-        self.__log['status'].append(info['return_status'])
-        self.__log['f'].append(sol['f'])
-        self.__log['V_opt'].append(self.__trial.nlp.V(sol['x']))
-        self.__log['lam_x'].append(sol['lam_x'])
-        self.__log['lam_g'].append(sol['lam_g'])
+            self._log['cpu'].append(info['t_wall_total'])
+            self._log['iter'].append(info['iter_count'])
+        self._log['status'].append(info['return_status'])
+        self._log['f'].append(sol['f'])
+        self._log['V_opt'].append(self.__trial.nlp.V(sol['x']))
+        self._log['lam_x'].append(sol['lam_x'])
+        self._log['lam_g'].append(sol['lam_g'])
         if self.__mpc_options['u_param'] == 'poly':
-            self.__log['u0'].append(self.__trial.nlp.V(sol['x'])['coll_var',0,0,'u'])
+            self._log['u0'].append(self.__trial.nlp.V(sol['x'])['coll_var',0,0, 'u'])
         else:
-            self.__log['u0'].append(self.__trial.nlp.V(sol['x'])['u',0])
+            self._log['u0'].append(self.__trial.nlp.V(sol['x'])['u',0])
 
         return None
 
@@ -441,91 +455,111 @@ class Pmpc(object):
         V_pocp_si = self.__pocp_trial.optimization.V_final_si
         V_opt = awe.tools.struct_operations.si_to_scaled(V_pocp_si, self.__trial.model.scaling)
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
-        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
+        self._interpolator_scaled = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
+        self._interpolator_si = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_pocp_si, symbolic_interpolator = True, time_grids = tgrids)
 
-        return None
 
-    def __compute_time_grids(self, index):
+        self._Tref = self.__ref_dict['time_grids']['ip'][-1]
+        ''' Period of the reference trajectory in seconds'''
+
+    def __compute_time_grids(self, time):
         """ Compute NLP time grids based in periodic index
         """
 
-        Tref = self.__ref_dict['time_grids']['ip'][-1]
-        t_grid = self.__t_grid_coll + index*self.__ts
-        t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+        t_grid_coll = self.__t_grid_coll + time
+        t_grid_coll = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_coll))).full().squeeze()
+        # TODO: this is the ugliest implementation of a modulo operation I have ever seen.
 
-        t_grid_x = self.__t_grid_x_coll + index*self.__ts
-        t_grid_x = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
+        t_grid_x_coll = self.__t_grid_x_coll + time
+        t_grid_x_coll = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_x_coll))).full().squeeze()
 
-        t_grid_u = self.__t_grid_u + index*self.__ts
-        t_grid_u = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
+        t_grid_u = self.__t_grid_u + time
+        t_grid_u = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_u))).full().squeeze()
 
-        return t_grid, t_grid_x, t_grid_u
+        return t_grid_coll, t_grid_x_coll, t_grid_u
 
-    def get_reference(self, t_grid, t_grid_x, t_grid_u):
-        """ Interpolate reference on NLP time grids.
+    def get_reference(self, t_grid, t_grid_x_coll, t_grid_u):
+        """ Interpolate (scaled) reference on NLP time grids.
         """
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
-        for var_type in self.__var_list:
-            if var_type == 'x':
-                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
-            elif var_type == 'u':
-                ip_dict[var_type] = self.__interpolator(t_grid_u, var_type)
-            elif var_type == 'z':
-                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
 
-        counter = 0
-        counter_x = 0
-        counter_u = 0
-        V_list = []
+        # interpolate on the time grids
+        ip_dict['x_coll'] = self._interpolator_scaled(t_grid_x_coll, 'x')
+        ip_dict['u'] = self._interpolator_scaled(t_grid_u, 'u')
+        ip_dict['z'] = self._interpolator_scaled(t_grid_x_coll, 'z')
 
+        # counter = 0
+        # counter_x = 0
+        # counter_u = 0
+        # V_list = []
+        #
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                V_list.append(self.__pocp_trial.optimization.V_opt['theta', name])
+                V_ref['theta',name] = self.__pocp_trial.optimization.V_opt['theta', name]
             else:
-                V_list.append(self.__N * self.__ts)
-        V_list.append(np.zeros(V_ref['phi'].shape))
-
+                V_ref['theta','t_f'] = self.__N * self.__ts
+        # V_list.append(np.zeros(V_ref['phi'].shape))
+        #
+        # for k in range(self.__N):
+        #     for j in range(self.__trial.nlp.d+1):
+        #         if j == 0:
+        #             V_list.append(ip_dict['x'][:,counter_x])
+        #             counter_x += 1
+        #
+        #             if self.__mpc_options['u_param'] == 'zoh':
+        #                 V_list.append(ip_dict['u'][:, counter_u])
+        #                 V_list.append(np.zeros((self.__nx, 1)))
+        #                 V_list.append(np.zeros((self.__nz, 1)))
+        #                 counter_u += 1
+        #         else:
+        #             for var_type in self.__var_list:
+        #                 if var_type == 'x':
+        #                     V_list.append(ip_dict[var_type][:,counter_x])
+        #                     counter_x += 1
+        #                 elif var_type == 'z' or (var_type == 'u' and self.__mpc_options['u_param']=='poly'):
+        #                     V_list.append(ip_dict[var_type][:,counter])
+        #             counter += 1
+        #
+        # V_list.append(ip_dict['x'][:,counter_x])
+        d = self.__trial.nlp.d
         for k in range(self.__N):
-            for j in range(self.__trial.nlp.d+1):
-                if j == 0:
-                    V_list.append(ip_dict['x'][:,counter_x])
-                    counter_x += 1
 
-                    if self.__mpc_options['u_param'] == 'zoh':
-                        V_list.append(ip_dict['u'][:, counter_u])
-                        V_list.append(np.zeros((self.__nx, 1)))
-                        V_list.append(np.zeros((self.__nz, 1)))
-                        counter_u += 1
-                else:
-                    for var_type in self.__var_list:
-                        if var_type == 'x':
-                            V_list.append(ip_dict[var_type][:,counter_x])
-                            counter_x += 1
-                        elif var_type == 'z' or (var_type == 'u' and self.__mpc_options['u_param']=='poly'):
-                            V_list.append(ip_dict[var_type][:,counter])
-                    counter += 1
+            # set the shooting nodes x and u
+            V_ref['x',k] = ip_dict['x_coll'][:,k*(d+1)]
+            V_ref['u',k] = ip_dict['u'][:,k]
 
-        V_list.append(ip_dict['x'][:,counter_x])
+            for i in range(d):
+                # set the collocation nodes x and u
+                V_ref['coll_var',k,i,'x'] = ip_dict['x_coll'][:,k*(d+1)+1 + i]
+                V_ref['coll_var',k,i,'z'] = ip_dict['z'][:,k*(d+1)+1 + i]
+                # todo: what about poly parametrization of u?
 
-        V_ref = V_ref(ct.vertcat(*V_list))
+        # final shooting node:
+        V_ref['x', -1] = ip_dict['x_coll'][:, -1]
+
+
+        # V_ref = V_ref(ct.vertcat(*V_list))
 
         return V_ref
 
-    def __initialize_solver(self):
+    def initialize(self, startTime):
         """ Initialize solver with reference solution.
         """
 
+        # periodic indexing
+        self._time = startTime
+
         # initial guess
-        self.__w0 = self.get_reference(*self.__compute_time_grids(0.0))
+        self._w0 = self.get_reference(*self.__compute_time_grids(startTime)) # nan only for debugging reasons
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                self.__w0['theta', name] = self.__pocp_trial.optimization.V_opt['theta', name]
-        self.__w0['theta', 't_f'] = self.__N * self.__ts
+                self._w0['theta', name] = self.__pocp_trial.optimization.V_opt['theta', name]
+        self._w0['theta', 't_f'] = self.__N * self.__ts
 
         # intialize log
-        self.__log = {
+        self._log = {
             'cpu':[],
             'iter':[],
             'status':[],
@@ -536,20 +570,21 @@ class Pmpc(object):
             'u0': []
         }
 
-        return None
+        self._isInitialized = True
+        awelogger.logger.info(f"... MPC controller initialized with start time {float(startTime) :0.3f} s.")
 
     def __shift_solution(self):
         """ Shift NLP solution one stage to the left.
         """
 
         for k in range(self.__N-1):
-            self.__w0['coll_var',k,:,'x'] = self.__w0['coll_var',k+1,:,'x']
+            self._w0['coll_var', k, :, 'x'] = self._w0['coll_var', k + 1, :, 'x']
             if self.__mpc_options['u_param'] == 'poly':
-                self.__w0['coll_var',k,:,'u']  = self.__w0['coll_var',k+1,:,'u']
+                self._w0['coll_var', k, :, 'u']  = self._w0['coll_var', k + 1, :, 'u']
             elif self.__mpc_options['u_param'] == 'zoh':
-                self.__w0['u',k] = self.__w0['u',k+1]
-            self.__w0['coll_var',k,:,'z'] = self.__w0['coll_var',k+1,:,'z']
-            self.__w0['x',k] = self.__w0['x',k+1]
+                self._w0['u',k] = self._w0['u', k + 1]
+            self._w0['coll_var', k, :, 'z'] = self._w0['coll_var', k + 1, :, 'z']
+            self._w0['x',k] = self._w0['x', k + 1]
 
         return None
 
@@ -562,7 +597,7 @@ class Pmpc(object):
 
         # generate system outputs
         [_, nlp_output_fun] = self.__trial.nlp.output_components
-        outputs_init = nlp_output_fun(self.__w0, self.__p_fix_num)
+        outputs_init = nlp_output_fun(self._w0, self.__p_fix_num)
         outputs_opt = nlp_output_fun(V_opt, self.__p_fix_num)
         outputs_ref = nlp_output_fun(V_ref, self.__p_fix_num)
         output_vals = {'init':outputs_init,
@@ -690,7 +725,7 @@ class Pmpc(object):
     def log(self):
         """ log attribute containing MPC info.
         """
-        return self.__log
+        return self._log
 
     @log.setter
     def log(self, value):
@@ -720,7 +755,7 @@ class Pmpc(object):
     def w0(self):
         """ Solver initial guess vector
         """
-        return self.__w0
+        return self._w0
 
     @w0.setter
     def w0(self, value):
@@ -757,13 +792,19 @@ class Pmpc(object):
         awelogger.logger.info('Cannot set t_grid_x_coll object.')
 
     @property
-    def interpolator(self):
-        """ interpolator
+    def interpolator_scaled(self):
+        """ interpolator instance that interpolates the SCALED reference trajectory
         """
-        return self.__interpolator
+        return self._interpolator_scaled
 
-    @interpolator.setter
-    def interpolator(self, value):
+    @property
+    def interpolator_si(self):
+        """ interpolator instance that interpolates the SI reference trajectory
+        """
+        return self._interpolator_si
+
+    @interpolator_scaled.setter
+    def interpolator_scaled(self, value):
         awelogger.logger.info('Cannot set interpolator object.')
 
     @property

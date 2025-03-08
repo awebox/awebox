@@ -41,10 +41,11 @@ import numpy as np
 import awebox.tools.print_operations as print_op
 from progress.bar import ChargingBar
 from awebox.logger.logger import Logger as awelogger
+from awebox.tools.struct_operations import calculate_kdx_SAM_reconstruction, calculate_kdx
 
 
 class Simulation:
-    def __init__(self, trial, sim_type, ts, options_seed):
+    def __init__(self, trial, sim_type, ts, options_seed, additional_mpc_options = {}):
         """ Constructor.
         """
 
@@ -53,11 +54,12 @@ class Simulation:
 
         self.__sim_type = sim_type
         self.__trial = trial
-        self.__ts = ts
+        self._ts = ts
         options = awebox.opts.options.Options()
         options.fill_in_seed(options_seed)
         self.__sim_options = options['sim']
-        self.__mpc_options = options['mpc']
+        self.__mpc_options: dict = options['mpc']
+        self.__mpc_options.update(additional_mpc_options)
         self.__build()
 
         return None
@@ -75,7 +77,7 @@ class Simulation:
             'F',
             model['dae'],
             model['rootfinder'],
-            {'tf': self.__ts / model['t_f'],
+            {'tf': self._ts / model['t_f'],
             'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
             )
         self.__dae = self.__trial.model.get_dae()
@@ -84,7 +86,7 @@ class Simulation:
         # generate mpc controller
         if self.__sim_type == 'closed_loop':
 
-            self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
+            self.__mpc = pmpc.Pmpc(self.__mpc_options, self._ts, self.__trial)
 
 
         #  initialize and build visualization
@@ -113,15 +115,24 @@ class Simulation:
 
         return None
 
-    def run(self, n_sim, x0 = None, u_sim = None):
+    def run(self, n_sim, x0 = None, u_sim = None, startTime:float = 0):
         """ Run simulation
         """
 
+        assert n_sim > 0, 'Number of simulation steps must be greater than 0.'
         awelogger.logger.info('Start {} simulation...'.format(self.__sim_type))
 
-        # TODO: check consistency of initial conditions and give warning
 
-        x0 = self.__initialize_sim(n_sim, x0, u_sim)
+        # TODO: check consistency of initial conditions and give warning
+        # fix the start time so that it matches the time of the nearest shooting node of the reference trajectory
+        t_grid_x_ref = self.trial.visualization.plot_dict['time_grids']['x'].full().squeeze()
+        startTime = startTime % t_grid_x_ref[-1] # make sure startTime is within the reference trajectory
+
+        # find the nearest element
+        startTime = t_grid_x_ref[np.argmin(np.abs(t_grid_x_ref - startTime))]
+
+        x0 = self.__initialize_sim(n_sim, x0, u_sim, startTime=startTime)
+        self.mpc.initialize(startTime)
 
         with ChargingBar('Simulating...', max = n_sim, fill='#') as bar:
             for i in range(n_sim):
@@ -151,13 +162,20 @@ class Simulation:
 
         return None
 
-    def __initialize_sim(self, n_sim, x0, u_sim):
+    def __initialize_sim(self, n_sim, x0, u_sim, startTime:float = 0):
         """ Initialize simulation.
         """
 
+        # find the start index in the shooting node grid for the given start time.
+        if self.trial.options['nlp']['SAM']['flag_SAM_reconstruction']:
+            # change the index from the MPC grid to the NLP variables
+            startIndex,_ = calculate_kdx_SAM_reconstruction(self.trial.nlp.options, self.__trial.optimization.V_opt, startTime)
+        else:
+            startIndex,_ = calculate_kdx(self.trial.nlp.options, self.__trial.optimization.V_opt, startTime)
+
         # take first state of optimization trial
         if x0 is None:
-            x0 = self.__trial.optimization.V_opt['x',0]
+            x0 = self.__trial.optimization.V_opt['x',startIndex]
 
         # set-up open loop controls
         if self.__sim_type == 'open_loop':
@@ -166,7 +184,7 @@ class Simulation:
                 self.__trial.options['nlp'],
                 self.__trial.optimization.V_opt)
             T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-            t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
+            t_grid = np.linspace(startTime, n_sim * self._ts, n_sim)
             self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
             for name in list(self.__trial.model.variables_dict['u'].keys()):
                 for j in range(self.__trial.variables_dict['u'][name].shape[0]):
@@ -182,17 +200,15 @@ class Simulation:
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
                 self.__theta[name] = self.__trial.optimization.V_opt['theta',name]
-        self.__theta['t_f'] = self.__ts
+        self.__theta['t_f'] = self._ts
         self.__parameters_num = self.__trial.model.parameters(0.0)
         self.__parameters_num['theta0'] = self.__trial.optimization.p_fix_num['theta0']
 
         # time grids
         self.__visualization.plot_dict['time_grids'] = {}
-        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(0,n_sim*self.__ts, n_sim)
-        self.__visualization.plot_dict['time_grids']['u']  = np.linspace(0,n_sim*self.__ts, n_sim)
+        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(startTime, startTime + n_sim * self._ts,n_sim, endpoint=False)
+        self.__visualization.plot_dict['time_grids']['u']  = np.linspace(startTime, startTime + n_sim * self._ts, n_sim , endpoint=False)
 
-        # create reference
-        T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
 
         # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
         original_plot_dict = self.__trial.visualization.plot_dict
@@ -200,8 +216,10 @@ class Simulation:
         for name, val in original_plot_dict.items():
             trial_plot_dict[name] = copy.deepcopy(val)
 
+        # create reference
+        T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
         tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
-        trial_plot_dict['time_grids']['ip'] = ct.vertcat(list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
+        trial_plot_dict['time_grids']['ip'] = np.mod(tgrid_ip, T_ref)
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
         self.__visualization.plot_dict['ref_si'] = trial_plot_dict['ref_si']
         self.__visualization.plot_dict['time_grids']['ref'] = {'ip': tgrid_ip}
@@ -308,6 +326,7 @@ class Simulation:
     @visualization.setter
     def visualization(self, value):
         print_op.log_and_raise_error('Cannot set visualization object.')
+
 
     @property
     def trial(self):

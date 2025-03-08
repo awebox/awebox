@@ -906,7 +906,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
                                                    P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
                                                    integral_output_names, integral_outputs_ref,
-                                                   Collocation=Collocation, interpolate_time_grid = False)
+                                                   Collocation=Collocation, interpolate_time_grid = False, timegrid_label='ip')
 
     return plot_dict
 

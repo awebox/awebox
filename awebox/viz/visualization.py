@@ -67,7 +67,7 @@ from ..tools.struct_operations import calculate_SAM_regions, calculate_SAM_regio
 class Visualization(object):
 
     def __init__(self):
-        self.__plot_dict = None
+        self._plot_dict = None
         self.__has_been_initially_calibrated = False
         self.__has_been_recalibrated = False
 
@@ -80,7 +80,7 @@ class Visualization(object):
         :return: None
         """
 
-        self.__plot_dict = tools.calibrate_visualization(model, nlp, name, options)
+        self._plot_dict = tools.calibrate_visualization(model, nlp, name, options)
         self.__has_been_initially_calibrated = True
 
         self.create_plot_logic_dict()
@@ -90,9 +90,9 @@ class Visualization(object):
 
     def recalibrate(self, V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
         print_op.base_print('recalibrating visualization...')
-        self.__plot_dict = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
-                                                           parametric_options, time_grids, cost, name, V_ref_scaled,
-                                                           global_outputs)
+        self._plot_dict = tools.recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals,
+                                                          parametric_options, time_grids, cost, name, V_ref_scaled,
+                                                          global_outputs)
         self.__has_been_recalibrated = True
 
         return None
@@ -108,17 +108,17 @@ class Visualization(object):
 
         has_not_been_recalibrated = (not self.__has_been_recalibrated)
 
-        interpolation_in_plot_dict = 'interpolation_si' in self.__plot_dict.keys()
+        interpolation_in_plot_dict = 'interpolation_si' in self._plot_dict.keys()
         if interpolation_in_plot_dict:
-            ip_time_length = len(self.__plot_dict['interpolation_si']['time_grids']['ip'])
-            ip_vars_length = len(self.__plot_dict['interpolation_si']['x']['q10'][0])
+            ip_time_length = len(self._plot_dict['interpolation_si']['time_grids']['ip'])
+            ip_vars_length = len(self._plot_dict['interpolation_si']['x']['q10'][0])
         interpolation_length_is_inconsistent = (not interpolation_in_plot_dict) or (ip_time_length != ip_vars_length)
 
         threshold = 1e-2
-        V_plot_scaled_in_plot_dict = ('V_plot_scaled' in self.__plot_dict.keys()) and (self.__plot_dict['V_plot_scaled'] is not None)
+        V_plot_scaled_in_plot_dict = ('V_plot_scaled' in self._plot_dict.keys()) and (self._plot_dict['V_plot_scaled'] is not None)
         V_plot_scaled_is_same = False
         if V_plot_scaled_in_plot_dict:
-            V_plot_scaled_is_same = vect_op.norm(self.__plot_dict['V_plot_scaled'].cat - V_plot_scaled.cat) / V_plot_scaled.cat.shape[0] < threshold
+            V_plot_scaled_is_same = vect_op.norm(self._plot_dict['V_plot_scaled'].cat - V_plot_scaled.cat) / V_plot_scaled.cat.shape[0] < threshold
         if V_plot_scaled is None:
             using_new_V_plot = False
         else:
@@ -126,14 +126,14 @@ class Visualization(object):
 
         if has_not_been_recalibrated or interpolation_length_is_inconsistent or using_new_V_plot:
             if recalibrate:
-                self.recalibrate(V_plot_scaled, P_fix_num, self.__plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
+                self.recalibrate(V_plot_scaled, P_fix_num, self._plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs)
 
         if type(flags) is not list:
             flags = [flags]
 
         # define special flags
         if 'all' in flags:
-            flags = list(self.__plot_logic_dict.keys())
+            flags = list(self._plot_logic_dict.keys())
             flags.remove('animation')
             flags.remove('animation_snapshot')
             flags = [flag for flag in flags if 'outputs:' not in flag]
@@ -218,8 +218,8 @@ class Visualization(object):
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
 
-        self.__plot_logic_dict = plot_logic_dict
-        self.__plot_dict['plot_logic_dict'] = plot_logic_dict
+        self._plot_logic_dict = plot_logic_dict
+        self._plot_dict['plot_logic_dict'] = plot_logic_dict
 
     def __produce_plot(self, flag, fig_name, cosmetics, fig_num = None):
         """
@@ -231,19 +231,19 @@ class Visualization(object):
         """
 
         # map flag to function
-        fig_name = self.__plot_dict['name'] + '_' + flag + '_' + fig_name
+        fig_name = self._plot_dict['name'] + '_' + flag + '_' + fig_name
 
         if fig_num is not None:
-            self.__plot_logic_dict[flag][1]['fig_num'] = fig_num
+            self._plot_logic_dict[flag][1]['fig_num'] = fig_num
 
-        tools.map_flag_to_function(flag, self.__plot_dict, cosmetics, fig_name, self.__plot_logic_dict)
+        tools.map_flag_to_function(flag, self._plot_dict, cosmetics, fig_name, self._plot_logic_dict)
 
         if fig_num is not None:
-            del self.__plot_logic_dict[flag][1]['fig_num']
+            del self._plot_logic_dict[flag][1]['fig_num']
 
         # save figures
         if cosmetics['save_figs']:
-            name_rep = self.__plot_dict['name']
+            name_rep = self._plot_dict['name']
             for char in ['(', ')', '_', ' ']:
                 name_rep = name_rep.replace(char, '')
 
@@ -260,11 +260,11 @@ class Visualization(object):
 
     @property
     def plot_dict(self):
-        return self.__plot_dict
+        return self._plot_dict
 
     @plot_dict.setter
     def plot_dict(self, value):
-        self.__plot_dict = value
+        self._plot_dict = value
 
     @property
     def options(self):
@@ -284,7 +284,7 @@ class Visualization(object):
 
     @property
     def plot_logic_dict(self):
-        return self.__plot_logic_dict
+        return self._plot_logic_dict
 
     @plot_logic_dict.setter
     def plot_logic_dict(self, value):
@@ -295,13 +295,13 @@ class VisualizationSAM(Visualization):
 
     def __init__(self):
         super().__init__()
-        self.__plot_dict_SAM: dict = None
+        self._plot_dict_SAM: dict = None
         self.__options: dict = None
 
     @property
     def plot_dict_SAM(self):
         """ The plot dictionary from the AWEbox SAM formulation, as used in the optimization"""
-        return self.__plot_dict_SAM
+        return self._plot_dict_SAM
 
     def build(self, model, nlp, name, options):
         """
@@ -312,9 +312,9 @@ class VisualizationSAM(Visualization):
         :return: None
         """
 
-        self.__plot_dict = tools.calibrate_visualization(model, nlp, name, options)
-        self.__plot_dict_SAM = tools.calibrate_visualization(model, nlp, name, options)
-        # self.create_plot_logic_dict()
+        self._plot_dict = tools.calibrate_visualization(model, nlp, name, options)
+        self._plot_dict_SAM = tools.calibrate_visualization(model, nlp, name, options)
+        self.create_plot_logic_dict()
         self.__options = options
 
     def recalibrate(self, V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
@@ -328,7 +328,19 @@ class VisualizationSAM(Visualization):
 
         # replace the interpolating grid with the SAM grid
         time_grid_ip_original: np.ndarray = self.plot_dict_SAM['time_grids']['ip']
-        time_grid_xcoll_original: ca.DM = self.plot_dict_SAM['time_grids']['x_coll']
+        time_grid_xcoll_original: np.ndarray = self.plot_dict_SAM['time_grids']['x_coll'].full().flatten()
+
+        # modify a bit for better post-processing: for x_coll timegrid
+        # check if any values of t are close to any values in ts_cumsum,
+        # this happens if the time points are equal, but are supposed to be in different SAM regions,
+        # for example when radau collocation is used
+
+        # find  paris of indices in time_grid_ip_original that are close to each other
+        close_indices = np.where(np.isclose(np.diff(time_grid_xcoll_original), 0.0))[0]
+        for first_index in close_indices:
+            time_grid_xcoll_original[first_index] -= 1E-6
+            time_grid_xcoll_original[first_index + 1] += 1E-6
+
         originalTimeToSAMTime_f = originalTimeToSAMTime(self.options['nlp'], V_plot_scaled['theta', 't_f'])
         time_grid_SAM_eval = eval_time_grids_SAM(self.options['nlp'], V_plot_scaled['theta', 't_f'])
         time_grid_SAM_eval['ip'] = originalTimeToSAMTime_f.map(time_grid_ip_original.size)(time_grid_ip_original).full().flatten()
@@ -336,7 +348,7 @@ class VisualizationSAM(Visualization):
         # add the region indices to the SAM plot dictionary
         self.plot_dict_SAM['SAM_regions_x_coll'] = calculate_SAM_regionIndexArray(self.options['nlp'],
                                                                                   V_plot_scaled,
-                                                                                  time_grid_xcoll_original.full().flatten())
+                                                                                  time_grid_xcoll_original)
         self.plot_dict_SAM['SAM_regions_ip'] = calculate_SAM_regionIndexArray(self.options['nlp'],
                                                                               V_plot_scaled,
                                                                               time_grid_ip_original)
@@ -351,18 +363,21 @@ class VisualizationSAM(Visualization):
         # extract information
         plot_dict = self.plot_dict  # get the existing plot dict, it already contains some information
         nlp_options = self.options['nlp']
-        scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
-        V_plot_si = struct_op.scaled_to_si(V_plot_scaled, scaling) # convert V_plot to SI units
 
         # reconstruct the full trajectory
         awelogger.logger.info('Reconstructing the full trajectory from the SAM solution..')
-        V_reconstructed, time_grid_reconstructed, output_vals_reconstructed = reconstruct_full_from_SAM(
-            nlpoptions=nlp_options, Vopt=V_plot_si, output_vals_opt=output_vals)
+        V_reconstructed_scaled, time_grid_reconstructed, output_vals_reconstructed = reconstruct_full_from_SAM(
+            nlpoptions=nlp_options, V_opt_scaled=V_plot_scaled, output_vals_opt=output_vals)
+
+        # undo the scaling of the reconstructed variables
+        scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+        V_reconstructed_si = struct_op.scaled_to_si(V_reconstructed_scaled, scaling)  # convert V_plot to SI units
+
 
         # interpolate the reconstructed trajectory
         n_ip = self.options['visualization']['cosmetics']['interpolation']['n_points']
         awelogger.logger.info(f'Interpolating reconstruted trajectory with {n_ip} points  ..')
-        funcs_ip = build_interpolate_functions_full_solution(V_reconstructed, time_grid_reconstructed, nlp_options,
+        funcs_ip = build_interpolate_functions_full_solution(V_reconstructed_si, time_grid_reconstructed, nlp_options,
                                                              output_vals_reconstructed)
 
         # evaluate states, controls, algebraic variables, outputs at the interpolated points
@@ -389,7 +404,10 @@ class VisualizationSAM(Visualization):
         plot_dict['time_grids'] = time_grid_reconstructed
         plot_dict['time_grids']['ip'] = t_ip
         plot_dict['global_outputs'] = global_outputs
-        plot_dict['V_plot'] = V_reconstructed
+        plot_dict['V_plot'] = V_reconstructed_scaled
+        plot_dict['V_plot_si'] = V_reconstructed_si
+        n_k_total = len(V_reconstructed_scaled['x']) - 1
+        plot_dict['n_k'] = n_k_total
 
         # fill theta
         plot_dict['theta'] = {}
@@ -424,11 +442,11 @@ class VisualizationSAM(Visualization):
         """
         awelogger.logger.warning('`plot_dict` - You are accessing the RECONSTRUCTED results from a SAM problem. These '
                                  'results are only an approximation of a physical trajectory.')
-        return self.__plot_dict
+        return self._plot_dict
 
     @plot_dict.setter
     def plot_dict(self, value):
-        self.__plot_dict = value
+        self._plot_dict = value
 
     @property
     def options(self):
@@ -446,11 +464,11 @@ class VisualizationSAM(Visualization):
                 - the time grid is the SAM time grid ('time_grids')
                 - the SAM regions are calculated and stored ('SAM_regions_x_coll', 'SAM_regions_ip')
         """
-        return self.__plot_dict_SAM
+        return self._plot_dict_SAM
 
     @plot_dict_SAM.setter
     def plot_dict_SAM(self, value):
-        self.__plot_dict_SAM = value
+        self._plot_dict_SAM = value
 
 
 def build_interpolate_functions_full_solution(V: cas.struct, tgrid: dict , nlpoptions: dict, output_vals: np.ndarray) -> Dict[str, ca.Function]:

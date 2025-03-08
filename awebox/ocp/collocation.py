@@ -30,7 +30,6 @@ python-3.5 / casadi-3.4.5
 - edited:  thilo bronnenmeyer 2018
 '''
 
-
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import numpy as np
@@ -41,6 +40,8 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.cached_functions as cf
+
+
 class Collocation(object):
     """Collocation class with methods for optimal control
     """
@@ -186,7 +187,7 @@ class Collocation(object):
         
         else:
 
-            self.__construct_symbolic_integrator_funs(nlp_params, V, time_grids)
+            fun_x, fun_u, fun_z = self.__construct_symbolic_integrator_funs(nlp_params, V)
 
             def coll_interpolator(time_grid, var_type):
                 """Interpolating function
@@ -197,11 +198,11 @@ class Collocation(object):
                 """
 
                 if var_type == 'x':
-                    vector_series = self.__sym_interpolator_fun_x(time_grid)
+                    vector_series = fun_x.map(len(time_grid))(time_grid)
                 elif var_type == 'u':
-                    vector_series = self.__sym_interpolator_fun_u(time_grid)
+                    vector_series = fun_u.map(len(time_grid))(time_grid)
                 elif var_type == 'z':
-                    vector_series = self.__sym_interpolator_fun_z(time_grid)
+                    vector_series = fun_z.map(len(time_grid))(time_grid)
 
                 return vector_series
 
@@ -449,15 +450,13 @@ class Collocation(object):
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
-    def __construct_symbolic_integrator_funs(self, nlp_params, V, time_grids):
-
-        # symbolic input time grids
-        t_grid_x = cas.SX.sym('t_grid_x', *time_grids['x'].shape)
-        t_grid_u = cas.SX.sym('t_grid_u', *time_grids['u'].shape)
-        t_grid_z = t_grid_x
-
+    def __construct_symbolic_integrator_funs(self, nlp_params, V):
+        """
+        Construct symbolic interpolator functions x(t), u(t), z(t) for given variable struct V
+        :return: a tuple of casadi.Functions (x(t), u(t), z(t))
+        """
         # NLP data
-        n_k = nlp_params['n_k']
+        n_k = V['x'].__len__()-1
         t_f = V['theta', 't_f']
 
         # create conditional interpolation functions
@@ -490,7 +489,32 @@ class Collocation(object):
 
         # find time interval function
         t = cas.SX.sym('t')
-        if t_f.shape[0] == 2: # single_reelout phase fix
+
+        if nlp_params['SAM']['flag_SAM_reconstruction']:
+            from awebox.ocp.discretization_averageModel import constructPiecewiseCasadiExpression
+            from awebox.ocp.discretization_averageModel import construct_time_grids_SAM_reconstruction
+
+            # check that the timegrid is monotonically increasing
+            timegrid_f = construct_time_grids_SAM_reconstruction(nlp_params)
+            time_grid_x = timegrid_f['x'](V['theta', 't_f']).full().flatten()
+
+            assert np.all(np.diff(time_grid_x) > 0)
+            n_k_reconstruct = time_grid_x.shape[0] - 1
+            # in case of the reconstruction
+
+            # construct the kdx and tau expressions for each interval
+            expression_list = []
+            for k in range(n_k_reconstruct):
+                t_shift = t - time_grid_x[k]
+                deltat_interval = time_grid_x[k+1] - time_grid_x[k]
+                tau = t_shift / deltat_interval
+                expression_list.append(cas.vertcat(k,tau))
+
+            piecwise_expr = constructPiecewiseCasadiExpression(t, time_grid_x.tolist(), expression_list)
+            F_find_interval = cas.Function('F_find_interval', [t], [piecwise_expr[0],piecwise_expr[1]])
+
+
+        elif t_f.shape[0] == 2: # single_reelout phase fix
 
             n_k_reelout = round(n_k * nlp_params['phase_fix_reelout'])
             t_switch = t_f[0] * n_k_reelout / n_k
@@ -499,7 +523,7 @@ class Collocation(object):
             kdx = cas.floor(t/t_f[0]*n_k)
             tau = t/t_f[0]*n_k - kdx
             F_find_interval_1 = cas.Function('F_find_interval1', [t], [kdx, tau])
-            
+
             # if in reel-in
             kdx_ri = cas.floor((t - t_switch)/t_f[1]*n_k)
             kdx = n_k_reelout + kdx_ri
@@ -517,31 +541,18 @@ class Collocation(object):
             tau = t/t_f*n_k - kdx
             F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
 
-        # evaluate interpolation on symbolic time grid
-        vector_series_x = []
-        for k in range(t_grid_x.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_x[k])
-            vector_series_x.append(F_cond_x(kdx, tau))
-        vector_series_x = cas.horzcat(*vector_series_x)
-
-        vector_series_z = []
-        for k in range(t_grid_z.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_z[k])
-            vector_series_z.append(F_cond_z(kdx, tau))
-        vector_series_z = cas.horzcat(*vector_series_z)
-
-        vector_series_u = []
-        for k in range(t_grid_u.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_u[k])
-            vector_series_u.append(F_cond_u(kdx, tau))
-        vector_series_u = cas.horzcat(*vector_series_u)
+        # evaluate interpolation at symbolic time
+        [kdx, tau] = F_find_interval(t)
+        vector_x = F_cond_x(kdx, tau)
+        vector_z = F_cond_z(kdx, tau)
+        vector_u = F_cond_u(kdx, tau)
 
         # create functions
-        self.__sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t_grid_x], [vector_series_x])
-        self.__sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t_grid_u], [vector_series_u])
-        self.__sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t_grid_z], [vector_series_z])
+        __sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t], [vector_x])
+        __sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t], [vector_u])
+        __sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t], [vector_z])
 
-        return None
+        return __sym_interpolator_fun_x, __sym_interpolator_fun_u, __sym_interpolator_fun_z
 
     @property
     def quad_weights(self):

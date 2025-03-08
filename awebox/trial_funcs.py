@@ -172,7 +172,8 @@ def generate_optimal_model(trial, param_options = None, external_forces = False)
         power = trial.model.integral_outputs_fun(var, trial.model.parameters)
     else:
         outputs_eval = trial.model.outputs(trial.model.outputs_fun(var, trial.model.parameters))
-        power = outputs_eval['performance','p_current'] / trial.model.scaling['x']['e']
+        vars_scaling  = trial.model.variables(trial.model.scaling)
+        power = outputs_eval['performance','p_current'] / vars_scaling['x','e']
     cost_weighting = discr.setup_nlp_cost()(trial.optimization.p_fix_num['cost'])
     stage_cost = - cost_weighting['power']*power / t_f.full()[0][0] + u_reg + xdot_reg + beta_reg
     quadrature = cas.Function('quad', [var, trial.model.parameters], [stage_cost])
