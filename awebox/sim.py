@@ -134,7 +134,7 @@ class Simulation:
         x0 = self.__initialize_sim(n_sim, x0, u_sim, startTime=startTime)
         self.mpc.initialize(startTime)
 
-        with ChargingBar('Simulating...', max = n_sim, fill='#') as bar:
+        with ChargingBar('Simulating...', max = n_sim, fill='#', suffix = '%(percent).1f%% - ETA: %(eta)ds') as bar:
             for i in range(n_sim):
 
                 # get (open/closed-loop) controls

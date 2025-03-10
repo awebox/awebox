@@ -26,7 +26,6 @@
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
 ###################################
-
 from . import tools
 from . import trajectory
 from . import variables
@@ -46,7 +45,7 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 
 # SAM REFACTORING:
-from typing import Dict
+from typing import Dict, Tuple
 from awebox.tools import struct_operations as struct_op
 import casadi
 import numpy as np
@@ -354,6 +353,14 @@ class VisualizationSAM(Visualization):
                                                                               time_grid_ip_original)
         self.plot_dict_SAM['time_grids'] = time_grid_SAM_eval  # we do this AFTER we calculate the region indices
 
+        # evaluate the polynomial of the average state trajectory
+
+        time_grid_X, X, time_grid_X_nodes, X_coll = self.interpolate_average_state_trajectory(self.options['nlp'], V_plot_scaled)
+        self.plot_dict_SAM['time_grids']['ip_X'] = time_grid_X
+        self.plot_dict_SAM['X'] = X
+        self.plot_dict_SAM['time_grids']['X_coll'] = time_grid_X_nodes
+        self.plot_dict_SAM['X_coll'] = X_coll
+
         # the plot dict is now the RECONSTRUCTED one
         self.plot_dict = self.create_reconstructed_plot_dict(V_plot_scaled, output_vals['opt'], global_outputs, integral_output_vals)
 
@@ -469,6 +476,72 @@ class VisualizationSAM(Visualization):
     @plot_dict_SAM.setter
     def plot_dict_SAM(self, value):
         self._plot_dict_SAM = value
+
+    def interpolate_average_state_trajectory(self, nlp_options: dict, V_plot_scaled: cas.struct) -> Tuple[np.ndarray, dict, np.ndarray, dict]:
+        """ Interpolate the average state trajectory of the SAM solution.
+
+        Returns the time grid and the interpolated average state trajectory.
+
+        :param nlp_options: the nlp options e.g. trial.options['nlp']
+        :param V_plot_scaled: the scaled optimal variables solution
+        """
+
+        N = 100  # number of points for the interpolation
+
+        # undo scaling
+        scaling = self.plot_dict['model_variables'](self.plot_dict['model_scaling'])
+        V_plot_si = struct_op.scaled_to_si(V_plot_scaled, scaling)  # convert V_plot to SI units
+
+        # interpolate the average polynomials
+        from awebox.ocp.discretization_averageModel import OthorgonalCollocation
+        d_SAM = nlp_options['SAM']['d']
+        coll_points = np.array(ca.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type']))
+        interpolator_average_integrator = OthorgonalCollocation(coll_points)
+        interpolator_average = interpolator_average_integrator.getPolyEvalFunction(
+            shape=self.plot_dict['variables_dict']['x'].cat.shape, includeZero=True)
+        tau_average = np.linspace(0, 1, N)
+
+        # compute the average polynomials and fill the dataframe
+        X_average = interpolator_average.map(tau_average.size)(tau_average, V_plot_si['x_macro', 0],
+                                                               *[V_plot_si['x_macro_coll', i] for i in range(d_SAM)])
+        X_average = self.plot_dict['variables_dict']['x'].repeated(X_average)
+        X_dict = {}
+        for entry_name in self.plot_dict['variables_dict']['x'].keys():
+            X_dict[entry_name] = []
+            for index_dim in range(self.plot_dict['variables_dict']['x'][entry_name].shape[0]):
+                # we evaluate on the AWEBox time grid, not the SAM time grid!
+                values = ca.vertcat(*X_average[:, entry_name, index_dim]).full().flatten()
+                X_dict[entry_name].append(values)
+
+        # X collocation Nodes
+        X_average_coll = interpolator_average.map(coll_points.size)(coll_points, V_plot_si['x_macro', 0],
+                                                               *[V_plot_si['x_macro_coll', i] for i in range(d_SAM)])
+        X_average_coll = self.plot_dict['variables_dict']['x'].repeated(X_average_coll)
+        X_coll_dict = {}
+        for entry_name in self.plot_dict['variables_dict']['x'].keys():
+            X_coll_dict[entry_name] = []
+            for index_dim in range(self.plot_dict['variables_dict']['x'][entry_name].shape[0]):
+                # we evaluate on the AWEBox time grid, not the SAM time grid!
+                values = ca.vertcat(*X_average_coll[:, entry_name, index_dim]).full().flatten()
+                X_coll_dict[entry_name].append(values)
+
+
+        # find the duration of the regions
+        n_k = nlp_options['n_k']
+        regions_indeces = calculate_SAM_regions(nlp_options)
+        regions_deltans = np.array([region.__len__() for region in regions_indeces])
+        N_regions = nlp_options['SAM']['d'] + 1
+        assert len(regions_indeces) == N_regions
+        T_regions = (V_plot_si['theta', 't_f'] / n_k * regions_deltans).full().flatten()[0:-1]
+
+        # construct the time grid for the average polynomials
+        tau = ca.SX.sym('tau')
+        b_tau = ca.vertcat(*[poly(tau) for poly in interpolator_average_integrator.polynomials_int])
+        interpolator_time = ca.Function('interpolator_time', [tau], [b_tau.T@T_regions])
+        time_grid_X = interpolator_time.map(tau_average.size)(tau_average).full().flatten()
+        time_grid_X_coll = interpolator_time.map(coll_points.size)(coll_points).full().flatten()
+
+        return time_grid_X, X_dict, time_grid_X_coll, X_coll_dict
 
 
 def build_interpolate_functions_full_solution(V: cas.struct, tgrid: dict , nlpoptions: dict, output_vals: np.ndarray) -> Dict[str, ca.Function]:

@@ -492,6 +492,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     regularization_dict: dict = nlp_options['SAM']['Regularization']
 
     d_SAM = nlp_options['SAM']['d']
+    N_SAM = nlp_options['SAM']['N']
 
     # add SAM cost: average dynamics should be minimized
     weights_state = model.variables_dict['x'](1E-8)
@@ -539,7 +540,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     for i, c_i in enumerate(macro_int.c):
         sam_regularization_first_deriv_x_average += macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
 
-    # similar durations, TODO: also do this using the polynomials
+    # similar durations
     sam_regularization_similar_durations = 0
     tfs_cycles = V['theta', 't_f', 0:-1]
     for i, c_i in enumerate(macro_int.c):

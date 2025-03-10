@@ -551,7 +551,7 @@ class Pmpc(object):
         self._time = startTime
 
         # initial guess
-        self._w0 = self.get_reference(*self.__compute_time_grids(startTime)) # nan only for debugging reasons
+        self._w0 = self.get_reference(*self.__compute_time_grids(startTime))
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':

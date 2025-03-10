@@ -90,7 +90,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
             if name == 't_f':
                 if nlp_options['SAM']['use']:
                     vars_lb['theta', 't_f', -1] = model.variable_bounds['theta']['t_f']['lb']
-                    vars_ub['theta', 't_f', -1] = model.variable_bounds['theta']['t_f']['ub'] * 3
+                    vars_ub['theta', 't_f', -1] = model.variable_bounds['theta']['t_f']['ub']
                 elif (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
                     # the period constraint is applied within ocp.constraints,
                     # but we don't want the component times to go negative.
@@ -158,9 +158,9 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 # in reelin phase?
                 offset = 3
                 phase = PhaseOptions.REELOUT  # default
-                if kdx in SAM_regions[-1][offset:-offset]:  # in TRANSITION
+                if kdx in SAM_regions[-1][slice(0,None) if offset==0 else slice(offset,-offset)]:  # in Reelin
                     phase = PhaseOptions.REELIN
-                elif kdx in SAM_regions[-1]:  # in REELIN
+                elif kdx in SAM_regions[-1]:  # in transition
                     phase = PhaseOptions.TRANSITION
 
                 # print(f'Index {kdx} is in phase {phase}', flush=True)
