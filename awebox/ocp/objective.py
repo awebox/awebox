@@ -520,7 +520,9 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         v_i_dot = V_matrix @ l_i_dot  # the value of the 3rd derivative of the state at the collocation point
 
         # compute the quadrature of the 3rd derivative of the state
-        sam_regularizaion_third_deriv_x_average += macro_int.b[i] * v_i_dot.T @ W_x @ v_i_dot
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE**2)
+        factor_time = 1
+        sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ W_x @ v_i_dot
 
     # third derivative of the of the algebraic variables (micro-integrations)
     sam_regularizaion_third_deriv_z = 0
@@ -533,12 +535,13 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         z_i_dot = Z_matrix @ l_i_dot  # value of the 3rd derivative of the algebraic variables at the collocation point
 
         # compute the quadrature of the squared 3rd derivative of the algebraic variables
-        sam_regularizaion_third_deriv_z += macro_int.b[i] * z_i_dot.T @ W_z @ z_i_dot
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE**2)
+        sam_regularizaion_third_deriv_z +=  factor_time * macro_int.b[i] * z_i_dot.T @ W_z @ z_i_dot
 
     # first derivative of the state
     sam_regularization_first_deriv_x_average = 0
     for i, c_i in enumerate(macro_int.c):
-        sam_regularization_first_deriv_x_average += macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
+        sam_regularization_first_deriv_x_average += N_SAM/N_SAM**2 * macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
 
     # similar durations
     sam_regularization_similar_durations = 0
@@ -548,7 +551,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         l_i_dot = ca.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
         T_i_dot = tfs_cycles.T @ l_i_dot  # value of the first derivative of the cycle duration variables at the collocation point
 
-        sam_regularization_similar_durations += macro_int.b[i] * T_i_dot**2
+        sam_regularization_similar_durations += N_SAM/N_SAM**2 * macro_int.b[i] * T_i_dot**2
 
     # sam_regularization_lam_SAM = V['lam_SAM'].T@V['lam_SAM']*1E-4
 

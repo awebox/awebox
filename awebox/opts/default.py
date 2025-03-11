@@ -297,13 +297,16 @@ def set_default_options(default_user_options, help_options):
         ('nlp', 'SAM', None, 'd', 1, ('number of microInts (cycles)', None), 't'),
         ('nlp', 'SAM', None, 'ADAtype', 1, ('type of the average dynamics approximation', ['FD','BD','CD']), 't'),
         ('nlp', 'SAM', None, 'MaInt_type', 1, ('type of macro integration coll', ['legendre','radau']), 't'),
+        # ('nlp', 'SAM', None, 'n_k_ratio', 0.5, ('Percentage of the n_k intervals that are in the (SAM) reel-out phase', [0.4,0.6]), 't'),
         ('nlp', 'SAM', None, 'flag_SAM_reconstruction', False, ('if true, the variables are reconstructed from an SAM solution', None), 't'),
+
 
         #averager moel regularization
         ('nlp', 'SAM', 'Regularization', 'AverageStateFirstDeriv', 1E-2, ('regularization factor the first derivative of the average state trajectory', None), 't'),
         ('nlp', 'SAM', 'Regularization', 'AverageStateThirdDeriv', 1E-1, ('regularization factor for the third derivative of the average state trajectory', None), 't'),
         ('nlp', 'SAM', 'Regularization', 'AverageAlgebraicsThirdDeriv', 0, ('regularization factor the third derivative of the average algebraics trajectory', None), 't'),
         ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
+
         ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-8, 0.005, 0.005],  # we dont penalize the x position
                                                           'dq': 0.01,  # we want the velocities to be similar
                                                           'r': 0.01,  # we want the orientations to be similar

@@ -449,14 +449,16 @@ def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
     : param nlp_options: dictionary with the nlp options e.g option['nlp']
     : param k: the integration interval index on the awebox grid
 
+    ToDo: this could be done more efficiently, all of this can be precomputed. This function is evaluated a lot of times.
     """
 
-    n_regions = get_number_of_tf(nlp_options)  # the number of time-scaling regions
     n_k = nlp_options['n_k']  # the total number of integration intervals
+    n_k_ratio = 0.5 # the ratio of the number of intervals in the reel-in phase
     n_micros = nlp_options['SAM']['d']  # the number of micro-integrations
+    n_regions = n_micros + 1  # the number of time-scaling regions
 
-    # 1. reserve ~40% of the ingeration intervals for reelinn phase
-    n_single_micro = round(n_k*0.6/n_micros)
+    # 1. reserve (~n_k_ratio) of the ingeration intervals for reelin phase
+    n_single_micro = round(n_k*n_k_ratio/n_micros) # the number of intervals in a single micro-integration
     n_RO_intervals = n_single_micro*n_micros
     n_RI_intervals = n_k - n_RO_intervals
 
@@ -475,14 +477,15 @@ def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
 
 def calculate_SAM_regions(nlp_options: dict) -> list:
     """ Returs a list of lists, where each list contains the indices of the k's that belong to the same SAM region.
-        For example, nk= 10, d_SAM=1, and thus 3 regions, the output will be
-        [[0,1,2],[4,5,6],[7,8,9,10]]
+        For example, nk= 10, d_SAM=1, and thus 2 regions, the output will be
+        [[0,1,2,4,5,6],[7,8,9,10]]
 
         :param nlp_options: dictionary with the nlp options e.g option['nlp']
         :return: list of lists with of indices
     """
+    assert nlp_options['SAM']['use'] or nlp_options['SAM']['flag_SAM_reconstruction']
     n_k = nlp_options['n_k']
-    n_tf = get_number_of_tf(nlp_options)
+    n_tf = nlp_options['SAM']['d'] + 1
     return_list = [[] for _ in range(n_tf)]  # generate a list with n_tf empty lists
     for k in range(n_k):
         return_list[calculate_SAM_regionIndex(nlp_options, k)].append(k)
@@ -545,6 +548,13 @@ def calculate_SAM_regionIndexArray(nlpoptions, Vopt, t: np.ndarray) -> np.ndarra
 
     # evaluate the region index for a numpy array of times t
     region_index = np.array([np.sum(s >= ts_cumsum) - 1 for s in t])
+    assert np.all(region_index >= 0), 'region index must be positive'
+
+    # due to numerical errors: make sure that the region index is smaller than the number of regions
+    if np.any(region_index >= len(delta_ns)):
+        region_index[region_index >= len(delta_ns)] = len(delta_ns) - 1
+        # log a warnging
+        awelogger.logger.warning('Some time points are larger than the total simulation time. The region index is set to the last region.')
     return region_index
 
 
@@ -583,17 +593,17 @@ def calculate_kdx_SAM(params, V, t) -> tuple:
 
 _timegrid_reconstruct_save = None # THIS IS BAAAAAD, but so much faster
 
-def calculate_kdx_SAM_reconstruction(params, V, t) -> tuple:
+def calculate_kdx_SAM_reconstruction(nlpparams, V, t) -> tuple:
     """ Calculate the interval index kdx and the remaining relative interval tau duration of the interval in which the time t is located.
     This is valid only IF THE VARIABLES V are reconstructed versions of the SAM variables.
     """
-    assert params['SAM']['flag_SAM_reconstruction'], 'This function is only valid for SAM reconstruction'
+    assert nlpparams['SAM']['flag_SAM_reconstruction'], 'This function is only valid for SAM reconstruction'
 
     # 1. build timegrid from t_f_opt
     global _timegrid_reconstruct_save
     if _timegrid_reconstruct_save is None:
         print('constructing timegrid for SAM reconstruction')
-        _timegrid_reconstruct_save = construct_time_grids_SAM_reconstruction(params)
+        _timegrid_reconstruct_save = construct_time_grids_SAM_reconstruction(nlpparams)
     else:
         # print('using saved timegrid for SAM reconstruction')
         pass
@@ -801,7 +811,7 @@ def si_to_scaled(V_ori, scaling):
     for local_canonical in set_of_canonical_names_without_dimensions:
 
         # with SAM we have some additional variables that might need special treatment
-        if local_canonical[0] in ['v_macro_coll']:
+        if local_canonical[0] in ['v_macro_coll','lam_SAM']:
             continue
 
         if local_canonical[0] != 'phi':
@@ -848,7 +858,7 @@ def scaled_to_si(V_ori, scaling):
     for local_canonical in set_of_canonical_names_without_dimensions:
 
         # with SAM we have some additional variables that might need special treatment
-        if local_canonical[0] in ['v_macro_coll']:
+        if local_canonical[0] in ['v_macro_coll','lam_SAM']:
             continue
 
         if local_canonical[0] != 'phi':
@@ -1017,7 +1027,8 @@ def get_V_index(canonical):
 
         elif length == 2:
             name = canonical[1]
-
+        elif length == 1:
+            name = canonical[0]
         else:
             message = 'unexpected (distinct) canonical_index handing'
             print_op.log_and_raise_error(message)

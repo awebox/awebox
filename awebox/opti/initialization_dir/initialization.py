@@ -111,7 +111,7 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
             V_init_si['x_micro_minus',index] = V_init_si['x',regions_indices_SAM[index+1][0]]
             V_init_si['x_micro_plus',index] = V_init_si['x',regions_indices_SAM[index+1][-1]]
-
+            # V_init_si['lam_SAM'] = 1E-4
     struct_op.test_continuity_of_get_variables_at_time(init_options, V_init_si, model)
 
     return V_init_si
@@ -160,12 +160,13 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     # special options?
     if use_average_model:
         Nwindings = V_init['theta', 't_f'].shape[0]
+        n_k_ratio = 0.5 # ratio of intervals in the reel-out phase
         dSAM = Nwindings - 1
         Tsingle = tf_guess/Nwindings
         tf_guess_vector = cas.DM.zeros(V_init['theta', 't_f'].shape)
 
-        tf_cycle = Tsingle*dSAM/(0.6)
-        tf_RI = Tsingle/(0.4)
+        tf_cycle = Tsingle*dSAM/(n_k_ratio)
+        tf_RI = Tsingle/(1 - n_k_ratio)
 
         tf_guess_vector[0:-1] = tf_cycle
         tf_guess_vector[-1] = tf_RI

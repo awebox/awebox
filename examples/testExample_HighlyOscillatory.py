@@ -51,16 +51,16 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 5 # the number of full cycles approximated
+options['nlp.SAM.N'] = 3 # the number of full cycles approximated
 options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
 
 # SAM Regularization
-single_regularization_param = 1E-2
-options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E-2*single_regularization_param
-options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1*single_regularization_param
+single_regularization_param = 1E-3
+options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E0*single_regularization_param
+options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1E-1*single_regularization_param
 options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regularization_param
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-1*single_regularization_param
 
@@ -72,14 +72,14 @@ options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 # options['solver.max_iter_hippo'] = 0
 
 # Number of discretization points
-n_k = 40 * (options['nlp.SAM.d'] + 1)
+n_k = 10 * (options['nlp.SAM.d'] + 2)
 options['nlp.n_k'] = n_k
 # options['nlp.collocation.d'] = 4
-options['model.system_bounds.theta.t_f'] = [40, 40*options['nlp.SAM.N']] # [s]
+options['model.system_bounds.theta.t_f'] = [30, 40*options['nlp.SAM.N']] # [s]
 
 options['solver.linear_solver'] = 'ma27'
 
-options['visualization.cosmetics.interpolation.n_points'] = 300* options['nlp.SAM.N'] # high plotting resolution
+options['visualization.cosmetics.interpolation.n_points'] = 50* options['nlp.SAM.N'] # high plotting resolution
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
@@ -283,7 +283,13 @@ q10_opt = plot_dict_SAM['x']['q10']
 ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
 
 
-for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']), [f'C{i}' for i in range(20)]):
+Q10_opt = plot_dict_SAM['X']['q10']
+time_X = plot_dict_SAM['time_grids']['ip_X']
+ax.plot3D(Q10_opt[0], Q10_opt[1], Q10_opt[2], 'C0--', alpha=1)
+
+
+
+for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']+1), [f'C{i}' for i in range(20)]):
     ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)],
               q10_opt[1][np.where(ip_regions_SAM == region_index)],
               q10_opt[2][np.where(ip_regions_SAM == region_index)]
@@ -316,19 +322,27 @@ plt.tight_layout()
 # plt.savefig('3DReelout.pdf')
 plt.show()
 
-# %% Debugging: with custom time-grid
+# %% Export Trajectories for fancier Plotting
 
-test_slice = slice(10,15)
-l_t_ref_custom = plot_dict_REC['x']['q10'][0][test_slice]
-dl_t_ref_custom = plot_dict_REC['x']['dq10'][0][test_slice]
-h = np.diff(plot_dict_REC['time_grids']['ip'][test_slice])
-finite_diff_custom = np.diff(l_t_ref_custom)/h
+# all the stuff to be plotted from SAM
+export_dict_SAM = {}
+export_dict_SAM['regions'] = ip_regions_SAM
+export_dict_SAM['time'] = plot_dict_SAM['time_grids']['ip']
+export_dict_SAM['time_X'] = plot_dict_SAM['time_grids']['ip_X']
+export_dict_SAM['x'] = plot_dict_SAM['x']
+export_dict_SAM['X'] = plot_dict_SAM['X']
+export_dict_SAM['d'] = trial.options['nlp']['SAM']['d']
+export_dict_SAM['N'] = trial.options['nlp']['SAM']['N']
+export_dict_SAM['regularizationValue'] = single_regularization_param
 
-print(f"Reference Value:\t \t {l_t_ref_custom}")
-print('----')
-print(f"Reference Deriv Value: \t {dl_t_ref_custom}")
-print(f"Finite Difference: \t\t {finite_diff_custom}")
+export_dict_REC = {}
+export_dict_REC['time'] = plot_dict_REC['time_grids']['ip']
+export_dict_REC['x'] = plot_dict_REC['x']
 
-print('----')
-print(f'Max Diff: {np.max(np.abs(dl_t_ref_custom[1:] - finite_diff_custom))}')
+# save the data
+from datetime import datetime
+datestr = datetime.now().strftime('%Y%m%d_%H%M')
+filename= f'AWE_SAM_N{trial.options['nlp']['SAM']['N']}_d{trial.options['nlp']['SAM']['d']}_{datestr}'
+# np.savez(f'_export/{filename}.npz', **{'SAM': export_dict_SAM, 'REC': export_dict_REC})
+
 
