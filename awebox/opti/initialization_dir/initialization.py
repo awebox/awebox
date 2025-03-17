@@ -160,7 +160,10 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     # special options?
     if use_average_model:
         Nwindings = V_init['theta', 't_f'].shape[0]
-        n_k_ratio = 0.5 # ratio of intervals in the reel-out phase
+
+        # ratio of intervals in the reel-out phase, make sure that this is the same as in calculate_SAM_regionIndex(...)
+        n_k_ratio = 0.5
+
         dSAM = Nwindings - 1
         Tsingle = tf_guess/Nwindings
         tf_guess_vector = cas.DM.zeros(V_init['theta', 't_f'].shape)

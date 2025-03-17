@@ -126,7 +126,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape=(1, 1)))
 
 
-    if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
+    if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'): # and not nlp_options['SAM']['use']:
         t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
         shape = t_f_cstr_list.get_expression_list('ineq').shape
         ocp_cstr_list.append(t_f_cstr_list)

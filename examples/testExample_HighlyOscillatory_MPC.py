@@ -12,6 +12,9 @@ Energy, Vol.173, pp. 569-585, 2019.
 """
 
 from typing import List, Dict
+
+import numpy
+
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 import matplotlib.pyplot as plt
@@ -51,8 +54,8 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 15 # the number of full cycles approximated
-options['nlp.SAM.d'] = 4 # the number of cycles actually computed
+options['nlp.SAM.N'] = 2 # the number of full cycles approximated
+options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
@@ -72,7 +75,7 @@ options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 # options['solver.max_iter_hippo'] = 0
 
 # Number of discretization points
-n_k = 20 * (options['nlp.SAM.d'] + 1)
+n_k = 20 * (options['nlp.SAM.d'] + 2)
 options['nlp.n_k'] = n_k
 # options['nlp.collocation.d'] = 4
 options['model.system_bounds.theta.t_f'] = [40, 40*options['nlp.SAM.N']] # [s]
@@ -243,30 +246,6 @@ trial.visualization.plot_dict['n_k'] = n_k_total
 trial.optimization.V_opt = V_reconstruct
 trial.optimization.V_final_si = trial.visualization.plot_dict['V_plot_si']
 
-# %% DEEEEBUGGGG
-from awebox.tools.struct_operations import calculate_SAM_regions
-
-
-nlp_options = trial.nlp.options
-nk = nlp_options['n_k']
-d = nlp_options['collocation']['d']
-d_SAM = nlp_options['SAM']['d']
-N_SAM = nlp_options['SAM']['N']
-scheme_micro = nlp_options['collocation']['scheme']
-tau_root_micro = ca.vertcat(ca.collocation_points(d, scheme_micro))
-N_regions = d_SAM + 1
-regions_indeces = calculate_SAM_regions(nlp_options)
-regions_deltans = np.array([region.__len__() for region in regions_indeces])
-assert len(regions_indeces) == N_regions
-t_f_sym = ca.SX.sym('t_f_sym', (N_regions, 1))
-T_regions = Vopt['theta','t_f'] / nk * regions_deltans  # the duration of each discretization region
-
-from awebox.ocp.discretization_averageModel import construct_time_grids_SAM_reconstruction
-region_indeces = calculate_SAM_regions(trial.nlp.options)
-timegrid_f = construct_time_grids_SAM_reconstruction(trial.nlp.options)
-time_grid_x = timegrid_f['x'](trial.optimization.V_opt['theta','t_f']).full().flatten()
-
-
 # %% MPC SIMULATION
 import copy
 
@@ -306,15 +285,17 @@ options['mpc.terminal_point_constr'] = False
 options['sim.number_of_finite_elements'] = 50 # integrator steps within one sampling time
 options['sim.sys_params'] = copy.deepcopy(trial.options['solver']['initialization']['sys_params_num'])
 
-weights_Q = model.variables_dict['x'](1E-6)
-weights_Q['q10'] = 1
-weights_Q['dq10'] = 1
-weights_Q['r10'] = 1
+weights_x = model.variables_dict['x'](1E-6)
+weights_x['q10'] = 1
+weights_x['dq10'] = 1
+weights_x['r10'] = 1
+weights_x['e'] = 0
+
 additionalMPCoptions = {}
-additionalMPCoptions['Q'] = weights_Q
+additionalMPCoptions['Q'] = weights_x
 additionalMPCoptions['R'] = model.variables_dict['u'](1)
-additionalMPCoptions['P'] = model.variables_dict['x'](1)
-additionalMPCoptions['Z'] = model.variables_dict['z'](1)
+additionalMPCoptions['P'] = weights_x
+additionalMPCoptions['Z'] = model.variables_dict['z'](1E-6)
 
 # make simulator
 from awebox import sim
@@ -326,7 +307,6 @@ closed_loop_sim = sim.Simulation(trial,'closed_loop', ts, options, additional_mp
 # T_sim = T_opt//40 # seconds
 T_sim = T_opt # seconds
 N_sim = int(T_sim/ts)  # closed-loop simulation steps
-# N_sim = 3  # closed-loop simula
 # tion steps
 
 startTime = 0
@@ -476,53 +456,34 @@ plt.tight_layout()
 plt.show()
 
 
-# %% Debugging: Check if time-derivatives of reference trajectory are correct
+# %% Export Trajectories for fancier Plotting
 
-ref_traj = plot_dict_CLSIM['ref_si']
+# all the stuff to be plotted from SAM
+export_dict_SAM = {}
+export_dict_SAM['regions'] = ip_regions_SAM
+export_dict_SAM['time'] = plot_dict_SAM['time_grids']['ip']
+export_dict_SAM['time_X'] = plot_dict_SAM['time_grids']['ip_X']
+export_dict_SAM['x'] = plot_dict_SAM['x']
+export_dict_SAM['X'] = plot_dict_SAM['X']
+export_dict_SAM['d'] = trial.options['nlp']['SAM']['d']
+export_dict_SAM['N'] = trial.options['nlp']['SAM']['N']
+export_dict_SAM['regularizationValue'] = single_regularization_param
 
-l_t_ref = np.vstack(ref_traj['x']['q10'][0]).squeeze()
-dl_t_ref = np.vstack(ref_traj['x']['dq10'][0]).squeeze()
+export_dict_REC = {}
+export_dict_REC['time'] = plot_dict_REC['time_grids']['ip']
+export_dict_REC['x'] = plot_dict_REC['x']
 
-finite_diff = np.diff(l_t_ref)/ts
+export_dict_MPC = {}
+export_dict_MPC['time'] = plot_dict_CLSIM['time_grids']['ip']
+export_dict_MPC['x'] = plot_dict_CLSIM['x']
 
-print(finite_diff/ dl_t_ref[0:-1])
+export_dict = {'SAM': export_dict_SAM, 'REC': export_dict_REC, 'MPC': export_dict_MPC}
+
+# save the data
+from datetime import datetime
+datestr = datetime.now().strftime('%Y%m%d_%H%M')
+filename= f'{datestr}_AWE_SAM_N{trial.options['nlp']['SAM']['N']}_d{trial.options['nlp']['SAM']['d']}'
+np.savez(f'_export/{filename}.npz', **export_dict)
 
 
-
-# %% Debugging: with custom time-grid
-interpolator_si = closed_loop_sim.mpc.interpolator_si
-t0 = 5 % T_opt # somewhere in the reel-in phase
-h = 1/100
-time_grid_custom = np.arange(t0,t0+5*h,h)
-ref_traj_custom = trial.model.variables_dict['x'].repeated(interpolator_si(time_grid_custom,'x'))
-
-l_t_ref_custom = ca.vertcat(*ref_traj_custom[:,'l_t',0]).full().squeeze()
-dl_t_ref_custom = ca.vertcat(*ref_traj_custom[:,'dl_t',0]).full().squeeze()
-
-finite_diff_custom = np.diff(l_t_ref_custom)/h
-
-print(f"Reference Value:\t \t {l_t_ref_custom}")
-print('----')
-print(f"Reference Deriv Value: \t {dl_t_ref_custom}")
-print(f"Finite Difference: \t\t {finite_diff_custom}")
-
-print('----')
-print(f'Max Diff: {np.max(np.abs(dl_t_ref_custom[1:] - finite_diff_custom))}')
-
-# %% Debugging: with custom time-grid
-
-plot_dict_debug = plot_dict_CLSIM
-test_slice = slice(10,15)
-l_t_ref_custom = plot_dict_debug['x']['l_t'][0]
-dl_t_ref_custom = plot_dict_debug['x']['dl_t'][0]
-h = np.diff(plot_dict_debug['time_grids']['ip'])
-finite_diff_custom = np.diff(l_t_ref_custom)/h
-
-print(f"Reference Value:\t \t {l_t_ref_custom}")
-print('----')
-print(f"Reference Deriv Value: \t {dl_t_ref_custom}")
-print(f"Finite Difference: \t\t {finite_diff_custom}")
-
-print('----')
-print(f'Max Diff: {np.max(np.abs(dl_t_ref_custom[1:] - finite_diff_custom))}')
 

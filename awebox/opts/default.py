@@ -303,15 +303,17 @@ def set_default_options(default_user_options, help_options):
 
         #averager moel regularization
         ('nlp', 'SAM', 'Regularization', 'AverageStateFirstDeriv', 1E-2, ('regularization factor the first derivative of the average state trajectory', None), 't'),
-        ('nlp', 'SAM', 'Regularization', 'AverageStateThirdDeriv', 1E-1, ('regularization factor for the third derivative of the average state trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'AverageStateThirdDeriv', 1E-3, ('regularization factor for the third derivative of the average state trajectory', None), 't'),
         ('nlp', 'SAM', 'Regularization', 'AverageAlgebraicsThirdDeriv', 0, ('regularization factor the third derivative of the average algebraics trajectory', None), 't'),
-        ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1E-3, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
 
-        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-8, 0.005, 0.005],  # we dont penalize the x position
-                                                          'dq': 0.01,  # we want the velocities to be similar
-                                                          'r': 0.01,  # we want the orientations to be similar
-                                                          'omega': 0.01,  # we want the velocities to be similar
-                                                          'delta': 0.01  # we want the controls to be similar
+        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-10, 0.005, 0.005],  # we dont penalize the x position
+                                                          'dq': 1,  # we want the velocities to be similar
+                                                          'r': 1,  # we want the orientations to be similar
+                                                          'omega': 1,  # we want the velocities to be similar
+                                                          'delta': 1,  # we want the controls to be similar
+                                                          'dl_t':1,
+                                                          'e':0,
                                                           }, ('weights for some states, the rest is initialized with 1E-8 [dict]', None), 't'),
 
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),

@@ -495,7 +495,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     N_SAM = nlp_options['SAM']['N']
 
     # add SAM cost: average dynamics should be minimized
-    weights_state = model.variables_dict['x'](1E-8)
+    weights_state = model.variables_dict['x'](1E-14)
 
     # penalize changes is the variables that should not change much
     weights_dicts = regularization_dict['StateWeights']
@@ -520,9 +520,10 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         v_i_dot = V_matrix @ l_i_dot  # the value of the 3rd derivative of the state at the collocation point
 
         # compute the quadrature of the 3rd derivative of the state
-        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE**2)
-        factor_time = 1
-        sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ W_x @ v_i_dot
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE*2)
+        # factor_time = 1
+        # sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ W_x @ v_i_dot
+        sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ v_i_dot
 
     # third derivative of the of the algebraic variables (micro-integrations)
     sam_regularizaion_third_deriv_z = 0
@@ -535,13 +536,16 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         z_i_dot = Z_matrix @ l_i_dot  # value of the 3rd derivative of the algebraic variables at the collocation point
 
         # compute the quadrature of the squared 3rd derivative of the algebraic variables
-        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE**2)
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE*2)
+        # factor_time = 1
         sam_regularizaion_third_deriv_z +=  factor_time * macro_int.b[i] * z_i_dot.T @ W_z @ z_i_dot
 
     # first derivative of the state
     sam_regularization_first_deriv_x_average = 0
     for i, c_i in enumerate(macro_int.c):
-        sam_regularization_first_deriv_x_average += N_SAM/N_SAM**2 * macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
+        factor_time = N_SAM/N_SAM**2
+        # factor_time = 1
+        sam_regularization_first_deriv_x_average += factor_time * macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
 
     # similar durations
     sam_regularization_similar_durations = 0
@@ -551,29 +555,14 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
         l_i_dot = ca.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
         T_i_dot = tfs_cycles.T @ l_i_dot  # value of the first derivative of the cycle duration variables at the collocation point
 
-        sam_regularization_similar_durations += N_SAM/N_SAM**2 * macro_int.b[i] * T_i_dot**2
+        factor_time = N_SAM/N_SAM**2
+        # factor_time = 1
+        sam_regularization_similar_durations += factor_time * macro_int.b[i] * T_i_dot**2
 
-    # sam_regularization_lam_SAM = V['lam_SAM'].T@V['lam_SAM']*1E-4
-
-    # regularizae invariants at start of cycles
-    # compute the jacobian of the invariants for projection of SAM endpoint
-    # W_scaling_variables = ca.diag(model.scaling.cat)
-    # g_inv_SX_SCALED = model.outputs(
-    #     model.outputs_fun(ca.inv(W_scaling_variables) @ model.variables, model.parameters))[
-    #     'invariants', 'c10']
-    # g_fun = ca.Function('g', [model.variables], [g_inv_SX_SCALED])
-    #
-    # tf_regions_indices = struct_op.calculate_SAM_regions(nlp_options)
+    # invariants
     sam_regularization_invariants = 0
     for i in range(d_SAM +1):
         sam_regularization_invariants += V['lam_SAM', i].T @ V['lam_SAM', i] * 1E-8
-
-    # for i in range(d_SAM):
-    #     index_cycle_start = tf_regions_indices[i][0]
-    #     vars_cycle_start = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, index_cycle_start)
-    #     g_cycle_start = g_fun(vars_cycle_start)
-    #     sam_regularization_invariants += g_cycle_start.T @ g_cycle_start*1E-6
-
 
     return (regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average
             + regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average

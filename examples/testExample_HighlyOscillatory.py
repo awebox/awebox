@@ -41,7 +41,22 @@ options['user_options.wind.u_ref'] = 10.
 
 # indicate numerical nlp details
 # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-options['model.system_bounds.x.l_t'] = [200.0, 1500.0]  # [m]
+
+
+# larger kite?
+# bref = options['user_options.kite_standard']['geometry']['b_ref']
+# mref = options['user_options.kite_standard']['geometry']['m_k']
+# jref = options['user_options.kite_standard']['geometry']['j']
+# kappa = 2.4
+# b = 10.0
+# options['user_options.kite_standard']['geometry']['b_ref'] = b
+# options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
+#     'ar']
+# options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
+# options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
+# options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
+# # options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
+# options['user_options.trajectory.fixed_params'] = {'diam_t': 5e-3}
 
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
@@ -51,31 +66,37 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 3 # the number of full cycles approximated
-options['nlp.SAM.d'] = 3 # the number of cycles actually computed
+options['nlp.SAM.N'] = 30 # the number of full cycles approximated
+options['nlp.SAM.d'] = 4 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
-
 # SAM Regularization
-single_regularization_param = 1E-3
-options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E0*single_regularization_param
-options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1E-1*single_regularization_param
+single_regularization_param = 1E-1
+options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E1*single_regularization_param
+options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1E0*single_regularization_param
+# options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 1E3*single_regularization_param
 options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regularization_param
-options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-1*single_regularization_param
+options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
+
+# Number of discretization points
+n_k = 20 * (options['nlp.SAM.d']) * 2
+# n_k = 70 + 30 * (options['nlp.SAM.d'])
+options['nlp.n_k'] = n_k
+
+
+# model bounds
+options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
+options['model.system_bounds.theta.t_f'] = [50, 50 + options['nlp.SAM.N'] * 20]  # [s]
+
+
 
 # smooth the reel in phase (this increases convergence speed x10)
 options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
-# options['solver.cost.beta.0'] = 8e0
-# options['solver.cost.u_regularisation.0'] = 1e0
-# options['solver.max_iter'] = 0
-# options['solver.max_iter_hippo'] = 0
 
-# Number of discretization points
-n_k = 10 * (options['nlp.SAM.d'] + 2)
-options['nlp.n_k'] = n_k
-# options['nlp.collocation.d'] = 4
-options['model.system_bounds.theta.t_f'] = [30, 40*options['nlp.SAM.N']] # [s]
+
+
+
 
 options['solver.linear_solver'] = 'ma27'
 
@@ -182,7 +203,7 @@ plt.show()
 
 # %% Plot the states
 plt.figure(figsize=(10, 10))
-plot_states = ['q10', 'dq10', 'l_t', 'dl_t','e']
+plot_states = ['q10', 'dq10', 'l_t', 'dl_t']
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)
     state_traj = np.vstack([plot_dict_SAM['x'][state_name][i] for i in range(plot_dict_SAM['x'][state_name].__len__())]).T

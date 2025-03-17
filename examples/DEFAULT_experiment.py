@@ -16,7 +16,7 @@ import numpy as np
 
 # set the logger level to 'DEBUG' to see IPOPT output
 from awebox.logger.logger import Logger as awelogger
-awelogger.logger.setLevel(10)
+# awelogger.logger.setLevel(10)
 
 
 def run_DEFAULT_MPC_experiment(N):
@@ -42,11 +42,13 @@ def run_DEFAULT_MPC_experiment(N):
 
     # indicate numerical nlp details
     # here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-    options['model.system_bounds.x.l_t'] = [200.0, 1500.0]  # [m]
+    options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
+    options['model.system_bounds.theta.t_f'] = [50, 50 + N * 20]  # [s]
+
 
     # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
     # within ipopt.
-    options['nlp.n_k'] = 50 + N * 10
+    options['nlp.n_k'] = 80 + N * 20
     options['nlp.collocation.u_param'] = 'zoh'
     options['nlp.cost.output_quadrature'] = False  # use enery as a state, works better with SAM
     options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'  # 'single_reelout'
