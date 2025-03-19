@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
-from typing import Union
+from typing import Union, List, Dict
 
 import casadi as ca
 import casadi.tools as cas
@@ -410,7 +410,7 @@ def find_beta_cost(nlp_options, model, Integral_outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V, V_ref, nlp_options):
+def find_objective(component_costs, V, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
@@ -421,7 +421,12 @@ def find_objective(component_costs, V, V_ref, nlp_options):
     transition_problem_cost = component_costs['tracking_problem_cost']
     general_problem_cost = component_costs['general_problem_cost']
     homotopy_cost = component_costs['homotopy_cost']
-    SAM_regularization = component_costs['SAM_Regularization']
+
+    # unpack the sam regularization costs, every key starts with 'SAM_Regularization_...'
+    SAM_regularization = 0
+    for key in component_costs.keys():
+        if key.startswith('SAM_Regularization'):
+            SAM_regularization += component_costs[key]
 
     trajectory_type = nlp_options['trajectory']['type']
 
@@ -463,15 +468,19 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
-    component_costs['SAM_Regularization'] = find_SAM_regularization(nlp_options, V, xdot, model)
 
 
-    component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
+    sam_reg_dict = find_SAM_regularization(nlp_options, V, xdot, model)
+    # unpack the SAM regularization
+    for key, value in sam_reg_dict.items():
+        component_costs[f'SAM_Regularization_{key}'] = value
+
+    component_costs['objective'] = find_objective(component_costs, V, nlp_options)
 
     return component_costs
 
 
-def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Union[cas.SX, float]:
+def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Dict[str,Union[ca.SX,float]]:
     """
     Compute the regularization cost to enforce the geometric assumptions of the Stroboscopy Average Method (SAM).
     This consists of penalizing:
@@ -484,10 +493,10 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     :param nlp_options: dictionary containing the options of the NLP, i.e. trial.options['nlp']
     :param V: casidi symbolic struct containing the variables of the NLP
     :param model: awebox model objects
-    :return: the SAM regularization cost
+    :return: a dictionary of ca.SX for each type of regularization
     """
     if not nlp_options['SAM']['use']:
-        return 0.0
+        return {'NotInUse':0}
 
     regularization_dict: dict = nlp_options['SAM']['Regularization']
 
@@ -564,11 +573,13 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     for i in range(d_SAM +1):
         sam_regularization_invariants += V['lam_SAM', i].T @ V['lam_SAM', i] * 1E-8
 
-    return (regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average
-            + regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average
-            + regularization_dict['AverageAlgebraicsThirdDeriv'] * sam_regularizaion_third_deriv_z
-            + regularization_dict['SimilarMicroIntegrationDuration'] * sam_regularization_similar_durations
-            + sam_regularization_invariants)
+    return {
+        'X_dot': regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average,
+        'X_dddot': regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average,
+        'Z_dddot': regularization_dict['AverageAlgebraicsThirdDeriv'] * sam_regularizaion_third_deriv_z,
+        'T_dot': regularization_dict['SimilarMicroIntegrationDuration'] * sam_regularization_similar_durations,
+        'inv': sam_regularization_invariants
+    }
 
 
 def get_component_cost_function(component_costs, V, P):

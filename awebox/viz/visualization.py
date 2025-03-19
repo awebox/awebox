@@ -96,6 +96,18 @@ class Visualization(object):
 
         return None
 
+    def printCosts(self):
+        """
+        Print the indiviudal costs of the solution, if >0
+        """
+        print_op.base_print('======================================')
+        print_op.base_print('Costs:')
+        for key in self._plot_dict['cost'].keys():
+            value = float(self._plot_dict['cost'][key])
+            if np.abs(value) > 0:
+                print_op.base_print(f'\t{key}: {value:0.4f}')
+        print_op.base_print('======================================')
+
     def plot(self, V_plot_scaled, P_fix_num, parametric_options, output_vals, integral_output_vals, flags, time_grids, cost, name, sweep_toggle, V_ref_scaled, global_outputs, fig_name='plot', fig_num=None, recalibrate = True):
         """
         Generate plots with given parametric and visualization options
