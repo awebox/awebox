@@ -59,6 +59,7 @@ def run_DEFAULT_MPC_experiment(N):
     # note: this may result in slightly slower solution timings
     options['nlp.compile_subfunctions'] = False
     options['model.integration.method'] = 'constraints'  # use enery as a state, works better with SAM
+    options['visualization.cosmetics.interpolation.n_points'] = 300 * N # high plotting resolution
 
     # for option_name, option_val in overwrite_options.items():
     #     options[option_name] = option_val

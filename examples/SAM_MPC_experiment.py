@@ -87,7 +87,7 @@ def run_SAM_MPC_experiment(d=3, N=5):
 
     options['solver.linear_solver'] = 'ma27'
 
-    options['visualization.cosmetics.interpolation.n_points'] = 500 * options['nlp.SAM.N']  # high plotting resolution
+    options['visualization.cosmetics.interpolation.n_points'] = 300 * options['nlp.SAM.N']  # high plotting resolution
 
     # build and optimize the NLP (trial)
     trial = awe.Trial(options, 'DualKitesLongHorizon')

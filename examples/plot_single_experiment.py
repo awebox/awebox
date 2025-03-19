@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import colors
+import matplotlib.cm as cmx
+
 from matplotlib.patches import Polygon
 
 from awebox.ocp.collocation import Collocation
@@ -25,12 +28,9 @@ def latexify():
 latexify()
 
 # %% Load Data
-# filepath = '_export/AWE_SAM_N10_d4_nicePlotting.npz'
-# filepath = '_export/toPlot/20250311_1537_AWE_SAM_N10_d4.npz'
-# filepath = '_export/toPlot/20250314_0924_AWE_SAM_N3_d4.npz'
-# filepath = '_export/toPlot/20250314_0948_AWE_SAM_N5_d4.npz'
-filepath = '_export/toPlot/20250315_1507_AWE_SAM_N4_d4.npz'
-# filepath = '_export/20250315_1300_AWE_SAM_N5_d4.npz'
+# filepath = '_export/toPlot/20250315_1507_AWE_SAM_N4_d4.npz'
+# filepath = '_export/toPlot/20250315_1458_AWE_SAM_N3_d4.npz'
+filepath = '_export/toPlot/20250315_1611_AWE_SAM_N10_d4.npz'
 data = np.load(filepath,allow_pickle=True)
 
 data_SAM = data['SAM'].item()
@@ -192,7 +192,7 @@ for figure_type in ['SAM', 'REC', 'MPC']:
                           alpha=1, markersize=3)
 
     if figure_type == 'REC':
-        ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=1)
+        ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.5)
 
     if figure_type == 'MPC':
         ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.2)
@@ -249,17 +249,28 @@ for figure_type in ['SAM', 'REC', 'MPC']:
     plt.savefig(f'figures/3DReelout_{figure_type}.pdf')
     plt.show()
 
+# %% DEEBUG COLORPLOT
+#
+# plt.figure()
+# cm_subsection = np.linspace(0, 1, 200)
+#
+# colors = [cm(x) for x in cm_subsection ]
+#
+# for i, color in enumerate(colors):
+#     plt.axhline(cm_subsection[i], color=color)
+#
+# plt.ylabel('Line Number')
+# plt.show()
 
-# %% 3D INTRO PLOT: SAM
+# %% ebd
+# %% 3D INTRO PLOT: AWE
 import mpl_toolkits.mplot3d as a3
 import matplotlib
 
 q10_REC = data_REC['x']['q10']
 q10_opt = data_SAM['x']['q10']
 ip_regions_SAM = data_SAM['regions']
-
-if WITH_MPC:
-    q10_MPC = data_MPC['x']['q10']
+q10_MPC = data_MPC['x']['q10']
 
 Q10_SAM = data_SAM['X']['q10']
 time_X = data_SAM['time_X']
@@ -267,51 +278,50 @@ time_X = data_SAM['time_X']
 plt.figure(figsize=(9, 5.5))
 ax = plt.axes(projection='3d')
 
-
-# reel in
-ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == d)],
-          q10_opt[1][np.where(ip_regions_SAM == d)],
-          q10_opt[2][np.where(ip_regions_SAM == d)]
-          , '-', color='C0',
-          alpha=1, markersize=3)
-
-# average
-ax.plot3D(Q10_SAM[0], Q10_SAM[1], Q10_SAM[2], 'C1-', alpha=1)
-ax.plot3D(Q10_SAM[0][0], Q10_SAM[1][0], Q10_SAM[2][0], 'C1.', alpha=1)
-ax.plot3D(Q10_SAM[0][-1], Q10_SAM[1][-1], Q10_SAM[2][-1], 'C1.', alpha=1)
-
-for region_index in [1,2,d]:
-    color = 'C0' if region_index == data_SAM['d'] else 'C0'
-
-    ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)],
-              q10_opt[1][np.where(ip_regions_SAM == region_index)],
-              q10_opt[2][np.where(ip_regions_SAM == region_index)]
-              , '-', color=color,
-                  alpha=1, markersize=3)
-    ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)][[0,-1]],
-              q10_opt[1][np.where(ip_regions_SAM == region_index)][[0,-1]],
-              q10_opt[2][np.where(ip_regions_SAM == region_index)][[0,-1]], '.', color=color,
-                  alpha=1, markersize=3)
-
-ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0--', alpha=0.3)
+# power_array = np.diff(data_MPC['x']['e'][0][0:]) / np.diff(data_MPC['time'][0:])
+# # p_min = np.min(power_array)
+# # p_max = -np.min(power_array)
+# # power_0_1 = np.clip(power_array/(-p_min), 0, 1)
+#
+# # color map for the positive and negative power values
+# # cm = plt.get_cmap('RdYlGn')
+# # cm = plt.get_cmap('bwr')
+# cm = plt.get_cmap('coolwarm')
+# p_min = np.min(power_array)*1.5
+# cNorm  = colors.Normalize(vmin=p_min, vmax=-p_min,clip=True)
+# scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+#
+# for n in range(power_array.size):
+#
+#     # color = cm(power_0_1[n])
+#     color = scalarMap.to_rgba(power_array[n])
+#     start = np.array([q10_MPC[0][n], q10_MPC[1][n], q10_MPC[2][n]])
+#     end = np.array([q10_MPC[0][n+1], q10_MPC[1][n+1], q10_MPC[2][n+1]])
+#
+#     # remove a tiny length of the direction
+#     direction = end - start
+#     end = start + direction*1
+#     nodes = np.vstack([start, end]).T
+#     ax.plot3D(nodes[0],nodes[1],nodes[2], color=color, alpha=1)
 
 # final_index = q10_MPC[0].size//10
-final_index = 20
-section_to_plot = slice(0,final_index )
-# ax.plot3D(q10_MPC[0][section_to_plot], q10_MPC[1][section_to_plot], q10_MPC[2][section_to_plot], 'r-', alpha=1)
 
-# section mpc:
-section_to_plot_mpc = slice(final_index, final_index + 30)
-# ax.plot3D(q10_MPC[0][section_to_plot_mpc], q10_MPC[1][section_to_plot_mpc], q10_MPC[2][section_to_plot_mpc], 'r--', alpha=1)
+ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.5)
 
 # plot a kite at the end of the section
-r10 = np.vstack([data_MPC['x']['r10'][i][final_index] for i in range(data_MPC['x']['r10'].__len__())])
-q10 = np.vstack([data_MPC['x']['q10'][i][final_index] for i in range(data_MPC['x']['q10'].__len__())])
-drawKite(q10,
-         r10, 40, color='k', alpha=1)
-# draw a straight tether to the origin
-ax.plot3D([0, float(q10[0])], [0, float(q10[1])], [0, float(q10[2])], 'k-', alpha=0.5,linewidth=1)
+kite_index = 55
+r10 = np.vstack([data_MPC['x']['r10'][i][kite_index] for i in range(data_MPC['x']['r10'].__len__())])
+q10 = np.vstack([data_MPC['x']['q10'][i][kite_index] for i in range(data_MPC['x']['q10'].__len__())])
+# drawPlane(q10,r10,wingspan=65,color='k')
+# # draw a straight tether to the origin
+# ax.plot3D([0, float(q10[0])], [0, float(q10[1])], [0, float(q10[2])], 'k-', alpha=0.5,linewidth=1)
 
+for kite_ind in np.arange(0, data_MPC['x']['q10'][0][0:-5].size, 10):
+    r10 = np.vstack([data_MPC['x']['r10'][i][kite_ind] for i in range(data_MPC['x']['r10'].__len__())])
+    q10 = np.vstack([data_MPC['x']['q10'][i][kite_ind] for i in range(data_MPC['x']['q10'].__len__())])
+    drawPlane(q10, r10, wingspan=30, color='k',alpha=0.5)
+
+    ax.plot3D([0, float(q10[0])], [0, float(q10[1])], [0, float(q10[2])], 'k-', alpha=0.1, linewidth=1)
 
 # set bounds for nice view
 q10_REC_all = np.vstack([q10_REC[0],q10_REC[1],q10_REC[2]])
@@ -343,50 +353,110 @@ ax.set_zlabel(r'$z$ in m')
 # ax.legend()
 
 # plt.axis('off')
-ax.view_init(elev=14., azim=131)
+ax.view_init(elev=19., azim=142)
 
 # plt.legend()
 plt.tight_layout()
-plt.savefig(f'figures/3DReelout_Introduction.pdf')
+plt.savefig(f'figures/3DReelout_Introduction_AWE.pdf')
 plt.show()
 
-# # %% Plot the states
-# plt.figure(figsize=(10, 10))
-# plot_states = ['q10', 'dq10', 'l_t', 'dl_t','e']
-# for index, state_name in enumerate(plot_states):
-#     plt.subplot(3, 2, index + 1)
-#     state_traj = np.vstack([data_SAM['x'][state_name][i] for i in range(data_SAM['x'][state_name].__len__())]).T
+# %% 3D INTRO PLOT: SAM
+import mpl_toolkits.mplot3d as a3
+import matplotlib
+
+q10_REC = data_REC['x']['q10']
+
+q10_opt = data_SAM['x']['q10']
+ip_regions_SAM = data_SAM['regions']
+
+if WITH_MPC:
+    q10_MPC = data_MPC['x']['q10']
+
+Q10_SAM = data_SAM['X']['q10']
+time_X = data_SAM['time_X']
+
+plt.figure(figsize=(5.5, 4.5))
+ax = plt.axes(projection='3d')
+
+
+
+# reel in
+ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == d)],
+          q10_opt[1][np.where(ip_regions_SAM == d)],
+          q10_opt[2][np.where(ip_regions_SAM == d)]
+          , '-', color='C0',
+          alpha=1, markersize=3)
+
+# average
+# ax.plot3D(Q10_SAM[0], Q10_SAM[1], Q10_SAM[2], 'C1-', alpha=1)
+# ax.plot3D(Q10_SAM[0][0], Q10_SAM[1][0], Q10_SAM[2][0], 'C1.', alpha=1)
+# ax.plot3D(Q10_SAM[0][-1], Q10_SAM[1][-1], Q10_SAM[2][-1], 'C1.', alpha=1)
+
+for region_index in np.arange(0, data_SAM['d'] + 1):
+    color = 'C0' if region_index == data_SAM['d'] else 'C2'
+
+    ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)],
+              q10_opt[1][np.where(ip_regions_SAM == region_index)],
+              q10_opt[2][np.where(ip_regions_SAM == region_index)]
+              , '-', color=color,
+                  alpha=1, markersize=3)
+
+ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.25)
+
+# ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.2)
+
+final_index = q10_MPC[0].size//4 + 20
+section_to_plot = slice(0,final_index )
+# ax.plot3D(q10_MPC[0][section_to_plot], q10_MPC[1][section_to_plot], q10_MPC[2][section_to_plot], 'r-', alpha=0.75)
+
+# section mpc:
+# section_to_plot_mpc = slice(final_index, final_index + 30)
+# ax.plot3D(q10_MPC[0][section_to_plot_mpc], q10_MPC[1][section_to_plot_mpc], q10_MPC[2][section_to_plot_mpc], 'r--', alpha=0.75)
+
+# plot a kite at the end of the section
+r10 = np.vstack([data_MPC['x']['r10'][i][final_index] for i in range(data_MPC['x']['r10'].__len__())])
+q10 = np.vstack([data_MPC['x']['q10'][i][final_index] for i in range(data_MPC['x']['q10'].__len__())])
+# drawKite(q10,
+         # r10, 30, color='k', alpha=1)
+# drawPlane(q10,r10,wingspan=50,color='k')
+# # draw a straight tether to the origin
+# ax.plot3D([0, float(q10[0])], [0, float(q10[1])], [0, float(q10[2])], 'k-', alpha=0.5,linewidth=1)
 #
-#     for region_index in range(d+1):
-#         plt.plot(data_SAM['time'][np.where(ip_regions_SAM == region_index)],
-#                     state_traj[np.where(ip_regions_SAM == region_index)],  '-')
-#         plt.gca().set_prop_cycle(None)  # reset color cycle
-#
-#     plt.plot([], [], label=state_name)
-#
-#     plt.gca().set_prop_cycle(None)  # reset color cycle
-#
-#     state_recon = np.vstack([data_REC['x'][state_name][i] for i in range(data_REC['x'][state_name].__len__())]).T
-#     plt.plot(data_REC['time'], state_recon, label=state_name + '_recon', linestyle='--')
-#
-#     state_mpc = np.vstack([data_MPC['x'][state_name][i] for i in range(data_MPC['x'][state_name].__len__())]).T
-#     plt.plot(data_MPC['time'], state_mpc, label=state_name + '_MPC', linestyle='dotted')
-#
-#     # add phase switches
-#     # for region in regions_indeces:
-#     #     plt.axvline(x=time_grid_SAM_x[region[0]],color='k',linestyle='--')
-#     #     plt.axvline(x=time_grid_SAM_x[region[-1]]+(time_grid_SAM_x[region[-1]]-time_grid_SAM_x[region[-2]]),color='k',linestyle='--')
-#     # plt.axvline(x=time_grid_SAM_x[regions_indeces[-1][-1]],color='k',linestyle='--')
-#
-#     #
-#     # for region_indeces in regions_indeces[1:-1]:
-#     #     plt.axvline(x=time_grid_SAM_x[region_indeces[0]],color='b',linestyle='--')
-#
-#     plt.xlabel('time [s]')
-#
-#     plt.legend()
-# plt.tight_layout()
-# plt.show()
+
+# set bounds for nice view
+q10_REC_all = np.vstack([q10_REC[0],q10_REC[1],q10_REC[2]])
+meanpos = np.mean(q10_REC_all, axis=1) + np.array([0, +50, 30])
+
+bblenght = np.max(np.abs(q10_REC_all - meanpos.reshape(3, 1)))/2.5
+
+# ticks on the axis in 100m steps
+ax.set_xticks(np.arange(-1000, 1000, 100))
+ax.set_yticks(np.arange(-1000, 1000, 100))
+ax.set_zticks(np.arange(-1000, 1000, 100))
+
+ax.set_xlim3d(meanpos[0] - bblenght, meanpos[0] + bblenght)
+ax.set_ylim3d(meanpos[1] - bblenght, meanpos[1] + bblenght)
+ax.set_zlim3d(meanpos[2] - bblenght, meanpos[2] + bblenght)
+ax.set_box_aspect([1, 1, 1])
+
+pos_wind_arrow = np.array([meanpos[0] - bblenght / 2 + 100, meanpos[1] + bblenght, meanpos[2] + bblenght*0.3])
+ax.quiver(pos_wind_arrow[0],pos_wind_arrow[1],pos_wind_arrow[2], 1, 0, 0, length=100, color='k')
+ax.text(pos_wind_arrow[0],pos_wind_arrow[1],pos_wind_arrow[2]+30, "Wind", 'x', color='k', size=12)
+
+ax.set_xlabel(r'$x$ in m')
+ax.set_ylabel(r'$y$ in m')
+ax.set_zlabel(r'$z$ in m')
+
+# ax.legend()
+
+# plt.axis('off')
+ax.view_init(elev=1., azim=-135)
+
+# plt.legend()
+plt.tight_layout()
+plt.savefig(f'figures/3DReelout_Intro_SAM.pdf')
+plt.show()
+
 
 # %% plot only a subset of the states for paper
 

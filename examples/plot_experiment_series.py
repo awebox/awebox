@@ -3,6 +3,7 @@ from ftplib import all_errors
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import alpha
+import matplotlib.ticker as mtick
 
 
 # %% Latexify the plots
@@ -99,7 +100,7 @@ for file in os.listdir('_export/toPlot_default'):
 
 # group the experiments by d
 experiments_by_d = {}
-for d in [3,4,5]:
+for d in [3,4,5,6]:
     d_exp = [exp for exp in all_experiments if exp.d == d]
 
     # sort the list of experiments by N
@@ -111,11 +112,24 @@ for d in [3,4,5]:
 default_experiments.sort(key=lambda x: x.N)
 
 
+# %% Print a comparison:
+# on t_iter, N, N_var, iterations
+exp_comp_1 = experiments_by_d[6][1]
+exp_comp_2 = default_experiments[-2]
+
+print(f'Comparison of d=6 and full problem N=6')
+print(f'N: {exp_comp_1.N} vs. {exp_comp_2.N}')
+print(f't_iter: {exp_comp_1.t_iter} vs. {exp_comp_2.t_iter}')
+print(f'N_var: {exp_comp_1.N_var} vs. {exp_comp_2.N_var}')
+print(f'iterations: {exp_comp_1.iterations} vs. {exp_comp_2.iterations}')
+print(f't_wall: {exp_comp_1.t_wall} vs. {exp_comp_2.t_wall}')
+
 
 # %% Plot Series
 
 # fig, axes = plt.subplot_mosaic("AA;AA;AA;CC;CC", figsize=(4.5, 3.5))
-fig, axes = plt.subplot_mosaic("AA;AA;AA;AA;BB;BB;CC;CC", figsize=(4.5, 4.5))
+# fig, axes = plt.subplot_mosaic("AA;AA;AA;AA;BB;BB;CC;CC;DD;DD", figsize=(5.5, 5.5))
+fig, axes = plt.subplot_mosaic("AA;AA;AA;BB;BB;CC;CC", figsize=(4.5,4))
 plt.sca(axes['A'])
 
 
@@ -124,14 +138,18 @@ J_DEF_list = np.array([exp.J_DEFAULT for exp in default_experiments])
 N_DEF_list = np.array([exp.N for exp in default_experiments])
 J_DEF_MPC_list = np.array([exp.J_MPC for exp in default_experiments])
 
-for N, J_def, J_mpc in zip(N_DEF_list, J_DEF_list, J_DEF_MPC_list):
-    plt.plot([N, N], [J_def / 1000, J_mpc / 1000], f'C2.-', alpha=0.3)
-plt.plot([],[],f'C2.',label=f'Full Problem', alpha=0.3)
-plt.plot(N_DEF_list, J_DEF_MPC_list/1000,f'C{2}*-', label=f'Full Problem, Sim.')
+# for N, J_def, J_mpc in zip(N_DEF_list, J_DEF_list, J_DEF_MPC_list):
+#     plt.plot([N, N], [J_def / 1000, J_mpc / 1000], f'C2.-', alpha=0.3)
+# plt.plot([],[],f'C2.',label=f'Full Problem', alpha=0.3)
+plt.plot(N_DEF_list, J_DEF_list/1000, f'r^-', markersize=3, label=f'Full Problem')
+
+plt.sca(axes['B'])
+error = (J_DEF_list - J_DEF_MPC_list)/J_DEF_MPC_list
+plt.plot(N_DEF_list, error*100, f'r^-', markersize=3, label=f'Full Problem')
 
 
 # plot sam results
-ds_to_plot = [4,5]
+ds_to_plot = [4,5,6]
 for index,d in enumerate(ds_to_plot):
     experiments = experiments_by_d[d]
     J_SAM_list = np.array([exp.J_SAM for exp in experiments])
@@ -139,31 +157,51 @@ for index,d in enumerate(ds_to_plot):
     J_MPC_list = np.array([exp.J_MPC for exp in experiments])
     N_list = np.array([exp.N for exp in experiments])
 
-
-    for N, J_sam, J_mpc in zip(N_list, J_SAM_list, J_MPC_list):
-        plt.plot([N, N], [J_sam/1000, J_mpc/1000], f'C{index}.-', alpha=0.3)
-    plt.plot([],[],f'C{index}.',label=f'SAM, d={d}', alpha=0.3)
-    # plt.plot(N_list, J_REC_list, label='REC')
+    plt.sca(axes['A'])
+    # for N, J_sam, J_mpc in zip(N_list, J_SAM_list, J_MPC_list):
+    #     plt.plot([N, N], [J_sam/1000, J_mpc/1000], f'C{index}.-', alpha=0.3)
+    plt.plot([],[],f'C{index}.-',label=f'd={d}', alpha=1)
+    plt.plot(N_list, J_SAM_list/1000, f'C{index}.-', alpha=1)
     # plot with a star marker
-    plt.plot(N_list, J_MPC_list/1000,f'C{index}*-', label=f'SAM, Sim.')
+    # plt.plot(N_list, J_MPC_list/1000,f'C{index}*-', label=f'SAM, Sim.')
+
+    plt.sca(axes['B'])
+    error = (J_SAM_list - J_MPC_list)/J_MPC_list
+    plt.plot(N_list, error*100, f'C{index}.-', alpha=1)
+    plt.plot([],[],f'C{index}.-',label=f'd={d}', alpha=1)
 
 
+
+
+
+plt.sca(axes['A'])
 # plt.ylim([0, np.max(J_SAM_list/1000)*1.1])
-plt.xticks(np.arange(-20,50,2))
+plt.xticks(np.arange(-20,50,5))
 plt.xlim([0, np.max(N_list)*1.05])
 # plt.xlabel('N')
 plt.ylabel('P [kW]')
 plt.grid(alpha=0.25)
-plt.legend(ncol=len(ds_to_plot)+1,loc='lower left')
-
+plt.legend(ncol=2,loc='upper right')
 
 plt.sca(axes['B'])
+plt.ylim([0, 14])
+plt.xticks(np.arange(-20,50,5))
+plt.xlim([0, np.max(N_list)*1.05])
+# plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter())
+plt.ylabel('Rel. Error in \%')
+plt.grid(alpha=0.25)
+plt.legend(ncol=len(ds_to_plot)+1)
+
+
+
+plt.sca(axes['C'])
 
 # plot default results
 N_DEF_list = np.array([exp.N for exp in default_experiments])
 # t_wall_DEF_list = np.array([exp.t_wall for exp in default_experiments])
+# plt.plot(N_DEF_list, t_wall_DEF_list, f'r^-', markersize=3,label=f'Full Problem')
 t_iter_DEF_list = np.array([exp.t_iter for exp in default_experiments])
-plt.plot(N_DEF_list, t_iter_DEF_list, f'C2.-', label=f'Full Problem')
+plt.plot(N_DEF_list, t_iter_DEF_list, f'r^-', markersize=3,label=f'Full Problem')
 
 
 for index,d in enumerate(ds_to_plot):
@@ -171,42 +209,48 @@ for index,d in enumerate(ds_to_plot):
     N_list = np.array([exp.N for exp in experiments])
     N_eq_list = np.array([exp.N_eq for exp in experiments])
     t_iter_list = np.array([exp.t_iter for exp in experiments])
-    plt.plot(N_list, t_iter_list, f'C{index}.-', label=f'SAM, d={d}')
+    plt.plot(N_list, t_iter_list, f'C{index}.-', label=f'd={d}')
+    #
+    # t_wall_list = np.array([exp.t_wall for exp in experiments])
+    # plt.plot(N_list, t_wall_list, f'C{index}.-', label=f'd={d}')
 
 
-plt.xticks(np.arange(-20,50,2))
+plt.xticks(np.arange(-20,50,5))
 # plt.ylim([0, np.max(t_iter_list)*1.7])
 plt.xlim([0, np.max(N_list)*1.05])
 plt.yscale('log')
 
 # plt.xlabel('N')
 plt.ylabel('$t_\mathrm{iter}$ [s]')
+# plt.ylabel('$t_\mathrm{wall}$ [s]')
 plt.grid(alpha=0.25)
-plt.legend(ncol=len(ds_to_plot)+1)
+plt.legend(ncol=2,loc='upper right')
 
 # third subplot: Number of variables
 
-plt.sca(axes['C'])
+# plt.sca(axes['D'])
 
 # plot default results
-N_DEF_list = np.array([exp.N for exp in default_experiments])
-N_var_def = np.array([exp.N_var for exp in default_experiments])
-plt.plot(N_DEF_list, N_var_def/1000, f'C2.-', label=f'Full Problem')
+# N_DEF_list = np.array([exp.N for exp in default_experiments])
+# N_var_def = np.array([exp.N_var for exp in default_experiments])
+# plt.plot(N_DEF_list, N_var_def/1000, f'r^-', markersize=3, label=f'Full Problem')
+#
+#
+# for index,d in enumerate(ds_to_plot):
+#     experiments = experiments_by_d[d]
+#     N_list = np.array([exp.N for exp in experiments])
+#     N_var_list = np.array([exp.N_var for exp in experiments])
+#     plt.plot(N_list, N_var_list/1000, f'C{index}.-', label=f'd={d}')
+#
+# plt.xticks(np.arange(-20,50,5))
+# plt.ylim([0, np.max(N_var_list/1000)*1.05])
+# plt.xlim([0, np.max(N_list)*1.05])
+#
+# plt.ylabel('No. of Vars. [k]')
 
 
-for index,d in enumerate(ds_to_plot):
-    experiments = experiments_by_d[d]
-    N_list = np.array([exp.N for exp in experiments])
-    N_var_list = np.array([exp.N_var for exp in experiments])
-    plt.plot(N_list, N_var_list/1000, f'C{index}.-', label=f'SAM, d={d}')
-
-plt.xticks(np.arange(-20,50,2))
-# plt.ylim([0, np.max(t_wall_DEF_list)*1.05])
-plt.xlim([0, np.max(N_list)*1.05])
-
-plt.xlabel(r'No. of Subcycles $N$')
-plt.ylabel('No. of Vars. [k]')
-plt.legend(ncol=len(ds_to_plot)+1,loc = 'lower right')
+plt.xlabel(r'Number of Subcycles $N$')
+# plt.legend(ncol=len(ds_to_plot)+1,loc = 'lower right')
 plt.grid(alpha=0.25)
 plt.tight_layout()
 plt.savefig('figures/experiment_series.pdf')
