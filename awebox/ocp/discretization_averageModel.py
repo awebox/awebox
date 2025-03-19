@@ -50,12 +50,8 @@ from awebox.ocp.discretization import setup_nlp_p, setup_integral_output_structu
 from awebox.ocp.operation import make_periodicity_equality
 
 
-# todo: move this somewhere or replace with existing collocation functions
-# todo: currently this is being used in Jakobs Average Dynamics implementation
-class OthorgonalCollocation:
-    """
-    Base Class for all RK Integration Methods, stores the Butcher Tableau of the method.
-    """
+
+class CollocationIRK:
     c: np.ndarray = None
     A = None
     b = None
@@ -67,20 +63,20 @@ class OthorgonalCollocation:
             raise NotImplementedError
         return self.c, self.A, self.b
 
-    @property
-    def isExplicit(self):
-        return np.allclose(self.A, np.tril(self.A))
-
-    @property
-    def isCollocationMethod(self):
-        # check if there are double entries in the c vector
-        return len(self.c) == len(np.unique(self.c))
-
     def __init__(self, collPoints: np.ndarray):
+        """ A simple implementation of an IRK collocation scheme, based on the collocation points provided
+        The instance then provides the IRK matrices A, b, c and a nice casadi-function builder to evaluate the polynomials.
+
+        This class is NOT THE DIRECT TRANSCRIPTION METHOD 'Collocation' as implemented in awebox.ocp.collocation.
+        # todo: move this somewhere or replace with existing collocation functions
+        # todo: currently this is being used in Jakobs SAM implementation
+
+        :param collPoints: the collocation points to be used, must be a 1D numpy array
+        """
+
         assert collPoints.ndim == 1
         assert np.all(np.unique(collPoints, return_counts=True)[1] <= 1), 'CollPoints have to be distinct!'
-        # assert np.all(collPoints <= 1) and np.all(0 <= collPoints), 'CollPoints must be between 0 and 1'
-
+        assert np.all(collPoints <= 1) and np.all(0 <= collPoints), 'CollPoints must be between 0 and 1'
         self.d = collPoints.shape[-1]
 
 
@@ -94,7 +90,6 @@ class OthorgonalCollocation:
                 if r != j:
                     l *= Polynomial([-collPoints[r], 1]) / (collPoints[j] - collPoints[r])
             self._ls.append(l)
-
 
         self.c = collPoints
         self.b = np.array([l.integ(1)(1) for l in self._ls])
@@ -110,16 +105,13 @@ class OthorgonalCollocation:
         """A list of the numpy polynomials that correspond to the integrated lagrange polynomials"""
         return [l.integ(1) for l in self._ls]
 
-    def __str__(self):
-        return f"Oth. Coll. with {self.d} stages"
-
     def getPolyEvalFunction(self, shape: tuple, includeZero: bool = False, includeOne: bool = False, fixedValues: list = None) -> cas.Function:
         """
         Generates a casadi function that evaluates the polynomial at a given point t of the form
 
-        p(t) = F(t, [x0], x1, ..., xd)
+        p(t) = F(t, [x0], x1, ..., xd, [x1])
 
-        where t is a scalar in [0,1] and x0, ..., xd are the collocation points of the provided shape.
+        where t is a scalar in [0,1] and x0, ..., xd are the collocation points of some shape (can be vector or matrix).
 
         If fixed values for the nodes x0, ..., xd are provided, the function will be of the form
 
@@ -129,8 +121,6 @@ class OthorgonalCollocation:
         :param includeZero: if true, the collocation point at time 0 is included
         :param fixedValues: a list of fixed values for the nodes, if provided, the function will be of the form x(t) = F(t)
         """
-        assert self.isCollocationMethod is True, "Can only reconstruct polynomial for collocation methods!"
-
         assert not(includeOne and includeZero), 'either includeOne or includeZero can be true, not both!'
 
         # append zero if needed
@@ -152,7 +142,6 @@ class OthorgonalCollocation:
             Xs = []
             for i in np.arange((0 if includeZero else 1),self.d+1):
                 Xs.append(cas.SX.sym(f'x{i}', shape))
-
         else:
             assert len(fixedValues) == d, f"The number of fixed values ({len(fixedValues)}) must be equal to the number of collocation points ({d})!"
             assert all([v.shape == shape for v in fixedValues]), "The shape of the fixed values must be equal to the shape of the collocation points!"
@@ -184,6 +173,8 @@ class OthorgonalCollocation:
         else:
             return cas.Function('polyEval', [t], [result])
 
+
+
 def reconstruct_full_from_SAM(nlpoptions: dict, V_opt_scaled: ca.tools.struct, output_vals_opt: ca.DM) -> tuple:
     """
     Reconstruct the full trajectory from the SAM discretization with micro- and macro-integrations.
@@ -207,7 +198,7 @@ def reconstruct_full_from_SAM(nlpoptions: dict, V_opt_scaled: ca.tools.struct, o
 
     d_SAM = nlpoptions['SAM']['d']
     N_SAM = nlpoptions['SAM']['N']
-    macroIntegrator = OthorgonalCollocation(np.array(ca.collocation_points(d_SAM, nlpoptions['SAM']['MaInt_type'])))
+    macroIntegrator = CollocationIRK(np.array(ca.collocation_points(d_SAM, nlpoptions['SAM']['MaInt_type'])))
     regions_indeces = struct_op.calculate_SAM_regions(nlpoptions)
 
     t_f_opt = V_opt_scaled['theta', 't_f']
@@ -444,7 +435,7 @@ def construct_time_grids_SAM_reconstruction(nlp_options) -> dict:
 
     # function to evaluate the reconstructed time
     # quadrature over the region durations to reconstruct the physical time
-    macroIntegrator = OthorgonalCollocation(np.array(ca.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
+    macroIntegrator = CollocationIRK(np.array(ca.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
     tau_SX = ca.SX.sym('tau', 1)
     t_recon_SX = 0
     for i in range(d_SAM):  # iterate over the collocation nodes
@@ -636,9 +627,7 @@ def discretize(nlp_options, model, formulation):
     d_SAM = nlp_options['SAM']['d']
 
     # macro-integrator
-    # assert d_SAM == 1, 'for now we only support d_SAM = 1'
-    # macroIntegrator = ForwardEuler()
-    macroIntegrator = OthorgonalCollocation(np.array(cas.collocation_points(d_SAM,nlp_options['SAM']['MaInt_type'])))
+    macroIntegrator = CollocationIRK(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
     c_macro, A_macro, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b
     assert d_SAM == c_macro.size
 
@@ -846,7 +835,7 @@ def originalTimeToSAMTime(nlpoptions,t_f_opt) -> ca.Function:
     d_SAM = nlpoptions['SAM']['d']
     N_SAM = nlpoptions['SAM']['N']
     n_k = nlpoptions['n_k']
-    macroInt = OthorgonalCollocation(np.array(ca.collocation_points(d_SAM, nlpoptions['SAM']['MaInt_type'])))
+    macroInt = CollocationIRK(np.array(ca.collocation_points(d_SAM, nlpoptions['SAM']['MaInt_type'])))
 
     # get the regions and the duration of each region
     regions_indeces = struct_op.calculate_SAM_regions(nlpoptions)

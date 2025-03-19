@@ -53,7 +53,7 @@ import casadi as ca
 import casadi.tools as cas
 from ..ocp.collocation import Collocation
 from ..ocp.discretization_averageModel import eval_time_grids_SAM, reconstruct_full_from_SAM, \
-    originalTimeToSAMTime, OthorgonalCollocation, construct_time_grids_SAM_reconstruction, \
+    originalTimeToSAMTime, CollocationIRK, construct_time_grids_SAM_reconstruction, \
     constructPiecewiseCasadiExpression
 from ..opti import diagnostics
 from ..tools.struct_operations import calculate_SAM_regions, calculate_SAM_regionIndexArray
@@ -346,7 +346,7 @@ class VisualizationSAM(Visualization):
         # this happens if the time points are equal, but are supposed to be in different SAM regions,
         # for example when radau collocation is used
 
-        # find  paris of indices in time_grid_ip_original that are close to each other
+        # find  pairs of indices in time_grid_ip_original that are close to each other
         close_indices = np.where(np.isclose(np.diff(time_grid_xcoll_original), 0.0))[0]
         for first_index in close_indices:
             time_grid_xcoll_original[first_index] -= 1E-6
@@ -505,10 +505,10 @@ class VisualizationSAM(Visualization):
         V_plot_si = struct_op.scaled_to_si(V_plot_scaled, scaling)  # convert V_plot to SI units
 
         # interpolate the average polynomials
-        from awebox.ocp.discretization_averageModel import OthorgonalCollocation
+        from awebox.ocp.discretization_averageModel import CollocationIRK
         d_SAM = nlp_options['SAM']['d']
         coll_points = np.array(ca.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type']))
-        interpolator_average_integrator = OthorgonalCollocation(coll_points)
+        interpolator_average_integrator = CollocationIRK(coll_points)
         interpolator_average = interpolator_average_integrator.getPolyEvalFunction(
             shape=self.plot_dict['variables_dict']['x'].cat.shape, includeZero=True)
         tau_average = np.linspace(0, 1, N)
@@ -573,7 +573,7 @@ def build_interpolate_functions_full_solution(V: cas.struct, tgrid: dict , nlpop
     # build micro-integration interpolation functions
     d_micro = nlpoptions['collocation']['d']
     coll_points = np.array(ca.collocation_points(d_micro,nlpoptions['collocation']['scheme']))
-    coll_integrator = OthorgonalCollocation(coll_points)
+    coll_integrator = CollocationIRK(coll_points)
     intpoly_x_f = coll_integrator.getPolyEvalFunction(V.getStruct('x')(0).shape, includeZero=True)
     intpoly_z_f = coll_integrator.getPolyEvalFunction(V.getStruct('z')(0).shape, includeZero=False)
     intpoly_outputs_f = coll_integrator.getPolyEvalFunction(output_vals[:, 0].shape, includeZero=True)

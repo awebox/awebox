@@ -117,8 +117,8 @@ def find_time_period(nlp_numerics_options, V):
 
         d_SAM = nlp_numerics_options['SAM']['d']
         N_SAM = nlp_numerics_options['SAM']['N']
-        from awebox.ocp.discretization_averageModel import OthorgonalCollocation
-        macroIntegrator = OthorgonalCollocation(
+        from awebox.ocp.discretization_averageModel import CollocationIRK
+        macroIntegrator = CollocationIRK(
             np.array(cas.collocation_points(d_SAM, nlp_numerics_options['SAM']['MaInt_type'])))
         # macroIntegrator = ForwardEuler()
         _, _, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b

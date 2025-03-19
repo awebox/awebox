@@ -516,8 +516,8 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
             weights_state[key] = weights_dicts[key[:-2]]
     W_x = cas.diag(weights_state.cat)
 
-    from awebox.ocp.discretization_averageModel import OthorgonalCollocation
-    macro_int = OthorgonalCollocation(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
+    from awebox.ocp.discretization_averageModel import CollocationIRK
+    macro_int = CollocationIRK(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
 
     # third derivative of the average state
     DERIVATIVE_T0_REGULARIZE = 3
