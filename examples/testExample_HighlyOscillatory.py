@@ -21,11 +21,23 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
 
+
+DUAL_KITES = True
+
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
 options = {}
-options['user_options.system_model.architecture'] = {1: 0}
-options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+
+if DUAL_KITES:
+    from examples.paper_benchmarks import reference_options as ref
+
+    options = ref.set_reference_options(user='A')
+    options = ref.set_dual_kite_options(options)
+    options['solver.max_iter_hippo'] = 1000
+
+else:
+    options['user_options.system_model.architecture'] = {1: 0}
+    options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
 
 # indicate desired operation mode
 # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -48,31 +60,31 @@ options['user_options.wind.u_ref'] = 10.
 # mref = options['user_options.kite_standard']['geometry']['m_k']
 # jref = options['user_options.kite_standard']['geometry']['j']
 # kappa = 2.4
-# b = 10.0
+# b = 7.0
 # options['user_options.kite_standard']['geometry']['b_ref'] = b
 # options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
 #     'ar']
 # options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
 # options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
 # options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
-# # options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
+# options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
 # options['user_options.trajectory.fixed_params'] = {'diam_t': 5e-3}
 
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
-options['nlp.compile_subfunctions'] = True
+options['nlp.compile_subfunctions'] = False
 options['model.integration.method'] = 'constraints'  # use enery as a state, works better with SAM
 
 options['nlp.collocation.u_param'] = 'zoh'
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 30 # the number of full cycles approximated
-options['nlp.SAM.d'] = 4 # the number of cycles actually computed
+options['nlp.SAM.N'] = 5 # the number of full cycles approximated
+options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
 # SAM Regularization
-single_regularization_param = 1E-1
+single_regularization_param = 1E-3
 options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E1*single_regularization_param
 options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1E0*single_regularization_param
 # options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 1E3*single_regularization_param
@@ -80,14 +92,17 @@ options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regular
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
 
 # Number of discretization points
-n_k = 20 * (options['nlp.SAM.d']) * 2
+n_k = 15 * (options['nlp.SAM.d']) * 2
 # n_k = 70 + 30 * (options['nlp.SAM.d'])
 options['nlp.n_k'] = n_k
 
 
 # model bounds
 options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
-options['model.system_bounds.theta.t_f'] = [50, 50 + options['nlp.SAM.N'] * 20]  # [s]
+if DUAL_KITES:
+    options['model.system_bounds.theta.t_f'] = [5, 10 * options['nlp.SAM.N']]  # [s]
+else:
+    options['model.system_bounds.theta.t_f'] = [50, 50 + options['nlp.SAM.N'] * 20]  # [s]
 
 
 
@@ -165,7 +180,8 @@ x_coll_invariants = trial.model.outputs.repeated(x_coll_output_vals.full())
 plt.figure()
 
 # plt.plot(time_plot, power, '-')
-invariants_to_plot = ['c10','dc10','ddc10','orthonormality10']
+invariants_to_plot = [key for key in trial.model.outputs_dict['invariants'].keys() if
+                                key.startswith(tuple(['c', 'dc', 'orthonormality']))]
 for region_index in np.arange(0, trial.options['nlp']['SAM']['d']+1):
     indices = np.where(plot_dict_SAM['SAM_regions_x_coll'][0:-1] == region_index)[0]
     for index,key in enumerate(invariants_to_plot):
@@ -203,7 +219,10 @@ plt.show()
 
 # %% Plot the states
 plt.figure(figsize=(10, 10))
-plot_states = ['q10', 'dq10', 'l_t', 'dl_t']
+if DUAL_KITES:
+    plot_states = ['q21', 'dq21', 'l_t',  'e']
+else:
+    plot_states = ['q10', 'dq10', 'l_t', 'dl_t', 'e']
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)
     state_traj = np.vstack([plot_dict_SAM['x'][state_name][i] for i in range(plot_dict_SAM['x'][state_name].__len__())]).T
@@ -247,7 +266,7 @@ if True:
     plt.figure('Initialization and Reference')
     time_grid_init = trial.nlp.time_grids['x'](Vinit['theta', 't_f']).full().flatten()
 
-    plot_states = ['q10', 'dq10', 'l_t','e']
+    plot_states = ['q21', 'dq21', 'l_t','e']
 
     for index, state_name in enumerate(plot_states):
         plt.subplot(2, 2, index + 1)
@@ -297,14 +316,14 @@ def drawKite(pos, rot, wingspan, color='C0', alpha=1):
 nk_reelout = int(options['nlp.n_k'] * trial.options['nlp']['phase_fix_reelout'])
 nk_cut = round(options['nlp.n_k'] * trial.options['nlp']['phase_fix_reelout'])
 
-q10_REC = plot_dict_REC['x']['q10']
+q10_REC = plot_dict_REC['x']['q21']
 ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.3)
 
-q10_opt = plot_dict_SAM['x']['q10']
+q10_opt = plot_dict_SAM['x']['q21']
 ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
 
 
-Q10_opt = plot_dict_SAM['X']['q10']
+Q10_opt = plot_dict_SAM['X']['q21']
 time_X = plot_dict_SAM['time_grids']['ip_X']
 ax.plot3D(Q10_opt[0], Q10_opt[1], Q10_opt[2], 'C0--', alpha=1)
 

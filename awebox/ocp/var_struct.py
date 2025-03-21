@@ -96,13 +96,14 @@ def setup_nlp_v(nlp_options: dict, model: Model, coll_instance: collocation.Coll
 
     # add SAM variables if necessary
     if nlp_options['SAM']['use']:
+        invariant_names_to_constrain = [key for key in model.outputs_dict['invariants'].keys() if key.startswith(tuple(['c', 'dc', 'orthonormality']))]
         entry_list += [
                        cas.entry('x_macro', struct=model.variables_dict['x'], repeat=[2]),
                        cas.entry('x_macro_coll', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
                        cas.entry('v_macro_coll', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
                        cas.entry('x_micro_minus', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
                        cas.entry('x_micro_plus', struct=model.variables_dict['x'], repeat=[nlp_options['SAM']['d']]),
-                       cas.entry('lam_SAM', shape=cas.vertcat(*model.outputs['invariants',['c10', 'dc10', 'orthonormality10']]).shape, repeat = [nlp_options['SAM']['d']+1]),
+                       cas.entry('lam_SAM', shape=cas.vertcat(*model.outputs['invariants',invariant_names_to_constrain]).shape, repeat = [nlp_options['SAM']['d']+1]),
                        ]
 
     # generate structure

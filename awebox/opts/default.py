@@ -307,7 +307,7 @@ def set_default_options(default_user_options, help_options):
         ('nlp', 'SAM', 'Regularization', 'AverageAlgebraicsThirdDeriv', 0, ('regularization factor the third derivative of the average algebraics trajectory', None), 't'),
         ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1E-3, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
 
-        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-10, 0.005, 0.005],  # we dont penalize the x position
+        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-10, 0.005, 1E-10],  # we dont penalize the x and the z position
                                                           'dq': 1,  # we want the velocities to be similar
                                                           'r': 1,  # we want the orientations to be similar
                                                           'omega': 1,  # we want the velocities to be similar

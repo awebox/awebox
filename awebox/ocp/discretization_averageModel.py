@@ -173,8 +173,6 @@ class CollocationIRK:
         else:
             return cas.Function('polyEval', [t], [result])
 
-
-
 def reconstruct_full_from_SAM(nlpoptions: dict, V_opt_scaled: ca.tools.struct, output_vals_opt: ca.DM) -> tuple:
     """
     Reconstruct the full trajectory from the SAM discretization with micro- and macro-integrations.
@@ -634,13 +632,14 @@ def discretize(nlp_options, model, formulation):
     tf_regions_indices = struct_op.calculate_SAM_regions(nlp_options)
     SAM_regions_indeces = tf_regions_indices[:-1]  # we are not intersted the last region (reelin)
 
-    # evaluation functions for the invariants
-    W_scaling_variables = ca.diag(model.scaling.cat)
+    # build evaluation functions for the invariants c(x), dc(x), orthonormality
+    invariant_names_to_constrain = [key for key in model.outputs_dict['invariants'].keys() if
+                                    key.startswith(tuple(['c', 'dc', 'orthonormality']))]
     g_inv_SX_SCALED = (
-        ca.vertcat(*model.outputs(model.outputs_fun(model.variables, model.parameters))['invariants', ['c10', 'dc10', 'orthonormality10']])
-                  ) # TODO: REMOVE HARDCODING FOR SINGLE KITES
-    g_fun = ca.Function('g', [model.variables['x']], [g_inv_SX_SCALED])
-    g_jac_x_SCALED_fun = ca.Function('inv_jac_x', [model.variables['x']],
+        ca.vertcat(*model.outputs(model.outputs_fun(model.variables, model.parameters))['invariants', invariant_names_to_constrain])
+                  )
+    g_fun = ca.Function('g', [model.variables['x'], model.variables['theta']], [g_inv_SX_SCALED])
+    g_jac_x_SCALED_fun = ca.Function('inv_jac_x', [model.variables['x'], model.variables['theta']],
                                      [ca.jacobian(g_inv_SX_SCALED, model.variables['x'])])
 
     # iterate the SAM micro-integrations
@@ -648,7 +647,7 @@ def discretize(nlp_options, model, formulation):
         n_first = SAM_regions_indeces[i][0]  # first interval index of the region
         n_last = SAM_regions_indeces[i][-1]  # last interval index of the region
 
-        # 1. XMINUS: connect x_minus with start of the micro integration
+        # 1A. XMINUS: connect x_minus with start of the micro integration
         xminus = model.variables_dict['x'](V['x_micro_minus',i])
         micro_connect_xminus = cstr_op.Constraint(expr= xminus.cat - V['x', n_first],
                                       name= f'micro_connect_xminus_{i}',
@@ -656,32 +655,26 @@ def discretize(nlp_options, model, formulation):
         SAM_cstrs_list.append(micro_connect_xminus)
         SAM_cstrs_entry_list.append(cas.entry(f'micro_connect_xminus_{i}', shape=xminus.shape))
 
-        # 2. XPLUS: replace the continutiy constraint for the last collocation interval of the region
-        xplus = model.variables_dict['x'](V['x_micro_plus', i])
-        ocp_cstr_list.get_constraint_by_name(f'continuity_{n_last}').expr = xplus.cat - model.variables_dict['x'](Collocation.get_continuity_expression(V,n_last)).cat
-
-
-        # 3. PHASE CONSTRAINT:
-        # phase_cstr_end = cstr_op.Constraint(expr= V['x_micro_minus', i, 'dq10', 1] - V['x_micro_plus', i, 'dq10', 1],
-        #                                       name=f'phase_end_{i}',
-        #                                       cstr_type='eq')
-        # SAM_cstrs_list.append(phase_cstr_end)
-        # SAM_cstrs_entry_list.append(cas.entry(f'phase_end_{i}', shape=(1, 1)))
-
-        # 4. SAM dynamics approximation - vcoll
-        ada_vcoll_cstr = cstr_op.Constraint(expr= (xplus.cat - xminus.cat)*N_SAM - V['v_macro_coll', i],
-                                              name=f'ada_vcoll_cstr_{i}',
-                                              cstr_type='eq')
-        SAM_cstrs_list.append(ada_vcoll_cstr)
-        SAM_cstrs_entry_list.append(cas.entry(f'ada_vcoll_cstr_{i}', shape=xminus.shape))
-
-        # 5. enforce invartiants for startpoint
-        expr_inv = g_fun(xminus.cat)
+        # 1B. enforce invartiants for startpoint
+        # get the thetas at the startpoint
+        theta_xminus = struct_op.get_variables_at_time(nlp_options, V, Xdot,model.variables,n_first)['theta']
+        expr_inv = g_fun(xminus.cat,theta_xminus)
         invariants_start_cycle_cstr_i = cstr_op.Constraint(expr=expr_inv,
                                                   name=f'invariants_start_cycle_cstr_{i}',
                                                   cstr_type='eq')
         SAM_cstrs_list.append(invariants_start_cycle_cstr_i)
         SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_cycle_cstr_{i}', shape=expr_inv.shape))
+
+        # 2. XPLUS: replace the continutiy constraint for the last collocation interval of the region
+        xplus = model.variables_dict['x'](V['x_micro_plus', i])
+        ocp_cstr_list.get_constraint_by_name(f'continuity_{n_last}').expr = xplus.cat - model.variables_dict['x'](Collocation.get_continuity_expression(V,n_last)).cat
+
+        # 3. SAM dynamics approximation - vcoll
+        ada_vcoll_cstr = cstr_op.Constraint(expr= (xplus.cat - xminus.cat)*N_SAM - V['v_macro_coll', i],
+                                              name=f'ada_vcoll_cstr_{i}',
+                                              cstr_type='eq')
+        SAM_cstrs_list.append(ada_vcoll_cstr)
+        SAM_cstrs_entry_list.append(cas.entry(f'ada_vcoll_cstr_{i}', shape=xminus.shape))
 
 
 
@@ -689,18 +682,12 @@ def discretize(nlp_options, model, formulation):
         ada_type = nlp_options['SAM']['ADAtype']
         assert ada_type in ['FD','BD','CD'], 'only FD, BD, CD are supported'
         ada_coeffs = {'FD': [1,-1, 0], 'BD':[0,-1,1], 'CD':[1,-2,1]}[ada_type]
-        # if i==0:
-        #     expr_connect = V['x_micro_minus', i] - V['x_macro_coll', i]
-        # elif i==d_SAM-1:
-        #     expr_connect = V['x_micro_plus', i] - V['x_macro_coll', i]
-        # else: # somewhere in the middle
-        #     expr_connect = V['x_micro_minus', i] +V['x_micro_plus', i] - 2* V['x_macro_coll', i]
         lam_SAM_i = V['lam_SAM', i]
 
         expr_connect = (ada_coeffs[0]*V['x_micro_minus', i]
                         + ada_coeffs[1]*V['x_macro_coll', i]
                         + ada_coeffs[2]*V['x_micro_plus', i]
-                        + g_jac_x_SCALED_fun(V['x_micro_minus', i]).T@lam_SAM_i)
+                        + g_jac_x_SCALED_fun(V['x_micro_minus', i],theta_xminus).T@lam_SAM_i)
         micro_connect_macro = cstr_op.Constraint(expr= expr_connect,
                                       name=f'micro_connect_macro_{i}',
                                       cstr_type='eq')
@@ -744,33 +731,26 @@ def discretize(nlp_options, model, formulation):
     SAM_cstrs_list.append(macro_end_cstr)
     SAM_cstrs_entry_list.append(cas.entry('macro_end_cstr', shape=xminus.shape))
 
-
-
-    # connect endpoint of the macro-integration with start of the reelin phase
+    # # enforce consistency at start of reelout
     index_reelin_start = tf_regions_indices[-1][0]
     x_reelin_start = V['x', index_reelin_start]
-    # macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start,
-    #                               name='macro_connect_reelin',
-    #                               cstr_type='eq')
+    theta_start_reelin = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, index_reelin_start)[
+        'theta']
+    expr_inv = g_fun(x_reelin_start, theta_start_reelin)
+    invariants_start_reelin_cstr = cstr_op.Constraint(expr=expr_inv,
+                                                      name=f'invariants_start_reelin_cstr',
+                                                      cstr_type='eq')
+    SAM_cstrs_list.append(invariants_start_reelin_cstr)
+    SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_reelin_cstr', shape=expr_inv.shape))
 
-
-    # PROJECTION?
+    # connect endpoint of the macro-integration with start of the reelin phase with PROJECTION
     lam_SAM_reelin = V['lam_SAM',-1]
-    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start -  g_jac_x_SCALED_fun(x_reelin_start).T@lam_SAM_reelin,
+    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start -  g_jac_x_SCALED_fun(x_reelin_start,theta_start_reelin).T@lam_SAM_reelin,
                                   name='macro_connect_reelin',
                                   cstr_type='eq')
     SAM_cstrs_list.append(macro_connect_reelin)
     SAM_cstrs_entry_list.append(cas.entry('macro_connect_reelin', shape=xminus.shape))
 
-    ## PROJECTION CONSTRAINT
-
-    # # enforce consistency at start of reelout LEADS TO LICQ VIOLATION I GUESS\
-    expr_inv = g_fun(x_reelin_start)
-    invariants_start_reelin_cstr = cstr_op.Constraint(expr=expr_inv,
-                                                     name=f'invariants_start_reelin_cstr',
-                                                     cstr_type='eq')
-    SAM_cstrs_list.append(invariants_start_reelin_cstr)
-    SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_reelin_cstr', shape=expr_inv.shape))
 
     # overwrite the ocp_cstr_struct with new entries
     ocp_cstr_list.append(SAM_cstrs_list)
