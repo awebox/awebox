@@ -27,10 +27,11 @@ file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 '''
+from typing import Dict
 
+import casadi as ca
 import casadi.tools as cas
 import numpy as np
-import os
 import operator
 
 import copy
@@ -38,11 +39,9 @@ from functools import reduce
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
-from itertools import chain
-import matplotlib.pyplot as plt
-import awebox.tools.performance_operations as perf_op
-from awebox.ocp.discretization_averageModel import construct_time_grids_SAM_reconstruction
-from awebox.ocp.var_struct import get_number_of_tf
+from awebox.ocp.discretization import construct_time_grids
+from awebox.tools.sam_functionalities import construct_time_grids_SAM_reconstruction, originalTimeToSAMTime
+
 
 def subkeys(casadi_struct, key):
 
@@ -1618,3 +1617,42 @@ def test():
     # todo
     awelogger.logger.warning('no tests currently defined for struct_operations')
     return None
+
+
+def eval_time_grids_SAM(nlp_options: dict, tf_opt: ca.DM) -> Dict[str, np.ndarray]:
+    """
+    Calculate the time grids for the SAM discretization.
+    This makes use of a function that translates the original nlp time to the SAM time.
+
+    Returns a dictionary with the time grids for the states ('x'), controls ('u'), collocation nodes ('coll') and the
+    time grid for the states and collocation nodes ('x_coll').
+
+    :param nlp_options: the nlp options, e.g. trial.options['nlp']
+    :param tf_opt: the optimal time-scaling parameters, e.g. Vopt['theta', 't_f']
+    :return: a dictionary of numpy arrays for the timegrids with keys ('x','u', 'coll', 'x_coll')
+    """
+    assert nlp_options['SAM']['use']
+    assert nlp_options['discretization'] == 'direct_collocation'
+
+    timegrid_AWEbox_f = construct_time_grids(nlp_options)
+    timegrid_AWEbox_eval = {key: timegrid_AWEbox_f[key](tf_opt).full().flatten() for key in timegrid_AWEbox_f.keys()}
+    timegrid_SAM = {}
+
+    # function to go from AWEbox time to SAM time
+    f_scale = originalTimeToSAMTime(nlp_options, tf_opt)
+
+    # modify a bit for better post-processing: for x_coll timegrid
+    # check if any values of t are close to any values in ts_cumsum,
+    # this happens if the time points are equal, but are supposed to be in different SAM regions,
+    # for example when radau collocation is used
+
+    # find  paris of indices in time_grid_ip_original that are close to each other
+    close_indices = np.where(np.isclose(np.diff(timegrid_AWEbox_eval['x_coll']), 0.0))[0]
+    for first_index in close_indices:
+        timegrid_AWEbox_eval['x_coll'][first_index] -= 1E-6
+        timegrid_AWEbox_eval['x_coll'][first_index + 1] += 1E-6
+
+    for key in timegrid_AWEbox_f:
+        timegrid_SAM[key] = f_scale.map(timegrid_AWEbox_eval[key].size)(timegrid_AWEbox_eval[key]).full().flatten()
+
+    return timegrid_SAM

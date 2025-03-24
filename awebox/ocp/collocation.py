@@ -36,7 +36,6 @@ import numpy as np
 
 from collections import OrderedDict
 
-import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.cached_functions as cf
@@ -491,8 +490,8 @@ class Collocation(object):
         t = cas.SX.sym('t')
 
         if nlp_params['SAM']['flag_SAM_reconstruction']:
-            from awebox.ocp.discretization_averageModel import constructPiecewiseCasadiExpression
-            from awebox.ocp.discretization_averageModel import construct_time_grids_SAM_reconstruction
+            from awebox.tools.sam_functionalities import constructPiecewiseCasadiExpression
+            from awebox.tools.sam_functionalities import construct_time_grids_SAM_reconstruction
 
             # check that the timegrid is monotonically increasing
             timegrid_f = construct_time_grids_SAM_reconstruction(nlp_params)

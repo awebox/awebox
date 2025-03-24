@@ -29,26 +29,15 @@ python-3.5 / casadi-3.4.5
 - authors: elena malz 2016
            rachel leuthold, jochem de schutter alu-fr 2017-21
 '''
-from typing import Dict, List
+from typing import List
 
-import casadi
 import casadi as ca
 import casadi.tools as cas
 import numpy as np
-
-import awebox.ocp.constraints as constraints
-import awebox.ocp.collocation as coll_module
-import awebox.ocp.multiple_shooting as ms_module
-import awebox.ocp.ocp_outputs as ocp_outputs
-import awebox.ocp.var_struct as var_struct
-
 import awebox.tools.struct_operations as struct_op
-import awebox.tools.print_operations as print_op
 import awebox.tools.constraint_operations as cstr_op
-from awebox.ocp import operation
-from awebox.ocp.discretization import setup_nlp_p, setup_integral_output_structure
-from awebox.ocp.operation import make_periodicity_equality
-
+from awebox.mdl.model import Model
+from awebox.ocp.collocation import Collocation
 
 
 class CollocationIRK:
@@ -302,100 +291,6 @@ def reconstruct_full_from_SAM(nlpoptions: dict, V_opt_scaled: ca.tools.struct, o
 
     return V_reconstruct, time_grid_recon_eval, ca.horzcat(*outputs_reconstructed)
 
-def construct_time_grids(nlp_options) -> dict:
-    """
-    Construct the time grids for the direct collocation or multiple shooting discretization.
-    This function constructs the time grids for the states ('x'), controls ('u'), and collocation nodes ('coll'), each
-    'timegrid' is a casadi function that maps the time scaling parameters to the respective time grid.
-
-    Returns a dictionary of casadi functions for
-        - discrete states ('x'),
-        - controls ('u'),
-        - collocation nodes ('coll')
-        - state and collocation nodes ('x_coll')
-
-    :param nlp_options:
-    :return: {'x': cas.Function, 'u': cas.Function, 'coll': cas.Function, 'x_coll': cas.Function}
-    """
-
-
-    assert nlp_options['phase_fix'] == 'single_reelout'
-    # assert nlp_options['discretization'] == 'direct_collocation'
-
-    time_grids = {}
-    nk = nlp_options['n_k']
-    if nlp_options['discretization'] == 'direct_collocation':
-        direct_collocation = True
-        ms = False
-        d = nlp_options['collocation']['d']
-        scheme = nlp_options['collocation']['scheme']
-        tau_root = cas.vertcat(cas.collocation_points(d, scheme))
-        tcoll = []
-
-    elif nlp_options['discretization'] == 'multiple_shooting':
-        direct_collocation = False
-        ms = True
-        tcoll = None
-
-    # make symbolic time constants
-    if nlp_options['SAM']['use']:
-        tfsym = cas.SX.sym('tfsym', var_struct.get_number_of_tf(nlp_options))
-        # regions_indexes = struct_op.calculate_SAM_regions(nlp_options)
-    elif nlp_options['phase_fix'] == 'single_reelout':
-        tfsym = cas.SX.sym('tfsym',2)
-        nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
-        t_switch = tfsym[0] * nk_reelout / nk
-        time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
-
-    else:
-        tfsym = cas.SX.sym('tfsym',1)
-
-    # initialize
-    tx = []
-    tu = []
-
-    tcurrent = 0
-    for k in range(nk):
-
-        # speed of time of the specific interval
-        regions_index = struct_op.calculate_tf_index(nlp_options, k)
-        duration_interval = tfsym[regions_index]/nk
-
-        # add interval timings
-        tx.append(tcurrent)
-        tu.append(tcurrent)
-
-        # add collocation timings
-        if direct_collocation:
-            for j in range(d):
-                tcoll.append(tcurrent + tau_root[j] * duration_interval)
-
-        # update current time
-        tcurrent = tcurrent + duration_interval
-
-    # add last interval time to tx for last integration node
-    tx.append(tcurrent)
-    tu = cas.vertcat(*tu)
-    tx = cas.vertcat(*tx)
-    tcoll = cas.vertcat(*tcoll)
-
-    if direct_collocation:
-        # reshape tcoll
-        tcoll = tcoll.reshape((d,nk)).T
-        tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1),1)),tx[-1])
-
-        # write out collocation grids
-        time_grids['coll'] = cas.Function('tgrid_coll',[tfsym],[tcoll])
-        time_grids['x_coll'] = cas.Function('tgrid_x_coll',[tfsym],[tx_coll])
-
-    # write out interval grid
-    time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
-    time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
-
-
-    return time_grids
-
-
 def construct_time_grids_SAM_reconstruction(nlp_options) -> dict:
     """
     Construct the time grids for the RECONSTRUCTED trajectory after the SAM discretization.
@@ -483,254 +378,128 @@ def construct_time_grids_SAM_reconstruction(nlp_options) -> dict:
 
     return time_grid_reconstruction
 
-
-def eval_time_grids_SAM(nlp_options: dict, tf_opt: ca.DM) -> Dict[str, np.ndarray]:
+def modify_constraints_for_SAM(nlp_options: dict,
+                               collocation: Collocation,
+                               V: cas.struct,
+                               Xdot: cas.struct,
+                               model: Model,
+                               ocp_cstr_list: cstr_op.OcpConstraintList) -> tuple:
     """
-    Calculate the time grids for the SAM discretization.
-    This makes use of a function that translates the original nlp time to the SAM time.
+    Modify the constraints of the  build NLP, to now incoporate the SAM discretization. This
 
-    Returns a dictionary with the time grids for the states ('x'), controls ('u'), collocation nodes ('coll') and the
-    time grid for the states and collocation nodes ('x_coll').
+    a) cuts open the discretized trajectory to reuse the parts for the micro-integrations and the reel-in phase.
+    b) stitches the micro-integrations together with the macro-integrations
+    c) adds constraints to enforce the invariants of the SAM discretization
 
     :param nlp_options: the nlp options, e.g. trial.options['nlp']
-    :param tf_opt: the optimal time-scaling parameters, e.g. Vopt['theta', 't_f']
-    :return: a dictionary of numpy arrays for the timegrids with keys ('x','u', 'coll', 'x_coll')
+    :param collocation: the (micro)-collocation instance of the awebox
+    :param V: the variables struct of the nlp
+    :param Xdot: the derivatives struct of the nlp
+    :param model: trial.model
+    :param ocp_cstr_list: the already existing constraints
+    :return: a tuple (SAM_cstrs_entry_list, SAM_cstrs_list) with the new constraints
     """
-    assert nlp_options['SAM']['use']
-    assert nlp_options['discretization'] == 'direct_collocation'
 
-    timegrid_AWEbox_f = construct_time_grids(nlp_options)
-    timegrid_AWEbox_eval = {key: timegrid_AWEbox_f[key](tf_opt).full().flatten() for key in timegrid_AWEbox_f.keys()}
-    timegrid_SAM = {}
-
-    # function to go from AWEbox time to SAM time
-    f_scale = originalTimeToSAMTime(nlp_options, tf_opt)
-
-    # modify a bit for better post-processing: for x_coll timegrid
-    # check if any values of t are close to any values in ts_cumsum,
-    # this happens if the time points are equal, but are supposed to be in different SAM regions,
-    # for example when radau collocation is used
-
-    # find  paris of indices in time_grid_ip_original that are close to each other
-    close_indices = np.where(np.isclose(np.diff(timegrid_AWEbox_eval['x_coll']), 0.0))[0]
-    for first_index in close_indices:
-        timegrid_AWEbox_eval['x_coll'][first_index] -= 1E-6
-        timegrid_AWEbox_eval['x_coll'][first_index + 1] += 1E-6
-
-    for key in timegrid_AWEbox_f:
-        timegrid_SAM[key] = f_scale.map(timegrid_AWEbox_eval[key].size)(timegrid_AWEbox_eval[key]).full().flatten()
-
-    return timegrid_SAM
-
-
-def discretize(nlp_options, model, formulation):
-
-    # -----------------------------------------------------------------------------
-    # discretization setup
-    # -----------------------------------------------------------------------------
-    nk = nlp_options['n_k']
-    assert nlp_options['discretization'] == 'direct_collocation', 'for SAM, we only support direct collocation as of yet'
-    d = nlp_options['collocation']['d']
-    scheme = nlp_options['collocation']['scheme']
-    Collocation = coll_module.Collocation(nk, d, scheme)
-
-    dae = None
-    Multiple_shooting = None
-
-    V = var_struct.setup_nlp_v(nlp_options, model, Collocation)
-    P = setup_nlp_p(V, model)
-
-    Xdot = Collocation.get_xdot(nlp_options, V, model)
-    [coll_outputs,
-    Integral_outputs_list,
-    Integral_constraint_list] = Collocation.collocate_outputs_and_integrals(nlp_options, model, formulation, V, P, Xdot)
-
-    ms_xf = None
-    ms_z0 = None
-    ms_vars = None
-    ms_params = None
-
-    # -------------------------------------------
-    # DISCRETIZE VARIABLES, CREATE NLP PARAMETERS
-    # -------------------------------------------
-
-    # construct time grids for this nlp
-    time_grids = construct_time_grids(nlp_options)
-
-    # ---------------------------------------
-    # PREPARE OUTPUTS STRUCTURE
-    # ---------------------------------------
-    mdl_outputs = model.outputs
-
-    # global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, model, V)
-    # global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
-
-    # -------------------------------------------
-    # COLLOCATE OUTPUTS
-    # -------------------------------------------
-
-    # prepare listing of outputs and constraints
-    Outputs_list = []
-
-    # Construct outputs
-    for kdx in range(nk):
-
-        if nlp_options['collocation']['u_param'] == 'zoh':
-            Outputs_list.append(coll_outputs[:,kdx*(d+1)])
-
-        # add outputs on collocation nodes
-        for ddx in range(d):
-
-            # compute outputs for this time interval
-            if nlp_options['collocation']['u_param'] == 'zoh':
-                Outputs_list.append(coll_outputs[:,kdx*(d+1)+ddx+1])
-            elif nlp_options['collocation']['u_param'] == 'poly':
-                Outputs_list.append(coll_outputs[:,kdx*(d)+ddx])
-
-
-    # Create Outputs struct and function
-    Outputs_fun = cas.Function('Outputs_fun', [V, P], [cas.horzcat(*Outputs_list)])
-    Outputs = Outputs_fun(V, P)
-
-    Outputs_struct = None
-    Outputs_structured_fun = None
-    Outputs_structured = None
-
-    # Create Integral outputs struct and function
-    Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
-    Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
-    Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
-
-    # Global outputs
-    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P)
-    global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
-
-    Xdot_struct = Xdot
-    Xdot_fun = cas.Function('Xdot_fun', [V], [Xdot])
-
-    # -------------------------------------------
-    # GET CONSTRAINTS
-    # -------------------------------------------
-    ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
-        Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids)
-
-    # ---------------------------------------------
-    # modify the constraints for SAM
-    # ---------------------------------------------
     SAM_cstrs_list = cstr_op.OcpConstraintList()  # create an empty list
     SAM_cstrs_entry_list = []
-
     N_SAM = nlp_options['SAM']['N']
     d_SAM = nlp_options['SAM']['d']
-
     # macro-integrator
     macroIntegrator = CollocationIRK(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
     c_macro, A_macro, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b
     assert d_SAM == c_macro.size
-
     tf_regions_indices = struct_op.calculate_SAM_regions(nlp_options)
     SAM_regions_indeces = tf_regions_indices[:-1]  # we are not intersted the last region (reelin)
-
     # build evaluation functions for the invariants c(x), dc(x), orthonormality
     invariant_names_to_constrain = [key for key in model.outputs_dict['invariants'].keys() if
                                     key.startswith(tuple(['c', 'dc', 'orthonormality']))]
     g_inv_SX_SCALED = (
-        ca.vertcat(*model.outputs(model.outputs_fun(model.variables, model.parameters))['invariants', invariant_names_to_constrain])
-                  )
+        ca.vertcat(*model.outputs(model.outputs_fun(model.variables, model.parameters))[
+            'invariants', invariant_names_to_constrain])
+    )
     g_fun = ca.Function('g', [model.variables['x'], model.variables['theta']], [g_inv_SX_SCALED])
     g_jac_x_SCALED_fun = ca.Function('inv_jac_x', [model.variables['x'], model.variables['theta']],
                                      [ca.jacobian(g_inv_SX_SCALED, model.variables['x'])])
-
     # iterate the SAM micro-integrations
     for i in range(d_SAM):
         n_first = SAM_regions_indeces[i][0]  # first interval index of the region
         n_last = SAM_regions_indeces[i][-1]  # last interval index of the region
 
         # 1A. XMINUS: connect x_minus with start of the micro integration
-        xminus = model.variables_dict['x'](V['x_micro_minus',i])
-        micro_connect_xminus = cstr_op.Constraint(expr= xminus.cat - V['x', n_first],
-                                      name= f'micro_connect_xminus_{i}',
-                                      cstr_type='eq')
+        xminus = model.variables_dict['x'](V['x_micro_minus', i])
+        micro_connect_xminus = cstr_op.Constraint(expr=xminus.cat - V['x', n_first],
+                                                  name=f'micro_connect_xminus_{i}',
+                                                  cstr_type='eq')
         SAM_cstrs_list.append(micro_connect_xminus)
         SAM_cstrs_entry_list.append(cas.entry(f'micro_connect_xminus_{i}', shape=xminus.shape))
 
         # 1B. enforce invartiants for startpoint
         # get the thetas at the startpoint
-        theta_xminus = struct_op.get_variables_at_time(nlp_options, V, Xdot,model.variables,n_first)['theta']
-        expr_inv = g_fun(xminus.cat,theta_xminus)
+        theta_xminus = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, n_first)['theta']
+        expr_inv = g_fun(xminus.cat, theta_xminus)
         invariants_start_cycle_cstr_i = cstr_op.Constraint(expr=expr_inv,
-                                                  name=f'invariants_start_cycle_cstr_{i}',
-                                                  cstr_type='eq')
+                                                           name=f'invariants_start_cycle_cstr_{i}',
+                                                           cstr_type='eq')
         SAM_cstrs_list.append(invariants_start_cycle_cstr_i)
         SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_cycle_cstr_{i}', shape=expr_inv.shape))
 
         # 2. XPLUS: replace the continutiy constraint for the last collocation interval of the region
         xplus = model.variables_dict['x'](V['x_micro_plus', i])
-        ocp_cstr_list.get_constraint_by_name(f'continuity_{n_last}').expr = xplus.cat - model.variables_dict['x'](Collocation.get_continuity_expression(V,n_last)).cat
+        ocp_cstr_list.get_constraint_by_name(f'continuity_{n_last}').expr = xplus.cat - model.variables_dict['x'](
+            collocation.get_continuity_expression(V, n_last)).cat
 
         # 3. SAM dynamics approximation - vcoll
-        ada_vcoll_cstr = cstr_op.Constraint(expr= (xplus.cat - xminus.cat)*N_SAM - V['v_macro_coll', i],
-                                              name=f'ada_vcoll_cstr_{i}',
-                                              cstr_type='eq')
+        ada_vcoll_cstr = cstr_op.Constraint(expr=(xplus.cat - xminus.cat) * N_SAM - V['v_macro_coll', i],
+                                            name=f'ada_vcoll_cstr_{i}',
+                                            cstr_type='eq')
         SAM_cstrs_list.append(ada_vcoll_cstr)
         SAM_cstrs_entry_list.append(cas.entry(f'ada_vcoll_cstr_{i}', shape=xminus.shape))
 
-
-
         # 5. Connect to Macro integration point
         ada_type = nlp_options['SAM']['ADAtype']
-        assert ada_type in ['FD','BD','CD'], 'only FD, BD, CD are supported'
-        ada_coeffs = {'FD': [1,-1, 0], 'BD':[0,-1,1], 'CD':[1,-2,1]}[ada_type]
+        assert ada_type in ['FD', 'BD', 'CD'], 'only FD, BD, CD are supported'
+        ada_coeffs = {'FD': [1, -1, 0], 'BD': [0, -1, 1], 'CD': [1, -2, 1]}[ada_type]
         lam_SAM_i = V['lam_SAM', i]
 
-        expr_connect = (ada_coeffs[0]*V['x_micro_minus', i]
-                        + ada_coeffs[1]*V['x_macro_coll', i]
-                        + ada_coeffs[2]*V['x_micro_plus', i]
-                        + g_jac_x_SCALED_fun(V['x_micro_minus', i],theta_xminus).T@lam_SAM_i)
-        micro_connect_macro = cstr_op.Constraint(expr= expr_connect,
-                                      name=f'micro_connect_macro_{i}',
-                                      cstr_type='eq')
+        expr_connect = (ada_coeffs[0] * V['x_micro_minus', i]
+                        + ada_coeffs[1] * V['x_macro_coll', i]
+                        + ada_coeffs[2] * V['x_micro_plus', i]
+                        + g_jac_x_SCALED_fun(V['x_micro_minus', i], theta_xminus).T @ lam_SAM_i)
+        micro_connect_macro = cstr_op.Constraint(expr=expr_connect,
+                                                 name=f'micro_connect_macro_{i}',
+                                                 cstr_type='eq')
         SAM_cstrs_list.append(micro_connect_macro)
         SAM_cstrs_entry_list.append(cas.entry(f'micro_connect_macro_{i}', shape=xminus.shape))
-
-
-
-
     # MACRO INTEGRATION
     X_macro_start = model.variables_dict['x'](V['x_macro', 0])
     X_macro_end = model.variables_dict['x'](V['x_macro', -1])
-
     # START: connect X0_macro and the endpoint of the reelin phase, by replacing the periodicity constraint
     # reconstruct the periodicty constraint (remove state 'e') from constraint
     state_start = model.variables_dict['x'](X_macro_start)
-    state_end =  model.variables_dict['x'](V['x', -1])
+    state_end = model.variables_dict['x'](V['x', -1])
     periodicty_expr = []
     for name in state_start.keys():
-        if name != 'e': # don't enforce periodicity on the energy
+        if name != 'e':  # don't enforce periodicity on the energy
             periodicty_expr.append(state_start[name] - state_end[name])
-
     ocp_cstr_list.get_constraint_by_name(f'state_periodicity').expr = ca.vertcat(*periodicty_expr)
-
     # for macro: Baumgarte as function
     # baumgarte_cst_SX = model.constraints_dict['equality']['dynamics_constraint']
     # baumgarte_cst_fun = cas.Function('baumgarte_cst_fun', [model.variables], [baumgarte_cst_SX])
-
     # Macro RK scheme
     for i in range(d_SAM):
-        macro_rk_cstr = cstr_op.Constraint(expr=V['x_macro_coll',i] - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll'])@A_macro[i,:].T),
-                                              name=f'macro_rk_cstr_{i}',
-                                              cstr_type='eq')
+        macro_rk_cstr = cstr_op.Constraint(
+            expr=V['x_macro_coll', i] - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll']) @ A_macro[i, :].T),
+            name=f'macro_rk_cstr_{i}',
+            cstr_type='eq')
         SAM_cstrs_list.append(macro_rk_cstr)
         SAM_cstrs_entry_list.append(cas.entry(f'macro_rk_cstr_{i}', shape=xminus.shape))
-
     # END: connect x_plus with end of the reelout
-    macro_end_cstr = cstr_op.Constraint(expr= X_macro_end.cat  - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll'])@b_macro),
-                                  name='macro_end_cstr',
-                                  cstr_type='eq')
+    macro_end_cstr = cstr_op.Constraint(
+        expr=X_macro_end.cat - (X_macro_start.cat + cas.horzcat(*V['v_macro_coll']) @ b_macro),
+        name='macro_end_cstr',
+        cstr_type='eq')
     SAM_cstrs_list.append(macro_end_cstr)
     SAM_cstrs_entry_list.append(cas.entry('macro_end_cstr', shape=xminus.shape))
-
     # # enforce consistency at start of reelout
     index_reelin_start = tf_regions_indices[-1][0]
     x_reelin_start = V['x', index_reelin_start]
@@ -742,22 +511,15 @@ def discretize(nlp_options, model, formulation):
                                                       cstr_type='eq')
     SAM_cstrs_list.append(invariants_start_reelin_cstr)
     SAM_cstrs_entry_list.append(cas.entry(f'invariants_start_reelin_cstr', shape=expr_inv.shape))
-
     # connect endpoint of the macro-integration with start of the reelin phase with PROJECTION
-    lam_SAM_reelin = V['lam_SAM',-1]
-    macro_connect_reelin = cstr_op.Constraint(expr= X_macro_end.cat - x_reelin_start -  g_jac_x_SCALED_fun(x_reelin_start,theta_start_reelin).T@lam_SAM_reelin,
-                                  name='macro_connect_reelin',
-                                  cstr_type='eq')
+    lam_SAM_reelin = V['lam_SAM', -1]
+    macro_connect_reelin = cstr_op.Constraint(expr=X_macro_end.cat - x_reelin_start - g_jac_x_SCALED_fun(x_reelin_start,
+                                                                                                         theta_start_reelin).T @ lam_SAM_reelin,
+                                              name='macro_connect_reelin',
+                                              cstr_type='eq')
     SAM_cstrs_list.append(macro_connect_reelin)
     SAM_cstrs_entry_list.append(cas.entry('macro_connect_reelin', shape=xminus.shape))
-
-
-    # overwrite the ocp_cstr_struct with new entries
-    ocp_cstr_list.append(SAM_cstrs_list)
-    ocp_cstr_entry_list = ocp_cstr_struct.entries + SAM_cstrs_entry_list
-    ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
-
-    return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_fun, Outputs_struct, Outputs_structured, Outputs_structured_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
+    return SAM_cstrs_entry_list, SAM_cstrs_list
 
 
 def constructPiecewiseCasadiExpression(decisionVariable: ca.SX, edges: List, expressions: List[ca.SX]) -> ca.SX:

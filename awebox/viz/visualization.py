@@ -47,16 +47,13 @@ from awebox.logger.logger import Logger as awelogger
 # SAM REFACTORING:
 from typing import Dict, Tuple
 from awebox.tools import struct_operations as struct_op
-import casadi
 import numpy as np
 import casadi as ca
 import casadi.tools as cas
-from ..ocp.collocation import Collocation
-from ..ocp.discretization_averageModel import eval_time_grids_SAM, reconstruct_full_from_SAM, \
-    originalTimeToSAMTime, CollocationIRK, construct_time_grids_SAM_reconstruction, \
-    constructPiecewiseCasadiExpression
+from awebox.tools.sam_functionalities import reconstruct_full_from_SAM, \
+    originalTimeToSAMTime, CollocationIRK, constructPiecewiseCasadiExpression
 from ..opti import diagnostics
-from ..tools.struct_operations import calculate_SAM_regions, calculate_SAM_regionIndexArray
+from ..tools.struct_operations import calculate_SAM_regions, calculate_SAM_regionIndexArray, eval_time_grids_SAM
 
 
 #todo: compare to initial guess for all plots as option
@@ -505,7 +502,7 @@ class VisualizationSAM(Visualization):
         V_plot_si = struct_op.scaled_to_si(V_plot_scaled, scaling)  # convert V_plot to SI units
 
         # interpolate the average polynomials
-        from awebox.ocp.discretization_averageModel import CollocationIRK
+        from awebox.tools.sam_functionalities import CollocationIRK
         d_SAM = nlp_options['SAM']['d']
         coll_points = np.array(ca.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type']))
         interpolator_average_integrator = CollocationIRK(coll_points)

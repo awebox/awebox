@@ -42,8 +42,27 @@ import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+from awebox.tools.sam_functionalities import modify_constraints_for_SAM
 
-def construct_time_grids(nlp_options):
+def construct_time_grids(nlp_options) -> dict:
+    """
+    Construct the time grids for the direct collocation or multiple shooting discretization.
+    This function constructs the time grids for the states ('x'), controls ('u'), and collocation nodes ('coll'), each
+    'timegrid' is a casadi function that maps the time scaling parameters to the respective time grid.
+
+    Returns a dictionary of casadi functions for
+        - discrete states ('x'),
+        - controls ('u'),
+        - collocation nodes ('coll')
+        - state and collocation nodes ('x_coll')
+
+    :param nlp_options:
+    :return: {'x': cas.Function, 'u': cas.Function, 'coll': cas.Function, 'x_coll': cas.Function}
+    """
+
+
+    assert nlp_options['phase_fix'] == 'single_reelout'
+    # assert nlp_options['discretization'] == 'direct_collocation'
 
     time_grids = {}
     nk = nlp_options['n_k']
@@ -61,69 +80,144 @@ def construct_time_grids(nlp_options):
         tcoll = None
 
     # make symbolic time constants
-    if nlp_options['phase_fix'] == 'single_reelout':
-        tfsym = cas.SX.sym('tfsym', 2)
+    if nlp_options['SAM']['use']:
+        tfsym = cas.SX.sym('tfsym', var_struct.get_number_of_tf(nlp_options))
+        # regions_indexes = struct_op.calculate_SAM_regions(nlp_options)
+    elif nlp_options['phase_fix'] == 'single_reelout':
+        tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
-
         t_switch = tfsym[0] * nk_reelout / nk
         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
 
     else:
-        tfsym = cas.SX.sym('tfsym', 1)
+        tfsym = cas.SX.sym('tfsym',1)
 
     # initialize
     tx = []
     tu = []
 
-    for k in range(nk+1):
+    tcurrent = 0
+    for k in range(nk):
 
-        # extract correct time constant in case of single_reelout phase fix
-        if nlp_options['phase_fix'] == 'single_reelout':
-
-            # remember: tfsym[0] is the total time that optimization_period would have,
-            # if all intervals were the same length as those from the reel-out phase
-            # tfsym[1] is the total time the optimization period would have,
-            # if all intervals... reel-in phase
-
-            if k < nk_reelout:
-                tf = tfsym[0]
-                k_count = k
-                t0 = cas.DM(0.)
-            else:
-                tf = tfsym[1]
-                k_count = k - nk_reelout
-                t0 = t_switch
-        else:
-            tf = tfsym
-            k_count = k
-            t0 = cas.DM(0.)
-
-        delta_t = tf / float(nk)
+        # speed of time of the specific interval
+        regions_index = struct_op.calculate_tf_index(nlp_options, k)
+        duration_interval = tfsym[regions_index]/nk
 
         # add interval timings
-        tx = cas.vertcat(tx, t0 + k_count * delta_t)
-        if k < nk:
-            tu = cas.vertcat(tu, t0 + k_count * delta_t)
+        tx.append(tcurrent)
+        tu.append(tcurrent)
 
         # add collocation timings
-        if direct_collocation and (k < nk):
+        if direct_collocation:
             for j in range(d):
-                tcoll = cas.vertcat(tcoll, t0 + (k_count + tau_root[j]) * delta_t)
+                tcoll.append(tcurrent + tau_root[j] * duration_interval)
+
+        # update current time
+        tcurrent = tcurrent + duration_interval
+
+    # add last interval time to tx for last integration node
+    tx.append(tcurrent)
+    tu = cas.vertcat(*tu)
+    tx = cas.vertcat(*tx)
+    tcoll = cas.vertcat(*tcoll)
 
     if direct_collocation:
         # reshape tcoll
-        tcoll = tcoll.reshape((d, nk)).T
-        tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1), 1)), tx[-1])
+        tcoll = tcoll.reshape((d,nk)).T
+        tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1),1)),tx[-1])
 
         # write out collocation grids
-        time_grids['coll'] = cas.Function('tgrid_coll', [tfsym], [tcoll])
-        time_grids['x_coll'] = cas.Function('tgrid_x_coll', [tfsym], [tx_coll])
+        time_grids['coll'] = cas.Function('tgrid_coll',[tfsym],[tcoll])
+        time_grids['x_coll'] = cas.Function('tgrid_x_coll',[tfsym],[tx_coll])
 
     # write out interval grid
-    time_grids['x'] = cas.Function('tgrid_x', [tfsym], [tx])
-    time_grids['u'] = cas.Function('tgrid_u', [tfsym], [tu])
+    time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
+    time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
+
 
     return time_grids
+
+# def construct_time_grids(nlp_options):
+#
+#     time_grids = {}
+#     nk = nlp_options['n_k']
+#     if nlp_options['discretization'] == 'direct_collocation':
+#         direct_collocation = True
+#         ms = False
+#         d = nlp_options['collocation']['d']
+#         scheme = nlp_options['collocation']['scheme']
+#         tau_root = cas.vertcat(cas.collocation_points(d, scheme))
+#         tcoll = []
+#
+#     elif nlp_options['discretization'] == 'multiple_shooting':
+#         direct_collocation = False
+#         ms = True
+#         tcoll = None
+#
+#     # make symbolic time constants
+#     if nlp_options['phase_fix'] == 'single_reelout':
+#         tfsym = cas.SX.sym('tfsym', 2)
+#         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
+#
+#         t_switch = tfsym[0] * nk_reelout / nk
+#         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
+#
+#     else:
+#         tfsym = cas.SX.sym('tfsym', 1)
+#
+#     # initialize
+#     tx = []
+#     tu = []
+#
+#     for k in range(nk+1):
+#
+#         # extract correct time constant in case of single_reelout phase fix
+#         if nlp_options['phase_fix'] == 'single_reelout':
+#
+#             # remember: tfsym[0] is the total time that optimization_period would have,
+#             # if all intervals were the same length as those from the reel-out phase
+#             # tfsym[1] is the total time the optimization period would have,
+#             # if all intervals... reel-in phase
+#
+#             if k < nk_reelout:
+#                 tf = tfsym[0]
+#                 k_count = k
+#                 t0 = cas.DM(0.)
+#             else:
+#                 tf = tfsym[1]
+#                 k_count = k - nk_reelout
+#                 t0 = t_switch
+#         else:
+#             tf = tfsym
+#             k_count = k
+#             t0 = cas.DM(0.)
+#
+#         delta_t = tf / float(nk)
+#
+#         # add interval timings
+#         tx = cas.vertcat(tx, t0 + k_count * delta_t)
+#         if k < nk:
+#             tu = cas.vertcat(tu, t0 + k_count * delta_t)
+#
+#         # add collocation timings
+#         if direct_collocation and (k < nk):
+#             for j in range(d):
+#                 tcoll = cas.vertcat(tcoll, t0 + (k_count + tau_root[j]) * delta_t)
+#
+#     if direct_collocation:
+#         # reshape tcoll
+#         tcoll = tcoll.reshape((d, nk)).T
+#         tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1), 1)), tx[-1])
+#
+#         # write out collocation grids
+#         time_grids['coll'] = cas.Function('tgrid_coll', [tfsym], [tcoll])
+#         time_grids['x_coll'] = cas.Function('tgrid_x_coll', [tfsym], [tx_coll])
+#
+#     # write out interval grid
+#     time_grids['x'] = cas.Function('tgrid_x', [tfsym], [tx])
+#     time_grids['u'] = cas.Function('tgrid_u', [tfsym], [tu])
+#
+#     return time_grids
 
 
 def setup_nlp_cost():
@@ -361,6 +455,19 @@ def discretize(nlp_options, model, formulation):
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
             ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids)
+
+
+    if nlp_options['SAM']['use']:
+        # ---------------------------------------------
+        # modify the constraints for SAM
+        # ---------------------------------------------
+        SAM_cstrs_entry_list, SAM_cstrs_list = modify_constraints_for_SAM(nlp_options, Collocation, V, Xdot, model,
+                                                                          ocp_cstr_list)
+
+        # overwrite the ocp_cstr_struct with new entries
+        ocp_cstr_list.append(SAM_cstrs_list)
+        ocp_cstr_entry_list = ocp_cstr_struct.entries + SAM_cstrs_entry_list
+        ocp_cstr_struct = cas.struct_symMX(ocp_cstr_entry_list)
 
     return V, P, Xdot_struct, Xdot_fun, ocp_cstr_list, ocp_cstr_struct, Outputs_fun, Outputs_struct, Outputs_structured, Outputs_structured_fun, Integral_outputs_struct, Integral_outputs_fun, time_grids, Collocation, Multiple_shooting, global_outputs, global_outputs_fun
 

@@ -29,7 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
-from typing import Union, List, Dict
+from typing import Union, Dict
 
 import casadi as ca
 import casadi.tools as cas
@@ -37,12 +37,10 @@ import numpy as np
 from . import collocation
 from . import ocp_outputs
 
-import time
 import collections
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
-import awebox.tools.vector_operations as vect_op
 import awebox.tools.cached_functions as cf
 from ..mdl.model import Model
 
@@ -516,7 +514,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
             weights_state[key] = weights_dicts[key[:-2]]
     W_x = cas.diag(weights_state.cat)
 
-    from awebox.ocp.discretization_averageModel import CollocationIRK
+    from awebox.tools.sam_functionalities import CollocationIRK
     macro_int = CollocationIRK(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
 
     # third derivative of the average state
