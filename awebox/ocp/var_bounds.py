@@ -88,11 +88,7 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
         elif (var_type == 'theta'):
             if name == 't_f':
-                if nlp_options['SAM']['use']:
-                    vars_lb['theta', 't_f', :] = 0
-                    # vars_ub['theta', 't_f', :] = model.variable_bounds['theta']['t_f']['ub']
-                    pass
-                elif (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
+                if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
                     # the period constraint is applied within ocp.constraints,
                     # but we don't want the component times to go negative.
                     vars_lb[var_type, name] = cas.DM.zeros(vars_lb[var_type, name].shape)
@@ -157,7 +153,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 # get the region indices
                 SAM_regions = struct_op.calculate_SAM_regions(nlp_options)
                 # in reelin phase?
-                offset = 10
+                offset = 10 # at the start and end of the RI phase, it is okay to reel-out already, 'TRANSITION'
                 phase = PhaseOptions.REELOUT  # default
                 if kdx in SAM_regions[-1][slice(0,None) if offset==0 else slice(offset,-offset)]:  # in Reelin
                     phase = PhaseOptions.REELIN

@@ -7,8 +7,7 @@ Model and constraints as in:
 G. Licitra, J. Koenemann, A. Bürger, P. Williams, R. Ruiterkamp, M. Diehl
 Energy, Vol.173, pp. 569-585, 2019.
 
-:author: Jochem De Schutter
-:edited: Rachel Leuthold
+:author: Jakob Harzer
 """
 
 from typing import List, Dict
@@ -21,7 +20,7 @@ import numpy as np
 from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
 
-
+# dual kite example?
 DUAL_KITES = True
 
 # indicate desired system architecture
@@ -51,51 +50,29 @@ options['params.wind.power_wind.exp_ref'] = 0.15
 options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
-# indicate numerical nlp details
-# here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
-
-
-# larger kite?
-# bref = options['user_options.kite_standard']['geometry']['b_ref']
-# mref = options['user_options.kite_standard']['geometry']['m_k']
-# jref = options['user_options.kite_standard']['geometry']['j']
-# kappa = 2.4
-# b = 7.0
-# options['user_options.kite_standard']['geometry']['b_ref'] = b
-# options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
-#     'ar']
-# options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
-# options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
-# options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
-# options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
-# options['user_options.trajectory.fixed_params'] = {'diam_t': 5e-3}
-
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = False
 options['model.integration.method'] = 'constraints'  # use enery as a state, works better with SAM
 
-options['nlp.collocation.u_param'] = 'zoh'
+# indicate numerical nlp details
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
 options['nlp.SAM.N'] = 5 # the number of full cycles approximated
 options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
-options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
+# options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
 # SAM Regularization
-single_regularization_param = 1E-3
+single_regularization_param = 1E-1
 options['nlp.SAM.Regularization.AverageStateFirstDeriv'] = 1E1*single_regularization_param
 options['nlp.SAM.Regularization.AverageStateThirdDeriv'] = 1E0*single_regularization_param
-# options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 1E3*single_regularization_param
 options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regularization_param
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
 
 # Number of discretization points
-n_k = 15 * (options['nlp.SAM.d']) * 2
-# n_k = 70 + 30 * (options['nlp.SAM.d'])
+n_k = 10 * (options['nlp.SAM.d']) * 2
 options['nlp.n_k'] = n_k
-
 
 # model bounds
 options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
@@ -104,24 +81,14 @@ if DUAL_KITES:
 else:
     options['model.system_bounds.theta.t_f'] = [50, 50 + options['nlp.SAM.N'] * 20]  # [s]
 
-
-
 # smooth the reel in phase (this increases convergence speed x10)
 options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
-
-
-
-
-
 options['solver.linear_solver'] = 'ma27'
-
 options['visualization.cosmetics.interpolation.n_points'] = 50* options['nlp.SAM.N'] # high plotting resolution
-
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
 trial.optimize()
-# draw some of the pre-coded plots for analysis
 
 # %% default plotting of invariants
 # trial.plot(['invariants'])
@@ -262,7 +229,7 @@ Vopt = trial.optimization.V_opt
 Vref: structure3 = trial.optimization.V_ref
 Vinit = trial.optimization.V_init
 
-if True:
+if False:
     plt.figure('Initialization and Reference')
     time_grid_init = trial.nlp.time_grids['x'](Vinit['theta', 't_f']).full().flatten()
 
@@ -294,40 +261,20 @@ import mpl_toolkits.mplot3d as a3
 plt.figure(figsize=(10, 10))
 ax = plt.axes(projection='3d')
 
-_raw_vertices = np.array([[-1.2, 0, -0.4, 0],
-                          [0, -1, 0, 1],
-                          [0, 0, 0, 0]])
-_raw_vertices = _raw_vertices - np.mean(_raw_vertices, axis=1).reshape((3, 1))
+kite_name_to_plot = 'q21' if DUAL_KITES else 'q10'
 
+# plot the reconstructed trajectory
+q_kite = plot_dict_REC['x'][kite_name_to_plot]
+ax.plot3D(q_kite[0], q_kite[1], q_kite[2], 'C0-', alpha=0.3)
 
-def drawKite(pos, rot, wingspan, color='C0', alpha=1):
-    rot = np.reshape(rot, (3, 3)).T
-
-    vtx = _raw_vertices * wingspan / 2  # -np.array([[0.5], [0], [0]]) * sizeKite
-    vtx = rot @ vtx + pos
-    tri = a3.art3d.Poly3DCollection([vtx.T])
-    tri.set_color(matplotlib.colors.to_rgba(color, alpha - 0.1))
-    tri.set_edgecolor(matplotlib.colors.to_rgba(color, alpha))
-    # tri.set_alpha(alpha)
-    # tri.set_edgealpha(alpha)
-    ax.add_collection3d(tri)
-
-
-nk_reelout = int(options['nlp.n_k'] * trial.options['nlp']['phase_fix_reelout'])
-nk_cut = round(options['nlp.n_k'] * trial.options['nlp']['phase_fix_reelout'])
-
-q10_REC = plot_dict_REC['x']['q21']
-ax.plot3D(q10_REC[0], q10_REC[1], q10_REC[2], 'C0-', alpha=0.3)
-
-q10_opt = plot_dict_SAM['x']['q21']
-ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
-
-
-Q10_opt = plot_dict_SAM['X']['q21']
+# plot the average reel-out trajcetory
+Q_opt = plot_dict_SAM['X'][kite_name_to_plot]
 time_X = plot_dict_SAM['time_grids']['ip_X']
 ax.plot3D(Q10_opt[0], Q10_opt[1], Q10_opt[2], 'C0--', alpha=1)
 
-
+# plot the individual micro-integration
+q_kite_SAM = plot_dict_SAM['x'][kite_name_to_plot]
+ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
 
 for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']+1), [f'C{i}' for i in range(20)]):
     ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)],
@@ -336,30 +283,24 @@ for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']+1),
               , '-', color=color,
                   alpha=1, markersize=3)
 
-# set bounds for nice view
-q10_REC_all = np.vstack([q10_REC[0],q10_REC[1],q10_REC[2]])
-meanpos = np.mean(q10_REC_all, axis=1)
+# add an arrow for the wind
+ax.quiver(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, 1, 0, 0, length=40, color='g')
+ax.text(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, "Wind", 'x', color='g', size=15)
 
+
+# set bounds for nice view
+q10_REC_all = np.vstack([q_kite[0], q_kite[1], q_kite[2]])
+meanpos = np.mean(q10_REC_all, axis=1)
 bblenght = np.max(np.abs(q10_REC_all - meanpos.reshape(3, 1)))
 ax.set_xlim3d(meanpos[0] - bblenght, meanpos[0] + bblenght)
 ax.set_ylim3d(meanpos[1] - bblenght, meanpos[1] + bblenght)
 ax.set_zlim3d(meanpos[2] - bblenght, meanpos[2] + bblenght)
-
-ax.quiver(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, 1, 0, 0, length=40, color='g')
-ax.text(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, "Wind", 'x', color='g', size=15)
-
 ax.set_xlabel(r'$x$ in m')
 ax.set_ylabel(r'$y$ in m')
 ax.set_zlabel(r'$z$ in m')
-
-# ax.legend()
-
-# plt.axis('off')
 ax.view_init(elev=23., azim=-45)
 
-# plt.legend()
 plt.tight_layout()
-# plt.savefig('3DReelout.pdf')
 plt.show()
 
 # %% Export Trajectories for fancier Plotting

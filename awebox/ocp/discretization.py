@@ -61,7 +61,7 @@ def construct_time_grids(nlp_options) -> dict:
     """
 
 
-    assert nlp_options['phase_fix'] == 'single_reelout'
+    # assert nlp_options['phase_fix'] == 'single_reelout'
     # assert nlp_options['discretization'] == 'direct_collocation'
 
     time_grids = {}
@@ -88,7 +88,6 @@ def construct_time_grids(nlp_options) -> dict:
         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
         t_switch = tfsym[0] * nk_reelout / nk
         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
-
     else:
         tfsym = cas.SX.sym('tfsym',1)
 
@@ -134,90 +133,7 @@ def construct_time_grids(nlp_options) -> dict:
     time_grids['x'] = cas.Function('tgrid_x',[tfsym],[tx])
     time_grids['u'] = cas.Function('tgrid_u',[tfsym],[tu])
 
-
     return time_grids
-
-# def construct_time_grids(nlp_options):
-#
-#     time_grids = {}
-#     nk = nlp_options['n_k']
-#     if nlp_options['discretization'] == 'direct_collocation':
-#         direct_collocation = True
-#         ms = False
-#         d = nlp_options['collocation']['d']
-#         scheme = nlp_options['collocation']['scheme']
-#         tau_root = cas.vertcat(cas.collocation_points(d, scheme))
-#         tcoll = []
-#
-#     elif nlp_options['discretization'] == 'multiple_shooting':
-#         direct_collocation = False
-#         ms = True
-#         tcoll = None
-#
-#     # make symbolic time constants
-#     if nlp_options['phase_fix'] == 'single_reelout':
-#         tfsym = cas.SX.sym('tfsym', 2)
-#         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])
-#
-#         t_switch = tfsym[0] * nk_reelout / nk
-#         time_grids['t_switch'] = cas.Function('tgrid_tswitch', [tfsym], [t_switch])
-#
-#     else:
-#         tfsym = cas.SX.sym('tfsym', 1)
-#
-#     # initialize
-#     tx = []
-#     tu = []
-#
-#     for k in range(nk+1):
-#
-#         # extract correct time constant in case of single_reelout phase fix
-#         if nlp_options['phase_fix'] == 'single_reelout':
-#
-#             # remember: tfsym[0] is the total time that optimization_period would have,
-#             # if all intervals were the same length as those from the reel-out phase
-#             # tfsym[1] is the total time the optimization period would have,
-#             # if all intervals... reel-in phase
-#
-#             if k < nk_reelout:
-#                 tf = tfsym[0]
-#                 k_count = k
-#                 t0 = cas.DM(0.)
-#             else:
-#                 tf = tfsym[1]
-#                 k_count = k - nk_reelout
-#                 t0 = t_switch
-#         else:
-#             tf = tfsym
-#             k_count = k
-#             t0 = cas.DM(0.)
-#
-#         delta_t = tf / float(nk)
-#
-#         # add interval timings
-#         tx = cas.vertcat(tx, t0 + k_count * delta_t)
-#         if k < nk:
-#             tu = cas.vertcat(tu, t0 + k_count * delta_t)
-#
-#         # add collocation timings
-#         if direct_collocation and (k < nk):
-#             for j in range(d):
-#                 tcoll = cas.vertcat(tcoll, t0 + (k_count + tau_root[j]) * delta_t)
-#
-#     if direct_collocation:
-#         # reshape tcoll
-#         tcoll = tcoll.reshape((d, nk)).T
-#         tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1), 1)), tx[-1])
-#
-#         # write out collocation grids
-#         time_grids['coll'] = cas.Function('tgrid_coll', [tfsym], [tcoll])
-#         time_grids['x_coll'] = cas.Function('tgrid_x_coll', [tfsym], [tx_coll])
-#
-#     # write out interval grid
-#     time_grids['x'] = cas.Function('tgrid_x', [tfsym], [tx])
-#     time_grids['u'] = cas.Function('tgrid_u', [tfsym], [tu])
-#
-#     return time_grids
 
 
 def setup_nlp_cost():

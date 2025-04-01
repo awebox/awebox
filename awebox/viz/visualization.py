@@ -80,7 +80,7 @@ class Visualization(object):
         self.__has_been_initially_calibrated = True
 
         self.create_plot_logic_dict()
-        self.__options = options
+        self._options = options
 
         return None
 
@@ -270,17 +270,13 @@ class Visualization(object):
     def plot_dict(self):
         return self._plot_dict
 
-    @plot_dict.setter
-    def plot_dict(self, value):
-        self._plot_dict = value
-
     @property
     def options(self):
-        return self.__options
+        return self._options
 
     @options.setter
     def options(self, value):
-       self.__options = value
+       self._options = value
 
     @property
     def has_been_initially_calibrated(self):
@@ -304,12 +300,7 @@ class VisualizationSAM(Visualization):
     def __init__(self):
         super().__init__()
         self._plot_dict_SAM: dict = None
-        self.__options: dict = None
-
-    @property
-    def plot_dict_SAM(self):
-        """ The plot dictionary from the AWEbox SAM formulation, as used in the optimization"""
-        return self._plot_dict_SAM
+        self._options: dict = None
 
     def build(self, model, nlp, name, options):
         """
@@ -323,7 +314,7 @@ class VisualizationSAM(Visualization):
         self._plot_dict = tools.calibrate_visualization(model, nlp, name, options)
         self._plot_dict_SAM = tools.calibrate_visualization(model, nlp, name, options)
         self.create_plot_logic_dict()
-        self.__options = options
+        self._options = options
 
     def recalibrate(self, V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, parametric_options, time_grids, cost, name, V_ref_scaled, global_outputs):
         """ Recalibrate both the SAM and the RECONSTRUCTED plot dictionaries. """
@@ -370,8 +361,9 @@ class VisualizationSAM(Visualization):
         self.plot_dict_SAM['time_grids']['X_coll'] = time_grid_X_nodes
         self.plot_dict_SAM['X_coll'] = X_coll
 
-        # the plot dict is now the RECONSTRUCTED one
-        self.plot_dict = self.create_reconstructed_plot_dict(V_plot_scaled, output_vals['opt'], global_outputs, integral_output_vals)
+        # BUILD THE RECONSTURCTED PLOT DICT
+        # and replace the plot_dict with it
+        self._plot_dict = self.create_reconstructed_plot_dict(V_plot_scaled, output_vals['opt'], global_outputs, integral_output_vals)
 
     def create_reconstructed_plot_dict(self, V_plot_scaled, output_vals, global_outputs,integral_outputs_final) -> dict:
         """ Create the plot dictionary for the RECONSTRUCTED variables and outputs. """
@@ -388,7 +380,6 @@ class VisualizationSAM(Visualization):
         # undo the scaling of the reconstructed variables
         scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
         V_reconstructed_si = struct_op.scaled_to_si(V_reconstructed_scaled, scaling)  # convert V_plot to SI units
-
 
         # interpolate the reconstructed trajectory
         n_ip = self.options['visualization']['cosmetics']['interpolation']['n_points']
@@ -413,8 +404,6 @@ class VisualizationSAM(Visualization):
         plot_dict['z'] = z_ip_dict
         plot_dict['x'] = x_ip_dict
         plot_dict['u'] = u_ip_dict
-
-
         plot_dict['outputs'] = y_ip_dict
         plot_dict['output_vals'] = [output_vals_reconstructed,output_vals_reconstructed] # TODO: this is not the intended functionality
         plot_dict['time_grids'] = time_grid_reconstructed
@@ -424,14 +413,17 @@ class VisualizationSAM(Visualization):
         plot_dict['V_plot_si'] = V_reconstructed_si
         n_k_total = len(V_reconstructed_scaled['x']) - 1
         plot_dict['n_k'] = n_k_total
+        plot_dict['interpolation_si'] = {'x': x_ip_dict,
+                                         'u': u_ip_dict,
+                                         'z': z_ip_dict,
+                                         'outputs': y_ip_dict,
+                                         'time_grids': time_grid_reconstructed}
 
         # fill theta
         plot_dict['theta'] = {}
         variables_dict = plot_dict['variables_dict']
         for name in variables_dict['theta'].keys():
             plot_dict['theta'][name] = plot_dict['V_plot']['theta', name].full()[0][0]
-
-
 
         plot_dict['integral_outputs_final'] = integral_outputs_final
         plot_dict['power_and_performance'] = diagnostics.compute_power_and_performance(plot_dict)
@@ -441,12 +433,10 @@ class VisualizationSAM(Visualization):
         return plot_dict
 
 
-
     @property
     def plot_dict(self) -> dict:
-        """ The interpolated RECONSTRUCTED trajectory and data it contains:
-
-            - the same variables as the original plot_dict, expect:
+        """ The interpolated RECONSTRUCTED trajectory and data it contains the same variables as the
+        original plot_dict, expect:
             - the nlp variables V_plot now are the RECONSTRUCTED variables
             - the interpolated trajectories ('x', 'u', 'z', 'outputs') are the RECONSTRUCTED trajectories
             - the time grid is the RECONSTRUCTED time grid ('time_grids')
@@ -459,18 +449,6 @@ class VisualizationSAM(Visualization):
         awelogger.logger.warning('`plot_dict` - You are accessing the RECONSTRUCTED results from a SAM problem. These '
                                  'results are only an approximation of a physical trajectory.')
         return self._plot_dict
-
-    @plot_dict.setter
-    def plot_dict(self, value):
-        self._plot_dict = value
-
-    @property
-    def options(self):
-        return self.__options
-
-    @options.setter
-    def options(self, value):
-       self.__options = value
 
     @property
     def plot_dict_SAM(self):
@@ -495,7 +473,7 @@ class VisualizationSAM(Visualization):
         :param V_plot_scaled: the scaled optimal variables solution
         """
 
-        N = 100  # number of points for the interpolation
+        N = 100  # number of points for the interpolation (more is not needed, since very little is happending)
 
         # undo scaling
         scaling = self.plot_dict['model_variables'](self.plot_dict['model_scaling'])
@@ -637,6 +615,7 @@ def dict_from_repeated_struct(struct: ca.tools.struct, values: ca.DM) -> dict:
 def assign_nested_dict(dictionary: dict, keys: list, value):
     """ (from CHATGPT)
     Indexes a nested dictionary with a list of keys and assigns a value to the final key.
+    If a key is not present in the dictionary, it is created and assigned an empty dictionary.
 
     Args:
         dictionary (dict): The nested dictionary to be indexed.

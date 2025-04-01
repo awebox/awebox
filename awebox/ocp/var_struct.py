@@ -33,7 +33,6 @@ python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 from awebox.mdl.model import Model
-
 import awebox.ocp.collocation as collocation
 import awebox.tools.print_operations as print_op
 

@@ -224,7 +224,7 @@ class Collocation(object):
 
         return None
 
-    def get_xdot(self, nlp_numerics_options, V, model, timeScaling = None):
+    def get_xdot(self, nlp_numerics_options, V, model):
         """ Get state derivates on all collocation nodes based on polynomials
         """
 
@@ -240,12 +240,7 @@ class Collocation(object):
         # collect the derivatives
         for k in range(self.__n_k):
 
-            # if the time scaling is provided, use it
-            # else look up the timescaling parameters from the variables struct
-            if timeScaling is None:
-                tf = struct_op.calculate_tf(nlp_numerics_options, V, k)
-            else:
-                tf = timeScaling
+            tf = struct_op.calculate_tf(nlp_numerics_options, V, k)
 
             # For all collocation points
             for j in range(self.__d+1):

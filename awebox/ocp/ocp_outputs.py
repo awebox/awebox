@@ -28,7 +28,8 @@ finds various total-trajectory performance metrics requiring knowlege of V
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter alu-fr 2017-18
 '''
-import casadi
+
+
 import casadi.tools as cas
 import numpy as np
 
@@ -117,7 +118,7 @@ def find_time_period(nlp_numerics_options, V):
 
     return time_period
 
-def find_time_period_SAM(nlp_numerics_options: dict, V: cas.struct) -> casadi.SX:
+def find_time_period_SAM(nlp_numerics_options: dict, V: cas.struct) -> cas.SX:
     """
     Calculate the total time period of the pumping trajectory, including the reel-in phase
     for the case where SAM is used to discretize the reel-out phase.

@@ -81,7 +81,7 @@ class Trial(object):
 
     def __initialize_from_dict_seed(self, seed):
         self.__solution_dict = seed['solution_dict']
-        self.__options = seed['solution_dict']['options']
+        self.__options: opts.Options = seed['solution_dict']['options']
 
         self.__visualization = visualization.VisualizationSAM() if self.__options['nlp']['SAM'][
             'use'] else visualization.Visualization()

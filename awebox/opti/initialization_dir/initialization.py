@@ -179,7 +179,6 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
     elif use_phase_fixing:
         tf_guess = cas.vertcat(tf_guess, tf_guess)
 
-
     V_init['theta', 't_f'] = tf_guess
 
     return V_init
