@@ -58,7 +58,7 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 # indicate numerical nlp details
 options['nlp.SAM.use'] = True
 options['nlp.SAM.MaInt_type'] = 'legendre'
-options['nlp.SAM.N'] = 5 # the number of full cycles approximated
+options['nlp.SAM.N'] = 10 # the number of full cycles approximated
 options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
 # options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
@@ -85,34 +85,22 @@ else:
 options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 options['solver.linear_solver'] = 'ma27'
 options['visualization.cosmetics.interpolation.n_points'] = 50* options['nlp.SAM.N'] # high plotting resolution
+
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
 trial.optimize()
 
-# %% default plotting of invariants
-# trial.plot(['invariants'])
-
-
-# %% Plot state trajectories
-
+# %% Postprocessing and plotting preparations
 from awebox.tools.struct_operations import calculate_SAM_regions
-from awebox.tools.struct_operations import calculate_kdx_SAM
-
 
 plot_dict_SAM = trial.visualization.plot_dict_SAM
 plot_dict_REC = trial.visualization.plot_dict
 time_plot_SAM = plot_dict_SAM['time_grids']['ip']
 ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
-
 time_grid_SAM = plot_dict_SAM['time_grids']
 time_grid_SAM_x = time_grid_SAM['x']
 regions_indeces = calculate_SAM_regions(trial.nlp.options)
-delta_ns = [region_indeces.__len__() for region_indeces in regions_indeces]
-Ts_opt = [delta_ns[i] / trial.nlp.options['n_k'] * trial.solution_dict['V_opt']['theta', 't_f', i] for i in range(trial.nlp.options['SAM']['d']+1)]
-t_ip = plot_dict_REC['time_grids']['ip']
-
-
 avg_power_REC = plot_dict_SAM['power_and_performance']['avg_power'] / 1e3
 avg_power_SAM = plot_dict_REC['power_and_performance']['avg_power'] / 1e3
 
@@ -131,8 +119,7 @@ for key, value in cost_dict.items():
         print(f'\t {key}:  {val:0.4f}')
 print('======================================')
 
-
-# %% Plot outputs
+# %% Plot Invariants
 import casadi as ca
 time_plot_REC = plot_dict_REC['time_grids']['ip']
 invariants_REC = plot_dict_REC['outputs']['invariants']
@@ -141,40 +128,25 @@ time_plot_SAM_xcoll = plot_dict_SAM['time_grids']['x_coll']
 
 x_coll_output_vals = plot_dict_SAM['output_vals']['opt']
 x_coll_invariants = trial.model.outputs.repeated(x_coll_output_vals.full())
-# invariants_SAM = plot_dict_SAM['outputs']['invariants']
 
-
-plt.figure()
-
-# plt.plot(time_plot, power, '-')
+# get the keys of the invariants to plot
 invariants_to_plot = [key for key in trial.model.outputs_dict['invariants'].keys() if
                                 key.startswith(tuple(['c', 'dc', 'orthonormality']))]
+
+plt.figure()
 for region_index in np.arange(0, trial.options['nlp']['SAM']['d']+1):
     indices = np.where(plot_dict_SAM['SAM_regions_x_coll'][0:-1] == region_index)[0]
     for index,key in enumerate(invariants_to_plot):
-        # plt.plot(time_plot_SAM[indices], invariants_SAM[key][0][indices], f'C{index}.-')
-        # plt.plot(time_plot_SAM[indices], np.abs(invariants_SAM[key][0][indices]), f'C{index}.-')
         _invariants = ca.vertcat(*x_coll_invariants[:,'invariants',key]).full()
         plt.plot(time_plot_SAM_xcoll[indices], np.abs(_invariants[indices]), f'C{index}.-')
-        # plt.plot(time_plot_SAM_xcoll[indices], _invariants[indices], f'C{index}.-')
-
 
 for index,key in enumerate(invariants_to_plot):
     plt.plot([],[],f'C{index}.-',label=key)
-
-# for key in invariants_to_plot:
-#     plt.plot(time_plot_REC, invariants_REC[key][0], 'k-',alpha=0.3)
-#     plt.plot(time_plot_REC, np.abs(invariants_REC[key][0]), 'k-',alpha=0.3)
 plt.plot([],[],'k-',alpha=0.3,label='REC')
 
 # add phase switches
 for region in regions_indeces:
-    # plt.axvline(x=time_grid_SAM_x[region[0]],color='k',linestyle='dotted',alpha=0.2)
-    # plt.axvline(x=time_grid_SAM_x[region[-1]]+(time_grid_SAM_x[region[-1]]-time_grid_SAM_x[region[-2]]),color='k',linestyle='dotted',alpha=0.2)
-
-    # instead: use fill_between to mark regions:
     plt.gca().axvspan(time_grid_SAM_x[region[0]], time_grid_SAM_x[region[-1]]+(time_grid_SAM_x[region[-1]]-time_grid_SAM_x[region[-2]]), color='k', alpha=0.1)
-
 
 plt.xlim([0,time_plot_REC[-1]])
 plt.title(f"Invariants: {invariants_to_plot}")
@@ -186,10 +158,12 @@ plt.show()
 
 # %% Plot the states
 plt.figure(figsize=(10, 10))
-if DUAL_KITES:
-    plot_states = ['q21', 'dq21', 'l_t',  'e']
-else:
-    plot_states = ['q10', 'dq10', 'l_t', 'dl_t', 'e']
+t_ip = plot_dict_REC['time_grids']['ip']
+
+# decide which states to plot
+kite_name_to_plot = 'q21' if DUAL_KITES else 'q10'
+plot_states = [kite_name_to_plot, f'd{kite_name_to_plot}', 'l_t', 'dl_t', 'e']
+
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)
     state_traj = np.vstack([plot_dict_SAM['x'][state_name][i] for i in range(plot_dict_SAM['x'][state_name].__len__())]).T
@@ -211,25 +185,16 @@ for index, state_name in enumerate(plot_states):
     for region in regions_indeces:
         plt.axvline(x=time_grid_SAM_x[region[0]],color='k',linestyle='--')
         plt.axvline(x=time_grid_SAM_x[region[-1]]+(time_grid_SAM_x[region[-1]]-time_grid_SAM_x[region[-2]]),color='k',linestyle='--')
-    # plt.axvline(x=time_grid_SAM_x[regions_indeces[-1][-1]],color='k',linestyle='--')
-
-    #
-    # for region_indeces in regions_indeces[1:-1]:
-    #     plt.axvline(x=time_grid_SAM_x[region_indeces[0]],color='b',linestyle='--')
-
     plt.xlabel('time [s]')
 
     plt.legend()
 plt.tight_layout()
 plt.show()
 # %% plot the results
-import matplotlib
 import mpl_toolkits.mplot3d as a3
 
 plt.figure(figsize=(10, 10))
 ax = plt.axes(projection='3d')
-
-kite_name_to_plot = 'q21' if DUAL_KITES else 'q10'
 
 # plot the reconstructed trajectory
 q_kite = plot_dict_REC['x'][kite_name_to_plot]
@@ -271,28 +236,3 @@ ax.set_zlabel(r'$z$ in m')
 ax.view_init(elev=23., azim=-45)
 plt.tight_layout()
 plt.show()
-
-# %% Export Trajectories for fancier Plotting
-
-# all the stuff to be plotted from SAM
-export_dict_SAM = {}
-export_dict_SAM['regions'] = ip_regions_SAM
-export_dict_SAM['time'] = plot_dict_SAM['time_grids']['ip']
-export_dict_SAM['time_X'] = plot_dict_SAM['time_grids']['ip_X']
-export_dict_SAM['x'] = plot_dict_SAM['x']
-export_dict_SAM['X'] = plot_dict_SAM['X']
-export_dict_SAM['d'] = trial.options['nlp']['SAM']['d']
-export_dict_SAM['N'] = trial.options['nlp']['SAM']['N']
-export_dict_SAM['regularizationValue'] = single_regularization_param
-
-export_dict_REC = {}
-export_dict_REC['time'] = plot_dict_REC['time_grids']['ip']
-export_dict_REC['x'] = plot_dict_REC['x']
-
-# save the data
-from datetime import datetime
-datestr = datetime.now().strftime('%Y%m%d_%H%M')
-filename= f'AWE_SAM_N{trial.options['nlp']['SAM']['N']}_d{trial.options['nlp']['SAM']['d']}_{datestr}'
-# np.savez(f'_export/{filename}.npz', **{'SAM': export_dict_SAM, 'REC': export_dict_REC})
-
-
