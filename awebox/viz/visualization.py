@@ -44,7 +44,6 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 
-# SAM REFACTORING:
 from typing import Dict, Tuple
 from awebox.tools import struct_operations as struct_op
 import numpy as np

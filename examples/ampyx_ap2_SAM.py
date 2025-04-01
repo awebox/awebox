@@ -21,7 +21,7 @@ from awebox.logger.logger import Logger as awelogger
 awelogger.logger.setLevel(10)
 
 # dual kite example?
-DUAL_KITES = True
+DUAL_KITES = False
 
 # indicate desired system architecture
 # here: single kite with 6DOF Ampyx AP2 model
@@ -32,7 +32,7 @@ if DUAL_KITES:
 
     options = ref.set_reference_options(user='A')
     options = ref.set_dual_kite_options(options)
-    options['solver.max_iter_hippo'] = 1000
+    options['solver.max_iter_hippo'] = 250
 
 else:
     options['user_options.system_model.architecture'] = {1: 0}
@@ -71,7 +71,7 @@ options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regular
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
 
 # Number of discretization points
-n_k = 10 * (options['nlp.SAM.d']) * 2
+n_k = 15 * (options['nlp.SAM.d']) * 2
 options['nlp.n_k'] = n_k
 
 # model bounds
@@ -222,38 +222,6 @@ for index, state_name in enumerate(plot_states):
     plt.legend()
 plt.tight_layout()
 plt.show()
-
-# %% Initialization and Reference
-from casadi.tools import structure3
-Vopt = trial.optimization.V_opt
-Vref: structure3 = trial.optimization.V_ref
-Vinit = trial.optimization.V_init
-
-if False:
-    plt.figure('Initialization and Reference')
-    time_grid_init = trial.nlp.time_grids['x'](Vinit['theta', 't_f']).full().flatten()
-
-    plot_states = ['q21', 'dq21', 'l_t','e']
-
-    for index, state_name in enumerate(plot_states):
-        plt.subplot(2, 2, index + 1)
-
-        state_traj_ref = np.hstack(Vref['x', :, state_name]).T
-        plt.plot(time_grid_init, state_traj_ref, label=state_name + '_ref', color=f'C{index}', linestyle='--')
-
-        # add phase switches
-        plt.axvline(x=time_grid_init[regions_indeces[1][0]], color='k', linestyle='--')
-        plt.axvline(x=time_grid_init[regions_indeces[-1][0]], color='k', linestyle='--')
-
-        for region_indeces in regions_indeces[1:-1]:
-            plt.axvline(x=time_grid_init[region_indeces[0]], color='b', linestyle='--')
-
-        plt.xlabel('time [s]')
-
-        plt.legend()
-    plt.tight_layout()
-    plt.show()
-
 # %% plot the results
 import matplotlib
 import mpl_toolkits.mplot3d as a3
@@ -270,22 +238,18 @@ ax.plot3D(q_kite[0], q_kite[1], q_kite[2], 'C0-', alpha=0.3)
 # plot the average reel-out trajcetory
 Q_opt = plot_dict_SAM['X'][kite_name_to_plot]
 time_X = plot_dict_SAM['time_grids']['ip_X']
-ax.plot3D(Q10_opt[0], Q10_opt[1], Q10_opt[2], 'C0--', alpha=1)
+ax.plot3D(Q_opt[0], Q_opt[1], Q_opt[2], 'C0--', alpha=1)
 
 # plot the individual micro-integration
 q_kite_SAM = plot_dict_SAM['x'][kite_name_to_plot]
 ip_regions_SAM = plot_dict_SAM['SAM_regions_ip']
 
 for region_index, color in zip(np.arange(0, trial.options['nlp']['SAM']['d']+1), [f'C{i}' for i in range(20)]):
-    ax.plot3D(q10_opt[0][np.where(ip_regions_SAM == region_index)],
-              q10_opt[1][np.where(ip_regions_SAM == region_index)],
-              q10_opt[2][np.where(ip_regions_SAM == region_index)]
+    ax.plot3D(q_kite_SAM[0][np.where(ip_regions_SAM == region_index)],
+              q_kite_SAM[1][np.where(ip_regions_SAM == region_index)],
+              q_kite_SAM[2][np.where(ip_regions_SAM == region_index)]
               , '-', color=color,
                   alpha=1, markersize=3)
-
-# add an arrow for the wind
-ax.quiver(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, 1, 0, 0, length=40, color='g')
-ax.text(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, "Wind", 'x', color='g', size=15)
 
 
 # set bounds for nice view
@@ -295,11 +259,16 @@ bblenght = np.max(np.abs(q10_REC_all - meanpos.reshape(3, 1)))
 ax.set_xlim3d(meanpos[0] - bblenght, meanpos[0] + bblenght)
 ax.set_ylim3d(meanpos[1] - bblenght, meanpos[1] + bblenght)
 ax.set_zlim3d(meanpos[2] - bblenght, meanpos[2] + bblenght)
+
+# add an arrow for the wind
+ax.quiver(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, 1, 0, 0, length=40, color='g')
+ax.text(meanpos[0] - bblenght / 2, meanpos[1] - bblenght / 2, meanpos[2] - bblenght, "Wind", 'x', color='g', size=15)
+
+# labels and view
 ax.set_xlabel(r'$x$ in m')
 ax.set_ylabel(r'$y$ in m')
 ax.set_zlabel(r'$z$ in m')
 ax.view_init(elev=23., azim=-45)
-
 plt.tight_layout()
 plt.show()
 

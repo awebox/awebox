@@ -41,7 +41,6 @@ import numpy as np
 import awebox.tools.print_operations as print_op
 from progress.bar import ChargingBar
 from awebox.logger.logger import Logger as awelogger
-from awebox.tools.struct_operations import calculate_kdx_SAM_reconstruction, calculate_kdx
 
 
 class Simulation:
