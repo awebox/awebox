@@ -57,11 +57,8 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 
 # indicate numerical nlp details
 options['nlp.SAM.use'] = True
-options['nlp.SAM.MaInt_type'] = 'legendre'
 options['nlp.SAM.N'] = 10 # the number of full cycles approximated
 options['nlp.SAM.d'] = 3 # the number of cycles actually computed
-options['nlp.SAM.ADAtype'] = 'CD'  # the approximation scheme
-# options['user_options.trajectory.lift_mode.windings'] =  options['nlp.SAM.d'] + 1 # todo: set this somewhere else
 
 # SAM Regularization
 single_regularization_param = 1E-1
