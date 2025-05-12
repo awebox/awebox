@@ -162,7 +162,7 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
         Nwindings = V_init['theta', 't_f'].shape[0]
 
         # ratio of intervals in the reel-out phase, make sure that this is the same as in calculate_SAM_regionIndex(...)
-        n_k_ratio = 0.5
+        n_k_ratio = 0.4
 
         dSAM = Nwindings - 1
         Tsingle = tf_guess/Nwindings

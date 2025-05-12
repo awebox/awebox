@@ -50,6 +50,31 @@ options['params.wind.power_wind.exp_ref'] = 0.15
 options['user_options.wind.model'] = 'power'
 options['user_options.wind.u_ref'] = 10.
 
+# larger kite?
+bref = options['user_options.kite_standard']['geometry']['b_ref']
+mref = options['user_options.kite_standard']['geometry']['m_k']
+jref = options['user_options.kite_standard']['geometry']['j']
+kappa = 2.4
+b = 5.5
+options['user_options.kite_standard']['geometry']['b_ref'] = b
+options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
+    'ar']
+options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
+options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
+options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
+options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
+# options['user_options.trajectory.fixed_params'] = {'diam_t': 8e-3}
+
+# print the just set options:
+# print(f"b_ref:{options['user_options.kite_standard']['geometry']['b_ref']}")
+# print(f"s_ref:{options['user_options.kite_standard']['geometry']['s_ref']}")
+# print(f"c_ref:{options['user_options.kite_standard']['geometry']['c_ref']}")
+# print(f"m_k:{options['user_options.kite_standard']['geometry']['m_k']}")
+# print(f"j:{options['user_options.kite_standard']['geometry']['j']}")
+# print(f"diam_t:{options['user_options.trajectory.fixed_params']['diam_t']}")
+
+# indicate numerical nlp details
+# here: nlp discretization, with a zero-order-hold control parametrization, and a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps within ipopt.
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = False
@@ -57,7 +82,7 @@ options['model.integration.method'] = 'constraints'  # use enery as a state, wor
 
 # indicate numerical nlp details
 options['nlp.SAM.use'] = True
-options['nlp.SAM.N'] = 10 # the number of full cycles approximated
+options['nlp.SAM.N'] = 5 # the number of full cycles approximated
 options['nlp.SAM.d'] = 3 # the number of cycles actually computed
 
 # SAM Regularization
@@ -68,25 +93,34 @@ options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regular
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
 
 # Number of discretization points
-n_k = 15 * (options['nlp.SAM.d']) * 2
+n_k = 10 * (options['nlp.SAM.d']) * 2
 options['nlp.n_k'] = n_k
 
+# initialization
+options['solver.initialization.l_t'] = 150.
+
 # model bounds
+options['model.system_bounds.x.dl_t'] = [-25.0, 20.0]  # [m/s]=
 options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
+options['model.system_bounds.x.q'] = [np.array([10, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])]  # [m]
 if DUAL_KITES:
     options['model.system_bounds.theta.t_f'] = [5, 10 * options['nlp.SAM.N']]  # [s]
 else:
-    options['model.system_bounds.theta.t_f'] = [50, 50 + options['nlp.SAM.N'] * 20]  # [s]
+    options['model.system_bounds.theta.t_f'] = [50, 150 + options['nlp.SAM.N'] * 30]  # [s]
+
 
 # smooth the reel in phase (this increases convergence speed x10)
 options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 options['solver.linear_solver'] = 'ma27'
-options['visualization.cosmetics.interpolation.n_points'] = 50* options['nlp.SAM.N'] # high plotting resolution
+options['visualization.cosmetics.interpolation.n_points'] = 100* options['nlp.SAM.N'] # high plotting resolution
 
 # build and optimize the NLP (trial)
 trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
 trial.optimize()
+
+trial.plot('constraints')
+
 
 # %% Postprocessing and plotting preparations
 from awebox.tools.struct_operations import calculate_SAM_regions

@@ -153,7 +153,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
                 # get the region indices
                 SAM_regions = struct_op.calculate_SAM_regions(nlp_options)
                 # in reelin phase?
-                offset = 10 # at the start and end of the RI phase, it is okay to reel-out already, 'TRANSITION'
+                offset = n_k//50 # at the start and end of the RI phase, it is okay to reel-out already, 'TRANSITION'
                 phase = PhaseOptions.REELOUT  # default
                 if kdx in SAM_regions[-1][slice(0,None) if offset==0 else slice(offset,-offset)]:  # in Reelin
                     phase = PhaseOptions.REELIN
