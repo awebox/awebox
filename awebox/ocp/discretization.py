@@ -31,6 +31,7 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
+import numpy as np
 
 import awebox.ocp.constraints as constraints
 import awebox.ocp.collocation as coll_module
@@ -245,6 +246,91 @@ def setup_output_structure(nlp_options, model_outputs):
     Outputs = cas.struct_symMX(entries)
     return Outputs
 
+# ToDo: move to SAM file
+def modify_integral_outputs_for_SAM(nlp_options, Integral_outputs: cas.struct_MX, Integral_outputs_struct: cas.struct_symMX):
+    """
+    Modify the integral outputs for SAM.
+    :param nlp_options:
+    :param Integral_outputs: Structure holding 2 entries.
+      Order: [('int_out', 'coll_int_out')]
+      int_out = repeated([61]): {e: 1x1,beta_cost: 1x1}
+      coll_int_out = repeated([60, 4]): {e: 1x1,beta_cost: 1x1}
+    :param Integral_outputs_fun:
+    :return: a new structure with the intergral outputs
+    """
+
+    n_k = nlp_options['n_k']
+    N_SAM = nlp_options['SAM']['N']
+    d_SAM = nlp_options['SAM']['d']
+    regions_indices = struct_op.calculate_SAM_regions(nlp_options)
+
+
+    # for each micro-integration (region): Find how much the integral output has changed
+    diffs = []
+    for i in range(d_SAM):
+        # get the indices of the integral output for this region
+        region_indices = regions_indices[i]
+
+        # get the start and end output for this region
+        outputs_start_region = Integral_outputs['int_out', region_indices[0]]
+        outputs_end_region = Integral_outputs['int_out', region_indices[-1] + 1]
+        diff = outputs_end_region - outputs_start_region
+        diffs.append(diff)
+    diffs_micro = cas.horzcat(*diffs)
+
+    # get quadrature bs
+    from awebox.tools.sam_functionalities import CollocationIRK
+    macroIntegrator = CollocationIRK(
+        np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
+    _, A_macro, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b
+
+    # compute the offset from the diffs, for the micro-integrations from the A matrix
+
+    # lists to store the new integral outputs
+    int_out_vals_new = []
+
+    for i in range(d_SAM):
+        # get the indices of the integral output for this region
+        region_indices = regions_indices[i]
+
+        # remove offset, we recalcuate it below
+        offset_free_MX = cas.horzcat(*Integral_outputs['int_out', region_indices]) - Integral_outputs['int_out',region_indices[0]]
+
+        # compute the offset
+        stage_i_offset = N_SAM * diffs_micro@ A_macro[i,:].T - diffs[i]/2
+        int_out_val_new: cas.MX = stage_i_offset + offset_free_MX
+        int_out_vals_new.append(int_out_val_new)
+
+    # last region (reelin) offset by quadrature result
+    last_index = (regions_indices[-1][-1]+1)
+    reelin_indices = regions_indices[-1] + [last_index]
+    offset_free_MX_reelin = cas.horzcat(*Integral_outputs['int_out', reelin_indices]) - Integral_outputs['int_out',reelin_indices[0]]
+    stage_reelin_offset = N_SAM * diffs_micro@ b_macro.T
+    int_out_val_new_reelin = stage_reelin_offset + offset_free_MX_reelin
+
+    int_out_vals_new.append(int_out_val_new_reelin)
+
+    # combine int_out_vals_new
+    int_out_vals_new = cas.horzcat(*int_out_vals_new)
+    # int_out_vals_new = cas.reshape(int_out_vals_new, (int_out_vals_new.shape[0]*int_out_vals_new.shape[1], 1))
+
+    # "coll_int_out" just copy the old values
+    # TODO: (MAJOR TODO)
+    # coll_int_out_vals_new = 0*cas.vertcat(*[cas.vertcat(*Integral_outputs['coll_int_out',interval_index,:]) for interval_index in range(n_k)])
+
+    # sort in the fashion of the original structure (THIS IS A MESS)
+    integral_outputs_list_new = [int_out_vals_new[:,0]]
+    for interval_index in range(n_k):
+        for micro_stage_value in Integral_outputs['coll_int_out',interval_index,:]:
+            integral_outputs_list_new.append(micro_stage_value)
+        integral_outputs_list_new.append(int_out_vals_new[:,interval_index + 1])
+
+    # vertcat & put into structure
+    integral_outputs_list_new = cas.vertcat(*integral_outputs_list_new)
+    Integral_outputs_new = Integral_outputs_struct(integral_outputs_list_new)
+
+    return Integral_outputs_new
+
 
 def discretize(nlp_options, model, formulation):
 
@@ -357,6 +443,15 @@ def discretize(nlp_options, model, formulation):
     Integral_outputs_struct = setup_integral_output_structure(nlp_options, model.integral_outputs)
     Integral_outputs = Integral_outputs_struct(cas.vertcat(*Integral_outputs_list))
     Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [cas.vertcat(*Integral_outputs_list)])
+
+    if nlp_options['SAM']['use'] and Integral_outputs.shape[0] > 0:
+        # ---------------------------------------------
+        # modify integral outputs for SAM
+        # ---------------------------------------------
+
+        Integral_outputs_new = modify_integral_outputs_for_SAM(nlp_options,Integral_outputs,Integral_outputs_struct)
+        Integral_outputs_fun = cas.Function('Integral_outputs_fun', [V, P], [Integral_outputs_new.cat])
+        Integral_outputs = Integral_outputs_new
 
     # Global outputs
     global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P)

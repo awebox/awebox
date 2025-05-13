@@ -302,7 +302,7 @@ class Collocation(object):
         number_of_integral_outputs_is_positive = (ni > 0)
         if number_of_integral_outputs_is_positive:
 
-            # constant term
+            # constant term (FROM THE LAST INTEGRATION INTERVAL, this follows from the loop in which this function is called)
             i0 =  model.integral_outputs(cas.vertcat(*Integral_outputs_list)[-ni:])
 
             # evaluate derivative functions
