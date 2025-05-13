@@ -13,6 +13,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 from typing import List, Dict
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
+from examples.paper_benchmarks.reference_options import set_reference_options
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -27,43 +28,39 @@ DUAL_KITES = False
 # here: single kite with 6DOF Ampyx AP2 model
 options = {}
 
-if DUAL_KITES:
-    from examples.paper_benchmarks import reference_options as ref
 
-    options = ref.set_reference_options(user='A')
-    options = ref.set_dual_kite_options(options)
-    options['solver.max_iter_hippo'] = 250
+options['user_options.system_model.architecture'] = {1: 0}
+# options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+options = set_reference_options(options)
+options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
 
-else:
-    options['user_options.system_model.architecture'] = {1: 0}
-    options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+# # indicate desired operation mode
+# # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
+# options['user_options.trajectory.type'] = 'power_cycle'
+# options['user_options.trajectory.system_type'] = 'lift_mode'
 
-# indicate desired operation mode
-# here: lift-mode system with pumping-cycle operation, with a one winding trajectory
-options['user_options.trajectory.type'] = 'power_cycle'
-options['user_options.trajectory.system_type'] = 'lift_mode'
-
-# indicate desired environment
-# here: wind velocity profile according to power-law
-options['params.wind.z_ref'] = 100.0
-options['params.wind.power_wind.exp_ref'] = 0.15
-options['user_options.wind.model'] = 'power'
-options['user_options.wind.u_ref'] = 10.
+#
+# # indicate desired environment
+# # here: wind velocity profile according to power-law
+# options['params.wind.z_ref'] = 100.0
+# options['params.wind.power_wind.exp_ref'] = 0.15
+# options['user_options.wind.model'] = 'power'
+# options['user_options.wind.u_ref'] = 10.
 
 # larger kite?
-bref = options['user_options.kite_standard']['geometry']['b_ref']
-mref = options['user_options.kite_standard']['geometry']['m_k']
-jref = options['user_options.kite_standard']['geometry']['j']
-kappa = 2.4
-b = 5.5
-options['user_options.kite_standard']['geometry']['b_ref'] = b
-options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
-    'ar']
-options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
-options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
-options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
-options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
-# options['user_options.trajectory.fixed_params'] = {'diam_t': 8e-3}
+# bref = options['user_options.kite_standard']['geometry']['b_ref']
+# mref = options['user_options.kite_standard']['geometry']['m_k']
+# jref = options['user_options.kite_standard']['geometry']['j']
+# kappa = 2.4
+# b = 5.5
+# options['user_options.kite_standard']['geometry']['b_ref'] = b
+# options['user_options.kite_standard']['geometry']['s_ref'] = b ** 2 / options['user_options.kite_standard']['geometry'][
+#     'ar']
+# options['user_options.kite_standard']['geometry']['c_ref'] = b / options['user_options.kite_standard']['geometry']['ar']
+# options['user_options.kite_standard']['geometry']['m_k'] = mref * (b / bref) ** kappa
+# options['user_options.kite_standard']['geometry']['j'] = jref * (b / bref) ** (kappa + 2)
+# options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fixed in the AmpyxAP2 problem, we free it again
+# # options['user_options.trajectory.fixed_params'] = {'diam_t': 8e-3}
 
 # print the just set options:
 # print(f"b_ref:{options['user_options.kite_standard']['geometry']['b_ref']}")
@@ -78,6 +75,8 @@ options['user_options.trajectory.fixed_params'] = {} # the tether diameter is fi
 # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
 # note: this may result in slightly slower solution timings
 options['nlp.compile_subfunctions'] = False
+# smooth the reel in phase (this increases convergence speed x10)
+options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 options['model.integration.method'] = 'constraints'  # use enery as a state, works better with SAM
 
 # indicate numerical nlp details
@@ -93,24 +92,23 @@ options['nlp.SAM.Regularization.AverageAlgebraicsThirdDeriv'] = 0*single_regular
 options['nlp.SAM.Regularization.SimilarMicroIntegrationDuration'] = 1E-2*single_regularization_param
 
 # Number of discretization points
-n_k = 10 * (options['nlp.SAM.d']) * 2
+n_k = 15 * (options['nlp.SAM.d']) * 2
 options['nlp.n_k'] = n_k
 
 # initialization
-options['solver.initialization.l_t'] = 150.
+# options['solver.initialization.l_t'] = 200.
 
 # model bounds
-options['model.system_bounds.x.dl_t'] = [-25.0, 20.0]  # [m/s]=
-options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
-options['model.system_bounds.x.q'] = [np.array([10, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])]  # [m]
+# options['model.system_bounds.x.dl_t'] = [-50.0, 20.0]  # [m/s]=
+# options['model.system_bounds.x.l_t'] = [10.0, 2500.0]  # [m]
+# options['model.system_bounds.x.q'] = [np.array([0, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])]  # [m]
 if DUAL_KITES:
     options['model.system_bounds.theta.t_f'] = [5, 10 * options['nlp.SAM.N']]  # [s]
 else:
     options['model.system_bounds.theta.t_f'] = [50, 150 + options['nlp.SAM.N'] * 30]  # [s]
 
 
-# smooth the reel in phase (this increases convergence speed x10)
-options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
+
 options['solver.linear_solver'] = 'ma27'
 options['visualization.cosmetics.interpolation.n_points'] = 100* options['nlp.SAM.N'] # high plotting resolution
 
@@ -119,7 +117,6 @@ trial = awe.Trial(options, 'DualKitesLongHorizon')
 trial.build()
 trial.optimize()
 
-trial.plot('constraints')
 
 
 # %% Postprocessing and plotting preparations
@@ -149,6 +146,24 @@ for key, value in cost_dict.items():
     if np.abs(val) > 1e-10:
         print(f'\t {key}:  {val:0.4f}')
 print('======================================')
+
+# %% plot integral states
+if options['model.integration.method'] != 'constraints':
+    import casadi as ca
+    e_opt = ca.vertcat(*trial.solution_dict['integral_output_vals']['opt']['int_out',:,'e']).full().flatten()
+    # betaI_opt = ca.vertcat(*trial.solution_dict['integral_output_vals']['opt']['int_out',:,'beta']).full().flatten()
+
+
+    plt.figure()
+    plt.plot(plot_dict_SAM['time_grids']['x'],e_opt,'o-')
+    # plt.plot(plot_dict_SAM['time_grids']['x'],betaI_opt,'o-')
+    plt.xlim([0,plot_dict_SAM['time_grids']['x'][-1]])
+    plt.ylim([0,np.max(e_opt)])
+    plt.show()
+
+# %% constraints
+trial.plot('constraints')
+
 
 # %% Plot Invariants
 import casadi as ca
@@ -193,7 +208,8 @@ t_ip = plot_dict_REC['time_grids']['ip']
 
 # decide which states to plot
 kite_name_to_plot = 'q21' if DUAL_KITES else 'q10'
-plot_states = [kite_name_to_plot, f'd{kite_name_to_plot}', 'l_t', 'dl_t', 'e']
+# plot_states = [kite_name_to_plot, f'd{kite_name_to_plot}', 'l_t', 'dl_t', 'e']
+plot_states = [kite_name_to_plot, f'd{kite_name_to_plot}', 'l_t', 'dl_t']
 
 for index, state_name in enumerate(plot_states):
     plt.subplot(3, 2, index + 1)

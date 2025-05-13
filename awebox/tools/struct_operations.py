@@ -441,9 +441,9 @@ def get_V_theta(V, nlp_numerics_options, k):
 def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
     """ Calculate the SAM region index of the interval index k.
     The integration horizon [0,nk] is divided into `n_tf` regions.
-        The first ~40% are reserved for the individual micro-integrations of the SAM scheme,
-        The last ~60% is reserved for the the reel-in phase.
-    Note that this 40/60 relation is also hardcoded in the initialization of the t_fs
+        The first ~50% are reserved for the individual micro-integrations of the SAM scheme,
+        The last ~50% is reserved for the the reel-in phase.
+    Note that this 50/50 relation is also hardcoded in the initialization of the t_fs
 
     : param nlp_options: dictionary with the nlp options e.g option['nlp']
     : param k: the integration interval index on the awebox grid
@@ -452,7 +452,7 @@ def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
     """
 
     n_k = nlp_options['n_k']  # the total number of integration intervals
-    n_k_ratio = 0.4 # the ratio of the number of intervals in the reel-out phase
+    n_k_ratio = 0.5 # the ratio of the number of intervals in the reel-out phase
     n_micros = nlp_options['SAM']['d']  # the number of micro-integrations
     n_regions = n_micros + 1  # the number of time-scaling regions
 
