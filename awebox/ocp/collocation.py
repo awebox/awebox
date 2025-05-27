@@ -440,7 +440,7 @@ class Collocation(object):
         t_grid_z = t_grid_x
 
         if ip_type == 'linear':
-            import pdb; pdb.set_trace()
+
             t_x_coll = time_grids_opt['coll'](T_opt)
             t_x_coll = [0.0] + cas.reshape(t_x_coll.T, t_x_coll.numel(), 1).full().squeeze().tolist()
             t_z_coll = t_x_coll
