@@ -105,6 +105,7 @@ def assemble_options_tree(options_tree, options, help_options):
 def assemble_system_parameter_dict(options, help_options):
 
     options['model']['params'] = options['params']
+    options['nlp']['params'] = options['params']
     options['solver']['initialization']['sys_params_num'] = options['params']
 
     return options, help_options
@@ -349,6 +350,8 @@ def build_quality_options(options, options_tree):
 def build_formulation_options(options, help_options, user_options, options_tree, architecture):
 
     options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'formulation')
+
+    options_tree.append(('formulation', None, None, 'phase_fix', user_options['trajectory']['lift_mode']['phase_fix'], ('phase fix type', None),'x'))
 
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
