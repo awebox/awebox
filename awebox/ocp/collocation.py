@@ -143,7 +143,7 @@ class Collocation(object):
 
         return None
 
-    def build_interpolator(self, nlp_params, V, integral_outputs = None, symbolic_interpolator = False, time_grids = None):
+    def build_interpolator(self, nlp_params, V, integral_outputs = None, time_grids_opt = None, T_opt = None, symbolic_interpolator = False, time_grids = None,  ip_type = 'collocation'):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -186,7 +186,7 @@ class Collocation(object):
         
         else:
 
-            self.__construct_symbolic_integrator_funs(nlp_params, V, time_grids)
+            self.__construct_symbolic_integrator_funs(nlp_params, V, time_grids, time_grids_opt, T_opt, ip_type)
 
             def coll_interpolator(time_grid, var_type):
                 """Interpolating function
@@ -431,97 +431,144 @@ class Collocation(object):
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
-    def __construct_symbolic_integrator_funs(self, nlp_params, V, time_grids):
+    def __construct_symbolic_integrator_funs(self, nlp_params, V, time_grids, time_grids_opt, T_opt, ip_type = 'collocation'):
+
 
         # symbolic input time grids
-        t_grid_x = cas.SX.sym('t_grid_x', *time_grids['x'].shape)
-        t_grid_u = cas.SX.sym('t_grid_u', *time_grids['u'].shape)
+        t_grid_x = cas.MX.sym('t_grid_x', *time_grids['x'].shape)
+        t_grid_u = cas.MX.sym('t_grid_u', *time_grids['u'].shape)
         t_grid_z = t_grid_x
 
-        # NLP data
-        n_k = nlp_params['n_k']
-        t_f = V['theta', 't_f']
+        if ip_type == 'linear':
 
-        # create conditional interpolation functions
-        function_list_x = []
-        function_list_u = []
-        function_list_z = []
+            t_x_coll = time_grids_opt['coll'](T_opt)
+            t_x_coll = [0.0] + cas.reshape(t_x_coll.T, t_x_coll.numel(), 1).full().squeeze().tolist()
+            t_z_coll = t_x_coll
+            t_u = time_grids_opt['u'](T_opt).full().squeeze().tolist()
 
-        tau = cas.SX.sym('tau')
-        for k in range(n_k):
+            sol_x = []
+            sol_z = []
+            sol_u = []
 
-            poly_vars = cas.horzcat(V['x', k], *V['coll_var', k, :, 'x'])
-            x = cas.mtimes(poly_vars, self.__coeff_fun(tau))
-            function_list_x.append(cas.Function('F_interp_x_{}'.format(k), [tau], [x]))
+            for k in range(nlp_params['n_k']):
+                if k == 0:
+                    sol_x.append(V['x', k].full().squeeze())
+                    sol_z.append(V['z', k].full())
 
-            poly_vars = cas.horzcat(*V['coll_var', k, :, 'z'])
-            z = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
-            function_list_z.append(cas.Function('F_interp_z_{}'.format(k), [tau], [z]))
+                for j in range(nlp_params['collocation']['d']):
+                    sol_x.append(V['coll_var', k, j, 'x'].full().squeeze())
+                    sol_z.append(V['coll_var', k, j, 'z'].full())
+                sol_u.append(V['u', k].full().squeeze())
 
-            if k < n_k - 1:
-                if nlp_params['collocation']['u_param'] == 'poly':
-                    poly_vars = cas.horzcat(*V['coll_var', k, :, 'u'])
-                    u = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
-                else:
-                    u = V['u', k]
-                function_list_u.append(cas.Function('F_interp_u_{}'.format(k), [tau], [u]))
+            vector_series_x = []
+            for idx in range(sol_x[0].shape[0]):
+                lut_x = cas.interpolant('LUT','linear',[t_x_coll],[sol_x[k][idx] for k in range(len(sol_x))])
+                vector_series_x.append(cas.horzcat(*[lut_x(t_grid_x[k]) for k in range(t_grid_x.shape[0])]))
+            vector_series_x = cas.vertcat(*vector_series_x)
 
-        F_cond_x = cas.Function.conditional('F_cond_x', function_list_x, function_list_x[0])
-        F_cond_u = cas.Function.conditional('F_cond_u', function_list_u, function_list_u[0])
-        F_cond_z = cas.Function.conditional('F_cond_z', function_list_z, function_list_z[0])
+            vector_series_z = []
+            for idx in range(sol_z[0].shape[0]):
+                lut_z = cas.interpolant('LUT','linear',[t_z_coll],[sol_z[k][idx] for k in range(len(sol_z))])
+                vector_series_z.append(cas.horzcat(*[lut_z(t_grid_z[k]) for k in range(t_grid_z.shape[0])]))
+            vector_series_z = cas.vertcat(*vector_series_z)
 
-        # find time interval function
-        t = cas.SX.sym('t')
-        if t_f.shape[0] == 2: # single_reelout phase fix
+            vector_series_u = []
+            for idx in range(sol_u[0].shape[0]):
+                lut_u = cas.interpolant('LUT','linear',[t_u],[sol_u[k][idx] for k in range(len(sol_u))])
+                vector_series_u.append(cas.horzcat(*[lut_u(t_grid_u[k]) for k in range(t_grid_u.shape[0])]))
+            vector_series_u = cas.vertcat(*vector_series_u)
 
-            n_k_reelout = round(n_k * nlp_params['phase_fix_reelout'])
-            t_switch = t_f[0] * n_k_reelout / n_k
+            self.__sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t_grid_x], [vector_series_x])
+            self.__sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t_grid_u], [vector_series_u])
+            self.__sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t_grid_z], [vector_series_z])
 
-            # if in reel-out
-            kdx = cas.floor(t/t_f[0]*n_k)
-            tau = t/t_f[0]*n_k - kdx
-            F_find_interval_1 = cas.Function('F_find_interval1', [t], [kdx, tau])
-            
-            # if in reel-in
-            kdx_ri = cas.floor((t - t_switch)/t_f[1]*n_k)
-            kdx = n_k_reelout + kdx_ri
-            tau = (t - t_switch)/t_f[1]*n_k - kdx_ri
-            F_find_interval_2 = cas.Function('F_find_interval1', [t], [kdx, tau])
 
-            # conditional function
-            F_find_interval_cond = cas.Function.conditional('F_find_interval_cond', [F_find_interval_2, F_find_interval_1], F_find_interval_1)
-            in_reel_out_phase = cas.le(t, t_switch)
-            [kdx, tau] = F_find_interval_cond(in_reel_out_phase, t)
-            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+        elif ip_type == 'collocation':
 
-        else: # simple phase fix
-            kdx = cas.floor(t/t_f*n_k)
-            tau = t/t_f*n_k - kdx
-            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+            # NLP data
+            n_k = nlp_params['n_k']
+            t_f = V['theta', 't_f']
 
-        # evaluate interpolation on symbolic time grid
-        vector_series_x = []
-        for k in range(t_grid_x.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_x[k])
-            vector_series_x.append(F_cond_x(kdx, tau))
-        vector_series_x = cas.horzcat(*vector_series_x)
+            # create conditional interpolation functions
+            function_list_x = []
+            function_list_u = []
+            function_list_z = []
 
-        vector_series_z = []
-        for k in range(t_grid_z.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_z[k])
-            vector_series_z.append(F_cond_z(kdx, tau))
-        vector_series_z = cas.horzcat(*vector_series_z)
+            tau = cas.SX.sym('tau')
+            for k in range(n_k):
 
-        vector_series_u = []
-        for k in range(t_grid_u.shape[0]):
-            [kdx, tau] = F_find_interval(t_grid_u[k])
-            vector_series_u.append(F_cond_u(kdx, tau))
-        vector_series_u = cas.horzcat(*vector_series_u)
+                poly_vars = cas.horzcat(V['x', k], *V['coll_var', k, :, 'x'])
+                x = cas.mtimes(poly_vars, self.__coeff_fun(tau))
+                function_list_x.append(cas.Function('F_interp_x_{}'.format(k), [tau], [x]))
 
-        # create functions
-        self.__sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t_grid_x], [vector_series_x])
-        self.__sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t_grid_u], [vector_series_u])
-        self.__sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t_grid_z], [vector_series_z])
+                poly_vars = cas.horzcat(*V['coll_var', k, :, 'z'])
+                z = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
+                function_list_z.append(cas.Function('F_interp_z_{}'.format(k), [tau], [z]))
+
+                if k < n_k - 1:
+                    if nlp_params['collocation']['u_param'] == 'poly':
+                        poly_vars = cas.horzcat(*V['coll_var', k, :, 'u'])
+                        u = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
+                    else:
+                        u = V['u', k]
+                    function_list_u.append(cas.Function('F_interp_u_{}'.format(k), [tau], [u]))
+
+            F_cond_x = cas.Function.conditional('F_cond_x', function_list_x, function_list_x[0])
+            F_cond_u = cas.Function.conditional('F_cond_u', function_list_u, function_list_u[0])
+            F_cond_z = cas.Function.conditional('F_cond_z', function_list_z, function_list_z[0])
+
+            # find time interval function
+            t = cas.SX.sym('t')
+            if t_f.shape[0] == 2: # single_reelout phase fix
+
+                n_k_reelout = round(n_k * nlp_params['phase_fix_reelout'])
+                t_switch = t_f[0] * n_k_reelout / n_k
+
+                # if in reel-out
+                kdx = cas.floor(t/t_f[0]*n_k)
+                tau = t/t_f[0]*n_k - kdx
+                F_find_interval_1 = cas.Function('F_find_interval1', [t], [kdx, tau])
+                
+                # if in reel-in
+                kdx_ri = cas.floor((t - t_switch)/t_f[1]*n_k)
+                kdx = n_k_reelout + kdx_ri
+                tau = (t - t_switch)/t_f[1]*n_k - kdx_ri
+                F_find_interval_2 = cas.Function('F_find_interval1', [t], [kdx, tau])
+
+                # conditional function
+                F_find_interval_cond = cas.Function.conditional('F_find_interval_cond', [F_find_interval_2, F_find_interval_1], F_find_interval_1)
+                in_reel_out_phase = cas.le(t, t_switch)
+                [kdx, tau] = F_find_interval_cond(in_reel_out_phase, t)
+                F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+
+            else: # simple phase fix
+                kdx = cas.floor(t/t_f*n_k)
+                tau = t/t_f*n_k - kdx
+                F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+
+            # evaluate interpolation on symbolic time grid
+            vector_series_x = []
+            for k in range(t_grid_x.shape[0]):
+                [kdx, tau] = F_find_interval(t_grid_x[k])
+                vector_series_x.append(F_cond_x(kdx, tau))
+            vector_series_x = cas.horzcat(*vector_series_x)
+
+            vector_series_z = []
+            for k in range(t_grid_z.shape[0]):
+                [kdx, tau] = F_find_interval(t_grid_z[k])
+                vector_series_z.append(F_cond_z(kdx, tau))
+            vector_series_z = cas.horzcat(*vector_series_z)
+
+            vector_series_u = []
+            for k in range(t_grid_u.shape[0]):
+                [kdx, tau] = F_find_interval(t_grid_u[k])
+                vector_series_u.append(F_cond_u(kdx, tau))
+            vector_series_u = cas.horzcat(*vector_series_u)
+
+            # create functions
+            self.__sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t_grid_x], [vector_series_x])
+            self.__sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t_grid_u], [vector_series_u])
+            self.__sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t_grid_z], [vector_series_z])
 
         return None
 
