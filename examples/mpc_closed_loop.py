@@ -67,6 +67,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options['mpc.u_param'] = 'zoh'
     options['mpc.homotopy_warmstart'] = True
     options['mpc.terminal_point_constr'] = False
+    options['mpc.ip_type'] = 'linear'
 
     # simulation options
     options['sim.number_of_finite_elements'] = 20 # integrator steps within one sampling time
