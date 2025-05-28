@@ -401,11 +401,14 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
 
                 if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
                     
-                    for k in range(nlp.n_k):
+                    for k in range(nlp.n_k+1):
+                        V_bounds[bound_type][var_type, k, bound_name] = nlp.V_bounds[bound_type][var_type, k, bound_name]
                         if nlp.V_bounds[bound_type][var_type, k, bound_name] == model.options['params']['tether']['lb_dl_t_reelout']:
                             V_bounds[bound_type][var_type, k, bound_name] = scaled_value
 
-                        if 'coll_var' in list(nlp.V.keys()): # not the case for multiple shooting
+                        if 'coll_var' in list(nlp.V.keys()) and k < nlp.n_k: # not the case for multiple shooting
+                            for j in range(nlp.d):
+                                V_bounds[bound_type]['coll_var', k, j, var_type, bound_name] = nlp.V_bounds[bound_type]['coll_var', k, j, var_type, bound_name]
                             if nlp.V_bounds[bound_type]['coll_var', k, 0, var_type, bound_name] ==  model.options['params']['tether']['lb_dl_t_reelout']:
                                 V_bounds[bound_type]['coll_var', k, :, var_type, bound_name] = scaled_value
             else:
