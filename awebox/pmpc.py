@@ -443,7 +443,7 @@ class Pmpc(object):
         V_opt = awe.tools.struct_operations.si_to_scaled(V_pocp_si, self.__trial.model.scaling)
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
         tgrids_opt = self.__pocp_trial.nlp.time_grids
-        T_opt = self.__ref_dict['time_grids']['ip'][-1]
+        T_opt = V_pocp_si['theta', 't_f']
         self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
 
         return None
