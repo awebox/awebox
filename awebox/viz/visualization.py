@@ -51,8 +51,8 @@ import casadi as ca
 import casadi.tools as cas
 from awebox.tools.sam_functionalities import reconstruct_full_from_SAM, \
     originalTimeToSAMTime, CollocationIRK, constructPiecewiseCasadiExpression
-from ..opti import diagnostics
-from ..tools.struct_operations import calculate_SAM_regions, calculate_SAM_regionIndexArray, eval_time_grids_SAM
+from awebox.opti import diagnostics
+from awebox.tools.struct_operations import calculate_SAM_regions, calculate_SAM_regionIndexArray, eval_time_grids_SAM
 
 
 #todo: compare to initial guess for all plots as option
@@ -472,7 +472,7 @@ class VisualizationSAM(Visualization):
         :param V_plot_scaled: the scaled optimal variables solution
         """
 
-        N = 100  # number of points for the interpolation (more is not needed, since very little is happending)
+        N = 100  # number of points for the interpolation (more is not needed, since very little is happening)
 
         # undo scaling
         scaling = self.plot_dict['model_variables'](self.plot_dict['model_scaling'])

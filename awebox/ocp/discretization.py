@@ -59,10 +59,6 @@ def construct_time_grids(nlp_options) -> dict:
     :return: {'x': cas.Function, 'u': cas.Function, 'coll': cas.Function, 'x_coll': cas.Function}
     """
 
-
-    # assert nlp_options['phase_fix'] == 'single_reelout'
-    # assert nlp_options['discretization'] == 'direct_collocation'
-
     time_grids = {}
     nk = nlp_options['n_k']
     if nlp_options['discretization'] == 'direct_collocation':
@@ -81,7 +77,6 @@ def construct_time_grids(nlp_options) -> dict:
     # make symbolic time constants
     if nlp_options['SAM']['use']:
         tfsym = cas.SX.sym('tfsym', var_struct.get_number_of_tf(nlp_options))
-        # regions_indexes = struct_op.calculate_SAM_regions(nlp_options)
     elif nlp_options['phase_fix'] == 'single_reelout':
         tfsym = cas.SX.sym('tfsym',2)
         nk_reelout = round(nk * nlp_options['phase_fix_reelout'])

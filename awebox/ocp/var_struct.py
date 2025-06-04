@@ -108,7 +108,6 @@ def setup_nlp_v(nlp_options: dict, model: Model, coll_instance: collocation.Coll
     # generate structure
     return cas.struct_symMX(entry_list)
 
-    # print_op.print_variable_info('NLP', V)
 
 def construct_theta(nlp_options: dict, variables_dict: dict) -> cas.struct_symSX:
     """ Build the parameter struct for the NLP. The contents depend on the discretization method,

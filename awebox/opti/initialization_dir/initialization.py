@@ -155,10 +155,10 @@ def set_final_time(init_options, V_init, model, formulation, ntp_dict):
 
     # because there this is not an instance method, there are no global settings that we can access to find out that:
     # Do we use the SAM discretization?
-    use_average_model = V_init['theta', 't_f'].shape[0] >= 2
+    use_SAM = V_init['theta', 't_f'].shape[0] >= 2
 
-    # special options?
-    if use_average_model:
+    # special SAM initialization
+    if use_SAM:
         Nwindings = V_init['theta', 't_f'].shape[0]
 
         # ratio of intervals in the reel-out phase, make sure that this is the same as in calculate_SAM_regionIndex(...)

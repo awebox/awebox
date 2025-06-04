@@ -42,8 +42,7 @@ import collections
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.cached_functions as cf
-from ..mdl.model import Model
-
+from awebox.mdl.model import Model
 
 def get_general_regularization_function(variables):
 
@@ -467,7 +466,6 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-
     sam_reg_dict = find_SAM_regularization(nlp_options, V, xdot, model)
     # unpack the SAM regularization
     for key, value in sam_reg_dict.items():
@@ -483,8 +481,8 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     Compute the regularization cost to enforce the geometric assumptions of the Stroboscopy Average Method (SAM).
     This consists of penalizing:
         1. the first derivative of the average state
-        2. the (d-1)th derivative of the average state
-        3. the (d-1)th derivative of the algebraic variables
+        2. the third derivative of the average state
+        3. the third derivative of the algebraic variables (disabled by default)
         4. the similarity timescaling (period) of the micro-integrations
     here, d is the degree of the collocation scheme used for the SAM discretization (number of micro-integrations).
 

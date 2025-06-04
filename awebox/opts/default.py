@@ -293,13 +293,11 @@ def set_default_options(default_user_options, help_options):
 
         # average model options
         ('nlp', 'SAM', None, 'use', False, ('option to use average model [false]', None), 't'),
-        ('nlp', 'SAM', None, 'N', 2, ('number of "skipped" cycles [int]', None), 't'),
-        ('nlp', 'SAM', None, 'd', 1, ('number of microInts (cycles)', None), 't'),
+        ('nlp', 'SAM', None, 'N', 10, ('number of "skipped" cycles [int]', None), 't'),
+        ('nlp', 'SAM', None, 'd', 3, ('number of microInts (cycles)', None), 't'),
         ('nlp', 'SAM', None, 'ADAtype', 'CD', ('type of the average dynamics approximation', ['FD','BD','CD']), 't'),
         ('nlp', 'SAM', None, 'MaInt_type', 'legendre', ('type of macro integration coll', ['legendre','radau']), 't'),
-        # ('nlp', 'SAM', None, 'n_k_ratio', 0.5, ('Percentage of the n_k intervals that are in the (SAM) reel-out phase', [0.4,0.6]), 't'),
         ('nlp', 'SAM', None, 'flag_SAM_reconstruction', False, ('if true, the variables are reconstructed from an SAM solution', None), 't'),
-
 
         #averager moel regularization
         ('nlp', 'SAM', 'Regularization', 'AverageStateFirstDeriv', 1, ('regularization factor the first derivative of the average state trajectory', None), 't'),

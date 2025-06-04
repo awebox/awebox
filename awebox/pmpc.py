@@ -116,7 +116,7 @@ class Pmpc(object):
         self.__trial.nlp.build(self.__trial.options['nlp'], self.__trial.model, self.__trial.formulation)
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
-        # remove state constraints at k = 0 (TODO SAM: NO, REMOVE FOR ALL)
+        # remove state constraints at k = 0
         self.__trial.nlp.V_bounds['lb']['x',:] = - np.inf
         self.__trial.nlp.V_bounds['ub']['x',:] = np.inf
         if self.__mpc_options['terminal_point_constr']:
