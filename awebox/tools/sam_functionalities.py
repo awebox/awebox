@@ -34,10 +34,13 @@ from typing import List
 import casadi as ca
 import casadi.tools as cas
 import numpy as np
+from casadi import tools as cas
+
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 from awebox.mdl.model import Model
 from awebox.ocp.collocation import Collocation
+from awebox.tools import struct_operations as struct_op
 
 
 class CollocationIRK:
@@ -605,3 +608,88 @@ def originalTimeToSAMTime(nlpoptions,t_f_opt) -> ca.Function:
 
     return ca.Function('t_SAM', [t], [constructPiecewiseCasadiExpression(t, edges.tolist(), expressions)])
 
+
+def modify_integral_outputs_for_SAM(nlp_options, Integral_outputs: cas.struct_MX, Integral_outputs_struct: cas.struct_symMX) -> cas.struct_MX:
+    """
+    Modify the integral outputs for SAM. This function creates a new version of the integral outputs that now matches the SAM integration scheme.
+
+    :param nlp_options:
+    :param Integral_outputs: The existing MX expression structure as originally build by the awebox.
+     Structure holding 2 entries.
+      Order: [('int_out', 'coll_int_out')]
+      int_out = repeated([61]): {e: 1x1,beta_cost: 1x1}
+      coll_int_out = repeated([60, 4]): {e: 1x1,beta_cost: 1x1}
+    :param Integral_outputs_struct: The structure of the integral outputs, as defined by the awebox.
+    :return: a new structure casadi MX epxression with the intergral outputs
+    """
+
+    # ----
+    # Note Jakob: THE FOLLOWING IS A MESS and we only have to do this because we use MX instead of SX structures
+    # for the integral outputs. If we used SX structures we could create an empty expression structure and
+    # assign the modified values much more systematically, e.g. IntegralOutputs['int_out','e'] = ...
+    # Righ now, with MX, we have to carefully create a list and the put the whole list to the structure at once.
+    # ----
+
+    # lists to store the new integral outputs
+    int_out_vals_new = []
+
+    # get some parameters from options
+    n_k = nlp_options['n_k']
+    N_SAM = nlp_options['SAM']['N']
+    d_SAM = nlp_options['SAM']['d']
+    regions_indices = struct_op.calculate_SAM_regions(nlp_options)
+
+    # for each micro-integration (region): Find how much the integral output has changed
+    diffs = []
+    for i in range(d_SAM):
+        # get the indices of the integral output for this region
+        region_indices = regions_indices[i]
+
+        # get the start and end output for this region
+        outputs_start_region = Integral_outputs['int_out', region_indices[0]]
+        outputs_end_region = Integral_outputs['int_out', region_indices[-1] + 1]
+        diff = outputs_end_region - outputs_start_region
+        diffs.append(diff)
+    diffs_micro = cas.horzcat(*diffs)
+
+    # get quadrature bs
+    macroIntegrator = CollocationIRK(
+        np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
+    _, A_macro, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b
+
+    # compute the offset from the diffs, for the micro-integrations from the A matrix
+    for i in range(d_SAM):
+        # get the indices of the integral output for this region
+        region_indices = regions_indices[i]
+
+        # remove offset, we recalcuate it below
+        offset_free_MX = cas.horzcat(*Integral_outputs['int_out', region_indices]) - Integral_outputs['int_out',region_indices[0]]
+
+        # compute the offset
+        stage_i_offset = N_SAM * diffs_micro@ A_macro[i,:].T - diffs[i]/2
+        int_out_val_new: cas.MX = stage_i_offset + offset_free_MX
+        int_out_vals_new.append(int_out_val_new)
+
+    # last region (reelin) offset by quadrature result
+    last_index = (regions_indices[-1][-1]+1)
+    reelin_indices = regions_indices[-1] + [last_index]
+    offset_free_MX_reelin = cas.horzcat(*Integral_outputs['int_out', reelin_indices]) - Integral_outputs['int_out',reelin_indices[0]]
+    stage_reelin_offset = N_SAM * diffs_micro@ b_macro.T
+    int_out_val_new_reelin = stage_reelin_offset + offset_free_MX_reelin
+    int_out_vals_new.append(int_out_val_new_reelin)
+
+    # combine int_out_vals_new
+    int_out_vals_new = cas.horzcat(*int_out_vals_new)
+
+    # "coll_int_out" just copy the old values & sort in the fashion of the original structure
+    integral_outputs_list_new = [int_out_vals_new[:,0]]
+    for interval_index in range(n_k):
+        for micro_stage_value in Integral_outputs['coll_int_out',interval_index,:]:
+            integral_outputs_list_new.append(micro_stage_value)
+        integral_outputs_list_new.append(int_out_vals_new[:,interval_index + 1])
+
+    # vertcat & put into structure
+    integral_outputs_list_new = cas.vertcat(*integral_outputs_list_new)
+    Integral_outputs_new = Integral_outputs_struct(integral_outputs_list_new)
+
+    return Integral_outputs_new

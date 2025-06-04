@@ -40,8 +40,7 @@ def enforce_and_check_SAM_options(options, user_options):
 
     assert options['user_options']['trajectory']['type'] == 'power_cycle', 'SAM is only supported for power_cycle trajectory'
     assert options['user_options']['trajectory']['system_type'] == 'lift_mode', 'SAM is only supported for lift_mode system type'
-
-    assert options['model']['integration']['method'] == 'constraints', 'This is currently required for SAM'
+    # assert options['model']['integration']['method'] == 'constraints', 'This is currently required for SAM'
 
 
     # set the number of windings for the initialization
